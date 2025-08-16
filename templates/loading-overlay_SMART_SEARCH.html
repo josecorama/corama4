@@ -1,0 +1,43 @@
+<!-- loading-overlay_SMART_SEARCH.html -->
+<div id="loadingOverlaySmartSearch" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); z-index: 9999;">
+    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+        <div style="width: 150px; height: 150px; margin: 0 auto; display: flex; align-items: center; justify-content: center;">
+            <img id="loadingLogo" src="{{ url_for('static', filename='images/loadLogoFinal.png', v='1.1') }}" alt="Corama Logo" style="width: 140px; height: 140px; object-fit: contain;">
+        </div>
+        <p id="loadingText" style="color: white; font-size: 1.5rem;">Redirecting...</p>
+    </div>
+</div>
+
+<style>
+    /* ===== LOADING OVERLAY STYLES ===== */
+    
+    /* Logo Animation */
+    #loadingLogo {
+        width: 140px;
+        height: 140px;
+        object-fit: contain;
+        filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
+        animation: loadingSpin 2s linear infinite;
+    }
+    
+    @keyframes loadingSpin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    /* Text Animation */
+    #loadingText {
+        font-family: Arial, sans-serif;
+        font-size: 40px;
+        font-weight: bold;
+        color: #ffffff !important;
+        text-shadow: 0 0 10px rgba(0, 0, 128, 0.8);
+        margin-top: 20px;
+        animation: loadingPulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes loadingPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+</style>

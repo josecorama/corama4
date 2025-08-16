@@ -1,0 +1,166 @@
+/* ------------------ Smart Search Container Styles ------------------ */
+.smart-search-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    padding: 20px;
+    background-color: #f4f4f4;
+    border: 3px solid black; /* Stronger black border */
+    border-radius: 10px;
+    box-shadow: 4px 4px 10px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+}
+
+/* Black Borders Around Upload & Create Boxes */
+.upload-cs-box,
+.create-cs-box {
+    border: 3px solid black; /* Thicker black border */
+    padding: 20px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3); /* Shadow for better contrast */
+    text-align: center;
+}
+
+/* Button Spacing & Styling */
+.smart-search-container .go-button,
+.upload-cs-box .btn,
+.create-cs-box .btn {
+    width: 160px;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: 2px solid black;
+    border-radius: 5px;
+    background-color: #F67F00;
+    color: white;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+
+.smart-search-container .go-button:hover,
+.upload-cs-box .btn:hover,
+.create-cs-box .btn:hover {
+    background-color: #d85b02;
+    transform: scale(1.07);
+}
+
+.smart-search-container .go-button:active,
+.upload-cs-box .btn:active,
+.create-cs-box .btn:active {
+    background-color: #b34a00;
+    transform: scale(0.95);
+}
+
+/* Ensure Buttons Are Aligned */
+.top-5-button-container,
+.create-cs-button-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* ------------------ Responsive Fixes ------------------ */
+@media (max-width: 768px) {
+    .smart-search-container {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .upload-cs-box,
+    .create-cs-box {
+        width: 90%;
+        text-align: center;
+    }
+
+    .smart-search-container .form-control {
+        width: 100%;
+    }
+
+    .smart-search-container .go-button {
+        width: 100%;
+    }
+}
+
+
+
+/* ------------------ Fixing Create CS & Upload CS Alignment ------------------ */
+.top-5-button-container,
+.create-cs-button-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 200px; /* Ensuring both are same width */
+}
+
+/* Fixing Upload & Create CS Box Styles */
+.upload-cs-box,
+.create-cs-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid black; /* Thicker black border */
+    padding: 20px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3); /* Shadow for better contrast */
+    text-align: center;
+    width: 200px; /* Uniform width */
+}
+
+/* Ensure Font Awesome Icons Are Well Spaced */
+.upload-cs-box i,
+.create-cs-box i {
+    color: #F67F00;
+    font-size: 3rem; /* Make icons bigger */
+    margin-bottom: 15px; /* Space below icon */
+}
+
+/* Button Styling */
+.upload-cs-box .btn,
+.create-cs-box .btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: bold;
+    border: 2px solid black;
+    border-radius: 5px;
+    background-color: #F67F00;
+    color: white;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+    margin-top: 10px; /* Space between icon and button */
+}
+
+.upload-cs-box .btn:hover,
+.create-cs-box .btn:hover {
+    background-color: #d85b02;
+    transform: scale(1.07);
+}
+
+.upload-cs-box .btn:active,
+.create-cs-box .btn:active {
+    background-color: #b34a00;
+    transform: scale(0.95);
+}
+
+/* ------------------ Responsive Fixes ------------------ */
+@media (max-width: 768px) {
+    .top-5-button-container,
+    .create-cs-button-container {
+        width: 100%;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .upload-cs-box,
+    .create-cs-box {
+        width: 90%;
+        text-align: center;
+    }
+}

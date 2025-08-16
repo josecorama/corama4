@@ -1,0 +1,140 @@
+.contract-header {
+    background-color: #007BFF;
+    padding: 15px 0;
+}
+
+.contract-header h1 {
+    color: #FFFFFF;
+    font-size: 24px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.contract-details-card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.contract-title {
+    color: #222222;
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.contract-info p {
+    font-size: 16px;
+    color: #666666;
+    margin-bottom: 0.5rem;
+}
+
+.days-left {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.badge-success {
+    background-color: #28a745;
+    color: #000000; /* Change to black or another suitable color */
+    padding: 0.25em 0.4em;
+    font-size: 75%;
+    font-weight: 700;
+    border-radius: 0.25rem;
+}
+
+.contract-description h4,
+.additional-info h4 {
+    color: #333333;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.contract-description p {
+    font-size: 15px;
+    line-height: 1.5;
+    color: #444444;
+}
+
+.additional-info ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.additional-info li {
+    margin-bottom: 10px;
+}
+
+.additional-info a {
+    color: #007BFF;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.additional-info a:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+.action-buttons .btn {
+    margin-right: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+}
+
+.btn-success {
+    background-color: #28A745;
+    border-color: #28A745;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.btn-warning {
+    background-color: #FFC107;
+    border-color: #FFC107;
+    color: #333333;
+}
+
+.btn-warning:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+}
+
+.back-navigation .btn-find-opportunities {
+    background-color: #007BFF;
+    border-color: #007BFF;
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+.back-navigation .btn-find-opportunities:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+    color: #ffffff;
+    text-decoration: none;
+}
+
+@media (max-width: 768px) {
+    .contract-details-card {
+        padding: 1.5rem;
+    }
+
+    .contract-title {
+        font-size: 20px;
+    }
+
+    .action-buttons .btn {
+        width: 100%;
+        margin-right: 0;
+    }
+}

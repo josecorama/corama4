@@ -1,0 +1,112 @@
+.useButtonOrange {
+    background-color: #F67F00;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+    font-family: 'Jost', sans-serif;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.useButtonOrange:hover {
+    background-color: #f5b800; /* Cambia el color en hover */
+    transform: translateY(-3px); /* Efecto de levantar */
+    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15); /* Más sombras en hover */
+}
+
+
+
+/* ✅ NEW: Sleeker, smaller, tighter version of button */
+.btn-sow {
+    background-color: #5a8ca3;
+    color: #fff;
+    border: none;
+    font-size: 0.85rem;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-align: center;
+    font-weight: 500;
+    text-decoration: none;
+    line-height: 1.2;
+    display: inline-block;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.btn-sow:hover {
+    background-color: #4a7c93;
+    text-decoration: none;
+    color: #fff;
+}
+
+
+.useButtonLightBlue {
+    background-color: #6899b4;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1.0rem;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+    font-family: 'Jost', sans-serif;
+    font-weight: regular;
+    text-decoration: none;
+}
+
+.useButtonLightBlue:hover {
+    background-color: #69b5b5; /* Cambia el color en hover */
+    transform: translateY(-3px); /* Efecto de levantar */
+    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15); /* Más sombras en hover */
+}
+
+.useButtonDarkBlue {
+    background-color: #002f49;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
+    font-family: 'Jost', sans-serif;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.useButtonDarkBlue:hover {
+    background-color: #004747; /* Cambia el color en hover */
+    transform: translateY(-3px); /* Efecto de levantar */
+    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15); /* Más sombras en hover */
+}
+
+#uploadForm {
+    display: flex;
+    justify-content: center;
+    width: 100%; /* Makes sure it doesn't shrink */
+    margin-top: 10px; /* Adjust spacing if needed */
+}
+
+/* Optional: Specific fix for the button inside the form */
+.upload-btn {
+    width: auto; /* Ensures button width matches others */
+    display: inline-block; /* Prevents stretching */
+    min-width: 200px; /* Forces consistency */
+}
+
+.glow-effect {
+    box-shadow: 0 0 8px 2px #68B7DD, 0 0 16px 4px #2B6F98, 0 0 24px 8px #86e3f6;
+    animation: glowPulse 1.5s infinite alternate;
+}
+
+@keyframes glowPulse {
+    0% {
+        box-shadow: 0 0 8px 2px #68B7DD, 0 0 16px 4px #2B6F98, 0 0 24px 8px #86e3f6;
+    }
+    100% {
+        box-shadow: 0 0 16px 4px #86e3f6, 0 0 32px 8px #2B6F98, 0 0 48px 16px #68B7DD;
+    }
+}

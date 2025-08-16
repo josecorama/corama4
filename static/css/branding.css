@@ -1,0 +1,60 @@
+/* Import Jost font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap');
+
+/* General page styling */
+body {
+    font-family: 'Jost', sans-serif;
+    color: #55666D; /* General content color */
+    background-color: #F2F2F2; /* Light gray background */
+    margin: 0;
+    padding: 0;
+}
+
+/* Container Styling */
+.container {
+    max-width: 1200px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* General Text (Jost) */
+p, .content {
+    font-family: 'Jost', sans-serif; /* Ensure all content uses Jost */
+    color: #55666D; /* Main content color */
+    font-size: 1rem;
+}
+
+/* Buttons (without uppercase and underline) */
+.btn-primary, .btn-secondary {
+    text-transform: none; /* Remove uppercase */
+    text-decoration: none; /* Remove underline */
+    color: white; /* White text */
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-size: 1.1rem;
+    border: none;
+    transition: background-color 0.3s ease;
+}
+
+.btn-primary {
+    background-color: #6899B4 !important; /* Asegúrate de que el color naranja tenga prioridad */
+    color: white !important; /* Color de texto blanco */
+    border: none !important; /* Asegúrate de eliminar bordes si es necesario */
+    border-radius: 5px; /* Ajuste de borde redondeado */
+    padding: 10px 20px; /* Ajuste de padding */
+    font-size: 1.1rem; /* Tamaño de fuente consistente */
+    transition: background-color 0.3s ease; /* Suave transición al cambiar el color */
+}
+
+.btn-primary:hover {
+    background-color: #d85b02 !important; /* Color ligeramente más oscuro en hover */
+}
+
+
+.btn-secondary {
+    background-color: #6899B4; /* Lighter blue for secondary buttons */
+}
+
+.btn-secondary:hover {
+    background-color: #568aa4; /* Darker shade of lighter blue on hover */
+}

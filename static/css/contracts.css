@@ -1,0 +1,168 @@
+/* General Font */
+body {
+    font-family: 'Jost', sans-serif;
+}
+
+/* Capability Statement */
+.capability-statement {
+    font-size: 1.8rem;
+    color: #6899B4;
+    font-weight: bold;
+    margin-top: 0px;
+    margin-bottom: 10px;
+}
+
+/* Clementine Button */
+.btn-clementine {
+    background-color: #F67F00 !important;
+    color: white !important;
+    border: none;
+    text-transform: none;
+    font-weight: normal;
+    padding: 8px 16px;
+    border-radius: 5px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+.btn-clementine:hover {
+    background-color: #d85b02 !important;
+}
+
+/* Section Title */
+.section-title {
+    font-family: 'Jost', sans-serif;
+    font-size: 2rem;
+    font-weight: bold;
+    color: #F67F00;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+    text-align: center;
+    margin-top: 20px;
+}
+
+/* Contract Item */
+.contract-item {
+    max-width: 900px;
+    margin: 0 auto;
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.contract-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #F67F00;
+    margin-right: 15px;
+}
+
+.contract-details {
+    max-width: 75%;
+    display: flex;
+    flex-direction: column;
+}
+
+.bid-name {
+    font-size: 1.5rem;
+    color: #333333;
+    font-weight: bold;
+}
+
+.relevance-score {
+    font-size: 1.1rem;
+    color: #777777;
+}
+
+.relevance-score i {
+    color: #F67F00;
+    margin-right: 5px;
+}
+
+.bid-number {
+    font-size: 1rem;
+    color: #55666D;
+}
+
+/* Find More Opportunities Section */
+.find-opportunities-section {
+    background-color: white;
+    padding: 40px 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.scrollable-table-container {
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: auto; 
+}
+
+.table {
+    
+    width: 100%;
+    background-color: white;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+    border-radius: 8px;
+}
+
+.table th {
+    background-color: #F67F00;
+    color: white;
+    padding: 15px;
+    font-size: 1.1rem;
+}
+
+.table td {
+    padding: 15px;
+    color: #333333;
+    background-color: #f2f2f2;
+}
+
+/* Hover effect */
+.table-hover tbody tr:hover {
+    background-color: #ececec;
+}
+
+
+
+.select-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+}
+
+.btnSelectCustom {
+    display: inline-block;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+    background-color: #6899B4; /* Professional blue */
+    border-radius: 8px; /* Smooth rounded corners */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    transition: all 0.3s ease-in-out;
+    border: none;
+}
+
+/* Hover effect */
+.btnSelectCustom:hover {
+    background-color: #005F7F; /* Darker shade for hover */
+    box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Active effect */
+.btnSelectCustom:active {
+    background-color: #004B66;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+    transform: translateY(1px);
+}

@@ -1,0 +1,30 @@
+.custom-title {
+    font-size: 4rem; /* Larger font size to match the left side */
+    line-height: 1.2;
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.custom-subtitle {
+    font-size: 2.5rem; /* Slightly smaller but proportional font size */
+    line-height: 1.2;
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.custom-btn {
+    background-color: #ffcc66; /* Light orange color matching the image */
+    color: #003366; /* Dark blue text color */
+    border: none;
+    padding: 15px 30px;
+    font-size: 1.25rem; /* Adjusted button text size */
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.custom-btn:hover {
+    background-color: #ffb84d; /* Darker orange on hover */
+}

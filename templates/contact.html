@@ -1,0 +1,54 @@
+{% include 'head.html' %}
+<link rel="stylesheet" href="/static/CSS/buttonFormats.css">
+<style>
+    .basic-form {
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .basic-form label {
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #002f49;
+    }
+
+    .basic-form input,
+    .basic-form textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .basic-form button {
+        margin: 0 auto;
+        text-align: center;
+        cursor: pointer;
+    }
+</style>
+
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container main-container">
+
+        
+        <!-- Header Section -->
+        <section class="page-title-section text-center"> 
+            <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background">
+            <div class="container">
+                <h1 class="title">Contact:  info@corama.ai</h1>
+                <h2 class="subtitle"></h2>
+            </div>
+        </section>
+
+          
+
+    </div>
+    
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>

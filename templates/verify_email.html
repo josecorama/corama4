@@ -1,0 +1,68 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container">
+        <div class="text-center mb-4">
+            <h1 class="login-signup-title">Verify Your Email</h1>
+            <p>Enter your email and password to receive a verification link.</p>
+        </div>
+        <div class="row">
+            <div class="col-md-6 offset-md-3">
+                <form method="POST" action="{{ url_for('verify_email') }}" onsubmit="return validateForm()">
+                    <!-- Email Field -->
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            class="form-control" 
+                            name="email" 
+                            placeholder="Enter your email" 
+                            required>
+                    </div>
+
+                    <!-- Password Field -->
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            class="form-control" 
+                            name="password" 
+                            placeholder="Enter your password" 
+                            required>
+                    </div>
+
+                    <!-- Feedback Messages -->
+                    {% if message %}
+                        <div class="alert alert-success mt-4">{{ message }}</div>
+                    {% elif error %}
+                        <div class="alert alert-danger mt-4">{{ error }}</div>
+                    {% endif %}
+
+                    <!-- Submit Button -->
+                    <button class="btn btn-lg btn-primary btn-block" type="submit">Send Verification Email</button>
+                </form>
+
+                <div class="text-center mt-4">
+                    <p>Already verified? <a href="/login">Log in</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+    <script>
+        function validateForm() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            if (!email || !password) {
+                alert('Please enter your email and password.');
+                return false;
+            }
+            return true;
+        }
+    </script>
+</body>

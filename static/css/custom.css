@@ -1,0 +1,123 @@
+/* Estilos generales */
+body {
+    font-family: 'Jost', sans-serif; /* Asegúrate de usar 'Jost' como fuente */
+    overflow-x: hidden; /* Prevenir desplazamiento horizontal */
+}
+
+/* Card de contratos */
+.contract-card {
+    background-color: #F9F9F9;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    padding: 20px; /* Espaciado interno para dar un aspecto más limpio */
+}
+
+.contract-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.contract-card .card-title {
+    color: #222222;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.contract-card .contract-details {
+    color: #666666;
+    font-size: 0.9rem;
+}
+
+.contract-card .badge {
+    font-size: 0.85rem;
+}
+
+.contract-card .match-percentage .badge,
+.contract-card .badge-primary {
+    font-size: 0.9rem;
+    font-weight: bold;
+    padding: 0.35em 0.65em;
+    color: #004d00;  /* Texto verde oscuro */
+    background-color: #a3ffb2;  /* Fondo verde claro */
+    border: 1px solid #28A745;  /* Borde verde */
+}
+
+.contract-card .btn-success {
+    background-color: #28A745;
+    border-color: #28A745;
+    transition: all 0.3s ease;
+}
+
+.contract-card .btn-success:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+/* Sección de filtros */
+.filter-section {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 30px 0;
+}
+
+.filter-title {
+    color: #333;
+    font-size: 1.5rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+}
+
+.filter-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.filter-select {
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 10px 15px;
+    font-size: 0.9rem;
+    color: #495057;
+    background-color: #fff;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.filter-select:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.filter-apply-btn {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #fff;
+    font-weight: 500;
+    padding: 10px 20px;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+.filter-apply-btn:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+    .filter-container {
+        padding: 15px;
+    }
+    
+    .filter-select, .filter-apply-btn {
+        margin-bottom: 10px;
+    }
+}

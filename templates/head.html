@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.2.3/dist/zephyr/bootstrap.min.css">
+
+    <!-- Custom CSS for page titles (pagetitle.css) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/pagetitle.css') }}">
+
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{{ url_for('static', filename='images/logo.png') }}">
+
+    <!-- Google Fonts (Jost, Orbitron, Roboto) -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400..900&family=Roboto:wght@400;500&family=Jost:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" crossorigin="anonymous">
+
+    <!-- App specific CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/landingpage.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/ourteam.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/businessplan.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/busiesspartner.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/success.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/index.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/footer.css') }}"> 
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/home.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/contracts.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/blog.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/buttonFormats.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/faq.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/membershipstatus.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/form.css') }}">
+
+
+    <!-- Branding CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/branding.css') }}">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/custom.css') }}">
+
+    <!-- Success CSS (Make sure it's the last stylesheet loaded) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='CSS/success.css') }}">
+
+
+    <!-- Additional custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
+
+    <!-- CSS personalizado para Welcome -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}">
+
+    <!-- Default title -->
+    <title>{{ title | default('CORAMA.ai') }}</title>
+</head>

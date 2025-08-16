@@ -1,0 +1,91 @@
+<!-- login.html -->
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="text-center mb-4">
+      <br>
+      <!-- Añadimos el contenedor con las mismas clases de Bootstrap para ancho -->
+      <div class="row">
+          <div class="col-md-6 offset-md-3">
+            <h1 class="login-signup-title">LOG IN</h1>
+          </div>
+      </div>
+  </div>
+  <br>
+
+    <div class="container">
+      <div class="row">
+          <div class="col-md-6 offset-md-3">
+              {% if error %}
+                  <div class="alert alert-danger text-center" role="alert">
+                      {{ error }}
+                  </div>
+              {% endif %}
+              
+              <form method="POST" action="{{ url_for('Login') }}">
+                  <div class="form-group">
+                      <input type="email" class="form-control" name="email" placeholder="Email" required autofocus>
+                  </div>
+                  <br>
+                  <div class="form-group position-relative">
+                      <input type="password" class="form-control" name="password" id="password" placeholder="Password" required>
+                      <span class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;" onclick="togglePasswordVisibility()">
+                          <i id="togglePasswordIcon" class="fas fa-eye"></i>
+                      </span>
+                  </div>
+                  <br>
+                  <button class="btn btn-lg btn-block custom-login-btn" type="submit">Log in</button>
+
+                    <style>
+                    .custom-login-btn {
+                        background-color: #6899b4;
+                        border-color: #5a8aa4;
+                        color: white;
+                    }
+                    </style>
+
+              </form>
+  
+              <div class="text-center mt-4">
+                  <p>Don't have an account? <a href="/signup">Sign up</a></p>
+
+                  <br>
+
+                  <p><a href="{{ url_for('reset_password') }}">Forgot your password?</a></p>
+              </div>
+  
+              
+          </div>
+      </div>
+  </div>
+  
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+    <script>
+      function togglePasswordVisibility() {
+          const passwordInput = document.getElementById("password");
+          const icon = document.getElementById("togglePasswordIcon");
+          
+          if (passwordInput.type === "password") {
+              passwordInput.type = "text";
+              icon.classList.remove("fa-eye");
+              icon.classList.add("fa-eye-slash");
+          } else {
+              passwordInput.type = "password";
+              icon.classList.remove("fa-eye-slash");
+              icon.classList.add("fa-eye");
+          }
+      }
+      </script>
+
+
+<script>
+    gtag('event', 'login_success', {
+      method: 'email_password'  // or 'google', 'firebase', etc.
+    });
+  </script>
+  
+      
+</body>

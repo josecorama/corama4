@@ -1,0 +1,85 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+        <!-- Header Section -->
+        <div class="container main-container">
+            <section class="page-title-section text-center" style="position: relative; padding: 30px 0; margin-bottom: 50px;">
+                <div class="container position-relative rounded overflow-hidden" style="height: 200px;">
+                    <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background"
+                        class="w-100 h-100 object-fit-cover rounded">
+                    <div class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center text-white">
+                        <h1 class="title">CORAMA Demo Videos </h1>
+                        
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div class="container py-5">
+    
+            <div class="d-flex flex-column align-items-center gap-4">
+    
+                <!-- Video Card 1 -->
+                <div class="card shadow-sm w-100" style="max-width: 960px;">
+                    <div class="row g-0 align-items-center">
+                        <div class="col-md-6 p-4">
+                            <h5 class="card-title">Demo Video 1</h5>
+                            <p class="card-text">This video showcases the first look at CORAMA's front-end capabilities, demonstrating layout flexibility, professional design, and responsive video integration.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ratio ratio-16x9">
+                                <iframe src="https://www.youtube.com/embed/xKqSwhC5G4A" 
+                                        title="CORAMA Demo Video 1" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowfullscreen></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Video Card 2 -->
+                <div class="card shadow-sm w-100" style="max-width: 960px;">
+                    <div class="row g-0 align-items-center">
+                        <div class="col-md-6 p-4">
+                            <h5 class="card-title">Demo Video 2</h5>
+                            <p class="card-text">In this second demo, we explore CORAMA's enhanced UI components, showcasing dynamic form controls and advanced user interactions.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ratio ratio-16x9">
+                                <iframe src="https://www.youtube.com/embed/coyYIWAKMEM" 
+                                        title="CORAMA Demo Video 2" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowfullscreen></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Video Card 3 -->
+                <div class="card shadow-sm w-100" style="max-width: 960px;">
+                    <div class="row g-0 align-items-center">
+                        <div class="col-md-6 p-4">
+                            <h5 class="card-title">Demo Video 3</h5>
+                            <p class="card-text">This final demo highlights CORAMA's responsiveness and flexibility, ensuring seamless viewing across devices and browsers.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="ratio ratio-16x9">
+                                <iframe src="https://www.youtube.com/embed/8IdppjMw_8g" 
+                                        title="CORAMA Demo Video 3" 
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                        allowfullscreen></iframe>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+    
+            </div>
+        </div>
+    
+
+ 
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>

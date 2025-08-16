@@ -1,0 +1,68 @@
+.success-section {
+    background-color: #002F49 !important;
+    padding: 60px 0 !important;
+    background-size: cover !important;
+    background-position: center !important;
+}
+
+.success-section .container {
+    color: white !important;
+}
+
+.success-section h1, .success-section h2 {
+    color: white !important;
+}
+
+.success-section p {
+    font-size: 1.1rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 1rem !important;
+}
+
+.success-section .btn {
+    text-transform: none !important; 
+}
+
+.success-text {
+    color: white !important; 
+    font-size: 1.1rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 1.2rem !important;
+}
+
+.success-section p {
+    color: white !important;
+    font-size: 1.1rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 1.2rem !important;
+}
+
+.success-section h1, .success-section h2 {
+    color: white !important;
+}
+
+
+.success-section .btn {
+    text-transform: none; 
+    font-family: 'Jost', sans-serif; 
+}
+
+.btn {
+    text-transform: none;
+    font-family: 'Jost', sans-serif; 
+}
+
+
+.success-section h1 {
+    text-align: center;
+}
+
+
+.success-section p {
+    text-align: justify;
+}
+
+.custom-button {
+    text-transform: none !important; 
+    font-family: 'Jost', sans-serif; 
+}

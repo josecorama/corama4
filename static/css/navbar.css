@@ -1,0 +1,125 @@
+/* Fondo general del cuerpo de la página */
+body {
+    font-family: 'Jost', sans-serif;
+    color: #55666D;
+    background-color: #F2F2F2;
+    margin: 0;
+    padding: 0;
+}
+
+/* Navbar ocupa todo el ancho de la pantalla */
+.navbar-custom {
+    width: 100%;
+    background-color: #ffffff;
+    padding: 0.5rem 1rem;
+    margin: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: none;
+}
+
+/* Estilo del logo en el navbar */
+.navbar-brand img {
+    max-height: 70px;
+    margin-right: 15px;
+}
+
+/* Estilo de los links en el navbar */
+.navbar-nav .nav-link {
+    font-family: 'Jost', sans-serif;
+    color: #55666D;
+    text-align: center;
+    padding: 0 15px;
+    transition: color 0.3s, font-weight 0.3s, text-decoration 0.3s; /* Transición suave */
+}
+
+/* Hover en los links: Negrita y subrayado */
+.navbar-nav .nav-link:hover {
+    color: #000;
+    font-weight: bold;
+    text-decoration: underline; /* Subrayado al hacer hover */
+}
+
+/* Link activo (cuando estás en esa página) */
+.navbar-nav .nav-item.active .nav-link {
+    color: #55666D;
+    font-weight: bold; /* Negrita cuando es la página activa */
+    text-decoration: underline; /* Subrayado cuando es la página activa */
+}
+
+/* Estilo del texto en el navbar */
+.navbar-text {
+    font-family: 'Jost', sans-serif;
+    color: #55666D;
+    text-align: center;
+    vertical-align: middle;
+    margin-right: 2rem;
+}
+
+/* Estilos para los botones */
+.navbar-buttons .btn-custom {
+    background-color: #6899B4;
+    border-color: #6899B4;
+    color: white;
+    text-transform: none;
+    margin-left: 10px;
+    padding: 6px 14px;
+    font-family: 'Jost', sans-serif;
+    font-size: 0.9rem;
+}
+
+.navbar-buttons .btn-custom:hover {
+    background-color: #56798D;
+}
+
+/* Ajustes responsivos para pantallas pequeñas */
+/* Allign dropdown menu items to the left*/
+@media (max-width: 991.98px) {
+    .navbar-collapse .navbar-nav .nav-item .nav-link {
+      text-align: left !important;
+    }
+  }
+
+/* Contenedor del título de la página con la imagen de fondo */
+.page-title-section {
+    position: relative;
+    padding: 30px 0;
+    margin-bottom: 50px;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;  /* Centra verticalmente */
+    height: 200px;        /* Asegura que la altura del contenedor coincida con la imagen */
+    background-color: transparent; /* Sin fondo para que se vea la imagen */
+}
+
+.page-title-section img {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: -1;
+    object-fit: cover;
+    border-radius: 25px;
+}
+
+/* Estilo para el título principal (h1) */
+.page-title-section h1 {
+    color: white;
+    font-family: 'Jost', sans-serif;
+    font-size: 2.5rem;
+    font-weight: 700;
+    z-index: 1;
+    margin-bottom: 10px;
+}
+
+/* Estilo para el subtítulo (h2) */
+.page-title-section h2 {
+    color: white !important;
+    font-family: 'Jost', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 500;
+    z-index: 1;
+}

@@ -1,0 +1,497 @@
+/*************************************
+  1) Imports & Fonts
+*************************************/
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Roboto:wght@400;500&display=swap");
+
+/*************************************
+  2) Base / Global
+*************************************/
+body {
+  font-family: "Roboto", sans-serif;
+  background-color: #f2f2f2;
+}
+
+.required::after {
+  content: " *";
+  color: red;
+}
+
+.form-control {
+  width: 100%;
+}
+
+.form-check-input {
+  margin-right: 5px;
+}
+
+.form-check-label {
+  margin-left: 5px;
+}
+
+.selected-description {
+  border: 2px solid blue !important;
+}
+
+/*************************************
+  3) Layout / Structural Styles
+*************************************/
+
+/*Social Media URL*/
+.input-group .form-control,
+.input-group .btn {
+  height: 40px;
+}
+
+/* Page Title Section */
+.page-title-section {
+  position: relative;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  margin-bottom: 2rem; /* space below the title section */
+}
+
+.page-title-background {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Card */
+.card {
+  background-color: #274a70;
+  border-radius: 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  height: 100%;
+}
+
+/* Card Header */
+.card-TitleHeader {
+  width: 100%;
+  padding: 20px;
+  color: white;
+  font-size: 50px;
+  text-align: center;
+  background-position: center;
+  border-radius: 15px 15px 0 0;
+  flex: 0 0 auto;
+  z-index: 0;
+}
+
+/* Form Container */
+.form {
+  background-color: #fff;
+  width: 100%;
+  max-width: 1350px;
+  padding: 25px;
+  border-radius: 15px;
+  z-index: 1;
+}
+
+/*************************************
+  4) Components & Elements
+*************************************/
+
+/* Form Title */
+.form-title {
+  color: white;
+  font-family: "Orbitron", sans-serif;
+  font-weight: bold;
+  font-size: 50px;
+  margin-bottom: 55px;
+}
+
+/* Form Group Labels */
+.form-group label {
+  font-weight: bold;
+  color: #55656d;
+}
+
+/* Buttons */
+
+#createPdfButton{
+  white-space: nowrap;
+}
+
+.btn-custom {
+  background-color: #e46c04;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 5px;
+  padding: 10px 20px;
+  transition: background-color 0.3s;
+}
+
+.btn-custom:hover {
+  background-color: #e46c04;
+}
+
+.btn-add {
+  background-color: #184064;
+  color: #fff;
+  font-weight: bold;
+  border-radius: 5px;
+  padding: 5px 10px;
+  margin-top: 10px;
+  transition: background-color 0.3s;
+  border-color: #184064;
+}
+
+.btn-add:hover {
+  background-color: #689ab5;
+}
+
+.btn-primary {
+  background-color: #e46c04;
+  border-color: #e46c04;
+}
+
+.btn-primary:hover {
+  background-color: #8a4204;
+  border-color: #8a4204;
+}
+
+/* Custom Select */
+.custom-select-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.custom-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.custom-select-trigger #selectedColor {
+  flex-grow: 1;
+  text-align: center;
+  }
+
+.custom-options {
+  position: absolute;
+  display: none;
+  flex-wrap: wrap;
+  width: 100%;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  z-index: 10;
+  margin-top: 5px;
+  padding: 10px;
+  box-sizing: border-box;
+  column-count: 3;
+  column-gap: 10px;
+}
+
+.custom-option {
+  display: inline-block;  
+  width: 100px; 
+  height: 50px;
+  margin: 5px 0;
+  cursor: pointer;
+  border-radius: 4px; 
+  border: 1px solid #ccc;
+}
+
+.custom-option:hover {
+  opacity: 0.8;
+  }
+
+.custom-select-trigger .arrow {
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #555;
+  margin-right: 5px;
+  }
+
+  
+
+/* Dropdown Menu */
+.dropdown-menu {
+  width: 300px;
+  height: auto;
+  max-height: 200px;
+  overflow-x: hidden;
+}
+
+/* No Code Message */
+.noCodeMessage {
+  display: block;
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 30px;
+  margin-top: 10px;
+  margin-left: 20px;
+  margin-right: 20px;
+  font-size: 17px;
+  color: #000;
+}
+
+/*************************************
+  5) Step Progress / Action Bar
+*************************************/
+
+/* Step Container */
+.step-container {
+  display: none;
+}
+
+.step-active {
+  display: block;
+}
+
+/* Action Bar Container */
+.action-bar-container {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+/* Action Bar */
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  margin: 20px 0;
+  padding: 0 20px;
+  width: 100%;
+}
+
+.action-bar::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: #f2f2f2;
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+/* Progress Fill */
+.action-bar .fill {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 4px;
+  background: #184064;
+  transform: translateY(-50%);
+  transition: width 0.4s ease;
+  z-index: 1;
+}
+
+/* Step Elements */
+.step {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  min-width: 100px;
+}
+
+.step .circle {
+  width: 40px;
+  height: 40px;
+  background: #55656d;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  line-height: 40px;
+  position: relative;
+  z-index: 2;
+}
+
+.step .label {
+  font-size: 13px;
+  color: #55656d;
+  font-weight: normal;
+  max-width: 100px;
+  margin-top: 15px;
+  line-height: 1.3;
+  text-align: center;
+  white-space: normal;
+}
+
+/* Current Step */
+.step.current .circle {
+  background: #e46c04;
+  width: 40px;
+  height: 40px;
+  font-size: 14px;
+  line-height: 40px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+.step.current .label {
+  color: #e46c04;
+  font-weight: bold;
+}
+
+/* Completed Step */
+.step.completed .circle {
+  background: #184064;
+}
+
+.step.completed .label {
+  color: #184064;
+}
+
+/*************************************
+  6) Specific Sections (NAICS / Certifications)
+*************************************/
+
+
+
+
+/* Competencies Checklist*/
+
+/* The wrapper that holds all the checkboxes */
+#competenciesChecklist {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Each checkbox+label pair in its own row */
+#competenciesChecklist .form-check {
+  display: flex; 
+  align-items: flex-start;
+  margin-bottom: 0.5rem; 
+}
+
+/* Spacing so label text doesn’t collide with the checkbox */
+#competenciesChecklist .form-check-input {
+  margin-right: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+/* Allow label text to wrap onto new lines */
+#competenciesChecklist .form-check-label {
+  white-space: normal;
+}
+
+
+
+/* NAICS Radio Buttons */
+.naics-question {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.naics-question label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.naics-question .form-check {
+  display: flex;
+  align-items: center;
+}
+
+/* Certifications Section */
+.certification-radio-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.certification-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.certification-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.certification-item .form-check-input {
+  width: 18px;
+  height: 18px;
+  accent-color: #184064;
+}
+
+/*************************************
+  7) Responsive Media Queries
+*************************************/
+
+/* Page Title & Step Layout Adjustments */
+@media (max-width: 768px) {
+  .page-title-section .title {
+    font-size: 2rem; /* smaller on tablets */
+  }
+  .page-title-section .subtitle {
+    font-size: 1.2rem;
+  }
+
+  .action-bar-container {
+    overflow-x: auto;
+    padding: 10px;
+  }
+
+  .action-bar {
+    width: max-content; /* keeps scrolling behavior on mobile */
+  }
+
+  .step {
+    min-width: 85px;
+  }
+
+  .step .circle {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .step .label {
+    font-size: 12px;
+    max-width: 80px;
+  }
+
+  #stepGeneralInformation .col-md-6 .form-group,
+  #stepGeneralInformation .col-md-6 .form-group label,
+  #stepGeneralInformation .col-md-6 .form-group small,
+  #stepGeneralInformation .col-md-6 .form-control,
+  #stepGeneralInformation .col-md-6 .form-control-file,
+  #stepGeneralInformation .col-md-6 .custom-select-trigger {
+    text-align: left !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .page-title-section .title {
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+  .page-title-section .subtitle {
+    font-size: 1rem;
+  }
+}

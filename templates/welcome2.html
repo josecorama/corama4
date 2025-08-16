@@ -1,0 +1,369 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
+    <!-- Your custom button / style definitions -->
+    <link rel="stylesheet" href="/static/CSS/buttonFormats.css">
+
+    <head>
+        <style>
+            /* 🔹 Reset default margin and padding */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Jost', sans-serif;
+            }
+
+            /* 🔹 Background section */
+            .background-section {
+                width: 100%;
+                height: 600px;
+                background: url('/static/images/bgGen.png') center/cover no-repeat;  
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+            }
+
+            /* 🔹 Wrapper to align items */
+            .container-wrapper {
+                display: flex;
+                justify-content: space-between;
+                width: 900px;
+                gap: 20px;
+            }
+
+            /* 🔹 Individual Boxes */
+            .container-box {
+                width: 280px;
+                height: 400px;
+                background: rgba(255, 255, 255, 0.8);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                justify-content: space-between;
+            }
+
+            .container-box img {
+                width: 70px;
+                height: 70px;
+                border-radius: 10px;
+                object-fit: cover;
+            }
+
+            .container-box h2 {
+                font-size: 20px;
+                font-weight: 700;
+                color: #002f49;
+                text-transform: uppercase;
+                margin-top: 15px;
+            }
+
+            .container-box p {
+                font-size: 18px;
+                font-weight: 400;
+                color: #55666d;
+                margin-top: 10px;
+                line-height: 1.5;
+                flex-grow: 1;
+            }
+
+            .container-box button {
+                margin-top: auto;
+                align-self: center;
+                width: 80%;
+                font-size: 1rem;
+                padding: 10px 20px;
+            }
+
+            /* 🔹 Responsive Design */
+            @media (max-width: 950px) {
+                .background-section {
+                    height: auto;
+                    padding: 40px 20px;
+                }
+
+                .container-wrapper {
+                    flex-direction: column;
+                    align-items: center;
+                    width: 100%;
+                }
+
+                .container-box {
+                    width: 90%;
+                    max-width: 320px;
+                    height: auto;
+                    padding: 15px;
+                }
+
+                .container-box img {
+                    width: 120px;
+                    height: 120px;
+                }
+
+                .container-box h2 {
+                    font-size: 20px;
+                }
+
+                .container-box p {
+                    font-size: 14px;
+                }
+
+                .container-box button {
+                    width: 100%;
+                    font-size: 0.9rem;
+                    padding: 8px 16px;
+                }
+            }
+
+            /* Loading overlay spinning effect */
+            .rotating {
+                animation: spin 2s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            /* 
+               🔹 Make the .btn-secondary in the modal footer the same size 
+               as your .useButtonLightBlue. 
+            */
+            .modal-footer .btn.btn-secondary {
+                padding: 10px 20px !important;  /* matches .useButtonLightBlue's padding */
+                font-size: 1rem !important;     /* matches .useButtonLightBlue's font-size */
+                border-radius: 5px !important;  /* adjust this if needed */
+            }
+        </style>
+    </head>
+
+    <!-- Header Section for "Welcome" -->
+    <div class="container main-container">
+        <section class="page-title-section text-center" style="position: relative; padding: 30px 0; margin-bottom: 50px;">
+            <div class="container" style="position: relative; border-radius: 25px; overflow: hidden; height: 200px;">
+                <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background"
+                    style="width: 100%; height: 100%; object-fit: cover; border-radius: 25px;">
+                <div class="container d-flex flex-column justify-content-center align-items-center"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                    <h1 class="title" style="color: white;">Welcome</h1>
+                    <h2 class="subtitle" style="color: white;">{{ company_name }}</h2>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- New Background Section with Three Containers -->
+    <section class="background-section">
+        <div class="container-wrapper">
+            
+
+            <!-- Container 3: Capability Statement Builder -->
+            <div class="container-box">
+                <img src="{{ url_for('static', filename='images/cs.png') }}" alt="Image 3">
+                <h2>Capability Statement Builder</h2>
+                <p>Create professional CS tailored to industry standards in minutes.</p>
+                <button class="useButtonLightBlue" onclick="window.location.href='/form'">Create</button>
+            </div>
+            <br>
+
+            <div class="container-box">
+              <img src="{{ url_for('static', filename='images/cs.png') }}" alt="Image 3">
+              <h2>Membership Status</h2>
+              <p>Upgrade your CORAMA membership</p>
+              
+              <!-- Dropdown for selecting the billing period -->
+              <select id="billingPeriod" class="form-select">
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="yearly">Yearly</option>
+              </select>
+          
+              <!-- Button to trigger upgrade -->
+              <button class="useButtonLightBlue" onclick="upgradeMembership()">
+                  Upgrade Membership
+              </button>
+          </div>
+          
+
+            
+        </div>
+    </section>
+
+   
+
+ 
+
+    
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+
+    <!-- Bootstrap JS Bundle (enables modals, etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery (if needed for other scripts) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script>
+        // Clear the CS Folder on page load
+        function clearCSFolder() {
+            $.ajax({
+                type: "POST",
+                url: "/clear_uploads",
+                success: function(response) {
+                    console.log('Response from server:', response);
+                    if(response.success) {
+                        console.log('Folder files cleared successfully');
+                    } else {
+                        console.error('Failed to clear the folder:', response.message);
+                    }
+                },
+                error: function(error) {
+                    console.log('Error:', error);
+                    console.error('Error clearing PDFs:', error.responseText);
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            clearCSFolder(); // Trigger the clear function when the page loads
+            
+            // --------- RESET CHECKBOXES ON PAGE REFRESH -----------
+            document.getElementById('federalCheckbox').checked = false;
+            document.getElementById('stateCheckbox').checked = false;
+            
+            document.querySelectorAll('input[name="states[]"]').forEach(checkbox => {
+              checkbox.checked = false;
+            });
+            
+            document.getElementById('stateCheckboxes').style.display = 'none';
+        });
+    </script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        
+        // Checkboxes for Federal / State
+        const federalCheckbox = document.getElementById('federalCheckbox');
+        const stateCheckbox = document.getElementById('stateCheckbox');
+        const stateSection = document.getElementById('stateCheckboxes');
+        const fileInput = document.getElementById('fileInput');
+
+        // Toggle the visibility of State checkboxes
+        function updateStateCheckboxesVisibility() {
+          if (stateCheckbox.checked) {
+            stateSection.style.display = 'block';
+          } else {
+            stateSection.style.display = 'none';
+          }
+        }
+
+        federalCheckbox.addEventListener('change', updateStateCheckboxesVisibility);
+        stateCheckbox.addEventListener('change', updateStateCheckboxesVisibility);
+        updateStateCheckboxesVisibility();
+
+        // ---------------------------------------------------------
+        //  RESET FILTERS WHEN THE MODAL IS CLOSED
+        // ---------------------------------------------------------
+        const filterModal = document.getElementById('filterModal');
+        filterModal.addEventListener('hidden.bs.modal', function () {
+          // Uncheck federal/state
+          federalCheckbox.checked = false;
+          stateCheckbox.checked = false;
+          stateSection.style.display = 'none';
+
+          // Uncheck all states
+          document.querySelectorAll('input[name="states[]"]').forEach(checkbox => {
+            checkbox.checked = false;
+          });
+          // Clear file input
+          fileInput.value = "";
+        });
+
+        // ---------------------------------------------------------
+        //  HANDLE APPLY & UPLOAD
+        // ---------------------------------------------------------
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        applyFiltersBtn.addEventListener('click', function() {
+          // Collect selected contract types
+          const selectedContractTypes = [];
+          if (federalCheckbox.checked) {
+            selectedContractTypes.push('federal');
+          }
+          if (stateCheckbox.checked) {
+            selectedContractTypes.push('state');
+          }
+
+          // Gather selected states
+          const selectedStates = [];
+          if (stateCheckbox.checked) {
+            document.querySelectorAll('input[name="states[]"]:checked').forEach(checkbox => {
+              selectedStates.push(checkbox.value);
+            });
+          }
+
+          // Ensure a file is selected
+          const file = fileInput.files[0];
+          if (!file) {
+            alert("Please select a PDF before uploading.");
+            return;
+          }
+
+          // Build FormData
+          const formData = new FormData();
+          formData.append('file', file);
+
+          selectedContractTypes.forEach(type => {
+            formData.append('contractTypes[]', type);
+          });
+
+          selectedStates.forEach(state => {
+            formData.append('states[]', state);
+          });
+
+          // Show loading overlay
+          document.getElementById('loadingOverlay').style.display = 'block';
+
+          // AJAX upload
+          fetch('/upload_and_process', {
+            method: 'POST',
+            body: formData
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              window.location.href = '/contracts';
+            } else {
+              alert('Error: ' + data.message);
+              document.getElementById('loadingOverlay').style.display = 'none';
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while uploading the file.');
+            document.getElementById('loadingOverlay').style.display = 'none';
+          });
+        });
+      });
+    </script>
+
+
+
+  <script>
+    function upgradeMembership() {
+        let billingPeriod = document.getElementById('billingPeriod').value;
+        window.location.href = `/upgrade_membership?billing_period=${billingPeriod}`;
+    }
+  </script>
+</body>

@@ -1,0 +1,72 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container-fluid main-container">
+
+        <!-- FAQ Header Section -->
+        <div class="container main-container">
+            <section class="page-title-section text-center">
+                <div class="container" style="position: relative; border-radius: 25px; overflow: hidden; height: 200px;">
+                    <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background"
+                        style="width: 100%; height: 100%; object-fit: cover; border-radius: 25px;">
+                    <div class="container d-flex flex-column justify-content-center align-items-center">
+                        <h1 class="title" style="color: white;">Frequently Asked Questions (FAQ)</h1>
+                        <h2 class="subtitle" style="color: white;">General Questions</h2>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+    
+
+        
+
+        <!-- Standard FAQ List -->
+        <section class="faq-list-section">
+            <div class="container">
+
+                <div class="faq-item">
+                    <h3 class="faq-question">What is CORAMA?</h3>
+                    <p class="faq-answer">CORAMA is a comprehensive data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts, and generating potential bid responses.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3 class="faq-question">How does CORAMA help my business?</h3>
+                    <p class="faq-answer"> CORAMA transforms months of searching for government contracts into just 20 seconds. It generates strong capability statements, matches you with relevant contracts, and creates compelling bid responses, significantly increasing your chances of securing contracts.</p>
+                </div>
+
+                
+
+
+                
+                <div class="faq-item">
+                    <h3 class="faq-question">What types of businesses can benefit from CORAMA?</h3>
+                    <p class="faq-answer">CORAMA is designed to help small businesses, especially those traditionally hesitant to engage in government dealings. It caters to various industries and focuses on enhancing accessibility and inclusivity in the public economy.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3 class="faq-question">How do I upload my capability statement to CORAMA?</h3>
+                    <p class="faq-answer">You can easily upload your capability statement through the CORAMA platform. If you don’t have one, CORAMA can help you create a strong capability statement using generative artificial intelligence.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3 class="faq-question">How does CORAMA match my business with relevant contracts?</h3>
+                    <p class="faq-answer">CORAMA uses advanced AI algorithms to analyze a wealth of historical winning bids, identifying crucial keywords and requirements. It matches your capability statement with real-time available contracts in your area.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3 class="faq-question">Can I generate bid responses directly on CORAMA?</h3>
+                    <p class="faq-answer">Yes, CORAMA generates structured bid responses that align with your objectives and effectively articulate your solutions, making the bidding process smoother and more efficient.</p>
+                </div>
+
+                <div class="faq-item">
+                    <h3 class="faq-question">If you have any other questions or need further assistance, please contact our support team at <a href="mailto:info@corama.ai">info@corama.ai</a></h3>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>

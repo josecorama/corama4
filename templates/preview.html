@@ -1,0 +1,83 @@
+{% include 'head.html' %}
+
+<body>
+    {% include 'navbar.html' %}
+
+    <section class="page-title-section text-center">
+        <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background" class="page-title-background">
+        <h1 class="title">Download Your Capability Statement</h1>
+    </section>
+
+    <div class="container py-5">
+        <div class="card text-center p-4">
+            
+            <!-- PDF Preview (Uncomment if needed) -->
+            <!-- 
+            <div id="pdf-preview" class="pb-4">
+                <iframe src="{{ url_for('static', filename=pdf_filename) }}" width="100%" height="600px"></iframe>
+            </div> 
+            -->
+
+            <div class="d-flex flex-column align-items-center" style="min-height: 300px;">
+
+         
+                <!-- Download Buttons -->
+                <div class="d-flex justify-content-center gap-4">
+                    <!-- Download PDF Button -->
+                    <form method="post" action="{{ url_for('download_pdf') }}">
+                        <input type="hidden" name="filename" value="{{ pdf_filename }}">
+                        <button type="submit" class="useButtonLightBlue">Download CS PDF</button>
+                    </form>
+
+                    <!-- Download Word Button -->
+                    <form method="post" action="{{ url_for('download_word') }}">
+                        <input type="hidden" name="filename" value="{{ pdf_filename }}">
+                        <button type="submit" class="useButtonLightBlue">Download CS Word</button>
+                    </form>
+                </div>
+
+
+                <br>
+
+                <!-- Upgrade Call-to-Action Section -->
+              <!-- Upgrade Call-to-Action Section -->
+                <div class="text-center mt-4 p-3 bg-light border rounded" style="max-width: 500px;">
+                    <h5 class="text-dark">Upgrade now and Find Government Contracts in Seconds!</h5>
+                    
+                    <div class="d-flex justify-content-center">
+
+                        <select id="billingPeriod" class="form-select">
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    
+                        <!-- Button to trigger upgrade -->
+                       
+                        <button class="useButtonLightBlue" onclick="upgradeMembership()">Upgrade Membership</button>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="text-center mt-4">
+                        <a href="/welcome" class="useButtonLightBlue">Go Back Home</a>
+                    </div>
+                </div>
+
+
+                
+
+            </div> <!-- Closing d-flex -->
+
+        </div> <!-- Closing card -->
+    </div> <!-- Closing container -->
+
+    <script>
+        function upgradeMembership() {
+            let billingPeriod = document.getElementById('billingPeriod').value;
+            window.location.href = `/upgrade_membership?billing_period=${billingPeriod}`;
+        }
+    </script>
+
+    {% include 'scripts.html' %}
+    {% include 'footer.html' %}
+</body>

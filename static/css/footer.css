@@ -1,0 +1,141 @@
+footer {
+    background-color: #002f49;
+    color: #fff !important;
+    width: 100vw; /* Ensure full width */
+    margin: 0;
+    padding: 0;
+    font-family: Jost, sans-serif;
+    display: block;
+}
+
+.footer-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    flex-wrap: nowrap; /* Keep horizontal layout */
+    text-align: center;
+}
+
+/* Sections */
+.footer-left, .footer-center, .footer-right {
+    flex: 1;
+    min-width: 0; /* Ensures sections shrink properly */
+    padding: 10px;
+    width: auto; /* Allow content to size naturally */
+    max-width: none;
+    margin-bottom: 0;
+}
+
+/* Increased logo size */
+.footer-left img {
+    max-height: 130px;
+    width: auto;
+}
+
+/* Center section */
+.footer-center {
+    text-align: center;
+}
+
+.footer-center h2 {
+    margin-bottom: 1rem;
+    font-size: 2.1rem;
+    color: #fff !important;
+}
+
+/* Social icons */
+.social-icons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+}
+
+.social-icons a {
+    color: #fff !important;
+    font-size: 1.9rem; 
+    transition: opacity 0.3s ease;
+}
+
+.social-icons a:hover {
+    color: #007BFF !important;
+    opacity: 0.9;
+}
+
+/* Right section */
+.footer-right {
+    text-align: center;
+    padding-bottom: 15px;
+    max-width: none;
+    width: auto;
+    margin: 0;
+}
+
+.footer-right p {
+    margin: 0.3rem 0;
+    font-size: 0.9rem; 
+    color: #fff !important;
+    line-height: 1.2; 
+}
+
+.footer-right a.useButtonLightBlue {
+    display: inline-block;
+    margin-top: 0.8rem;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .footer-container {
+        flex-wrap: nowrap;
+        justify-content: space-between;
+    }
+    .footer-right p {
+        font-size: 0.8rem; 
+    }
+    .footer-right a.useLightBlue {
+        display: inline-block;
+        margin: 0.5rem 0;
+        padding: 0.5rem 0.8rem;
+        font-size: 0.8rem;
+    }
+    .footer-center h2 {
+        font-size: 1.5rem; 
+    }
+    .social-icons a {
+        color: #fff !important;
+        font-size: 1.5rem; 
+        transition: opacity 0.3s ease;
+    }
+    
+}
+
+@media (max-width: 480px) {
+    .footer-container {
+        flex-direction: column; /* Stack elements only on mobile */
+        align-items: center;
+        gap: 5px;
+    }
+    .footer-left img {
+        max-height: 65px; /* Adjust logo size on mobile */
+    }
+    .footer-center h2 {
+        font-size: 1.3rem; /* Maintain size */
+    }
+    .social-icons a {
+        font-size: 1.4rem; /* Maintain size */
+    }
+    .footer-right p {
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    .footer-right a.useButtonLightBlue {
+        padding: 0.4rem 0.7rem;
+        font-size: 0.9rem;
+    }
+}

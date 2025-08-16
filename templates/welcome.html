@@ -1,0 +1,475 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    
+    <!-- Your custom button / style definitions -->
+    <link rel="stylesheet" href="/static/CSS/buttonFormats.css">
+
+    <head>
+        <style>
+            /* 🔹 Reset default margin and padding */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: 'Jost', sans-serif;
+            }
+
+            /* 🔹 Background section */
+            .background-section {
+                width: 100%;
+                height: 600px;
+                background: url('/static/images/bgGen.png') center/cover no-repeat;  
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+            }
+
+            /* 🔹 Wrapper to align items */
+            .container-wrapper {
+                display: flex;
+                justify-content: space-between;
+                width: 900px;
+                gap: 20px;
+            }
+
+            /* 🔹 Individual Boxes */
+            .container-box {
+                width: 280px;
+                height: 400px;
+                background: rgba(255, 255, 255, 0.8);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                justify-content: space-between;
+            }
+
+            .container-box img {
+                width: 70px;
+                height: 70px;
+                border-radius: 10px;
+                object-fit: cover;
+            }
+
+            .container-box h2 {
+                font-size: 20px;
+                font-weight: 700;
+                color: #002f49;
+                text-transform: uppercase;
+                margin-top: 15px;
+            }
+
+            .container-box p {
+                font-size: 18px;
+                font-weight: 400;
+                color: #55666d;
+                margin-top: 10px;
+                line-height: 1.5;
+                flex-grow: 1;
+            }
+
+            .container-box button {
+                margin-top: auto;
+                align-self: center;
+                width: 80%;
+                font-size: 1rem;
+                padding: 10px 20px;
+            }
+
+            .useButtonLightBlue{
+                white-space: nowrap;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 165px;
+            }
+
+            /* 🔹 Responsive Design */
+            @media (max-width: 950px) {
+                .background-section {
+                    height: auto;
+                    padding: 40px 20px;
+                }
+
+                .container-wrapper {
+                    flex-direction: column;
+                    align-items: center;
+                    width: 100%;
+                }
+
+                .container-box {
+                    width: 90%;
+                    max-width: 320px;
+                    height: auto;
+                    padding: 15px;
+                }
+
+                .container-box img {
+                    width: 120px;
+                    height: 120px;
+                }
+
+                .container-box h2 {
+                    font-size: 20px;
+                }
+
+                .container-box p {
+                    font-size: 14px;
+                }
+
+                .container-box button {
+                    width: 100%;
+                    font-size: 0.9rem;
+                    padding: 8px 16px;
+                }
+            }
+
+            /* Loading overlay spinning effect */
+            .rotating {
+                animation: spin 2s linear infinite;
+            }
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+
+            /* 
+               🔹 Make the .btn-secondary in the modal footer the same size 
+               as your .useButtonLightBlue. 
+            */
+            .modal-footer .btn.btn-secondary {
+                padding: 10px 20px !important;  /* matches .useButtonLightBlue's padding */
+                font-size: 1rem !important;     /* matches .useButtonLightBlue's font-size */
+                border-radius: 5px !important;  /* adjust this if needed */
+            }
+        </style>
+    </head>
+
+    <!-- Header Section for "Welcome" -->
+    <div class="container main-container">
+        <section class="page-title-section text-center" style="position: relative; padding: 30px 0; margin-bottom: 50px;">
+            <div class="container" style="position: relative; border-radius: 25px; overflow: hidden; height: 200px;">
+                <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background"
+                    style="width: 100%; height: 100%; object-fit: cover; border-radius: 25px;">
+                <div class="container d-flex flex-column justify-content-center align-items-center"
+                    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                    <h1 class="title" style="color: white;">Welcome</h1>
+                    <h2 class="subtitle" style="color: white;">{{ company_name }}</h2>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- New Background Section with Three Containers -->
+    <section class="background-section">
+        <div class="container-wrapper">
+            <!-- Container 1: Smart Search -->
+            <div class="container-box">
+                <img src="{{ url_for('static', filename='images/ss.png') }}" alt="Image 1">
+                <h2> AI SMART SEARCH</h2>
+                <p>Access thousands of government contracts in one place with smart filters to find your best match.</p>
+                <button class="useButtonLightBlue" onclick="window.location.href='/smartsearch'">Search</button> 
+            </div>
+
+            <!-- Container 2: Top 5 CONTRACTs with Modal Trigger -->
+            <div class="container-box">
+                <img src="{{ url_for('static', filename='images/t5.png') }}" alt="Image 2">
+                <h2>TOP 5 CONTRACTS</h2>
+                <p>Matches your capability statement with the best 5 contract opportunities.</p>
+                
+                <!-- Button triggers the modal -->
+                <button type="button" class="useButtonLightBlue" data-bs-toggle="modal" data-bs-target="#filterModal">
+                    Upload & Match
+                </button>
+            </div>
+
+            <!-- Container 3: Capability Statement Builder -->
+            <div class="container-box">
+                <img src="{{ url_for('static', filename='images/cs.png') }}" alt="Image 3">
+                <h2>Capability Statement Builder</h2>
+                <p>Create a professional capability statement tailored to industry standards in minutes.</p>
+                <button class="useButtonLightBlue" onclick="window.location.href='/form'">Create</button>
+            </div>
+            
+            <div class="container-box">
+              <img src="{{ url_for('static', filename='images/cs.png') }}" alt="Image 3">
+              <h2>Membership Status</h2>
+              <p>Check or cancel your CORAMA memebership.</p>
+              <button class="useButtonLightBlue" onclick="window.location.href='/membershipstatus'">Membership Status</button>
+            </div>
+            
+        </div>
+    </section>
+
+    <!-- Loading Overlay -->
+    {% include 'loading-overlay.html' %}
+
+    <div style="margin-bottom: 50px;"></div> 
+
+    
+    <!-- Prefilter Modal -->
+    <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+
+          <!-- Modal Header -->
+          <div class="modal-header">
+            <h5 class="modal-title" id="filterModalLabel">Select Your Filters</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <!-- Modal Body -->
+          <div class="modal-body">
+            <!-- Contract Type (Federal / State as checkboxes) -->
+            <div class="mb-3">
+              <label class="form-label">Contract Types:</label><br>
+                <!-- All Contracts -->
+                <div class="form-check form-check-inline">
+                  <input class="form-check-input" type="checkbox" id="allContractsCheckbox" value="All Contracts" name="contractTypes[]">
+                  <label class="form-check-label" for="allContractsCheckbox">All Contracts</label>
+                </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="federalCheckbox" value="federal" name="contractTypes[]">
+                <label class="form-check-label" for="federalCheckbox">Federal</label>
+              </div>
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" id="stateCheckbox" value="state" name="contractTypes[]">
+                <label class="form-check-label" for="stateCheckbox">State</label>
+              </div>
+            </div>
+
+            <!-- State Checkboxes (hidden by default, shown if "State" is checked) -->
+            <div id="stateCheckboxes" style="display: none;">
+              <p>Please select one or more states:</p>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="All state" id="allStateCheckbox" name="states[]">
+                <label class="form-check-label" for="allStateCheckbox">All States</label>
+              </div>
+
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="IL" id="checkIL" name="states[]">
+                <label class="form-check-label" for="checkIL">Illinois (IL)</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="IN" id="checkIN" name="states[]">
+                <label class="form-check-label" for="checkIN">Indiana (IN)</label>
+              </div>
+              <!-- Add more state checkboxes if needed -->
+            </div>
+            
+            <!-- File input for PDF -->
+            <div class="mt-3">
+              <label class="form-label">Capability Statement (PDF):</label>
+              <input type="file" class="form-control" id="fileInput" name="file" accept=".pdf">
+            </div>
+          </div> <!-- /modal-body -->
+
+          <!-- Modal Footer -->
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            <button type="button" class="useButtonLightBlue" id="applyFiltersBtn">Apply & Upload</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+
+    <!-- Bootstrap JS Bundle (enables modals, etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery (if needed for other scripts) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Custom Scripts -->
+    <script>
+        // Clear the CS Folder on page load
+        function clearCSFolder() {
+            $.ajax({
+                type: "POST",
+                url: "/clear_uploads",
+                success: function(response) {
+                    console.log('Response from server:', response);
+                    if(response.success) {
+                        console.log('Folder files cleared successfully');
+                    } else {
+                        console.error('Failed to clear the folder:', response.message);
+                    }
+                },
+                error: function(error) {
+                    console.error('Error clearing PDFs:', error.responseText);
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            clearCSFolder(); // Trigger the clear function when the page loads
+            
+            // --------- RESET CHECKBOXES ON PAGE REFRESH -----------
+            document.getElementById('federalCheckbox').checked = false;
+            document.getElementById('stateCheckbox').checked = false;
+            document.getElementById('allContractsCheckbox').checked = false;
+            document.querySelectorAll('input[name="states[]"]').forEach(function(chk) {
+                chk.checked = false;
+            });
+            document.getElementById('stateCheckboxes').style.display = 'none';
+        });
+    </script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+          // Elements for filter checkboxes and file input
+          const federalCheckbox = document.getElementById('federalCheckbox');
+          const stateCheckbox = document.getElementById('stateCheckbox');
+          const allContractsCheckbox = document.getElementById('allContractsCheckbox');
+          const stateSection = document.getElementById('stateCheckboxes');
+          const allStateCheckbox = document.getElementById('allStateCheckbox');
+          const fileInput = document.getElementById('fileInput');
+
+          // Toggle visibility of state checkboxes based on State checkbox
+          function updateStateCheckboxesVisibility() {
+              if (stateCheckbox.checked) {
+                  stateSection.style.display = 'block';
+              } else {
+                  stateSection.style.display = 'none';
+              }
+          }
+          stateCheckbox.addEventListener('change', updateStateCheckboxesVisibility);
+          updateStateCheckboxesVisibility();
+
+          // When "All Contracts" is checked, auto-check Federal & State and all state checkboxes
+          allContractsCheckbox.addEventListener('change', function() {
+              if (this.checked) {
+                  federalCheckbox.checked = true;
+                  stateCheckbox.checked = true;
+                  stateSection.style.display = 'block';
+                  document.querySelectorAll('input[name="states[]"]').forEach(function(chk) {
+                      chk.checked = true;
+                  });
+              }
+          });
+
+          // When "All States" is checked, auto-check all individual state checkboxes
+          allStateCheckbox.addEventListener('change', function() {
+              const stateCheckboxes = document.querySelectorAll('input[name="states[]"]');
+              if (this.checked) {
+                  stateCheckboxes.forEach(function(chk) {
+                      chk.checked = true;
+                  });
+              } else {
+                  stateCheckboxes.forEach(function(chk) {
+                      if(chk.id !== 'allStateCheckbox'){
+                          chk.checked = false;
+                      }
+                  });
+              }
+          });
+
+          // RESET FILTERS WHEN THE MODAL IS CLOSED
+          const filterModal = document.getElementById('filterModal');
+          filterModal.addEventListener('hidden.bs.modal', function () {
+              federalCheckbox.checked = false;
+              stateCheckbox.checked = false;
+              allContractsCheckbox.checked = false;
+              stateSection.style.display = 'none';
+              document.querySelectorAll('input[name="states[]"]').forEach(function(chk) {
+                  chk.checked = false;
+              });
+              fileInput.value = "";
+          });
+
+          // HANDLE APPLY & UPLOAD
+          const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+          applyFiltersBtn.addEventListener('click', function() {
+              const selectedContractTypes = [];
+              if (federalCheckbox.checked) {
+                  selectedContractTypes.push('federal');
+              }
+              if (stateCheckbox.checked) {
+                  selectedContractTypes.push('state');
+              }
+              if (allContractsCheckbox.checked) {
+                  selectedContractTypes.push('All Contracts');
+              }
+              const selectedStates = [];
+              if (stateCheckbox.checked) {
+                  document.querySelectorAll('input[name="states[]"]:checked').forEach(function(chk) {
+                      selectedStates.push(chk.value);
+                  });
+              }
+              const file = fileInput.files[0];
+              if (!file) {
+                  alert("Please select a PDF before uploading.");
+                  return;
+              }
+              const formData = new FormData();
+              formData.append('file', file);
+              selectedContractTypes.forEach(function(type) {
+                  formData.append('contractTypes[]', type);
+              });
+              selectedStates.forEach(function(state) {
+                  formData.append('states[]', state);
+              });
+              document.getElementById('loadingOverlay').style.display = 'block';
+              fetch('/upload_and_process', {
+                  method: 'POST',
+                  body: formData
+              })
+              .then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      window.location.href = '/contracts';
+                  } else {
+                      alert('Error: ' + data.message);
+                      document.getElementById('loadingOverlay').style.display = 'none';
+                  }
+              })
+              .catch(error => {
+                  console.error('Error:', error);
+                  alert('An error occurred while uploading the file.');
+                  document.getElementById('loadingOverlay').style.display = 'none';
+              });
+          });
+      });
+    </script>
+
+    <!-- Optional: Standalone listener for state checkbox (if needed) -->
+    <script>
+      document.getElementById('stateCheckbox').addEventListener('change', function() {
+          var stateDiv = document.getElementById('stateCheckboxes');
+          if (this.checked) {
+              stateDiv.style.display = 'block';
+          } else {
+              stateDiv.style.display = 'none';
+          }
+      });
+    </script>
+
+
+<script>
+    // Timer variables
+    let startTime = Date.now();
+  
+    // On page unload, calculate time spent and send it to GA
+    window.addEventListener("beforeunload", function () {
+      let timeSpent = Math.round((Date.now() - startTime) / 1000); // in seconds
+  
+      gtag('event', 'time_on_page_after_login', {
+        'time_spent_sec': timeSpent
+      });
+    });
+  </script>
+  
+</body>

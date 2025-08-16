@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+{% include 'head.html' %}
+<head>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" crossorigin="anonymous">
+    
+    <!-- Custom styles -->
+    <style>
+        /* --------------------- Custom Colors --------------------- */
+        .clementine {
+            color: #55889d !important; /* Clementine for text */
+        }
+        .btn-clementine {
+            background-color: #55889d !important; /* Clementine button */
+            color: #F2F2F2 !important; /* Opal text */
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 1rem;
+            width: 100%;
+        }
+        .btn-clementine:hover {
+            background-color: #55889d !important; /* Darken Clementine on hover */
+        }
+
+        /* Biscay Color Button */
+        .btn-biscay {
+            background-color: #002F49 !important;
+            color: #F2F2F2 !important;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-size: 1rem;
+            width: auto; /* Adjusted to fit content */
+        }
+        .btn-biscay:hover {
+            background-color: #13334A !important;
+        }
+
+        /* --------------------- Title Styling --------------------- */
+        .title-biscay {
+            color: #002F49 !important;
+            font-weight: 500;
+            font-size: 1.5rem;
+            text-align: center;
+            margin-bottom: 15px; /* More space below the title */
+        }
+
+        /* --------------------- Layout Styles --------------------- */
+        .full-height-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            padding-bottom: 20px; /* Space before footer */
+        }
+        .content-container {
+            max-width: 1200px; /* Adjust as needed */
+            margin: 0 auto; /* Center the content */
+            padding: 20px; /* Padding around content */
+            width: 100%;
+        }
+        .flex-grow-container {
+            display: flex;
+            gap: 15px; /* Space between Box 1 and Box 2 */
+            flex-wrap: wrap;
+            flex: 1; /* Allow flex-grow to take available space */
+        }
+        .response-wrapper {
+            flex: 1; /* Ensure both boxes take equal width */
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Increased shadow */
+            padding: 20px; /* More padding inside the box */
+            min-height: 600px; /* Increased box height */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Center the content */
+            align-items: center;
+        }
+
+        /* --------------------- Header Section --------------------- */
+        .header-section {
+            position: relative;
+            padding: 50px 0;
+            background: none;
+            text-align: center;
+        }
+        .header-section img {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            object-fit: cover;
+        }
+        .header-section h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3rem;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .header-section p {
+            color: #F67F00; /* Clementine for subtitle */
+            font-size: 1.25rem;
+            text-align: center;
+        }
+
+        /* --------------------- Contract Info --------------------- */
+        .contract-info {
+            text-align: center;
+            font-size: 1.2rem;
+            margin: 0px;
+            color: #FFFFFF !important;
+            font-weight: 400;
+        }
+
+        /* --------------------- Placeholder Text --------------------- */
+        .placeholder-title {
+            font-size: 1.5rem; /* Larger title */
+            color: lightgray;
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        .placeholder-text {
+            font-size: 1.1rem;
+            color: lightgray;
+            text-align: center;
+        }
+
+        /* --------------------- Message CORAMA and Go Button (Below Box 1) --------------------- */
+        .action-sections-container {
+            display: flex;
+            justify-content: space-between; /* Align the two parts horizontally */
+            width: 100%;
+            margin-top: 20px; /* Space below the boxes */
+        }
+
+        .message-corama-container {
+            display: flex;
+            width: 48%; /* Take up half the screen width */
+            align-items: center;
+            justify-content: space-between; /* Ensure space between input and button */
+        }
+        .message-corama-container .form-control {
+            width: 80%; /* Message CORAMA input takes 80% */
+        }
+        .go-button {
+            width: 15%; /* Go button takes 15% */
+        }
+
+        /* Download Docx Button (aligned below Box 2, horizontally with CORAMA input) */
+        .download-btn-container {
+            display: flex;
+            justify-content: flex-end; /* Align to the right */
+            align-items: center;
+            width: 48%; /* Same width as Message CORAMA input */
+        }
+        .download-btn-container .btn {
+            width: auto; /* Button is sized to its content */
+        }
+
+        /* --------------------- Bottom Buttons --------------------- */
+        /* Adjust space between the last three buttons and the Message CORAMA/Download section */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+            margin-top: 50px; /* Increased space from the Message CORAMA/Download section */
+        }
+
+        /* Reduce space between the last three buttons and the footer */
+        .spaced-buttons {
+            margin-bottom: 5px; /* Reduced space before the footer */
+        }
+
+
+        /* --------------------- Accessibility --------------------- */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        /* Styling for the buttons inside Box 1 */
+        .placeholder-buttons {
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically */
+            gap: 10px; /* Space between buttons */
+            margin-top: 15px; /* Space from "Ask CORAMA" title */
+        }
+
+        .placeholder-buttons .btn-light-gray {
+            background-color: #f0f0f0;
+            color: black;
+            border: none;
+            padding: 8px 18px;
+            text-align: center;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s ease;
+        }
+
+        .placeholder-buttons .btn-light-gray:hover {
+            background-color: #d3d3d3; /* Slightly darker on hover */
+        }
+
+
+        /* --------------------- Responsive Adjustments --------------------- */
+        @media (max-width: 768px) {
+            .flex-grow-container {
+                flex-direction: column;
+            }
+            .message-corama-container,
+            .download-btn-container {
+                width: 100%; /* Full width on smaller screens */
+            }
+            .download-btn-container .btn {
+                width: 100%; /* Full-width button on small screens */
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    {% include 'navbar.html' %}
+
+    <!-- Header Section -->
+    <div class="container main-container">
+        <section class="page-title-section text-center"> 
+            <div class="container"> <!-- Ensure this container properly limits the width -->
+                <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background">
+                <!-- Title and Subtitle Section -->
+                <h1 class="title">Scope of Work Station</h1>
+                <h2 class="subtitle">Your SOW, simplified</h2>
+            </div>
+        </section>
+    </div>
+   
+   
+    <!-- <div class="container text-center" style="background-color: #689AB5; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1); width: 91.25%; max-width: 1112.5px;">
+        <p style="text-align: justify;" class="contract-info">Contract:  <b>{{ contract.Bid_Name or contract['Bid Name'] or 'N/A' }} </b></p>
+        <p style="text-align: justify;" class="contract-info">Uploaded Capability Statement: <b>{{ capability_statement if capability_statement else 'No file uploaded' }}</b></p>
+    </div> -->
+
+    <!-- Message CORAMA Input and Go Button (Left half) -->
+   <div style="display: flex; justify-content: center; align-items: center; margin-top: 50px">
+        <div class="message-corama-container">
+            <input style= "height: 100px;" type="text" id="userQuery" class="form-control" placeholder="Message CORAMA...">
+            <button type="button" class="btn btn-clementine go-button" onclick="ask_question()" >Go</button>
+        </div>
+    </div>
+
+    <div class="text-center my-4">
+        <div class="d-flex flex-column flex-md-row justify-content-center gap-3">
+          <button class="btn btn-outline-secondary custom-btn" onclick="scopeofwork()">What is the Scope Of Work?</button>
+          <button class="btn btn-outline-secondary custom-btn" onclick="requestedServices()">Can you detail the requested services/products?</button>
+          <button class="btn btn-outline-secondary custom-btn" onclick="pointOfContact()">Who is the point of contact for bid inquiries?</button>
+        </div>
+      </div>
+      
+
+
+
+        
+   
+    <input type="hidden" id="company" value="{{ contract.Company or contract['Company'] or 'N/A' }}">
+    <input type="hidden" id="bidNumber" value="{{ contract.Bid_Number or contract['Bid_Number'] or 'N/A' }}">
+    <input type="hidden" id="bidName" value="{{ contract.Bid_Name or contract['Bid_Name'] or 'N/A' }}">
+    <input type="hidden" id="bidDescription" value="{{ contract.Bid_Description or contract['Bid_Description'] or 'N/A' }}">
+    <input type="hidden" id="category" value="{{ contract.Category or contract['Category'] or 'N/A' }}">
+    <input type="hidden" id="status" value="{{ contract.Status or contract['Status'] or 'N/A' }}">
+    <input type="hidden" id="dueDate" value="{{ contract.Due_Date or contract['Due_Date'] or 'N/A' }}">
+    <input type="hidden" id="detailLink" value="{{ contract.Detail_Link or contract['Detail_Link'] or 'N/A' }}">
+    <input type="hidden" id="euclideanDistance" value="{{ contract.Euclidean_Distance or contract['Euclidean_Distance'] or 'N/A' }}">
+    <input type="hidden" id="similarityScore" value="{{ contract.Similarity_Score or contract['Similarity_Score'] or 'N/A' }}">
+    <input type="hidden" id="analysisSummary" value="{{ contract.Analysis_Summary or contract['Analysis_Summary'] or 'N/A' }}">
+    <!-- Add hash-->
+    <input type="hidden" id="hashValue" value="{{ contract.Hash_value or contract['Hash_value'] or '' }}">
+
+    
+
+    <!-- Main Content Container -->
+    <div class="container full-height-container">
+        <div class="content-container">
+            <!-- Boxes Container -->
+            <div class="flex-grow-container">
+               
+                
+
+                            <!-- Box 2 (Right Column WHERE THE DATA IS LOADED AFTER THE BUTTON IS PRESSED ) -->
+                <div class="response-wrapper">
+                    <!-- Title inside Box 2 -->
+                    <h4 class="title-biscay"> CORAMA Response:</h4> <!-- Positioned at the top of Box 2 -->
+                    <br>
+                    <!-- Box 2 Content -->
+                    <div class="feedback-bot-response-area" id="modelResponse2" style="background-color: #f8f9fa; border-radius: 8px; padding: 15px; max-height: 400px; overflow-y: auto;">
+                        <!-- Dynamic Response Content will be injected here -->
+                    </div>
+                </div>
+
+            </div>
+
+               <!-- Message CORAMA Input + Go Button (Aligned with Download Button) -->
+                <div class="action-sections-container">
+                    <!-- Download Docs Button (Right half, below Box 2) -->
+                    <br> <!--required-->
+                    <button class="btn btn-biscay"  onclick="downloadDoc()">Download docx</button>
+                </div>
+
+            
+          
+
+            <br>
+
+               <!-- 'View on Official Website' Button -->
+               <div class="d-flex flex-column align-items-center text-center my-4">
+                <a href="{{ contract.Detail_Link or contract['Detail Link'] }}"
+                   class="useButtonLightBlue" target="_blank">
+                  View Contract Details on Official Website
+                </a>
+                <small class="third-party-note d-block mt-2">
+                  * This will take you to a third-party site.
+                </small>
+
+                <br>
+
+
+                <button class="useButtonLightBlue" onclick="window.history.back();">
+                    Go Back 
+                  </button>
+                  
+              </div>
+              
+          
+
+
+            
+
+            
+
+
+            
+        </div>
+
+       
+    </div>
+
+    
+
+   
+
+       
+   
+
+
+   
+
+    {% include 'footer.html' %}
+
+
+   
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js"></script>
+
+    <script>
+
+    function downloadDoc() {
+    var responseContent = document.getElementById('modelResponse2').innerText;
+
+    // 💡 UX improvement: Prevent download if response is empty
+    if (!responseContent.trim()) {
+        alert("No response generated yet. Please ask CORAMA first.");
+        return;
+    }
+
+    // Use hidden input fallback instead of DOM node
+    var contractName = document.getElementById('bidName')?.value || 'CORAMA Response';
+
+    var form = $('<form>', {
+        action: '/generate_docx',
+        method: 'POST',
+        style: 'display: none;'
+    });
+
+    $('<input>').attr({
+        type: 'hidden',
+        name: 'response_content',
+        value: responseContent
+    }).appendTo(form);
+
+    $('<input>').attr({
+        type: 'hidden',
+        name: 'contract_name',
+        value: contractName
+    }).appendTo(form);
+
+    form.appendTo('body').submit();
+}
+
+
+    function ask_question() {
+        // Retrieve the user query from the input field
+        var userQuery = document.getElementById('userQuery').value;
+
+        // Get contract details from hidden inputs
+        var company = document.getElementById('company').value;
+        var bidNumber = document.getElementById('bidNumber').value;
+        var bidName = document.getElementById('bidName').value;
+        var bidDescription = document.getElementById('bidDescription').value;
+        var category = document.getElementById('category').value;
+        var status = document.getElementById('status').value;
+        var dueDate = document.getElementById('dueDate').value;
+        var detailLink = document.getElementById('detailLink').value;
+        var euclideanDistance = document.getElementById('euclideanDistance').value;
+        var similarityScore = document.getElementById('similarityScore').value;
+        var analysisSummary = document.getElementById('analysisSummary').value;
+
+        // Prepare the contract details string
+        var contractDetails = `
+Company: ${company}
+Contract Name: ${bidName}
+Bid Number: ${bidNumber}
+Category: ${category}
+Status: ${status}
+Due Date: ${dueDate}
+Description: ${bidDescription}
+Link to Contract Details: ${detailLink}
+Summary Analysis: ${analysisSummary}
+        `;
+
+        // Append the contract details to the user's query
+        var dynamicPrompt = `${userQuery}\n\nHere are the relevant contract details for your reference:\n${contractDetails}`;
+
+        // Retrieve hashValue from the hidden input (or use a fallback)
+        var hashValue = document.getElementById('hashValue').value;
+        if (!hashValue) {
+            // Fallback: generate hashValue based on bidNumber and detailLink if not set
+            hashValue = btoa(detailLink + bidNumber).substring(0, 20);
+        }
+        console.log("hashValue:", hashValue); // Debug logging
+
+        // Prepare the feedback container and show a loading message
+        var modelResponseContent = document.querySelector('.feedback-bot-response-area');
+        modelResponseContent.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Generating Response... <i class="fa-solid fa-satellite-dish"></i>';
+
+        // Make the AJAX request to send the query along with contract details to the backend
+        $.ajax({
+            type: "POST",
+            url: "/ask_question",
+            data: { 
+                query: dynamicPrompt,
+                hash_value: hashValue
+            },
+            dataType: "json",      // Expecting a JSON response
+            timeout: 300000,       // Timeout in milliseconds (5 minutes)
+            success: function(response) {
+                // Format the response: replace newlines with paragraphs and format URLs
+                var formattedResponse = response.response.replace(/\n/g, '</p><p>')
+                    .replace(/https?:\/\/[^\s)]+/g, function(url) {
+                        return '<a href="' + reformatLink(url) + '" target="_blank">' + reformatLink(url) + '</a>';
+                    });
+                modelResponseContent.innerHTML = formattedResponse;
+            },
+            error: function(error) {
+                modelResponseContent.innerHTML = 'Error: ' + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.responseText);
+            }
+        });
+    }
+
+
+
+       
+
+// Helper function to format long URLs in responses
+    function reformatLink(url) {
+        // Check if the URL has any trailing parentheses or invalid characters
+        let cleanUrl = url.replace(/[)]+$/, ''); // Remove trailing ')' characters that may break the link
+        return cleanUrl.length > 50 ? cleanUrl.substring(0, 50) + '...' : cleanUrl;
+    }
+
+    function scopeofwork() {
+        // 获取hash_value，尝试多种方式
+        var urlParams = new URLSearchParams(window.location.search);
+        var hashValue = urlParams.get('hash_value');
+        console.log("URL参数:", Object.fromEntries(urlParams));
+        console.log("获取的hash_value:", hashValue);
+        
+        // 获取其他合同详情
+        var company = document.getElementById('company').value;
+        var bidNumber = document.getElementById('bidNumber').value;
+        var bidName = document.getElementById('bidName').value;
+        var bidDescription = document.getElementById('bidDescription').value;
+        var category = document.getElementById('category').value;
+        var status = document.getElementById('status').value;
+        var dueDate = document.getElementById('dueDate').value;
+        var detailLink = document.getElementById('detailLink').value;
+        var euclideanDistance = document.getElementById('euclideanDistance').value;
+        var similarityScore = document.getElementById('similarityScore').value;
+        var analysisSummary = document.getElementById('analysisSummary').value;
+
+        // Debugging: Print to console to verify
+        console.log({ company, bidNumber, bidName, bidDescription, category, status, dueDate, detailLink, euclideanDistance, similarityScore, analysisSummary });
+
+        // Prepare the feedback container
+        var modelResponseContent = document.querySelector('.feedback-bot-response-area');
+        modelResponseContent.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Generating... <i class="fa-solid fa-satellite-dish"></i>';
+
+        // Build the prompt dynamically using contract details
+        var dynamicPrompt = `Ignore all previous instructions. You are an experienced  in government contracts.
+        You are a senior contract analyst. Your task is to draft a clear and detailed Scope of Work (SOW) section for a professional services contract.
+
+        Goal: Define the responsibilities, deliverables, timelines, and expectations associated with the contract.
+
+        Instructions:
+        Return the Scope of Work using the following structure:
+
+        Project Overview: A high-level summary of what the project is and its purpose.
+
+        Objectives: What this contract aims to achieve.
+
+        Tasks & Deliverables: A detailed list of tasks to be performed and deliverables to be produced.
+
+        Timeline: Estimated duration or deadlines for key milestones.
+
+        Roles & Responsibilities: Specify who is responsible for what (client and contractor).
+
+        Assumptions & Constraints: Any known limitations or conditions.
+
+        Constraints:
+
+        Be clear and concise.
+
+        Do not include pricing or legal terms.
+
+        Use bullet points for deliverables and responsibilities.
+
+        Context: [
+        
+       
+        Contract Name: ${bidName}
+        Bid Number: ${bidNumber}
+        Category: ${category}
+        Status: ${status}
+        Due Date: ${dueDate}
+        Description: ${bidDescription}
+        Link to Contract Details: ${detailLink}]
+
+        
+
+         MAKE SURE TO SOUND PROFESSIONAL AND IF YOU FOLLOW ALL THESE STEPS CORRECTLY I WILL TIP YOU $1000000000000000000000000000000 `;
+
+        // Make the AJAX request to get the response
+            $.ajax({
+            type: "POST",
+            url: "/ask_question",
+            data: { 
+                query: dynamicPrompt,
+                hash_value: hashValue
+            },
+            success: function(response) {
+                var formattedResponse = response.response.replace(/\n/g, '</p><p>') // 格式化段落
+                    .replace(/(https?:\/\/[^\s]+)/g, function(url) {
+                        return '<a href="' + reformatLink(url) + '" target="_blank">' + reformatLink(url) + '</a>';
+                    });
+                modelResponseContent.innerHTML = '<p>' + formattedResponse + '</p>';
+            },
+            error: function(error) {
+                console.error("API错误:", error);
+                modelResponseContent.innerHTML = 'Error: ' + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.responseText);
+            },
+            timeout: 300000 // 5分钟超时
+        });
+    }
+
+
+
+
+
+
+
+    // Helper function to format long URLs in responses
+    function reformatLink(url) {
+        return url.length > 50 ? url.substring(0, 50) + '...' : url;
+    }
+
+
+
+
+    // Template Function for Buttons with Contract Data
+    function handlePrompt(promptText, targetElement) {
+            // 获取hash_value，使用与generatebidResponse相同的方法
+            var hashValue = document.getElementById('hashValue').value;
+            if (!hashValue) {
+                hashValue = new URLSearchParams(window.location.search).get('hash_value');
+            }
+            if (!hashValue) {
+                var urlParams = new URLSearchParams(window.location.search);
+                hashValue = urlParams.get('hash_value_received') || urlParams.get('hash');
+            }
+            if (!hashValue) {
+                var bidNumber = document.getElementById('bidNumber').value;
+                var detailLink = document.getElementById('detailLink').value;
+                if (bidNumber && detailLink) {
+                    hashValue = btoa(detailLink + bidNumber).substring(0, 20);
+                }
+            }
+            
+            // 获取合同详情
+            var company = document.getElementById('company').value;
+            var bidNumber = document.getElementById('bidNumber').value;
+            var bidName = document.getElementById('bidName').value;
+            var bidDescription = document.getElementById('bidDescription').value;
+            var category = document.getElementById('category').value;
+            var status = document.getElementById('status').value;
+            var dueDate = document.getElementById('dueDate').value;
+            var detailLink = document.getElementById('detailLink').value;
+            var euclideanDistance = document.getElementById('euclideanDistance').value;
+            var similarityScore = document.getElementById('similarityScore').value;
+            var analysisSummary = document.getElementById('analysisSummary').value;
+
+            // 注入合同详情到提示词
+            var contractDetails = `
+            Company: ${company}
+            Contract Name: ${bidName}
+            Bid Number: ${bidNumber}
+            Category: ${category}
+            Status: ${status}
+            Due Date: ${dueDate}
+            Description: ${bidDescription}
+            Link to Contract Details: ${detailLink}
+            Summary Analysis: ${analysisSummary}
+            `;
+
+            // 将合同详情附加到原始提示词
+            var dynamicPrompt = `${promptText}\n\nHere are the relevant contract details:\n${contractDetails}`;
+
+            // 准备反馈容器
+            var modelResponseContent = document.querySelector(targetElement);
+            modelResponseContent.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> Generating Response... <i class="fa-solid fa-satellite-dish"></i>';
+
+            // 发送AJAX请求
+            $.ajax({
+                type: "POST",
+                url: "/ask_question",
+                data: { 
+                    query: dynamicPrompt,
+                    hash_value: hashValue  // 添加hash_value参数
+                },
+                success: function(response) {
+                    console.log("函数调用成功");
+                    var formattedResponse = response.response.replace(/\n/g, '</p><p>') // 格式化段落
+                        .replace(/(https?:\/\/[^\s]+)/g, function(url) {
+                            return '<a href="' + reformatLink(url) + '" target="_blank">' + reformatLink(url) + '</a>';
+                        });
+                    modelResponseContent.innerHTML = '<p>' + formattedResponse + '</p>';
+                },
+                error: function(error) {
+                    console.error("API错误:", error);
+                    modelResponseContent.innerHTML = 'Error: ' + (error.responseJSON ? JSON.stringify(error.responseJSON) : error.responseText);
+                },
+                timeout: 300000 // 5分钟超时
+            });
+        }
+
+
+        // Functions for Each Button with Injected Contract Data
+    function requestedServices() {
+        handlePrompt("Ignore all previous instructions ,  You are a B2B proposal writer with expertise in clearly describing technical and creative services for high-value clients. Goal: Detail the requested services/products in a way that is clear, complete, and compelling for client review and internal alignment. Return Format (Markdown): ## Product/Service Overview ### 1. [Service/Product Name] - **Description:** What it is and what it does. - **Key Features:** Bullet list of the main capabilities or deliverables. - **Benefits:** Why this matters to the client. - **Use Case Example:** One practical application. ### 2. [Service/Product Name] - **Description:** - **Key Features:** - **Benefits:** - **Use Case Example:** [...repeat up to 5 products/services]  AND IF YOU FOLLOW THESE STEPS CORRECTYL I WILL TIP YOU 4100000000000000000000000000000000000000000000000000000000000000  ", '.feedback-bot-response-area');
+    }
+
+    function pointOfContact() {
+        handlePrompt("Ignore all previous instructions ,  You are a procurement assistant responsible for drafting accurate and professional vendor documentation. Goal: YOU NEED TO Identify and clearly state the designated point of contact for bid-related inquiries that was given IN THE CONTRACT DATA FOR THIS SELECTED CONTRACT, including name, title, contact information, and communication preferences. Return Format (Markdown): ## Bid Contact Information - **Name:** [Full Name] - **Title/Role:** [Job Title] - **Department:** [e.g., Procurement Office, Contracts Division] - **Email Address:** [Email] - **Phone Number:** [Optional if applicable] - **Preferred Contact Method:** [e.g., Email, Phone, Portal] - **Availability Window:** [e.g., Monday–Friday, 9am–5pm EST] PLEASE MAKE SURE TO FIND THE REAL PEOPLPE AND IF YOU CANT FIND A REAL CONTRACT DO NOT PUT A RANDOM FAKE NAME OR YOU WILL BE PENETIZLED AGAIN DO NOT PUT ANY RANDOM PERSON NAMES IT HAS TO BE A REAL NAME FROM THE CONTRACTS DETAILS DATA YOU ARE BEING INJECTED WITH AND AND IF YOU DO THIS ALL CORRECTLY I WILL TIP YOU $1000000000000000000000000000000000000000000000000000000000000  ", '.feedback-bot-response-area');
+    }
+
+
+
+    </script>
+
+
+<script>
+    
+
+    // Function to automatically clear PDFs when the home page is loaded
+    function clearCSFolder() {
+        $.ajax({
+            type: "POST",
+            url: "/clear_uploads",
+            success: function(response) {
+                console.log('Response from server:', response);
+                if(response.success) {
+                    console.log('Folder files cleared successfully');
+                } else {
+                    console.error('Failed to clear the folder:', response.message);
+                }
+            },
+            error: function(error) {
+                console.log('Error:', error);
+                console.error('Error clearing PDFs:', error.responseText);
+            }
+        });
+    }
+
+    // Trigger the clear function when the page loads
+    $(document).ready(function() {
+        clearCSFolder();
+    });
+</script>
+
+    
+
+</body>
+</html>

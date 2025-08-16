@@ -1,0 +1,239 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+    <style>
+        .grecaptcha-badge {
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        </style>
+        
+
+    <div class="container main-container">
+        <div class="container">
+            <div class="text-center mb-4">
+                <br>
+                <h1 class="login-signup-title"> SIGN UP </h1>
+            </div>
+            <br>
+            <div class="row">
+                <div class="col-md-6 offset-md-3">
+                    {% if error %}
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <strong>Error:</strong> {{ error }}
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    {% endif %}
+                    <form method="POST" id="signup-form"  action="{{ url_for('Signup') }}">
+                        <div class="form-group">
+                            <input type="text" class="form-control" name="first_name" placeholder="First Name" required autofocus>
+                        </div>
+                        <br>
+                        <div class="form-group">
+                            <input type="text" class="form-control" name="last_name" placeholder="Last Name" required>
+                        </div>
+                        <br>
+                        <div class="form-group">
+                            <input type="text" class="form-control" name="company" placeholder="Company" required>
+                        </div>
+                        <br>
+                        <div class="form-group">
+                            <input type="email" class="form-control" name="email" placeholder="Email" required>
+                        </div>
+                        <br>
+                        <div class="form-group">
+                            <input type="text" class="form-control" name="username" placeholder="Username" required>
+                        </div>
+                        <br>
+                        <div class="form-group position-relative">
+                            <input type="password" class="form-control" name="password" id="signupPassword" placeholder="Password" required>
+                            <span class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;" onclick="toggleSignupPasswordVisibility()">
+                                <i id="signupTogglePasswordIcon" class="fas fa-eye"></i>
+                            </span>
+                        </div>                        
+                        <br>
+
+                        <!-- Account Type -->
+                       
+                        <div class="form-group">
+                            <label for="account_type" style="color: #55666D;">Account Type:</label>
+                            <select class="form-control" name="account_type" required>
+                                <option value="CORAMA_ESSENTIALS">CORAMA Essentials</option>
+                                <!-- <option value="CORAMA_SUPPLY_CHAIN_VISIBILITY">CORAMA Supply Chain Visibility - $500 per month or $5,000 per year</option>
+                                <option value="TRUSTED_PARTNER">CORAMA Trusted Partner - $1,000 per month or $10,000 per year</option> -->
+                            </select>
+                        </div>
+
+
+                        <!-- Billing Period -->
+                        <!-- Billing Period with Checkboxes -->
+                      <!-- Billing Period -->
+                        <div class="form-group" style="background: #F8F9FA; padding: 20px; border-radius: 8px; box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);">
+                            <label style="color: #34495E; font-weight: bold; font-size: 18px; display: block; margin-bottom: 12px;">
+                                Billing Period:
+                            </label>
+                            
+                            <div class="form-check" style="margin-bottom: 10px; display: flex; align-items: center;">
+                                <input class="form-check-input" type="radio" name="billing_period" id="billing_weekly" value="weekly" required 
+                                    style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+                                <label class="form-check-label" for="billing_weekly" 
+                                    style="color: #2C3E50; font-size: 16px; font-weight: 500; cursor: pointer;">
+                                    Weekly - <span style="font-weight: bold; color: #27AE60;">$39.99</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check" style="margin-bottom: 10px; display: flex; align-items: center;">
+                                <input class="form-check-input" type="radio" name="billing_period" id="billing_monthly" value="monthly"
+                                    style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+                                <label class="form-check-label" for="billing_monthly" 
+                                    style="color: #2C3E50; font-size: 16px; font-weight: 500; cursor: pointer;">
+                                    Monthly - <span style="font-weight: bold; color: #27AE60;">$149.99</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check" style="display: flex; align-items: center;">
+                                <input class="form-check-input" type="radio" name="billing_period" id="billing_yearly" value="yearly"
+                                    style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
+                                <label class="form-check-label" for="billing_yearly" 
+                                    style="color: #2C3E50; font-size: 16px; font-weight: 500; cursor: pointer;">
+                                    Yearly - <span style="font-weight: bold; color: #27AE60;">$1599.99</span>
+                                </label>
+                            </div>
+                        </div>
+
+
+                     
+                        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+                        
+                        <br>
+
+                      
+
+                        <br>
+                        <button class="btn btn-lg btn-primary btn-block" type="submit">SIGN UP FOR A  3 DAY FREE TRIAL</button>
+                    </form>
+                    <div class="text-center mt-4">
+                        <p>Already have an account? <a href="/login">Log in</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> <!-- Closing container div -->
+
+    
+
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+
+
+
+
+   <!-- ✅ Load reCAPTCHA API -->
+<script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}" async defer></script>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("signup-form");
+    
+        if (!form) {
+            console.error("❌ Form with ID 'signup-form' not found.");
+            return;
+        }
+    
+        form.addEventListener("submit", function (event) {
+            event.preventDefault(); // Stop default submission
+            console.log("🛑 Prevented form submission to inject reCAPTCHA token.");
+    
+            grecaptcha.ready(function () {
+                grecaptcha.execute("{{ RECAPTCHA_SITE_KEY }}", { action: "signup" })
+                    .then(function (token) {
+                        console.log("✅ reCAPTCHA Token:", token);
+    
+                        const recaptchaInput = document.getElementById("g-recaptcha-response");
+    
+                        if (recaptchaInput) {
+                            recaptchaInput.value = token;
+                            console.log("✅ Token injected. Submitting form...");
+                            form.submit();
+                        } else {
+                            console.error("❌ Missing #g-recaptcha-response input.");
+                        }
+                    })
+                    .catch(function (error) {
+                        console.error("❌ reCAPTCHA execution failed:", error);
+                        alert("reCAPTCHA validation failed. Please refresh and try again.");
+                    });
+            });
+        });
+    });
+    </script>
+    
+
+
+
+    
+
+    
+
+     
+
+
+
+
+
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        // Get the URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const selectedBilling = urlParams.get("billing"); // Get the billing value from URL
+
+        // If a valid billing option is found, select the corresponding radio button
+        if (selectedBilling) {
+            const billingRadio = document.querySelector(`input[name="billing_period"][value="${selectedBilling}"]`);
+            if (billingRadio) {
+                billingRadio.checked = true;
+            }
+        }
+    });
+</script>
+
+
+    <script>
+    function toggleSignupPasswordVisibility() {
+        const passwordInput = document.getElementById("signupPassword");
+        const icon = document.getElementById("signupTogglePasswordIcon");
+        
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+        } else {
+            passwordInput.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+        }
+    }
+    
+    function toggleCSBuilderPasswordVisibility() {
+        const passwordInput = document.getElementById("csBuilderPassword");
+        const icon = document.getElementById("csBuilderTogglePasswordIcon");
+        
+        if (passwordInput.type === "password") {
+            passwordInput.type = "text";
+            icon.classList.remove("fa-eye");
+            icon.classList.add("fa-eye-slash");
+        } else {
+            passwordInput.type = "password";
+            icon.classList.remove("fa-eye-slash");
+            icon.classList.add("fa-eye");
+        }
+    }
+    </script>
+    
+</body>

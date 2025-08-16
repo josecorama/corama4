@@ -1,0 +1,46 @@
+.blog-posts-container {
+    display: flex; /* Enables Flexbox */
+    flex-direction: column; /* Stacks articles vertically */
+    align-items: center; /* Centers articles horizontally */
+    justify-content: center; /* Optional: Centers articles vertically if container height is larger */
+    gap: 20px; /* Adds space between the articles */
+    padding: 20px; /* Optional: Adds padding around the container */
+    width: 100%; /* Ensures container takes the full width */
+    max-width: 800px; /* Optional: Restrict container width to prevent excessive stretching */
+    margin: 0 auto; /* Centers the container horizontally */
+}
+
+.blog-post {
+    width: 100%; /* Ensures articles take the full width of the container */
+    max-width: 600px; /* Optional: Restricts individual article width */
+    background: #ffffff; /* Background color */
+    border-radius: 8px; /* Rounded corners */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow effect */
+    padding: 20px; /* Inner padding for content */
+    text-align: center; /* Center-aligns the text content */
+}
+
+
+.centered-container {
+    max-width: 800px;
+    width: 100%;
+    padding: 20px;
+    background-color: #ffffff;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+}
+
+
+.page-title-section {
+    color: black;
+  }
+  
+  .page-title-section a {
+    color: black;
+    text-decoration: none; /* Optional: Ensures links do not have underlines */
+  }
+  
+  .page-title-section a:hover {
+    color: #ff5722; /* Optional: Add a hover effect for links, adjust color as needed */
+  }
+  

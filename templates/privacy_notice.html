@@ -1,0 +1,15 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+    <br>
+
+   <!-- Add pb-4 (padding-bottom) to add space below the preview div -->
+    <div id="pdf-preview" class="pb-4">
+        <!-- Adjust the iframe src to point to the correct URL for accessing the PDF -->
+        <iframe src="{{ url_for('static', filename='policy_pdf/PrivacyNotice.pdf') }}" width="100%" height="600px"></iframe>
+    </div>
+    <br>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>

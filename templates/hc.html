@@ -1,0 +1,33 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container mt-5">
+        <!-- Header Section -->
+        <header class="teamdetail-background-section text-center text-white py-3">
+            <h3 class="team-member-subtitle">Project Manager</h3>
+            <h1 class="team-member-title">Hugo Covarrubias</h1>
+        </header>
+
+        <!-- Profile Section -->
+        <div class="row my-4 align-items-center">
+            <div class="col-md-6 d-flex justify-content-center">
+                <!-- Profile Image -->
+                <img src="{{ url_for('static', filename='images/TEAMDETAIL/hc.png') }}" class="img-fluid rounded-circle" alt="Hugo Covarrubias" style="max-width: 100%; height: auto;">
+            </div>
+            <div class="col-md-6">
+                <!-- Bio Section -->
+                <div class="text-block">
+                    <p><strong>Academic Background:</strong> Hugo's academic journey is complemented by relevant coursework in programming, web development, software development, and network and systems administration.</p>
+                    <p><strong>Project Experience:</strong> He has hands-on experience through projects like creating a user-friendly Simple Restaurant Website and designing a Weather Forecast Dashboard using real-time data from the OpenWeatherMap API.</p>
+                    <p><strong>Volunteer Work:</strong> Hugo has volunteered as a Technology Volunteer at Queen of All Nations Parish, improving website functionalities and managing the site's gallery.</p>
+                    <p><strong>Professional Experience:</strong> As a Fulfillment Team Member at Target, Hugo showcased leadership skills, providing direction to peers and training new team members.</p>
+                    <p><strong>Career Aspirations:</strong> Hugo is passionate about leveraging technology to drive meaningful change, particularly in empowering underrepresented communities. He aims to contribute significantly to the Illinois Hispanic Chamber of Commerce CORAMA as an Artificial Intelligence Specialist Intern.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>

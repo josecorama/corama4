@@ -1,0 +1,101 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container main-container">
+        <!-- Header Section -->
+        <section class="page-title-section text-center"> 
+            <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background">
+            <div class="container">
+                <h1 class="title">About Us</h1>
+                <h2 class="subtitle">Revolutionizing Government Contracting for Small Businesses</h2>
+            </div>
+        </section>
+
+        <!-- Text Section: Decentralizing the public economy -->
+        <div class="row justify-content-center"> 
+            <div class="col-12" style="max-width: 1050px; margin: 0 auto;"> 
+                <p style="text-align: justify; font-size: 1.2rem; margin-bottom: 40px;">CORAMA is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.</p>
+                <p style="text-align: justify; font-size: 1.2rem; margin-bottom: 40px;">At CORAMA, we believe that small businesses are the backbone of our economy, and we're dedicated to empowering them with the tools and resources they need to thrive in the government contracting arena. Our platform is designed to streamline the process of securing government contracts, providing small businesses with a competitive edge in today's market.</p>
+            </div>
+        </div>
+
+        
+        </section>
+
+        <!-- Image and Text Section -->
+        <section class="image-text-section" style="padding: 0; margin-top: -20px;"> 
+            <div class="container">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="responsive-text-container" style="position: relative; border-radius: 25px; width: 100%; max-width: 1000px; margin: 0 auto;">
+                            
+                            <!-- Text Container -->
+                            <div class="p-4 text-white d-flex flex-column justify-content-center align-items-center" 
+                            style="text-align: center; max-width: 900px; margin: auto;">
+                            <p style="font-family: 'Jost', sans-serif; color: #6899B4; padding: 15px; font-size: 1.7rem; 
+                                    line-height: 1.8; font-style: italic;">
+                            <span style="background-color: rgba(246, 246, 246, 0.8); display: inline-block; 
+                                            padding: 15px 20px; border-radius: 15px; width: 100%;">
+                                "Each year over $17B in government contracts are awarded by the State of Illinois. However, 
+                                most small businesses miss out on opportunities because of the complicated submission process, 
+                                lack of capacity, and the process taking too much time, giving larger corporations advantages. 
+                                CORAMA is an AI tool that gives small businesses a competitive advantage, making it easier and 
+                                faster to submit government procurements."
+                            </span>
+                            </p>
+                            </div>
+
+                            
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mission and Vision Section -->
+        <section class="vision-mission-section" style="padding: 0px 0;margin-top: -20px;">
+            <div class="container">
+                <div class="row">
+
+                    <!-- Vision Section -->
+                    <div class="col-md-6 d-flex flex-column justify-content-center align-items-center text-center p-4">
+                        <h2 style="font-family: 'Jost', sans-serif; font-weight: 600; color: #6899b4; text-align: center; font-size: 1.5rem; text-transform: uppercase;">Vision</h2>
+                        <p style="font-family: 'Jost', sans-serif; color: #55666D; text-align: center; font-size: 1.2rem; line-height: 1.8;"> 
+                            To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
+                        </p>
+                    </div>
+
+                    <!-- Mission Section -->
+                    <div class="col-md-6 d-flex flex-column justify-content-center align-items-center text-center p-4">
+                        <h2 style="font-family: 'Jost', sans-serif; font-weight: 600; color: #6899b4; text-align: center; font-size: 1.5rem; text-transform: uppercase;">Mission</h2>
+                        <p style="font-family: 'Jost', sans-serif; color: #55666D; text-align: center; font-size: 1.2rem; line-height: 1.8;"> 
+                            To facilitate small businesses’ access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+
+
+        {% include 'footer.html' %}
+        {% include 'scripts.html' %}
+
+    <style>
+        @media (max-width: 768px) {
+            .responsive-text-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 20px !important;
+            }
+            .responsive-text-container p {
+                font-size: 1.2rem !important;
+                line-height: 1.5 !important;
+                max-width: 100% !important;
+            }
+        }
+    </style>
+</body>

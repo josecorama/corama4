@@ -1,0 +1,26 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container mt-5">
+        <!-- Header Section -->
+        <header class="teamdetail-background-section text-center text-white py-3">
+            <h3 class="team-member-subtitle">Artificial Intelligence Specialist Intern </h3>
+            <h1 class="team-member-title">Mason Magos</h1>
+        </header>
+
+        <!-- Profile Section -->
+        <div class="row my-4 align-items-center">
+            <div class="col-md-6 d-flex justify-content-center">
+                <!-- Profile Image -->
+                <img src="{{ url_for('static', filename='images/TEAMDETAIL/mm.png') }}" class="img-fluid rounded-circle" alt="Zirong Li" style="max-width: 100%; height: auto;">
+            </div>
+
+            
+       
+        </div>
+    </div>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>

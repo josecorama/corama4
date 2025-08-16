@@ -1,0 +1,81 @@
+.index-table-container {
+    padding: 20px;
+}
+
+.list-group-item {
+    margin-bottom: 15px;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    background-color: #fff;
+}
+
+/* Smaller and more professional font size for <p> tags */
+.list-group-item p {
+    margin: 3px 0; /* Smaller margin for more compact layout */
+    font-size: 12px; /* Reduced font size for better screen fit */
+    line-height: 1.4; /* Adjusted line-height for readability */
+}
+
+.list-group-item a {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 12px; /* Ensure link font size matches the text */
+}
+
+.list-group-item a:hover {
+    text-decoration: underline;
+}
+
+.btn-custom {
+    background-color: #ff6a00;
+    color: white;
+    font-size: 0.75rem; /* Reduced font size */
+    font-weight: bold;
+    padding: 4px 12px; /* Reduced padding for a smaller button */
+    border-radius: 5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    width: 100px; /* Fixed width to match the clear button */
+    text-align: center;
+}
+
+.btn-custom:hover {
+    background-color: #e65c00; /* Slightly darker on hover */
+    transition: background-color 0.3s ease;
+}
+
+.btn-clear {
+    background-color: #d32f2f; /* Red color for the clear button */
+    color: white;
+    font-size: 0.875rem; /* Smaller font size */
+    font-weight: bold;
+    padding: 8px 16px; /* Smaller padding */
+    border-radius: 5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border: none;
+    width: auto; /* Adjust width as needed */
+}
+
+.btn-clear:hover {
+    background-color: #b71c1c; /* Slightly darker red on hover */
+    transition: background-color 0.3s ease;
+}
+
+
+.custom-btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    min-width: 260px;
+    transition: all 0.3s ease;
+  }
+  
+  .custom-btn:hover {
+    background-color: #5a9ebd;
+    color: white;
+    border-color: #5a9ebd;
+  }
+  

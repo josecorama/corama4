@@ -1,0 +1,55 @@
+
+/* Pricing Table Section */
+.pricing-table {
+    background-color: white;
+    padding: 40px 0;
+    }
+    
+    
+    .table {
+    width: 100%;
+    border-collapse: collapse;
+    }
+    
+    .table th,
+    .table td {
+    text-align: center;
+    vertical-align: middle;
+    padding: 15px;
+    border: 1px solid #002F49;
+    }
+    
+    .table th {
+    background-color: #002F49;
+    color: white;
+    }
+    
+    .table td {
+    background-color: #ffffff;
+    color: #002F49;
+    }
+    
+    
+    /* Plan Descriptions Section */
+    .plan-descriptions {
+    background-color: white;
+    padding: 40px 0;
+    }
+    
+    .plan-descriptions p {
+    font-size: 1rem;
+    color: #333;
+    margin-bottom: 20px;
+    }
+    
+    .plan-descriptions h3 {
+    font-size: 1.5rem;
+    color: #002F49;
+    font-weight: bold;
+    margin-bottom: 20px;
+    }
+
+
+    .business-plan{
+        background-color: #002F49 ;
+    }
