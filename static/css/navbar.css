@@ -56,46 +56,6 @@
   gap: var(--spacing-md);
 }
 
-/* Devin.ai Button Animations */
-.btn-modern-primary {
-  background: linear-gradient(90deg, #446dcd, #4bb6d3);
-  color: white;
-  border: none;
-  padding: 14.4px 24px;
-  font-size: 1rem;
-  font-weight: 500;
-  border-radius: 8px;
-  text-decoration: none;
-  transition: color 0.5s, opacity 0.25s, transform 0.3s ease;
-  font-family: 'Inter', sans-serif;
-}
-
-.btn-modern-primary:hover {
-  transform: translateY(-2px);
-  opacity: 0.9;
-  color: white;
-  text-decoration: none;
-}
-
-.btn-modern-secondary {
-  background: transparent;
-  color: #baf5f5;
-  border: 1px solid #baf5f5;
-  padding: 14.4px 24px;
-  font-size: 1rem;
-  font-weight: 500;
-  border-radius: 8px;
-  text-decoration: none;
-  transition: color 0.5s, opacity 0.25s, transform 0.3s ease;
-  font-family: 'Inter', sans-serif;
-}
-
-.btn-modern-secondary:hover {
-  background: rgba(186, 245, 245, 0.1);
-  transform: translateY(-2px);
-  color: #baf5f5;
-  text-decoration: none;
-}
 
 .btn-primary-custom {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
