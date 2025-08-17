@@ -14,169 +14,435 @@
             min-height: 100vh;
         }
         
-        .main-container {
+        .signup-container {
             background: white;
             border-radius: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            padding: 40px;
-            margin-top: 100px;
-            margin-bottom: 40px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            padding: 50px 40px;
+            margin-top: 120px;
+            margin-bottom: 60px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .login-signup-title {
             color: #446dcd !important;
             font-family: 'Inter', sans-serif;
             font-weight: 700;
+            font-size: 2.2rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .form-section {
+            margin-bottom: 30px;
+        }
+        
+        .form-section-title {
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
         }
         
         .form-control {
             border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 12px 16px;
+            border-radius: 12px;
+            padding: 16px 20px;
             font-size: 1rem;
             transition: all 0.3s ease;
+            background: #f8f9fa;
+            height: auto;
         }
         
         .form-control:focus {
             border-color: #446dcd;
-            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.25);
+            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
+            background: white;
+            outline: none;
         }
         
-        .btn-primary {
-            background: linear-gradient(90deg, #446dcd, #4bb6d3);
-            border: none;
-            padding: 14px 24px;
-            font-weight: 600;
-            border-radius: 8px;
+        .form-control::placeholder {
+            color: #6c757d;
+            font-weight: 400;
+        }
+        
+        .form-select {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 16px 20px;
+            font-size: 1rem;
             transition: all 0.3s ease;
+            background: #f8f9fa;
+            height: auto;
         }
         
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(68, 109, 205, 0.3);
+        .form-select:focus {
+            border-color: #446dcd;
+            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
+            background: white;
+            outline: none;
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+            transition: color 0.3s ease;
+            z-index: 10;
+        }
+        
+        .password-toggle:hover {
+            color: #446dcd;
+        }
+        
+        .billing-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+            margin: 25px 0;
+        }
+        
+        .billing-title {
+            color: #2c3e50;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .billing-option {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .billing-option:hover {
+            border-color: #446dcd;
+            box-shadow: 0 4px 12px rgba(68, 109, 205, 0.1);
+        }
+        
+        .billing-option.selected {
+            border-color: #446dcd;
+            background: linear-gradient(135deg, rgba(68, 109, 205, 0.05) 0%, rgba(75, 182, 211, 0.05) 100%);
+        }
+        
+        .billing-radio {
+            width: 20px;
+            height: 20px;
+            margin-right: 15px;
+            accent-color: #446dcd;
+        }
+        
+        .billing-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .billing-text {
+            color: #2c3e50;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .billing-price {
+            font-weight: 700;
+            color: #27AE60;
+            font-size: 1.1rem;
+        }
+        
+        .btn-signup {
+            background: linear-gradient(135deg, #446dcd 0%, #4bb6d3 100%);
+            border: none;
+            padding: 18px 30px;
+            font-weight: 700;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            color: white;
+            font-size: 1.2rem;
+            width: 100%;
+            margin-top: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn-signup:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(68, 109, 205, 0.3);
+            color: white;
+        }
+        
+        .btn-signup:active {
+            transform: translateY(0);
         }
         
         .alert-danger {
             background: #f8d7da;
-            border-color: #f5c6cb;
+            border: 1px solid #f5c6cb;
             color: #721c24;
-            border-radius: 8px;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            font-weight: 500;
         }
-        </style>
+        
+        .signup-links {
+            text-align: center;
+            margin-top: 30px;
+        }
+        
+        .signup-links p {
+            margin-bottom: 0;
+            color: #6c757d;
+        }
+        
+        .signup-links a {
+            color: #446dcd;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.3s ease;
+        }
+        
+        .signup-links a:hover {
+            color: #4bb6d3;
+            text-decoration: none;
+        }
+        
+        .trial-badge {
+            background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        
+        /* Loading state */
+        .btn-signup:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .signup-container {
+                margin: 80px 20px 40px;
+                padding: 40px 25px;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            .form-row .form-group {
+                margin-bottom: 20px;
+            }
+            
+            .login-signup-title {
+                font-size: 1.8rem;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .billing-section {
+                padding: 20px 15px;
+            }
+            
+            .billing-option {
+                padding: 15px;
+            }
+        }
+    </style>
         
 
-    <div class="container main-container" style="background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 40px; margin-top: 100px; margin-bottom: 40px;">
-        <div class="container">
-            <div class="text-center mb-4">
-                <br>
-                <h1 class="login-signup-title"> SIGN UP </h1>
+    <div class="container">
+        <div class="signup-container">
+            <div class="trial-badge">
+                <i class="fas fa-gift me-2"></i>3-Day Free Trial
             </div>
-            <br>
-            <div class="row">
-                <div class="col-md-6 offset-md-3">
-                    {% if error %}
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        <strong>Error:</strong> {{ error }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+            
+            <h1 class="login-signup-title">Create Your Account</h1>
+            
+            {% if error %}
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Error:</strong> {{ error }}
+                </div>
+            {% endif %}
+            
+            <form method="POST" id="signup-form" action="{{ url_for('Signup') }}">
+                <!-- Personal Information Section -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="fas fa-user me-2"></i>Personal Information
                     </div>
-                    {% endif %}
-                    <form method="POST" id="signup-form"  action="{{ url_for('Signup') }}">
+                    
+                    <div class="form-row">
                         <div class="form-group">
-                            <input type="text" class="form-control" name="first_name" placeholder="First Name" required autofocus>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="first_name" 
+                                   placeholder="First Name" 
+                                   required 
+                                   autofocus
+                                   autocomplete="given-name">
                         </div>
-                        <br>
                         <div class="form-group">
-                            <input type="text" class="form-control" name="last_name" placeholder="Last Name" required>
+                            <input type="text" 
+                                   class="form-control" 
+                                   name="last_name" 
+                                   placeholder="Last Name" 
+                                   required
+                                   autocomplete="family-name">
                         </div>
-                        <br>
-                        <div class="form-group">
-                            <input type="text" class="form-control" name="company" placeholder="Company" required>
-                        </div>
-                        <br>
-                        <div class="form-group">
-                            <input type="email" class="form-control" name="email" placeholder="Email" required>
-                        </div>
-                        <br>
-                        <div class="form-group">
-                            <input type="text" class="form-control" name="username" placeholder="Username" required>
-                        </div>
-                        <br>
-                        <div class="form-group position-relative">
-                            <input type="password" class="form-control" name="password" id="signupPassword" placeholder="Password" required>
-                            <span class="position-absolute" style="right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer;" onclick="toggleSignupPasswordVisibility()">
-                                <i id="signupTogglePasswordIcon" class="fas fa-eye"></i>
-                            </span>
-                        </div>                        
-                        <br>
-
-                        <!-- Account Type -->
-                       
-                        <div class="form-group">
-                            <label for="account_type" style="color: #55666D;">Account Type:</label>
-                            <select class="form-control" name="account_type" required>
-                                <option value="CORAMA_ESSENTIALS">CORAMA Essentials</option>
-                                <!-- <option value="CORAMA_SUPPLY_CHAIN_VISIBILITY">CORAMA Supply Chain Visibility - $500 per month or $5,000 per year</option>
-                                <option value="TRUSTED_PARTNER">CORAMA Trusted Partner - $1,000 per month or $10,000 per year</option> -->
-                            </select>
-                        </div>
-
-
-                        <!-- Billing Period -->
-                        <!-- Billing Period with Checkboxes -->
-                      <!-- Billing Period -->
-                        <div class="form-group" style="background: #F8F9FA; padding: 20px; border-radius: 8px; box-shadow: 0px 2px 10px rgba(0, 0, 0, 0.1);">
-                            <label style="color: #34495E; font-weight: bold; font-size: 18px; display: block; margin-bottom: 12px;">
-                                Billing Period:
-                            </label>
-                            
-                            <div class="form-check" style="margin-bottom: 10px; display: flex; align-items: center;">
-                                <input class="form-check-input" type="radio" name="billing_period" id="billing_weekly" value="weekly" required 
-                                    style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
-                                <label class="form-check-label" for="billing_weekly" 
-                                    style="color: #2C3E50; font-size: 16px; font-weight: 500; cursor: pointer;">
-                                    Weekly - <span style="font-weight: bold; color: #27AE60;">$39.99</span>
-                                </label>
-                            </div>
-                            
-                            <div class="form-check" style="margin-bottom: 10px; display: flex; align-items: center;">
-                                <input class="form-check-input" type="radio" name="billing_period" id="billing_monthly" value="monthly"
-                                    style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
-                                <label class="form-check-label" for="billing_monthly" 
-                                    style="color: #2C3E50; font-size: 16px; font-weight: 500; cursor: pointer;">
-                                    Monthly - <span style="font-weight: bold; color: #27AE60;">$149.99</span>
-                                </label>
-                            </div>
-                            
-                            <div class="form-check" style="display: flex; align-items: center;">
-                                <input class="form-check-input" type="radio" name="billing_period" id="billing_yearly" value="yearly"
-                                    style="width: 18px; height: 18px; margin-right: 10px; cursor: pointer;">
-                                <label class="form-check-label" for="billing_yearly" 
-                                    style="color: #2C3E50; font-size: 16px; font-weight: 500; cursor: pointer;">
-                                    Yearly - <span style="font-weight: bold; color: #27AE60;">$1599.99</span>
-                                </label>
-                            </div>
-                        </div>
-
-
-                     
-                        <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
-                        
-                        <br>
-
-                      
-
-                        <br>
-                        <button class="btn btn-lg btn-primary btn-block" type="submit">SIGN UP FOR A  3 DAY FREE TRIAL</button>
-                    </form>
-                    <div class="text-center mt-4">
-                        <p>Already have an account? <a href="/login">Log in</a></p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="text" 
+                               class="form-control" 
+                               name="company" 
+                               placeholder="Company Name" 
+                               required
+                               autocomplete="organization">
                     </div>
                 </div>
+
+                <!-- Account Details Section -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="fas fa-key me-2"></i>Account Details
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="email" 
+                               class="form-control" 
+                               name="email" 
+                               placeholder="Email Address" 
+                               required
+                               autocomplete="email">
+                    </div>
+                    
+                    <div class="form-group">
+                        <input type="text" 
+                               class="form-control" 
+                               name="username" 
+                               placeholder="Username" 
+                               required
+                               autocomplete="username">
+                    </div>
+                    
+                    <div class="form-group position-relative">
+                        <input type="password" 
+                               class="form-control" 
+                               name="password" 
+                               id="signupPassword" 
+                               placeholder="Create a strong password" 
+                               required
+                               autocomplete="new-password">
+                        <span class="password-toggle" onclick="toggleSignupPasswordVisibility()">
+                            <i id="signupTogglePasswordIcon" class="fas fa-eye"></i>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Account Type Section -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="fas fa-star me-2"></i>Account Type
+                    </div>
+                    
+                    <div class="form-group">
+                        <select class="form-select" name="account_type" required>
+                            <option value="">Select Account Type</option>
+                            <option value="CORAMA_ESSENTIALS">CORAMA Essentials</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Billing Section -->
+                <div class="billing-section">
+                    <div class="billing-title">
+                        <i class="fas fa-credit-card me-2"></i>Choose Your Plan
+                    </div>
+                    
+                    <div class="billing-option" onclick="selectBilling('weekly')">
+                        <label class="billing-label" for="billing_weekly">
+                            <input class="billing-radio" type="radio" name="billing_period" id="billing_weekly" value="weekly" required>
+                            <div class="billing-text">
+                                Weekly Plan - <span class="billing-price">$39.99</span>
+                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Perfect for short-term projects</div>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="billing-option" onclick="selectBilling('monthly')">
+                        <label class="billing-label" for="billing_monthly">
+                            <input class="billing-radio" type="radio" name="billing_period" id="billing_monthly" value="monthly">
+                            <div class="billing-text">
+                                Monthly Plan - <span class="billing-price">$149.99</span>
+                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Most popular choice</div>
+                            </div>
+                        </label>
+                    </div>
+                    
+                    <div class="billing-option" onclick="selectBilling('yearly')">
+                        <label class="billing-label" for="billing_yearly">
+                            <input class="billing-radio" type="radio" name="billing_period" id="billing_yearly" value="yearly">
+                            <div class="billing-text">
+                                Yearly Plan - <span class="billing-price">$1,599.99</span>
+                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Best value - Save 11%</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+                
+                <button class="btn-signup" type="submit" id="signup-btn">
+                    <span class="btn-text">Start Your Free Trial</span>
+                    <span class="btn-loading d-none">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Creating Account...
+                    </span>
+                </button>
+            </form>
+            
+            <div class="signup-links">
+                <p>Already have an account? <a href="/login">Sign in here</a></p>
             </div>
         </div>
-    </div> <!-- Closing container div -->
+    </div>
 
     
 
@@ -194,6 +460,9 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const form = document.getElementById("signup-form");
+        const submitBtn = document.getElementById("signup-btn");
+        const btnText = submitBtn?.querySelector(".btn-text");
+        const btnLoading = submitBtn?.querySelector(".btn-loading");
     
         if (!form) {
             console.error("❌ Form with ID 'signup-form' not found.");
@@ -203,6 +472,13 @@
         form.addEventListener("submit", function (event) {
             event.preventDefault(); // Stop default submission
             console.log("🛑 Prevented form submission to inject reCAPTCHA token.");
+            
+            // Show loading state
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                if (btnText) btnText.classList.add("d-none");
+                if (btnLoading) btnLoading.classList.remove("d-none");
+            }
     
             grecaptcha.ready(function () {
                 grecaptcha.execute("{{ RECAPTCHA_SITE_KEY }}", { action: "signup" })
@@ -217,11 +493,23 @@
                             form.submit();
                         } else {
                             console.error("❌ Missing #g-recaptcha-response input.");
+                            // Reset button state on error
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                if (btnText) btnText.classList.remove("d-none");
+                                if (btnLoading) btnLoading.classList.add("d-none");
+                            }
                         }
                     })
                     .catch(function (error) {
                         console.error("❌ reCAPTCHA execution failed:", error);
                         alert("reCAPTCHA validation failed. Please refresh and try again.");
+                        // Reset button state on error
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            if (btnText) btnText.classList.remove("d-none");
+                            if (btnLoading) btnLoading.classList.add("d-none");
+                        }
                     });
             });
         });
@@ -243,53 +531,71 @@
 
 
 
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        // Get the URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const selectedBilling = urlParams.get("billing"); // Get the billing value from URL
-
-        // If a valid billing option is found, select the corresponding radio button
-        if (selectedBilling) {
-            const billingRadio = document.querySelector(`input[name="billing_period"][value="${selectedBilling}"]`);
-            if (billingRadio) {
-                billingRadio.checked = true;
-            }
-        }
-    });
-</script>
 
 
     <script>
-    function toggleSignupPasswordVisibility() {
-        const passwordInput = document.getElementById("signupPassword");
-        const icon = document.getElementById("signupTogglePasswordIcon");
-        
-        if (passwordInput.type === "password") {
-            passwordInput.type = "text";
-            icon.classList.remove("fa-eye");
-            icon.classList.add("fa-eye-slash");
-        } else {
-            passwordInput.type = "password";
-            icon.classList.remove("fa-eye-slash");
-            icon.classList.add("fa-eye");
+        function toggleSignupPasswordVisibility() {
+            const passwordInput = document.getElementById("signupPassword");
+            const icon = document.getElementById("signupTogglePasswordIcon");
+            
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            } else {
+                passwordInput.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
         }
-    }
-    
-    function toggleCSBuilderPasswordVisibility() {
-        const passwordInput = document.getElementById("csBuilderPassword");
-        const icon = document.getElementById("csBuilderTogglePasswordIcon");
         
-        if (passwordInput.type === "password") {
-            passwordInput.type = "text";
-            icon.classList.remove("fa-eye");
-            icon.classList.add("fa-eye-slash");
-        } else {
-            passwordInput.type = "password";
-            icon.classList.remove("fa-eye-slash");
-            icon.classList.add("fa-eye");
+        function selectBilling(plan) {
+            // Remove selected class from all options
+            document.querySelectorAll('.billing-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Add selected class to clicked option
+            const selectedOption = document.querySelector(`#billing_${plan}`).closest('.billing-option');
+            selectedOption.classList.add('selected');
+            
+            // Check the radio button
+            document.getElementById(`billing_${plan}`).checked = true;
         }
-    }
+        
+        // Enhanced form submission with loading state
+        document.addEventListener("DOMContentLoaded", function() {
+            const form = document.getElementById("signup-form");
+            const submitBtn = document.getElementById("signup-btn");
+            const btnText = submitBtn.querySelector(".btn-text");
+            const btnLoading = submitBtn.querySelector(".btn-loading");
+            
+            // Add click handlers for billing options
+            document.querySelectorAll('.billing-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    const radio = this.querySelector('input[type="radio"]');
+                    if (radio) {
+                        selectBilling(radio.value);
+                    }
+                });
+            });
+            
+            // Handle form submission loading state
+            if (form && submitBtn) {
+                form.addEventListener("submit", function() {
+                    submitBtn.disabled = true;
+                    btnText.classList.add("d-none");
+                    btnLoading.classList.remove("d-none");
+                });
+            }
+            
+            // Pre-select billing option from URL parameter
+            const urlParams = new URLSearchParams(window.location.search);
+            const selectedBilling = urlParams.get("billing");
+            if (selectedBilling) {
+                selectBilling(selectedBilling);
+            }
+        });
     </script>
     
 </body>
