@@ -1,107 +1,57 @@
-<!-- navbar_landing.html -->
-<nav class="navbar navbar-expand-lg navbar-custom navbar-transparent">
-  <div class="container">
-    
-    <!-- Left-aligned CORAMA logo -->
+<!-- Unified Professional Navigation -->
+<nav class="navbar navbar-expand-lg navbar-professional">
+  <div class="container-fluid px-4">
+    <!-- Brand Logo -->
     <a class="navbar-brand" href="/">
-      <img
-        src="{{ url_for('static', filename='images/CORAMALOGO.png') }}"
-        alt="CORAMA"
-        style="width: 120px; height: auto;"
-      />
+      <img src="{{ url_for('static', filename='images/CORAMALOGO.png') }}" 
+           alt="CORAMA" class="navbar-logo" />
     </a>
-
-    <!-- Toggler for mobile view -->
-    <button
-      class="navbar-toggler"
-      type="button"
-      data-toggle="collapse"
-      data-target="#navbarResponsive"
-      aria-controls="navbarResponsive"
-      aria-expanded="false"
-      aria-label="Toggle navigation"
-    >
+    
+    <!-- Mobile Toggle -->
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
+            data-bs-target="#navbarNav" aria-controls="navbarNav" 
+            aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggler-icon"></span>
     </button>
-
-    <!-- Collapsible content -->
-    <div class="collapse navbar-collapse" id="navbarResponsive">
-      <!-- Left-side nav links -->
-      <ul class="navbar-nav mr-auto">
-        <li class="nav-item {{ 'active' if request.path == '/' else '' }}">
-          <a class="nav-link" href="/">Home</a>
+    
+    <!-- Navigation Items -->
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav me-auto">
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/">Home</a>
         </li>
-        <li class="nav-item {{ 'active' if request.path == '/aboutus' else '' }}">
-          <a class="nav-link" href="/aboutus">About Us</a>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == '/aboutus' else '' }}" href="/aboutus">About Us</a>
         </li>
-        <li class="nav-item {{ 'active' if request.path == '/team' else '' }}">
-          <a class="nav-link" href="/team">Our Team</a>
+        <li class="nav-item">
+          <a class="nav-link {{ 'active' if request.path == '/team' else '' }}" href="/team">Our Team</a>
         </li>
-        <li class="nav-item {{ 'active' if request.path == '/blog' else '' }}">
-          <a class="nav-link" href="/blog">Blog</a>
-        </li>
-        <li class="nav-item dropdown {{ 'active' if request.path == '/support' else '' }}">
-          <a
-            class="nav-link dropdown-toggle"
-            href="#"
-            id="supportDropdown"
-            role="button"
-            data-toggle="dropdown"
-            aria-haspopup="true"
-            aria-expanded="false"
-          >
-            Support
-          </a>
-          <div class="dropdown-menu" aria-labelledby="supportDropdown">
-            <a class="dropdown-item" href="/faq">FAQ</a>
-            <a class="dropdown-item" href="/contact">Contact</a>
-            <a class="dropdown-item" href="/terms_of_use">Terms and Conditions</a>
-          </div>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" 
+             data-bs-toggle="dropdown" aria-expanded="false">Support</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="/faq">FAQ</a></li>
+            <li><a class="dropdown-item" href="/contact">Contact</a></li>
+            <li><a class="dropdown-item" href="/terms_of_use">Terms and Conditions</a></li>
+          </ul>
         </li>
       </ul>
-
-      <!-- Right side: IHCC before login icon, then "View Demo" -->
-      <div class="d-flex ml-auto align-items-center navbar-buttons">
-        <!-- IHCC logo first in desktop view -->
-        <a
-          class="nav-link d-flex align-items-center"
-          href="https://ihccbusiness.net/"
-        >
-          <img
-            src="{{ url_for('static', filename='images/IHCC_logo_color_TM.png') }}"
-            alt="IHCC"
-            class="ihcc-logo"
-            style="width: 120px; height: auto;"
-          />
+      
+      <!-- Right Side Actions -->
+      <div class="navbar-actions d-flex align-items-center gap-3">
+        <a href="https://ihccbusiness.net/" class="ihcc-link" target="_blank">
+          <img src="{{ url_for('static', filename='images/IHCC_logo_color_TM.png') }}" 
+               alt="IHCC" class="ihcc-logo" />
         </a>
-
-        <!-- login icon next -->
-        <a 
-          href="/login"
-          class="ml-2"
-          aria-label="Log In"
-          style="margin-right: 25px;"
-        >
-          <!-- In collapsed mode, becomes bigger & top-right -->
-          <img
-            id="loginIcon"
-            src="{{ url_for('static', filename='images/loginIcon.png') }}"
-            alt="Log In"
-            style="width: 40px; height: auto;"
-          />
-        </a>
-
+        
         {% if is_logged_in %}
-          <a href="/welcome" class="btn btn-custom">Welcome</a>
-          <a href="/logout" class="btn btn-custom ml-2">Log Out</a>
+          <a href="/welcome" class="btn btn-modern-primary">Dashboard</a>
+          <a href="/logout" class="btn btn-modern-secondary">Log Out</a>
         {% else %}
-          <!-- The "View Demo" link or button: in desktop, appears last;
-               in collapsed mode, goes under login, above IHCC -->
-          <a href="/demo" class="ml-2 btn-demo-gradient">View Demo</a>
+          <a href="/login" class="btn btn-modern-secondary">Log In</a>
+          <a href="/signup" class="btn btn-modern-primary">Get Started</a>
         {% endif %}
       </div>
-      <!-- /Right side container -->
-
-    </div> <!-- /collapse -->
+    </div>
   </div>
 </nav>
