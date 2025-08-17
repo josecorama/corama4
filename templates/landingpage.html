@@ -46,7 +46,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: linear-gradient(-45deg, #1a1a2e, #16213e, #4f46e5, #7c3aed);
+      background: linear-gradient(-45deg, #1a1a2e, #16213e, #4f46e5, #1e3a8a);
       background-size: 400% 400%;
       animation: gradientShift 15s ease infinite;
       z-index: 0;
@@ -99,7 +99,7 @@
       100% { background-position: 200% 50%; }
     }
     .ai-text {
-      background: linear-gradient(45deg, #4f46e5, #7c3aed, #06b6d4);
+      background: linear-gradient(45deg, #4f46e5, #1e3a8a, #06b6d4);
       background-size: 200% auto;
       -webkit-background-clip: text;
       background-clip: text;
@@ -604,33 +604,36 @@
       margin-right: 10px;
     }
 
-    /* NAVBAR_OVERRIDES */
+    /* NAVBAR_OVERRIDES - Use consistent dark styling */
     .navbar-professional {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
-      background-color: transparent;
+      background: rgba(0, 0, 0, 0.8) !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       z-index: 9999;
-      transition: background-color 0.3s, color 0.3s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: none;
     }
-    .navbar-professional:not(.navbar-transparent) {
-      background-color: #ffffff; 
-      color: #000000;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    .navbar-professional.scrolled {
+      background: rgba(0, 0, 0, 0.95) !important;
+      backdrop-filter: blur(30px);
+      -webkit-backdrop-filter: blur(30px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
-    .navbar-professional.navbar-transparent {
-      background-color: transparent !important;
-      color: #ffffff !important;
-      box-shadow: none !important;
+    .navbar-professional .nav-link {
+      color: rgba(255, 255, 255, 0.8) !important;
     }
-    .navbar-professional.navbar-transparent .nav-link {
-      color: #fff !important;
+    .navbar-professional .nav-link:hover {
+      color: rgba(255, 255, 255, 1) !important;
     }
-    .navbar-professional.navbar-transparent .navbar-brand img,
-    .navbar-professional.navbar-transparent .ihcc-logo {
-      filter: contrast(0) brightness(2);
+    .navbar-professional .navbar-brand img,
+    .navbar-professional .ihcc-logo {
+      filter: brightness(1.1);
     }
     .btn-custom {
       background-color: #F67F00;
@@ -700,20 +703,20 @@
         filter: invert(1) grayscale(1) !important; /* white to black */
       }
       /* Stack the right-side items in a column, center them */
-      .navbar-custom .navbar-collapse.show .navbar-buttons {
+      .navbar-professional .navbar-collapse.show .navbar-buttons {
         margin-top: 15px !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
       }
       /* Make "View Demo" wide, order it after login but before IHCC in collapsed mode */
-      .navbar-custom .navbar-collapse.show .btn-demo-gradient {
+      .navbar-professional .navbar-collapse.show .btn-demo-gradient {
         width: 90% !important;
         margin: 20px auto !important;
         order: 2;
       }
       /* IHCC logo is last (order: 3) in collapsed mode */
-      .navbar-custom .navbar-collapse.show .ihcc-logo {
+      .navbar-professional .navbar-collapse.show .ihcc-logo {
         display: inline-block !important;
         order: 3;
         margin-top: 20px;
@@ -801,7 +804,7 @@
       REMOVE the black background rules on scroll for the collapsed menu
       so it ALWAYS remains white with #55666d text
     */
-    /* (Deleted the .navbar-custom.scrolled .navbar-collapse.show {...} rule) */
+    /* (Deleted the .navbar-professional.scrolled .navbar-collapse.show {...} rule) */
     
     /* Force white background for KEY FEATURES section - Override all other styles */
     #key-features-white {
