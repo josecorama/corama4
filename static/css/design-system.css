@@ -1,25 +1,25 @@
 /* Corama Design System - Devin AI Complete Color Palette */
 :root {
-  /* Devin AI Exact Color Palette */
-  --primary-dark: #10131c;
-  --primary-navy: #1a1a2e;
-  --secondary-navy: #16213e;
-  --accent-blue: #446dcd;
-  --accent-cyan: #4bb6d3;
-  --accent-green: #6ef2cc;
-  --text-primary: #baf5f5;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --background-primary: #10131c;
-  --background-secondary: #0f0f0f;
-  --background-card: #1a1a1a;
-  --border-color: #27272a;
+  /* AI Tech Dark Blue Color Palette */
+  --primary-dark: #0f172a;
+  --primary-navy: #1e293b;
+  --secondary-navy: #334155;
+  --accent-blue: #1e3a8a;
+  --accent-cyan: #3b82f6;
+  --accent-green: #60a5fa;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --background-primary: #0f172a;
+  --background-secondary: #1e293b;
+  --background-card: #334155;
+  --border-color: #475569;
   
-  /* Devin AI Gradient Variables */
-  --gradient-primary: linear-gradient(90deg, #446dcd, #4bb6d3, #6ef2cc);
-  --gradient-secondary: linear-gradient(120deg, #acb9c6 30%, #deefff, #acb9c6 70%);
-  --gradient-animated: linear-gradient(-45deg, #446dcd, #4bb6d3, #6ef2cc, #446dcd);
-  --gradient-hero: linear-gradient(135deg, #10131c 0%, #1a1a2e 100%);
+  /* AI Tech Gradient Variables */
+  --gradient-primary: linear-gradient(90deg, #1e3a8a, #3b82f6, #60a5fa);
+  --gradient-secondary: linear-gradient(120deg, #1e293b 30%, #334155, #475569 70%);
+  --gradient-animated: linear-gradient(-45deg, #1e3a8a, #3b82f6, #60a5fa, #1e3a8a);
+  --gradient-hero: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   
   /* Typography */
   --font-family: 'Inter', 'Jost', sans-serif;
@@ -94,94 +94,145 @@
   100% { background-position: 0% 50%; }
 }
 
-/* Circuit Animation Background */
-.floating-circuits {
+/* AI Neural Network Animation Background */
+.ai-neural-network {
   position: absolute;
   width: 100%;
   height: 100%;
   overflow: hidden;
   z-index: 1;
+  background: radial-gradient(ellipse at center, rgba(30, 58, 138, 0.1) 0%, transparent 70%);
 }
 
-.circuit {
+.neural-node {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%);
+  border-radius: 50%;
+  animation: neuralPulse 3s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(30, 58, 138, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+}
+
+.neural-connection {
+  position: absolute;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(30, 58, 138, 0.8) 20%, rgba(59, 130, 246, 0.6) 50%, rgba(30, 58, 138, 0.8) 80%, transparent 100%);
+  animation: dataFlow 4s linear infinite;
+  transform-origin: left center;
+}
+
+.ai-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #60a5fa;
+  border-radius: 50%;
+  animation: particleFloat 8s linear infinite;
+  box-shadow: 0 0 10px rgba(96, 165, 250, 0.8);
+}
+
+.data-stream {
   position: absolute;
   width: 2px;
-  background: linear-gradient(45deg, rgba(68, 109, 205, 0.6), rgba(75, 182, 211, 0.6));
-  animation: circuitFlow 15s infinite linear;
+  height: 100px;
+  background: linear-gradient(180deg, transparent 0%, rgba(30, 58, 138, 0.8) 30%, rgba(59, 130, 246, 0.9) 50%, rgba(30, 58, 138, 0.8) 70%, transparent 100%);
+  animation: streamFlow 6s linear infinite;
   filter: blur(0.5px);
-  box-shadow: 0 0 10px rgba(68, 109, 205, 0.3);
 }
 
-.circuit:nth-child(1) {
-  height: 200px;
-  left: 10%;
-  animation-delay: 0s;
-  transform: rotate(45deg);
+/* Neural Network Node Positions */
+.neural-node:nth-child(1) { top: 20%; left: 15%; animation-delay: 0s; }
+.neural-node:nth-child(2) { top: 35%; left: 25%; animation-delay: 0.5s; }
+.neural-node:nth-child(3) { top: 60%; left: 20%; animation-delay: 1s; }
+.neural-node:nth-child(4) { top: 25%; left: 45%; animation-delay: 1.5s; }
+.neural-node:nth-child(5) { top: 50%; left: 55%; animation-delay: 2s; }
+.neural-node:nth-child(6) { top: 75%; left: 50%; animation-delay: 2.5s; }
+.neural-node:nth-child(7) { top: 30%; left: 75%; animation-delay: 3s; }
+.neural-node:nth-child(8) { top: 65%; left: 80%; animation-delay: 3.5s; }
+
+/* Neural Connection Positions */
+.neural-connection:nth-child(9) { top: 22%; left: 15%; width: 120px; transform: rotate(15deg); animation-delay: 0.2s; }
+.neural-connection:nth-child(10) { top: 37%; left: 25%; width: 180px; transform: rotate(-10deg); animation-delay: 0.7s; }
+.neural-connection:nth-child(11) { top: 52%; left: 55%; width: 150px; transform: rotate(25deg); animation-delay: 1.2s; }
+.neural-connection:nth-child(12) { top: 27%; left: 45%; width: 200px; transform: rotate(-5deg); animation-delay: 1.7s; }
+
+/* AI Particle Positions */
+.ai-particle:nth-child(13) { top: 10%; left: 10%; animation-delay: 0s; }
+.ai-particle:nth-child(14) { top: 40%; left: 30%; animation-delay: 2s; }
+.ai-particle:nth-child(15) { top: 70%; left: 60%; animation-delay: 4s; }
+.ai-particle:nth-child(16) { top: 15%; left: 80%; animation-delay: 6s; }
+
+/* Data Stream Positions */
+.data-stream:nth-child(17) { top: 0; left: 35%; animation-delay: 0s; }
+.data-stream:nth-child(18) { top: 0; left: 65%; animation-delay: 2s; }
+.data-stream:nth-child(19) { top: 0; left: 85%; animation-delay: 4s; }
+
+@keyframes neuralPulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+    box-shadow: 0 0 20px rgba(30, 58, 138, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+    box-shadow: 0 0 30px rgba(30, 58, 138, 0.8), 0 0 60px rgba(59, 130, 246, 0.5);
+  }
 }
 
-.circuit:nth-child(2) {
-  height: 150px;
-  left: 25%;
-  animation-delay: 3s;
-  transform: rotate(-30deg);
-}
-
-.circuit:nth-child(3) {
-  height: 180px;
-  left: 60%;
-  animation-delay: 6s;
-  transform: rotate(60deg);
-}
-
-.circuit:nth-child(4) {
-  height: 120px;
-  left: 80%;
-  animation-delay: 9s;
-  transform: rotate(-45deg);
-}
-
-.circuit:nth-child(5) {
-  height: 160px;
-  left: 45%;
-  animation-delay: 12s;
-  transform: rotate(30deg);
-}
-
-.circuit-node {
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: rgba(110, 242, 204, 0.8);
-  border-radius: 50%;
-  animation: nodeGlow 2s ease-in-out infinite alternate;
-  box-shadow: 0 0 15px rgba(110, 242, 204, 0.6);
-}
-
-@keyframes circuitFlow {
+@keyframes dataFlow {
   0% {
-    transform: translateY(100vh) rotate(45deg);
+    background-position: -100% 0;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    background-position: 200% 0;
+    opacity: 0;
+  }
+}
+
+@keyframes particleFloat {
+  0% {
+    transform: translateY(100vh) translateX(0px);
     opacity: 0;
   }
   10% {
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(50vh) translateX(20px);
     opacity: 1;
   }
   90% {
     opacity: 1;
   }
   100% {
-    transform: translateY(-100vh) rotate(45deg);
+    transform: translateY(-10vh) translateX(-10px);
     opacity: 0;
   }
 }
 
-@keyframes nodeGlow {
+@keyframes streamFlow {
   0% {
-    opacity: 0.4;
-    transform: scale(1);
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
   }
   100% {
-    opacity: 1;
-    transform: scale(1.2);
+    transform: translateY(-100vh);
+    opacity: 0;
   }
 }
 

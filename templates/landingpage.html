@@ -836,15 +836,33 @@
   <!-- MODERN HERO SECTION with animated background -->
   <section class="hero-section">
     <div class="hero-animated-bg"></div>
-    <div class="floating-circuits">
-      <div class="circuit" style="left: 10%; height: 200px; animation-delay: 0s; transform: rotate(45deg);"></div>
-      <div class="circuit" style="left: 25%; height: 150px; animation-delay: 3s; transform: rotate(-30deg);"></div>
-      <div class="circuit" style="left: 60%; height: 180px; animation-delay: 6s; transform: rotate(60deg);"></div>
-      <div class="circuit" style="left: 80%; height: 120px; animation-delay: 9s; transform: rotate(-45deg);"></div>
-      <div class="circuit" style="left: 45%; height: 160px; animation-delay: 12s; transform: rotate(30deg);"></div>
-      <div class="circuit-node" style="left: 15%; top: 20%; animation-delay: 1s;"></div>
-      <div class="circuit-node" style="left: 65%; top: 40%; animation-delay: 4s;"></div>
-      <div class="circuit-node" style="left: 85%; top: 60%; animation-delay: 7s;"></div>
+    <div class="ai-neural-network">
+      <!-- Neural Network Nodes -->
+      <div class="neural-node"></div>
+      <div class="neural-node"></div>
+      <div class="neural-node"></div>
+      <div class="neural-node"></div>
+      <div class="neural-node"></div>
+      <div class="neural-node"></div>
+      <div class="neural-node"></div>
+      <div class="neural-node"></div>
+      
+      <!-- Neural Connections -->
+      <div class="neural-connection"></div>
+      <div class="neural-connection"></div>
+      <div class="neural-connection"></div>
+      <div class="neural-connection"></div>
+      
+      <!-- AI Particles -->
+      <div class="ai-particle"></div>
+      <div class="ai-particle"></div>
+      <div class="ai-particle"></div>
+      <div class="ai-particle"></div>
+      
+      <!-- Data Streams -->
+      <div class="data-stream"></div>
+      <div class="data-stream"></div>
+      <div class="data-stream"></div>
     </div>
     <div class="hero-overlay"></div>
 
@@ -875,34 +893,42 @@
   </section>
 
   <!-- KEY FEATURES SECTION (White Background) -->
-  <section id="key-features-white" style="background: #ffffff !important; padding: 80px 0; width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); position: relative; z-index: 10;">
+  <section id="key-features-black" style="background: #0f172a !important; padding: 80px 0; width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); position: relative; z-index: 10;">
     <div class="container" style="text-align: center; background: transparent;">
-      <h2 style="color: #2c3e50; font-size: 50px; font-family: 'Inter', sans-serif; font-weight: 700; margin-bottom: 20px;">KEY FEATURES</h2>
-      <p style="color: #6c757d; font-size: 20px; max-width: 800px; margin: 0 auto 50px;">
+      <h2 style="color: #e2e8f0; font-size: 50px; font-family: 'Inter', sans-serif; font-weight: 700; margin-bottom: 20px;">KEY FEATURES</h2>
+      <p style="color: #94a3b8; font-size: 20px; max-width: 800px; margin: 0 auto 50px;">
         From finding the right opportunities to managing submissions, our AI-powered platform
         streamlines the government contracting process for businesses of all sizes.
       </p>
     </div>
   
     <!-- Features Grid -->
-    <div class="container-wrapper" style="background: transparent !important; position: relative; z-index: 11;">
-      <div class="container-box" style="background: rgba(255, 255, 255, 0.95) !important;">
-        <img src="/static/images/cs.png" alt="Icon 1" style="width:48px;height:48px;margin-bottom:16px;">
-        <h2>Capability Statement Builder</h2>
-        <p>Create professional CS tailored to industry standards in minutes.</p>
-        <a href="/signupCSBuilder" class="btn-modern-primary">Create for Free!</a>
-      </div>
-      <div class="container-box" style="background: rgba(255, 255, 255, 0.95) !important;">
-        <img src="/static/images/t5.png" alt="Icon 2" style="width:48px;height:48px;margin-bottom:16px;">
-        <h2>AI Bid Builder Assistant</h2>
-        <p>AI that matches your capability statement with the best 5 contract opportunities based on your business profile.</p>
-        <a href="/signup" class="btn-modern-primary">Free Trial</a>
-      </div>
-      <div class="container-box" style="background: rgba(255, 255, 255, 0.95) !important;">
-        <img src="/static/images/ss.png" alt="Icon 3" style="width:48px;height:48px;margin-bottom:16px;">
-        <h2>Smart Search</h2>
-        <p>Access thousands of government contracts in one place with smart filters to find your best match.</p>
-        <a href="/signup" class="btn-modern-primary">Free Trial</a>
+    <div class="container" style="background: transparent !important; position: relative; z-index: 11;">
+      <div class="row justify-content-center" style="max-width: 1200px; margin: 0 auto;">
+        <div class="col-lg-4 col-md-6 mb-4" style="display: flex; justify-content: center;">
+          <div class="feature-card" style="background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: transform 0.3s ease; height: 100%; max-width: 350px; width: 100%;">
+            <img src="/static/images/cs.png" alt="Icon 1" style="width:48px;height:48px;margin-bottom:16px;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #2c3e50; font-size: 1.5rem; margin-bottom: 15px;">Capability Statement Builder</h2>
+            <p style="font-family: 'Inter', sans-serif; color: #6c757d; font-size: 1rem; line-height: 1.6; margin-bottom: 25px;">Create professional CS tailored to industry standards in minutes.</p>
+            <a href="/signupCSBuilder" style="background: linear-gradient(90deg, #1e3a8a, #3b82f6); color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.3s ease; display: inline-block;">Create for Free!</a>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6 mb-4" style="display: flex; justify-content: center;">
+          <div class="feature-card" style="background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: transform 0.3s ease; height: 100%; max-width: 350px; width: 100%;">
+            <img src="/static/images/t5.png" alt="Icon 2" style="width:48px;height:48px;margin-bottom:16px;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #2c3e50; font-size: 1.5rem; margin-bottom: 15px;">AI Bid Builder Assistant</h2>
+            <p style="font-family: 'Inter', sans-serif; color: #6c757d; font-size: 1rem; line-height: 1.6; margin-bottom: 25px;">AI that matches your capability statement with the best 5 contract opportunities based on your business profile.</p>
+            <a href="/signup" style="background: linear-gradient(90deg, #1e3a8a, #3b82f6); color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.3s ease; display: inline-block;">Free Trial</a>
+          </div>
+        </div>
+        <div class="col-lg-4 col-md-6 mb-4" style="display: flex; justify-content: center;">
+          <div class="feature-card" style="background: rgba(255, 255, 255, 0.95); border-radius: 20px; padding: 40px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); transition: transform 0.3s ease; height: 100%; max-width: 350px; width: 100%;">
+            <img src="/static/images/ss.png" alt="Icon 3" style="width:48px;height:48px;margin-bottom:16px;">
+            <h2 style="font-family: 'Inter', sans-serif; font-weight: 600; color: #2c3e50; font-size: 1.5rem; margin-bottom: 15px;">Smart Search</h2>
+            <p style="font-family: 'Inter', sans-serif; color: #6c757d; font-size: 1rem; line-height: 1.6; margin-bottom: 25px;">Access thousands of government contracts in one place with smart filters to find your best match.</p>
+            <a href="/signup" style="background: linear-gradient(90deg, #1e3a8a, #3b82f6); color: white; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: 500; transition: all 0.3s ease; display: inline-block;">Free Trial</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -1109,14 +1135,14 @@
     });
   </script>
 
-  <!-- KEY FEATURES WHITE BACKGROUND FIX -->
+  <!-- KEY FEATURES BLACK BACKGROUND FIX -->
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Fix KEY FEATURES section background to be white
-      const keyFeaturesSection = document.getElementById('key-features-white');
+      // Fix KEY FEATURES section background to be black
+      const keyFeaturesSection = document.getElementById('key-features-black');
       if (keyFeaturesSection) {
-        keyFeaturesSection.style.setProperty('background', 'white', 'important');
-        keyFeaturesSection.style.setProperty('background-color', 'white', 'important');
+        keyFeaturesSection.style.setProperty('background', '#0f172a', 'important');
+        keyFeaturesSection.style.setProperty('background-color', '#0f172a', 'important');
         keyFeaturesSection.style.setProperty('background-image', 'none', 'important');
       }
     });
