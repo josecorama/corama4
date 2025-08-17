@@ -1,42 +1,54 @@
-/* Modern Professional Navigation */
+/* Devin.ai Inspired Navigation */
 .navbar-professional {
-  background: rgba(10, 10, 10, 0.95);
+  background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1rem 0;
+  padding: 0.75rem 0;
   position: fixed;
   top: 0;
   width: 100%;
   z-index: 1000;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .navbar-professional.scrolled {
-  background: rgba(0, 0, 0, 0.98);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .navbar-logo {
-  height: 40px;
+  height: 36px;
   width: auto;
-  filter: brightness(1.2);
+  filter: brightness(1.1);
+  transition: all 0.3s ease;
+}
+
+.navbar-logo:hover {
+  filter: brightness(1.3);
+  transform: scale(1.02);
 }
 
 .navbar-nav .nav-link {
+  font-family: 'Inter', sans-serif;
   font-weight: 500;
-  color: var(--text-secondary);
-  padding: 0.75rem 1.25rem;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 1rem;
   margin: 0 0.25rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  border-radius: 6px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
 }
 
 .navbar-nav .nav-link:hover,
 .navbar-nav .nav-link.active {
-  color: var(--text-primary);
-  background: rgba(79, 70, 229, 0.1);
+  color: rgba(255, 255, 255, 1);
+  background: rgba(255, 255, 255, 0.1);
   text-decoration: none;
 }
 
@@ -196,6 +208,23 @@
 .dropdown-item:hover {
   background-color: rgba(104, 183, 221, 0.1);
   color: var(--primary-blue);
+}
+
+.navbar-toggler {
+  border: none;
+  padding: 0.25rem 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.navbar-toggler:focus {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='m4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
 /* Mobile Responsive */

@@ -945,19 +945,44 @@
   <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
 
-  <!-- Navbar scroll effect -->
+  <!-- Enhanced Navbar Scroll Effect - Devin.ai Style -->
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const navbar = document.querySelector('.navbar-professional');
-      if (navbar) {
-        window.addEventListener('scroll', function() {
-          if (window.scrollY > 50) {
-            navbar.classList.add('scrolled');
-          } else {
-            navbar.classList.remove('scrolled');
-          }
-        });
+      let lastScrollY = window.scrollY;
+      let ticking = false;
+      
+      function updateNavbar() {
+        const scrollY = window.scrollY;
+        const scrollDirection = scrollY > lastScrollY ? 'down' : 'up';
+        
+        if (scrollY > 50) {
+          navbar.classList.add('scrolled');
+        } else {
+          navbar.classList.remove('scrolled');
+        }
+        
+        // Devin.ai style: slight hide/show behavior
+        if (scrollDirection === 'down' && scrollY > 100) {
+          navbar.style.transform = 'translateY(-10px)';
+          navbar.style.opacity = '0.95';
+        } else {
+          navbar.style.transform = 'translateY(0)';
+          navbar.style.opacity = '1';
+        }
+        
+        lastScrollY = scrollY;
+        ticking = false;
       }
+      
+      function requestTick() {
+        if (!ticking) {
+          requestAnimationFrame(updateNavbar);
+          ticking = true;
+        }
+      }
+      
+      window.addEventListener('scroll', requestTick);
     });
   </script>
 
