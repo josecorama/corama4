@@ -441,7 +441,7 @@
       }
       .bid-text { font-size: 20px; }
 
-      .navbar-custom {
+      .navbar-professional {
         padding: 10px;
       }
       .navbar-brand { margin-right: 10px; }
@@ -605,7 +605,7 @@
     }
 
     /* NAVBAR_OVERRIDES */
-    .navbar-custom {
+    .navbar-professional {
       position: fixed;
       top: 0;
       left: 0;
@@ -615,21 +615,21 @@
       transition: background-color 0.3s, color 0.3s;
       box-shadow: none;
     }
-    .navbar-custom:not(.navbar-transparent) {
+    .navbar-professional:not(.navbar-transparent) {
       background-color: #ffffff; 
       color: #000000;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
-    .navbar-custom.navbar-transparent {
+    .navbar-professional.navbar-transparent {
       background-color: transparent !important;
       color: #ffffff !important;
       box-shadow: none !important;
     }
-    .navbar-custom.navbar-transparent .nav-link {
+    .navbar-professional.navbar-transparent .nav-link {
       color: #fff !important;
     }
-    .navbar-custom.navbar-transparent .navbar-brand img,
-    .navbar-custom.navbar-transparent .ihcc-logo {
+    .navbar-professional.navbar-transparent .navbar-brand img,
+    .navbar-professional.navbar-transparent .ihcc-logo {
       filter: contrast(0) brightness(2);
     }
     .btn-custom {
@@ -648,7 +648,7 @@
       margin: 0 25px;
       font-weight: 600;
     }
-    .navbar-custom .container {
+    .navbar-professional .container {
       max-width: 100% !important;
       padding-left: 0 !important;
       padding-right: 0 !important;
@@ -667,7 +667,7 @@
        - IHCC logo below "View Demo"
     */
     @media (max-width: 992px) {
-      .navbar-custom .navbar-collapse.show {
+      .navbar-professional .navbar-collapse.show {
         background-color: #fff !important;
         display: block !important;
         position: relative;
@@ -675,24 +675,24 @@
         text-align: center;
       }
       /* Stack the nav links in a column */
-      .navbar-custom .navbar-collapse.show .navbar-nav {
+      .navbar-professional .navbar-collapse.show .navbar-nav {
         display: flex !important;
         flex-direction: column !important;
         width: 100%;
       }
-      .navbar-custom .navbar-collapse.show .nav-link,
-      .navbar-custom .navbar-collapse.show .dropdown-item {
+      .navbar-professional .navbar-collapse.show .nav-link,
+      .navbar-professional .navbar-collapse.show .dropdown-item {
         color: #55666d !important;
         margin: 8px 0 !important;
         font-size: 1.1rem !important;
       }
       /* The brand remains near the top in collapsed mode */
-      .navbar-custom .navbar-collapse.show .navbar-brand img {
+      .navbar-professional .navbar-collapse.show .navbar-brand img {
         filter: none !important; /* so it's visible on white background */
         margin: 0 auto;
       }
       /* Make login icon bigger and top-right */
-      .navbar-custom .navbar-collapse.show #loginIcon {
+      .navbar-professional .navbar-collapse.show #loginIcon {
         position: absolute;
         top: 20px;
         right: 20px;
