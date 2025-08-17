@@ -1,3 +1,70 @@
+/* Modern Button System */
+.btn-modern-primary {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: white;
+  border: none;
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+  position: relative;
+  overflow: hidden;
+  font-family: 'Inter', 'Jost', sans-serif;
+}
+
+.btn-modern-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-modern-primary:hover::before {
+  left: 100%;
+}
+
+.btn-modern-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+  color: white;
+  text-decoration: none;
+}
+
+.btn-modern-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 2px solid rgba(79, 70, 229, 0.5);
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  font-family: 'Inter', 'Jost', sans-serif;
+}
+
+.btn-modern-secondary:hover {
+  background: rgba(79, 70, 229, 0.1);
+  border-color: #4f46e5;
+  transform: translateY(-2px);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
 /* Professional Button System */
 .useButtonLightBlue,
 .btn-primary-custom {

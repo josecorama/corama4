@@ -1,33 +1,42 @@
-/* Professional Navigation Styling */
+/* Modern Professional Navigation */
 .navbar-professional {
-  background-color: var(--background-primary);
-  border-bottom: 1px solid var(--border-color);
-  padding: var(--spacing-md) 0;
-  box-shadow: var(--shadow-sm);
-  position: sticky;
+  background: rgba(10, 10, 10, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1rem 0;
+  position: fixed;
   top: 0;
+  width: 100%;
   z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.navbar-professional.scrolled {
+  background: rgba(0, 0, 0, 0.98);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .navbar-logo {
   height: 40px;
   width: auto;
+  filter: brightness(1.2);
 }
 
 .navbar-nav .nav-link {
   font-weight: 500;
-  color: var(--text-primary);
-  padding: var(--spacing-sm) var(--spacing-md);
-  margin: 0 var(--spacing-xs);
-  border-radius: var(--radius-md);
-  transition: all 0.2s ease;
+  color: var(--text-secondary);
+  padding: 0.75rem 1.25rem;
+  margin: 0 0.25rem;
+  border-radius: 8px;
+  transition: all 0.3s ease;
   text-decoration: none;
+  font-size: 0.95rem;
 }
 
 .navbar-nav .nav-link:hover,
 .navbar-nav .nav-link.active {
-  color: var(--primary-blue);
-  background-color: rgba(104, 183, 221, 0.1);
+  color: var(--text-primary);
+  background: rgba(79, 70, 229, 0.1);
   text-decoration: none;
 }
 
@@ -36,38 +45,40 @@
 }
 
 .btn-primary-custom {
-  background-color: var(--primary-blue);
-  border-color: var(--primary-blue);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  border: none;
   color: white;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-md);
-  font-weight: 500;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
   text-decoration: none;
-  transition: all 0.2s ease;
-  border: 1px solid var(--primary-blue);
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
 }
 
 .btn-primary-custom:hover {
-  background-color: #001a2e;
-  border-color: #001a2e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
   color: white;
   text-decoration: none;
 }
 
 .btn-outline-primary-custom {
-  background-color: transparent;
-  border: 1px solid var(--primary-blue);
-  color: var(--primary-blue);
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-radius: var(--radius-md);
-  font-weight: 500;
+  background: transparent;
+  border: 1px solid rgba(79, 70, 229, 0.5);
+  color: var(--text-primary);
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
 }
 
 .btn-outline-primary-custom:hover {
-  background-color: var(--primary-blue);
-  color: white;
+  background: rgba(79, 70, 229, 0.1);
+  border-color: #4f46e5;
+  color: var(--text-primary);
   text-decoration: none;
 }
 

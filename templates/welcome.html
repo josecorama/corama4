@@ -19,17 +19,24 @@
 
             body {
                 font-family: var(--font-family);
+                background: var(--background-primary);
+                color: var(--text-secondary);
             }
 
             /* 🔹 Background section */
             .background-section {
                 width: 100%;
                 min-height: 600px;
-                background: url('/static/images/bgGen.png') center/cover no-repeat;  
+                background: var(--background-card);
+                border: 1px solid var(--border-color);
+                border-radius: 24px;
                 display: flex;
                 justify-content: center;
                 align-items: center;
                 padding: var(--spacing-lg);
+                margin: 2rem auto;
+                backdrop-filter: blur(20px);
+                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
             }
 
             /* 🔹 Wrapper to align items */
