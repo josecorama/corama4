@@ -1553,9 +1553,9 @@ def Login():
                 error_message = "Incorrect password. Please try again."
             elif 'USER_DISABLED' in str(e):
                 error_message = "This account has been disabled. Contact support for assistance."
-            return render_template('login.html', error=error_message)
+            return render_template('login.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
     
-    return render_template('login.html')
+    return render_template('login.html', RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
 
 
 

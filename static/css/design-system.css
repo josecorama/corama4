@@ -1,25 +1,25 @@
-/* Corama Design System - Modern Professional UI/UX */
+/* Corama Design System - Devin AI Complete Color Palette */
 :root {
-  /* Modern Color Palette - Devin AI Inspired */
-  --primary-dark: #0a0a0a;
+  /* Devin AI Exact Color Palette */
+  --primary-dark: #10131c;
   --primary-navy: #1a1a2e;
   --secondary-navy: #16213e;
-  --accent-blue: #4f46e5;
-  --accent-purple: #7c3aed;
-  --accent-cyan: #06b6d4;
-  --text-primary: #ffffff;
+  --accent-blue: #446dcd;
+  --accent-cyan: #4bb6d3;
+  --accent-green: #6ef2cc;
+  --text-primary: #baf5f5;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
-  --background-primary: #000000;
+  --background-primary: #10131c;
   --background-secondary: #0f0f0f;
   --background-card: #1a1a1a;
   --border-color: #27272a;
   
-  /* Gradient Variables */
-  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --gradient-animated: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
-  --gradient-hero: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+  /* Devin AI Gradient Variables */
+  --gradient-primary: linear-gradient(90deg, #446dcd, #4bb6d3, #6ef2cc);
+  --gradient-secondary: linear-gradient(120deg, #acb9c6 30%, #deefff, #acb9c6 70%);
+  --gradient-animated: linear-gradient(-45deg, #446dcd, #4bb6d3, #6ef2cc, #446dcd);
+  --gradient-hero: linear-gradient(135deg, #10131c 0%, #1a1a2e 100%);
   
   /* Typography */
   --font-family: 'Inter', 'Jost', sans-serif;
@@ -94,8 +94,8 @@
   100% { background-position: 0% 50%; }
 }
 
-/* Floating Orbs Animation */
-.floating-orbs {
+/* Circuit Animation Background */
+.floating-circuits {
   position: absolute;
   width: 100%;
   height: 100%;
@@ -103,52 +103,63 @@
   z-index: 1;
 }
 
-.orb {
+.circuit {
   position: absolute;
-  border-radius: 50%;
-  background: linear-gradient(45deg, rgba(79, 172, 254, 0.4), rgba(59, 130, 246, 0.4));
-  animation: floatUp 20s infinite linear;
-  filter: blur(1px);
+  width: 2px;
+  background: linear-gradient(45deg, rgba(68, 109, 205, 0.6), rgba(75, 182, 211, 0.6));
+  animation: circuitFlow 15s infinite linear;
+  filter: blur(0.5px);
+  box-shadow: 0 0 10px rgba(68, 109, 205, 0.3);
 }
 
-.orb:nth-child(1) {
-  width: 80px;
-  height: 80px;
+.circuit:nth-child(1) {
+  height: 200px;
   left: 10%;
   animation-delay: 0s;
+  transform: rotate(45deg);
 }
 
-.orb:nth-child(2) {
-  width: 120px;
-  height: 120px;
-  left: 20%;
-  animation-delay: 2s;
+.circuit:nth-child(2) {
+  height: 150px;
+  left: 25%;
+  animation-delay: 3s;
+  transform: rotate(-30deg);
 }
 
-.orb:nth-child(3) {
-  width: 60px;
-  height: 60px;
-  left: 70%;
-  animation-delay: 4s;
-}
-
-.orb:nth-child(4) {
-  width: 100px;
-  height: 100px;
-  left: 80%;
+.circuit:nth-child(3) {
+  height: 180px;
+  left: 60%;
   animation-delay: 6s;
+  transform: rotate(60deg);
 }
 
-.orb:nth-child(5) {
-  width: 90px;
-  height: 90px;
-  left: 50%;
-  animation-delay: 8s;
+.circuit:nth-child(4) {
+  height: 120px;
+  left: 80%;
+  animation-delay: 9s;
+  transform: rotate(-45deg);
 }
 
-@keyframes floatUp {
+.circuit:nth-child(5) {
+  height: 160px;
+  left: 45%;
+  animation-delay: 12s;
+  transform: rotate(30deg);
+}
+
+.circuit-node {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: rgba(110, 242, 204, 0.8);
+  border-radius: 50%;
+  animation: nodeGlow 2s ease-in-out infinite alternate;
+  box-shadow: 0 0 15px rgba(110, 242, 204, 0.6);
+}
+
+@keyframes circuitFlow {
   0% {
-    transform: translateY(100vh) rotate(0deg);
+    transform: translateY(100vh) rotate(45deg);
     opacity: 0;
   }
   10% {
@@ -158,8 +169,19 @@
     opacity: 1;
   }
   100% {
-    transform: translateY(-100vh) rotate(360deg);
+    transform: translateY(-100vh) rotate(45deg);
     opacity: 0;
+  }
+}
+
+@keyframes nodeGlow {
+  0% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.2);
   }
 }
 

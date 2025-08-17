@@ -38,7 +38,7 @@
 
 .badge-success {
     background-color: #28a745;
-    color: #000000; /* Change to black or another suitable color */
+    color: #ffffff; /* Changed from black to white for better contrast */
     padding: 0.25em 0.4em;
     font-size: 75%;
     font-weight: 700;

@@ -23,7 +23,7 @@
                   </div>
               {% endif %}
               
-              <form method="POST" action="{{ url_for('Login') }}">
+              <form method="POST" action="{{ url_for('Login') }}" id="login-form">
                   <div class="form-group">
                       <input type="email" class="form-control" name="email" placeholder="Email" required autofocus>
                   </div>
@@ -35,6 +35,9 @@
                       </span>
                   </div>
                   <br>
+                  
+                  <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
+                  
                   <button class="btn btn-lg btn-block custom-login-btn" type="submit">Log in</button>
 
                     <style>
@@ -80,6 +83,44 @@
       }
       </script>
 
+
+<!-- reCAPTCHA Implementation -->
+<script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}" async defer></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("login-form");
+    
+    if (!form) {
+        console.error("Login form not found.");
+        return;
+    }
+    
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        
+        grecaptcha.ready(function () {
+            grecaptcha.execute("{{ RECAPTCHA_SITE_KEY }}", { action: "login" })
+                .then(function (token) {
+                    console.log("reCAPTCHA Token:", token);
+                    
+                    const recaptchaInput = document.getElementById("g-recaptcha-response");
+                    if (recaptchaInput) {
+                        recaptchaInput.value = token;
+                        console.log("Token injected. Submitting form...");
+                        form.submit();
+                    } else {
+                        console.error("Missing #g-recaptcha-response input.");
+                    }
+                })
+                .catch(function (error) {
+                    console.error("reCAPTCHA execution failed:", error);
+                    alert("reCAPTCHA validation failed. Please refresh and try again.");
+                });
+        });
+    });
+});
+</script>
 
 <script>
     gtag('event', 'login_success', {

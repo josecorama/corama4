@@ -32,11 +32,11 @@
 
 
 .page-title-section {
-    color: black;
+    color: #f8f9fa;
   }
   
   .page-title-section a {
-    color: black;
+    color: #f8f9fa;
     text-decoration: none; /* Optional: Ensures links do not have underlines */
   }
   

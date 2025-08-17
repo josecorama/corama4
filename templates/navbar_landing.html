@@ -3,7 +3,7 @@
   <div class="container-fluid px-4">
     <!-- Brand Logo -->
     <a class="navbar-brand" href="/">
-      <img src="{{ url_for('static', filename='images/CORAMALOGO.png') }}" 
+      <img src="{{ url_for('static', filename='images/corama_logo_dark.png') }}" 
            alt="CORAMA" class="navbar-logo" />
     </a>
     
@@ -22,9 +22,6 @@
         </li>
         <li class="nav-item">
           <a class="nav-link {{ 'active' if request.path == '/aboutus' else '' }}" href="/aboutus">About Us</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link {{ 'active' if request.path == '/team' else '' }}" href="/team">Our Team</a>
         </li>
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" 
