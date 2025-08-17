@@ -1,125 +1,239 @@
-/* Fondo general del cuerpo de la página */
-body {
-    font-family: 'Jost', sans-serif;
-    color: #55666D;
-    background-color: #F2F2F2;
-    margin: 0;
-    padding: 0;
+/* Professional Navigation Styling */
+.navbar-professional {
+  background-color: var(--background-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--spacing-md) 0;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
-/* Navbar ocupa todo el ancho de la pantalla */
-.navbar-custom {
-    width: 100%;
-    background-color: #ffffff;
-    padding: 0.5rem 1rem;
-    margin: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: none;
+.navbar-logo {
+  height: 40px;
+  width: auto;
 }
 
-/* Estilo del logo en el navbar */
-.navbar-brand img {
-    max-height: 70px;
-    margin-right: 15px;
-}
-
-/* Estilo de los links en el navbar */
 .navbar-nav .nav-link {
-    font-family: 'Jost', sans-serif;
-    color: #55666D;
-    text-align: center;
-    padding: 0 15px;
-    transition: color 0.3s, font-weight 0.3s, text-decoration 0.3s; /* Transición suave */
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin: 0 var(--spacing-xs);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  text-decoration: none;
 }
 
-/* Hover en los links: Negrita y subrayado */
-.navbar-nav .nav-link:hover {
-    color: #000;
-    font-weight: bold;
-    text-decoration: underline; /* Subrayado al hacer hover */
+.navbar-nav .nav-link:hover,
+.navbar-nav .nav-link.active {
+  color: var(--primary-blue);
+  background-color: rgba(104, 183, 221, 0.1);
+  text-decoration: none;
 }
 
-/* Link activo (cuando estás en esa página) */
+.navbar-actions {
+  gap: var(--spacing-md);
+}
+
+.btn-primary-custom {
+  background-color: var(--primary-blue);
+  border-color: var(--primary-blue);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border: 1px solid var(--primary-blue);
+}
+
+.btn-primary-custom:hover {
+  background-color: #001a2e;
+  border-color: #001a2e;
+  color: white;
+  text-decoration: none;
+}
+
+.btn-outline-primary-custom {
+  background-color: transparent;
+  border: 1px solid var(--primary-blue);
+  color: var(--primary-blue);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-primary-custom:hover {
+  background-color: var(--primary-blue);
+  color: white;
+  text-decoration: none;
+}
+
+.ihcc-logo {
+  height: 32px;
+  width: auto;
+}
+
+/* Legacy navbar support */
+.navbar-custom {
+  background-color: var(--background-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: var(--spacing-md) 0;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-brand img {
+  height: 40px;
+  width: auto;
+  margin-right: 15px;
+}
+
+.navbar-nav .nav-item .nav-link {
+  font-weight: 500;
+  color: var(--text-primary);
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin: 0 var(--spacing-xs);
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.navbar-nav .nav-item .nav-link:hover,
 .navbar-nav .nav-item.active .nav-link {
-    color: #55666D;
-    font-weight: bold; /* Negrita cuando es la página activa */
-    text-decoration: underline; /* Subrayado cuando es la página activa */
+  color: var(--primary-blue);
+  background-color: rgba(104, 183, 221, 0.1);
+  text-decoration: none;
 }
 
-/* Estilo del texto en el navbar */
-.navbar-text {
-    font-family: 'Jost', sans-serif;
-    color: #55666D;
-    text-align: center;
-    vertical-align: middle;
-    margin-right: 2rem;
-}
-
-/* Estilos para los botones */
 .navbar-buttons .btn-custom {
-    background-color: #6899B4;
-    border-color: #6899B4;
-    color: white;
-    text-transform: none;
-    margin-left: 10px;
-    padding: 6px 14px;
-    font-family: 'Jost', sans-serif;
-    font-size: 0.9rem;
+  background-color: var(--secondary-blue);
+  border-color: var(--secondary-blue);
+  color: white;
+  text-transform: none;
+  margin-left: 10px;
+  padding: 6px 14px;
+  font-family: var(--font-family);
+  font-size: 0.9rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
 }
 
 .navbar-buttons .btn-custom:hover {
-    background-color: #56798D;
+  background-color: #5a8aa4;
 }
 
-/* Ajustes responsivos para pantallas pequeñas */
-/* Allign dropdown menu items to the left*/
-@media (max-width: 991.98px) {
-    .navbar-collapse .navbar-nav .nav-item .nav-link {
-      text-align: left !important;
-    }
-  }
-
-/* Contenedor del título de la página con la imagen de fondo */
+/* Page title section */
 .page-title-section {
-    position: relative;
-    padding: 30px 0;
-    margin-bottom: 50px;
-    text-align: center;
-    display: flex;
-    justify-content: center;
-    align-items: center;  /* Centra verticalmente */
-    height: 200px;        /* Asegura que la altura del contenedor coincida con la imagen */
-    background-color: transparent; /* Sin fondo para que se vea la imagen */
+  position: relative;
+  padding: 30px 0;
+  margin-bottom: 50px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  background-color: transparent;
 }
 
 .page-title-section img {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    top: 0;
-    left: 0;
-    z-index: -1;
-    object-fit: cover;
-    border-radius: 25px;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  object-fit: cover;
+  border-radius: 25px;
 }
 
-/* Estilo para el título principal (h1) */
 .page-title-section h1 {
-    color: white;
-    font-family: 'Jost', sans-serif;
-    font-size: 2.5rem;
-    font-weight: 700;
-    z-index: 1;
-    margin-bottom: 10px;
+  color: white;
+  font-family: var(--font-family);
+  font-size: 2.5rem;
+  font-weight: 700;
+  z-index: 1;
+  margin-bottom: 10px;
 }
 
-/* Estilo para el subtítulo (h2) */
 .page-title-section h2 {
-    color: white !important;
-    font-family: 'Jost', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 500;
-    z-index: 1;
+  color: white !important;
+  font-family: var(--font-family);
+  font-size: 1.5rem;
+  font-weight: 500;
+  z-index: 1;
+}
+
+/* Dropdown menu styling */
+.dropdown-menu {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-sm) 0;
+}
+
+.dropdown-item {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(104, 183, 221, 0.1);
+  color: var(--primary-blue);
+}
+
+/* Mobile Responsive */
+@media (max-width: 991.98px) {
+  .navbar-professional {
+    padding: var(--spacing-sm) 0;
+  }
+  
+  .navbar-actions {
+    flex-direction: column;
+    width: 100%;
+    margin-top: var(--spacing-md);
+    gap: var(--spacing-sm);
+  }
+  
+  .btn-primary-custom,
+  .btn-outline-primary-custom {
+    width: 100%;
+    text-align: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  .navbar-collapse .navbar-nav .nav-item .nav-link {
+    text-align: left !important;
+    padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  .navbar-nav {
+    margin-bottom: var(--spacing-md);
+  }
+  
+  .ihcc-logo {
+    height: 28px;
+    margin-bottom: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 576px) {
+  .navbar-logo {
+    height: 32px;
+  }
+  
+  .navbar-nav .nav-link {
+    font-size: var(--font-size-sm);
+  }
+  
+  .btn-primary-custom,
+  .btn-outline-primary-custom {
+    font-size: var(--font-size-sm);
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
 }

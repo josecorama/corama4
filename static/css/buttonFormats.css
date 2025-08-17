@@ -1,86 +1,140 @@
-.useButtonOrange {
-    background-color: #F67F00;
-    color: white;
-    border: none;
-    padding: 12px 25px;
-    font-size: 1.2rem;
-    border-radius: 8px;
-    transition: background-color 0.3s ease, transform 0.3s ease;
-    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
-    font-family: 'Jost', sans-serif;
-    font-weight: bold;
-    text-decoration: none;
+/* Professional Button System */
+.useButtonLightBlue,
+.btn-primary-custom {
+  background-color: var(--secondary-blue);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-family: var(--font-family);
 }
 
-.useButtonOrange:hover {
-    background-color: #f5b800; /* Cambia el color en hover */
-    transform: translateY(-3px); /* Efecto de levantar */
-    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15); /* Más sombras en hover */
-}
-
-
-
-/* ✅ NEW: Sleeker, smaller, tighter version of button */
-.btn-sow {
-    background-color: #5a8ca3;
-    color: #fff;
-    border: none;
-    font-size: 0.85rem;
-    padding: 6px 12px;
-    border-radius: 4px;
-    text-align: center;
-    font-weight: 500;
-    text-decoration: none;
-    line-height: 1.2;
-    display: inline-block;
-    transition: background-color 0.2s ease-in-out;
-}
-
-.btn-sow:hover {
-    background-color: #4a7c93;
-    text-decoration: none;
-    color: #fff;
-}
-
-
-.useButtonLightBlue {
-    background-color: #6899b4;
-    color: white;
-    border: none;
-    padding: 12px 25px;
-    font-size: 1.0rem;
-    border-radius: 8px;
-    transition: background-color 0.3s ease, transform 0.3s ease;
-    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
-    font-family: 'Jost', sans-serif;
-    font-weight: regular;
-    text-decoration: none;
-}
-
-.useButtonLightBlue:hover {
-    background-color: #69b5b5; /* Cambia el color en hover */
-    transform: translateY(-3px); /* Efecto de levantar */
-    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15); /* Más sombras en hover */
+.useButtonLightBlue:hover,
+.btn-primary-custom:hover {
+  background-color: #5a8aa4;
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 
 .useButtonDarkBlue {
-    background-color: #002f49;
-    color: white;
-    border: none;
-    padding: 12px 25px;
-    font-size: 1.2rem;
-    border-radius: 8px;
-    transition: background-color 0.3s ease, transform 0.3s ease;
-    box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.1);
-    font-family: 'Jost', sans-serif;
-    font-weight: bold;
-    text-decoration: none;
+  background-color: var(--primary-blue);
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-family: var(--font-family);
 }
 
 .useButtonDarkBlue:hover {
-    background-color: #004747; /* Cambia el color en hover */
-    transform: translateY(-3px); /* Efecto de levantar */
-    box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.15); /* Más sombras en hover */
+  background-color: #001a2e;
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.useButtonOrange {
+  background-color: #F67F00;
+  color: white;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-base);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-family: var(--font-family);
+}
+
+.useButtonOrange:hover {
+  background-color: #f5b800;
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-sow {
+  background-color: #5a8ca3;
+  color: #fff;
+  border: none;
+  font-size: var(--font-size-sm);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-weight: 500;
+  text-decoration: none;
+  line-height: 1.2;
+  display: inline-block;
+  transition: background-color 0.2s ease-in-out;
+  font-family: var(--font-family);
+}
+
+.btn-sow:hover {
+  background-color: #4a7c93;
+  text-decoration: none;
+  color: #fff;
+}
+
+/* Responsive button adjustments */
+@media (max-width: 768px) {
+  .useButtonLightBlue,
+  .btn-primary-custom,
+  .useButtonDarkBlue,
+  .useButtonOrange {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-size-base);
+    width: 100%;
+    max-width: 300px;
+    margin: var(--spacing-xs) auto;
+    display: block;
+  }
+  
+  /* Form buttons responsive */
+  .form-group .useButtonLightBlue,
+  .form-group .btn-primary-custom {
+    width: 100%;
+    margin-top: var(--spacing-md);
+  }
+}
+
+@media (max-width: 480px) {
+  .useButtonLightBlue,
+  .btn-primary-custom,
+  .useButtonDarkBlue,
+  .useButtonOrange {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    max-width: 250px;
+  }
+  
+  .btn-sow {
+    padding: 4px 8px;
+    font-size: var(--font-size-xs);
+  }
+  
+  /* Modal buttons responsive */
+  .modal-footer .useButtonLightBlue,
+  .modal-footer .btn-primary-custom {
+    width: 100%;
+    margin: var(--spacing-xs) 0;
+  }
 }
 
 #uploadForm {

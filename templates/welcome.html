@@ -18,18 +18,18 @@
             }
 
             body {
-                font-family: 'Jost', sans-serif;
+                font-family: var(--font-family);
             }
 
             /* 🔹 Background section */
             .background-section {
                 width: 100%;
-                height: 600px;
+                min-height: 600px;
                 background: url('/static/images/bgGen.png') center/cover no-repeat;  
                 display: flex;
                 justify-content: center;
                 align-items: center;
-                padding: 20px;
+                padding: var(--spacing-lg);
             }
 
             /* 🔹 Wrapper to align items */
@@ -96,42 +96,75 @@
             }
 
             /* 🔹 Responsive Design */
-            @media (max-width: 950px) {
+            @media (max-width: 1200px) {
+                .container-wrapper {
+                    flex-wrap: wrap;
+                    justify-content: center;
+                    gap: var(--spacing-md);
+                }
+                
+                .container-box {
+                    width: 45%;
+                    min-width: 280px;
+                }
+            }
+            
+            @media (max-width: 768px) {
                 .background-section {
-                    height: auto;
-                    padding: 40px 20px;
+                    min-height: auto;
+                    padding: var(--spacing-xl) var(--spacing-md);
                 }
 
                 .container-wrapper {
                     flex-direction: column;
                     align-items: center;
                     width: 100%;
+                    gap: var(--spacing-lg);
                 }
 
                 .container-box {
-                    width: 90%;
-                    max-width: 320px;
+                    width: 100%;
+                    max-width: 350px;
                     height: auto;
-                    padding: 15px;
+                    padding: var(--spacing-lg);
                 }
 
                 .container-box img {
-                    width: 120px;
-                    height: 120px;
+                    width: 60px;
+                    height: 60px;
                 }
 
                 .container-box h2 {
-                    font-size: 20px;
+                    font-size: var(--font-size-lg);
                 }
 
                 .container-box p {
-                    font-size: 14px;
+                    font-size: var(--font-size-sm);
                 }
 
                 .container-box button {
                     width: 100%;
-                    font-size: 0.9rem;
-                    padding: 8px 16px;
+                    font-size: var(--font-size-sm);
+                    padding: var(--spacing-sm) var(--spacing-md);
+                }
+            }
+            
+            @media (max-width: 480px) {
+                .background-section {
+                    padding: var(--spacing-lg) var(--spacing-sm);
+                }
+                
+                .container-box {
+                    max-width: 100%;
+                    padding: var(--spacing-md);
+                }
+                
+                .container-box h2 {
+                    font-size: var(--font-size-base);
+                }
+                
+                .container-box p {
+                    font-size: var(--font-size-xs);
                 }
             }
 

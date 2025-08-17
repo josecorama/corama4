@@ -1,7 +1,7 @@
 /* Estilos generales */
 body {
-    font-family: 'Jost', sans-serif; /* Asegúrate de usar 'Jost' como fuente */
-    overflow-x: hidden; /* Prevenir desplazamiento horizontal */
+    font-family: var(--font-family);
+    overflow-x: hidden;
 }
 
 /* Card de contratos */

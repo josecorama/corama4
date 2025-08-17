@@ -15,8 +15,8 @@
         <!-- Text Section: Decentralizing the public economy -->
         <div class="row justify-content-center"> 
             <div class="col-12" style="max-width: 1050px; margin: 0 auto;"> 
-                <p style="text-align: justify; font-size: 1.2rem; margin-bottom: 40px;">CORAMA is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.</p>
-                <p style="text-align: justify; font-size: 1.2rem; margin-bottom: 40px;">At CORAMA, we believe that small businesses are the backbone of our economy, and we're dedicated to empowering them with the tools and resources they need to thrive in the government contracting arena. Our platform is designed to streamline the process of securing government contracts, providing small businesses with a competitive edge in today's market.</p>
+                <p class="responsive-text" style="text-align: justify; font-size: var(--font-size-lg); margin-bottom: var(--spacing-xl);">CORAMA is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.</p>
+                <p class="responsive-text" style="text-align: justify; font-size: var(--font-size-lg); margin-bottom: var(--spacing-xl);">At CORAMA, we believe that small businesses are the backbone of our economy, and we're dedicated to empowering them with the tools and resources they need to thrive in the government contracting arena. Our platform is designed to streamline the process of securing government contracts, providing small businesses with a competitive edge in today's market.</p>
             </div>
         </div>
 
@@ -89,12 +89,36 @@
             .responsive-text-container {
                 width: 100% !important;
                 max-width: 100% !important;
-                padding: 20px !important;
+                padding: var(--spacing-lg) !important;
             }
             .responsive-text-container p {
-                font-size: 1.2rem !important;
+                font-size: var(--font-size-base) !important;
                 line-height: 1.5 !important;
                 max-width: 100% !important;
+            }
+            .responsive-text {
+                font-size: var(--font-size-base) !important;
+            }
+            .page-title-section h1 {
+                font-size: var(--font-size-2xl) !important;
+            }
+            .page-title-section h2 {
+                font-size: var(--font-size-lg) !important;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .responsive-text {
+                font-size: var(--font-size-sm) !important;
+            }
+            .page-title-section {
+                height: 150px !important;
+            }
+            .page-title-section h1 {
+                font-size: var(--font-size-xl) !important;
+            }
+            .page-title-section h2 {
+                font-size: var(--font-size-base) !important;
             }
         }
     </style>

@@ -1,39 +1,44 @@
-<link rel="stylesheet" href="/static/CSS/buttonFormats.css">
-<link rel="stylesheet" href="/static/CSS/footer.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-<footer>
-  <div class="footer-container">
-    <!-- LEFT: Logo -->
-    <div class="footer-left">
-      <img src="{{ url_for('static', filename='images/footer_logo.png') }}" alt="CORAMA">
-    </div>
-    
-    <!-- CENTER: FOLLOW CORAMA + Icons -->
-    <div class="footer-center">
-      <h2>FOLLOW CORAMA</h2>
-      <div class="social-icons">
-        <a href="https://www.facebook.com/people/Corama/61568626109717/?_rdr" target="_blank" aria-label="Facebook">
-          <i class="fab fa-facebook-f"></i>
-        </a>
-        <a href="https://www.linkedin.com/company/corama-ai" target="_blank" aria-label="LinkedIn">
-          <i class="fab fa-linkedin-in"></i>
-        </a>
-        <a href="https://www.instagram.com/corama.ai/" target="_blank" aria-label="Instagram">
-          <i class="fab fa-instagram"></i>
+<!-- Professional Footer -->
+<footer class="footer-professional">
+  <div class="container">
+    <div class="footer-content">
+      <!-- Logo Section -->
+      <div class="footer-section footer-brand">
+        <img src="{{ url_for('static', filename='images/footer_logo.png') }}" 
+             alt="CORAMA" class="footer-logo">
+      </div>
+      
+      <!-- Social Section -->
+      <div class="footer-section footer-social">
+        <h3 class="footer-title">Follow CORAMA</h3>
+        <div class="social-links">
+          <a href="https://www.facebook.com/people/Corama/61568626109717/?_rdr" 
+             target="_blank" aria-label="Facebook" class="social-link">
+            <i class="fab fa-facebook-f"></i>
+          </a>
+          <a href="https://www.linkedin.com/company/corama-ai" 
+             target="_blank" aria-label="LinkedIn" class="social-link">
+            <i class="fab fa-linkedin-in"></i>
+          </a>
+          <a href="https://www.instagram.com/corama.ai/" 
+             target="_blank" aria-label="Instagram" class="social-link">
+            <i class="fab fa-instagram"></i>
+          </a>
+        </div>
+      </div>
+      
+      <!-- Contact Section -->
+      <div class="footer-section footer-contact">
+        <div class="contact-info">
+          <p>222 W. Merchandise Mart Plaza</p>
+          <p>Suite 1212 c/o 1871 Chicago, IL 60654</p>
+          <p>Info@corama.ai</p>
+          <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+        </div>
+        <a href="https://ihccbusiness.net/" class="btn btn-primary-custom" target="_blank">
+          Learn More About IHCC
         </a>
       </div>
-    </div>
-
-    <!-- RIGHT: Address + Button -->
-    <div class="footer-right">
-      <p>222 W. Merchandise Mart Plaza</p>
-      <p>Suite 1212 c/o 1871 Chicago, IL 60654</p>
-      <p>Info@corama.ai</p>
-      <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
-      <a href="https://ihccbusiness.net/" class="useButtonLightBlue" target="_blank">
-        Learn More About IHCC
-      </a>
     </div>
   </div>
 </footer>
