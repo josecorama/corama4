@@ -104,15 +104,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loginWithGoogle = async () => {
     try {
+      console.log('Starting Google OAuth flow...')
       const result = await signInWithPopup(auth, googleProvider)
       const user = result.user
+      console.log('Firebase authentication successful:', user.uid, user.email)
       
+      console.log('Sending request to backend:', `${API_BASE_URL}/auth/google-login`)
       const response = await axios.post(`${API_BASE_URL}/auth/google-login`, {
         uid: user.uid,
         email: user.email,
         name: user.displayName,
         photo: user.photoURL
       })
+      console.log('Backend response received:', response.data)
       
       const { access_token, user: userData } = response.data
       setToken(access_token)
@@ -120,7 +124,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       localStorage.setItem('token', access_token)
       localStorage.setItem('user', JSON.stringify(userData))
+      console.log('Google OAuth completed successfully')
     } catch (error) {
+      console.error('Google OAuth error details:', error)
+      if (axios.isAxiosError(error)) {
+        console.error('Backend error response:', error.response?.data)
+        console.error('Backend error status:', error.response?.status)
+      }
       throw new Error('Google login failed')
     }
   }
