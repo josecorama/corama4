@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
+import AIAnimatedBackground from './components/AIAnimatedBackground'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -15,7 +16,11 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div>
+        <div className="site-bg" aria-hidden="true">
+          <AIAnimatedBackground />
+        </div>
+        
+        <div className="min-h-screen">
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />

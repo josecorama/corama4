@@ -2,17 +2,36 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Three-tier container system for full-width layout with proper content structure */
-* {
-  box-sizing: border-box;
+/* Responsive Design System with CSS Variables and Clamp Functions */
+*,
+*::before,
+*::after { 
+  box-sizing: border-box; 
 }
 
-html, body {
+:root {
+  --container-max: 1200px;         /* Main content container max width */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --radius-xl: 16px; --radius-2xl: 24px;
+  --shadow-1: 0 8px 24px rgba(0,0,0,.08);
+  --text-xxl: clamp(32px, 3.5vw, 56px);
+  --text-xl: clamp(22px, 2vw, 32px);
+  --text-lg: clamp(18px, 1.2vw, 20px);
+  --text-base: 16px;
+}
+
+/* Prevent accidental clipping or overflow */
+html, body { 
+  height: 100%; 
   margin: 0;
-  padding: 0;
-  width: 100%;
-  height: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+body {
+  font: 400 var(--text-base)/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: #e7e9ef;
+  background: #0b1220;
 }
 
 #root {
@@ -22,44 +41,152 @@ html, body {
   min-height: 100vh;
 }
 
-/* Page container - full viewport width, no constraints - for backgrounds */
-.page-container {
-  width: 100vw !important;
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  min-height: 100vh;
+/* Full-bleed, fixed background layer */
+.site-bg {
+  position: fixed;   /* stays put on scroll */
+  inset: 0;          /* cover entire viewport */
+  z-index: -1;       /* behind all content */
+  overflow: hidden;  /* hide particles that fly out */
+  pointer-events: none;
+  background: radial-gradient(1200px 600px at 50% -10%, rgba(80,120,255,.18), transparent 60%),
+              linear-gradient(#0b1220, #0b1220); /* keep your base color */
 }
 
-/* Content container - maintains full width but allows for proper content flow */
-.content-container {
+/* Ensure the visual fills the layer, whatever element is used */
+.site-bg canvas,
+.site-bg video,
+.site-bg img,
+.site-bg .particles {
+  position: absolute;
+  inset: 0;
   width: 100%;
-  max-width: none;
-  padding-left: 1.5rem;
-  padding-right: 1.5rem;
+  height: 100%;
+  display: block;
+  object-fit: cover;   /* no letterboxing */
 }
 
-/* Content centered - for forms and focused content with proper spacing */
+/* Constrained content */
+.container {
+  width: min(var(--container-max), 92vw);
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+
+/* Section spacing */
+section { 
+  padding-block: var(--space-8); 
+}
+
+/* Prevent inner elements from stretching beyond readable widths */
+.no-stretch { 
+  max-width: var(--container-max); 
+  margin-inline: auto; 
+}
+
+/* Hero section styles */
+.hero {
+  padding-block: calc(var(--space-8) + 24px);
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: var(--text-xxl);
+  line-height: 1.1;
+  letter-spacing: .2px;
+  max-inline-size: 30ch;     /* keeps headline from getting too wide */
+  margin: 0 auto var(--space-5);
+}
+
+.hero p {
+  font-size: var(--text-lg);
+  max-inline-size: 65ch;     /* readable paragraphs */
+  margin: 0 auto var(--space-6);
+  opacity: .9;
+}
+
+/* CTA row */
+.cta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: center;
+}
+
+.cta .btn {
+  padding: 12px 20px;
+  border-radius: 999px;
+  background: #2d6bff;
+  color: #fff; 
+  border: 0; 
+  cursor: pointer;
+}
+
+.cta .input {
+  width: clamp(260px, 30vw, 420px);  /* stops it from stretching */
+  padding: 12px 14px; 
+  border-radius: 12px; 
+  border: 1px solid #2a3650;
+  background: #0f1830; 
+  color: #e7e9ef;
+}
+
+/* Feature cards */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-6);
+  justify-items: center;     /* center cards when there's extra space */
+}
+
+.card {
+  width: clamp(320px, 30vw, 420px); /* cards stop growing beyond 420px */
+  background: linear-gradient(180deg, #111a33, #0e1730);
+  border: 1px solid #22304f;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-6);
+}
+
+/* Footer */
+footer { 
+  padding-block: var(--space-6); 
+  opacity: .8; 
+}
+
+/* Desktop tweaks */
+@media (min-width: 1440px) {
+  .container { 
+    width: min(var(--container-max), 86vw); 
+  }
+}
+
+/* Avoid full-viewport width pitfalls */
+img, video { 
+  max-width: 100%; 
+  height: auto; 
+  display: block; 
+}
+
+/* Legacy support for existing Tailwind classes - gradually remove these */
+.content-container {
+  width: min(var(--container-max), 92vw);
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+
 .content-centered {
   width: 100%;
-  max-width: 28rem; /* 448px - good for forms */
+  max-width: 28rem;
   margin: 0 auto;
   padding: 0 1rem;
 }
 
-/* Override Tailwind's container max-width constraints */
-.container {
-  width: 100% !important;
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* Ensure backgrounds and full-width elements extend edge-to-edge */
-.full-width-bg {
-  width: 100vw !important;
-  margin-left: calc(-50vw + 50%) !important;
-  margin-right: calc(-50vw + 50%) !important;
+/* Page container - remove background styles, let global background handle it */
+.page-container {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
 }
 @layer base {
   :root {

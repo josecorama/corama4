@@ -11,8 +11,12 @@ const AIAnimatedBackground: React.FC = () => {
     if (!ctx) return
 
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = Math.floor(window.innerWidth * dpr)
+      canvas.height = Math.floor(window.innerHeight * dpr)
+      canvas.style.width = '100%'
+      canvas.style.height = '100%'
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
 
     resizeCanvas()
@@ -329,9 +333,17 @@ const AIAnimatedBackground: React.FC = () => {
 
   return (
     <canvas
+      id="bg-canvas"
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none"
-      style={{ zIndex: 1 }}
+      style={{
+        position: 'absolute',
+        inset: 0,
+        width: '100%',
+        height: '100%',
+        display: 'block',
+        objectFit: 'cover',
+        pointerEvents: 'none'
+      }}
     />
   )
 }
