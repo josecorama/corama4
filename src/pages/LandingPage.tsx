@@ -91,27 +91,69 @@ const LandingPage = () => {
             className="features"
           >
             <article className="card">
+              <a className="card__overlay-link" href="/capability#learn" aria-label="Learn about Capability Statement Builder"></a>
+              
               <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mb-6">
                 <FileText className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-4">AI Capability Builder</h3>
-              <p className="text-slate-300">Generate professional capability statements with AI assistance, tailored to government contracting standards.</p>
+              
+              <h3 className="card__title">
+                <a className="card__title-link" href="/capability#learn">Capability Statement Builder</a>
+              </h3>
+              
+              <p id="cap-desc">
+                Generate compliant, polished capability statements in minutes—formatted for government buyers.
+              </p>
+              
+              <div className="card__actions">
+                <Link to="/capability" className="btn" aria-describedby="cap-desc">
+                  Build Statement →
+                </Link>
+              </div>
             </article>
             
             <article className="card">
+              <a className="card__overlay-link" href="/assistant#learn" aria-label="Learn about AI Bid Smart Assistant"></a>
+              
               <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-6">
                 <Search className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-4">Smart Contract Matching</h3>
-              <p className="text-slate-300">Discover relevant government contracts using AI-powered matching based on your capabilities and experience.</p>
+              
+              <h3 className="card__title">
+                <a className="card__title-link" href="/assistant#learn">AI Bid Smart Assistant</a>
+              </h3>
+              
+              <p id="assistant-desc">
+                Ask anything about a bid: scope, risk, compliance, timeline, pricing hints.
+              </p>
+              
+              <div className="card__actions">
+                <Link to="/assistant" className="btn" aria-describedby="assistant-desc">
+                  Chat with Assistant →
+                </Link>
+              </div>
             </article>
             
             <article className="card">
+              <a className="card__overlay-link" href="/contracts#learn" aria-label="Learn about Contracts Smart Search"></a>
+              
               <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center mb-6">
                 <Shield className="w-6 h-6 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-4">Secure Document Management</h3>
-              <p className="text-slate-300">Store and manage your documents securely with automated backup and version control systems.</p>
+              
+              <h3 className="card__title">
+                <a className="card__title-link" href="/contracts#learn">Contracts Smart Search</a>
+              </h3>
+              
+              <p id="contracts-desc">
+                Search by NAICS, agency, location, and past performance with AI ranking.
+              </p>
+              
+              <div className="card__actions">
+                <Link to="/contracts" className="btn" aria-describedby="contracts-desc">
+                  Search Contracts →
+                </Link>
+              </div>
             </article>
           </motion.div>
         </section>

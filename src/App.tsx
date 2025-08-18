@@ -31,14 +31,29 @@ function App() {
                 <Dashboard />
               </ProtectedRoute>
             } />
+            <Route path="/capability" element={
+              <ProtectedRoute>
+                <CapabilityBuilder />
+              </ProtectedRoute>
+            } />
             <Route path="/capability-builder" element={
               <ProtectedRoute>
                 <CapabilityBuilder />
               </ProtectedRoute>
             } />
+            <Route path="/contracts" element={
+              <ProtectedRoute>
+                <ContractSearch />
+              </ProtectedRoute>
+            } />
             <Route path="/contract-search" element={
               <ProtectedRoute>
                 <ContractSearch />
+              </ProtectedRoute>
+            } />
+            <Route path="/assistant" element={
+              <ProtectedRoute>
+                <BidResponseBuilder />
               </ProtectedRoute>
             } />
             <Route path="/bid-response" element={
