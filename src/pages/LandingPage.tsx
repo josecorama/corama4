@@ -1,29 +1,169 @@
-import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Sparkles, FileText, Search, Shield, Zap } from 'lucide-react'
+import { ArrowRight, Sparkles } from 'lucide-react'
 import { Button } from '../components/ui/button'
 
 const LandingPage = () => {
+  const [demoVisible, setDemoVisible] = useState(false)
+  const [demoType, setDemoType] = useState<'contracts' | 'capability' | 'assistant'>('contracts')
+  const [stickyVisible, setStickyVisible] = useState(false)
+
+  const demoContracts = [
+    { title: "Janitorial Services – District Offices", agency: "Cook County", due: "2025-09-05", est: "$250K–$400K", naics: "561720" },
+    { title: "Custodial Services – Parks & Rec", agency: "IL DNR", due: "2025-09-12", est: "$1.2M", naics: "561720" },
+    { title: "Facility Cleaning – Federal Building", agency: "GSA", due: "2025-09-18", est: "$850K", naics: "561720" },
+  ]
+
+  const sampleFirm = { 
+    name: "BlueWave Facilities, LLC", 
+    naics: ["561720", "561740"], 
+    differentiators: ["24/7 dispatch", "union labor", "LEED support"] 
+  }
+
+  const showDemo = (type: 'contracts' | 'capability' | 'assistant') => {
+    setDemoType(type)
+    setDemoVisible(true)
+    setStickyVisible(true)
+    
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'demo_panel_view', {
+        demo_type: type
+      })
+    }
+  }
+
+  const renderDemoContent = () => {
+    switch (demoType) {
+      case 'contracts':
+        return (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <strong className="text-lg text-white">Top matches</strong> for <em className="text-blue-300">"janitorial 561720"</em>
+              </div>
+              <Link 
+                to="/contracts" 
+                className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 text-white"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'cta_open_full_tool', { tool: 'contracts' })
+                  }
+                }}
+              >
+                Open full search <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="space-y-4">
+              {demoContracts.map((contract, i) => (
+                <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-4">
+                  <h4 className="font-semibold text-white mb-2">{contract.title}</h4>
+                  <p className="text-gray-300 text-sm">
+                    {contract.agency} • Due {contract.due} • Est. {contract.est} • NAICS {contract.naics}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </>
+        )
+      
+      case 'capability':
+        return (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <strong className="text-lg text-white">Sample capability statement</strong> for <em className="text-blue-300">{sampleFirm.name}</em>
+              </div>
+              <Link 
+                to="/capability" 
+                className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 text-white"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'cta_open_full_tool', { tool: 'capability' })
+                  }
+                }}
+              >
+                Build my statement <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-semibold text-white mb-2">Core Competencies</h4>
+                <ul className="text-gray-300 space-y-1">
+                  {["Janitorial", "Floor care", "Post-construction"].map(x => (
+                    <li key={x} className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                      {x}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold text-white mb-2">NAICS</h4>
+                <p className="text-gray-300">{sampleFirm.naics.join(", ")}</p>
+              </div>
+              <div>
+                <h4 className="font-semibold text-white mb-2">Differentiators</h4>
+                <ul className="text-gray-300 space-y-1">
+                  {sampleFirm.differentiators.map(x => (
+                    <li key={x} className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                      {x}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </>
+        )
+      
+      case 'assistant':
+        return (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <strong className="text-lg text-white">AI Bid Assistant</strong>
+              <Link 
+                to="/assistant" 
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 text-white"
+                onClick={() => {
+                  if (typeof window !== 'undefined' && (window as any).gtag) {
+                    (window as any).gtag('event', 'cta_open_full_tool', { tool: 'assistant' })
+                  }
+                }}
+              >
+                Chat in full <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="space-y-4">
+              <div className="bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+                <div className="text-blue-300 text-sm font-medium mb-1">System</div>
+                <div className="text-white">Ask me about scope, risks, compliance, pricing hints…</div>
+              </div>
+              <div className="bg-gray-500/20 border border-gray-500/30 rounded-lg p-3 ml-8">
+                <div className="text-gray-300 text-sm font-medium mb-1">You</div>
+                <div className="text-white">What's risky in this SOW?</div>
+              </div>
+              <div className="bg-purple-500/20 border border-purple-500/30 rounded-lg p-3">
+                <div className="text-purple-300 text-sm font-medium mb-1">AI Assistant</div>
+                <div className="text-white">Top 3 risks: (1) ambiguous service levels, (2) liquidated damages without caps, (3) 24/7 response with 2-hr SLA but no surge pricing. I'd clarify acceptance, cap LDs at 10%, and price an after-hours premium.</div>
+              </div>
+            </div>
+          </>
+        )
+    }
+  }
+
   return (
     <div className="page-container">
       <header aria-label="Top navigation">
         <nav className="nav">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center space-x-2"
-          >
+          <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <span className="text-2xl font-bold text-white">Corama</span>
-          </motion.div>
+          </div>
           
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="flex items-center space-x-4"
-          >
+          <div className="flex items-center space-x-4">
             <Link to="/login">
               <Button variant="ghost" className="text-white hover:bg-white/10">
                 Sign In
@@ -39,170 +179,106 @@ const LandingPage = () => {
                 Get Started
               </Button>
             </Link>
-          </motion.div>
+          </div>
         </nav>
       </header>
 
       <main>
-        <section className="hero container">
-          <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
+        <section className="hero container" style={{ padding: 'clamp(84px, 12vh, 140px) 0', textAlign: 'center' }}>
+          <h1 
             className="text-white font-bold mb-6"
             style={{ fontSize: 'var(--text-xxl)' }}
           >
-            AI-Powered
-            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent block">
-              Contract Matching
-            </span>
-          </motion.h1>
+            AI-Powered Government Contracting Suite
+          </h1>
           
-          <motion.p 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-slate-300 mb-8"
+          <p 
+            className="text-slate-300 mb-12"
             style={{ fontSize: 'var(--text-lg)', maxInlineSize: '65ch', margin: '0 auto var(--space-6)' }}
           >
-            Create professional capability statements and discover matching government contracts with the power of AI
-          </motion.p>
+            Generate capability statements, chat through bids, and find contracts — in minutes.
+          </p>
           
-          <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="cta"
-          >
-            <Link to="/capability">
-              <button className="btn">
-                Build Statement →
-              </button>
-            </Link>
-            <div className="search-wrap">
-              <input className="input" placeholder="Search NAICS / keywords…" />
-              <small className="field-hint">Try: "janitorial 561720", "Cook County", "GSA IT modernization".</small>
-            </div>
-          </motion.div>
-        </section>
+          <div className="flex flex-wrap gap-3 justify-center items-center mb-8">
+            <button 
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+              onClick={() => {
+                showDemo('capability')
+                if (typeof window !== 'undefined' && (window as any).gtag) {
+                  (window as any).gtag('event', 'chip_click', { demo: 'capability' })
+                }
+              }}
+            >
+              Generate a sample statement
+            </button>
+            <button 
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+              onClick={() => {
+                showDemo('contracts')
+                if (typeof window !== 'undefined' && (window as any).gtag) {
+                  (window as any).gtag('event', 'chip_click', { demo: 'contracts' })
+                }
+              }}
+            >
+              Find "janitorial 561720"
+            </button>
+            <button 
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+              onClick={() => {
+                showDemo('assistant')
+                if (typeof window !== 'undefined' && (window as any).gtag) {
+                  (window as any).gtag('event', 'chip_click', { demo: 'assistant' })
+                }
+              }}
+            >
+              Ask: "What's risky in this SOW?"
+            </button>
+            <button 
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-white"
+              onClick={() => {
+                showDemo('contracts')
+                if (typeof window !== 'undefined' && (window as any).gtag) {
+                  (window as any).gtag('event', 'hero_try_click')
+                }
+              }}
+            >
+              Try it now — 30s demo
+            </button>
+          </div>
 
-        <section className="container">
-          <motion.div 
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-            className="features"
-          >
-            <article className="card">
-              <a className="card__overlay-link" href="/capability#learn" aria-label="Learn about Capability Statement Builder"></a>
-              
-              <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center mb-6">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              
-              <h3 className="card__title">
-                <a className="card__title-link" href="/capability#learn">Capability Statement Builder</a>
-              </h3>
-              
-              <p id="cap-desc">
-                Generate compliant, polished statements buyers can act on—fast.
-              </p>
-              
-              <div className="card__actions">
-                <Link to="/capability" className="btn" aria-describedby="cap-desc">
-                  Build Statement →
-                </Link>
-              </div>
-            </article>
-            
-            <article className="card">
-              <a className="card__overlay-link" href="/assistant#learn" aria-label="Learn about AI Bid Smart Assistant"></a>
-              
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center mb-6">
-                <Search className="w-6 h-6 text-white" />
-              </div>
-              
-              <h3 className="card__title">
-                <a className="card__title-link" href="/assistant#learn">AI Bid Smart Assistant</a>
-              </h3>
-              
-              <p id="assistant-desc">
-                Ask anything about a bid: scope, risk, compliance, timeline, pricing hints.
-              </p>
-              
-              <div className="card__actions">
-                <Link to="/assistant" className="btn" aria-describedby="assistant-desc">
-                  Chat with Assistant →
-                </Link>
-              </div>
-            </article>
-            
-            <article className="card">
-              <a className="card__overlay-link" href="/contracts#learn" aria-label="Learn about Contracts Smart Search"></a>
-              
-              <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-teal-500 rounded-lg flex items-center justify-center mb-6">
-                <Shield className="w-6 h-6 text-white" />
-              </div>
-              
-              <h3 className="card__title">
-                <a className="card__title-link" href="/contracts#learn">Contracts Smart Search</a>
-              </h3>
-              
-              <p id="contracts-desc">
-                Search by NAICS, agency, location, and past performance with AI ranking.
-              </p>
-              
-              <div className="card__actions">
-                <Link to="/contracts" className="btn" aria-describedby="contracts-desc">
-                  Search Contracts →
-                </Link>
-              </div>
-            </article>
-          </motion.div>
-        </section>
-
-        <section className="container trust">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.0 }}
-          >
-            <p className="trust-title">Trusted by teams across government and industry</p>
-            <div className="trust-logos">
-              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">GSA</div>
-              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">DoD</div>
-              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">DHS</div>
-              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">VA</div>
-              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">NASA</div>
-            </div>
-          </motion.div>
-        </section>
-
-        <section className="container">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1.2 }}
-            className="text-center py-16"
-          >
-            <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 backdrop-blur-lg rounded-3xl p-12 border border-white/10 no-stretch">
-              <Zap className="w-16 h-16 text-yellow-400 mx-auto mb-6" />
-              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-6">
-                Ready to Transform Your Contracting Process?
-              </h2>
-              <p className="text-xl text-slate-300 mb-8" style={{ maxInlineSize: '65ch', margin: '0 auto var(--space-6)' }}>
-                Join thousands of businesses already using Corama to streamline their government contracting workflow
-              </p>
-              <Link to="/register">
-                <Button size="lg" className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-12 py-4 text-lg">
-                  Get Started Free
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
-            </div>
-          </motion.div>
+          {demoVisible && (
+            <section 
+              className="w-full max-w-4xl mx-auto mt-8 p-6 border border-slate-600 rounded-2xl backdrop-blur-sm shadow-2xl"
+              style={{
+                background: 'linear-gradient(180deg, #111a33, #0f1830)',
+                boxShadow: '0 16px 48px rgba(12,18,40,.24)'
+              }}
+            >
+              {renderDemoContent()}
+            </section>
+          )}
         </section>
       </main>
+
+      {stickyVisible && (
+        <div 
+          className="fixed bottom-0 left-0 right-0 flex gap-3 justify-center items-center p-4 backdrop-blur-md border-t border-white/10 z-20"
+          style={{ background: 'rgba(12,18,40,.6)' }}
+        >
+          <span className="text-gray-300">Like what you see?</span>
+          <Link 
+            to="/capability" 
+            className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-6 py-2 rounded-lg font-medium transition-all duration-200 text-white"
+            onClick={() => {
+              if (typeof window !== 'undefined' && (window as any).gtag) {
+                (window as any).gtag('event', 'sticky_cta_click')
+              }
+            }}
+          >
+            Start free →
+          </Link>
+        </div>
+      )}
 
       <footer className="container">
         <div className="flex flex-col md:flex-row justify-between items-center py-12 border-t border-white/10 mt-20">
@@ -215,7 +291,6 @@ const LandingPage = () => {
           <p className="text-slate-400">© 2024 Corama. All rights reserved.</p>
         </div>
       </footer>
-
     </div>
   )
 }
