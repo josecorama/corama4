@@ -83,9 +83,9 @@ section {
   margin-inline: auto; 
 }
 
-/* Hero section styles */
+/* Hero section styles - increased spacing */
 .hero {
-  padding-block: calc(var(--space-8) + 24px);
+  padding-block: 96px 48px;
   text-align: center;
 }
 
@@ -131,22 +131,55 @@ section {
   color: #e7e9ef;
 }
 
+/* Search input with helper text */
+.search-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.field-hint { 
+  display: block; 
+  margin-top: 8px; 
+  color: #93a0bd; 
+  font-size: 13px; 
+}
+
+/* Trust strip */
+.trust { 
+  padding-block: 28px 12px; 
+  opacity: .9; 
+}
+.trust-title { 
+  color: #a8b1c7; 
+  font-size: 14px; 
+  margin: 0 0 10px; 
+  text-align: center; 
+}
+.trust-logos { 
+  display: flex; 
+  flex-wrap: wrap; 
+  gap: 24px; 
+  justify-content: center; 
+  align-items: center; 
+}
+
 /* Feature cards */
 .features {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  display: grid; 
   gap: 32px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   justify-items: center;
 }
 
-/* Card */
+/* Card - premium design with hover affordance */
 .card {
   position: relative;
   width: clamp(320px, 30vw, 420px);
-  padding: 28px;
+  padding: 28px; 
   border-radius: 24px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.00)),
+    linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,0)),
     linear-gradient(180deg, #111a33, #0f1830);
   border: 1px solid #23314f;
   box-shadow: 0 16px 48px rgba(12,18,40,.24);
@@ -158,13 +191,13 @@ section {
   border-color: #2f3f6b; 
 }
 
-.card__overlay-link {
+.card__overlay-link { 
   position: absolute; 
   inset: 0; 
   border-radius: inherit; 
-  z-index: 1;
+  z-index: 1; 
 }
-.card__title, .card__actions, .card p { 
+.card__title, .card p, .card__actions { 
   position: relative; 
   z-index: 2; 
 }
@@ -182,15 +215,29 @@ section {
   text-decoration: underline; 
 }
 .card p { 
-  color: #a8b1c7; 
   margin: 0; 
+  color: #dfe6fb; 
   max-inline-size: 54ch; 
 }
 .card__actions { 
   margin-top: 18px; 
 }
 
-/* Primary button */
+/* Card hover indicator */
+.card:has(.card__overlay-link:hover)::after {
+  content: "→"; 
+  position: absolute; 
+  right: 16px; 
+  top: 16px; 
+  opacity: .55; 
+  transition: opacity .2s;
+}
+.card__overlay-link:focus-visible { 
+  outline: none; 
+  box-shadow: 0 0 0 3px rgba(106,227,255,.45); 
+}
+
+/* Primary button - standardized site-wide */
 .btn {
   display: inline-flex; 
   align-items: center; 
@@ -201,9 +248,9 @@ section {
   border: 1px solid transparent;
   background: linear-gradient(90deg, #2d6bff, #6a83ff);
   color: #fff; 
-  font-weight: 600; 
+  font-weight: 600;
   box-shadow: 0 8px 28px rgba(12,18,40,.18);
-  transition: transform .15s ease, box-shadow .2s ease;
+  transition: transform .15s, box-shadow .2s;
   text-decoration: none;
 }
 .btn:hover { 
@@ -233,6 +280,31 @@ img, video {
   max-width: 100%; 
   height: auto; 
   display: block; 
+}
+
+/* Header - sticky with blur */
+header { 
+  position: sticky; 
+  top: 0; 
+  z-index: 50; 
+}
+header .nav {
+  width: min(1200px, 92vw);
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(35,49,79,.45);
+}
+
+/* Accessibility - reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .btn, .card { 
+    transition: none; 
+  }
 }
 
 /* Legacy support for existing Tailwind classes - gradually remove these */

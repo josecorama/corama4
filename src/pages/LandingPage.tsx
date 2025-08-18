@@ -6,8 +6,8 @@ import { Button } from '../components/ui/button'
 const LandingPage = () => {
   return (
     <div className="page-container">
-      <header className="container" aria-label="Top navigation">
-        <nav className="flex items-center justify-between py-6">
+      <header aria-label="Top navigation">
+        <nav className="nav">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -74,12 +74,15 @@ const LandingPage = () => {
             transition={{ delay: 0.6 }}
             className="cta"
           >
-            <Link to="/register">
-              <button className="cta btn">
-                Start Building Now →
+            <Link to="/capability">
+              <button className="btn">
+                Build Statement →
               </button>
             </Link>
-            <input className="cta input" placeholder="Search NAICS / keywords…" />
+            <div className="search-wrap">
+              <input className="input" placeholder="Search NAICS / keywords…" />
+              <small className="field-hint">Try: "janitorial 561720", "Cook County", "GSA IT modernization".</small>
+            </div>
           </motion.div>
         </section>
 
@@ -102,7 +105,7 @@ const LandingPage = () => {
               </h3>
               
               <p id="cap-desc">
-                Generate compliant, polished capability statements in minutes—formatted for government buyers.
+                Generate compliant, polished statements buyers can act on—fast.
               </p>
               
               <div className="card__actions">
@@ -155,6 +158,23 @@ const LandingPage = () => {
                 </Link>
               </div>
             </article>
+          </motion.div>
+        </section>
+
+        <section className="container trust">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.0 }}
+          >
+            <p className="trust-title">Trusted by teams across government and industry</p>
+            <div className="trust-logos">
+              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">GSA</div>
+              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">DoD</div>
+              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">DHS</div>
+              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">VA</div>
+              <div className="text-slate-400 text-sm px-4 py-2 border border-slate-600 rounded-lg">NASA</div>
+            </div>
           </motion.div>
         </section>
 
