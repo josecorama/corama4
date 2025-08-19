@@ -20,7 +20,11 @@ const LandingPage = () => {
     differentiators: ["24/7 dispatch", "union labor", "LEED support"] 
   }
 
-  const closeDemo = () => {
+  const closeDemo = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     setDemoVisible(false)
     setStickyVisible(false)
   }
@@ -254,24 +258,39 @@ const LandingPage = () => {
           </div>
 
           {demoVisible && (
-            <section 
-              className="relative w-full max-w-4xl mx-auto mt-8 p-6 border border-slate-600 rounded-2xl backdrop-blur-sm shadow-2xl"
-              style={{
-                background: 'linear-gradient(180deg, #111a33, #0f1830)',
-                boxShadow: '0 16px 48px rgba(12,18,40,.24)'
+            <div 
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  closeDemo()
+                }
               }}
             >
-              <button
-                onClick={closeDemo}
-                className="absolute right-4 top-4 z-50 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 text-white hover:text-slate-300 cursor-pointer"
-                type="button"
-                aria-label="Close demo"
+              <section 
+                className="relative w-full max-w-4xl mx-auto p-6 border border-slate-600 rounded-2xl backdrop-blur-sm shadow-2xl"
+                style={{
+                  background: 'linear-gradient(180deg, #111a33, #0f1830)',
+                  boxShadow: '0 16px 48px rgba(12,18,40,.24)'
+                }}
+                onClick={(e) => e.stopPropagation()}
               >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </button>
-              {renderDemoContent()}
-            </section>
+                <button
+                  onClick={closeDemo}
+                  className="absolute right-2 top-2 w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white hover:text-gray-200 transition-all duration-200 z-[10000] border border-white/30"
+                  type="button"
+                  aria-label="Close demo"
+                  style={{ 
+                    position: 'absolute',
+                    right: '8px',
+                    top: '8px',
+                    zIndex: 10000
+                  }}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                {renderDemoContent()}
+              </section>
+            </div>
           )}
         </section>
       </main>
