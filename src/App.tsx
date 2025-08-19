@@ -14,8 +14,8 @@ import './App.css'
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <div className="site-bg" aria-hidden="true">
           <AIAnimatedBackground />
         </div>
@@ -63,8 +63,8 @@ function App() {
             } />
           </Routes>
         </div>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   )
 }
 
