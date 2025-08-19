@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import axios from 'axios'
-import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth'
+import { signInWithRedirect, getRedirectResult, signOut as firebaseSignOut } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
 
 interface User {
@@ -45,15 +45,49 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000'
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token')
-    const storedUser = localStorage.getItem('user')
-    
-    if (storedToken && storedUser) {
-      setToken(storedToken)
-      setUser(JSON.parse(storedUser))
-      fetchUserProfile(storedToken)
+    const handleRedirectResult = async () => {
+      try {
+        const result = await getRedirectResult(auth)
+        if (result) {
+          const user = result.user
+          console.log('Firebase redirect authentication successful:', user.uid, user.email)
+          
+          console.log('Sending request to backend:', `${API_BASE_URL}/auth/google-login`)
+          const response = await axios.post(`${API_BASE_URL}/auth/google-login`, {
+            uid: user.uid,
+            email: user.email,
+            name: user.displayName,
+            photo: user.photoURL
+          })
+          console.log('Backend response received:', response.data)
+          
+          const { access_token, user: userData } = response.data
+          setToken(access_token)
+          setUser(userData)
+          
+          localStorage.setItem('token', access_token)
+          localStorage.setItem('user', JSON.stringify(userData))
+          console.log('Google OAuth completed successfully')
+          
+          window.location.href = '/dashboard'
+          return
+        }
+      } catch (error) {
+        console.error('Google OAuth redirect result error:', error)
+      }
+      
+      const storedToken = localStorage.getItem('token')
+      const storedUser = localStorage.getItem('user')
+      
+      if (storedToken && storedUser) {
+        setToken(storedToken)
+        setUser(JSON.parse(storedUser))
+        fetchUserProfile(storedToken)
+      }
+      setLoading(false)
     }
-    setLoading(false)
+    
+    handleRedirectResult()
   }, [])
 
   const fetchUserProfile = async (authToken: string) => {
@@ -104,33 +138,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const loginWithGoogle = async () => {
     try {
-      console.log('Starting Google OAuth flow...')
-      const result = await signInWithPopup(auth, googleProvider)
-      const user = result.user
-      console.log('Firebase authentication successful:', user.uid, user.email)
-      
-      console.log('Sending request to backend:', `${API_BASE_URL}/auth/google-login`)
-      const response = await axios.post(`${API_BASE_URL}/auth/google-login`, {
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName,
-        photo: user.photoURL
-      })
-      console.log('Backend response received:', response.data)
-      
-      const { access_token, user: userData } = response.data
-      setToken(access_token)
-      setUser(userData)
-      
-      localStorage.setItem('token', access_token)
-      localStorage.setItem('user', JSON.stringify(userData))
-      console.log('Google OAuth completed successfully')
+      console.log('Starting Google OAuth redirect flow...')
+      await signInWithRedirect(auth, googleProvider)
     } catch (error) {
-      console.error('Google OAuth error details:', error)
-      if (axios.isAxiosError(error)) {
-        console.error('Backend error response:', error.response?.data)
-        console.error('Backend error status:', error.response?.status)
-      }
+      console.error('Google OAuth redirect error:', error)
       throw new Error('Google login failed')
     }
   }
