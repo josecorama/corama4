@@ -400,6 +400,7 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
         
         try:
             print("Searching Qdrant...")
+            print(f"DEBUG: Searching Qdrant with query '{request.query}', limit {request.limit}")
             search_results = qdrant_client.search(
                 collection_name="contracts",
                 query_vector=query_embedding,
