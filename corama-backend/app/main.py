@@ -361,15 +361,17 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
             print("Falling back to Qdrant text search due to OpenAI authentication failure")
             query_embedding = None
         
-        try:
-            print("Searching Qdrant...")
-            print(f"DEBUG: Searching Qdrant with query '{request.query}', limit {request.limit}")
-            search_results = qdrant_client.search(
-                collection_name="contracts",
-                query_vector=query_embedding,
-                limit=10,
-                score_threshold=0.7
-            )
+        if query_embedding:
+            try:
+                print("Searching Qdrant with embeddings...")
+                print(f"DEBUG: Searching Qdrant with query '{request.query}', limit {request.limit}")
+                search_results = qdrant_client.search(
+                    collection_name="contracts",
+                    query_vector=query_embedding,
+                    limit=request.limit,
+                    score_threshold=0.7,
+                    with_payload=True
+                )
             print(f"Qdrant search completed, found {len(search_results)} results")
             
             contracts = []
@@ -401,11 +403,81 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
                     requirements=requirements
                 ))
             
+                if contracts:
+                    print(f"Returning {len(contracts)} real contracts from Qdrant embedding search")
+                    return contracts
+            except Exception as qdrant_error:
+                print(f"Qdrant embedding search failed: {qdrant_error}")
+        
+        try:
+            print("Searching Qdrant with text filtering...")
+            
+            scroll_results = qdrant_client.scroll(
+                collection_name="contracts",
+                limit=100,  # Get more to filter from
+                with_payload=True
+            )
+            
+            contracts = []
+            query_lower = request.query.lower()
+            
+            for result in scroll_results[0]:  # scroll returns (points, next_page_offset)
+                payload = result.payload
+                
+                bid_name = payload.get("Bid Name", "").lower()
+                bid_description = payload.get("Bid Description", "").lower()
+                category = payload.get("Category", "").lower()
+                industry = payload.get("Industry", "").lower()
+                organization = payload.get("Organization", "").lower()
+                
+                if (query_lower in bid_name or 
+                    query_lower in bid_description or 
+                    query_lower in category or 
+                    query_lower in industry or 
+                    query_lower in organization):
+                    
+                    requirements = []
+                    if payload.get("Category"):
+                        requirements.append(payload.get("Category"))
+                    if payload.get("Industry"):
+                        requirements.append(payload.get("Industry"))
+                    if payload.get("Is Small Business Set Aside") == "Yes":
+                        requirements.append("Small Business Set Aside")
+                    
+                    match_score = 0.5
+                    if query_lower in bid_name:
+                        match_score += 0.3
+                    if query_lower in bid_description:
+                        match_score += 0.2
+                    if query_lower in category:
+                        match_score += 0.1
+                    
+                    contracts.append(ContractMatch(
+                        id=payload.get("Bid Number", str(result.id)),
+                        title=payload.get("Bid Name", ""),
+                        description=payload.get("Bid Description", ""),
+                        agency=payload.get("Organization", ""),
+                        department=payload.get("Department", ""),
+                        deadline=payload.get("Due Date", ""),
+                        status=payload.get("Status", ""),
+                        budget_estimate=payload.get("Budget Estimate", ""),
+                        category=payload.get("Category", ""),
+                        industry=payload.get("Industry", ""),
+                        is_small_business=payload.get("Is Small Business Set Aside", ""),
+                        detail_link=payload.get("Detail Link", ""),
+                        match_score=min(match_score, 1.0),
+                        requirements=requirements
+                    ))
+                    
+                    if len(contracts) >= request.limit:
+                        break
+            
             if contracts:
-                print(f"Returning {len(contracts)} real contracts from Qdrant")
+                print(f"Returning {len(contracts)} real contracts from Qdrant text search")
                 return contracts
+                
         except Exception as qdrant_error:
-            print(f"Qdrant search failed: {qdrant_error}")
+            print(f"Qdrant text search failed: {qdrant_error}")
             
         # If Qdrant search fails, try scroll search to get any contracts
         try:
