@@ -252,7 +252,7 @@ const BidResponseBuilder = () => {
                       id="file-upload"
                     />
                     <label htmlFor="file-upload">
-                      <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
+                      <Button variant="outline" className="border-white/20 text-white hover:bg-slate-700" asChild>
                         <span>Choose File</span>
                       </Button>
                     </label>
@@ -325,7 +325,7 @@ const BidResponseBuilder = () => {
                   <Button
                     onClick={handleCopy}
                     variant="outline"
-                    className="border-white/20 text-white hover:bg-white/10"
+                    className="border-white/20 text-white hover:bg-slate-700"
                   >
                     {copied ? (
                       <>
@@ -343,7 +343,7 @@ const BidResponseBuilder = () => {
                   <Button
                     onClick={handleDownload}
                     variant="outline"
-                    className="border-white/20 text-white hover:bg-white/10"
+                    className="border-white/20 text-white hover:bg-slate-700"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download as Text

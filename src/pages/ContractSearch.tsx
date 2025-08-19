@@ -167,7 +167,7 @@ const ContractSearch = () => {
               <h2 className="text-2xl font-bold text-white">
                 Search Results ({contracts.length} contracts found)
               </h2>
-              <Button variant="outline" className="border-white/20 text-white hover:bg-white/10">
+              <Button variant="outline" className="border-white/20 text-white hover:bg-slate-700">
                 <Filter className="w-4 h-4 mr-2" />
                 Filters
               </Button>
@@ -236,7 +236,7 @@ const ContractSearch = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="border-white/20 text-white hover:bg-white/10"
+                          className="border-white/20 text-white hover:bg-slate-700"
                         >
                           <ExternalLink className="w-4 h-4 mr-2" />
                           View Details

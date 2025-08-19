@@ -194,13 +194,13 @@ const Dashboard = () => {
             <User className="w-4 h-4" />
             <span>{user?.name}</span>
           </div>
-          <Button variant="ghost" size="icon" className="text-white hover:bg-white/10">
+          <Button variant="ghost" size="icon" className="text-white hover:bg-slate-700">
             <Settings className="w-4 h-4" />
           </Button>
           <Button 
             variant="ghost" 
             onClick={handleLogout}
-            className="text-white hover:bg-white/10"
+            className="text-white hover:bg-slate-700"
           >
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -322,18 +322,18 @@ const Dashboard = () => {
                   <Button 
                     onClick={fetchContracts}
                     variant="outline" 
-                    className="w-full border-white/20 text-white hover:bg-white/10 justify-start"
+                    className="w-full border-white/20 text-white hover:bg-slate-700 justify-start"
                   >
                     <Target className="w-4 h-4 mr-2" />
                     Browse Available Contracts
                   </Button>
                   <Link to="/bid-response">
-                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 justify-start">
+                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-slate-700 justify-start">
                       <Zap className="w-4 h-4 mr-2" />
                       Generate Bid Response
                     </Button>
                   </Link>
-                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-white/10 justify-start">
+                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-slate-700 justify-start">
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Documents
                   </Button>
@@ -412,7 +412,7 @@ const Dashboard = () => {
                               onClick={() => analyzeContract(contract)}
                               size="sm"
                               variant="outline"
-                              className="border-white/20 text-white hover:bg-white/10"
+                              className="border-white/20 text-white hover:bg-slate-700"
                             >
                               <BarChart3 className="w-4 h-4 mr-1" />
                               Analyze

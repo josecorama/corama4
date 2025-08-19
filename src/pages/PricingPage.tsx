@@ -110,7 +110,7 @@ const PricingPage = () => {
         </div>
         <div className="flex items-center space-x-4">
           <Link to="/login">
-            <Button variant="ghost" className="text-white hover:bg-white/10">
+            <Button variant="ghost" className="text-white hover:bg-slate-700">
               Sign In
             </Button>
           </Link>

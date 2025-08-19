@@ -274,7 +274,7 @@ const CapabilityBuilder = () => {
                         id="logo-upload"
                       />
                       <label htmlFor="logo-upload">
-                        <Button variant="outline" className="border-white/20 text-white hover:bg-white/10" asChild>
+                        <Button variant="outline" className="border-white/20 text-white hover:bg-slate-700" asChild>
                           <span>Choose Logo</span>
                         </Button>
                       </label>
@@ -480,7 +480,7 @@ const CapabilityBuilder = () => {
                   <Button
                     onClick={handleCopy}
                     variant="outline"
-                    className="border-white/20 text-white hover:bg-white/10"
+                    className="border-white/20 text-white hover:bg-slate-700"
                   >
                     {copied ? (
                       <>
@@ -498,7 +498,7 @@ const CapabilityBuilder = () => {
                   <Button
                     onClick={handleDownload}
                     variant="outline"
-                    className="border-white/20 text-white hover:bg-white/10"
+                    className="border-white/20 text-white hover:bg-slate-700"
                   >
                     <Download className="w-4 h-4 mr-2" />
                     Download as Text

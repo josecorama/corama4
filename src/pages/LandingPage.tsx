@@ -165,12 +165,12 @@ const LandingPage = () => {
           
           <div className="flex items-center space-x-4">
             <Link to="/login">
-              <Button variant="ghost" className="text-white hover:bg-white/10">
+              <Button variant="ghost" className="text-white hover:bg-slate-700">
                 Sign In
               </Button>
             </Link>
             <Link to="/pricing">
-              <Button variant="ghost" className="text-white hover:bg-white/10">
+              <Button variant="ghost" className="text-white hover:bg-slate-700">
                 Pricing
               </Button>
             </Link>
@@ -201,7 +201,7 @@ const LandingPage = () => {
           
           <div className="flex flex-wrap gap-3 justify-center items-center mb-8">
             <button 
-              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
               onClick={() => {
                 showDemo('capability')
                 if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -212,7 +212,7 @@ const LandingPage = () => {
               Generate a sample statement
             </button>
             <button 
-              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
               onClick={() => {
                 showDemo('contracts')
                 if (typeof window !== 'undefined' && (window as any).gtag) {
@@ -223,7 +223,7 @@ const LandingPage = () => {
               Find "janitorial 561720"
             </button>
             <button 
-              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
               onClick={() => {
                 showDemo('assistant')
                 if (typeof window !== 'undefined' && (window as any).gtag) {
