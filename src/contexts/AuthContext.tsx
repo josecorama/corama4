@@ -69,13 +69,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           
           localStorage.setItem('token', access_token)
           localStorage.setItem('user', JSON.stringify(userData))
-          console.log('Google OAuth completed successfully')
+          console.log('Google OAuth completed successfully, navigating to dashboard...')
           
-          navigate('/dashboard', { replace: true })
+          setTimeout(() => {
+            navigate('/dashboard', { replace: true })
+            console.log('Navigation to dashboard initiated')
+          }, 100)
           return
         }
       } catch (error) {
         console.error('Google OAuth redirect result error:', error)
+        if (error instanceof Error) {
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          })
+        }
+        setLoading(false)
       }
       
       const storedToken = localStorage.getItem('token')
