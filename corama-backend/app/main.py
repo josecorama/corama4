@@ -371,11 +371,11 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
                     score_threshold=0.7,
                     with_payload=True
                 )
-            print(f"Qdrant search completed, found {len(search_results)} results")
+                print(f"Qdrant search completed, found {len(search_results)} results")
             
-            contracts = []
-            for result in search_results:
-                payload = result.payload
+                contracts = []
+                for result in search_results:
+                    payload = result.payload
                 
                 requirements = []
                 if payload.get("Category"):
