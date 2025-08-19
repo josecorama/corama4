@@ -49,6 +49,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     const handleRedirectResult = async () => {
       try {
+        console.log('Checking for Google OAuth redirect result...')
         const result = await getRedirectResult(auth)
         if (result) {
           const user = result.user
@@ -71,10 +72,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(userData))
           console.log('Google OAuth completed successfully, navigating to dashboard...')
           
+          setLoading(false)
+          
           setTimeout(() => {
+            console.log('Attempting navigation to dashboard...')
             navigate('/dashboard', { replace: true })
-            console.log('Navigation to dashboard initiated')
-          }, 100)
+            console.log('Navigation to dashboard completed')
+          }, 200)
           return
         }
       } catch (error) {
@@ -86,7 +90,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             name: error.name
           })
         }
-        setLoading(false)
       }
       
       const storedToken = localStorage.getItem('token')
@@ -101,7 +104,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     
     handleRedirectResult()
-  }, [navigate])
+  }, [navigate, API_BASE_URL])
 
   const fetchUserProfile = async (authToken: string) => {
     try {
