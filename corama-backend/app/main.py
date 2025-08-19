@@ -358,45 +358,8 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
             print("Embeddings created successfully")
         except openai.AuthenticationError as auth_error:
             print(f"OpenAI authentication failed: {auth_error}")
-            print("Falling back to mock data due to OpenAI authentication failure")
-            mock_contracts = [
-                ContractMatch(
-                    id="contract_1",
-                    title="IT Infrastructure Modernization Services",
-                    description="Comprehensive IT infrastructure upgrade and modernization services for federal agencies",
-                    agency="Department of Defense",
-                    value="$2.5M - $10M",
-                    deadline="2024-03-15",
-                    location="Washington, DC",
-                    requirements=["Security Clearance Required", "FISMA Compliance", "Cloud Migration Experience"],
-                    match_score=0.85
-                ),
-                ContractMatch(
-                    id="contract_2", 
-                    title="Cybersecurity Assessment and Implementation",
-                    description="End-to-end cybersecurity assessment and implementation services",
-                    agency="Department of Homeland Security",
-                    value="$1M - $5M",
-                    deadline="2024-04-01",
-                    location="Remote/Multiple Locations",
-                    requirements=["CISSP Certification", "Government Experience", "Risk Assessment"],
-                    match_score=0.78
-                ),
-                ContractMatch(
-                    id="contract_3",
-                    title="Software Development and Maintenance",
-                    description="Custom software development and ongoing maintenance for government applications",
-                    agency="General Services Administration",
-                    value="$500K - $3M",
-                    deadline="2024-02-28",
-                    location="Various",
-                    requirements=["Agile Development", "Section 508 Compliance", "DevSecOps"],
-                    match_score=0.72
-                )
-            ]
-            filtered_contracts = [c for c in mock_contracts if request.query.lower() in c.title.lower() or request.query.lower() in c.description.lower()]
-            print(f"Returning {len(filtered_contracts if filtered_contracts else mock_contracts)} contracts (OpenAI fallback)")
-            return filtered_contracts if filtered_contracts else mock_contracts
+            print("Falling back to Qdrant text search due to OpenAI authentication failure")
+            query_embedding = None
         
         try:
             print("Searching Qdrant...")
