@@ -77,6 +77,7 @@ const LoginPage = () => {
                           onChange={(e) => setEmail(e.target.value)}
                           className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
                           placeholder="Enter your email"
+                          autoComplete="email"
                           required
                         />
                       </div>
@@ -93,6 +94,7 @@ const LoginPage = () => {
                           onChange={(e) => setPassword(e.target.value)}
                           className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
                           placeholder="Enter your password"
+                          autoComplete="current-password"
                           required
                         />
                       </div>

@@ -94,6 +94,7 @@ const RegisterPage = () => {
                     onChange={handleChange}
                     className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
                     placeholder="Enter your full name"
+                    autoComplete="name"
                     required
                   />
                 </div>
@@ -111,6 +112,7 @@ const RegisterPage = () => {
                     onChange={handleChange}
                     className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
                     placeholder="Enter your email"
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -128,6 +130,7 @@ const RegisterPage = () => {
                     onChange={handleChange}
                     className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
                     placeholder="Enter your company name"
+                    autoComplete="organization"
                   />
                 </div>
               </div>
@@ -144,6 +147,7 @@ const RegisterPage = () => {
                     onChange={handleChange}
                     className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
                     placeholder="Create a password"
+                    autoComplete="new-password"
                     required
                   />
                 </div>

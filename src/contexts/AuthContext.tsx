@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { signInWithRedirect, getRedirectResult, signOut as firebaseSignOut } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
@@ -41,6 +42,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000'
 
@@ -69,7 +71,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(userData))
           console.log('Google OAuth completed successfully')
           
-          window.location.href = '/dashboard'
+          navigate('/dashboard', { replace: true })
           return
         }
       } catch (error) {
