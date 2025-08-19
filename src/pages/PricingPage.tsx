@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../components/ui/dialog'
+import CreditPurchaseForm from '../components/payment/CreditPurchaseForm'
+import SubscriptionForm from '../components/payment/SubscriptionForm'
 import { 
   ArrowLeft, 
   Sparkles, 
@@ -15,11 +18,16 @@ import {
 
 const PricingPage = () => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
+  const [showCreditPurchase, setShowCreditPurchase] = useState(false)
+  const [showSubscription, setShowSubscription] = useState(false)
+  const [selectedCreditPack, setSelectedCreditPack] = useState<{credits: number, price: number} | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<{name: string, priceId: string, price: number} | null>(null)
 
   const plans = [
     {
       name: 'Free',
       price: { monthly: 0, annual: 0 },
+      priceId: { monthly: '', annual: '' },
       description: 'Perfect for getting started',
       features: [
         'Basic contract search',
@@ -39,6 +47,10 @@ const PricingPage = () => {
     {
       name: 'Professional',
       price: { monthly: 49, annual: 39 },
+      priceId: { 
+        monthly: 'price_1QQQQQQQQQQQQQQQQQQQQQQQpro_monthly', 
+        annual: 'price_1QQQQQQQQQQQQQQQQQQQQQQQpro_yearly' 
+      },
       description: 'For growing businesses',
       features: [
         'Everything in Free',
@@ -55,6 +67,10 @@ const PricingPage = () => {
     {
       name: 'Enterprise',
       price: { monthly: 149, annual: 119 },
+      priceId: { 
+        monthly: 'price_1QQQQQQQQQQQQQQQQQQQQQQQent_monthly', 
+        annual: 'price_1QQQQQQQQQQQQQQQQQQQQQQQent_yearly' 
+      },
       description: 'For established contractors',
       features: [
         'Everything in Professional',
@@ -203,6 +219,18 @@ const PricingPage = () => {
                       ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white'
                       : 'bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white'
                   }`}
+                  onClick={() => {
+                    if (plan.name === 'Free') {
+                      window.location.href = '/register'
+                    } else {
+                      setSelectedPlan({
+                        name: plan.name,
+                        priceId: plan.priceId[billingCycle],
+                        price: plan.price[billingCycle]
+                      })
+                      setShowSubscription(true)
+                    }
+                  }}
                 >
                   {plan.buttonText}
                 </Button>
@@ -247,7 +275,16 @@ const PricingPage = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white">
+                  <Button 
+                    className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
+                    onClick={() => {
+                      setSelectedCreditPack({
+                        credits: pack.credits,
+                        price: pack.price * 100 // Convert to cents for Stripe
+                      })
+                      setShowCreditPurchase(true)
+                    }}
+                  >
                     Purchase Credits
                   </Button>
                 </CardContent>
@@ -301,6 +338,56 @@ const PricingPage = () => {
         </motion.div>
         </div>
       </main>
+
+      {/* Credit Purchase Dialog */}
+      <Dialog open={showCreditPurchase} onOpenChange={setShowCreditPurchase}>
+        <DialogContent className="bg-slate-800 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Purchase AI Credits</DialogTitle>
+          </DialogHeader>
+          {selectedCreditPack && (
+            <CreditPurchaseForm
+              credits={selectedCreditPack.credits}
+              price={selectedCreditPack.price}
+              onSuccess={() => {
+                setShowCreditPurchase(false)
+                setSelectedCreditPack(null)
+                window.location.href = '/dashboard'
+              }}
+              onCancel={() => {
+                setShowCreditPurchase(false)
+                setSelectedCreditPack(null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Subscription Dialog */}
+      <Dialog open={showSubscription} onOpenChange={setShowSubscription}>
+        <DialogContent className="bg-slate-800 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Subscribe to Plan</DialogTitle>
+          </DialogHeader>
+          {selectedPlan && (
+            <SubscriptionForm
+              planName={selectedPlan.name}
+              priceId={selectedPlan.priceId}
+              price={selectedPlan.price}
+              billing={billingCycle}
+              onSuccess={() => {
+                setShowSubscription(false)
+                setSelectedPlan(null)
+                window.location.href = '/dashboard'
+              }}
+              onCancel={() => {
+                setShowSubscription(false)
+                setSelectedPlan(null)
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
