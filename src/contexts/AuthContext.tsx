@@ -90,7 +90,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
     
     handleRedirectResult()
-  }, [])
+  }, [navigate])
 
   const fetchUserProfile = async (authToken: string) => {
     try {
