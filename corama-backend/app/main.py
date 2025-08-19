@@ -364,7 +364,6 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
         if query_embedding:
             try:
                 print("Searching Qdrant with embeddings...")
-                print(f"DEBUG: Searching Qdrant with query '{request.query}', limit {request.limit}")
                 search_results = qdrant_client.search(
                     collection_name="contracts",
                     query_vector=query_embedding,
@@ -411,17 +410,16 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
         
         try:
             print("Searching Qdrant with text filtering...")
-            
             scroll_results = qdrant_client.scroll(
                 collection_name="contracts",
-                limit=100,  # Get more to filter from
+                limit=100,
                 with_payload=True
             )
             
             contracts = []
             query_lower = request.query.lower()
             
-            for result in scroll_results[0]:  # scroll returns (points, next_page_offset)
+            for result in scroll_results[0]:
                 payload = result.payload
                 
                 bid_name = payload.get("Bid Name", "").lower()
