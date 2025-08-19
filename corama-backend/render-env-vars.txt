@@ -1,0 +1,53 @@
+# Environment Variables for Render Deployment
+# Copy these to your Render dashboard under Environment Variables
+
+# OpenAI API Keys
+CS_BUILDER_OPENAI_API_KEY=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
+SMART_SEARCH_OPENAI_API_KEY=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
+BID_RESPONSE_OPENAI_API_KEY=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
+CS_BID_SEARCH_OPENAI_API_KEY=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
+
+# Qdrant Vector Database
+QDRANT_URL=https://88c89ea8-0b01-487a-8e43-d00c3aebf927.us-west-1-0.aws.cloud.qdrant.io
+QDRANT_API_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.qWe5OdnBsrk-oU9SyI3L-sSL_Eow8mS_wVikLTy3hHk
+
+# Stripe Payment Processing
+STRIPE_API_KEY=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
+STRIPE_API_WEBHOOK_KEY=whsec_BOPhDGUwqWFYHEASFOVxM2rLob2a78z8
+
+# Stripe Price IDs
+CORAMA_ESSENTIALS_STRIPE_API_WEEKLY=price_1QoRfDDgJB0druJPdtVmksdw
+CORAMA_ESSENTIALS_STRIPE_API_MONTHLY=price_1RC1R0DgJB0druJP6oxiNJFX
+CORAMA_SUPPLY_CHAIN_STRIPE_API_MONTHLY=price_1QEyRxCjEULUIVJx9spNO292
+CORAMA_TRUSTED_PARTNER_STRIPE_API_MONTHLY=price_1QEyWFCjEULUIVJxtuM1TM9l
+CORAMA_ESSENTIALS_STRIPE_API_YEARLY=price_1QyhzJDgJB0druJPynp31yt6
+CORAMA_SUPPLY_CHAIN_STRIPE_API_YEARLY=price_1QEySVCjEULUIVJxrgoM0eE8
+CORAMA_TRUSTED_PARTNER_STRIPE_API_YEARLY=price_1QEyWZCjEULUIVJxpsC8vADS
+
+# Firebase Configuration
+FIREBASE_API_KEY=AIzaSyCv0K8dglQLQteB_F_pBjvqjlQUEVpzjsA
+AUTH_DOMAIN=corama-c911e.firebaseapp.com
+DATABASE_URL=https://corama-c911e-default-rtdb.firebaseio.com/
+PROJECT_ID=corama-c911e
+STORAGE_BUCKET=corama-c911e.appspot.com
+MESSAGING_SENDER_ID=931795650894
+APP_ID=1:931795650894:web:2562a9627058e63ee7f61f
+MEASUREMENT_ID=G-CBW1YHNN58
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account","project_id":"corama-c911e","private_key_id":"9333a76b90","private_key":"-----BEGIN PRIVATE KEY-----\n[REPLACE_WITH_ACTUAL_PRIVATE_KEY]\n-----END PRIVATE KEY-----\n","client_email":"firebase-adminsdk-eldc8@corama-c911e.iam.gserviceaccount.com","client_id":"[REPLACE_WITH_CLIENT_ID]","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-eldc8%40corama-c911e.iam.gserviceaccount.com"}
+
+# Application Configuration
+ENV=production
+PORT=10000
+FLASK_SECRET_KEY=your_secret_key_here
+
+# ReCAPTCHA
+RECAPTCHA_SECRET_KEY=6Lcqi_IqAAAAALum2yuFBwV2IVlxEcQWAhAdlvIM
+RECAPTCHA_SITE_KEY=6Lcqi_IqAAAAAHDP88lgFboAV7GQdE67mVUxTIWh
+
+# Email Configuration
+EMAIL_GOOGLE_USER=santiago@ihccbusiness.net
+EMAIL_GOOGLE_PASS=Adreliaz18@fenix
+
+# NOTE: SENDGRID_API_KEY is missing from the provided .env file
+# You will need to add this for welcome email functionality:
+# SENDGRID_API_KEY=your_sendgrid_api_key_here
