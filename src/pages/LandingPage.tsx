@@ -63,10 +63,10 @@ const LandingPage = () => {
                 Open full search <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4" role="list" aria-label="Contract search results">
               {demoContracts.map((contract, i) => (
-                <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                  <h4 className="font-semibold text-white mb-2">{contract.title}</h4>
+                <div key={i} className="bg-white/5 border border-white/10 rounded-lg p-4" role="listitem">
+                  <h3 className="font-semibold text-white mb-2">{contract.title}</h3>
                   <p className="text-gray-300 text-sm">
                     {contract.agency} • Due {contract.due} • Est. {contract.est} • NAICS {contract.naics}
                   </p>
@@ -98,26 +98,26 @@ const LandingPage = () => {
             </div>
             <div className="space-y-4">
               <div>
-                <h4 className="font-semibold text-white mb-2">Core Competencies</h4>
-                <ul className="text-gray-300 space-y-1">
+                <h3 className="font-semibold text-white mb-2">Core Competencies</h3>
+                <ul className="text-gray-300 space-y-1" role="list">
                   {["Janitorial", "Floor care", "Post-construction"].map(x => (
-                    <li key={x} className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                    <li key={x} className="flex items-center gap-2" role="listitem">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full" aria-hidden="true"></div>
                       {x}
                     </li>
                   ))}
                 </ul>
               </div>
               <div>
-                <h4 className="font-semibold text-white mb-2">NAICS</h4>
+                <h3 className="font-semibold text-white mb-2">NAICS Codes</h3>
                 <p className="text-gray-300">{sampleFirm.naics.join(", ")}</p>
               </div>
               <div>
-                <h4 className="font-semibold text-white mb-2">Differentiators</h4>
-                <ul className="text-gray-300 space-y-1">
+                <h3 className="font-semibold text-white mb-2">Differentiators</h3>
+                <ul className="text-gray-300 space-y-1" role="list">
                   {sampleFirm.differentiators.map(x => (
-                    <li key={x} className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-cyan-400 rounded-full"></div>
+                    <li key={x} className="flex items-center gap-2" role="listitem">
+                      <div className="w-2 h-2 bg-cyan-400 rounded-full" aria-hidden="true"></div>
                       {x}
                     </li>
                   ))}
@@ -210,48 +210,52 @@ const LandingPage = () => {
             Generate capability statements, chat through bids, and find contracts — in minutes.
           </p>
           
-          <div className="flex flex-wrap gap-3 justify-center items-center mb-8">
+          <div className="flex flex-wrap gap-3 justify-center items-center mb-8" role="group" aria-label="Demo actions">
             <button 
-              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent"
               onClick={() => {
                 showDemo('capability')
                 if (typeof window !== 'undefined' && (window as any).gtag) {
                   (window as any).gtag('event', 'chip_click', { demo: 'capability' })
                 }
               }}
+              aria-label="View sample capability statement demo"
             >
               Generate a sample statement
             </button>
             <button 
-              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent"
               onClick={() => {
                 showDemo('contracts')
                 if (typeof window !== 'undefined' && (window as any).gtag) {
                   (window as any).gtag('event', 'chip_click', { demo: 'contracts' })
                 }
               }}
+              aria-label="View contract search demo for janitorial services"
             >
               Find "janitorial 561720"
             </button>
             <button 
-              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer"
+              className="px-4 py-2 border border-slate-600 rounded-full bg-white/5 text-gray-300 hover:bg-slate-700 hover:text-white transition-all cursor-pointer focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent"
               onClick={() => {
                 showDemo('assistant')
                 if (typeof window !== 'undefined' && (window as any).gtag) {
                   (window as any).gtag('event', 'chip_click', { demo: 'assistant' })
                 }
               }}
+              aria-label="View AI assistant demo for SOW risk analysis"
             >
               Ask: "What's risky in this SOW?"
             </button>
             <button 
-              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-white"
+              className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 px-6 py-3 rounded-lg font-semibold transition-all duration-200 transform hover:scale-105 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent"
               onClick={() => {
                 showDemo('contracts')
                 if (typeof window !== 'undefined' && (window as any).gtag) {
                   (window as any).gtag('event', 'hero_try_click')
                 }
               }}
+              aria-label="Start 30-second demo of contract search"
             >
               Try it now — 30s demo
             </button>
