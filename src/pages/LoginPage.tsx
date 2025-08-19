@@ -153,12 +153,19 @@ const LoginPage = () => {
                   <div className="mt-6 text-center">
                     <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                       <h3 className="text-white font-medium mb-2">Why sign up?</h3>
-                      <ul className="text-slate-300 text-sm space-y-1">
+                      <ul className="text-slate-300 text-sm space-y-1 text-left">
                         <li>• Generate AI-powered capability statements</li>
                         <li>• Access full contract search and analysis</li>
                         <li>• Create bid responses with AI assistance</li>
                         <li>• Save and manage your documents</li>
+                        <li>• Get competitive analysis for contracts</li>
+                        <li>• Collaborate with fine-tuned AI models</li>
                       </ul>
+                    </div>
+                    <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                      <p className="text-green-300 text-sm">
+                        <strong>Free to start!</strong> Browse contracts for free, pay only for AI features with credits.
+                      </p>
                     </div>
                     <p className="text-slate-300">
                       Don't have an account?{' '}

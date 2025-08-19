@@ -205,6 +205,17 @@ const RegisterPage = () => {
             </div>
 
             <div className="mt-6 text-center">
+              <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <p className="text-green-300 text-sm">
+                  <strong>Free to start!</strong> Browse contracts for free, pay only for AI features with credits.
+                </p>
+              </div>
+              <div className="mb-4 text-xs text-slate-400">
+                By signing up, you agree to our{' '}
+                <a href="/terms" className="text-blue-400 hover:text-blue-300">Terms of Service</a>
+                {' '}and{' '}
+                <a href="/privacy" className="text-blue-400 hover:text-blue-300">Privacy Policy</a>
+              </div>
               <p className="text-slate-300">
                 Already have an account?{' '}
                 <Link to="/login" className="text-blue-400 hover:text-blue-300 font-medium">
