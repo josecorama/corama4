@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
@@ -17,8 +17,14 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
-  const { register, loginWithGoogle } = useAuth()
+  const { register, loginWithGoogle, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [user, authLoading, navigate])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -175,7 +181,6 @@ const RegisterPage = () => {
                   try {
                     setLoading(true)
                     await loginWithGoogle()
-                    navigate('/dashboard')
                   } catch (err) {
                     setError('Google sign-up failed. Please try again.')
                   } finally {
