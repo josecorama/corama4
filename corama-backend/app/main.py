@@ -358,97 +358,132 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
             print("Embeddings created successfully")
         except openai.AuthenticationError as auth_error:
             print(f"OpenAI authentication failed: {auth_error}")
-            print("Falling back to mock data due to OpenAI authentication failure")
-            mock_contracts = [
-                ContractMatch(
-                    id="contract_1",
-                    title="IT Infrastructure Modernization Services",
-                    description="Comprehensive IT infrastructure upgrade and modernization services for federal agencies",
-                    agency="Department of Defense",
-                    value="$2.5M - $10M",
-                    deadline="2024-03-15",
-                    location="Washington, DC",
-                    requirements=["Security Clearance Required", "FISMA Compliance", "Cloud Migration Experience"],
-                    match_score=0.85
-                ),
-                ContractMatch(
-                    id="contract_2", 
-                    title="Cybersecurity Assessment and Implementation",
-                    description="End-to-end cybersecurity assessment and implementation services",
-                    agency="Department of Homeland Security",
-                    value="$1M - $5M",
-                    deadline="2024-04-01",
-                    location="Remote/Multiple Locations",
-                    requirements=["CISSP Certification", "Government Experience", "Risk Assessment"],
-                    match_score=0.78
-                ),
-                ContractMatch(
-                    id="contract_3",
-                    title="Software Development and Maintenance",
-                    description="Custom software development and ongoing maintenance for government applications",
-                    agency="General Services Administration",
-                    value="$500K - $3M",
-                    deadline="2024-02-28",
-                    location="Various",
-                    requirements=["Agile Development", "Section 508 Compliance", "DevSecOps"],
-                    match_score=0.72
+            print("Falling back to Qdrant text search due to OpenAI authentication failure")
+            query_embedding = None
+        
+        if query_embedding:
+            try:
+                print("Searching Qdrant with embeddings...")
+                search_results = qdrant_client.search(
+                    collection_name="contracts",
+                    query_vector=query_embedding,
+                    limit=request.limit,
+                    score_threshold=0.7,
+                    with_payload=True
                 )
-            ]
-            filtered_contracts = [c for c in mock_contracts if request.query.lower() in c.title.lower() or request.query.lower() in c.description.lower()]
-            print(f"Returning {len(filtered_contracts if filtered_contracts else mock_contracts)} contracts (OpenAI fallback)")
-            return filtered_contracts if filtered_contracts else mock_contracts
+                print(f"Qdrant embedding search completed, found {len(search_results)} results")
+                
+                contracts = []
+                for result in search_results:
+                    payload = result.payload
+                    
+                    requirements = []
+                    if payload.get("Category"):
+                        requirements.append(payload.get("Category"))
+                    if payload.get("Industry"):
+                        requirements.append(payload.get("Industry"))
+                    if payload.get("Is Small Business Set Aside") == "Yes":
+                        requirements.append("Small Business Set Aside")
+                    
+                    contracts.append(ContractMatch(
+                        id=payload.get("Bid Number", str(result.id)),
+                        title=payload.get("Bid Name", ""),
+                        description=payload.get("Bid Description", ""),
+                        agency=payload.get("Organization", ""),
+                        department=payload.get("Department", ""),
+                        deadline=payload.get("Due Date", ""),
+                        status=payload.get("Status", ""),
+                        budget_estimate=payload.get("Budget Estimate", ""),
+                        category=payload.get("Category", ""),
+                        industry=payload.get("Industry", ""),
+                        is_small_business=payload.get("Is Small Business Set Aside", ""),
+                        detail_link=payload.get("Detail Link", ""),
+                        match_score=result.score,
+                        requirements=requirements
+                    ))
+                
+                if contracts:
+                    print(f"Returning {len(contracts)} real contracts from Qdrant embedding search")
+                    return contracts
+            except Exception as qdrant_error:
+                print(f"Qdrant embedding search failed: {qdrant_error}")
         
         try:
-            print("Searching Qdrant...")
-            search_results = qdrant_client.search(
-                collection_name="contracts",
-                query_vector=query_embedding,
-                limit=10,
-                score_threshold=0.7
-            )
-            print(f"Qdrant search completed, found {len(search_results)} results")
+            print("Searching Qdrant with text filtering...")
             
-            contracts = []
-            for result in search_results:
-                payload = result.payload
-                
-                requirements = []
-                if payload.get("Category"):
-                    requirements.append(payload.get("Category"))
-                if payload.get("Industry"):
-                    requirements.append(payload.get("Industry"))
-                if payload.get("Is Small Business Set Aside") == "Yes":
-                    requirements.append("Small Business Set Aside")
-                
-                contracts.append(ContractMatch(
-                    id=payload.get("Bid Number", str(result.id)),
-                    title=payload.get("Bid Name", ""),
-                    description=payload.get("Bid Description", ""),
-                    agency=payload.get("Organization", ""),
-                    department=payload.get("Department", ""),
-                    deadline=payload.get("Due Date", ""),
-                    status=payload.get("Status", ""),
-                    budget_estimate=payload.get("Budget Estimate", ""),
-                    category=payload.get("Category", ""),
-                    industry=payload.get("Industry", ""),
-                    is_small_business=payload.get("Is Small Business Set Aside", ""),
-                    detail_link=payload.get("Detail Link", ""),
-                    match_score=result.score,
-                    requirements=requirements
-                ))
-            
-            if contracts:
-                print(f"Returning {len(contracts)} real contracts from Qdrant")
-                return contracts
-        except Exception as qdrant_error:
-            print(f"Qdrant search failed: {qdrant_error}")
-            
-        # If Qdrant search fails, try scroll search to get any contracts
-        try:
-            print("Trying Qdrant scroll search as fallback...")
             scroll_results = qdrant_client.scroll(
                 collection_name="contracts",
-                limit=10,
+                limit=100,  # Get more to filter from
+                with_payload=True
+            )
+            
+            contracts = []
+            query_lower = request.query.lower()
+            
+            for result in scroll_results[0]:  # scroll returns (points, next_page_offset)
+                payload = result.payload
+                
+                bid_name = payload.get("Bid Name", "").lower()
+                bid_description = payload.get("Bid Description", "").lower()
+                category = payload.get("Category", "").lower()
+                industry = payload.get("Industry", "").lower()
+                organization = payload.get("Organization", "").lower()
+                
+                if (query_lower in bid_name or 
+                    query_lower in bid_description or 
+                    query_lower in category or 
+                    query_lower in industry or 
+                    query_lower in organization):
+                    
+                    requirements = []
+                    if payload.get("Category"):
+                        requirements.append(payload.get("Category"))
+                    if payload.get("Industry"):
+                        requirements.append(payload.get("Industry"))
+                    if payload.get("Is Small Business Set Aside") == "Yes":
+                        requirements.append("Small Business Set Aside")
+                    
+                    match_score = 0.5
+                    if query_lower in bid_name:
+                        match_score += 0.3
+                    if query_lower in bid_description:
+                        match_score += 0.2
+                    if query_lower in category:
+                        match_score += 0.1
+                    
+                    contracts.append(ContractMatch(
+                        id=payload.get("Bid Number", str(result.id)),
+                        title=payload.get("Bid Name", ""),
+                        description=payload.get("Bid Description", ""),
+                        agency=payload.get("Organization", ""),
+                        department=payload.get("Department", ""),
+                        deadline=payload.get("Due Date", ""),
+                        status=payload.get("Status", ""),
+                        budget_estimate=payload.get("Budget Estimate", ""),
+                        category=payload.get("Category", ""),
+                        industry=payload.get("Industry", ""),
+                        is_small_business=payload.get("Is Small Business Set Aside", ""),
+                        detail_link=payload.get("Detail Link", ""),
+                        match_score=min(match_score, 1.0),
+                        requirements=requirements
+                    ))
+                    
+                    if len(contracts) >= request.limit:
+                        break
+            
+            if contracts:
+                print(f"Returning {len(contracts)} real contracts from Qdrant text search")
+                return contracts
+                
+        except Exception as qdrant_error:
+            print(f"Qdrant text search failed: {qdrant_error}")
+            
+        # Final fallback: try basic scroll search to get any contracts
+        try:
+            print("Trying Qdrant scroll search as final fallback...")
+            scroll_results = qdrant_client.scroll(
+                collection_name="contracts",
+                limit=request.limit,
                 with_payload=True
             )
             
@@ -487,7 +522,7 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
         except Exception as scroll_error:
             print(f"Qdrant scroll search also failed: {scroll_error}")
         
-        print("Using mock contracts...")
+        print("All Qdrant searches failed, using mock contracts as last resort...")
         mock_contracts = [
             ContractMatch(
                 id="contract_1",
