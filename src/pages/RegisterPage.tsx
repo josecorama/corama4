@@ -33,7 +33,6 @@ const RegisterPage = () => {
 
     try {
       await register(formData.email, formData.password, formData.name, formData.company)
-      navigate('/dashboard')
     } catch (err) {
       setError('Registration failed. Please try again.')
     } finally {
