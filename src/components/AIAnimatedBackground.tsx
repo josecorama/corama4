@@ -1,5 +1,11 @@
 import React, { useEffect, useRef } from 'react'
 
+const hexToRgb = (hex: string): string => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
+  if (!result) return '0, 0, 0'
+  return `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}`
+}
+
 const AIAnimatedBackground: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -273,12 +279,12 @@ const AIAnimatedBackground: React.FC = () => {
           const shimmerGradient = ctx.createLinearGradient(
             stream.x, stream.y, stream.x + textWidth, stream.y
           )
-          shimmerGradient.addColorStop(0, `${stream.color}${Math.floor(baseOpacity * 255).toString(16).padStart(2, '0')}`)
-          shimmerGradient.addColorStop(0.5, `${stream.color}${Math.floor((baseOpacity + stream.shimmer * 0.5) * 255).toString(16).padStart(2, '0')}`)
-          shimmerGradient.addColorStop(1, `${stream.color}${Math.floor(baseOpacity * 255).toString(16).padStart(2, '0')}`)
+          shimmerGradient.addColorStop(0, `rgba(${hexToRgb(stream.color)}, ${baseOpacity})`)
+          shimmerGradient.addColorStop(0.5, `rgba(${hexToRgb(stream.color)}, ${baseOpacity + stream.shimmer * 0.5})`)
+          shimmerGradient.addColorStop(1, `rgba(${hexToRgb(stream.color)}, ${baseOpacity})`)
           ctx.fillStyle = shimmerGradient
         } else {
-          ctx.fillStyle = `${stream.color}${Math.floor(baseOpacity * 255).toString(16).padStart(2, '0')}`
+          ctx.fillStyle = `rgba(${hexToRgb(stream.color)}, ${baseOpacity})`
         }
 
         ctx.fillText(displayText, stream.x, stream.y)
