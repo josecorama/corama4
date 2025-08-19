@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Sparkles, X } from 'lucide-react'
 import { Button } from '../components/ui/button'
+import AIAnimatedBackground from '../components/AIAnimatedBackground'
 
 const LandingPage = () => {
   const [demoVisible, setDemoVisible] = useState(false)
@@ -164,9 +165,13 @@ const LandingPage = () => {
   }
 
   return (
-    <div className="page-container">
-      <header aria-label="Top navigation">
-        <nav className="nav">
+    <>
+      <div className="site-bg" aria-hidden="true">
+        <AIAnimatedBackground />
+      </div>
+      <div className="page-container">
+        <header aria-label="Top navigation">
+          <nav className="nav">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
@@ -331,6 +336,7 @@ const LandingPage = () => {
         </div>
       </footer>
     </div>
+    </>
   )
 }
 

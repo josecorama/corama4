@@ -37,7 +37,7 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container bg-slate-900">
       <main className="container">
         <section style={{ paddingBlock: 'var(--space-8)' }}>
           <div className="flex items-center justify-center min-h-screen">

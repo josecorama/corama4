@@ -168,10 +168,8 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="page-container bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-cyan-600/10"></div>
-      
-      <nav className="relative z-10 flex items-center justify-between content-container py-6 border-b border-white/10">
+    <div className="page-container bg-slate-900">
+      <nav className="relative z-10 flex items-center justify-between w-full max-w-6xl mx-auto px-6 py-6 border-b border-white/10">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-white" />
@@ -208,7 +206,7 @@ const Dashboard = () => {
         </div>
       </nav>
 
-      <main className="relative z-10 content-container py-8">
+      <main className="relative z-10 w-full px-6 py-8">
         <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
