@@ -92,7 +92,7 @@ const LoginPage = () => {
                           type="password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
+                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Enter your password"
                           autoComplete="current-password"
                           required
@@ -109,7 +109,7 @@ const LoginPage = () => {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="btn w-full"
+                      className="btn w-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     >
                       {loading ? 'Signing In...' : 'Sign In'}
                     </button>
@@ -151,6 +151,15 @@ const LoginPage = () => {
                   </div>
 
                   <div className="mt-6 text-center">
+                    <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                      <h3 className="text-white font-medium mb-2">Why sign up?</h3>
+                      <ul className="text-slate-300 text-sm space-y-1">
+                        <li>• Generate AI-powered capability statements</li>
+                        <li>• Access full contract search and analysis</li>
+                        <li>• Create bid responses with AI assistance</li>
+                        <li>• Save and manage your documents</li>
+                      </ul>
+                    </div>
                     <p className="text-slate-300">
                       Don't have an account?{' '}
                       <Link to="/register" className="text-blue-400 hover:text-blue-300 font-medium">

@@ -19,6 +19,13 @@
   --text-xl: clamp(22px, 2vw, 32px);
   --text-lg: clamp(18px, 1.2vw, 20px);
   --text-base: 16px;
+  
+  /* Color tokens */
+  --color-primary-blue: #2d6bff;
+  --color-secondary-blue: #446dcd;
+  --color-accent-cyan: #4bb6d3;
+  --color-accent-teal: #5EEAD4;
+  --color-accent-green: #6ef2cc;
 }
 
 /* Prevent accidental clipping or overflow */
@@ -63,6 +70,7 @@ body {
   height: 100%;
   display: block;
   object-fit: cover;   /* no letterboxing */
+  opacity: 0.8; /* Reduce opacity for better text contrast */
 }
 
 /* Constrained content */
@@ -87,6 +95,8 @@ section {
 .hero {
   padding-block: 96px 48px;
   text-align: center;
+  position: relative;
+  z-index: 2;
 }
 
 .hero h1 {
@@ -95,13 +105,15 @@ section {
   letter-spacing: .2px;
   max-inline-size: 30ch;     /* keeps headline from getting too wide */
   margin: 0 auto var(--space-5);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3); /* Improve text contrast */
 }
 
 .hero p {
   font-size: var(--text-lg);
   max-inline-size: 65ch;     /* readable paragraphs */
   margin: 0 auto var(--space-6);
-  opacity: .9;
+  opacity: .95;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.2); /* Improve text contrast */
 }
 
 /* CTA row */
@@ -246,8 +258,8 @@ section {
   padding: 12px 18px; 
   border-radius: 999px; 
   border: 1px solid transparent;
-  background: linear-gradient(90deg, #2d6bff, #6a83ff);
-  color: #fff; 
+  background: linear-gradient(90deg, var(--color-primary-blue), #6a83ff);
+  color: #fff !important; 
   font-weight: 600;
   box-shadow: 0 8px 28px rgba(12,18,40,.18);
   transition: transform .15s, box-shadow .2s;
@@ -255,7 +267,8 @@ section {
 }
 .btn:hover { 
   transform: translateY(-1px); 
-  box-shadow: 0 16px 48px rgba(12,18,40,.24); 
+  box-shadow: 0 16px 48px rgba(12,18,40,.24);
+  color: #fff !important;
 }
 .btn:focus-visible { 
   outline: none; 
@@ -305,11 +318,24 @@ header .nav {
   .btn, .card { 
     transition: none; 
   }
+  .site-bg canvas,
+  .site-bg video,
+  .animate-pulse,
+  .animate-float,
+  .animate-float-delayed,
+  .animate-spin {
+    animation: none !important;
+  }
+  
+  /* Provide static alternative for background animation */
+  .site-bg {
+    background: linear-gradient(135deg, #0b1220 0%, #1a2332 50%, #0b1220 100%);
+  }
 }
 
 /* Legacy support for existing Tailwind classes - gradually remove these */
 .content-container {
-  width: min(var(--container-max), 92vw);
+  width: 100%;
   margin-inline: auto;
   padding-inline: var(--space-6);
 }

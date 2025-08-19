@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, Sparkles, X } from 'lucide-react'
 import { Button } from '../components/ui/button'
 
 const LandingPage = () => {
@@ -18,6 +18,11 @@ const LandingPage = () => {
     name: "BlueWave Facilities, LLC", 
     naics: ["561720", "561740"], 
     differentiators: ["24/7 dispatch", "union labor", "LEED support"] 
+  }
+
+  const closeDemo = () => {
+    setDemoVisible(false)
+    setStickyVisible(false)
   }
 
   const showDemo = (type: 'contracts' | 'capability' | 'assistant') => {
@@ -49,6 +54,7 @@ const LandingPage = () => {
                     (window as any).gtag('event', 'cta_open_full_tool', { tool: 'contracts' })
                   }
                 }}
+                title="Sign up required to access full contract search"
               >
                 Open full search <ArrowRight className="w-4 h-4" />
               </Link>
@@ -81,6 +87,7 @@ const LandingPage = () => {
                     (window as any).gtag('event', 'cta_open_full_tool', { tool: 'capability' })
                   }
                 }}
+                title="Sign up required to build capability statements"
               >
                 Build my statement <ArrowRight className="w-4 h-4" />
               </Link>
@@ -248,12 +255,19 @@ const LandingPage = () => {
 
           {demoVisible && (
             <section 
-              className="w-full max-w-4xl mx-auto mt-8 p-6 border border-slate-600 rounded-2xl backdrop-blur-sm shadow-2xl"
+              className="relative w-full max-w-4xl mx-auto mt-8 p-6 border border-slate-600 rounded-2xl backdrop-blur-sm shadow-2xl"
               style={{
                 background: 'linear-gradient(180deg, #111a33, #0f1830)',
                 boxShadow: '0 16px 48px rgba(12,18,40,.24)'
               }}
             >
+              <button
+                onClick={closeDemo}
+                className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-zinc-950 focus:ring-offset-2 text-white hover:text-slate-300"
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
               {renderDemoContent()}
             </section>
           )}

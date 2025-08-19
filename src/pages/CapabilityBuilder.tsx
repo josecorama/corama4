@@ -429,7 +429,7 @@ const CapabilityBuilder = () => {
                 <Button
                   onClick={handleGenerate}
                   disabled={loading || !user || user.credits < (isMultiPage ? 10 : 5)}
-                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
+                  className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   size="lg"
                 >
                   {loading ? (

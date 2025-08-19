@@ -412,7 +412,7 @@ const Dashboard = () => {
                               onClick={() => analyzeContract(contract)}
                               size="sm"
                               variant="outline"
-                              className="border-white/20 text-white hover:bg-slate-700"
+                              className="border-white/20 text-white hover:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                             >
                               <BarChart3 className="w-4 h-4 mr-1" />
                               Analyze
@@ -420,7 +420,7 @@ const Dashboard = () => {
                             <Button
                               onClick={() => createBidResponse()}
                               size="sm"
-                              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                               disabled={bidLoading}
                             >
                               {bidLoading ? (
@@ -479,7 +479,7 @@ const Dashboard = () => {
                         </div>
                         <Button
                           onClick={() => createBidResponse()}
-                          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                           disabled={bidLoading}
                         >
                           {bidLoading ? (

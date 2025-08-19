@@ -130,7 +130,7 @@ const ContractSearch = () => {
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-slate-400"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g., software development, IT services, cybersecurity..."
                     onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   />
@@ -138,7 +138,7 @@ const ContractSearch = () => {
                 <Button
                   onClick={handleSearch}
                   disabled={loading}
-                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
+                  className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 >
                   {loading ? (
                     <>
@@ -153,6 +153,21 @@ const ContractSearch = () => {
                   )}
                 </Button>
               </div>
+              
+              {contracts.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <span className="text-slate-300">Filter by:</span>
+                  <button className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm hover:bg-blue-500/30 transition-colors">
+                    All Agencies
+                  </button>
+                  <button className="px-3 py-1 bg-slate-500/20 text-slate-400 rounded-full text-sm hover:bg-slate-500/30 transition-colors">
+                    Due This Month
+                  </button>
+                  <button className="px-3 py-1 bg-slate-500/20 text-slate-400 rounded-full text-sm hover:bg-slate-500/30 transition-colors">
+                    High Value ($1M+)
+                  </button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -173,7 +188,7 @@ const ContractSearch = () => {
               </Button>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 max-h-96 overflow-y-auto">
               {contracts.map((contract, index) => (
                 <motion.div
                   key={contract.id}
@@ -246,6 +261,11 @@ const ContractSearch = () => {
                   </Card>
                 </motion.div>
               ))}
+              {contracts.length > 3 && (
+                <div className="text-center py-4">
+                  <p className="text-slate-400 text-sm">Showing {contracts.length} results. Scroll to see more.</p>
+                </div>
+              )}
             </div>
 
             {contracts.length === 0 && (

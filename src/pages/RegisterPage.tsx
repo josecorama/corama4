@@ -145,10 +145,11 @@ const RegisterPage = () => {
                     type="password"
                     value={formData.password}
                     onChange={handleChange}
-                    className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400"
-                    placeholder="Create a password"
+                    className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Create a password (min 8 characters)"
                     autoComplete="new-password"
                     required
+                    minLength={8}
                   />
                 </div>
               </div>
@@ -162,7 +163,7 @@ const RegisterPage = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="btn w-full"
+                className="btn w-full focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 {loading ? 'Creating Account...' : 'Create Account'}
               </button>
