@@ -76,9 +76,16 @@ class ContractMatch(BaseModel):
     title: str
     description: str
     agency: str
+    department: Optional[str] = None
     deadline: str
+    status: Optional[str] = None
+    budget_estimate: Optional[str] = None
+    category: Optional[str] = None
+    industry: Optional[str] = None
+    is_small_business: Optional[str] = None
+    detail_link: Optional[str] = None
     match_score: float
-    requirements: List[str]
+    requirements: List[str] = []
 
 class AIGenerateRequest(BaseModel):
     company_name: str
@@ -404,20 +411,81 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
             contracts = []
             for result in search_results:
                 payload = result.payload
+                
+                requirements = []
+                if payload.get("Category"):
+                    requirements.append(payload.get("Category"))
+                if payload.get("Industry"):
+                    requirements.append(payload.get("Industry"))
+                if payload.get("Is Small Business Set Aside") == "Yes":
+                    requirements.append("Small Business Set Aside")
+                
                 contracts.append(ContractMatch(
-                    id=payload.get("id", str(result.id)),
-                    title=payload.get("title", ""),
-                    description=payload.get("description", ""),
-                    agency=payload.get("agency", ""),
-                    deadline=payload.get("deadline", ""),
+                    id=payload.get("Bid Number", str(result.id)),
+                    title=payload.get("Bid Name", ""),
+                    description=payload.get("Bid Description", ""),
+                    agency=payload.get("Organization", ""),
+                    department=payload.get("Department", ""),
+                    deadline=payload.get("Due Date", ""),
+                    status=payload.get("Status", ""),
+                    budget_estimate=payload.get("Budget Estimate", ""),
+                    category=payload.get("Category", ""),
+                    industry=payload.get("Industry", ""),
+                    is_small_business=payload.get("Is Small Business Set Aside", ""),
+                    detail_link=payload.get("Detail Link", ""),
                     match_score=result.score,
-                    requirements=payload.get("requirements", [])
+                    requirements=requirements
                 ))
             
             if contracts:
+                print(f"Returning {len(contracts)} real contracts from Qdrant")
                 return contracts
         except Exception as qdrant_error:
             print(f"Qdrant search failed: {qdrant_error}")
+            
+        # If Qdrant search fails, try scroll search to get any contracts
+        try:
+            print("Trying Qdrant scroll search as fallback...")
+            scroll_results = qdrant_client.scroll(
+                collection_name="contracts",
+                limit=10,
+                with_payload=True
+            )
+            
+            contracts = []
+            for result in scroll_results[0]:  # scroll returns (points, next_page_offset)
+                payload = result.payload
+                
+                requirements = []
+                if payload.get("Category"):
+                    requirements.append(payload.get("Category"))
+                if payload.get("Industry"):
+                    requirements.append(payload.get("Industry"))
+                if payload.get("Is Small Business Set Aside") == "Yes":
+                    requirements.append("Small Business Set Aside")
+                
+                contracts.append(ContractMatch(
+                    id=payload.get("Bid Number", str(result.id)),
+                    title=payload.get("Bid Name", ""),
+                    description=payload.get("Bid Description", ""),
+                    agency=payload.get("Organization", ""),
+                    department=payload.get("Department", ""),
+                    deadline=payload.get("Due Date", ""),
+                    status=payload.get("Status", ""),
+                    budget_estimate=payload.get("Budget Estimate", ""),
+                    category=payload.get("Category", ""),
+                    industry=payload.get("Industry", ""),
+                    is_small_business=payload.get("Is Small Business Set Aside", ""),
+                    detail_link=payload.get("Detail Link", ""),
+                    match_score=0.8,  # Default score for scroll results
+                    requirements=requirements
+                ))
+            
+            if contracts:
+                print(f"Returning {len(contracts)} real contracts from Qdrant scroll")
+                return contracts
+        except Exception as scroll_error:
+            print(f"Qdrant scroll search also failed: {scroll_error}")
         
         print("Using mock contracts...")
         mock_contracts = [
