@@ -96,7 +96,7 @@ const PricingPage = () => {
     <div className="page-container bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
       <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-cyan-600/10"></div>
       
-      <nav className="relative z-10 flex items-center justify-between content-container py-6 border-b border-white/10">
+      <nav className="relative z-10 flex items-center justify-between w-full max-w-6xl mx-auto px-6 py-6 border-b border-white/10">
         <div className="flex items-center space-x-4">
           <Link to="/" className="text-white hover:text-blue-400 transition-colors">
             <ArrowLeft className="w-6 h-6" />
@@ -202,9 +202,9 @@ const PricingPage = () => {
                 <Button
                   className={`w-full ${
                     plan.popular
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700'
-                      : 'bg-white/10 hover:bg-white/20 border border-white/20'
-                  } text-white`}
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white'
+                      : 'bg-slate-700 hover:bg-slate-600 border border-slate-600 text-white'
+                  }`}
                 >
                   {plan.buttonText}
                 </Button>
@@ -249,7 +249,7 @@ const PricingPage = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white">
+                  <Button className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white">
                     Purchase Credits
                   </Button>
                 </CardContent>
