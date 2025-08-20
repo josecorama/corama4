@@ -182,9 +182,6 @@ const Dashboard = () => {
         
         setUploadedFiles(prev => [...prev, file])
         
-        if (fetchUserProfile && token) {
-          await fetchUserProfile(token)
-        }
       } catch (error) {
         console.error('Failed to upload document:', error)
         alert('Failed to upload document. Please try again.')
