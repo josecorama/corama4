@@ -319,19 +319,18 @@ const Dashboard = () => {
                   </Link>
                   <Button 
                     onClick={fetchContracts}
-                    variant="outline" 
-                    className="w-full border-white/20 text-white hover:bg-slate-700 justify-start"
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                   >
                     <Target className="w-4 h-4 mr-2" />
                     Browse Available Contracts
                   </Button>
                   <Link to="/bid-response">
-                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-slate-700 justify-start">
+                    <Button className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200">
                       <Zap className="w-4 h-4 mr-2" />
                       Generate Bid Response
                     </Button>
                   </Link>
-                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-slate-700 justify-start">
+                  <Button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200">
                     <Upload className="w-4 h-4 mr-2" />
                     Upload Documents
                   </Button>
