@@ -61,6 +61,8 @@ const Dashboard = () => {
   const [showContracts, setShowContracts] = useState(false)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [bidLoading, setBidLoading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [uploadLoading, setUploadLoading] = useState(false)
 
   const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000'
 
@@ -160,6 +162,35 @@ const Dashboard = () => {
       alert('Failed to create bid response. Please try again.')
     } finally {
       setBidLoading(false)
+    }
+  }
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUploadLoading(true)
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        
+        setUploadedFiles(prev => [...prev, file])
+        
+        if (fetchUserProfile && token) {
+          await fetchUserProfile(token)
+        }
+      } catch (error) {
+        console.error('Failed to upload document:', error)
+        alert('Failed to upload document. Please try again.')
+      } finally {
+        setUploadLoading(false)
+      }
     }
   }
 
@@ -330,10 +361,40 @@ const Dashboard = () => {
                       Generate Bid Response
                     </Button>
                   </Link>
-                  <Button className="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Documents
-                  </Button>
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center">
+                    <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                    <div className="space-y-2">
+                      <p className="text-white text-sm">Upload Documents</p>
+                      <p className="text-slate-400 text-xs">PDF, DOC, DOCX, PNG, JPG up to 5MB</p>
+                      <input
+                        type="file"
+                        onChange={handleDocumentUpload}
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.svg"
+                        className="hidden"
+                        id="document-upload"
+                        disabled={uploadLoading}
+                      />
+                      <label htmlFor="document-upload">
+                        <Button 
+                          variant="outline" 
+                          className="border-white/20 text-white hover:bg-slate-700" 
+                          asChild
+                          disabled={uploadLoading}
+                        >
+                          <span>{uploadLoading ? 'Uploading...' : 'Choose Files'}</span>
+                        </Button>
+                      </label>
+                      {uploadedFiles.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {uploadedFiles.map((file, index) => (
+                            <p key={index} className="text-green-400 text-xs">
+                              Uploaded: {file.name}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
