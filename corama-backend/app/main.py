@@ -17,7 +17,7 @@ from sendgrid.helpers.mail import Mail
 
 load_dotenv()
 
-app = FastAPI(title="Corama API", description="AI-Powered Capability Statement & Contract Matching Platform")
+app = FastAPI(title="Corama API", description="AI-Powered Capability Statement & Contract Matching Platform", version="1.0.1")
 
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
