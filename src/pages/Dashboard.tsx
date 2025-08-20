@@ -408,8 +408,7 @@ const Dashboard = () => {
                             <Button
                               onClick={() => analyzeContract(contract)}
                               size="sm"
-                              variant="outline"
-                              className="border-white/20 text-white hover:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                             >
                               <BarChart3 className="w-4 h-4 mr-1" />
                               Analyze
