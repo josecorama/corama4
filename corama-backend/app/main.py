@@ -99,7 +99,7 @@ class ContractMatch(BaseModel):
     description: str
     agency: str
     deadline: str
-    match_score: float
+    match_score: Optional[float] = None
     requirements: List[str]
 
 class AIGenerateRequest(BaseModel):
