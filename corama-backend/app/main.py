@@ -333,7 +333,7 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
     try:
         print(f"Contract search request: {request}")
         
-        openai_key = os.getenv("Open_Ai")
+        openai_key = os.getenv("CORAMA_33")
         if not openai_key:
             print("OpenAI API key not found, using mock data")
             raise Exception("No OpenAI API key")
