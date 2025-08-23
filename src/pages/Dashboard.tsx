@@ -82,10 +82,28 @@ const Dashboard = () => {
       }
     }
 
+    const fetchInitialContracts = async () => {
+      try {
+        const response = await axios.post(`${API_BASE_URL}/contracts/search`, {
+          query: user?.company || "government contracts",
+          limit: 10
+        }, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        setContracts(response.data || [])
+        setShowContracts(true)
+      } catch (error) {
+        console.error('Failed to fetch initial contracts:', error)
+      }
+    }
+
     if (token) {
       fetchStats()
+      fetchInitialContracts()
     }
-  }, [token])
+  }, [token, user?.company])
 
   const fetchContracts = async () => {
     try {
