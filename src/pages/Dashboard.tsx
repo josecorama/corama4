@@ -198,8 +198,9 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-slate-950 text-slate-100">
       <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-slate-950/80 backdrop-blur">
-        <div className="w-full px-[clamp(16px,3vw,40px)] h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="w-full h-16 flex items-center justify-center px-[clamp(16px,3vw,40px)]">
+          <div className="w-full max-w-7xl flex items-center justify-between">
+            <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
@@ -232,23 +233,26 @@ const Dashboard = () => {
               <LogOut className="w-4 h-4 mr-2" />
               <span className="hidden sm:inline">Logout</span>
             </Button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="w-full px-[clamp(16px,3vw,40px)] py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-[clamp(28px,2.2vw,36px)] font-bold text-white mb-2">
-            Welcome back, {user?.name}!
-          </h1>
-          <p className="text-slate-300 text-[clamp(16px,1.1vw,18px)]">
-            Manage your capability statements and discover new contract opportunities
-          </p>
-        </motion.div>
+      <main className="w-full">
+        <div className="w-full py-6 flex justify-center px-[clamp(16px,3vw,40px)]">
+          <div className="w-full max-w-7xl">
+            <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <h1 className="text-[clamp(28px,2.2vw,36px)] font-bold text-white mb-2">
+              Welcome back, {user?.name}!
+            </h1>
+            <p className="text-slate-300 text-[clamp(16px,1.1vw,18px)]">
+              Manage your capability statements and discover new contract opportunities
+            </p>
+          </motion.div>
 
         {loading ? (
           <div className="flex items-center justify-center py-20">
@@ -611,6 +615,8 @@ const Dashboard = () => {
             )}
           </>
         )}
+          </div>
+        </div>
       </main>
     </div>
   )
