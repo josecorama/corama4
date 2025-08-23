@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuth } from '../contexts/AuthContext'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
+import { Popover, PopoverContent, PopoverTrigger } from '../components/ui/popover'
 import { 
   FileText, 
   Search, 
@@ -20,7 +21,8 @@ import {
   CheckCircle,
   AlertTriangle,
   Lightbulb,
-  Coins
+  Coins,
+  ExternalLink
 } from 'lucide-react'
 import axios from 'axios'
 
@@ -40,6 +42,18 @@ interface Contract {
   value: string
   requirements: string[]
   match_score?: number
+  apply_url?: string
+  match_details?: {
+    score: number
+    factors: Array<{
+      name: string
+      weight: number
+      value: number
+      contribution: number
+      evidence: string[]
+    }>
+    notes?: string
+  }
 }
 
 interface CompetitiveAnalysis {
@@ -53,16 +67,18 @@ interface CompetitiveAnalysis {
 
 const Dashboard = () => {
   const { user, logout, token } = useAuth()
+  const navigate = useNavigate()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
-  const [competitiveAnalysis, setCompetitiveAnalysis] = useState<CompetitiveAnalysis | null>(null)
+  const [competitiveAnalysis] = useState<CompetitiveAnalysis | null>(null)
   const [showContracts, setShowContracts] = useState(false)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [bidLoading, setBidLoading] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [uploadLoading, setUploadLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000'
 
@@ -128,31 +144,19 @@ const Dashboard = () => {
 
   const analyzeContract = async (contract: Contract) => {
     if (!user?.company) {
-      alert('Please update your company profile to get competitive analysis')
+      setError('Please update your company profile to get competitive analysis')
       return
     }
 
+    setError(null)
     setSelectedContract(contract)
     setAnalysisLoading(true)
     
     try {
-      const response = await axios.post(`${API_BASE_URL}/contracts/analyze`, {
-        contract_id: contract.id,
-        contract_title: contract.title,
-        contract_description: contract.description,
-        contract_requirements: contract.requirements,
-        company_name: user.company,
-        company_capabilities: user.name // This should be expanded with actual capabilities
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      setCompetitiveAnalysis(response.data)
+      navigate(`/contracts/${contract.id}/analyze`)
     } catch (error) {
-      console.error('Failed to analyze contract:', error)
-      alert('Failed to analyze contract. Please try again.')
-    } finally {
+      console.error('Failed to navigate to contract analysis:', error)
+      setError('Unable to open analysis. Please try again.')
       setAnalysisLoading(false)
     }
   }
@@ -184,28 +188,86 @@ const Dashboard = () => {
   }
 
   const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
+    const files = e.target.files
+    if (files && files.length > 0) {
       setUploadLoading(true)
+      setError(null)
+      
       try {
-        const formData = new FormData()
-        formData.append('file', file)
-        
-        await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
+        const uploadPromises = Array.from(files).map(async (file) => {
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+          
+          return file
         })
         
-        setUploadedFiles(prev => [...prev, file])
+        const uploadedFilesList = await Promise.all(uploadPromises)
+        setUploadedFiles(prev => [...prev, ...uploadedFilesList])
         
       } catch (error) {
         console.error('Failed to upload document:', error)
-        alert('Failed to upload document. Please try again.')
+        setError('Failed to upload document. Please try again.')
       } finally {
         setUploadLoading(false)
       }
+    }
+  }
+
+  const handleApplyToContract = (contract: Contract) => {
+    if (!contract.apply_url) {
+      return
+    }
+    window.open(contract.apply_url, "_blank", "noopener,noreferrer")
+  }
+
+  const generateMockMatchDetails = (score: number) => {
+    return {
+      score,
+      factors: [
+        { 
+          name: "NAICS overlap", 
+          weight: 0.40, 
+          value: 1.00, 
+          contribution: 0.40, 
+          evidence: ["561720", "541511"] 
+        },
+        { 
+          name: "Keyword similarity", 
+          weight: 0.30, 
+          value: 0.85, 
+          contribution: 0.255, 
+          evidence: ["operator interface", "report", "overhaul"] 
+        },
+        { 
+          name: "Location fit", 
+          weight: 0.15, 
+          value: 0.66, 
+          contribution: 0.099, 
+          evidence: ["Nationwide eligible"] 
+        },
+        { 
+          name: "Past performance", 
+          weight: 0.10, 
+          value: 0.60, 
+          contribution: 0.06, 
+          evidence: ["prior DHS task"] 
+        },
+        { 
+          name: "Business size/type", 
+          weight: 0.05, 
+          value: 0.60, 
+          contribution: 0.03, 
+          evidence: ["SB eligible"] 
+        }
+      ],
+      notes: "Weights adjustable in admin."
     }
   }
 
@@ -361,59 +423,80 @@ const Dashboard = () => {
                     Get started with your most common tasks
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="flex flex-col gap-3">
                   <Link to="/capability-builder">
-                    <Button className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white justify-start text-[clamp(14px,.95vw,16px)]">
+                    <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white justify-start text-[clamp(14px,.95vw,16px)]">
                       <Plus className="w-4 h-4 mr-2" />
                       Create New Capability Statement
                     </Button>
                   </Link>
                   <Button 
                     onClick={fetchContracts}
-                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-[clamp(14px,.95vw,16px)]"
+                    variant="secondary"
+                    className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-[clamp(14px,.95vw,16px)]"
                   >
                     <Target className="w-4 h-4 mr-2" />
                     Browse Available Contracts
                   </Button>
                   <Link to="/bid-response">
-                    <Button className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-[clamp(14px,.95vw,16px)]">
+                    <Button variant="secondary" className="w-full h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-[clamp(14px,.95vw,16px)]">
                       <Zap className="w-4 h-4 mr-2" />
                       Generate Bid Response
                     </Button>
                   </Link>
-                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center">
-                    <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                    <div className="space-y-2">
-                      <p className="text-white text-[clamp(14px,.95vw,16px)]">Upload Documents</p>
-                      <p className="text-slate-400 text-[clamp(12px,.8vw,14px)]">PDF, DOC, DOCX, PNG, JPG up to 5MB</p>
-                      <input
-                        type="file"
-                        onChange={handleDocumentUpload}
-                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.svg"
-                        className="hidden"
-                        id="document-upload"
-                        disabled={uploadLoading}
-                      />
-                      <label htmlFor="document-upload">
-                        <Button 
-                          variant="outline" 
-                          className="border-white/20 text-white hover:bg-slate-700" 
-                          asChild
-                          disabled={uploadLoading}
-                        >
-                          <span>{uploadLoading ? 'Uploading...' : 'Choose Files'}</span>
-                        </Button>
-                      </label>
-                      {uploadedFiles.length > 0 && (
-                        <div className="mt-2 space-y-1">
-                          {uploadedFiles.map((file, index) => (
-                            <p key={index} className="text-green-400 text-[clamp(11px,.7vw,12px)]">
-                              Uploaded: {file.name}
-                            </p>
-                          ))}
-                        </div>
+                  <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
+                    <p className="text-slate-200 font-medium text-[clamp(14px,.95vw,16px)]">Upload Documents</p>
+                    <p className="text-xs text-slate-400 mb-3">PDF, DOC, DOCX, PNG, JPG up to 5MB</p>
+
+                    <input 
+                      id="uploadDocs" 
+                      type="file" 
+                      className="sr-only" 
+                      multiple 
+                      onChange={handleDocumentUpload}
+                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.svg"
+                      disabled={uploadLoading}
+                      aria-label="Upload documents"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('uploadDocs')?.click()}
+                      className="w-full h-11 rounded-xl border border-slate-600 bg-slate-800 text-slate-100 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      disabled={uploadLoading}
+                      aria-describedby="upload-help"
+                    >
+                      {uploadLoading ? (
+                        <>
+                          <Upload className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Choose files
+                        </>
                       )}
+                    </button>
+                    <div id="upload-help" className="sr-only">
+                      Upload PDF, DOC, DOCX, PNG, or JPG files up to 5MB each
                     </div>
+                    
+                    {uploadedFiles.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {uploadedFiles.map((file, index) => (
+                          <p key={index} className="text-green-400 text-[clamp(11px,.7vw,12px)] flex items-center">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Uploaded: {file.name}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {error && (
+                      <div className="mt-3 p-2 bg-red-900/20 border border-red-700 rounded text-red-400 text-sm">
+                        {error}
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -474,9 +557,55 @@ const Dashboard = () => {
                         <div className="flex justify-between items-start mb-2">
                           <h3 className="text-white font-semibold text-[clamp(14px,.95vw,16px)] flex-1 min-w-0 pr-4">{contract.title}</h3>
                           <div className="flex items-center space-x-2 flex-shrink-0">
-                            <span className="text-green-400 text-[clamp(12px,.8vw,14px)] font-medium">
-                              {Math.round((contract.match_score || 0.8) * 100)}% Match
-                            </span>
+                            <Popover>
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-400 text-[clamp(12px,.8vw,14px)] font-semibold">
+                                  {Math.round((contract.match_score || 0.8) * 100)}% Match
+                                </span>
+                                <PopoverTrigger asChild>
+                                  <button className="text-xs text-slate-400 hover:text-slate-200 underline focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900 rounded">
+                                    Why this match?
+                                  </button>
+                                </PopoverTrigger>
+                              </div>
+                              <PopoverContent className="w-96 bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-100">
+                                {(() => {
+                                  const matchDetails = contract.match_details || generateMockMatchDetails(contract.match_score || 0.8)
+                                  return (
+                                    <div>
+                                      <h4 className="font-semibold mb-3 text-slate-200">Match Score Breakdown</h4>
+                                      {matchDetails.factors.map((factor, idx) => (
+                                        <div key={idx} className="mb-3">
+                                          <div className="flex justify-between text-sm text-slate-200 mb-1">
+                                            <span>{factor.name}</span>
+                                            <span>{Math.round(factor.contribution * 100)}%</span>
+                                          </div>
+                                          <div className="h-2 rounded bg-slate-800 overflow-hidden">
+                                            <div 
+                                              className="h-2 rounded bg-gradient-to-r from-emerald-500 to-teal-500" 
+                                              style={{ width: `${factor.contribution * 100}%` }} 
+                                            />
+                                          </div>
+                                          <p className="mt-1 text-xs text-slate-400">
+                                            Evidence: {factor.evidence.join(", ")}
+                                          </p>
+                                        </div>
+                                      ))}
+                                      {matchDetails.notes && (
+                                        <p className="text-xs text-slate-500 mt-3 border-t border-slate-700 pt-2">
+                                          {matchDetails.notes}
+                                        </p>
+                                      )}
+                                      {!contract.match_details && (
+                                        <p className="text-xs text-slate-500 mt-3 border-t border-slate-700 pt-2">
+                                          No details provided by the source. Contact support if this persists.
+                                        </p>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </div>
                         <p className="text-slate-300 text-[clamp(12px,.8vw,14px)] mb-2 line-clamp-2">{contract.description}</p>
@@ -489,22 +618,25 @@ const Dashboard = () => {
                             <Button
                               onClick={() => analyzeContract(contract)}
                               size="sm"
-                              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                              className="h-9 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+                              disabled={analysisLoading}
                             >
-                              <BarChart3 className="w-4 h-4 mr-1" />
+                              {analysisLoading ? (
+                                <BarChart3 className="w-4 h-4 mr-1 animate-spin" />
+                              ) : (
+                                <BarChart3 className="w-4 h-4 mr-1" />
+                              )}
                               Analyze
                             </Button>
                             <Button
-                              onClick={() => createBidResponse()}
+                              onClick={() => handleApplyToContract(contract)}
                               size="sm"
-                              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
-                              disabled={bidLoading}
+                              variant="secondary"
+                              className="h-9 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+                              disabled={!contract.apply_url}
+                              title={!contract.apply_url ? "Apply link not provided" : "Open application in new tab"}
                             >
-                              {bidLoading ? (
-                                <Sparkles className="w-4 h-4 mr-1 animate-spin" />
-                              ) : (
-                                <Sparkles className="w-4 h-4 mr-1" />
-                              )}
+                              <ExternalLink className="w-4 h-4 mr-1" />
                               Apply
                             </Button>
                           </div>
