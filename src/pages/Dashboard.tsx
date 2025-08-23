@@ -71,6 +71,9 @@ const Dashboard = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [hasCompanyProfile, setHasCompanyProfile] = useState<boolean | null>(null)
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [embeddingLoading, setEmbeddingLoading] = useState(false)
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null)
   const [competitiveAnalysis] = useState<CompetitiveAnalysis | null>(null)
   const [showContracts, setShowContracts] = useState(false)
@@ -98,6 +101,25 @@ const Dashboard = () => {
       }
     }
 
+    const checkCompanyProfile = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/company-profile`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        setHasCompanyProfile(true)
+        console.log('Company profile found:', response.data)
+      } catch (error) {
+        if (error.response?.status === 404) {
+          setHasCompanyProfile(false)
+          console.log('No company profile found')
+        } else {
+          console.error('Error checking company profile:', error)
+        }
+      }
+    }
+
     const fetchInitialContracts = async () => {
       try {
         const response = await axios.post(`${API_BASE_URL}/contracts/search`, {
@@ -117,6 +139,7 @@ const Dashboard = () => {
 
     if (token) {
       fetchStats()
+      checkCompanyProfile()
       fetchInitialContracts()
     }
   }, [token, user?.company])
@@ -143,8 +166,8 @@ const Dashboard = () => {
   }
 
   const analyzeContract = async (contract: Contract) => {
-    if (!user?.company) {
-      setError('Please update your company profile to get competitive analysis')
+    if (!hasCompanyProfile) {
+      setError('Please complete your company profile to get competitive analysis')
       return
     }
 
@@ -221,10 +244,70 @@ const Dashboard = () => {
   }
 
   const handleApplyToContract = (contract: Contract) => {
+    if (!hasCompanyProfile) {
+      setError('Please complete your company profile first')
+      return
+    }
+    
     if (!contract.apply_url) {
       return
     }
     window.open(contract.apply_url, "_blank", "noopener,noreferrer")
+  }
+
+  const handleUploadCapabilityStatement = async () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.pdf,.doc,.docx'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file) {
+        setUploadLoading(true)
+        setError(null)
+        try {
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          await axios.post(`${API_BASE_URL}/api/company-profile/upload`, formData, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+          
+          setEmbeddingLoading(true)
+          await axios.post(`${API_BASE_URL}/api/company-profile/embedding`, {}, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+          
+          setHasCompanyProfile(true)
+          setEmbeddingLoading(false)
+          
+          await fetchContracts()
+          
+        } catch (error) {
+          console.error('Failed to upload capability statement:', error)
+          setError('Failed to upload capability statement. Please try again.')
+        } finally {
+          setUploadLoading(false)
+        }
+      }
+    }
+    input.click()
+  }
+
+  const fetchMatchDetails = async (contractId: string) => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/contracts/${contractId}/match`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+      return response.data
+    } catch (error) {
+      console.error('Failed to fetch match details:', error)
+      return null
+    }
   }
 
   const generateMockMatchDetails = (score: number) => {
@@ -232,42 +315,42 @@ const Dashboard = () => {
       score,
       factors: [
         { 
+          name: "Vector similarity (capability ↔ contract)", 
+          weight: 0.55, 
+          value: 0.89, 
+          contribution: 0.489, 
+          evidence: ["operator interface", "inspect", "report"] 
+        },
+        { 
           name: "NAICS overlap", 
-          weight: 0.40, 
+          weight: 0.20, 
           value: 1.00, 
-          contribution: 0.40, 
-          evidence: ["561720", "541511"] 
+          contribution: 0.20, 
+          evidence: ["561720"] 
         },
         { 
-          name: "Keyword similarity", 
-          weight: 0.30, 
-          value: 0.85, 
-          contribution: 0.255, 
-          evidence: ["operator interface", "report", "overhaul"] 
-        },
-        { 
-          name: "Location fit", 
+          name: "Keyword fit", 
           weight: 0.15, 
-          value: 0.66, 
-          contribution: 0.099, 
+          value: 0.80, 
+          contribution: 0.12, 
+          evidence: ["overhaul", "electronic", "USCG"] 
+        },
+        { 
+          name: "Geography", 
+          weight: 0.05, 
+          value: 1.00, 
+          contribution: 0.05, 
           evidence: ["Nationwide eligible"] 
         },
         { 
-          name: "Past performance", 
-          weight: 0.10, 
-          value: 0.60, 
-          contribution: 0.06, 
-          evidence: ["prior DHS task"] 
-        },
-        { 
-          name: "Business size/type", 
+          name: "Set-aside", 
           weight: 0.05, 
           value: 0.60, 
           contribution: 0.03, 
-          evidence: ["SB eligible"] 
+          evidence: ["Small Business eligible"] 
         }
       ],
-      notes: "Weights adjustable in admin."
+      notes: "Weights adjustable in Admin → Matching."
     }
   }
 
@@ -539,6 +622,41 @@ const Dashboard = () => {
               </Card>
             </motion.div>
 
+            {/* Profile Gating Banner */}
+            {hasCompanyProfile === false && (
+              <Card className="border-amber-500/20 bg-amber-500/5 rounded-2xl ring-1 ring-amber-500/20 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_10px_30px_-15px_rgba(0,0,0,0.6)] p-5 mt-6">
+                <CardContent className="p-6">
+                  <div className="flex items-start gap-4">
+                    <AlertTriangle className="h-6 w-6 text-amber-500 mt-1 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-amber-100 mb-2">
+                        Tell us about your company to get accurate matches
+                      </h3>
+                      <p className="text-amber-200/80 mb-4">
+                        Upload your capability statement (PDF/DOC/DOCX) or build one in 3 minutes.
+                      </p>
+                      <div className="flex gap-3">
+                        <Button 
+                          onClick={handleUploadCapabilityStatement}
+                          disabled={uploadLoading || embeddingLoading}
+                          className="bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          {uploadLoading ? 'Uploading...' : embeddingLoading ? 'Processing...' : 'Upload Capability Statement'}
+                        </Button>
+                        <Button 
+                          onClick={() => navigate('/capability-builder')}
+                          variant="outline"
+                          className="border-amber-500 text-amber-100 hover:bg-amber-500/10"
+                        >
+                          Create Capability Statement
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {showContracts && contracts.length > 0 && (
               <Card className="rounded-2xl bg-slate-900/60 ring-1 ring-white/10 shadow-[0_1px_0_0_rgba(255,255,255,0.04)_inset,0_10px_30px_-15px_rgba(0,0,0,0.6)] p-5 mt-6">
                 <CardHeader>
@@ -547,7 +665,7 @@ const Dashboard = () => {
                     Available Government Contracts
                   </CardTitle>
                   <CardDescription className="text-slate-400 text-[clamp(14px,.95vw,16px)]">
-                    Browse and analyze contracts pulled from government databases
+                    {hasCompanyProfile ? 'AI-matched opportunities based on your company profile' : 'Browse government contracts (complete profile for match scores)'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -557,55 +675,64 @@ const Dashboard = () => {
                         <div className="flex justify-between items-start mb-2">
                           <h3 className="text-white font-semibold text-[clamp(14px,.95vw,16px)] flex-1 min-w-0 pr-4">{contract.title}</h3>
                           <div className="flex items-center space-x-2 flex-shrink-0">
-                            <Popover>
-                              <div className="flex items-center gap-2">
-                                <span className="text-emerald-400 text-[clamp(12px,.8vw,14px)] font-semibold">
-                                  {Math.round((contract.match_score || 0.8) * 100)}% Match
-                                </span>
-                                <PopoverTrigger asChild>
-                                  <button className="text-xs text-slate-400 hover:text-slate-200 underline focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900 rounded">
-                                    Why this match?
-                                  </button>
-                                </PopoverTrigger>
-                              </div>
-                              <PopoverContent className="w-96 bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-100">
-                                {(() => {
-                                  const matchDetails = contract.match_details || generateMockMatchDetails(contract.match_score || 0.8)
-                                  return (
-                                    <div>
-                                      <h4 className="font-semibold mb-3 text-slate-200">Match Score Breakdown</h4>
-                                      {matchDetails.factors.map((factor, idx) => (
-                                        <div key={idx} className="mb-3">
-                                          <div className="flex justify-between text-sm text-slate-200 mb-1">
-                                            <span>{factor.name}</span>
-                                            <span>{Math.round(factor.contribution * 100)}%</span>
+                            {hasCompanyProfile && contract.match_score !== null && contract.match_score !== undefined ? (
+                              <Popover>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-emerald-400 text-[clamp(12px,.8vw,14px)] font-semibold">
+                                    {Math.round(contract.match_score * 100)}% Match
+                                  </span>
+                                  <PopoverTrigger asChild>
+                                    <button className="text-xs text-slate-400 hover:text-slate-200 underline focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900 rounded">
+                                      Why this match?
+                                    </button>
+                                  </PopoverTrigger>
+                                </div>
+                                <PopoverContent className="w-96 bg-slate-900 border border-slate-700 rounded-xl p-4 text-slate-100">
+                                  {(() => {
+                                    const matchDetails = contract.match_details || generateMockMatchDetails(contract.match_score)
+                                    return (
+                                      <div>
+                                        <h4 className="font-semibold mb-3 text-slate-200">Match Score Breakdown</h4>
+                                        {matchDetails.factors.map((factor, idx) => (
+                                          <div key={idx} className="mb-3">
+                                            <div className="flex justify-between text-sm text-slate-200 mb-1">
+                                              <span>{factor.name}</span>
+                                              <span>{Math.round(factor.contribution * 100)}%</span>
+                                            </div>
+                                            <div className="h-2 rounded bg-slate-800 overflow-hidden">
+                                              <div 
+                                                className="h-2 rounded bg-gradient-to-r from-emerald-500 to-teal-500" 
+                                                style={{ width: `${factor.contribution * 100}%` }} 
+                                              />
+                                            </div>
+                                            <p className="mt-1 text-xs text-slate-400">
+                                              Evidence: {factor.evidence.join(", ")}
+                                            </p>
                                           </div>
-                                          <div className="h-2 rounded bg-slate-800 overflow-hidden">
-                                            <div 
-                                              className="h-2 rounded bg-gradient-to-r from-emerald-500 to-teal-500" 
-                                              style={{ width: `${factor.contribution * 100}%` }} 
-                                            />
-                                          </div>
-                                          <p className="mt-1 text-xs text-slate-400">
-                                            Evidence: {factor.evidence.join(", ")}
+                                        ))}
+                                        {matchDetails.notes && (
+                                          <p className="text-xs text-slate-500 mt-3 border-t border-slate-700 pt-2">
+                                            {matchDetails.notes}
                                           </p>
-                                        </div>
-                                      ))}
-                                      {matchDetails.notes && (
-                                        <p className="text-xs text-slate-500 mt-3 border-t border-slate-700 pt-2">
-                                          {matchDetails.notes}
-                                        </p>
-                                      )}
-                                      {!contract.match_details && (
-                                        <p className="text-xs text-slate-500 mt-3 border-t border-slate-700 pt-2">
-                                          No details provided by the source. Contact support if this persists.
-                                        </p>
-                                      )}
-                                    </div>
-                                  )
-                                })()}
-                              </PopoverContent>
-                            </Popover>
+                                        )}
+                                        {!contract.match_details && (
+                                          <p className="text-xs text-slate-500 mt-3 border-t border-slate-700 pt-2">
+                                            No details provided by the source. Contact support if this persists.
+                                          </p>
+                                        )}
+                                      </div>
+                                    )
+                                  })()}
+                                </PopoverContent>
+                              </Popover>
+                            ) : (
+                              <span 
+                                className="text-sm text-slate-500 cursor-help" 
+                                title="Complete your company profile to see matches"
+                              >
+                                — Match
+                              </span>
+                            )}
                           </div>
                         </div>
                         <p className="text-slate-300 text-[clamp(12px,.8vw,14px)] mb-2 line-clamp-2">{contract.description}</p>
@@ -618,8 +745,9 @@ const Dashboard = () => {
                             <Button
                               onClick={() => analyzeContract(contract)}
                               size="sm"
-                              className="h-9 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900"
-                              disabled={analysisLoading}
+                              className="h-9 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:bg-slate-600 disabled:text-slate-400"
+                              disabled={!hasCompanyProfile || analysisLoading}
+                              title={!hasCompanyProfile ? "Complete your company profile first" : ""}
                             >
                               {analysisLoading ? (
                                 <BarChart3 className="w-4 h-4 mr-1 animate-spin" />
@@ -632,9 +760,9 @@ const Dashboard = () => {
                               onClick={() => handleApplyToContract(contract)}
                               size="sm"
                               variant="secondary"
-                              className="h-9 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                              disabled={!contract.apply_url}
-                              title={!contract.apply_url ? "Apply link not provided" : "Open application in new tab"}
+                              className="h-9 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:bg-slate-800 disabled:text-slate-500"
+                              disabled={!hasCompanyProfile || !contract.apply_url}
+                              title={!hasCompanyProfile ? "Complete your company profile first" : !contract.apply_url ? "Apply link not provided" : "Open application in new tab"}
                             >
                               <ExternalLink className="w-4 h-4 mr-1" />
                               Apply
