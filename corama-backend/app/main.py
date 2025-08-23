@@ -283,7 +283,7 @@ async def generate_capability_statement(request: AIGenerateRequest, credentials:
         Format it professionally as a government contractor capability statement with proper sections and professional language.
         """
         
-        api_key = os.getenv("Open_Ai")
+        api_key = os.getenv("CORAMA_33")
         print(f"Using OpenAI API key: {api_key[:10]}..." if api_key else "No API key found")
         
         client = openai.OpenAI(api_key=api_key)
@@ -598,7 +598,7 @@ async def analyze_contract(request: ContractAnalysisRequest, credentials: HTTPAu
         
         try:
             print("Attempting OpenAI API call for contract analysis...")
-            client = openai.OpenAI(api_key=os.getenv("Open_Ai"))
+            client = openai.OpenAI(api_key=os.getenv("CORAMA_33"))
             response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[{"role": "user", "content": prompt}],
@@ -691,7 +691,7 @@ async def generate_multipage_capability_statement(request: AIGenerateRequest, cr
             Focus specifically on the {section} and provide detailed, relevant content.
             """
             
-            client = openai.OpenAI(api_key=os.getenv("Open_Ai"))
+            client = openai.OpenAI(api_key=os.getenv("CORAMA_33"))
             response = client.chat.completions.create(
                 model="gpt-4",
                 messages=[
@@ -778,7 +778,7 @@ async def generate_bid_response(request: BidResponseRequest, credentials: HTTPAu
         Format it as a compelling proposal that demonstrates how the company meets all requirements and provides value to the government agency.
         """
         
-        client = openai.OpenAI(api_key=os.getenv("Open_Ai"))
+        client = openai.OpenAI(api_key=os.getenv("CORAMA_33"))
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[
