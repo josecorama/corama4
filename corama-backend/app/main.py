@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-openai.api_key = os.getenv("Open_Ai")
+openai.api_key = os.getenv("CORAMA_33")
 stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 try:
@@ -393,25 +393,99 @@ async def search_contracts(request: ContractSearchRequest, credentials: HTTPAuth
         
         try:
             print("Searching Qdrant...")
-            search_results = qdrant_client.search(
-                collection_name="contracts",
-                query_vector=query_embedding,
-                limit=10,
-                score_threshold=0.7
-            )
+            try:
+                search_results = qdrant_client.search(
+                    collection_name="contracts",
+                    query_vector=query_embedding,
+                    limit=10,
+                    score_threshold=0.5
+                )
+            except Exception as e:
+                print(f"Error searching 'contracts' collection: {e}")
+                try:
+                    search_results = qdrant_client.search(
+                        collection_name="Top_5_contracts_Vector_DB",
+                        query_vector=query_embedding,
+                        limit=10,
+                        score_threshold=0.5
+                    )
+                except Exception as e2:
+                    print(f"Error searching 'Top_5_contracts_Vector_DB' collection: {e2}")
+                    raise e
+            
             print(f"Qdrant search completed, found {len(search_results)} results")
+            if search_results:
+                print("First result payload keys:", list(search_results[0].payload.keys()))
             
             contracts = []
             for result in search_results:
                 payload = result.payload
+                print(f"Processing result with score {result.score}, payload: {payload}")
+                
+                title = payload.get("title", "")
+                if not title:
+                    title = payload.get("Title", "")
+                    if not title:
+                        title = payload.get("Bid Name", "")
+                        if not title:
+                            title = payload.get("Contract Title", "")
+                
+                description = payload.get("description", "")
+                if not description:
+                    description = payload.get("Description", "")
+                    if not description:
+                        description = payload.get("Bid Description", "")
+                        if not description:
+                            description = payload.get("Contract Description", "")
+                
+                agency = payload.get("agency", "")
+                if not agency:
+                    agency = payload.get("Agency", "")
+                    if not agency:
+                        agency = payload.get("Organization", "")
+                        if not agency:
+                            agency = payload.get("Department", "")
+                
+                deadline = payload.get("deadline", "")
+                if not deadline:
+                    deadline = payload.get("Deadline", "")
+                    if not deadline:
+                        deadline = payload.get("Due Date", "")
+                        if not deadline:
+                            deadline = payload.get("Closing Date", "")
+                
+                # Extract requirements
+                requirements = payload.get("requirements", [])
+                if not requirements:
+                    requirements = []
+                    if payload.get("Category") and payload.get("Category") != "Other":
+                        requirements.append(payload.get("Category"))
+                    if payload.get("Industry") and payload.get("Industry") != "Other":
+                        requirements.append(payload.get("Industry"))
+                    if payload.get("Is Small Business Set Aside") == "Yes":
+                        requirements.append("Small Business Set Aside")
+                    if payload.get("Contract Type"):
+                        requirements.append(payload.get("Contract Type"))
+                
+                if not requirements and description:
+                    desc = description.lower()
+                    if "software" in desc or "development" in desc:
+                        requirements.append("Software Development")
+                    if "it" in desc or "technology" in desc:
+                        requirements.append("IT Services")
+                    if "security" in desc or "cybersecurity" in desc:
+                        requirements.append("Cybersecurity")
+                    if "maintenance" in desc:
+                        requirements.append("Maintenance Services")
+                
                 contracts.append(ContractMatch(
                     id=payload.get("id", str(result.id)),
-                    title=payload.get("title", ""),
-                    description=payload.get("description", ""),
-                    agency=payload.get("agency", ""),
-                    deadline=payload.get("deadline", ""),
+                    title=title,
+                    description=description,
+                    agency=agency,
+                    deadline=deadline,
                     match_score=result.score,
-                    requirements=payload.get("requirements", [])
+                    requirements=requirements
                 ))
             
             if contracts:
