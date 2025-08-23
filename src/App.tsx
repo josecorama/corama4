@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage'
 import Dashboard from './pages/Dashboard'
 import CapabilityBuilder from './pages/CapabilityBuilder'
 import ContractSearch from './pages/ContractSearch'
+import ContractBrowsing from './pages/ContractBrowsing'
 import PricingPage from './pages/PricingPage'
 import BidResponseBuilder from './pages/BidResponseBuilder'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -40,7 +41,7 @@ function App() {
             } />
             <Route path="/contracts" element={
               <ProtectedRoute>
-                <ContractSearch />
+                <ContractBrowsing />
               </ProtectedRoute>
             } />
             <Route path="/contract-search" element={
