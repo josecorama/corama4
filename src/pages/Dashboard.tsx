@@ -61,6 +61,8 @@ const Dashboard = () => {
   const [showContracts, setShowContracts] = useState(false)
   const [analysisLoading, setAnalysisLoading] = useState(false)
   const [bidLoading, setBidLoading] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [uploadLoading, setUploadLoading] = useState(false)
 
   const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000'
 
@@ -160,6 +162,32 @@ const Dashboard = () => {
       alert('Failed to create bid response. Please try again.')
     } finally {
       setBidLoading(false)
+    }
+  }
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setUploadLoading(true)
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        
+        await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+        
+        setUploadedFiles(prev => [...prev, file])
+        
+      } catch (error) {
+        console.error('Failed to upload document:', error)
+        alert('Failed to upload document. Please try again.')
+      } finally {
+        setUploadLoading(false)
+      }
     }
   }
 
@@ -319,22 +347,51 @@ const Dashboard = () => {
                   </Link>
                   <Button 
                     onClick={fetchContracts}
-                    variant="outline" 
-                    className="w-full border-white/20 text-white hover:bg-slate-700 justify-start"
+                    className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200"
                   >
                     <Target className="w-4 h-4 mr-2" />
                     Browse Available Contracts
                   </Button>
                   <Link to="/bid-response">
-                    <Button variant="outline" className="w-full border-white/20 text-white hover:bg-slate-700 justify-start">
+                    <Button className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200">
                       <Zap className="w-4 h-4 mr-2" />
                       Generate Bid Response
                     </Button>
                   </Link>
-                  <Button variant="outline" className="w-full border-white/20 text-white hover:bg-slate-700 justify-start">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload Documents
-                  </Button>
+                  <div className="border-2 border-dashed border-white/20 rounded-lg p-4 text-center">
+                    <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                    <div className="space-y-2">
+                      <p className="text-white text-sm">Upload Documents</p>
+                      <p className="text-slate-400 text-xs">PDF, DOC, DOCX, PNG, JPG up to 5MB</p>
+                      <input
+                        type="file"
+                        onChange={handleDocumentUpload}
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.svg"
+                        className="hidden"
+                        id="document-upload"
+                        disabled={uploadLoading}
+                      />
+                      <label htmlFor="document-upload">
+                        <Button 
+                          variant="outline" 
+                          className="border-white/20 text-white hover:bg-slate-700" 
+                          asChild
+                          disabled={uploadLoading}
+                        >
+                          <span>{uploadLoading ? 'Uploading...' : 'Choose Files'}</span>
+                        </Button>
+                      </label>
+                      {uploadedFiles.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {uploadedFiles.map((file, index) => (
+                            <p key={index} className="text-green-400 text-xs">
+                              Uploaded: {file.name}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
@@ -409,8 +466,7 @@ const Dashboard = () => {
                             <Button
                               onClick={() => analyzeContract(contract)}
                               size="sm"
-                              variant="outline"
-                              className="border-white/20 text-white hover:bg-slate-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                             >
                               <BarChart3 className="w-4 h-4 mr-1" />
                               Analyze
