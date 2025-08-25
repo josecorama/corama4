@@ -42,6 +42,23 @@ const ContractBrowsing = () => {
     naics: '',
     minMatch: 0
   })
+
+  const filteredContracts = contracts.filter(contract => {
+    const matchesSearch = !searchQuery || 
+      contract.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contract.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contract.agency.toLowerCase().includes(searchQuery.toLowerCase())
+    
+    const matchesAgency = !filters.agency || contract.agency === filters.agency
+    
+    const matchesNaics = !filters.naics || 
+      contract.requirements.some(req => req.includes(filters.naics))
+    
+    const matchesMinMatch = contract.match_score ? 
+      contract.match_score >= filters.minMatch / 100 : true
+    
+    return matchesSearch && matchesAgency && matchesNaics && matchesMinMatch
+  })
   const [hasProfile, setHasProfile] = useState(false)
 
   const fetchContracts = async (query = '', limit = 20) => {
@@ -123,8 +140,9 @@ const ContractBrowsing = () => {
           </span>
           {hasProfile && contract.match_score && (
             <PopoverTrigger 
-              className="text-xs underline text-slate-400 hover:text-slate-300"
+              className="text-xs underline text-blue-300 hover:text-blue-200 font-medium min-h-[44px] px-2 py-1"
               onClick={loadFactors}
+              title="View match score breakdown"
             >
               Why this match?
             </PopoverTrigger>
@@ -200,31 +218,69 @@ const ContractBrowsing = () => {
         </div>
 
         <div className="mb-6 flex flex-wrap gap-4">
-          <Input
-            placeholder="Filter by agency..."
+          <select
             value={filters.agency}
             onChange={(e) => setFilters(prev => ({ ...prev, agency: e.target.value }))}
-            className="w-48 bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-400"
-          />
-          <Input
-            placeholder="Filter by NAICS code..."
+            className="w-48 bg-slate-900 border border-slate-700 text-slate-100 rounded-md px-3 py-2 min-h-[44px]"
+          >
+            <option value="">All Agencies</option>
+            <option value="Department of Defense">Department of Defense</option>
+            <option value="Department of Veterans Affairs">Department of Veterans Affairs</option>
+            <option value="General Services Administration">General Services Administration</option>
+            <option value="Department of Homeland Security">Department of Homeland Security</option>
+            <option value="Department of Health and Human Services">Department of Health and Human Services</option>
+            <option value="Department of Transportation">Department of Transportation</option>
+            <option value="Department of Energy">Department of Energy</option>
+            <option value="Environmental Protection Agency">Environmental Protection Agency</option>
+            <option value="National Aeronautics and Space Administration">National Aeronautics and Space Administration</option>
+            <option value="Small Business Administration">Small Business Administration</option>
+          </select>
+          
+          <select
             value={filters.naics}
             onChange={(e) => setFilters(prev => ({ ...prev, naics: e.target.value }))}
-            className="w-48 bg-slate-900 border-slate-700 text-slate-100 placeholder-slate-400"
+            className="w-48 bg-slate-900 border border-slate-700 text-slate-100 rounded-md px-3 py-2 min-h-[44px]"
+          >
+            <option value="">All NAICS Codes</option>
+            <option value="541511">541511 - Custom Computer Programming Services</option>
+            <option value="541512">541512 - Computer Systems Design Services</option>
+            <option value="541513">541513 - Computer Facilities Management Services</option>
+            <option value="541519">541519 - Other Computer Related Services</option>
+            <option value="541611">541611 - Administrative Management and General Management Consulting Services</option>
+            <option value="541618">541618 - Other Management Consulting Services</option>
+            <option value="561720">561720 - Janitorial Services</option>
+            <option value="236220">236220 - Commercial and Institutional Building Construction</option>
+            <option value="237310">237310 - Highway, Street, and Bridge Construction</option>
+            <option value="238210">238210 - Electrical Contractors and Other Wiring Installation Contractors</option>
+            <option value="238220">238220 - Plumbing, Heating, Air-Conditioning Contractors</option>
+            <option value="541330">541330 - Engineering Services</option>
+            <option value="541370">541370 - Surveying and Mapping Services</option>
+            <option value="561210">561210 - Facilities Support Services</option>
+            <option value="561612">561612 - Security Guards and Patrol Services</option>
+          </select>
+          
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={filters.minMatch}
+            onChange={(e) => setFilters(prev => ({ ...prev, minMatch: parseInt(e.target.value) }))}
+            className="w-32 min-h-[44px]"
           />
+          <span className="text-slate-300 text-sm self-center">Min Match: {filters.minMatch}%</span>
         </div>
 
         {loading ? (
           <div className="text-center py-12">
             <div className="text-slate-400">Loading contracts...</div>
           </div>
-        ) : contracts.length === 0 ? (
+        ) : filteredContracts.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-slate-400">No contracts found. Try adjusting your search criteria.</div>
+            <div className="text-slate-400">No contracts found matching your criteria.</div>
           </div>
         ) : (
           <div className="grid gap-6">
-            {contracts.map((contract) => (
+            {filteredContracts.map((contract) => (
               <Card key={contract.id} className="bg-slate-900 border-slate-700 hover:border-slate-600 transition-colors">
                 <CardHeader>
                   <div className="flex justify-between items-start">
@@ -287,16 +343,16 @@ const ContractBrowsing = () => {
                     <Button
                       onClick={() => handleAnalyze(contract.id)}
                       disabled={!hasProfile}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-slate-700 disabled:text-slate-500"
-                      title={!hasProfile ? "Complete your company profile first" : "Analyze this contract"}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white disabled:bg-slate-700 disabled:text-slate-500 min-h-[44px] text-base font-medium"
+                      title={!hasProfile ? "Complete your company profile first" : "Analyze this contract (2 credits)"}
                     >
-                      <BarChart3 className="w-4 h-4 mr-2" />
-                      Analyze
+                      <BarChart3 className="w-5 h-5 mr-2" />
+                      Analyze (2 credits)
                     </Button>
                     <Button
                       onClick={() => handleApply(contract.apply_url || '')}
                       disabled={!hasProfile || !contract.apply_url}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-slate-700 disabled:text-slate-500"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white disabled:bg-slate-700 disabled:text-slate-500 min-h-[44px] text-base font-medium"
                       title={!hasProfile ? "Complete your company profile first" : !contract.apply_url ? "No application URL available" : "Apply for this contract"}
                     >
                       <ExternalLink className="w-4 h-4 mr-2" />

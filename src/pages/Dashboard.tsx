@@ -322,6 +322,7 @@ const Dashboard = () => {
                     <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white justify-start text-[clamp(14px,.95vw,16px)]">
                       <Plus className="w-4 h-4 mr-2" />
                       Create New Capability Statement
+                      <span className="ml-auto text-xs bg-white/20 px-2 py-1 rounded">5 credits</span>
                     </Button>
                   </Link>
                   <Link to="/contracts">
@@ -331,12 +332,14 @@ const Dashboard = () => {
                     >
                       <Target className="w-4 h-4 mr-2" />
                       Browse Available Contracts
+                      <span className="ml-auto text-xs bg-white/20 px-2 py-1 rounded">Free</span>
                     </Button>
                   </Link>
                   <Link to="/bid-response">
                     <Button variant="secondary" className="w-full h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white border-0 justify-start font-medium shadow-lg hover:shadow-xl transition-all duration-200 text-[clamp(14px,.95vw,16px)]">
                       <Zap className="w-4 h-4 mr-2" />
                       Generate Bid Response
+                      <span className="ml-auto text-xs bg-white/20 px-2 py-1 rounded">10 credits</span>
                     </Button>
                   </Link>
                   <div className="rounded-xl border border-slate-700 bg-slate-900 p-4">
@@ -461,6 +464,7 @@ const Dashboard = () => {
                           className="border-amber-500 text-amber-100 hover:bg-amber-500/10"
                         >
                           Create Capability Statement
+                          <span className="ml-2 text-xs bg-amber-500/20 px-2 py-1 rounded">5 credits</span>
                         </Button>
                       </div>
                     </div>

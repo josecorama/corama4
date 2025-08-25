@@ -84,6 +84,7 @@ const CapabilityBuilder = () => {
       ...prev,
       [name]: name === 'experience_years' ? parseInt(value) || 0 : value
     }))
+    e.target.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -444,9 +445,48 @@ const CapabilityBuilder = () => {
                 </Button>
                 
                 {user && user.credits < (isMultiPage ? 10 : 5) && (
-                  <p className="text-red-400 text-sm text-center">
-                    Insufficient credits. You need {isMultiPage ? '10' : '5'} credits to generate a capability statement.
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-red-400 text-sm text-center">
+                      Insufficient credits. You need {isMultiPage ? '10' : '5'} credits to generate a capability statement.
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setGeneratedContent(`SAMPLE CAPABILITY STATEMENT
+
+EXECUTIVE SUMMARY
+This is a sample capability statement to demonstrate the AI-powered generation feature. 
+
+COMPANY OVERVIEW
+[Your company details would appear here with professional formatting]
+
+CORE COMPETENCIES
+• Professional service delivery
+• Government contracting experience
+• Quality assurance and compliance
+
+PAST PERFORMANCE
+[Relevant project examples would be highlighted here]
+
+DIFFERENTIATORS
+• Proven track record with government agencies
+• Certified quality management systems
+• Competitive pricing and timely delivery
+
+CERTIFICATIONS & QUALIFICATIONS
+[Your certifications would be listed here]
+
+CONTACT INFORMATION
+[Your contact details would appear here]
+
+To generate your actual capability statement with personalized content, please purchase credits.`)
+                        setGenerated(true)
+                      }}
+                      variant="outline"
+                      className="w-full border-white/20 text-white hover:bg-slate-700 min-h-[44px]"
+                    >
+                      View Sample Output (Free)
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import CapabilityBuilder from './pages/CapabilityBuilder'
 import ContractSearch from './pages/ContractSearch'
 import ContractBrowsing from './pages/ContractBrowsing'
+import ContractAnalysis from './pages/ContractAnalysis'
 import PricingPage from './pages/PricingPage'
 import BidResponseBuilder from './pages/BidResponseBuilder'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -42,6 +43,11 @@ function App() {
             <Route path="/contracts" element={
               <ProtectedRoute>
                 <ContractBrowsing />
+              </ProtectedRoute>
+            } />
+            <Route path="/contracts/:contractId/analyze" element={
+              <ProtectedRoute>
+                <ContractAnalysis />
               </ProtectedRoute>
             } />
             <Route path="/contract-search" element={
