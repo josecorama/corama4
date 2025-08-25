@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -11,13 +11,69 @@ import stripe
 import firebase_admin
 from firebase_admin import credentials, auth
 import json
-from datetime import datetime
+from datetime import datetime, date
 import sendgrid
 from sendgrid.helpers.mail import Mail
+import sqlite3
+import aiosqlite
+from contextlib import asynccontextmanager
 
 load_dotenv()
 
-app = FastAPI(title="Corama API", description="AI-Powered Capability Statement & Contract Matching Platform")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./corama_dev.db")
+
+async def get_db_connection():
+    db_path = DATABASE_URL.replace("sqlite:///", "")
+    if not os.path.isabs(db_path):
+        db_path = os.path.join(os.path.dirname(__file__), "..", db_path)
+    db_path = os.path.abspath(db_path)
+    print(f"DEBUG: Database path resolved to: {db_path}")
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    return await aiosqlite.connect(db_path)
+
+async def init_database():
+    """Initialize database tables"""
+    conn = await get_db_connection()
+    try:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                name TEXT NOT NULL,
+                company TEXT,
+                subscription_tier TEXT DEFAULT 'free',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS credits_ledger (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                delta INTEGER NOT NULL,
+                currency TEXT DEFAULT 'USD',
+                reason TEXT NOT NULL,
+                source TEXT NOT NULL,
+                stripe_session_id TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        """)
+        
+        await conn.commit()
+    finally:
+        await conn.close()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_database()
+    yield
+
+app = FastAPI(
+    title="Corama API", 
+    description="AI-Powered Capability Statement & Contract Matching Platform",
+    lifespan=lifespan
+)
 
 # Disable CORS. Do not remove this for full-stack development.
 app.add_middleware(
@@ -73,6 +129,84 @@ users_db = {}
 capability_statements_db = {}
 company_profiles_db = {}
 contracts_db = []
+
+async def get_user_credits(user_id: str) -> int:
+    """Get user's current credit balance from ledger"""
+    conn = await get_db_connection()
+    try:
+        print(f"DEBUG: Looking for credits for user_id: {user_id}")
+        cursor = await conn.execute(
+            "SELECT COALESCE(SUM(delta), 0) as balance FROM credits_ledger WHERE user_id = ?",
+            (user_id,)
+        )
+        row = await cursor.fetchone()
+        balance = row[0] if row else 0
+        print(f"DEBUG: Found credit balance: {balance}")
+        
+        cursor = await conn.execute(
+            "SELECT * FROM credits_ledger WHERE user_id = ?",
+            (user_id,)
+        )
+        entries = await cursor.fetchall()
+        print(f"DEBUG: Found {len(entries)} ledger entries for user {user_id}")
+        for entry in entries:
+            print(f"DEBUG: Entry - ID: {entry[0]}, Delta: {entry[2]}, Reason: {entry[4]}")
+        
+        return balance
+    finally:
+        await conn.close()
+
+async def add_credits_to_ledger(
+    user_id: str, 
+    delta: int, 
+    reason: str, 
+    source: str, 
+    stripe_session_id: str = None
+):
+    """Add credits to user's ledger"""
+    conn = await get_db_connection()
+    try:
+        await conn.execute(
+            """INSERT INTO credits_ledger (user_id, delta, reason, source, stripe_session_id) 
+               VALUES (?, ?, ?, ?, ?)""",
+            (user_id, delta, reason, source, stripe_session_id)
+        )
+        await conn.commit()
+    finally:
+        await conn.close()
+
+async def get_or_create_user(user_id: str, email: str = None, name: str = None, company: str = None):
+    """Get existing user or create new one"""
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        user = await cursor.fetchone()
+        
+        if not user and email and name:
+            await conn.execute(
+                "INSERT INTO users (id, email, name, company) VALUES (?, ?, ?, ?)",
+                (user_id, email, name, company)
+            )
+            await conn.commit()
+            
+            cursor = await conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            user = await cursor.fetchone()
+        
+        if user:
+            credits = await get_user_credits(user_id)
+            return {
+                'id': user[0],
+                'email': user[1],
+                'name': user[2],
+                'company': user[3],
+                'subscription_tier': user[4],
+                'created_at': user[5],
+                'credits': credits
+            }
+        
+        return None
+    finally:
+        await conn.close()
 
 class User(BaseModel):
     id: str
@@ -272,24 +406,53 @@ async def google_login(request: GoogleLoginRequest):
 
 @app.get("/user/profile")
 async def get_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = credentials.credentials
-    user_id = token.replace("mock_token_", "")
-    
-    user = users_db.get(user_id)
-    if not user:
-        default_user = User(
-            id=user_id,
-            email="test@example.com",
-            name="Test User",
-            company="Test Company",
-            credits=10,
-            subscription_tier="free",
-            created_at=datetime.now()
-        )
-        users_db[user_id] = default_user
-        return default_user
-    
-    return user
+    try:
+        token = credentials.credentials
+        user_id = token.replace("mock_token_", "")
+        
+        print(f"Token received: {token}")
+        print(f"Extracted user_id: {user_id}")
+        
+        conn = await get_db_connection()
+        try:
+            cursor = await conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            user = await cursor.fetchone()
+            
+            if user:
+                user_dict = {
+                    'id': user[0],
+                    'email': user[1], 
+                    'name': user[2],
+                    'company': user[3],
+                    'subscription_tier': user[4],
+                    'created_at': user[5]
+                }
+                credits = await get_user_credits(user_id)
+                user_dict['credits'] = credits
+                print(f"User found: {user_dict['name']}, credits: {user_dict['credits']}")
+                return user_dict
+            else:
+                user = await get_or_create_user(
+                    user_id=user_id,
+                    email="test@example.com",
+                    name="Test User",
+                    company="Test Company"
+                )
+                
+                if not user:
+                    raise HTTPException(status_code=404, detail="User not found")
+                
+                print(f"User created: {user['name']}, credits: {user['credits']}")
+                return user
+        finally:
+            await conn.close()
+        
+    except Exception as e:
+        print(f"Error in get_profile: {str(e)}")
+        print(f"Error type: {type(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to get user profile: {str(e)}")
 
 @app.post("/capability-statements/generate")
 async def generate_capability_statement(request: AIGenerateRequest, credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -297,21 +460,12 @@ async def generate_capability_statement(request: AIGenerateRequest, credentials:
         token = credentials.credentials
         user_id = token.replace("mock_token_", "")
         
-        user = users_db.get(user_id)
+        user = await get_or_create_user(user_id)
         if not user:
-            user = User(
-                id=user_id,
-                email="test@example.com",
-                name="Test User",
-                company="Test Company",
-                credits=10,
-                subscription_tier="free",
-                created_at=datetime.now()
-            )
-            users_db[user_id] = user
+            raise HTTPException(status_code=404, detail="User not found")
         
-        if user.credits < 5:
-            raise HTTPException(status_code=402, detail="Insufficient credits. Need 5 credits to generate capability statement.")
+        if user['credits'] < 5:
+            raise HTTPException(status_code=402, detail="Insufficient credits. Need 5 credits for capability statement generation.")
         
         additional_info = ""
         if request.duns_number:
@@ -355,8 +509,7 @@ async def generate_capability_statement(request: AIGenerateRequest, credentials:
         
         generated_content = response.choices[0].message.content
         
-        user.credits -= 5
-        users_db[user_id] = user
+        await add_credits_to_ledger(user_id, -5, "capability_statement_generation", "ai_service")
         
         cs_id = f"cs_{len(capability_statements_db) + 1}"
         capability_statement = CapabilityStatement(
@@ -372,6 +525,8 @@ async def generate_capability_statement(request: AIGenerateRequest, credentials:
         
         capability_statements_db[cs_id] = capability_statement
         
+        user_credits = await get_user_credits(user_id)
+        print(f"Capability statement generated successfully, user credits now: {user_credits}")
         return {"content": generated_content, "statement_id": cs_id}
     except Exception as e:
         print(f"Error generating capability statement: {str(e)}")
@@ -724,9 +879,8 @@ async def upload_document(file: UploadFile = File(...), credentials: HTTPAuthori
             content = await file.read()
             buffer.write(content)
         
-        if user.credits >= 1:
-            user.credits -= 1
-            users_db[user_id] = user
+        if user['credits'] >= 1:
+            await add_credits_to_ledger(user_id, -1, "document_upload", "file_service")
         
         return {
             "message": "Document uploaded successfully",
@@ -785,26 +939,20 @@ async def analyze_contract(request: ContractAnalysisRequest, credentials: HTTPAu
         print(f"Extracted user_id: {user_id}")
         print(f"Users in database: {list(users_db.keys())}")
         
-        user = users_db.get(user_id)
+        user = await get_or_create_user(user_id)
         if not user:
             print(f"User not found: {user_id}, creating default user")
-            print(f"Available users: {[(k, v.email, v.name) for k, v in users_db.items()]}")
-            default_user = User(
-                id=user_id,
+            user = await get_or_create_user(
+                user_id=user_id,
                 email="test@example.com",
                 name="Test User",
-                company="Test Company",
-                credits=10,
-                subscription_tier="free",
-                created_at=datetime.now()
+                company="Test Company"
             )
-            users_db[user_id] = default_user
-            user = default_user
-            print(f"Created default user: {user.name}, credits: {user.credits}")
+            print(f"Created default user: {user['name']}, credits: {user['credits']}")
         
-        print(f"User found: {user.name}, credits: {user.credits}")
+        print(f"User found: {user['name']}, credits: {user['credits']}")
         
-        if user.credits < 2:
+        if user['credits'] < 2:
             raise HTTPException(status_code=402, detail="Insufficient credits. Need 2 credits for contract analysis.")
         
         prompt = f"""
@@ -865,10 +1013,10 @@ async def analyze_contract(request: ContractAnalysisRequest, credentials: HTTPAu
             "bid_strategy": "Focus on technical expertise and proven performance while addressing any capability gaps through strategic partnerships"
         }
         
-        user.credits -= 2
-        users_db[user_id] = user
+        await add_credits_to_ledger(user_id, -2, "contract_analysis", "ai_service")
         
-        print(f"Contract analysis completed successfully, user credits now: {user.credits}")
+        user_credits = await get_user_credits(user_id)
+        print(f"Contract analysis completed successfully, user credits now: {user_credits}")
         return analysis
         
     except HTTPException as http_error:
@@ -887,11 +1035,11 @@ async def generate_multipage_capability_statement(request: AIGenerateRequest, cr
         token = credentials.credentials
         user_id = token.replace("mock_token_", "")
         
-        user = users_db.get(user_id)
+        user = await get_or_create_user(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        if user.credits < 10:
+        if user['credits'] < 10:
             raise HTTPException(status_code=402, detail="Insufficient credits. Need 10 credits for multi-page capability statement.")
         
         sections = [
@@ -950,9 +1098,10 @@ async def generate_multipage_capability_statement(request: AIGenerateRequest, cr
         
         capability_statements_db[statement_id] = capability_statement
         
-        user.credits -= 10
-        users_db[user_id] = user
+        await add_credits_to_ledger(user_id, -10, "multipage_capability_statement", "ai_service")
         
+        user_credits = await get_user_credits(user_id)
+        print(f"Multi-page capability statement generated successfully, user credits now: {user_credits}")
         return {"content": full_content, "statement_id": statement_id, "page_count": len(sections)}
         
     except Exception as e:
@@ -978,12 +1127,12 @@ async def generate_bid_response(request: BidResponseRequest, credentials: HTTPAu
         token = credentials.credentials
         user_id = token.replace("mock_token_", "")
         
-        user = users_db.get(user_id)
+        user = await get_or_create_user(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        if user.credits < 10:
-            raise HTTPException(status_code=402, detail="Insufficient credits. Need 10 credits to generate bid response.")
+        if user['credits'] < 10:
+            raise HTTPException(status_code=402, detail="Insufficient credits. Need 10 credits for bid response generation.")
         
         requirements_text = "\n".join([f"- {req}" for req in request.requirements])
         
@@ -1024,9 +1173,10 @@ async def generate_bid_response(request: BidResponseRequest, credentials: HTTPAu
         
         content = response.choices[0].message.content
         
-        user.credits -= 10
-        users_db[user_id] = user
+        await add_credits_to_ledger(user_id, -10, "bid_response_generation", "ai_service")
         
+        user_credits = await get_user_credits(user_id)
+        print(f"Bid response generated successfully, user credits now: {user_credits}")
         return {"content": content}
         
     except Exception as e:
@@ -1365,8 +1515,7 @@ async def purchase_credits(request: CreditPurchaseRequest, credentials: HTTPAuth
         )
         
         if payment_intent.status == 'succeeded':
-            user.credits += request.credits
-            users_db[user_id] = user
+            await add_credits_to_ledger(user_id, request.credits, "stripe_purchase", "stripe_payment")
             
             return {
                 "success": True,
@@ -1381,3 +1530,80 @@ async def purchase_credits(request: CreditPurchaseRequest, credentials: HTTPAuth
             raise HTTPException(status_code=400, detail=f"Payment error: {str(e)}")
         else:
             raise HTTPException(status_code=500, detail=f"Failed to purchase credits: {str(e)}")
+
+@app.post("/api/dev/grant-credits")
+async def grant_credits_dev(
+    request: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Dev-only endpoint to grant credits"""
+    if os.getenv("NODE_ENV") != "development" and not os.getenv("IS_DEV_ADMIN"):
+        raise HTTPException(status_code=403, detail="Dev endpoint not available in production")
+    
+    email = request.get("email")
+    amount = request.get("amount")
+    reason = request.get("reason", "dev_grant")
+    
+    if not email or amount is None:
+        raise HTTPException(status_code=400, detail="Email and amount required")
+    
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT id FROM users WHERE email = ?", (email,))
+        user = await cursor.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        await add_credits_to_ledger(user[0], amount, reason, "dev_endpoint")
+        
+        credits = await get_user_credits(user[0])
+        
+        return {
+            "success": True,
+            "user_email": email,
+            "credits_granted": amount,
+            "new_balance": credits
+        }
+    finally:
+        await conn.close()
+
+@app.post("/stripe/webhook")
+async def stripe_webhook(request: Request):
+    """Handle Stripe webhook events"""
+    payload = await request.body()
+    sig_header = request.headers.get('stripe-signature')
+    
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, os.getenv("STRIPE_API_WEBHOOK_KEY")
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payload")
+    except stripe.error.SignatureVerificationError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
+    
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        
+        user_email = session.get('customer_email')
+        credits_to_add = int(session.get('metadata', {}).get('credits', 0))
+        
+        if user_email and credits_to_add:
+            conn = await get_db_connection()
+            try:
+                cursor = await conn.execute("SELECT id FROM users WHERE email = ?", (user_email,))
+                user = await cursor.fetchone()
+                
+                if user:
+                    await add_credits_to_ledger(
+                        user[0], 
+                        credits_to_add, 
+                        "stripe_purchase", 
+                        "stripe_webhook",
+                        session['id']
+                    )
+            finally:
+                await conn.close()
+    
+    return {"status": "success"}
