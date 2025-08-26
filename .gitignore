@@ -12,6 +12,30 @@ dist
 dist-ssr
 *.local
 
+# Database files
+*.db
+corama_dev.db
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Uploads directory
+uploads/
+
+# Temporary files
+*.tmp
+*.temp
+init_db.py
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
