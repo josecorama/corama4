@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (storedToken && storedUser) {
         setToken(storedToken)
         setUser(JSON.parse(storedUser))
-        fetchUserProfile(storedToken)
+        await fetchUserProfile(storedToken)
       }
       setLoading(false)
     }
