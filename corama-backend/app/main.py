@@ -183,7 +183,7 @@ async def healthz():
 @app.post("/auth/login")
 async def login(request: LoginRequest):
     """Simple authentication for dev/test environment"""
-    # For dev environment, accept the test user credentials
+    # First check for the hardcoded test user credentials
     if request.email == "aertodriguez0110@gmail.com" and request.password == "Adreliaz18@fenix":
         user_id = "user_aertodriguez0110_gmail_com"
         token = f"mock_token_{user_id}"
@@ -200,6 +200,25 @@ async def login(request: LoginRequest):
                 "access_token": token,
                 "user": user
             }
+    
+    user_id = f"user_{request.email.replace('@', '_').replace('.', '_')}"
+    
+    conn = await get_db_connection()
+    try:
+        cursor = await conn.execute("SELECT * FROM users WHERE email = ?", (request.email,))
+        db_user = await cursor.fetchone()
+        
+        if db_user:
+            token = f"mock_token_{user_id}"
+            user = await get_or_create_user(user_id, request.email)
+            
+            if user:
+                return {
+                    "access_token": token,
+                    "user": user
+                }
+    finally:
+        await conn.close()
     
     raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -218,6 +237,11 @@ async def register(request: RegisterRequest):
         )
         
         if user:
+            current_credits = await get_user_credits(user_id)
+            if current_credits == 0:
+                await add_credits_to_ledger(user_id, 1000, "initial_signup_bonus", "registration")
+                user = await get_or_create_user(user_id, request.email)
+            
             return {
                 "access_token": token,
                 "user": user
