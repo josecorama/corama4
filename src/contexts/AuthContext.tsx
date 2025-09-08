@@ -98,12 +98,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (storedToken && storedUser) {
         setToken(storedToken)
         setUser(JSON.parse(storedUser))
-        await fetchUserProfile(storedToken)
+        try {
+          await fetchUserProfile(storedToken)
+        } catch (error) {
+          console.error('Failed to fetch fresh user profile on init:', error)
+        }
       }
       setLoading(false)
     }
     
-    handleRedirectResult()
+    handleRedirectResult().catch(error => {
+      console.error('Error in handleRedirectResult:', error)
+      setLoading(false)
+    })
   }, [navigate, API_BASE_URL])
 
   const fetchUserProfile = async (authToken: string) => {
