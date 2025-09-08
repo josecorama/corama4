@@ -69,12 +69,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         console.log('Checking for Google OAuth redirect result...')
         const redirectPromise = getRedirectResult(auth)
-        const timeoutPromise = new Promise((_, reject) => 
+        const timeoutPromise = new Promise<null>((_, reject) => 
           setTimeout(() => reject(new Error('Redirect check timeout')), 3000)
         )
         
         const result = await Promise.race([redirectPromise, timeoutPromise])
-        if (result) {
+        if (result && result.user) {
           hasGoogleRedirect = true
           const user = result.user
           console.log('Firebase redirect authentication successful:', user.uid, user.email)
