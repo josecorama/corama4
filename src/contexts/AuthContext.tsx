@@ -47,7 +47,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000'
 
   useEffect(() => {
-    const handleRedirectResult = async () => {
+    const initializeAuth = async () => {
       try {
         console.log('Checking for Google OAuth redirect result...')
         const result = await getRedirectResult(auth)
@@ -110,8 +110,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(false)
     }
     
-    handleRedirectResult().catch(error => {
-      console.error('Error in handleRedirectResult:', error)
+    initializeAuth().catch(error => {
+      console.error('Error in initializeAuth:', error)
       setLoading(false)
     })
   }, [navigate, API_BASE_URL])
