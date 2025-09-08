@@ -96,10 +96,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const storedUser = localStorage.getItem('user')
       
       if (storedToken && storedUser) {
+        console.log('AuthContext: Loading stored user and token')
         setToken(storedToken)
         setUser(JSON.parse(storedUser))
+        console.log('AuthContext: Calling fetchUserProfile to get fresh data')
         try {
           await fetchUserProfile(storedToken)
+          console.log('AuthContext: fetchUserProfile completed successfully')
         } catch (error) {
           console.error('Failed to fetch fresh user profile on init:', error)
         }
@@ -115,12 +118,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const fetchUserProfile = async (authToken: string) => {
     try {
+      console.log('fetchUserProfile: Making API call to', `${API_BASE_URL}/user/profile`)
       const response = await axios.get(`${API_BASE_URL}/user/profile`, {
         headers: { Authorization: `Bearer ${authToken}` }
       })
       const updatedUser = response.data
+      console.log('fetchUserProfile: Received user data with credits:', updatedUser.credits)
       setUser(updatedUser)
       localStorage.setItem('user', JSON.stringify(updatedUser))
+      console.log('fetchUserProfile: Updated React state and localStorage')
     } catch (error) {
       console.error('Failed to fetch user profile:', error)
     }
