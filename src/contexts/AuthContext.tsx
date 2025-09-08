@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 import { signInWithRedirect, getRedirectResult, signOut as firebaseSignOut } from 'firebase/auth'
@@ -45,6 +45,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const navigate = useNavigate()
 
   const API_BASE_URL = (import.meta.env as any).VITE_API_URL || 'http://localhost:8000'
+
+  const fetchUserProfile = useCallback(async (authToken: string) => {
+    try {
+      console.log('fetchUserProfile: Making API call to', `${API_BASE_URL}/user/profile`)
+      const response = await axios.get(`${API_BASE_URL}/user/profile`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      })
+      const updatedUser = response.data
+      console.log('fetchUserProfile: Received user data with credits:', updatedUser.credits)
+      setUser(updatedUser)
+      localStorage.setItem('user', JSON.stringify(updatedUser))
+      console.log('fetchUserProfile: Updated React state and localStorage')
+    } catch (error) {
+      console.error('Failed to fetch user profile:', error)
+    }
+  }, [API_BASE_URL])
 
   useEffect(() => {
     const initializeAuth = async () => {
@@ -114,23 +130,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('Error in initializeAuth:', error)
       setLoading(false)
     })
-  }, [navigate, API_BASE_URL])
-
-  const fetchUserProfile = async (authToken: string) => {
-    try {
-      console.log('fetchUserProfile: Making API call to', `${API_BASE_URL}/user/profile`)
-      const response = await axios.get(`${API_BASE_URL}/user/profile`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      })
-      const updatedUser = response.data
-      console.log('fetchUserProfile: Received user data with credits:', updatedUser.credits)
-      setUser(updatedUser)
-      localStorage.setItem('user', JSON.stringify(updatedUser))
-      console.log('fetchUserProfile: Updated React state and localStorage')
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error)
-    }
-  }
+  }, [navigate, API_BASE_URL, fetchUserProfile])
 
   const login = async (email: string, password: string) => {
     try {
