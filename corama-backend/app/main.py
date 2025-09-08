@@ -362,6 +362,36 @@ async def get_company_profile(credentials: HTTPAuthorizationCredentials = Depend
         "has_profile": True
     }
 
+@app.get("/templates")
+async def get_templates():
+    """Get capability statement templates"""
+    return [
+        {
+            "id": "professional",
+            "name": "Professional Standard",
+            "description": "Clean, professional template suitable for most industries",
+            "preview_url": "/templates/professional-preview.png"
+        },
+        {
+            "id": "government",
+            "name": "Government Standard", 
+            "description": "Optimized for government contracting requirements",
+            "preview_url": "/templates/government-preview.png"
+        },
+        {
+            "id": "technology",
+            "name": "Technology Services",
+            "description": "Designed for IT and technology service providers",
+            "preview_url": "/templates/technology-preview.png"
+        },
+        {
+            "id": "construction",
+            "name": "Construction & Engineering",
+            "description": "Tailored for construction and engineering firms",
+            "preview_url": "/templates/construction-preview.png"
+        }
+    ]
+
 @app.get("/")
 async def root():
     return {
@@ -375,7 +405,8 @@ async def root():
             "/api/dev/grant-credits",
             "/generate-capability-statement",
             "/dashboard/stats",
-            "/api/company-profile"
+            "/api/company-profile",
+            "/templates"
         ]
     }
 
