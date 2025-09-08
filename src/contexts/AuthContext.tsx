@@ -64,18 +64,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      let hasGoogleRedirect = false
+      console.log('AuthContext: Starting initialization...')
+      
+      const storedToken = localStorage.getItem('token')
+      const storedUser = localStorage.getItem('user')
+      
+      if (storedToken && storedUser) {
+        console.log('AuthContext: Found stored credentials, loading user and token')
+        setToken(storedToken)
+        setUser(JSON.parse(storedUser))
+        console.log('AuthContext: Calling fetchUserProfile to get fresh data')
+        try {
+          await fetchUserProfile(storedToken)
+          console.log('AuthContext: fetchUserProfile completed successfully')
+        } catch (error) {
+          console.error('Failed to fetch fresh user profile on init:', error)
+        }
+      } else {
+        console.log('AuthContext: No stored credentials found')
+      }
       
       try {
-        console.log('Checking for Google OAuth redirect result...')
-        const redirectPromise = getRedirectResult(auth)
-        const timeoutPromise = new Promise<null>((_, reject) => 
-          setTimeout(() => reject(new Error('Redirect check timeout')), 3000)
-        )
-        
-        const result = await Promise.race([redirectPromise, timeoutPromise])
+        console.log('AuthContext: Checking for Google OAuth redirect result...')
+        const result = await getRedirectResult(auth)
         if (result && result.user) {
-          hasGoogleRedirect = true
           const user = result.user
           console.log('Firebase redirect authentication successful:', user.uid, user.email)
           
@@ -96,45 +108,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           localStorage.setItem('user', JSON.stringify(userData))
           console.log('Google OAuth completed successfully, navigating to dashboard...')
           
-          setLoading(false)
-          
           setTimeout(() => {
             console.log('Attempting navigation to dashboard...')
             navigate('/dashboard', { replace: true })
             console.log('Navigation to dashboard completed')
           }, 200)
-          return
         }
       } catch (error) {
         console.error('Google OAuth redirect result error:', error)
-        if (error instanceof Error) {
-          console.error('Error details:', {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-          })
-        }
-      }
-      
-      if (!hasGoogleRedirect) {
-        console.log('No Google redirect, checking stored credentials...')
-        const storedToken = localStorage.getItem('token')
-        const storedUser = localStorage.getItem('user')
-        
-        if (storedToken && storedUser) {
-          console.log('AuthContext: Loading stored user and token')
-          setToken(storedToken)
-          setUser(JSON.parse(storedUser))
-          console.log('AuthContext: Calling fetchUserProfile to get fresh data')
-          try {
-            await fetchUserProfile(storedToken)
-            console.log('AuthContext: fetchUserProfile completed successfully')
-          } catch (error) {
-            console.error('Failed to fetch fresh user profile on init:', error)
-          }
-        } else {
-          console.log('No stored credentials found')
-        }
       }
       
       setLoading(false)
