@@ -64,10 +64,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
+      let hasGoogleRedirect = false
+      
       try {
         console.log('Checking for Google OAuth redirect result...')
-        const result = await getRedirectResult(auth)
+        const redirectPromise = getRedirectResult(auth)
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Redirect check timeout')), 3000)
+        )
+        
+        const result = await Promise.race([redirectPromise, timeoutPromise])
         if (result) {
+          hasGoogleRedirect = true
           const user = result.user
           console.log('Firebase redirect authentication successful:', user.uid, user.email)
           
@@ -108,21 +116,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
       
-      const storedToken = localStorage.getItem('token')
-      const storedUser = localStorage.getItem('user')
-      
-      if (storedToken && storedUser) {
-        console.log('AuthContext: Loading stored user and token')
-        setToken(storedToken)
-        setUser(JSON.parse(storedUser))
-        console.log('AuthContext: Calling fetchUserProfile to get fresh data')
-        try {
-          await fetchUserProfile(storedToken)
-          console.log('AuthContext: fetchUserProfile completed successfully')
-        } catch (error) {
-          console.error('Failed to fetch fresh user profile on init:', error)
+      if (!hasGoogleRedirect) {
+        console.log('No Google redirect, checking stored credentials...')
+        const storedToken = localStorage.getItem('token')
+        const storedUser = localStorage.getItem('user')
+        
+        if (storedToken && storedUser) {
+          console.log('AuthContext: Loading stored user and token')
+          setToken(storedToken)
+          setUser(JSON.parse(storedUser))
+          console.log('AuthContext: Calling fetchUserProfile to get fresh data')
+          try {
+            await fetchUserProfile(storedToken)
+            console.log('AuthContext: fetchUserProfile completed successfully')
+          } catch (error) {
+            console.error('Failed to fetch fresh user profile on init:', error)
+          }
+        } else {
+          console.log('No stored credentials found')
         }
       }
+      
       setLoading(false)
     }
     
