@@ -135,7 +135,7 @@ async def get_or_create_user(user_id: str, email: str = None, name: str = None, 
                 print(f"Error creating user: {e}")
         
         if user:
-            credits = await get_user_credits(user[0])  # user[0] is the id
+            credits = await get_user_credits(user_id)
             user_dict = {
                 'id': user[0],
                 'email': user[1], 
@@ -224,7 +224,7 @@ async def login(request: LoginRequest):
 
 @app.post("/auth/register")
 async def register(request: RegisterRequest):
-    """Simple registration for dev/test environment"""
+    """Register a new user"""
     user_id = f"user_{request.email.replace('@', '_').replace('.', '_')}"
     token = f"mock_token_{user_id}"
     
@@ -351,71 +351,6 @@ This is a minimal version for testing the credits system.""",
         "remaining_credits": current_credits - 5
     }
 
-@app.get("/dashboard/stats")
-async def get_dashboard_stats(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get dashboard statistics"""
-    token = credentials.credentials
-    user_id = token.replace("mock_token_", "")
-    
-    user = await get_or_create_user(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return {
-        "total_capability_statements": 1,
-        "total_contracts_analyzed": 2,
-        "total_bids_created": 0,
-        "credits_used_this_month": 7
-    }
-
-@app.get("/api/company-profile")
-async def get_company_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    """Get company profile"""
-    token = credentials.credentials
-    user_id = token.replace("mock_token_", "")
-    
-    user = await get_or_create_user(user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    return {
-        "company_name": user.get('company', 'Test Company'),
-        "industry": "Professional Services",
-        "capabilities": ["Government Contracting", "Project Management"],
-        "certifications": ["Small Business"],
-        "has_profile": True
-    }
-
-@app.get("/templates")
-async def get_templates():
-    """Get capability statement templates"""
-    return [
-        {
-            "id": "professional",
-            "name": "Professional Standard",
-            "description": "Clean, professional template suitable for most industries",
-            "preview_url": "/templates/professional-preview.png"
-        },
-        {
-            "id": "government",
-            "name": "Government Standard", 
-            "description": "Optimized for government contracting requirements",
-            "preview_url": "/templates/government-preview.png"
-        },
-        {
-            "id": "technology",
-            "name": "Technology Services",
-            "description": "Designed for IT and technology service providers",
-            "preview_url": "/templates/technology-preview.png"
-        },
-        {
-            "id": "construction",
-            "name": "Construction & Engineering",
-            "description": "Tailored for construction and engineering firms",
-            "preview_url": "/templates/construction-preview.png"
-        }
-    ]
-
 @app.get("/")
 async def root():
     return {
@@ -427,10 +362,7 @@ async def root():
             "/auth/login",
             "/auth/register",
             "/api/dev/grant-credits",
-            "/generate-capability-statement",
-            "/dashboard/stats",
-            "/api/company-profile",
-            "/templates"
+            "/generate-capability-statement"
         ]
     }
 
