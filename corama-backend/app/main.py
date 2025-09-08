@@ -117,18 +117,25 @@ async def get_or_create_user(user_id: str, email: str = None, name: str = None, 
         cursor = await conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
         user = await cursor.fetchone()
         
-        if not user and email and name:
-            await conn.execute(
-                "INSERT INTO users (id, email, name, company) VALUES (?, ?, ?, ?)",
-                (user_id, email, name, company)
-            )
-            await conn.commit()
-            
-            cursor = await conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        if not user and email:
+            cursor = await conn.execute("SELECT * FROM users WHERE email = ?", (email,))
             user = await cursor.fetchone()
         
+        if not user and email and name:
+            try:
+                await conn.execute(
+                    "INSERT OR IGNORE INTO users (id, email, name, company) VALUES (?, ?, ?, ?)",
+                    (user_id, email, name, company)
+                )
+                await conn.commit()
+                
+                cursor = await conn.execute("SELECT * FROM users WHERE email = ?", (email,))
+                user = await cursor.fetchone()
+            except Exception as e:
+                print(f"Error creating user: {e}")
+        
         if user:
-            credits = await get_user_credits(user_id)
+            credits = await get_user_credits(user[0])  # user[0] is the id
             user_dict = {
                 'id': user[0],
                 'email': user[1], 
@@ -152,6 +159,16 @@ class User(BaseModel):
     subscription_tier: str = "free"
     credits: int = 0
 
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    company: Optional[str] = None
+
 class CapabilityStatement(BaseModel):
     company_name: str
     description: str
@@ -162,6 +179,56 @@ class CapabilityStatement(BaseModel):
 @app.get("/healthz")
 async def healthz():
     return {"status": "healthy", "service": "corama-minimal"}
+
+@app.post("/auth/login")
+async def login(request: LoginRequest):
+    """Simple authentication for dev/test environment"""
+    # For dev environment, accept the test user credentials
+    if request.email == "aertodriguez0110@gmail.com" and request.password == "Adreliaz18@fenix":
+        user_id = "user_aertodriguez0110_gmail_com"
+        token = f"mock_token_{user_id}"
+        
+        user = await get_or_create_user(
+            user_id=user_id,
+            email=request.email,
+            name="Dev Test User",
+            company="Test Company"
+        )
+        
+        if user:
+            return {
+                "access_token": token,
+                "user": user
+            }
+    
+    raise HTTPException(status_code=401, detail="Invalid email or password")
+
+@app.post("/auth/register")
+async def register(request: RegisterRequest):
+    """Simple registration for dev/test environment"""
+    user_id = f"user_{request.email.replace('@', '_').replace('.', '_')}"
+    token = f"mock_token_{user_id}"
+    
+    try:
+        user = await get_or_create_user(
+            user_id=user_id,
+            email=request.email,
+            name=request.name,
+            company=request.company
+        )
+        
+        if user:
+            return {
+                "access_token": token,
+                "user": user
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create user")
+            
+    except Exception as e:
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(status_code=400, detail="User with this email already exists")
+        raise HTTPException(status_code=500, detail="Registration failed")
 
 @app.get("/user/profile")
 async def get_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -260,6 +327,41 @@ This is a minimal version for testing the credits system.""",
         "remaining_credits": current_credits - 5
     }
 
+@app.get("/dashboard/stats")
+async def get_dashboard_stats(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get dashboard statistics"""
+    token = credentials.credentials
+    user_id = token.replace("mock_token_", "")
+    
+    user = await get_or_create_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "total_capability_statements": 1,
+        "total_contracts_analyzed": 2,
+        "total_bids_created": 0,
+        "credits_used_this_month": 7
+    }
+
+@app.get("/api/company-profile")
+async def get_company_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Get company profile"""
+    token = credentials.credentials
+    user_id = token.replace("mock_token_", "")
+    
+    user = await get_or_create_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return {
+        "company_name": user.get('company', 'Test Company'),
+        "industry": "Professional Services",
+        "capabilities": ["Government Contracting", "Project Management"],
+        "certifications": ["Small Business"],
+        "has_profile": True
+    }
+
 @app.get("/")
 async def root():
     return {
@@ -268,8 +370,12 @@ async def root():
         "endpoints": [
             "/healthz",
             "/user/profile", 
+            "/auth/login",
+            "/auth/register",
             "/api/dev/grant-credits",
-            "/generate-capability-statement"
+            "/generate-capability-statement",
+            "/dashboard/stats",
+            "/api/company-profile"
         ]
     }
 
