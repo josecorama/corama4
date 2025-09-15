@@ -1611,37 +1611,7 @@ def Signup():
         # ✅ Log Incoming Form Data
         app.logger.debug(f"📩 Form Data Received: {request.form}")
 
-        # ✅ Get reCAPTCHA response
-        
-        recaptcha_response = request.form.get('g-recaptcha-response')
-        app.logger.debug(f"📩 Received reCAPTCHA Token: {recaptcha_response}")
-
-        if not recaptcha_response:
-            app.logger.error("❌ ERROR: reCAPTCHA response is missing!")
-            return render_template('signup.html', error="Please complete the reCAPTCHA challenge.", RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-        # ✅ Verify reCAPTCHA with Google
-        recaptcha_verify_url = "https://www.google.com/recaptcha/api/siteverify"
-        recaptcha_payload = {
-            "secret": RECAPTCHA_SECRET_KEY,
-            "response": recaptcha_response
-        }
-
-        try:
-            recaptcha_verification = requests.post(recaptcha_verify_url, data=recaptcha_payload)
-            recaptcha_result = recaptcha_verification.json()
-        except requests.exceptions.RequestException as e:
-            app.logger.exception(f"❌ ERROR: reCAPTCHA verification failed due to network issue: {e}")
-            return render_template('signup.html', error="reCAPTCHA verification failed. Please try again.", RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-        # ✅ Log reCAPTCHA Response
-        app.logger.debug(f"🔍 reCAPTCHA Verification Response: {recaptcha_result}")
-
-        if not recaptcha_result.get("success"):
-            app.logger.error(f"❌ reCAPTCHA FAILED! Reason: {recaptcha_result}")
-            return render_template('signup.html', error="reCAPTCHA verification failed. Please try again.", RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-        app.logger.info("✅ reCAPTCHA PASSED! Continuing with user registration...")
+        app.logger.info("✅ FREE ACCESS - Skipping reCAPTCHA validation for Contract Radar Maximizer free users")
 
         # ✅ Get User Data from Form
         first_name = request.form.get('first_name')
@@ -1650,9 +1620,9 @@ def Signup():
         email = request.form.get('email')
         password = request.form.get('password')
         username = request.form.get('username')
-        account_type = request.form.get('account_type', 'CORAMA_ESSENTIALS')
-        billing_period = request.form.get('billing_period', 'monthly')
-        subscription_end_date = (datetime.now() + timedelta(days=365)).strftime('%Y-%m-%d')
+        account_type = request.form.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
+        billing_period = request.form.get('billing_period', 'free')
+        subscription_end_date = '9999-12-31'  # Permanent free access
 
         app.logger.debug(f"📌 User Info: {first_name} {last_name} | {email} | {company}")
 
@@ -1669,14 +1639,7 @@ def Signup():
 
             app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
 
-            # ✅ Create Stripe Customer
-            stripe_customer = stripe.Customer.create(
-                email=email,
-                description=f"{first_name} {last_name} from {company}"
-            )
-            app.logger.info(f"✅ Stripe customer created successfully! Stripe ID: {stripe_customer.id}")
-
-               # ✅ Send Welcome Email
+            # ✅ Send Welcome Email
             app.logger.info("📨 Calling send_welcome_email function...")
             send_welcome_email(email, email)
             app.logger.info("📨 send_welcome_email function execution completed.")
@@ -1690,8 +1653,7 @@ def Signup():
                 "username": username,
                 "account_type": account_type,
                 "billing_period": billing_period,
-                "subscription_end_date": subscription_end_date,
-                "stripe_customer_id": stripe_customer.id
+                "subscription_end_date": subscription_end_date
             }
 
             app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
