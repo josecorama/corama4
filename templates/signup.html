@@ -290,7 +290,7 @@
     <div class="container">
         <div class="signup-container">
             <div class="trial-badge">
-                <i class="fas fa-gift me-2"></i>3-Day Free Trial
+                <i class="fas fa-star me-2"></i>Always Free
             </div>
             
             <h1 class="login-signup-title">Create Your Account</h1>
@@ -391,38 +391,18 @@
                     </div>
                 </div>
 
-                <!-- Billing Section -->
+                <!-- Access Level Section -->
                 <div class="billing-section">
                     <div class="billing-title">
-                        <i class="fas fa-credit-card me-2"></i>Choose Your Plan
+                        <i class="fas fa-star me-2"></i>Access Level
                     </div>
                     
-                    <div class="billing-option" onclick="selectBilling('weekly')">
-                        <label class="billing-label" for="billing_weekly">
-                            <input class="billing-radio" type="radio" name="billing_period" id="billing_weekly" value="weekly" required>
+                    <div class="billing-option selected" onclick="selectBilling('free')">
+                        <label class="billing-label" for="billing_free">
+                            <input class="billing-radio" type="radio" name="billing_period" id="billing_free" value="free" required checked>
                             <div class="billing-text">
-                                Weekly Plan - <span class="billing-price">$39.99</span>
-                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Perfect for short-term projects</div>
-                            </div>
-                        </label>
-                    </div>
-                    
-                    <div class="billing-option" onclick="selectBilling('monthly')">
-                        <label class="billing-label" for="billing_monthly">
-                            <input class="billing-radio" type="radio" name="billing_period" id="billing_monthly" value="monthly">
-                            <div class="billing-text">
-                                Monthly Plan - <span class="billing-price">$149.99</span>
-                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Most popular choice</div>
-                            </div>
-                        </label>
-                    </div>
-                    
-                    <div class="billing-option" onclick="selectBilling('yearly')">
-                        <label class="billing-label" for="billing_yearly">
-                            <input class="billing-radio" type="radio" name="billing_period" id="billing_yearly" value="yearly">
-                            <div class="billing-text">
-                                Yearly Plan - <span class="billing-price">$1,599.99</span>
-                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Best value - Save 11%</div>
+                                Full Access - <span class="billing-price">FREE</span>
+                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Always free, all features included</div>
                             </div>
                         </label>
                     </div>
@@ -431,7 +411,7 @@
                 <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
                 
                 <button class="btn-signup" type="submit" id="signup-btn">
-                    <span class="btn-text">Start Your Free Trial</span>
+                    <span class="btn-text">Get Started Free</span>
                     <span class="btn-loading d-none">
                         <i class="fas fa-spinner fa-spin me-2"></i>Creating Account...
                     </span>

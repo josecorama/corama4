@@ -990,70 +990,7 @@ def Contracts():
             logging.error(f"No user data found in Firebase for user ID {user_id}")
             return render_template('error.html', error="Error retrieving user data. Contact support.")
 
-        # ---------------------------------------------------------------------
-        # STEP D: Stripe Subscription Validation
-        #        (Same logic as /welcome)
-        # ---------------------------------------------------------------------
-        email = user_data.get('email', '').strip().lower()
-        stripe_customer_id = user_data.get('stripe_customer_id')
-
-        # Recover Stripe Customer ID if missing
-        if not stripe_customer_id:
-            logging.warning(f"User {user_id} missing stripe_customer_id. Attempting lookup via email: {email}")
-            try:
-                customers = stripe.Customer.list(email=email).data
-                if customers:
-                    stripe_customer_id = customers[0].id
-                    db.child("users").child(user_id).update(
-                        {"stripe_customer_id": stripe_customer_id},
-                        user_logged_in['idToken']
-                    )
-                    logging.info(f"✅ Recovered Stripe Customer ID: {stripe_customer_id}")
-                else:
-                    logging.error(f"❌ No Stripe customer found for email: {email}")
-                    return render_template('error.html', error="No linked Stripe account. Contact support.")
-            except Exception as stripe_error:
-                logging.error(f"❌ Stripe lookup error for {email}: {stripe_error}")
-                return render_template('error.html', error="Error validating subscription. Contact support.")
-
-        # Check subscriptions with up to 2 retries
-        MAX_RETRIES = 2
-        active_subscription_found = False
-
-        for attempt in range(MAX_RETRIES):
-            try:
-                subscriptions = stripe.Subscription.list(customer=stripe_customer_id).data
-                logging.info(f"🔍 Retrieved {len(subscriptions)} subscriptions for user {user_id} (Attempt {attempt+1})")
-
-                for sub in subscriptions:
-                    sub_status = sub.get('status')
-                    product_name = None
-                    if sub.get('items') and sub['items'].get('data'):
-                        product_id = sub['items']['data'][0]['plan']['product']
-                        product = stripe.Product.retrieve(product_id)
-                        product_name = product.get('name', 'Unknown Product')
-
-                    logging.info(f"📌 Subscription ID={sub.get('id')}, Status={sub_status}, Product={product_name}")
-
-                    if sub_status in ["active", "trialing"] and product_name and (product_name.startswith("CORAMA") or product_name.startswith("Contract Radar Maximizer")):
-                        active_subscription_found = True
-                        logging.info(f"✅ Access granted to /contracts for user {user_id} (Product: {product_name})")
-                        break
-
-                if active_subscription_found:
-                    break
-                else:
-                    logging.warning(f"⚠️ No active subscriptions found for {user_id}. Retrying in 2s...")
-                    time.sleep(2)
-
-            except Exception as subscription_error:
-                logging.error(f"⚠️ Subscription fetch failed for {user_id} (Attempt {attempt+1}): {subscription_error}")
-                if attempt == MAX_RETRIES - 1:
-                    return render_template('error.html', error="Subscription validation issue. Please contact support.")
-
-        if not active_subscription_found:
-            logging.error(f"❌ No valid Contract Radar Maximizer subscription found for user {user_id} after retries.")
-            return render_template('error.html', error="No active subscription found. Contact support.")
+        logging.info(f"✅ FREE ACCESS granted to /contracts for user {user_id} - Contract Radar Maximizer is completely free!")
 
         # ---------------------------------------------------------------------
         # STEP E: Original Contracts Logic (UNCHANGED)
@@ -1530,32 +1467,10 @@ def Login():
 
             app.logger.info(f"Retrieved account_type: {account_type}, subscription_end_date: {subscription_end_date}, is_stripe_customer: {is_stripe_customer}")
 
-            # Define allowed account types
-            allowed_account_types = ["CORAMA_ESSENTIALS", "CORAMA_SUPPLY_CHAIN_VISIBILITY", "TRUSTED_PARTNER", "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS", "CONTRACT_RADAR_MAXIMIZER_SUPPLY_CHAIN_VISIBILITY"]
-
-            # Check if the user has an allowed account type and a valid subscription
-            if account_type in allowed_account_types and subscription_end_date:
-                subscription_end_date_dt = datetime.strptime(subscription_end_date, "%Y-%m-%d")
-                if subscription_end_date_dt > datetime.now():
-                    session['is_subscriber'] = True
-                    app.logger.info(f"User is a valid subscriber with account type {account_type}.")
-                    session['is_logged_in'] = True  
-                    return redirect(url_for('Welcome'))
-                else:
-                    session['is_subscriber'] = False
-                    app.logger.info("User's subscription has expired. Payment required.")
-                    return render_template('login.html', error="Your subscription has expired. Please renew to continue.")
-
-            # If the user is a Stripe customer but has no subscription, redirect to Welcome2
-            elif is_stripe_customer or stripe_customer_id:
-                session['is_subscriber'] = False
-                app.logger.info("User is a Stripe customer but does not have an active subscription. Redirecting to Welcome2.")
-                return redirect(url_for('Welcome2'))
-
-            else:
-                session['is_subscriber'] = False
-                app.logger.info("User does not have a valid subscription or account type. Redirecting to Welcome2.")
-                return render_template('login.html', error="Invalid account type or missing subscription. Contact support.")
+            session['is_subscriber'] = True  # Grant full access to all users
+            session['is_logged_in'] = True
+            app.logger.info(f"User logged in successfully - FREE ACCESS granted to {email}")
+            return redirect(url_for('Welcome'))
         
         except Exception as e:
             app.logger.error(f"Login error: {e}")
@@ -1833,30 +1748,16 @@ def confirm_terms():
             return redirect(url_for('signup'))
 
         try:
-            # Get the correct price ID based on the user's selection
-            price_id = prices[user_data['account_type']][user_data['billing_period']]
-
-            app.logger.info(price_id)
-
-            # Create the Stripe Checkout Session
-            checkout_session = stripe.checkout.Session.create(
-                payment_method_types=['card'],
-                customer=user_data['stripe_customer_id'],
-                line_items=[{
-                    'price': price_id,
-                    'quantity': 1,
-                }],
-                mode='subscription',
-                subscription_data={
-                    'trial_period_days': 3,
-                },
-                allow_promotion_codes=True,
-                success_url=url_for('success', _external=True),  # Redirect directly to /success
-                cancel_url=url_for('confirm_terms', _external=True),
-            )
-
-            # Redirect to Stripe checkout page
-            return redirect(checkout_session.url)
+            user_id = user_data['user_id']
+            
+            db.child("users").child(user_id).update({
+                "account_type": user_data['account_type'],
+                "subscription_end_date": "9999-12-31",
+                "uploads_dir": create_user_directory(user_id),
+            }, session['user']['idToken'])
+            
+            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Account created successfully!")
+            return redirect(url_for('Welcome'))
 
         except Exception as e:
             return render_template('confirm_terms.html', error=str(e))
@@ -2040,23 +1941,17 @@ def Welcome():
 
                     logging.info(f"📌 Subscription ID={sub.get('id')}, Status={sub_status}, Product={product_name}")
 
-                    if sub_status in ["active", "trialing"] and product_name and (product_name.startswith("CORAMA") or product_name.startswith("Contract Radar Maximizer")):
-                        active_subscription_found = True
-                        logging.info(f"✅ Access granted to {user_id} (Product: {product_name})")
-                        return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
-
-                # If no active subscription is found, wait 2 seconds and retry (helps with Stripe API delay)
-                if not active_subscription_found:
-                    logging.warning(f"⚠️ No active subscriptions found for {user_id}. Retrying in 2s...")
-                    time.sleep(2)
+                    # Contract Radar Maximizer is now FREE - skip subscription validation
+                    active_subscription_found = True
+                    logging.info(f"✅ FREE ACCESS granted to {user_id} - Contract Radar Maximizer is now completely free!")
+                    return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
 
             except Exception as subscription_error:
-                logging.error(f"⚠️ Subscription fetch failed for {user_id} (Attempt {attempt+1}): {subscription_error}")
-                if attempt == MAX_RETRIES - 1:
-                    return render_template('error.html', error="Subscription validation issue. Please contact support.")
+                logging.info(f"Subscription check skipped - FREE ACCESS granted to {user_id}")
+                return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
 
-        logging.error(f"❌ No valid CORAMA subscription found for user {user_id} after retries.")
-        return render_template('error.html', error="No active subscription found. Contact support.")
+        logging.info(f"✅ FREE ACCESS granted to user {user_id} - Contract Radar Maximizer is completely free!")
+        return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
 
     except Exception as e:
         logging.exception(f"❌ Unexpected error in /welcome: {e}")
@@ -3649,73 +3544,10 @@ def Smartsearch():
         if not user_data:
             return render_template('error.html', error="Temporary issue retrieving user data. Please try again.")
 
-        # ---------------------------------------------------------------------
-        # Step 3: Stripe Subscription Validation (added)
-        #         (Same approach as in /welcome)
-        # ---------------------------------------------------------------------
         email = user_data.get('email', '').strip().lower()
         company_name = user_data.get('company', 'No Company')
         first_name = user_data.get('first_name', 'User')
-        stripe_customer_id = user_data.get('stripe_customer_id')
-
-        # Recover Stripe Customer ID if missing
-        if not stripe_customer_id:
-            logging.warning(f"User {user_id} missing stripe_customer_id. Attempting lookup via email: {email}")
-            try:
-                customers = stripe.Customer.list(email=email).data
-                if customers:
-                    stripe_customer_id = customers[0].id
-                    db.child("users").child(user_id).update(
-                        {"stripe_customer_id": stripe_customer_id},
-                        user_logged_in['idToken']
-                    )
-                    logging.info(f"✅ Recovered Stripe Customer ID: {stripe_customer_id}")
-                else:
-                    logging.error(f"❌ No Stripe customer found for email: {email}")
-                    return render_template('error.html', error="No linked Stripe account. Contact support.")
-            except Exception as stripe_error:
-                logging.error(f"❌ Stripe lookup error for {email}: {stripe_error}")
-                return render_template('error.html', error="Error validating subscription. Contact support.")
-
-        # Subscription check with retries
-        MAX_RETRIES = 2
-        active_subscription_found = False
-
-        for attempt in range(MAX_RETRIES):
-            try:
-                subscriptions = stripe.Subscription.list(customer=stripe_customer_id).data
-                logging.info(f"🔍 Retrieved {len(subscriptions)} subscriptions for user {user_id} (Attempt {attempt+1})")
-
-                for sub in subscriptions:
-                    sub_status = sub.get('status')
-                    product_name = None
-
-                    if sub.get('items') and sub['items'].get('data'):
-                        product_id = sub['items']['data'][0]['plan']['product']
-                        product = stripe.Product.retrieve(product_id)
-                        product_name = product.get('name', 'Unknown Product')
-
-                    logging.info(f"📌 Subscription ID={sub.get('id')}, Status={sub_status}, Product={product_name}")
-
-                    if sub_status in ["active", "trialing"] and product_name and (product_name.startswith("CORAMA") or product_name.startswith("Contract Radar Maximizer")):
-                        active_subscription_found = True
-                        logging.info(f"✅ Access granted to /smartsearch for user {user_id} (Product: {product_name})")
-                        break
-
-                if active_subscription_found:
-                    break
-                else:
-                    logging.warning(f"⚠️ No active subscriptions found for {user_id}. Retrying in 2s...")
-                    time.sleep(2)
-
-            except Exception as subscription_error:
-                logging.error(f"⚠️ Subscription fetch failed for {user_id} (Attempt {attempt+1}): {subscription_error}")
-                if attempt == MAX_RETRIES - 1:
-                    return render_template('error.html', error="Subscription validation issue. Please contact support.")
-
-        if not active_subscription_found:
-            logging.error(f"❌ No valid Contract Radar Maximizer subscription found for user {user_id} after retries.")
-            return render_template('error.html', error="No active subscription found. Contact support.")
+        logging.info(f"✅ FREE ACCESS granted to /smartsearch for user {user_id} - Contract Radar Maximizer is completely free!")
 
         # ---------------------------------------------------------------------
         # Step 4: Pull the user’s uploads directory (unchanged logic)
@@ -4103,17 +3935,9 @@ def upgrade_membership():
         if not price_id:
             return render_template('error.html', error="Invalid billing period selected.")
 
-        # Create Stripe Checkout Session
-        checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
-            customer=stripe_customer_id,
-            line_items=[{'price': price_id, 'quantity': 1}],
-            mode='subscription',
-            success_url=url_for('upgrade_success', _external=True),
-            cancel_url=url_for('Welcome2', _external=True),
-        )
-
-        return redirect(checkout_session.url)
+        # Contract Radar Maximizer is now FREE - no payment required
+        logging.info(f"✅ FREE ACCESS - No payment required for user {user_id}")
+        return redirect(url_for('Welcome'))
 
     except Exception as e:
         logging.error(f"Error creating Stripe checkout session: {e}")
@@ -4134,21 +3958,13 @@ def upgrade_success():
         if not user_data:
             return redirect(url_for('Login'))
 
-        # Determine subscription end date based on the billing period
-        billing_period = request.args.get('billing_period', 'monthly')
-        if billing_period == 'weekly':
-            subscription_end_date = (datetime.now() + timedelta(weeks=1)).strftime('%Y-%m-%d')
-        elif billing_period == 'monthly':
-            subscription_end_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
-        else:  # Yearly
-            subscription_end_date = (datetime.now() + timedelta(days=365)).strftime('%Y-%m-%d')
+        subscription_end_date = "9999-12-31"
 
         # ✅ Create user upload directory
         uploads_dir = create_user_directory(user_id)
 
-        # ✅ Update Firebase: Mark user as a paid member and store `uploads_dir`
         db.child("users").child(user_id).update({
-            "account_type": "CORAMA_ESSENTIALS",
+            "account_type": "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS",
             "subscription_end_date": subscription_end_date,
             "uploads_dir": uploads_dir
         }, user['idToken'])
@@ -4242,14 +4058,8 @@ def cancel_membership():
                 logging.error(f"Error fetching subscriptions from Stripe for customer ID {stripe_customer_id}: {stripe_error}")
                 return jsonify({"error": "Error retrieving subscription from Stripe"}), 500
 
-        # Cancel the subscription in Stripe
-        try:
-            logging.info(f"Attempting to cancel subscription ID: {stripe_subscription_id} for customer ID: {stripe_customer_id}")
-            stripe.Subscription.delete(stripe_subscription_id)
-            logging.info(f"Successfully canceled subscription ID: {stripe_subscription_id} for customer ID: {stripe_customer_id}")
-        except Exception as cancel_error:
-            logging.error(f"Error canceling subscription ID: {stripe_subscription_id}: {cancel_error}")
-            return jsonify({"error": "Error canceling subscription"}), 500
+        # Contract Radar Maximizer is now FREE - no subscriptions to cancel
+        logging.info(f"✅ FREE ACCESS - No subscription to cancel for user {user_id}")
 
         # Update Firebase to reflect canceled membership
         # try:
