@@ -136,7 +136,7 @@
             text-align: center;
         }
 
-        /* --------------------- Message CORAMA and Go Button (Below Box 1) --------------------- */
+        /* --------------------- Message Contract Radar Maximizer and Go Button (Below Box 1) --------------------- */
         .action-sections-container {
             display: flex;
             justify-content: space-between; /* Align the two parts horizontally */
@@ -144,37 +144,37 @@
             margin-top: 20px; /* Space below the boxes */
         }
 
-        .message-corama-container {
+        .message-contract-radar-container {
             display: flex;
             width: 48%; /* Take up half the screen width */
             align-items: center;
             justify-content: space-between; /* Ensure space between input and button */
         }
-        .message-corama-container .form-control {
-            width: 80%; /* Message CORAMA input takes 80% */
+        .message-contract-radar-container .form-control {
+            width: 80%; /* Message Contract Radar Maximizer input takes 80% */
         }
         .go-button {
             width: 15%; /* Go button takes 15% */
         }
 
-        /* Download Docx Button (aligned below Box 2, horizontally with CORAMA input) */
+        /* Download Docx Button (aligned below Box 2, horizontally with Contract Radar Maximizer input) */
         .download-btn-container {
             display: flex;
             justify-content: flex-end; /* Align to the right */
             align-items: center;
-            width: 48%; /* Same width as Message CORAMA input */
+            width: 48%; /* Same width as Message Contract Radar Maximizer input */
         }
         .download-btn-container .btn {
             width: auto; /* Button is sized to its content */
         }
 
         /* --------------------- Bottom Buttons --------------------- */
-        /* Adjust space between the last three buttons and the Message CORAMA/Download section */
+        /* Adjust space between the last three buttons and the Message Contract Radar Maximizer/Download section */
         .button-container {
             display: flex;
             justify-content: center;
             gap: 15px; /* Space between buttons */
-            margin-top: 50px; /* Increased space from the Message CORAMA/Download section */
+            margin-top: 50px; /* Increased space from the Message Contract Radar Maximizer/Download section */
         }
 
         /* Reduce space between the last three buttons and the footer */
@@ -201,7 +201,7 @@
             display: flex;
             flex-direction: column; /* Stack buttons vertically */
             gap: 10px; /* Space between buttons */
-            margin-top: 15px; /* Space from "Ask CORAMA" title */
+            margin-top: 15px; /* Space from "Ask Contract Radar Maximizer" title */
         }
 
         .placeholder-buttons .btn-light-gray {
@@ -226,7 +226,7 @@
             .flex-grow-container {
                 flex-direction: column;
             }
-            .message-corama-container,
+            .message-contract-radar-container,
             .download-btn-container {
                 width: 100%; /* Full width on smaller screens */
             }
@@ -259,12 +259,34 @@
         <p style="text-align: justify;" class="contract-info">Uploaded Capability Statement: <b>{{ capability_statement if capability_statement else 'No file uploaded' }}</b></p>
     </div> -->
 
-    <!-- Message CORAMA Input and Go Button (Left half) -->
+    <!-- Enhanced AI Assistant Controls -->
    <div style="display: flex; justify-content: center; align-items: center; margin-top: 50px">
-        <div class="message-corama-container">
-            <input style= "height: 100px;" type="text" id="userQuery" class="form-control" placeholder="Message CORAMA...">
-            <button type="button" class="btn btn-clementine go-button" onclick="ask_question()" >Go</button>
+        <div class="message-contract-radar-container">
+            <input style= "height: 100px;" type="text" id="userQuery" class="form-control" placeholder="Ask Contract Radar Maximizer AI Assistant...">
+            <button type="button" class="btn btn-clementine go-button" onclick="ask_question()" >Ask AI</button>
         </div>
+    </div>
+    
+    <!-- Enhanced AI Features -->
+    <div style="display: flex; justify-content: center; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-outline-primary btn-sm" onclick="analyzeContract()">
+            <i class="fas fa-chart-bar"></i> Analyze Contract
+        </button>
+        <button type="button" class="btn btn-outline-success btn-sm" onclick="generateProposalOutline()">
+            <i class="fas fa-list-alt"></i> Generate Outline
+        </button>
+        <button type="button" class="btn btn-outline-info btn-sm" onclick="ask_question_with_type('compliance')">
+            <i class="fas fa-check-circle"></i> Compliance Check
+        </button>
+        <button type="button" class="btn btn-outline-warning btn-sm" onclick="ask_question_with_type('strategy')">
+            <i class="fas fa-lightbulb"></i> Bid Strategy
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="createTimeline()">
+            <i class="fas fa-calendar-alt"></i> Create Timeline
+        </button>
+        <button type="button" class="btn btn-outline-dark btn-sm" onclick="getIndustryTemplate()">
+            <i class="fas fa-file-alt"></i> Industry Template
+        </button>
     </div>
 
     <div class="text-center my-4">
@@ -307,7 +329,7 @@
                             <!-- Box 2 (Right Column WHERE THE DATA IS LOADED AFTER THE BUTTON IS PRESSED ) -->
                 <div class="response-wrapper">
                     <!-- Title inside Box 2 -->
-                    <h4 class="title-biscay"> CORAMA Response:</h4> <!-- Positioned at the top of Box 2 -->
+                    <h4 class="title-biscay"> Contract Radar Maximizer Response:</h4> <!-- Positioned at the top of Box 2 -->
                     <br>
                     <!-- Box 2 Content -->
                     <div class="feedback-bot-response-area" id="modelResponse2" style="background-color: #f8f9fa; border-radius: 8px; padding: 15px; max-height: 400px; overflow-y: auto;">
@@ -317,7 +339,7 @@
 
             </div>
 
-               <!-- Message CORAMA Input + Go Button (Aligned with Download Button) -->
+               <!-- Message Contract Radar Maximizer Input + Go Button (Aligned with Download Button) -->
                 <div class="action-sections-container">
                     <!-- Download Docs Button (Right half, below Box 2) -->
                     <br> <!--required-->
@@ -387,12 +409,12 @@
 
     // 💡 UX improvement: Prevent download if response is empty
     if (!responseContent.trim()) {
-        alert("No response generated yet. Please ask CORAMA first.");
+        alert("No response generated yet. Please ask Contract Radar Maximizer first.");
         return;
     }
 
     // Use hidden input fallback instead of DOM node
-    var contractName = document.getElementById('bidName')?.value || 'CORAMA Response';
+    var contractName = document.getElementById('bidName')?.value || 'Contract Radar Maximizer Response';
 
     var form = $('<form>', {
         action: '/generate_docx',
@@ -727,4 +749,206 @@ Summary Analysis: ${analysisSummary}
     
 
 </body>
+        function generateProposalOutline() {
+            var hashValue = document.getElementById('hashValue').value;
+            
+            if (!hashValue) {
+                alert("No contract selected. Please select a contract first.");
+                return;
+            }
+
+            // Show loading state
+            document.getElementById('modelResponse2').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Generating proposal outline...</div>';
+
+            $.post('/ai_assistant_enhanced', {
+                query: 'Generate a comprehensive proposal outline for this contract',
+                hash_value: hashValue,
+                action_type: 'outline'
+            }, function(data) {
+                if (data.response) {
+                    var responseHtml = '<div class="proposal-outline">';
+                    responseHtml += '<h5><i class="fas fa-list-alt"></i> Proposal Outline</h5>';
+                    responseHtml += '<div class="outline-content">' + data.response + '</div>';
+                    
+                    if (data.proposal_outline) {
+                        responseHtml += '<div class="structured-outline mt-3 p-3 border rounded">';
+                        responseHtml += '<h6>Structured Outline:</h6>';
+                        responseHtml += '<pre>' + JSON.stringify(data.proposal_outline, null, 2) + '</pre>';
+                        responseHtml += '</div>';
+                    }
+                    
+                    responseHtml += '</div>';
+                    document.getElementById('modelResponse2').innerHTML = responseHtml;
+                } else if (data.error) {
+                    document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Error: ' + data.error + '</div>';
+                }
+            }).fail(function() {
+                document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Failed to generate outline. Please try again.</div>';
+            });
+        }
+
+        function ask_question_with_type(actionType) {
+            var hashValue = document.getElementById('hashValue').value;
+            
+            if (!hashValue) {
+                alert("No contract selected. Please select a contract first.");
+                return;
+            }
+
+            var queries = {
+                'compliance': 'Generate a comprehensive compliance checklist for this contract',
+                'strategy': 'Provide strategic recommendations for winning this contract bid'
+            };
+
+            var query = queries[actionType] || 'Analyze this contract';
+
+            // Show loading state
+            document.getElementById('modelResponse2').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Generating ' + actionType + ' analysis...</div>';
+
+            $.post('/ai_assistant_enhanced', {
+                query: query,
+                hash_value: hashValue,
+                action_type: actionType
+            }, function(data) {
+                if (data.response) {
+                    var responseHtml = '<div class="' + actionType + '-analysis">';
+                    responseHtml += '<h5><i class="fas fa-' + (actionType === 'compliance' ? 'check-circle' : 'lightbulb') + '"></i> ' + actionType.charAt(0).toUpperCase() + actionType.slice(1) + ' Analysis</h5>';
+                    responseHtml += '<div class="analysis-content">' + data.response + '</div>';
+                    
+                    if (data.compliance_checklist && actionType === 'compliance') {
+                        responseHtml += '<div class="structured-checklist mt-3 p-3 border rounded">';
+                        responseHtml += '<h6>Detailed Checklist:</h6>';
+                        responseHtml += '<pre>' + JSON.stringify(data.compliance_checklist, null, 2) + '</pre>';
+                        responseHtml += '</div>';
+                    }
+                    
+                    responseHtml += '</div>';
+                    document.getElementById('modelResponse2').innerHTML = responseHtml;
+                } else if (data.error) {
+                    document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Error: ' + data.error + '</div>';
+                }
+            }).fail(function() {
+                document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Failed to generate ' + actionType + ' analysis. Please try again.</div>';
+            });
+        }
+
+        function createTimeline() {
+            var hashValue = document.getElementById('hashValue').value;
+            var bidName = document.getElementById('bidName').value;
+            
+            if (!hashValue) {
+                alert("No contract selected. Please select a contract first.");
+                return;
+            }
+
+            document.getElementById('modelResponse2').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Creating proposal timeline...</div>';
+
+            $.post('/proposal_timeline', {
+                hash_value: hashValue,
+                contract_title: bidName || 'Selected Contract',
+                due_date: '2024-12-31'
+            }, function(data) {
+                if (data.timeline) {
+                    var responseHtml = '<div class="proposal-timeline">';
+                    responseHtml += '<h5><i class="fas fa-calendar-alt"></i> Proposal Development Timeline</h5>';
+                    responseHtml += '<div class="timeline-content">';
+                    
+                    data.timeline.forEach(function(milestone) {
+                        var daysText = milestone.days_from_submission === 0 ? 'Submission Day' : 
+                                      milestone.days_from_submission + ' days before submission';
+                        responseHtml += '<div class="timeline-item mb-2 p-2 border-left border-primary">';
+                        responseHtml += '<strong>' + milestone.milestone + '</strong><br>';
+                        responseHtml += '<small class="text-muted">' + new Date(milestone.date).toLocaleDateString() + ' (' + daysText + ')</small>';
+                        responseHtml += '</div>';
+                    });
+                    
+                    responseHtml += '</div></div>';
+                    document.getElementById('modelResponse2').innerHTML = responseHtml;
+                } else if (data.error) {
+                    document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Error: ' + data.error + '</div>';
+                }
+            }).fail(function() {
+                document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Failed to create timeline. Please try again.</div>';
+            });
+        }
+
+        function getIndustryTemplate() {
+            var hashValue = document.getElementById('hashValue').value;
+            
+            if (!hashValue) {
+                alert("No contract selected. Please select a contract first.");
+                return;
+            }
+
+            document.getElementById('modelResponse2').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Generating industry template...</div>';
+
+            $.post('/industry_template', {
+                hash_value: hashValue,
+                industry: 'PROFESSIONAL_SERVICES'
+            }, function(data) {
+                if (data.template) {
+                    var responseHtml = '<div class="industry-template">';
+                    responseHtml += '<h5><i class="fas fa-file-alt"></i> Customized ' + data.industry + ' Template</h5>';
+                    responseHtml += '<div class="template-content">' + data.template + '</div>';
+                    responseHtml += '</div>';
+                    document.getElementById('modelResponse2').innerHTML = responseHtml;
+                } else if (data.error) {
+                    document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Error: ' + data.error + '</div>';
+                }
+            }).fail(function() {
+                document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Failed to generate template. Please try again.</div>';
+            });
+        }
+
+        function analyzeContract() {
+            var hashValue = document.getElementById('hashValue').value;
+            
+            if (!hashValue) {
+                alert("No contract selected. Please select a contract first.");
+                return;
+            }
+
+            document.getElementById('modelResponse2').innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Analyzing contract...</div>';
+
+            $.post('/contract_analysis', {
+                hash_value: hashValue
+            }, function(data) {
+                var responseHtml = '<div class="contract-analysis">';
+                responseHtml += '<h5><i class="fas fa-chart-bar"></i> Contract Analysis Results</h5>';
+                
+                if (data.win_probability) {
+                    responseHtml += '<div class="win-probability mb-3 p-3 border rounded">';
+                    responseHtml += '<h6>Win Probability: ' + data.win_probability.probability + '%</h6>';
+                    responseHtml += '<div class="progress mb-2"><div class="progress-bar bg-success" style="width: ' + data.win_probability.probability + '%"></div></div>';
+                    if (data.win_probability.strengths) {
+                        responseHtml += '<p><strong>Strengths:</strong> ' + (Array.isArray(data.win_probability.strengths) ? data.win_probability.strengths.join(', ') : data.win_probability.strengths) + '</p>';
+                    }
+                    if (data.win_probability.recommendations) {
+                        responseHtml += '<p><strong>Recommendations:</strong> ' + (Array.isArray(data.win_probability.recommendations) ? data.win_probability.recommendations.join(', ') : data.win_probability.recommendations) + '</p>';
+                    }
+                    responseHtml += '</div>';
+                }
+                
+                if (data.opportunity_score) {
+                    responseHtml += '<div class="opportunity-score mb-3 p-3 border rounded">';
+                    responseHtml += '<h6><i class="fas fa-star"></i> Opportunity Score: ' + data.opportunity_score.overall_score + '/100</h6>';
+                    responseHtml += '<div class="progress mb-2"><div class="progress-bar bg-info" style="width: ' + data.opportunity_score.overall_score + '%"></div></div>';
+                    responseHtml += '</div>';
+                }
+                
+                if (data.compliance_checklist) {
+                    responseHtml += '<div class="compliance-checklist mb-3 p-3 border rounded">';
+                    responseHtml += '<h6><i class="fas fa-check-circle"></i> Compliance Checklist</h6>';
+                    responseHtml += '<div class="checklist-content">' + JSON.stringify(data.compliance_checklist, null, 2) + '</div>';
+                    responseHtml += '</div>';
+                }
+                
+                responseHtml += '</div>';
+                document.getElementById('modelResponse2').innerHTML = responseHtml;
+            }).fail(function() {
+                document.getElementById('modelResponse2').innerHTML = '<div class="alert alert-danger">Failed to analyze contract. Please try again.</div>';
+            });
+        }
+
+
 </html>

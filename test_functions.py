@@ -68,7 +68,7 @@ def test_percentage_function():
 
 def main():
     """Run all tests."""
-    print("Testing Corama application functions...")
+    print("Testing Contract Radar Maximizer application functions...")
     
     tests = [
         test_imports,

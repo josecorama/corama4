@@ -36,6 +36,8 @@ from pdf_class import create_pdf
 #from RAG.vector_store import VectorStore, load_embeddings, initialize_vector_stores
 #from RAG.matcher import find_matches
 from dotenv import load_dotenv
+from ai_assistant_enhanced import EnhancedAIAssistant
+from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 
 # Load environment variables
 load_dotenv()
@@ -177,6 +179,17 @@ try:
         auth = firebase.auth()
         db = firebase.database()
         logging.info("Firebase initialized successfully")
+        
+        # Initialize Enhanced AI Assistant and additional features after Firebase setup
+        from openai import OpenAI
+        bid_response_client = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
+        
+        enhanced_ai = EnhancedAIAssistant(app, db)
+        opportunity_scorer = ContractOpportunityScorer(bid_response_client)
+        competitive_intel = CompetitiveIntelligence(bid_response_client)
+        proposal_optimizer = ProposalOptimizer(bid_response_client)
+        deadline_manager = DeadlineManager(db)
+        template_library = IndustryTemplateLibrary(bid_response_client)
     else:
         logging.warning("Firebase configuration incomplete. Firebase services will be disabled.")
 except Exception as e:
@@ -1022,7 +1035,7 @@ def Contracts():
 
                     logging.info(f"📌 Subscription ID={sub.get('id')}, Status={sub_status}, Product={product_name}")
 
-                    if sub_status in ["active", "trialing"] and product_name and product_name.startswith("CORAMA"):
+                    if sub_status in ["active", "trialing"] and product_name and (product_name.startswith("CORAMA") or product_name.startswith("Contract Radar Maximizer")):
                         active_subscription_found = True
                         logging.info(f"✅ Access granted to /contracts for user {user_id} (Product: {product_name})")
                         break
@@ -1039,7 +1052,7 @@ def Contracts():
                     return render_template('error.html', error="Subscription validation issue. Please contact support.")
 
         if not active_subscription_found:
-            logging.error(f"❌ No valid CORAMA subscription found for user {user_id} after retries.")
+            logging.error(f"❌ No valid Contract Radar Maximizer subscription found for user {user_id} after retries.")
             return render_template('error.html', error="No active subscription found. Contact support.")
 
         # ---------------------------------------------------------------------
@@ -1518,7 +1531,7 @@ def Login():
             app.logger.info(f"Retrieved account_type: {account_type}, subscription_end_date: {subscription_end_date}, is_stripe_customer: {is_stripe_customer}")
 
             # Define allowed account types
-            allowed_account_types = ["CORAMA_ESSENTIALS", "CORAMA_SUPPLY_CHAIN_VISIBILITY", "TRUSTED_PARTNER"]
+            allowed_account_types = ["CORAMA_ESSENTIALS", "CORAMA_SUPPLY_CHAIN_VISIBILITY", "TRUSTED_PARTNER", "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS", "CONTRACT_RADAR_MAXIMIZER_SUPPLY_CHAIN_VISIBILITY"]
 
             # Check if the user has an allowed account type and a valid subscription
             if account_type in allowed_account_types and subscription_end_date:
@@ -1593,7 +1606,16 @@ prices = {
         'monthly': os.getenv('CORAMA_ESSENTIALS_STRIPE_API_MONTHLY'),
         'yearly': os.getenv('CORAMA_ESSENTIALS_STRIPE_API_YEARLY'),
     },
+    'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS': {
+        'weekly': os.getenv('CORAMA_ESSENTIALS_STRIPE_API_WEEKLY'),
+        'monthly': os.getenv('CORAMA_ESSENTIALS_STRIPE_API_MONTHLY'),
+        'yearly': os.getenv('CORAMA_ESSENTIALS_STRIPE_API_YEARLY'),
+    },
     'CORAMA_SUPPLY_CHAIN_VISIBILITY': {  # Tier 2 Product
+        'monthly': os.getenv('CORAMA_SUPPLY_CHAIN_STRIPE_API_MONTHLY'),
+        'yearly': os.getenv('CORAMA_SUPPLY_CHAIN_STRIPE_API_YEARLY')
+    },
+    'CONTRACT_RADAR_MAXIMIZER_SUPPLY_CHAIN_VISIBILITY': {
         'monthly': os.getenv('CORAMA_SUPPLY_CHAIN_STRIPE_API_MONTHLY'),
         'yearly': os.getenv('CORAMA_SUPPLY_CHAIN_STRIPE_API_YEARLY')
     },
@@ -1610,22 +1632,22 @@ def send_welcome_email(email, display_name):
 
     sender_email = os.getenv('EMAIL_GOOGLE_USER')
     sender_password = os.getenv('EMAIL_GOOGLE_PASS')
-    subject = "🎉 Welcome To CORAMA.ai!"
+    subject = "🎉 Welcome To Contract Radar Maximizer!"
 
     # HTML Email Body
     html_body = f"""
     <html>
       <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
         <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #2A85FF; text-align: center;">Welcome To <span style="color: #111;">CORAMA.ai</span> 🎉</h2>
+          <h2 style="color: #2A85FF; text-align: center;">Welcome To <span style="color: #111;">Contract Radar Maximizer</span> 🎉</h2>
           <p>Hi <strong>{display_name}</strong>,</p>
-          <p>We're thrilled to welcome you aboard the CORAMA platform!</p>
+          <p>We're thrilled to welcome you aboard the Contract Radar Maximizer platform!</p>
           <p>Don't miss any opportunities, log in now!</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="https://corama.ai/login" style="background-color: #2A85FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">🌐 Login Here</a>
+            <a href="https://contractradarmaxmizer.com/login" style="background-color: #2A85FF; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">🌐 Login Here</a>
           </div>
           <p style="font-size: 0.9em; color: #888;">If you have any questions, just reply to this email — we're here to help!</p>
-          <p style="text-align: center; margin-top: 40px; font-size: 0.85em; color: #aaa;">&copy; 2025 CORAMA.ai</p>
+          <p style="text-align: center; margin-top: 40px; font-size: 0.85em; color: #aaa;">&copy; 2025 Contract Radar Maximizer</p>
         </div>
       </body>
     </html>
@@ -2018,7 +2040,7 @@ def Welcome():
 
                     logging.info(f"📌 Subscription ID={sub.get('id')}, Status={sub_status}, Product={product_name}")
 
-                    if sub_status in ["active", "trialing"] and product_name and product_name.startswith("CORAMA"):
+                    if sub_status in ["active", "trialing"] and product_name and (product_name.startswith("CORAMA") or product_name.startswith("Contract Radar Maximizer")):
                         active_subscription_found = True
                         logging.info(f"✅ Access granted to {user_id} (Product: {product_name})")
                         return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
@@ -2739,6 +2761,199 @@ def ask_model_question():
     except Exception as e:
         app.logger.error(f"Error in model response: {str(e)}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/ai_assistant_enhanced', methods=['POST'])
+def enhanced_ai_assistant():
+    """Enhanced AI assistant endpoint with comprehensive bid creation capabilities"""
+    try:
+        user_query = request.form.get('query')
+        hash_value = request.form.get('hash_value')
+        action_type = request.form.get('action_type', 'general')  # general, analyze, strategy, compliance, outline
+        
+        if not user_query:
+            return jsonify({"error": "Query is required"}), 400
+            
+        user = session['user']
+        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        user_uploads_dir = user_data['uploads_dir']
+        user_id = user['localId']
+        
+        conversation_history = enhanced_ai.get_conversation_context(user_id, hash_value) if hash_value else []
+        
+        context_data = {}
+        
+        if hash_value:
+            context_data['contract_info'] = process_selected_contract(user_uploads_dir, hash_value)
+            context_data['capability_statement'] = process_files_user_input(user_uploads_dir)
+            
+            if action_type == 'analyze':
+                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data['contract_info'])
+                context_data['contract_requirements'] = contract_requirements
+                
+                win_probability = enhanced_ai.calculate_win_probability(
+                    context_data['capability_statement'], 
+                    contract_requirements
+                )
+                context_data['win_probability'] = win_probability
+                
+            elif action_type == 'compliance':
+                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data['contract_info'])
+                compliance_checklist = enhanced_ai.generate_compliance_checklist(contract_requirements)
+                context_data['compliance_checklist'] = compliance_checklist
+                
+            elif action_type == 'strategy':
+                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data['contract_info'])
+                win_probability = enhanced_ai.calculate_win_probability(
+                    context_data['capability_statement'], 
+                    contract_requirements
+                )
+                strategy = enhanced_ai.suggest_bid_strategy(contract_requirements, context_data['capability_statement'], win_probability.get('probability', 50))
+                context_data['bid_strategy'] = strategy
+                
+            elif action_type == 'outline':
+                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data['contract_info'])
+                proposal_outline = enhanced_ai.generate_proposal_outline(contract_requirements, context_data['capability_statement'])
+                context_data['proposal_outline'] = proposal_outline
+        
+        # Generate enhanced response
+        ai_response = enhanced_ai.generate_enhanced_response(user_query, context_data, conversation_history)
+        
+        # Save conversation turn
+        if hash_value:
+            enhanced_ai.save_conversation_turn(user_id, hash_value, user_query, ai_response)
+        
+        # Return response with additional context if requested
+        response_data = {"response": ai_response}
+        
+        if action_type == 'analyze' and 'win_probability' in context_data:
+            response_data['win_probability'] = context_data['win_probability']
+            response_data['contract_requirements'] = context_data.get('contract_requirements', {})
+            
+        elif action_type == 'compliance' and 'compliance_checklist' in context_data:
+            response_data['compliance_checklist'] = context_data['compliance_checklist']
+            
+        elif action_type == 'outline' and 'proposal_outline' in context_data:
+            response_data['proposal_outline'] = context_data['proposal_outline']
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        app.logger.error(f"Error in enhanced AI assistant: {str(e)}")
+        return jsonify({"error": f"Enhanced AI assistant error: {str(e)}"}), 500
+
+@app.route('/contract_analysis', methods=['POST'])
+def analyze_contract_endpoint():
+    """Dedicated endpoint for contract analysis"""
+    try:
+        hash_value = request.form.get('hash_value')
+        if not hash_value:
+            return jsonify({"error": "hash_value is required"}), 400
+            
+        user = session['user']
+        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        user_uploads_dir = user_data['uploads_dir']
+        
+        contract_content = process_selected_contract(user_uploads_dir, hash_value)
+        capability_statement = process_files_user_input(user_uploads_dir)
+        
+        contract_requirements = enhanced_ai.analyze_contract_requirements(contract_content)
+        win_probability = enhanced_ai.calculate_win_probability(capability_statement, contract_requirements)
+        compliance_checklist = enhanced_ai.generate_compliance_checklist(contract_requirements)
+        proposal_outline = enhanced_ai.generate_proposal_outline(contract_requirements, capability_statement)
+        
+        company_profile = {"capabilities": capability_statement}
+        opportunity_score = opportunity_scorer.score_opportunity({"content": contract_content}, company_profile)
+        competitive_analysis = competitive_intel.analyze_competition({"content": contract_content}, "GENERAL")
+        
+        return jsonify({
+            "contract_requirements": contract_requirements,
+            "win_probability": win_probability,
+            "compliance_checklist": compliance_checklist,
+            "proposal_outline": proposal_outline,
+            "opportunity_score": opportunity_score,
+            "competitive_analysis": competitive_analysis
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in contract analysis: {str(e)}")
+        return jsonify({"error": f"Contract analysis error: {str(e)}"}), 500
+
+@app.route('/proposal_timeline', methods=['POST'])
+def create_proposal_timeline():
+    """Create automated proposal development timeline"""
+    try:
+        hash_value = request.form.get('hash_value')
+        if not hash_value:
+            return jsonify({"error": "hash_value is required"}), 400
+            
+        user = session['user']
+        user_id = user['localId']
+        
+        contract_data = {
+            'hash_value': hash_value,
+            'title': request.form.get('contract_title', 'Contract'),
+            'due_date': request.form.get('due_date', '2024-12-31')
+        }
+        
+        timeline = deadline_manager.create_proposal_timeline(contract_data, user_id)
+        
+        return jsonify({
+            "timeline": timeline,
+            "message": "Proposal timeline created successfully"
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error creating timeline: {str(e)}")
+        return jsonify({"error": f"Timeline creation error: {str(e)}"}), 500
+
+@app.route('/upcoming_deadlines', methods=['GET'])
+def get_upcoming_deadlines():
+    """Get upcoming proposal deadlines for user"""
+    try:
+        user = session['user']
+        user_id = user['localId']
+        
+        days_ahead = request.args.get('days', 7, type=int)
+        deadlines = deadline_manager.get_upcoming_deadlines(user_id, days_ahead)
+        
+        return jsonify({"deadlines": deadlines})
+        
+    except Exception as e:
+        app.logger.error(f"Error getting deadlines: {str(e)}")
+        return jsonify({"error": f"Deadlines error: {str(e)}"}), 500
+
+@app.route('/industry_template', methods=['POST'])
+def get_industry_template():
+    """Get customized industry template for proposal"""
+    try:
+        industry = request.form.get('industry', 'PROFESSIONAL_SERVICES')
+        hash_value = request.form.get('hash_value')
+        
+        if not hash_value:
+            return jsonify({"error": "hash_value is required"}), 400
+            
+        user = session['user']
+        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        user_uploads_dir = user_data['uploads_dir']
+        
+        contract_content = process_selected_contract(user_uploads_dir, hash_value)
+        capability_statement = process_files_user_input(user_uploads_dir)
+        
+        contract_requirements = {"content": contract_content}
+        company_profile = {"capabilities": capability_statement}
+        
+        customized_template = template_library.get_customized_template(
+            industry, contract_requirements, company_profile
+        )
+        
+        return jsonify({
+            "template": customized_template,
+            "industry": industry
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting template: {str(e)}")
+        return jsonify({"error": f"Template error: {str(e)}"}), 500
 
 
 ##New Button tailor_cs_for_contract
@@ -3482,7 +3697,7 @@ def Smartsearch():
 
                     logging.info(f"📌 Subscription ID={sub.get('id')}, Status={sub_status}, Product={product_name}")
 
-                    if sub_status in ["active", "trialing"] and product_name and product_name.startswith("CORAMA"):
+                    if sub_status in ["active", "trialing"] and product_name and (product_name.startswith("CORAMA") or product_name.startswith("Contract Radar Maximizer")):
                         active_subscription_found = True
                         logging.info(f"✅ Access granted to /smartsearch for user {user_id} (Product: {product_name})")
                         break
@@ -3499,7 +3714,7 @@ def Smartsearch():
                     return render_template('error.html', error="Subscription validation issue. Please contact support.")
 
         if not active_subscription_found:
-            logging.error(f"❌ No valid CORAMA subscription found for user {user_id} after retries.")
+            logging.error(f"❌ No valid Contract Radar Maximizer subscription found for user {user_id} after retries.")
             return render_template('error.html', error="No active subscription found. Contact support.")
 
         # ---------------------------------------------------------------------
@@ -3837,7 +4052,7 @@ def membershipstatus():
                 logging.info(f"Account type: {account_type}, Subscription end date: {subscription_end_date}")
 
                 # Check allowed account types and render page
-                allowed_account_types = ["CORAMA_ESSENTIALS", "CORAMA_SUPPLY_CHAIN_VISIBILITY", "TRUSTED_PARTNER"]
+                allowed_account_types = ["CORAMA_ESSENTIALS", "CORAMA_SUPPLY_CHAIN_VISIBILITY", "TRUSTED_PARTNER", "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS", "CONTRACT_RADAR_MAXIMIZER_SUPPLY_CHAIN_VISIBILITY"]
                 if account_type in allowed_account_types:
                     return render_template(
                         'membershipstatus.html',
