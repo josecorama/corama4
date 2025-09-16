@@ -74,10 +74,13 @@
   text-decoration: none;
 }
 
+a.btn.btn-outline-primary-custom,
+.navbar-professional a.btn.btn-outline-primary-custom,
+.navbar-professional .btn-outline-primary-custom,
 .btn-outline-primary-custom {
-  background: transparent;
-  border: 1px solid rgba(79, 70, 229, 0.5);
-  color: var(--text-primary);
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.9) !important;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   font-weight: 600;
@@ -86,10 +89,13 @@
   font-size: 0.9rem;
 }
 
+a.btn.btn-outline-primary-custom:hover,
+.navbar-professional a.btn.btn-outline-primary-custom:hover,
+.navbar-professional .btn-outline-primary-custom:hover,
 .btn-outline-primary-custom:hover {
-  background: rgba(79, 70, 229, 0.1);
-  border-color: #4f46e5;
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  color: rgba(255, 255, 255, 1) !important;
   text-decoration: none;
 }
 
