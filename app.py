@@ -950,6 +950,33 @@ def Aboutus():
 
 
 
+@app.route('/top_five_results')
+def top_five_results():
+    """Display the top 5 contract matches from the uploaded capability statement."""
+    if 'user' not in session:
+        return redirect(url_for('Login'))
+    
+    user = session['user']
+    user_id = user['localId']
+    user_upload_dir = f"uploads/bid_uploads_{user_id}"
+    matches_file = os.path.join(user_upload_dir, 'matches.csv')
+    
+    matches = []
+    if os.path.exists(matches_file):
+        try:
+            import pandas as pd
+            df = pd.read_csv(matches_file)
+            matches = df.to_dict('records')
+            app.logger.info(f"Loaded {len(matches)} matches from {matches_file}")
+        except Exception as e:
+            app.logger.error(f"Error loading matches: {str(e)}")
+            flash(f"Error loading contract matches: {str(e)}", 'error')
+    else:
+        app.logger.warning(f"Matches file not found: {matches_file}")
+        flash("No contract matches found. Please upload a capability statement first.", 'warning')
+    
+    return render_template('top_five_results.html', matches=matches)
+
 @app.route('/contracts', methods=['GET'])
 def Contracts():
     try:
@@ -2356,8 +2383,10 @@ def upload_and_process():
     file = request.files.get('file')
     if not file:
         return jsonify({"success": False, "message": "No file selected. Please choose a file to upload."})
+    if not file.filename:
+        return jsonify({"success": False, "message": "No file selected. Please choose a valid file to upload."})
     if not allowed_file(file.filename):
-        return jsonify({"success": False, "message": "Invalid file type. Please upload a PDF, JPG, PNG, or JPEG file."})
+        return jsonify({"success": False, "message": f"Invalid file type '{file.filename}'. Please upload a PDF, JPG, PNG, or JPEG file."})
     
     try:
         # 2) Determine if user selected "federal"/"state" or passed a hash_value from the modal
@@ -2367,20 +2396,39 @@ def upload_and_process():
 
         # 3) Create user upload directory (if needed)
         user_upload_dir = f"uploads/bid_uploads_{user_id}"
-        os.makedirs(user_upload_dir, exist_ok=True)
+        try:
+            os.makedirs(user_upload_dir, exist_ok=True)
+            app.logger.info(f"Created/verified user upload directory: {user_upload_dir}")
+        except Exception as e:
+            app.logger.error(f"Failed to create user upload directory: {str(e)}")
+            return jsonify({"success": False, "message": "Failed to create upload directory. Please try again."})
 
         # 4) Delete old PDFs in that folder, then save the new PDF
-        for fname in os.listdir(user_upload_dir):
-            if fname.lower().endswith('.pdf'):
-                os.remove(os.path.join(user_upload_dir, fname))
+        try:
+            for fname in os.listdir(user_upload_dir):
+                if fname.lower().endswith(('.pdf', '.jpg', '.jpeg', '.png')):
+                    os.remove(os.path.join(user_upload_dir, fname))
+                    app.logger.info(f"Removed old file: {fname}")
+        except Exception as e:
+            app.logger.warning(f"Error cleaning old files: {str(e)}")
 
         filename = secure_filename(file.filename)
         file_path = os.path.join(user_upload_dir, filename)
-        file.save(file_path)
+        try:
+            file.save(file_path)
+            app.logger.info(f"Saved uploaded file: {file_path}")
+        except Exception as e:
+            app.logger.error(f"Failed to save uploaded file: {str(e)}")
+            return jsonify({"success": False, "message": "Failed to save uploaded file. Please try again."})
 
         # 5) Process the PDF => generate capability_statements_processed.csv
         csv_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
-        process_pdfs([file_path], csv_path)
+        try:
+            process_pdfs([file_path], csv_path)
+            app.logger.info(f"Successfully processed PDF and created CSV: {csv_path}")
+        except Exception as e:
+            app.logger.error(f"Failed to process PDF: {str(e)}")
+            return jsonify({"success": False, "message": f"Failed to process uploaded file: {str(e)}"})
 
         # 6) Try to read “Company” from the newly processed CSV
         pdf_company_name = None
@@ -2409,34 +2457,62 @@ def upload_and_process():
             with open(file_path, 'rb') as pdf_file:
                 results = handler.process_query(pdf_file, contract_types=selected_contract_types, states=selected_states)
             
-            matches_file = os.path.join(user_upload_dir, 'matches.csv')
-            with open(matches_file, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=[
-                    'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
-                    'Status', 'Category', 'Due_Date', 'Detail_Link',
-                    'State', 'Organization', 'Budget', 'Similarity_Score','hash_value'
-                ])
-                writer.writeheader()
-                for row in results:
-                    # If we have pdf_company_name, use it:
-                    writer.writerow({
-                        'Company':         pdf_company_name if pdf_company_name else "Unknown",
-                        'Bid_Number':      row['Bid_Number'],
-                        'Bid_Name':        row['Bid_Name'],
-                        'Bid_Description': row.get('Bid_Description',''),
-                        'Status':          row.get('Status',''),
-                        'Category':        row.get('Category',''),
-                        'Due_Date':        row.get('Due_Date',''),
-                        'Detail_Link':     row.get('Detail_Link','#'),
-                        'State':           row.get('State',''),
-                        'Organization':    row.get('Organization',''),
-                        'Budget':          row.get('Budget',''),
-                        'Similarity_Score': row.get('Similarity_Score',''),
-                        'hash_value':      row.get('hash_value','')
-                    })
-
-            # If success, redirect to /contracts (the "top-5 results" page).
-            return jsonify({"success": True, "message": "Upload success (top-5 matches).", "redirect_url": url_for('Contracts')})
+            try:
+                app.logger.info(f"Starting Qdrant matching with contract_types: {selected_contract_types}, states: {selected_states}")
+                
+                # Initialize CSQueryHandler for contract matching
+                handler = CSQueryHandler(
+                    openai_api_key=os.getenv('CS_BID_SEARCH_OPENAI_API_KEY'),
+                    qdrant_url=os.getenv('QDRANT_URL'),
+                    qdrant_api_key=os.getenv('QDRANT_API_KEY'),
+                    user_upload_dir=user_upload_dir
+                )
+                
+                # Process query to get top 5 matching contracts
+                with open(file_path, 'rb') as pdf_file:
+                    results = handler.process_query(
+                        pdf_file, 
+                        contract_types=selected_contract_types, 
+                        states=selected_states,
+                        limit=50  # Get more results for better filtering
+                    )
+                
+                app.logger.info(f"Qdrant matching completed. Found {len(results)} results")
+                
+                matches_file = os.path.join(user_upload_dir, 'matches.csv')
+                with open(matches_file, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=[
+                        'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
+                        'Status', 'Category', 'Due_Date', 'Detail_Link',
+                        'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value'
+                    ])
+                    writer.writeheader()
+                    for row in results:
+                        # If we have pdf_company_name, use it:
+                        writer.writerow({
+                            'Company':         pdf_company_name if pdf_company_name else "Unknown",
+                            'Bid_Number':      row['Bid_Number'],
+                            'Bid_Name':        row['Bid_Name'],
+                            'Bid_Description': row.get('Bid_Description',''),
+                            'Status':          row.get('Status',''),
+                            'Category':        row.get('Category',''),
+                            'Due_Date':        row.get('Due_Date',''),
+                            'Detail_Link':     row.get('Detail_Link','#'),
+                            'State':           row.get('State',''),
+                            'Organization':    row.get('Organization',''),
+                            'Budget':          row.get('Budget',''),
+                            'Similarity_Score': row.get('Similarity_Score',''),
+                            'hash_value':      row.get('hash_value','')
+                        })
+                
+                app.logger.info(f"Successfully saved {len(results)} matches to {matches_file}")
+                
+                # If success, redirect to the top-5 results page
+                return jsonify({"success": True, "message": "Upload success (top-5 matches).", "redirect": "/top_five_results"})
+                
+            except Exception as e:
+                app.logger.error(f"Error during Qdrant matching: {str(e)}")
+                return jsonify({"success": False, "message": f"Error processing contract matches: {str(e)}"})
 
         # 8) Otherwise, if the user is coming from the “Bid” button on SMART SEARCH, we’ll have a hash_value.
         #    We want to “patch” matches_SMART_SEARCH.csv => set the 'Company' for that one row.
@@ -2465,7 +2541,7 @@ def upload_and_process():
 
     except Exception as e:
         app.logger.error(f"[upload_and_process] Error processing file: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "message": str(e)})
+        return jsonify({"success": False, "message": f"Upload processing failed: {str(e)}"})
 
 
 

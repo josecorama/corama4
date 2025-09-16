@@ -364,12 +364,17 @@
               document.getElementById('loadingOverlay').style.display = 'block';
               fetch('/upload_and_process', {
                   method: 'POST',
-                  body: formData
+                  body: formData,
+                  credentials: 'same-origin'
               })
               .then(response => response.json())
               .then(data => {
                   if (data.success) {
-                      window.location.href = '/contracts';
+                      if (data.redirect) {
+                          window.location.href = data.redirect;
+                      } else {
+                          window.location.href = '/contracts';
+                      }
                   } else {
                       alert('Upload Error: ' + data.message);
                       document.getElementById('loadingOverlay').style.display = 'none';
@@ -444,6 +449,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'same-origin'
             })
             .then(response => response.json())
             .then(data => {
@@ -523,7 +529,9 @@
         
         function loadContractListing(page = 1) {
             // Fetch contracts from the backend with pagination
-            fetch(`/api/contracts?page=${page}`)
+            fetch(`/api/contracts?page=${page}`, {
+                credentials: 'same-origin'
+            })
                 .then(response => response.json())
                 .then(data => {
                     populateContractTable(data.contracts);
