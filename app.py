@@ -3031,6 +3031,103 @@ def generate_enhanced_pdf():
         logging.error(f"Error generating enhanced PDF: {str(e)}")
         return jsonify({'error': 'Failed to generate PDF'}), 500
 
+@app.route('/process-capability-statement', methods=['POST'])
+def process_capability_statement():
+    try:
+        user_id = session.get('user_id', 'test_user')
+        
+        # Handle file upload or URL
+        capability_text = ""
+        
+        if 'capabilityFile' in request.files and request.files['capabilityFile'].filename:
+            file = request.files['capabilityFile']
+            if file and allowed_file(file.filename):
+                user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"user_{user_id}")
+                os.makedirs(user_upload_dir, exist_ok=True)
+                
+                filename = f"temp_capability_{int(time.time())}_{file.filename}"
+                filepath = os.path.join(user_upload_dir, filename)
+                file.save(filepath)
+                
+                # Extract text from PDF
+                capability_text = extract_text_from_pdf(filepath)
+                
+                os.remove(filepath)
+        
+        elif request.json and 'url' in request.json:
+            url = request.json['url']
+            capability_text = download_and_extract_from_url(url)
+        
+        if not capability_text:
+            return jsonify({'error': 'Could not extract text from capability statement'}), 400
+        
+        # Use AI to parse and structure the capability statement
+        parsed_data = parse_capability_statement_with_ai(capability_text)
+        
+        return jsonify({'success': True, 'data': parsed_data})
+        
+    except Exception as e:
+        logging.error(f"Error processing capability statement: {str(e)}")
+        return jsonify({'error': 'Failed to process capability statement'}), 500
+
+def extract_text_from_pdf(filepath):
+    """Extract text from PDF file"""
+    try:
+        import PyPDF2
+        with open(filepath, 'rb') as file:
+            reader = PyPDF2.PdfReader(file)
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text()
+        return text
+    except Exception as e:
+        logging.error(f"Error extracting PDF text: {str(e)}")
+        return ""
+
+def download_and_extract_from_url(url):
+    """Download PDF from URL and extract text"""
+    try:
+        import requests
+        response = requests.get(url, timeout=30)
+        if response.status_code == 200:
+            temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+            with open(temp_path, 'wb') as f:
+                f.write(response.content)
+            text = extract_text_from_pdf(temp_path)
+            os.remove(temp_path)
+            return text
+    except Exception as e:
+        logging.error(f"Error downloading from URL: {str(e)}")
+        return ""
+
+def parse_capability_statement_with_ai(text):
+    """Use AI to parse capability statement text into structured data"""
+    try:
+        messages = [
+            {"role": "system", "content": "You are an expert at parsing capability statements. Extract structured data from the provided text and return it as JSON with fields: companyName, contactName, phone, email, address, city, state, zipCode, website, companyDescription, competencies (array), differentiators (array), ueiCode, cageCode, naicsCodes (array), certifications (array). Only include fields that you can clearly identify from the text."},
+            {"role": "user", "content": f"Parse this capability statement text:\n\n{text}"}
+        ]
+        
+        completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=1000
+        )
+        
+        response_text = completion.choices[0].message.content.strip()
+        import json
+        import re
+        
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+        else:
+            return json.loads(response_text)
+        
+    except Exception as e:
+        logging.error(f"Error parsing with AI: {str(e)}")
+        return {}
+
 @app.route('/upload_document', methods=['POST'])
 def upload_document():
     """Upload document to user's profile for AI assistant use"""

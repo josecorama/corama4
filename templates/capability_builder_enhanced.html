@@ -245,18 +245,73 @@
             position: relative;
             display: inline-block;
         }
+        
+        .header-actions .btn {
+            margin-left: 0.5rem;
+        }
+        
+        .tooltip-icon {
+            cursor: help;
+            opacity: 0.7;
+        }
+        
+        .tooltip-icon:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
     <div class="main-container">
         <div class="header-section">
-            <h1><i class="fas fa-file-alt"></i> Enhanced Capability Statement Builder</h1>
-            <p>Create professional capability statements with real-time preview and advanced features</p>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="fas fa-file-alt"></i> Enhanced Capability Statement Builder</h1>
+                    <p>Create professional capability statements with real-time preview and advanced features</p>
+                </div>
+                <div class="header-actions">
+                    <a href="/welcome" class="btn btn-outline-light me-2">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    <a href="/logout" class="btn btn-outline-light">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </a>
+                </div>
+            </div>
         </div>
 
         <div class="content-wrapper">
             <div class="form-section">
                 <form id="capabilityForm">
+                    <!-- Import Existing Capability Statement Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-upload"></i>
+                            Import Existing Capability Statement
+                            <i class="fas fa-question-circle tooltip-icon ms-2" title="Upload an existing capability statement PDF or provide a URL to automatically populate this form"></i>
+                        </h3>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Upload PDF</label>
+                                <div class="upload-area" id="capabilityUpload">
+                                    <i class="fas fa-file-pdf fa-2x mb-2"></i>
+                                    <p>Drag & drop your capability statement here or click to browse</p>
+                                    <small class="text-muted">Supports PDF files (Max 10MB)</small>
+                                    <input type="file" id="capabilityFile" name="capabilityFile" accept=".pdf" style="display: none;">
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Or Import from URL</label>
+                                <div class="input-group">
+                                    <input type="url" class="form-control" id="capabilityUrl" placeholder="https://example.com/capability-statement.pdf">
+                                    <button type="button" class="btn btn-primary" onclick="importFromUrl()">
+                                        <i class="fas fa-download"></i> Import
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Company Information Section -->
                     <div class="section-card">
                         <h3 class="section-title">
@@ -360,6 +415,19 @@
                             <textarea class="form-control" id="companyDescription" name="companyDescription" rows="4" 
                                 placeholder="Describe your company's mission, capabilities, and what sets you apart in the marketplace..."></textarea>
                             <small class="text-muted">Recommended: 150-300 words</small>
+                            <div class="d-flex justify-content-end mt-2">
+                                <button type="button" class="btn btn-primary btn-sm" onclick="enhanceCompanyDescription()">
+                                    <i class="fas fa-magic"></i> Enhance with AI
+                                </button>
+                            </div>
+                            <div id="enhancedDescriptionContainer" class="mt-2" style="display: none">
+                                <h6>AI-Enhanced Description:</h6>
+                                <textarea class="form-control" id="enhancedDescription" rows="4"></textarea>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-success btn-sm me-2" onclick="useEnhancedDescription()">Use This Description</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="hideEnhancedDescription()">Cancel</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -394,7 +462,20 @@
                                     <i class="fas fa-plus"></i> Add
                                 </button>
                             </div>
+                            <div class="mb-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="enhanceCompetencies()">
+                                    <i class="fas fa-magic"></i> Generate AI Competencies
+                                </button>
+                            </div>
                             <div id="competenciesList"></div>
+                            <div id="aiCompetenciesContainer" class="mt-2" style="display: none">
+                                <h6>AI-Generated Competencies:</h6>
+                                <div id="aiCompetenciesList"></div>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-success btn-sm me-2" onclick="useAICompetencies()">Add Selected to List</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="hideAICompetencies()">Cancel</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1135,6 +1216,206 @@
                 addCertification();
             }
         });
+
+        // AI Enhancement Functions
+        async function enhanceCompanyDescription() {
+            const companyDescription = document.getElementById('companyDescription').value;
+            const companyName = document.getElementById('companyName').value;
+            
+            if (!companyDescription.trim()) {
+                alert('Please enter a company description first.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/generate_description', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        companyDescription: companyDescription,
+                        companyName: companyName
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.description) {
+                    document.getElementById('enhancedDescriptionContainer').style.display = 'block';
+                    document.getElementById('enhancedDescription').value = data.description;
+                } else {
+                    alert('Error generating enhanced description: ' + (data.error || 'Please try again.'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error generating enhanced description. Please try again.');
+            }
+        }
+        
+        function useEnhancedDescription() {
+            const enhancedText = document.getElementById('enhancedDescription').value;
+            document.getElementById('companyDescription').value = enhancedText;
+            document.getElementById('enhancedDescriptionContainer').style.display = 'none';
+            generatePreview();
+        }
+        
+        function hideEnhancedDescription() {
+            document.getElementById('enhancedDescriptionContainer').style.display = 'none';
+        }
+        
+        async function enhanceCompetencies() {
+            const industryFocus = document.getElementById('industryFocus').value;
+            const companyDescription = document.getElementById('companyDescription').value;
+            
+            const ideas = `Industry: ${industryFocus}. Company: ${companyDescription}`;
+            
+            if (!ideas.trim() || ideas === 'Industry: . Company: ') {
+                alert('Please fill in industry focus and company description first.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/generate_bullet_points', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ideas: ideas })
+                });
+                
+                const data = await response.json();
+                if (data.bulletPoints) {
+                    document.getElementById('aiCompetenciesContainer').style.display = 'block';
+                    const container = document.getElementById('aiCompetenciesList');
+                    container.innerHTML = data.bulletPoints.map((comp, index) => `
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="${comp}" id="aiComp${index}" checked>
+                            <label class="form-check-label" for="aiComp${index}">${comp}</label>
+                        </div>
+                    `).join('');
+                } else {
+                    alert('Error generating competencies: ' + (data.error || 'Please try again.'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error generating competencies. Please try again.');
+            }
+        }
+        
+        function useAICompetencies() {
+            const checkboxes = document.querySelectorAll('#aiCompetenciesList input[type="checkbox"]:checked');
+            checkboxes.forEach(checkbox => {
+                if (!competencies.includes(checkbox.value)) {
+                    competencies.push(checkbox.value);
+                }
+            });
+            updateCompetenciesList();
+            generatePreview();
+            document.getElementById('aiCompetenciesContainer').style.display = 'none';
+        }
+        
+        function hideAICompetencies() {
+            document.getElementById('aiCompetenciesContainer').style.display = 'none';
+        }
+
+        // Capability Statement Import Functions
+        document.getElementById('capabilityUpload').addEventListener('click', function() {
+            document.getElementById('capabilityFile').click();
+        });
+        
+        document.getElementById('capabilityFile').addEventListener('change', function() {
+            if (this.files[0]) {
+                importCapabilityStatement();
+            }
+        });
+        
+        async function importCapabilityStatement() {
+            const fileInput = document.getElementById('capabilityFile');
+            const file = fileInput.files[0];
+            
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('capabilityFile', file);
+            
+            try {
+                const response = await fetch('/process-capability-statement', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    populateFormFromImport(result.data);
+                    alert('Capability statement imported successfully!');
+                } else {
+                    alert('Error importing capability statement: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error importing capability statement. Please try again.');
+            }
+        }
+        
+        async function importFromUrl() {
+            const url = document.getElementById('capabilityUrl').value;
+            
+            if (!url) {
+                alert('Please enter a URL');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/process-capability-statement', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    populateFormFromImport(result.data);
+                    alert('Capability statement imported from URL successfully!');
+                } else {
+                    alert('Error importing from URL: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error importing from URL. Please try again.');
+            }
+        }
+        
+        function populateFormFromImport(data) {
+            // Populate basic fields
+            Object.keys(data).forEach(key => {
+                const element = document.getElementById(key);
+                if (element && typeof data[key] === 'string') {
+                    element.value = data[key];
+                }
+            });
+            
+            // Populate arrays
+            if (data.competencies && Array.isArray(data.competencies)) {
+                competencies = data.competencies;
+                updateCompetenciesList();
+            }
+            if (data.differentiators && Array.isArray(data.differentiators)) {
+                differentiators = data.differentiators;
+                updateDifferentiatorsList();
+            }
+            if (data.naicsCodes && Array.isArray(data.naicsCodes)) {
+                naicsCodes = data.naicsCodes;
+                updateNAICSList();
+            }
+            if (data.certifications && Array.isArray(data.certifications)) {
+                certifications = data.certifications;
+                updateCertificationsList();
+            }
+            
+            generatePreview();
+        }
     </script>
 </body>
 </html>
