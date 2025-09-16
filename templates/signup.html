@@ -377,36 +377,6 @@
                     </div>
                 </div>
 
-                <!-- Account Type Section -->
-                <div class="form-section">
-                    <div class="form-section-title">
-                        <i class="fas fa-star me-2"></i>Account Type
-                    </div>
-                    
-                    <div class="form-group">
-                        <select class="form-select" name="account_type" required>
-                            <option value="">Select Account Type</option>
-                            <option value="CONTRACT_RADAR_MAXIMIZER_ESSENTIALS">Contract Radar Maximizer Essentials</option>
-                        </select>
-                    </div>
-                </div>
-
-                <!-- Access Level Section -->
-                <div class="billing-section">
-                    <div class="billing-title">
-                        <i class="fas fa-star me-2"></i>Access Level
-                    </div>
-                    
-                    <div class="billing-option selected" onclick="selectBilling('free')">
-                        <label class="billing-label" for="billing_free">
-                            <input class="billing-radio" type="radio" name="billing_period" id="billing_free" value="free" required checked>
-                            <div class="billing-text">
-                                Full Access - <span class="billing-price">FREE</span>
-                                <div style="font-size: 0.9rem; color: #6c757d; margin-top: 5px;">Always free, all features included</div>
-                            </div>
-                        </label>
-                    </div>
-                </div>
 
                 <!-- reCAPTCHA temporarily disabled for free access -->
                 <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response" value="disabled">
@@ -530,36 +500,12 @@
             }
         }
         
-        function selectBilling(plan) {
-            // Remove selected class from all options
-            document.querySelectorAll('.billing-option').forEach(option => {
-                option.classList.remove('selected');
-            });
-            
-            // Add selected class to clicked option
-            const selectedOption = document.querySelector(`#billing_${plan}`).closest('.billing-option');
-            selectedOption.classList.add('selected');
-            
-            // Check the radio button
-            document.getElementById(`billing_${plan}`).checked = true;
-        }
-        
         // Enhanced form submission with loading state
         document.addEventListener("DOMContentLoaded", function() {
             const form = document.getElementById("signup-form");
             const submitBtn = document.getElementById("signup-btn");
             const btnText = submitBtn.querySelector(".btn-text");
             const btnLoading = submitBtn.querySelector(".btn-loading");
-            
-            // Add click handlers for billing options
-            document.querySelectorAll('.billing-option').forEach(option => {
-                option.addEventListener('click', function() {
-                    const radio = this.querySelector('input[type="radio"]');
-                    if (radio) {
-                        selectBilling(radio.value);
-                    }
-                });
-            });
             
             // Handle form submission loading state
             if (form && submitBtn) {
@@ -568,13 +514,6 @@
                     btnText.classList.add("d-none");
                     btnLoading.classList.remove("d-none");
                 });
-            }
-            
-            // Pre-select billing option from URL parameter
-            const urlParams = new URLSearchParams(window.location.search);
-            const selectedBilling = urlParams.get("billing");
-            if (selectedBilling) {
-                selectBilling(selectedBilling);
             }
         });
     </script>

@@ -513,96 +513,6 @@
       }
     }
 
-    /* Fix Pricing compression on smaller screens */
-    @media (max-width: 600px) {
-      /* Make the "Pricing" title smaller, adjust rectangle width/padding */
-      .pricing-section {
-        width: 90% !important;
-      }
-      .pricing-section .section-title {
-        font-size: 32px !important;
-      }
-      .pricing-rectangle {
-        padding: 20px !important;
-      }
-      .pricing-rectangle h3 {
-        font-size: 28px !important;
-      }
-      .pricing-toggle-box button {
-        font-size: 14px !important;
-        padding: 8px 16px !important;
-      }
-      .pricing-checklist li {
-        font-size: 16px !important;
-      }
-    }
-
-    /* PRICING SECTION */
-    .pricing-rectangle {
-      background: #141B1E;
-      border-radius: 25px;
-      padding: 40px;
-      width: 90%;
-      max-width: 1000px;
-      margin: 50px auto;
-      color: #ffffff;
-      text-align: center;
-    }
-    .pricing-rectangle h3 { font-size: 40px; }
-    .pricing-toggle {
-      display: flex;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-    .pricing-toggle-box {
-      background: #232C30;
-      border-radius: 15px;
-      padding: 10px;
-      display: flex;
-      flex-direction: row;
-      gap: 10px;
-      width: auto;
-    }
-    .pricing-toggle-box button {
-      background: transparent;
-      border: 1px solid #ffffff;
-      color: #ffffff;
-      padding: 10px 20px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-      transition: background 0.3s, color 0.3s;
-    }
-    .pricing-toggle-box button.active {
-      background: #75BCE2;
-      color: #ffffff;
-    }
-    .pricing-info {
-      display: none;
-      margin-bottom: 20px;
-    }
-    .pricing-info.active {
-      display: block;
-    }
-    .pricing-checklist {
-      list-style: none;
-      padding: 0;
-      margin: 40px auto 60px;
-      text-align: left;
-      width: 70%;
-    }
-    .pricing-checklist li {
-      display: flex;
-      align-items: center;
-      margin-bottom: 20px;
-      font-size: 20px;
-      border: none;
-    }
-    .pricing-checklist li img {
-      width: 30px;
-      height: 30px;
-      margin-right: 10px;
-    }
 
     /* NAVBAR_OVERRIDES - Use consistent dark styling */
     .navbar-professional {
@@ -778,11 +688,6 @@
       transform: translateY(0);
     }
 
-    /* Interactive Hover Effects */
-    .pricing-toggle-box button:hover {
-      background: #649bb7; 
-      color: #ffffff;
-    }
     #learnMoreLink {
       display: inline-block;
       transition: transform 0.3s;
@@ -908,37 +813,6 @@
   </section>
 
 
-  <!-- PRICING SECTION -->
-  <section class="pricing-section scroll-animate" style="width: 80%;">
-    <h2 class="section-title" style="color: #000000; font-size: 50px;">Pricing</h2>
-    <div class="pricing-rectangle">
-      <div class="pricing-toggle">
-        <div class="pricing-toggle-box">
-          <button data-plan="weekly" class="active">Weekly</button>
-          <button data-plan="monthly">Monthly</button>
-          <button data-plan="yearly">Yearly</button>
-        </div>
-      </div>
-      <div id="pricing-weekly" class="pricing-info active">
-        <h3 style="color: #ffffff;">FREE</h3>
-      </div>
-      <div id="pricing-monthly" class="pricing-info">
-        <h3 style="color: #ffffff;">FREE</h3>
-      </div>
-      <div id="pricing-yearly" class="pricing-info">
-        <h3 style="color: #ffffff;">FREE</h3>
-        <span class="small-text" style="color: #ffffff;">(Always Free)</span>
-      </div>
-      <ul class="pricing-checklist">
-        <li><img src="./static/images/checkmarkIcon.png" alt="Checkmark">Top 5 Contract Matchmaking</li>
-        <li><img src="./static/images/checkmarkIcon.png" alt="Checkmark">AI Capability Statement Builder</li>
-        <li><img src="./static/images/checkmarkIcon.png" alt="Checkmark">AI Powered Smart Searching</li>
-        <li><img src="./static/images/checkmarkIcon.png" alt="Checkmark">Scope Of Work Station</li>
-        <li><img src="./static/images/checkmarkIcon.png" alt="Checkmark">Access to Federal, State, and local contracts</li>
-      </ul>
-      <a href="/signup" class="btn-demo-gradient" style="width: 70%; padding: 12px 30px;">Get Started Free</a>
-    </div>
-  </section>
 
   <br><br><br><br>
 
@@ -1051,31 +925,6 @@
     });
   </script>
 
-  <!-- PRICING TOGGLE SCRIPT -->
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const toggleButtons = document.querySelectorAll('.pricing-toggle button');
-      const pricingInfos = document.querySelectorAll('.pricing-info');
-
-      toggleButtons.forEach(button => {
-        button.addEventListener('click', function() {
-          // remove 'active' from all buttons
-          toggleButtons.forEach(btn => btn.classList.remove('active'));
-          // add 'active' to this one
-          this.classList.add('active');
-
-          const selectedPlan = this.getAttribute('data-plan');
-          pricingInfos.forEach(info => {
-            if (info.id === 'pricing-' + selectedPlan) {
-              info.classList.add('active');
-            } else {
-              info.classList.remove('active');
-            }
-          });
-        });
-      });
-    });
-  </script>
 
   <!-- SCROLL ANIMATION SCRIPT -->
   <script>
