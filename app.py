@@ -3515,11 +3515,36 @@ def Smartsearch():
         logging.info(f"✅ FREE ACCESS granted to /smartsearch for user {user_id} - Contract Radar Maximizer is completely free!")
 
         # ---------------------------------------------------------------------
-        # Step 4: Pull the user’s uploads directory (unchanged logic)
+        # Step 4: Pull the user's uploads directory with fallback creation
         # ---------------------------------------------------------------------
         user_uploads_dir = user_data.get('uploads_dir')
         if not user_uploads_dir:
-            return render_template('error.html', error="Uploads directory not found in user data.")
+            try:
+                app.logger.info(f"🔧 Creating missing uploads directory for user {user_id}")
+                user_uploads_dir = create_user_directory(user_id)
+                
+                # Update Firebase with the new uploads directory path
+                db.child("users").child(user_id).update({
+                    "uploads_dir": user_uploads_dir
+                }, user_logged_in['idToken'])
+                
+                app.logger.info(f"✅ Successfully created and updated uploads directory for user {user_id}: {user_uploads_dir}")
+            except Exception as e:
+                app.logger.error(f"❌ Failed to create uploads directory for user {user_id}: {e}")
+                return render_template('error.html', error="Unable to initialize user directory. Please contact support.")
+        
+        if not os.path.exists(user_uploads_dir):
+            app.logger.warning(f"⚠️ Directory path exists in Firebase but not on filesystem: {user_uploads_dir}")
+            try:
+                os.makedirs(user_uploads_dir, exist_ok=True)
+                # Copy embedded CSV file if it exists
+                embedded_csv_file = os.path.join(os.getcwd(), "embedded_bids.csv")
+                if os.path.exists(embedded_csv_file):
+                    shutil.copy(embedded_csv_file, user_uploads_dir)
+                app.logger.info(f"✅ Recreated missing directory: {user_uploads_dir}")
+            except Exception as e:
+                app.logger.error(f"❌ Failed to recreate directory {user_uploads_dir}: {e}")
+                return render_template('error.html', error="Directory initialization failed. Please contact support.")
 
         # ---------------------------------------------------------------------
         # NEW: Determine the company_name from capability_statements_processed.csv
