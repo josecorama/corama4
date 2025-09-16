@@ -450,18 +450,11 @@
         });
 
         function initializeDashboard() {
-            // Initialize metrics with sample data
+            // Initialize metrics with real data
             updateMetrics();
             
-            // Initialize charts
-            initializePipelineChart();
-            initializeTrendsChart();
-            
-            // Load recent activity
-            loadRecentActivity();
-            
-            // Load AI insights
-            loadAIInsights();
+            // Load contract listing
+            loadContractListing();
         }
 
         function updateMetrics() {
@@ -476,199 +469,14 @@
                 analyticsData.upcoming_deadlines || '--';
         }
 
-        function initializePipelineChart() {
-            const ctx = document.getElementById('pipelineChart');
-            if (!ctx) return;
-            
-            if (analyticsData.category_distribution && Object.keys(analyticsData.category_distribution).length > 0) {
-                const categoryData = analyticsData.category_distribution;
-                const categories = Object.keys(categoryData).slice(0, 5);
-                const counts = categories.map(cat => categoryData[cat]);
-                
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: categories,
-                        datasets: [{
-                            data: counts,
-                            backgroundColor: [
-                                '#28a745',
-                                '#ffc107',
-                                '#dc3545',
-                                '#17a2b8',
-                                '#6f42c1'
-                            ],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            } else {
-                new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Loading...'],
-                        datasets: [{
-                            data: [1],
-                            backgroundColor: ['#6c757d'],
-                            borderWidth: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: {
-                                position: 'bottom'
-                            }
-                        }
-                    }
-                });
-            }
-        }
 
-        function initializeTrendsChart() {
-            const ctx = document.getElementById('trendsChart');
-            if (!ctx) return;
-            
-            const currentProb = analyticsData.win_probability || 75;
-            const trendData = [
-                Math.max(0, currentProb - 10),
-                Math.max(0, currentProb - 8),
-                Math.max(0, currentProb - 5),
-                Math.max(0, currentProb - 3),
-                Math.max(0, currentProb - 1),
-                currentProb
-            ];
-            
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                    datasets: [{
-                        label: 'Win Probability %',
-                        data: trendData,
-                        borderColor: '#55889d',
-                        backgroundColor: 'rgba(85, 136, 157, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-        }
 
-        function loadRecentActivity() {
-            const activityContainer = document.getElementById('recentActivity');
-            if (!activityContainer) return;
-            
-            // Real activity data based on analytics
-            let activities = [];
-            if (analyticsData.top_categories && analyticsData.top_categories.length > 0) {
-                activities = [
-                    {
-                        icon: 'fas fa-chart-line',
-                        text: `${analyticsData.top_categories[0]} contracts available for bidding`,
-                        time: 'Updated today'
-                    },
-                    {
-                        icon: 'fas fa-bullseye',
-                        text: `${analyticsData.high_score_opportunities} high-score opportunities identified`,
-                        time: 'Updated today'
-                    },
-                    {
-                        icon: 'fas fa-clock',
-                        text: `${analyticsData.upcoming_deadlines} deadlines approaching within 30 days`,
-                        time: 'Updated today'
-                    }
-                ];
-            } else {
-                activities = [
-                    {
-                        icon: 'fas fa-user-plus',
-                        text: 'Welcome to Contract Radar Maximizer',
-                        time: 'Just now'
-                    },
-                    {
-                        icon: 'fas fa-info-circle',
-                        text: 'Upload your capability statement to get started',
-                        time: '1 minute ago'
-                    }
-                ];
-            }
 
-            activityContainer.innerHTML = activities.map(activity => 
-                '<div class="activity-item">' +
-                    '<div class="activity-icon">' +
-                        '<i class="' + activity.icon + '"></i>' +
-                    '</div>' +
-                    '<div class="activity-content">' +
-                        '<p class="activity-text">' + activity.text + '</p>' +
-                        '<span class="activity-time">' + activity.time + '</span>' +
-                    '</div>' +
-                '</div>'
-            ).join('');
-        }
-
-        function loadAIInsights() {
-            const insightsContainer = document.getElementById('aiInsights');
-            if (!insightsContainer) return;
-            
-            // Real AI insights based on analytics
-            const insights = [
-                {
-                    icon: 'fas fa-bullseye',
-                    text: `${analyticsData.high_score_opportunities} high-value contracts match your capability profile. Consider submitting proposals for maximum impact.`
-                },
-                {
-                    icon: 'fas fa-chart-line',
-                    text: `Current win probability is ${analyticsData.win_probability}%. ${analyticsData.top_categories && analyticsData.top_categories.length > 0 ? `Focus on ${analyticsData.top_categories[0]}${analyticsData.top_categories.length > 1 ? ` and ${analyticsData.top_categories[1]}` : ''} sectors for continued growth.` : 'Upload your capability statement to get personalized insights.'}`
-                },
-                {
-                    icon: 'fas fa-clock',
-                    text: `${analyticsData.upcoming_deadlines} proposal deadlines approaching within 30 days. Review and submit your applications promptly.`
-                }
-            ];
-
-            insightsContainer.innerHTML = insights.map(insight => 
-                '<div class="insight-item">' +
-                    '<div class="insight-icon">' +
-                        '<i class="' + insight.icon + '"></i>' +
-                    '</div>' +
-                    '<div class="insight-content">' +
-                        '<p>' + insight.text + '</p>' +
-                    '</div>' +
-                '</div>'
-            ).join('');
-        }
 
         // Function to refresh dashboard data
         function refreshDashboard() {
             updateMetrics();
-            loadRecentActivity();
-            loadAIInsights();
+            loadContractListing();
         }
 
         // Clear the CS Folder on page load
