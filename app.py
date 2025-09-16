@@ -1460,8 +1460,27 @@ def Login():
 
             # Retrieve user data from Firebase
             user_data = db.child("users").child(local_id).get(refreshed_user['idToken']).val()
-            account_type = user_data.get('account_type', '')
-            subscription_end_date = user_data.get('subscription_end_date', '')
+            
+            # Handle case where user exists in Firebase Auth but not in database
+            if user_data is None:
+                app.logger.warning(f"User {email} exists in Firebase Auth but not in database. Creating default user data.")
+                default_user_data = {
+                    "email": email,
+                    "account_type": "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS",
+                    "subscription_end_date": "9999-12-31",
+                    "is_stripe_customer": False,
+                    "first_name": email.split('@')[0],
+                    "last_name": "",
+                    "company": "",
+                    "username": email.split('@')[0]
+                }
+                
+                db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
+                user_data = default_user_data
+                app.logger.info(f"Created default user data for {email}")
+            
+            account_type = user_data.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
+            subscription_end_date = user_data.get('subscription_end_date', '9999-12-31')
             is_stripe_customer = user_data.get('is_stripe_customer', False)  
             stripe_customer_id = user_data.get('stripe_customer_id', None)
 
@@ -1510,7 +1529,11 @@ def create_user_directory(user_id):
         user_uploads_dir = os.path.join(uploads_dir, f'bid_uploads_{user_id}')
         if not os.path.exists(user_uploads_dir):
             os.makedirs(user_uploads_dir)
-            shutil.copy(embedded_csv_file, user_uploads_dir) #ADDING BIDS IN USER FOLDER 
+            # Copy embedded CSV file if it exists
+            if os.path.exists(embedded_csv_file):
+                shutil.copy(embedded_csv_file, user_uploads_dir) #ADDING BIDS IN USER FOLDER 
+            else:
+                app.logger.warning(f"embedded_csv_file not found: {embedded_csv_file}")
         return user_uploads_dir
     except Exception as e:
         app.logger.error(f"Error in creating user directory: {e}")
@@ -1687,24 +1710,34 @@ def Signup():
 
         except Exception as e:
             app.logger.exception(f"❌ ERROR: Signup failed for email {email}: {e}")
+            app.logger.error(f"❌ ERROR TYPE: {type(e)}")
+            app.logger.error(f"❌ ERROR ARGS: {e.args if hasattr(e, 'args') else 'No args'}")
+            app.logger.error(f"❌ ERROR STRING: {str(e)}")
 
             error_message = "An unexpected error occurred. Please try again."
 
-            if hasattr(e, 'args') and len(e.args) > 0:
-                try:
-                    error_detail = e.args[0]
-                    if isinstance(error_detail, str) and 'EMAIL_EXISTS' in error_detail:
-                        error_message = "The email you entered is already registered. Please log in instead."
-                    elif isinstance(error_detail, dict):
-                        firebase_error = error_detail.get('error', {}).get('message', '')
-                        if firebase_error == "EMAIL_EXISTS":
-                            error_message = "The email you entered is already registered. Please log in instead."
-                        elif firebase_error == "INVALID_EMAIL":
-                            error_message = "The email format is invalid. Please check your email."
-                        elif firebase_error == "WEAK_PASSWORD":
-                            error_message = "Password is too weak. Please choose a stronger password."
-                except Exception as parse_error:
-                    app.logger.warning(f"⚠️ Failed to parse Firebase error: {parse_error}")
+            error_str = str(e).upper()
+            if 'EMAIL_EXISTS' in error_str:
+                error_message = "This email is already registered. Please log in instead."
+                app.logger.info(f"✅ EMAIL_EXISTS error handled for {email}")
+            elif 'INVALID_EMAIL' in error_str:
+                error_message = "Invalid email format. Please check your email address."
+                app.logger.info(f"✅ INVALID_EMAIL error handled for {email}")
+            elif 'WEAK_PASSWORD' in error_str:
+                error_message = "Password is too weak. Please choose a stronger password (minimum 6 characters)."
+                app.logger.info(f"✅ WEAK_PASSWORD error handled for {email}")
+            elif 'INVALID_PASSWORD' in error_str:
+                error_message = "Invalid password format. Please check your password."
+                app.logger.info(f"✅ INVALID_PASSWORD error handled for {email}")
+            elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_str:
+                error_message = "Too many failed attempts. Please try again later."
+                app.logger.info(f"✅ TOO_MANY_ATTEMPTS error handled for {email}")
+            else:
+                app.logger.error(f"❌ UNHANDLED SIGNUP ERROR for {email}: {str(e)}")
+                if "400 Client Error" in str(e):
+                    error_message = "Account creation failed. Please check your information and try again."
+                else:
+                    error_message = "An unexpected error occurred during signup. Please try again."
 
             return render_template('signup.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
 
@@ -1872,59 +1905,10 @@ def Welcome():
         # Extract necessary user details
         company_name = user_data.get('company', 'No Company')
         first_name = user_data.get('first_name', 'User')
-        stripe_customer_id = user_data.get('stripe_customer_id')
-
-        # 🔄 Recover Stripe Customer ID if missing
-        if not stripe_customer_id:
-            logging.warning(f"User {user_id} missing stripe_customer_id. Attempting lookup via email: {email}")
-
-            try:
-                customers = stripe.Customer.list(email=email).data
-                if customers:
-                    stripe_customer_id = customers[0].id
-                    db.child("users").child(user_id).update(
-                        {"stripe_customer_id": stripe_customer_id},
-                        user_logged_in['idToken']
-                    )
-                    logging.info(f"✅ Recovered Stripe Customer ID: {stripe_customer_id}")
-                else:
-                    logging.error(f"❌ No Stripe customer found for email: {email}")
-                    return render_template('error.html', error="No linked Stripe account. Contact support.")
-            except Exception as stripe_error:
-                logging.error(f"❌ Stripe lookup error for {email}: {stripe_error}")
-                return render_template('error.html', error="Error validating subscription. Contact support.")
-
-        # 🛠 **Fix Stripe Subscription Load Issue with Automatic Retry**
-        MAX_RETRIES = 2
-        active_subscription_found = False
-
-        for attempt in range(MAX_RETRIES):
-            try:
-                subscriptions = stripe.Subscription.list(customer=stripe_customer_id).data
-                logging.info(f"🔍 Retrieved {len(subscriptions)} subscriptions for user {user_id} (Attempt {attempt+1})")
-
-                for sub in subscriptions:
-                    sub_status = sub.get('status')
-                    product_name = None
-
-                    if sub.get('items') and sub['items'].get('data'):
-                        product_id = sub['items']['data'][0]['plan']['product']
-                        product = stripe.Product.retrieve(product_id)
-                        product_name = product.get('name', 'Unknown Product')
-
-                    logging.info(f"📌 Subscription ID={sub.get('id')}, Status={sub_status}, Product={product_name}")
-
-                    # Contract Radar Maximizer is now FREE - skip subscription validation
-                    active_subscription_found = True
-                    logging.info(f"✅ FREE ACCESS granted to {user_id} - Contract Radar Maximizer is now completely free!")
-                    return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
-
-            except Exception as subscription_error:
-                logging.info(f"Subscription check skipped - FREE ACCESS granted to {user_id}")
-                return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
-
-        logging.info(f"✅ FREE ACCESS granted to user {user_id} - Contract Radar Maximizer is completely free!")
-        return render_template('welcome.html', company_name=company_name, first_name=first_name, stripe_customer_id=stripe_customer_id)
+        
+        # Contract Radar Maximizer is now completely FREE - no Stripe validation needed
+        logging.info(f"✅ FREE ACCESS granted to {user_id} - Contract Radar Maximizer is completely free!")
+        return render_template('welcome.html', company_name=company_name, first_name=first_name)
 
     except Exception as e:
         logging.exception(f"❌ Unexpected error in /welcome: {e}")
