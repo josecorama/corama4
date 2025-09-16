@@ -146,13 +146,15 @@
             <h3>Top Contract Categories</h3>
             <div class="category-grid">
                 {% if analytics and analytics.category_distribution %}
-                    {% for category, count in analytics.category_distribution.items()[:5] %}
+                    {% for category, count in analytics.category_distribution.items() %}
+                    {% if loop.index <= 5 %}
                     {% set percentage = ((count / analytics.total_contracts) * 100) | round(1) %}
                     <div class="category-card">
                         <div class="category-name">{{ category }}</div>
                         <div class="category-percentage">{{ percentage }}%</div>
                         <div class="category-count">{{ count }} contracts</div>
                     </div>
+                    {% endif %}
                     {% endfor %}
                 {% else %}
                     <div class="category-card">
