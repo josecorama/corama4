@@ -1918,12 +1918,17 @@ def Welcome():
         analytics_data = get_dashboard_metrics()
         logging.info(f"📊 Analytics data loaded: {analytics_data}")
         
+        page = request.args.get('page', 1, type=int)
+        items_per_page = 10  # Dashboard shows fewer items than smartsearch for better UX
+        
         # Contract Radar Maximizer is now completely FREE - no Stripe validation needed
         logging.info(f"✅ FREE ACCESS granted to {user_id} - Contract Radar Maximizer is completely free!")
         return render_template('welcome.html', 
                              company_name=company_name, 
                              first_name=first_name,
-                             analytics=analytics_data)
+                             analytics=analytics_data,
+                             current_page=page,
+                             items_per_page=items_per_page)
 
     except Exception as e:
         logging.exception(f"❌ Unexpected error in /welcome: {e}")
@@ -1939,27 +1944,48 @@ def Welcome():
 
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
-    """API endpoint to get contract data for the dashboard"""
+    """API endpoint to get contract data for the dashboard with pagination"""
     try:
         import pandas as pd
         csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
         df = pd.read_csv(csv_path)
         
-        # Convert to list of dictionaries
-        contracts = df.to_dict('records')
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        items_per_page = 10
         
-        return jsonify(contracts)
+        total_contracts = len(df)
+        total_pages = (total_contracts + items_per_page - 1) // items_per_page
+        start = (page - 1) * items_per_page
+        end = start + items_per_page
+        
+        # Get paginated contracts
+        paginated_df = df.iloc[start:end]
+        contracts = paginated_df.to_dict('records')
+        
+        return jsonify({
+            "contracts": contracts,
+            "total_contracts": total_contracts,
+            "current_page": page,
+            "total_pages": total_pages
+        })
     except Exception as e:
         logging.error(f"Error loading contracts: {e}")
-        return jsonify([
-            {
-                "bid_name": "City Infrastructure Improvement Project",
-                "category": "Construction",
-                "due_date": "2025-10-15",
-                "status": "active",
-                "bid_number": "BID-2025-001"
-            }
-        ])
+        return jsonify({
+            "contracts": [
+                {
+                    "bid_name": "City Infrastructure Improvement Project",
+                    "category": "Construction",
+                    "due_date": "2025-10-15",
+                    "status": "active",
+                    "bid_number": "BID-2025-001",
+                    "detail_link": "https://example.com/contract"
+                }
+            ],
+            "total_contracts": 1,
+            "current_page": 1,
+            "total_pages": 1
+        })
 
 @app.route('/ai-assistant')
 def ai_assistant_room():

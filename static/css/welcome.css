@@ -367,7 +367,7 @@ body {
 
 .table-header {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
     gap: 1rem;
     padding: 1rem;
     background: #f8f9fa;
@@ -389,7 +389,7 @@ body {
 
 .contract-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
     gap: 1rem;
     padding: 1rem;
     background: #fff;
@@ -581,6 +581,62 @@ body {
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+/* View Original Button Styling */
+.view-original-btn {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    display: inline-block;
+    min-width: 100px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.2);
+}
+
+.view-original-btn:hover {
+    background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    color: white;
+    text-decoration: none;
+}
+
+/* Pagination styling to match smartsearch */
+.pagination-container {
+    margin-top: 2rem;
+    padding: 1rem;
+}
+
+.pagination-container p {
+    color: #6c757d;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.pagination .page-link {
+    color: #667eea;
+    border-color: #dee2e6;
+    padding: 0.5rem 0.75rem;
+}
+
+.pagination .page-link:hover {
+    color: #5a6fd8;
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #667eea;
+    border-color: #667eea;
+    color: white;
 }
 
 /* Modal Footer Button Styling */

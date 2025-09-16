@@ -124,12 +124,23 @@
                     <div class="header-cell">Category</div>
                     <div class="header-cell">Due Date</div>
                     <div class="header-cell">Status</div>
-                    <div class="header-cell">Action</div>
+                    <div class="header-cell">AI Assistant</div>
+                    <div class="header-cell">View Original</div>
                 </div>
                 <div class="table-body" id="contractsTableBody">
                     <!-- Contract rows will be populated by JavaScript -->
                 </div>
             </div>
+        </div>
+
+        <!-- PAGINATION SECTION -->
+        <div class="pagination-container text-center" id="paginationContainer" style="display: none;">
+            <p id="paginationInfo">Total contracts: 0, Page 1 of 1</p>
+            <nav aria-label="Page navigation">
+                <ul class="pagination justify-content-center" id="paginationControls">
+                    <!-- Pagination buttons will be populated by JavaScript -->
+                </ul>
+            </nav>
         </div>
 
     </section>
@@ -441,15 +452,75 @@
 
         // Initialize dashboard with contract listing
         document.addEventListener('DOMContentLoaded', function() {
-            loadContractListing();
+            loadContractListing(1); // Start with page 1
         });
         
-        function loadContractListing() {
-            // Fetch contracts from the backend
-            fetch('/api/contracts')
+        function updatePagination(currentPage, totalPages, totalContracts) {
+            const paginationContainer = document.getElementById('paginationContainer');
+            const paginationInfo = document.getElementById('paginationInfo');
+            const paginationControls = document.getElementById('paginationControls');
+            
+            if (totalPages <= 1) {
+                paginationContainer.style.display = 'none';
+                return;
+            }
+            
+            paginationContainer.style.display = 'block';
+            paginationInfo.textContent = `Total contracts: ${totalContracts}, Page ${currentPage} of ${totalPages}`;
+            
+            // Build pagination controls
+            let paginationHTML = '';
+            
+            // First page button
+            if (currentPage > 1) {
+                paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadContractListing(1)"><<</a></li>`;
+            } else {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link"><<</span></li>`;
+            }
+            
+            // Previous page button
+            if (currentPage > 1) {
+                paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadContractListing(${currentPage - 1})"><</a></li>`;
+            } else {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link"><</span></li>`;
+            }
+            
+            // Page numbers (show up to 5 pages around current)
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            for (let p = startPage; p <= endPage; p++) {
+                if (p === currentPage) {
+                    paginationHTML += `<li class="page-item active"><span class="page-link">${p}</span></li>`;
+                } else {
+                    paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadContractListing(${p})">${p}</a></li>`;
+                }
+            }
+            
+            // Next page button
+            if (currentPage < totalPages) {
+                paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadContractListing(${currentPage + 1})">></a></li>`;
+            } else {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">></span></li>`;
+            }
+            
+            // Last page button
+            if (currentPage < totalPages) {
+                paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="loadContractListing(${totalPages})">>></a></li>`;
+            } else {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">>></span></li>`;
+            }
+            
+            paginationControls.innerHTML = paginationHTML;
+        }
+        
+        function loadContractListing(page = 1) {
+            // Fetch contracts from the backend with pagination
+            fetch(`/api/contracts?page=${page}`)
                 .then(response => response.json())
-                .then(contracts => {
-                    populateContractTable(contracts);
+                .then(data => {
+                    populateContractTable(data.contracts);
+                    updatePagination(data.current_page, data.total_pages, data.total_contracts);
                 })
                 .catch(error => {
                     console.error('Error loading contracts:', error);
@@ -460,9 +531,11 @@
                             category: "Construction",
                             due_date: "2025-10-15",
                             status: "active",
-                            bid_number: "BID-2025-001"
+                            bid_number: "BID-2025-001",
+                            detail_link: "https://example.com/contract"
                         }
                     ]);
+                    updatePagination(1, 1, 1);
                 });
         }
         
@@ -472,7 +545,7 @@
             
             tableBody.innerHTML = '';
             
-            contracts.slice(0, 20).forEach(contract => {
+            contracts.forEach(contract => {
                 const row = document.createElement('div');
                 row.className = 'contract-row';
                 
@@ -489,6 +562,11 @@
                     <div class="contract-cell">
                         <button class="select-contract-btn" onclick="selectContract('${contract.bid_number}', '${contract.bid_name}')">
                             Start AI Assistant
+                        </button>
+                    </div>
+                    <div class="contract-cell">
+                        <button class="view-original-btn" onclick="window.open('${contract.detail_link}', '_blank')">
+                            View Original
                         </button>
                     </div>
                 `;
