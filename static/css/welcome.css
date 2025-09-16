@@ -357,6 +357,11 @@ body {
     padding: 1.5rem;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     border: 1px solid #e0e6ed;
+    max-height: none;
+    overflow: visible;
+    position: relative;
+    z-index: 1;
+    min-height: auto;
 }
 
 .contract-listing h3 {
@@ -368,6 +373,8 @@ body {
 
 .contracts-table {
     width: 100%;
+    max-height: none;
+    overflow: visible;
 }
 
 .table-header {
@@ -390,6 +397,10 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    max-height: none;
+    overflow: visible;
+    position: static;
+    transform: none;
 }
 
 .contract-row {
@@ -402,6 +413,10 @@ body {
     border-radius: 8px;
     align-items: center;
     transition: background-color 0.2s ease;
+    position: static;
+    transform: none;
+    visibility: visible;
+    opacity: 1;
 }
 
 .contract-row:hover {
@@ -584,6 +599,26 @@ body {
     }
 }
 
+/* Main content section positioning */
+section {
+    position: relative;
+    z-index: 1;
+    min-height: auto;
+    overflow: visible;
+}
+
+/* Ensure main container doesn't clip content */
+.container, .container-fluid {
+    overflow: visible !important;
+    min-height: auto !important;
+}
+
+/* Fix viewport positioning for contract elements */
+body {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
 /* Loading overlay spinning effect */
 .rotating {
     animation: spin 2s linear infinite;
@@ -643,6 +678,13 @@ body {
 .pagination-container {
     margin-top: 2rem;
     padding: 1rem;
+    position: static;
+    z-index: 1;
+    background: white;
+    border-radius: 8px;
+    visibility: visible;
+    opacity: 1;
+    transform: none;
 }
 
 .pagination-container p {
