@@ -2445,7 +2445,7 @@ def upload_and_process():
         #    If you do not have that logic anymore, comment out or adapt as needed.
         # 
         #    Example (pseudo-code):
-        if selected_contract_types or selected_states:
+        if selected_contract_types or selected_states or not hash_value:
             # Example: re-run your Qdrant or RAG logic to produce “matches.csv”
             # (the same steps from your original upload_and_process).
             handler = CSQueryHandler(

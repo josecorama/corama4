@@ -23,10 +23,13 @@ class CSQueryHandler:
         self.collection_name = "Top_5_contracts_Vector_DB"
         self.user_upload_dir = user_upload_dir
         
-        # 测试连接
         try:
-            collection_info = self.qdrant_client.get_collection(self.collection_name)
-            print(f"Successfully connected to Qdrant. Collection info: {collection_info}")
+            collections = self.qdrant_client.get_collections()
+            collection_names = [c.name for c in collections.collections]
+            if self.collection_name in collection_names:
+                print(f"Successfully connected to Qdrant. Collection '{self.collection_name}' found.")
+            else:
+                print(f"Warning: Collection '{self.collection_name}' not found in available collections: {collection_names}")
         except Exception as e:
             print(f"Connection test failed: {str(e)}")
             raise
