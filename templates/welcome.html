@@ -63,55 +63,28 @@
 
     <!-- Enhanced Dashboard Section -->
     <section class="dashboard-section">
-        <!-- Dashboard Header -->
-        <div class="dashboard-header">
-            <h2 class="dashboard-title">Contract Analysis Dashboard</h2>
-            <p class="dashboard-subtitle">Your comprehensive contract intelligence center</p>
-            <!-- Debug: Analytics data check -->
-            {% if analytics %}
-            <small style="color: #666; font-size: 12px;">Analytics loaded: {{ analytics.total_contracts }} contracts analyzed</small>
-            {% else %}
-            <small style="color: #666; font-size: 12px;">No analytics data available</small>
-            {% endif %}
-        </div>
-
-        <!-- Analytics Overview Row -->
-        <div class="analytics-overview">
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-chart-line"></i>
-                </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="avgWinProbability">{{ analytics.win_probability if analytics else '--' }}{% if analytics and analytics.win_probability %}%{% endif %}</h3>
-                    <p class="metric-label">Avg Win Probability</p>
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-file-contract"></i>
-                </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="totalContracts">{{ analytics.total_contracts if analytics else '--' }}</h3>
-                    <p class="metric-label">Contracts Analyzed</p>
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="highScoreContracts">{{ analytics.high_score_opportunities if analytics else '--' }}</h3>
-                    <p class="metric-label">High-Score Opportunities</p>
-                </div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="upcomingDeadlines">{{ analytics.upcoming_deadlines if analytics else '--' }}</h3>
-                    <p class="metric-label">Upcoming Deadlines</p>
-                </div>
+        <!-- Top Contract Categories - Moved to very top -->
+        <div class="category-percentages">
+            <h3>Top Contract Categories</h3>
+            <div class="category-grid">
+                {% if analytics and analytics.category_distribution %}
+                    {% for category, count in analytics.category_distribution.items() %}
+                    {% if loop.index <= 5 %}
+                    {% set percentage = ((count / analytics.total_contracts) * 100) | round(1) %}
+                    <div class="category-card">
+                        <div class="category-name">{{ category }}</div>
+                        <div class="category-percentage">{{ percentage }}%</div>
+                        <div class="category-count">{{ count }} contracts</div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <div class="category-card">
+                        <div class="category-name">Construction</div>
+                        <div class="category-percentage">25%</div>
+                        <div class="category-count">15 contracts</div>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
@@ -141,30 +114,6 @@
             </div>
         </div>
 
-        <!-- Top Contract Categories -->
-        <div class="category-percentages">
-            <h3>Top Contract Categories</h3>
-            <div class="category-grid">
-                {% if analytics and analytics.category_distribution %}
-                    {% for category, count in analytics.category_distribution.items() %}
-                    {% if loop.index <= 5 %}
-                    {% set percentage = ((count / analytics.total_contracts) * 100) | round(1) %}
-                    <div class="category-card">
-                        <div class="category-name">{{ category }}</div>
-                        <div class="category-percentage">{{ percentage }}%</div>
-                        <div class="category-count">{{ count }} contracts</div>
-                    </div>
-                    {% endif %}
-                    {% endfor %}
-                {% else %}
-                    <div class="category-card">
-                        <div class="category-name">Construction</div>
-                        <div class="category-percentage">25%</div>
-                        <div class="category-count">15 contracts</div>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
 
         <!-- Contract Listing -->
         <div class="contract-listing">
@@ -452,23 +401,13 @@
         });
 
         function initializeDashboard() {
-            // Initialize metrics with real data
-            updateMetrics();
-            
             // Load contract listing
             loadContractListing();
         }
 
         function updateMetrics() {
-            // Update metric cards with real data from CSV analysis
-            document.getElementById('avgWinProbability').textContent = 
-                analyticsData.win_probability ? analyticsData.win_probability + '%' : '--';
-            document.getElementById('totalContracts').textContent = 
-                analyticsData.total_contracts || '--';
-            document.getElementById('highScoreContracts').textContent = 
-                analyticsData.high_score_opportunities || '--';
-            document.getElementById('upcomingDeadlines').textContent = 
-                analyticsData.upcoming_deadlines || '--';
+            // Metrics section removed - no longer needed
+            console.log('Analytics metrics section has been removed from dashboard');
         }
 
 
@@ -477,7 +416,6 @@
 
         // Function to refresh dashboard data
         function refreshDashboard() {
-            updateMetrics();
             loadContractListing();
         }
 
