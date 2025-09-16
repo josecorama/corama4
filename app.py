@@ -30,6 +30,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import ast
 import faiss
 import csv
+import json
 from pdf_class import create_pdf
 #from RAG.capability_statement_preprocessing import process_pdfs
 #from RAG.Capability_statement_embedding import generate_embeddings as generate_capability_embeddings
@@ -347,7 +348,7 @@ capability_processed_file = 'capability_statements_processed.csv'
 
 #CS GENERATION
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif', 'pdf'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'svg'}
 
 #CS GENERATION
 def handle_file_upload(file):
@@ -2848,6 +2849,187 @@ def enhanced_ai_assistant():
     except Exception as e:
         app.logger.error(f"Error in enhanced AI assistant: {str(e)}")
         return jsonify({"error": f"Enhanced AI assistant error: {str(e)}"}), 500
+
+@app.route('/capability-builder-enhanced')
+def capability_builder_enhanced():
+    if 'user_id' not in session:
+        return redirect(url_for('Login'))
+    return render_template('capability_builder_enhanced.html')
+
+@app.route('/save-capability-statement', methods=['POST'])
+def save_capability_statement():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        user_id = session['user_id']
+        data = request.get_json()
+        
+        # Save to Firebase
+        if db:
+            doc_ref = db.collection('capability_statements').document(user_id)
+            doc_ref.set({
+                'data': data,
+                'updated_at': firestore.SERVER_TIMESTAMP,
+                'user_id': user_id
+            })
+            
+        return jsonify({'success': True, 'message': 'Capability statement saved successfully'})
+        
+    except Exception as e:
+        logging.error(f"Error saving capability statement: {str(e)}")
+        return jsonify({'error': 'Failed to save capability statement'}), 500
+
+@app.route('/load-capability-statement', methods=['GET'])
+def load_capability_statement():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        user_id = session['user_id']
+        
+        # Load from Firebase
+        if db:
+            doc_ref = db.collection('capability_statements').document(user_id)
+            doc = doc_ref.get()
+            
+            if doc.exists:
+                return jsonify(doc.to_dict().get('data', {}))
+        
+        return jsonify({'error': 'No saved capability statement found'}), 404
+        
+    except Exception as e:
+        logging.error(f"Error loading capability statement: {str(e)}")
+        return jsonify({'error': 'Failed to load capability statement'}), 500
+
+@app.route('/generate-enhanced-pdf', methods=['POST'])
+def generate_enhanced_pdf():
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        user_id = session['user_id']
+        
+        # Create user directory if it doesn't exist
+        user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"user_{user_id}")
+        os.makedirs(user_upload_dir, exist_ok=True)
+        
+        # Handle file uploads
+        logo_path = None
+        image_path = None
+        
+        if 'logoFile' in request.files and request.files['logoFile'].filename:
+            logo_file = request.files['logoFile']
+            if allowed_file(logo_file.filename):
+                logo_filename = f"logo_{int(time.time())}_{logo_file.filename}"
+                logo_path = os.path.join(user_upload_dir, logo_filename)
+                logo_file.save(logo_path)
+        
+        if 'imageFile' in request.files and request.files['imageFile'].filename:
+            image_file = request.files['imageFile']
+            if allowed_file(image_file.filename):
+                image_filename = f"image_{int(time.time())}_{image_file.filename}"
+                image_path = os.path.join(user_upload_dir, image_filename)
+                image_file.save(image_path)
+        
+        # Collect form data
+        form_data = {}
+        for key, value in request.form.items():
+            if key.endswith('[]'):
+                base_key = key[:-2]
+                if base_key not in form_data:
+                    form_data[base_key] = []
+                form_data[base_key].append(value)
+            else:
+                form_data[key] = value
+        
+        # Process competencies, differentiators, etc. from JSON if present
+        try:
+            if 'competencies' in request.form:
+                form_data['competencies'] = json.loads(request.form['competencies'])
+            if 'differentiators' in request.form:
+                form_data['differentiators'] = json.loads(request.form['differentiators'])
+            if 'naicsCodes' in request.form:
+                form_data['naicsCodes'] = json.loads(request.form['naicsCodes'])
+            if 'certifications' in request.form:
+                form_data['certifications'] = json.loads(request.form['certifications'])
+        except json.JSONDecodeError:
+            pass
+        
+        colors = {
+            'blue': [(64, 64, 128), (192, 192, 255)],
+            'green': [(64, 128, 64), (192, 255, 192)],
+            'red': [(128, 64, 64), (255, 192, 192)],
+            'purple': [(128, 64, 128), (255, 192, 255)],
+            'orange': [(255, 140, 0), (255, 218, 185)],
+            'pink': [(206, 120, 120), (250, 188, 188)],
+        }
+        
+        formatted_data = {
+            'company_name': form_data.get('companyName', ''),
+            'logo_color': colors.get('blue', [(64, 64, 128), (192, 192, 255)]),
+            'logo_path': logo_path,
+            'image_path': image_path,
+            'uei_code': form_data.get('ueiCode', ''),
+            'cage_code': form_data.get('cageCode', ''),
+            'contact_name': form_data.get('contactName', ''),
+            'contact_title': form_data.get('contactTitle', ''),
+            'contact_phone': form_data.get('phone', ''),
+            'contact_email': form_data.get('email', ''),
+            'contact_address': form_data.get('address', ''),
+            'city': form_data.get('city', ''),
+            'state': form_data.get('state', ''),
+            'zip': form_data.get('zipCode', ''),
+            'contact_website': form_data.get('website', ''),
+            'company_description': form_data.get('companyDescription', ''),
+            'differentiators': form_data.get('differentiators', []),
+            'naics_codes': form_data.get('naicsCodes', []),
+            'core_competencies': form_data.get('competencies', []),
+            'certifications': form_data.get('certifications', []),
+            'qr_code_path': None,
+            'social_media': '',
+            'public_performance_logo_paths': [],
+            'private_performance': []
+        }
+        
+        # Add past performance data
+        if 'pastPerformanceClient' in form_data:
+            clients = form_data['pastPerformanceClient'] if isinstance(form_data['pastPerformanceClient'], list) else [form_data['pastPerformanceClient']]
+            values = form_data.get('pastPerformanceValue', [])
+            descriptions = form_data.get('pastPerformanceDescription', [])
+            
+            if not isinstance(values, list):
+                values = [values] if values else []
+            if not isinstance(descriptions, list):
+                descriptions = [descriptions] if descriptions else []
+            
+            # Ensure all lists are the same length
+            max_len = max(len(clients), len(values), len(descriptions))
+            clients.extend([''] * (max_len - len(clients)))
+            values.extend([''] * (max_len - len(values)))
+            descriptions.extend([''] * (max_len - len(descriptions)))
+            
+            formatted_data['private_performance'] = [
+                f"{client}: {desc} (Value: {value})" 
+                for client, desc, value in zip(clients, descriptions, values)
+                if client or desc or value
+            ]
+        
+        # Generate PDF
+        output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
+        output_path = os.path.join(user_upload_dir, output_filename)
+        
+        create_pdf(formatted_data, output_path)
+        
+        if not os.path.exists(output_path):
+            return jsonify({'error': 'PDF generation failed'}), 500
+        
+        # Return the PDF file
+        return send_file(output_path, as_attachment=True, download_name=f"{form_data.get('companyName', 'Company')}_Capability_Statement.pdf")
+        
+    except Exception as e:
+        logging.error(f"Error generating enhanced PDF: {str(e)}")
+        return jsonify({'error': 'Failed to generate PDF'}), 500
 
 @app.route('/upload_document', methods=['POST'])
 def upload_document():

@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced Capability Statement Builder - Contract Radar Maximizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --accent-color: #f093fb;
+            --text-dark: #2d3748;
+            --text-light: #718096;
+            --border-color: #e2e8f0;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--text-dark);
+        }
+
+        .main-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin: 2rem auto;
+            max-width: 1400px;
+            overflow: hidden;
+        }
+
+        .header-section {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .content-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 0;
+            min-height: 80vh;
+        }
+
+        .form-section {
+            padding: 2rem;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+
+        .preview-section {
+            background: #f8fafc;
+            border-left: 1px solid var(--border-color);
+            padding: 2rem;
+            overflow-y: auto;
+            max-height: 80vh;
+        }
+
+        .section-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .section-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .section-title {
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafbfc;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary-color);
+            background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary-color);
+            background: #e6f3ff;
+            transform: scale(1.02);
+        }
+
+        .form-control, .form-select {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+        }
+
+        .preview-content {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .preview-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--primary-color);
+        }
+
+        .preview-logo {
+            max-width: 150px;
+            max-height: 80px;
+            object-fit: contain;
+            margin-bottom: 1rem;
+        }
+
+        .competency-tag {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            margin: 0.25rem;
+        }
+
+        .differentiator-item {
+            background: #f8fafc;
+            border-left: 4px solid var(--primary-color);
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .auto-save-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--success-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .auto-save-indicator.show {
+            opacity: 1;
+        }
+
+        .tooltip-icon {
+            color: var(--text-light);
+            cursor: help;
+            margin-left: 0.5rem;
+        }
+
+        .required-field::after {
+            content: " *";
+            color: #e53e3e;
+        }
+
+        @media (max-width: 1200px) {
+            .content-wrapper {
+                grid-template-columns: 1fr;
+            }
+            
+            .preview-section {
+                border-left: none;
+                border-top: 1px solid var(--border-color);
+            }
+        }
+
+        .image-preview {
+            max-width: 200px;
+            max-height: 150px;
+            object-fit: contain;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .remove-image {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            font-size: 12px;
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            cursor: pointer;
+        }
+
+        .image-container {
+            position: relative;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="header-section">
+            <h1><i class="fas fa-file-alt"></i> Enhanced Capability Statement Builder</h1>
+            <p>Create professional capability statements with real-time preview and advanced features</p>
+        </div>
+
+        <div class="content-wrapper">
+            <div class="form-section">
+                <form id="capabilityForm">
+                    <!-- Company Information Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-building"></i>
+                            Company Information
+                        </h3>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required-field">Company Name</label>
+                                <input type="text" class="form-control" id="companyName" name="companyName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Website</label>
+                                <input type="url" class="form-control" id="website" name="website" placeholder="https://www.example.com">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required-field">Contact Name</label>
+                                <input type="text" class="form-control" id="contactName" name="contactName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Title</label>
+                                <input type="text" class="form-control" id="contactTitle" name="contactTitle">
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required-field">Phone</label>
+                                <input type="tel" class="form-control" id="phone" name="phone" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label required-field">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label required-field">Address</label>
+                            <input type="text" class="form-control" id="address" name="address" required>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required-field">City</label>
+                                <input type="text" class="form-control" id="city" name="city" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required-field">State</label>
+                                <input type="text" class="form-control" id="state" name="state" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label required-field">ZIP Code</label>
+                                <input type="text" class="form-control" id="zipCode" name="zipCode" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Logo Upload Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-image"></i>
+                            Company Logo & Images
+                        </h3>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Company Logo</label>
+                            <div class="upload-area" id="logoUpload">
+                                <i class="fas fa-cloud-upload-alt fa-2x mb-2"></i>
+                                <p>Drag & drop your logo here or click to browse</p>
+                                <small class="text-muted">Supports PNG, JPG, JPEG, GIF, SVG (Max 10MB)</small>
+                                <input type="file" id="logoFile" name="logoFile" accept="image/*" style="display: none;">
+                            </div>
+                            <div id="logoPreview"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Company Image (Optional)</label>
+                            <div class="upload-area" id="imageUpload">
+                                <i class="fas fa-image fa-2x mb-2"></i>
+                                <p>Add a company photo or facility image</p>
+                                <small class="text-muted">Supports PNG, JPG, JPEG, GIF (Max 10MB)</small>
+                                <input type="file" id="imageFile" name="imageFile" accept="image/*" style="display: none;">
+                            </div>
+                            <div id="imagePreview"></div>
+                        </div>
+                    </div>
+
+                    <!-- Company Description Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-align-left"></i>
+                            Company Description
+                            <i class="fas fa-question-circle tooltip-icon" title="Provide a compelling overview of your company's mission, vision, and core business activities"></i>
+                        </h3>
+                        
+                        <div class="mb-3">
+                            <textarea class="form-control" id="companyDescription" name="companyDescription" rows="4" 
+                                placeholder="Describe your company's mission, capabilities, and what sets you apart in the marketplace..."></textarea>
+                            <small class="text-muted">Recommended: 150-300 words</small>
+                        </div>
+                    </div>
+
+                    <!-- Core Competencies Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-cogs"></i>
+                            Core Competencies
+                            <i class="fas fa-question-circle tooltip-icon" title="List your company's primary areas of expertise and capabilities"></i>
+                        </h3>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Industry Focus</label>
+                            <select class="form-select" id="industryFocus" name="industryFocus">
+                                <option value="">Select Primary Industry</option>
+                                <option value="IT_SERVICES">Information Technology Services</option>
+                                <option value="CONSTRUCTION">Construction & Engineering</option>
+                                <option value="PROFESSIONAL_SERVICES">Professional Services</option>
+                                <option value="HEALTHCARE">Healthcare Services</option>
+                                <option value="LOGISTICS">Logistics & Transportation</option>
+                                <option value="MANUFACTURING">Manufacturing</option>
+                                <option value="CONSULTING">Management Consulting</option>
+                                <option value="RESEARCH">Research & Development</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Core Competencies</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="competencyInput" placeholder="Enter a core competency">
+                                <button type="button" class="btn btn-primary" onclick="addCompetency()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div id="competenciesList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Differentiators Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-star"></i>
+                            Key Differentiators
+                            <i class="fas fa-question-circle tooltip-icon" title="What makes your company unique? Highlight competitive advantages and unique value propositions"></i>
+                        </h3>
+                        
+                        <div class="mb-3">
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="differentiatorInput" placeholder="Enter a key differentiator">
+                                <button type="button" class="btn btn-primary" onclick="addDifferentiator()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div id="differentiatorsList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Codes Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-barcode"></i>
+                            Government Codes & Certifications
+                            <i class="fas fa-question-circle tooltip-icon" title="Required codes for government contracting eligibility"></i>
+                        </h3>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">UEI Code</label>
+                                <input type="text" class="form-control" id="ueiCode" name="ueiCode" placeholder="Unique Entity Identifier">
+                                <small class="text-muted">Required for federal contracts</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">CAGE Code</label>
+                                <input type="text" class="form-control" id="cageCode" name="cageCode" placeholder="Commercial and Government Entity Code">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">NAICS Codes</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="naicsInput" placeholder="Enter NAICS code and description (e.g., 541511: Custom Computer Programming Services)">
+                                <button type="button" class="btn btn-primary" onclick="addNAICS()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div id="naicsList"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Certifications</label>
+                            <div class="input-group mb-2">
+                                <input type="text" class="form-control" id="certificationInput" placeholder="Enter certification (e.g., ISO 9001:2015, SBA 8(a), HUBZone)">
+                                <button type="button" class="btn btn-primary" onclick="addCertification()">
+                                    <i class="fas fa-plus"></i> Add
+                                </button>
+                            </div>
+                            <div id="certificationsList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Past Performance Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-trophy"></i>
+                            Past Performance
+                            <i class="fas fa-question-circle tooltip-icon" title="Showcase relevant project experience and successful contract performance"></i>
+                        </h3>
+                        
+                        <div id="pastPerformanceList">
+                            <div class="past-performance-item mb-3 p-3 border rounded">
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label">Client/Agency</label>
+                                        <input type="text" class="form-control" name="pastPerformanceClient[]" placeholder="Client or agency name">
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label">Contract Value</label>
+                                        <input type="text" class="form-control" name="pastPerformanceValue[]" placeholder="$X.X million">
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <label class="form-label">Project Description</label>
+                                    <textarea class="form-control" name="pastPerformanceDescription[]" rows="2" placeholder="Brief description of work performed and outcomes achieved"></textarea>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-danger" onclick="removePastPerformance(this)">
+                                    <i class="fas fa-trash"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-secondary" onclick="addPastPerformance()">
+                            <i class="fas fa-plus"></i> Add Past Performance
+                        </button>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="section-card">
+                        <div class="d-flex gap-3 justify-content-between">
+                            <div>
+                                <button type="button" class="btn btn-secondary" onclick="saveCapabilityStatement()">
+                                    <i class="fas fa-save"></i> Save Draft
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="loadCapabilityStatement()">
+                                    <i class="fas fa-folder-open"></i> Load Draft
+                                </button>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-primary" onclick="generatePreview()">
+                                    <i class="fas fa-eye"></i> Update Preview
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="generatePDF()">
+                                    <i class="fas fa-file-pdf"></i> Generate PDF
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="preview-section">
+                <h3 class="mb-3"><i class="fas fa-eye"></i> Live Preview</h3>
+                <div class="preview-content" id="previewContent">
+                    <div class="preview-header">
+                        <div id="previewLogo"></div>
+                        <h2 id="previewCompanyName">Your Company Name</h2>
+                        <p id="previewContactInfo">Contact information will appear here</p>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <h4>Company Overview</h4>
+                        <p id="previewDescription">Company description will appear here...</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4>Core Competencies</h4>
+                        <div id="previewCompetencies">Competencies will appear here...</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4>Key Differentiators</h4>
+                        <div id="previewDifferentiators">Differentiators will appear here...</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4>Government Codes</h4>
+                        <div id="previewCodes">Codes and certifications will appear here...</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4>Past Performance</h4>
+                        <div id="previewPastPerformance">Past performance will appear here...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="auto-save-indicator" id="autoSaveIndicator">
+        <i class="fas fa-check"></i> Auto-saved
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let competencies = [];
+        let differentiators = [];
+        let naicsCodes = [];
+        let certifications = [];
+        let autoSaveTimer;
+
+        // Initialize tooltips
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize drag and drop
+            initializeDragAndDrop();
+            
+            // Initialize auto-save
+            initializeAutoSave();
+            
+            // Generate initial preview
+            generatePreview();
+        });
+
+        // Drag and drop functionality
+        function initializeDragAndDrop() {
+            const uploadAreas = document.querySelectorAll('.upload-area');
+            
+            uploadAreas.forEach(area => {
+                area.addEventListener('click', function() {
+                    const fileInput = this.querySelector('input[type="file"]');
+                    fileInput.click();
+                });
+
+                area.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('dragover');
+                });
+
+                area.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('dragover');
+                });
+
+                area.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.classList.remove('dragover');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        const fileInput = this.querySelector('input[type="file"]');
+                        fileInput.files = files;
+                        handleFileUpload(fileInput);
+                    }
+                });
+            });
+
+            // File input change handlers
+            document.getElementById('logoFile').addEventListener('change', function() {
+                handleFileUpload(this);
+            });
+
+            document.getElementById('imageFile').addEventListener('change', function() {
+                handleFileUpload(this);
+            });
+        }
+
+        // Handle file upload
+        function handleFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Validate file type
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('Please upload a valid image file (PNG, JPG, JPEG, GIF, SVG)');
+                return;
+            }
+
+            // Validate file size (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size must be less than 10MB');
+                return;
+            }
+
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const previewContainer = input.id === 'logoFile' ? 
+                    document.getElementById('logoPreview') : 
+                    document.getElementById('imagePreview');
+                
+                previewContainer.innerHTML = `
+                    <div class="image-container mt-2">
+                        <img src="${e.target.result}" class="image-preview" alt="Preview">
+                        <button type="button" class="remove-image" onclick="removeImage('${input.id}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                `;
+                
+                generatePreview();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Remove image
+        function removeImage(inputId) {
+            document.getElementById(inputId).value = '';
+            const previewContainer = inputId === 'logoFile' ? 
+                document.getElementById('logoPreview') : 
+                document.getElementById('imagePreview');
+            previewContainer.innerHTML = '';
+            generatePreview();
+        }
+
+        // Add competency
+        function addCompetency() {
+            const input = document.getElementById('competencyInput');
+            const value = input.value.trim();
+            
+            if (value && !competencies.includes(value)) {
+                competencies.push(value);
+                updateCompetenciesList();
+                input.value = '';
+                generatePreview();
+            }
+        }
+
+        // Update competencies list
+        function updateCompetenciesList() {
+            const container = document.getElementById('competenciesList');
+            container.innerHTML = competencies.map((comp, index) => `
+                <span class="competency-tag">
+                    ${comp}
+                    <button type="button" class="btn btn-sm ms-1" onclick="removeCompetency(${index})" style="background: none; border: none; color: white; padding: 0;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </span>
+            `).join('');
+        }
+
+        // Remove competency
+        function removeCompetency(index) {
+            competencies.splice(index, 1);
+            updateCompetenciesList();
+            generatePreview();
+        }
+
+        // Add differentiator
+        function addDifferentiator() {
+            const input = document.getElementById('differentiatorInput');
+            const value = input.value.trim();
+            
+            if (value && !differentiators.includes(value)) {
+                differentiators.push(value);
+                updateDifferentiatorsList();
+                input.value = '';
+                generatePreview();
+            }
+        }
+
+        // Update differentiators list
+        function updateDifferentiatorsList() {
+            const container = document.getElementById('differentiatorsList');
+            container.innerHTML = differentiators.map((diff, index) => `
+                <div class="differentiator-item">
+                    ${diff}
+                    <button type="button" class="btn btn-sm btn-danger float-end" onclick="removeDifferentiator(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Remove differentiator
+        function removeDifferentiator(index) {
+            differentiators.splice(index, 1);
+            updateDifferentiatorsList();
+            generatePreview();
+        }
+
+        // Add NAICS code
+        function addNAICS() {
+            const input = document.getElementById('naicsInput');
+            const value = input.value.trim();
+            
+            if (value && !naicsCodes.includes(value)) {
+                naicsCodes.push(value);
+                updateNAICSList();
+                input.value = '';
+                generatePreview();
+            }
+        }
+
+        // Update NAICS list
+        function updateNAICSList() {
+            const container = document.getElementById('naicsList');
+            container.innerHTML = naicsCodes.map((naics, index) => `
+                <div class="badge bg-secondary me-2 mb-2">
+                    ${naics}
+                    <button type="button" class="btn btn-sm ms-1" onclick="removeNAICS(${index})" style="background: none; border: none; color: white; padding: 0;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Remove NAICS
+        function removeNAICS(index) {
+            naicsCodes.splice(index, 1);
+            updateNAICSList();
+            generatePreview();
+        }
+
+        // Add certification
+        function addCertification() {
+            const input = document.getElementById('certificationInput');
+            const value = input.value.trim();
+            
+            if (value && !certifications.includes(value)) {
+                certifications.push(value);
+                updateCertificationsList();
+                input.value = '';
+                generatePreview();
+            }
+        }
+
+        // Update certifications list
+        function updateCertificationsList() {
+            const container = document.getElementById('certificationsList');
+            container.innerHTML = certifications.map((cert, index) => `
+                <div class="badge bg-success me-2 mb-2">
+                    ${cert}
+                    <button type="button" class="btn btn-sm ms-1" onclick="removeCertification(${index})" style="background: none; border: none; color: white; padding: 0;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Remove certification
+        function removeCertification(index) {
+            certifications.splice(index, 1);
+            updateCertificationsList();
+            generatePreview();
+        }
+
+        // Add past performance
+        function addPastPerformance() {
+            const container = document.getElementById('pastPerformanceList');
+            const newItem = document.createElement('div');
+            newItem.className = 'past-performance-item mb-3 p-3 border rounded';
+            newItem.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Client/Agency</label>
+                        <input type="text" class="form-control" name="pastPerformanceClient[]" placeholder="Client or agency name">
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label class="form-label">Contract Value</label>
+                        <input type="text" class="form-control" name="pastPerformanceValue[]" placeholder="$X.X million">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label">Project Description</label>
+                    <textarea class="form-control" name="pastPerformanceDescription[]" rows="2" placeholder="Brief description of work performed and outcomes achieved"></textarea>
+                </div>
+                <button type="button" class="btn btn-sm btn-danger" onclick="removePastPerformance(this)">
+                    <i class="fas fa-trash"></i> Remove
+                </button>
+            `;
+            container.appendChild(newItem);
+        }
+
+        // Remove past performance
+        function removePastPerformance(button) {
+            button.closest('.past-performance-item').remove();
+            generatePreview();
+        }
+
+        // Generate preview
+        function generatePreview() {
+            const companyName = document.getElementById('companyName').value || 'Your Company Name';
+            const contactName = document.getElementById('contactName').value;
+            const phone = document.getElementById('phone').value;
+            const email = document.getElementById('email').value;
+            const address = document.getElementById('address').value;
+            const city = document.getElementById('city').value;
+            const state = document.getElementById('state').value;
+            const zipCode = document.getElementById('zipCode').value;
+            const description = document.getElementById('companyDescription').value || 'Company description will appear here...';
+            const ueiCode = document.getElementById('ueiCode').value;
+            const cageCode = document.getElementById('cageCode').value;
+
+            // Update preview
+            document.getElementById('previewCompanyName').textContent = companyName;
+            
+            let contactInfo = [];
+            if (contactName) contactInfo.push(contactName);
+            if (phone) contactInfo.push(phone);
+            if (email) contactInfo.push(email);
+            if (address || city || state || zipCode) {
+                const fullAddress = [address, city, state, zipCode].filter(Boolean).join(', ');
+                if (fullAddress) contactInfo.push(fullAddress);
+            }
+            document.getElementById('previewContactInfo').textContent = contactInfo.join(' | ') || 'Contact information will appear here';
+
+            document.getElementById('previewDescription').textContent = description;
+
+            // Update logo
+            const logoFile = document.getElementById('logoFile').files[0];
+            const logoPreview = document.getElementById('previewLogo');
+            if (logoFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoPreview.innerHTML = `<img src="${e.target.result}" class="preview-logo" alt="Company Logo">`;
+                };
+                reader.readAsDataURL(logoFile);
+            } else {
+                logoPreview.innerHTML = '';
+            }
+
+            // Update competencies
+            const competenciesContainer = document.getElementById('previewCompetencies');
+            if (competencies.length > 0) {
+                competenciesContainer.innerHTML = competencies.map(comp => `<span class="competency-tag">${comp}</span>`).join('');
+            } else {
+                competenciesContainer.textContent = 'Competencies will appear here...';
+            }
+
+            // Update differentiators
+            const differentiatorsContainer = document.getElementById('previewDifferentiators');
+            if (differentiators.length > 0) {
+                differentiatorsContainer.innerHTML = differentiators.map(diff => `<div class="differentiator-item">${diff}</div>`).join('');
+            } else {
+                differentiatorsContainer.textContent = 'Differentiators will appear here...';
+            }
+
+            // Update codes
+            const codesContainer = document.getElementById('previewCodes');
+            let codesHTML = '';
+            if (ueiCode) codesHTML += `<p><strong>UEI:</strong> ${ueiCode}</p>`;
+            if (cageCode) codesHTML += `<p><strong>CAGE:</strong> ${cageCode}</p>`;
+            if (naicsCodes.length > 0) codesHTML += `<p><strong>NAICS:</strong> ${naicsCodes.join(', ')}</p>`;
+            if (certifications.length > 0) codesHTML += `<p><strong>Certifications:</strong> ${certifications.join(', ')}</p>`;
+            codesContainer.innerHTML = codesHTML || 'Codes and certifications will appear here...';
+
+            // Update past performance
+            const pastPerformanceInputs = document.querySelectorAll('[name="pastPerformanceClient[]"]');
+            const pastPerformanceContainer = document.getElementById('previewPastPerformance');
+            let pastPerformanceHTML = '';
+            
+            pastPerformanceInputs.forEach((input, index) => {
+                const client = input.value;
+                const value = document.querySelectorAll('[name="pastPerformanceValue[]"]')[index]?.value;
+                const description = document.querySelectorAll('[name="pastPerformanceDescription[]"]')[index]?.value;
+                
+                if (client || value || description) {
+                    pastPerformanceHTML += `
+                        <div class="mb-3 p-2 border-start border-primary border-3">
+                            ${client ? `<strong>${client}</strong>` : ''}
+                            ${value ? ` - ${value}` : ''}
+                            ${description ? `<br><small>${description}</small>` : ''}
+                        </div>
+                    `;
+                }
+            });
+            
+            pastPerformanceContainer.innerHTML = pastPerformanceHTML || 'Past performance will appear here...';
+        }
+
+        // Auto-save functionality
+        function initializeAutoSave() {
+            const form = document.getElementById('capabilityForm');
+            const inputs = form.querySelectorAll('input, textarea, select');
+            
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    clearTimeout(autoSaveTimer);
+                    autoSaveTimer = setTimeout(() => {
+                        autoSave();
+                        generatePreview();
+                    }, 2000);
+                });
+            });
+        }
+
+        // Auto-save function
+        function autoSave() {
+            const formData = collectFormData();
+            localStorage.setItem('capabilityStatementDraft', JSON.stringify(formData));
+            showAutoSaveIndicator();
+        }
+
+        // Show auto-save indicator
+        function showAutoSaveIndicator() {
+            const indicator = document.getElementById('autoSaveIndicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+
+        // Collect form data
+        function collectFormData() {
+            const formData = new FormData(document.getElementById('capabilityForm'));
+            const data = {};
+            
+            for (let [key, value] of formData.entries()) {
+                if (data[key]) {
+                    if (Array.isArray(data[key])) {
+                        data[key].push(value);
+                    } else {
+                        data[key] = [data[key], value];
+                    }
+                } else {
+                    data[key] = value;
+                }
+            }
+            
+            // Add arrays
+            data.competencies = competencies;
+            data.differentiators = differentiators;
+            data.naicsCodes = naicsCodes;
+            data.certifications = certifications;
+            
+            return data;
+        }
+
+        // Save capability statement
+        async function saveCapabilityStatement() {
+            const formData = collectFormData();
+            
+            try {
+                const response = await fetch('/save-capability-statement', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                if (response.ok) {
+                    alert('Capability statement saved successfully!');
+                } else {
+                    alert('Error saving capability statement. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error saving:', error);
+                alert('Error saving capability statement. Please try again.');
+            }
+        }
+
+        // Load capability statement
+        async function loadCapabilityStatement() {
+            try {
+                const response = await fetch('/load-capability-statement');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    populateForm(data);
+                    generatePreview();
+                    alert('Capability statement loaded successfully!');
+                } else {
+                    // Try loading from localStorage as fallback
+                    const draftData = localStorage.getItem('capabilityStatementDraft');
+                    if (draftData) {
+                        const data = JSON.parse(draftData);
+                        populateForm(data);
+                        generatePreview();
+                        alert('Draft loaded from local storage!');
+                    } else {
+                        alert('No saved capability statement found.');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading:', error);
+                alert('Error loading capability statement. Please try again.');
+            }
+        }
+
+        // Populate form with data
+        function populateForm(data) {
+            // Populate basic fields
+            Object.keys(data).forEach(key => {
+                const element = document.getElementById(key);
+                if (element && typeof data[key] === 'string') {
+                    element.value = data[key];
+                }
+            });
+            
+            // Populate arrays
+            if (data.competencies) {
+                competencies = data.competencies;
+                updateCompetenciesList();
+            }
+            if (data.differentiators) {
+                differentiators = data.differentiators;
+                updateDifferentiatorsList();
+            }
+            if (data.naicsCodes) {
+                naicsCodes = data.naicsCodes;
+                updateNAICSList();
+            }
+            if (data.certifications) {
+                certifications = data.certifications;
+                updateCertificationsList();
+            }
+        }
+
+        // Generate PDF
+        async function generatePDF() {
+            const formData = collectFormData();
+            
+            // Validate required fields
+            const requiredFields = ['companyName', 'contactName', 'phone', 'email', 'address', 'city', 'state', 'zipCode'];
+            const missingFields = requiredFields.filter(field => !formData[field]);
+            
+            if (missingFields.length > 0) {
+                alert(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+                return;
+            }
+            
+            try {
+                const response = await fetch('/generate-enhanced-pdf', {
+                    method: 'POST',
+                    body: new FormData(document.getElementById('capabilityForm'))
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${formData.companyName || 'Company'}_Capability_Statement.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                } else {
+                    alert('Error generating PDF. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error generating PDF:', error);
+                alert('Error generating PDF. Please try again.');
+            }
+        }
+
+        // Add event listeners for Enter key
+        document.getElementById('competencyInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCompetency();
+            }
+        });
+
+        document.getElementById('differentiatorInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addDifferentiator();
+            }
+        });
+
+        document.getElementById('naicsInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addNAICS();
+            }
+        });
+
+        document.getElementById('certificationInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCertification();
+            }
+        });
+    </script>
+</body>
+</html>
