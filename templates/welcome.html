@@ -82,7 +82,7 @@
                     <i class="fas fa-chart-line"></i>
                 </div>
                 <div class="metric-content">
-                    <h3 class="metric-value" id="avgWinProbability">{% if analytics and analytics.win_probability %}{{ analytics.win_probability }}%{% else %}--{% endif %}</h3>
+                    <h3 class="metric-value" id="avgWinProbability">{{ analytics.win_probability if analytics else '--' }}{% if analytics and analytics.win_probability %}%{% endif %}</h3>
                     <p class="metric-label">Avg Win Probability</p>
                 </div>
             </div>
@@ -91,7 +91,7 @@
                     <i class="fas fa-file-contract"></i>
                 </div>
                 <div class="metric-content">
-                    <h3 class="metric-value" id="totalContracts">{% if analytics and analytics.total_contracts %}{{ analytics.total_contracts }}{% else %}--{% endif %}</h3>
+                    <h3 class="metric-value" id="totalContracts">{{ analytics.total_contracts if analytics else '--' }}</h3>
                     <p class="metric-label">Contracts Analyzed</p>
                 </div>
             </div>
@@ -100,7 +100,7 @@
                     <i class="fas fa-trophy"></i>
                 </div>
                 <div class="metric-content">
-                    <h3 class="metric-value" id="highScoreContracts">{% if analytics and analytics.high_score_opportunities %}{{ analytics.high_score_opportunities }}{% else %}--{% endif %}</h3>
+                    <h3 class="metric-value" id="highScoreContracts">{{ analytics.high_score_opportunities if analytics else '--' }}</h3>
                     <p class="metric-label">High-Score Opportunities</p>
                 </div>
             </div>
@@ -109,7 +109,7 @@
                     <i class="fas fa-clock"></i>
                 </div>
                 <div class="metric-content">
-                    <h3 class="metric-value" id="upcomingDeadlines">{% if analytics and analytics.upcoming_deadlines %}{{ analytics.upcoming_deadlines }}{% else %}--{% endif %}</h3>
+                    <h3 class="metric-value" id="upcomingDeadlines">{{ analytics.upcoming_deadlines if analytics else '--' }}</h3>
                     <p class="metric-label">Upcoming Deadlines</p>
                 </div>
             </div>

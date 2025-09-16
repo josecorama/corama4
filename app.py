@@ -1916,6 +1916,7 @@ def Welcome():
         
         from csv_analytics import get_dashboard_metrics
         analytics_data = get_dashboard_metrics()
+        logging.info(f"📊 Analytics data loaded: {analytics_data}")
         
         # Contract Radar Maximizer is now completely FREE - no Stripe validation needed
         logging.info(f"✅ FREE ACCESS granted to {user_id} - Contract Radar Maximizer is completely free!")
