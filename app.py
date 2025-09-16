@@ -1444,6 +1444,9 @@ def Login():
         email = request.form.get('email')
         password = request.form.get('password')
         
+        app.logger.info("✅ FREE ACCESS - Skipping reCAPTCHA validation for Contract Radar Maximizer free users")
+        app.logger.info(f"🔐 Login attempt for email: {email}")
+        
         try:
             # Authenticate user with Firebase
             user = auth.sign_in_with_email_and_password(email, password)
@@ -1488,27 +1491,32 @@ def Login():
 
             session['is_subscriber'] = True  # Grant full access to all users
             session['is_logged_in'] = True
-            app.logger.info(f"User logged in successfully - FREE ACCESS granted to {email}")
+            app.logger.info(f"✅ User logged in successfully - FREE ACCESS granted to {email}")
             return redirect(url_for('Welcome'))
         
         except Exception as e:
-            app.logger.error(f"Login error: {e}")
+            app.logger.error(f"❌ Login error for {email}: {e}")
             app.logger.error(f"Login error type: {type(e)}")
             app.logger.error(f"Login error args: {e.args if hasattr(e, 'args') else 'No args'}")
             
             error_message = "Login failed. Check your email or password and try again."
             if 'EMAIL_NOT_FOUND' in str(e):
                 error_message = "This email is not registered. Please sign up first."
+                app.logger.info(f"✅ EMAIL_NOT_FOUND error handled for {email}")
             elif 'INVALID_PASSWORD' in str(e) or 'INVALID_LOGIN_CREDENTIALS' in str(e):
                 error_message = "Incorrect email or password. Please try again."
+                app.logger.info(f"✅ INVALID_LOGIN_CREDENTIALS error handled for {email}")
             elif 'USER_DISABLED' in str(e):
                 error_message = "This account has been disabled. Contact support for assistance."
+                app.logger.info(f"✅ USER_DISABLED error handled for {email}")
             elif 'INVALID_EMAIL' in str(e):
                 error_message = "Invalid email format. Please check your email address."
+                app.logger.info(f"✅ INVALID_EMAIL error handled for {email}")
             elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in str(e):
                 error_message = "Too many failed login attempts. Please try again later."
+                app.logger.info(f"✅ TOO_MANY_ATTEMPTS error handled for {email}")
             else:
-                app.logger.error(f"Unhandled login error: {str(e)}")
+                app.logger.error(f"❌ Unhandled login error for {email}: {str(e)}")
                 error_message = f"Login failed: {str(e)}"
             
             return render_template('login.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
