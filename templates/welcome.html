@@ -115,186 +115,72 @@
             </div>
         </div>
 
-        <!-- Main Dashboard Grid -->
-        <div class="dashboard-grid">
-            <!-- Quick Actions Panel -->
-            <div class="dashboard-card quick-actions-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-bolt"></i>
-                        Quick Actions
-                    </h3>
-                </div>
-                <div class="card-content">
-                    <div class="action-buttons">
-                        <button class="action-btn primary" onclick="window.location.href='/smartsearch'">
-                            <i class="fas fa-search"></i>
-                            <span>AI Smart Search</span>
-                        </button>
-                        <button class="action-btn secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                            <i class="fas fa-upload"></i>
-                            <span>Find Top 5 Contracts</span>
-                        </button>
-                        <button class="action-btn tertiary" onclick="window.location.href='/form'">
-                            <i class="fas fa-file-alt"></i>
-                            <span>Build Capability Statement</span>
-                        </button>
-                    </div>
-                </div>
+        <!-- Quick Actions Panel -->
+        <div class="dashboard-card quick-actions-card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <i class="fas fa-bolt"></i>
+                    Quick Actions
+                </h3>
             </div>
-
-            <!-- Contract Pipeline Chart -->
-            <div class="dashboard-card chart-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-chart-bar"></i>
-                        Contract Pipeline
-                    </h3>
-                </div>
-                <div class="card-content">
-                    <canvas id="pipelineChart" width="400" height="200"></canvas>
-                </div>
-            </div>
-
-            <!-- Recent Activity -->
-            <div class="dashboard-card activity-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-history"></i>
-                        Recent Activity
-                    </h3>
-                </div>
-                <div class="card-content">
-                    <div class="activity-list" id="recentActivity">
-                        {% if analytics and analytics.top_categories %}
-                            {% for category in analytics.top_categories[:3] %}
-                            <div class="activity-item">
-                                <div class="activity-icon">
-                                    <i class="fas fa-chart-line"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <p class="activity-text">{{ category }} contracts available for bidding</p>
-                                    <span class="activity-time">Updated today</span>
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                        <div class="activity-item">
-                            <div class="activity-icon">
-                                <i class="fas fa-search"></i>
-                            </div>
-                            <div class="activity-content">
-                                <p class="activity-text">Welcome to Contract Radar Maximizer</p>
-                                <span class="activity-time">Just now</span>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- Win Probability Trends -->
-            <div class="dashboard-card trends-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-trending-up"></i>
-                        Win Probability Trends
-                    </h3>
-                </div>
-                <div class="card-content">
-                    <canvas id="trendsChart" width="400" height="200"></canvas>
-                </div>
-            </div>
-
-            <!-- Top Opportunities -->
-            <div class="dashboard-card opportunities-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-star"></i>
-                        Top Opportunities
-                    </h3>
-                    <button class="card-action-btn" onclick="window.location.href='/smartsearch'">
-                        View All
+            <div class="card-content">
+                <div class="action-buttons">
+                    <button class="action-btn primary" onclick="window.location.href='/smartsearch'">
+                        <i class="fas fa-search"></i>
+                        <span>AI Smart Search</span>
                     </button>
-                </div>
-                <div class="card-content">
-                    <div class="opportunities-list" id="topOpportunities">
-                        {% if analytics.top_categories %}
-                        {% for category in analytics.top_categories[:3] %}
-                        <div class="opportunity-item">
-                            <div class="opportunity-info">
-                                <h4 class="opportunity-title">{{ category }} Opportunities</h4>
-                                <p class="opportunity-agency">{{ analytics.category_distribution[category] }} contracts available</p>
-                            </div>
-                            <div class="opportunity-score">
-                                <span class="score-badge">{{ (analytics.win_probability * 0.9) | round(0) | int }}%</span>
-                            </div>
-                        </div>
-                        {% endfor %}
-                        {% else %}
-                        <div class="opportunity-item">
-                            <div class="opportunity-info">
-                                <h4 class="opportunity-title">Upload your capability statement to see personalized opportunities</h4>
-                                <p class="opportunity-agency">Get started with AI-powered contract matching</p>
-                            </div>
-                            <div class="opportunity-score">
-                                <span class="score-badge">Start</span>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-
-            <!-- AI Insights -->
-            <div class="dashboard-card insights-card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="fas fa-brain"></i>
-                        AI Insights
-                    </h3>
-                </div>
-                <div class="card-content">
-                    <div class="insights-list" id="aiInsights">
-                        {% if analytics %}
-                        <div class="insight-item">
-                            <div class="insight-icon">
-                                <i class="fas fa-bullseye"></i>
-                            </div>
-                            <div class="insight-content">
-                                <p>{{ analytics.high_score_opportunities }} high-value contracts match your capability profile. Consider submitting proposals for maximum impact.</p>
-                            </div>
-                        </div>
-                        <div class="insight-item">
-                            <div class="insight-icon">
-                                <i class="fas fa-chart-line"></i>
-                            </div>
-                            <div class="insight-content">
-                                <p>Current win probability is {{ analytics.win_probability }}%. {% if analytics.top_categories %}Focus on {{ analytics.top_categories[0] }}{% if analytics.top_categories|length > 1 %} and {{ analytics.top_categories[1] }}{% endif %} sectors for continued growth.{% endif %}</p>
-                            </div>
-                        </div>
-                        <div class="insight-item">
-                            <div class="insight-icon">
-                                <i class="fas fa-clock"></i>
-                            </div>
-                            <div class="insight-content">
-                                <p>{{ analytics.upcoming_deadlines }} proposal deadlines approaching within 30 days. Review and submit your applications promptly.</p>
-                            </div>
-                        </div>
-                        {% else %}
-                        <div class="insight-item">
-                            <div class="insight-icon">
-                                <i class="fas fa-lightbulb"></i>
-                            </div>
-                            <div class="insight-content">
-                                <p>Upload your capability statement to get personalized AI insights.</p>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
+                    <button class="action-btn secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                        <i class="fas fa-upload"></i>
+                        <span>Find Top 5 Contracts</span>
+                    </button>
+                    <button class="action-btn tertiary" onclick="window.location.href='/form'">
+                        <i class="fas fa-file-alt"></i>
+                        <span>Build Capability Statement</span>
+                    </button>
                 </div>
             </div>
         </div>
+
+        <!-- Top Contract Categories -->
+        <div class="category-percentages">
+            <h3>Top Contract Categories</h3>
+            <div class="category-grid">
+                {% if analytics and analytics.category_distribution %}
+                    {% for category, count in analytics.category_distribution.items()[:5] %}
+                    {% set percentage = ((count / analytics.total_contracts) * 100) | round(1) %}
+                    <div class="category-card">
+                        <div class="category-name">{{ category }}</div>
+                        <div class="category-percentage">{{ percentage }}%</div>
+                        <div class="category-count">{{ count }} contracts</div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="category-card">
+                        <div class="category-name">Construction</div>
+                        <div class="category-percentage">25%</div>
+                        <div class="category-count">15 contracts</div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Contract Listing -->
+        <div class="contract-listing">
+            <h3>Available Contracts</h3>
+            <div class="contracts-table">
+                <div class="table-header">
+                    <div class="header-cell">Contract Name</div>
+                    <div class="header-cell">Category</div>
+                    <div class="header-cell">Due Date</div>
+                    <div class="header-cell">Status</div>
+                    <div class="header-cell">Action</div>
+                </div>
+                <div class="table-body" id="contractsTableBody">
+                    <!-- Contract rows will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
     </section>
 
     <!-- Loading Overlay -->
@@ -376,9 +262,6 @@
     
     <!-- Bootstrap JS Bundle (enables modals, etc.) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- Chart.js for dashboard analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Custom Scripts -->
     <script>
@@ -788,8 +671,88 @@
             loadAIInsights();
         }
 
-        // Auto-refresh dashboard every 5 minutes
-        setInterval(refreshDashboard, 300000);
+        // Clear the CS Folder on page load
+        function clearCSFolder() {
+            fetch('/clear_uploads', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('CS folder cleared:', data);
+            })
+            .catch(error => {
+                console.error('Error clearing CS folder:', error);
+            });
+        }
+
+        // Call the function when the page loads
+        clearCSFolder();
+
+        // Initialize dashboard with contract listing
+        document.addEventListener('DOMContentLoaded', function() {
+            loadContractListing();
+        });
+        
+        function loadContractListing() {
+            // Fetch contracts from the backend
+            fetch('/api/contracts')
+                .then(response => response.json())
+                .then(contracts => {
+                    populateContractTable(contracts);
+                })
+                .catch(error => {
+                    console.error('Error loading contracts:', error);
+                    // Show sample data if API fails
+                    populateContractTable([
+                        {
+                            bid_name: "City Infrastructure Improvement Project",
+                            category: "Construction",
+                            due_date: "2025-10-15",
+                            status: "active",
+                            bid_number: "BID-2025-001"
+                        }
+                    ]);
+                });
+        }
+        
+        function populateContractTable(contracts) {
+            const tableBody = document.getElementById('contractsTableBody');
+            if (!tableBody) return;
+            
+            tableBody.innerHTML = '';
+            
+            contracts.slice(0, 20).forEach(contract => {
+                const row = document.createElement('div');
+                row.className = 'contract-row';
+                
+                const dueDate = new Date(contract.due_date).toLocaleDateString();
+                const statusClass = contract.status === 'active' ? 'status-active' : 'status-open';
+                
+                row.innerHTML = `
+                    <div class="contract-cell contract-name">${contract.bid_name}</div>
+                    <div class="contract-cell contract-category">${contract.category}</div>
+                    <div class="contract-cell contract-due-date">${dueDate}</div>
+                    <div class="contract-cell">
+                        <span class="contract-status ${statusClass}">${contract.status}</span>
+                    </div>
+                    <div class="contract-cell">
+                        <button class="select-contract-btn" onclick="selectContract('${contract.bid_number}', '${contract.bid_name}')">
+                            Start AI Assistant
+                        </button>
+                    </div>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        function selectContract(bidNumber, bidName) {
+            // Navigate to AI assistant room with selected contract
+            window.location.href = `/ai-assistant?contract=${encodeURIComponent(bidNumber)}&name=${encodeURIComponent(bidName)}`;
+        }
     </script>
 
 

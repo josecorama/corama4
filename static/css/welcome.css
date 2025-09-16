@@ -351,12 +351,171 @@ body {
     min-width: 165px;
 }
 
+/* Category Percentages */
+.category-percentages {
+    margin-bottom: 2rem;
+}
+
+.category-percentages h3 {
+    margin: 0 0 1.5rem 0;
+    color: #2c3e50;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.category-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.category-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid #e0e6ed;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.category-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.category-name {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.category-percentage {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #3498db;
+    margin-bottom: 0.25rem;
+}
+
+.category-count {
+    color: #7f8c8d;
+    font-size: 0.85rem;
+}
+
+/* Contract Listing */
+.contract-listing {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid #e0e6ed;
+}
+
+.contract-listing h3 {
+    margin: 0 0 1.5rem 0;
+    color: #2c3e50;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.contracts-table {
+    width: 100%;
+}
+
+.table-header {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.header-cell {
+    font-size: 0.9rem;
+}
+
+.table-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.contract-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+    gap: 1rem;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.contract-row:hover {
+    background: #f8f9fa;
+}
+
+.contract-cell {
+    font-size: 0.9rem;
+}
+
+.contract-name {
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.contract-category {
+    color: #7f8c8d;
+}
+
+.contract-due-date {
+    color: #e74c3c;
+    font-weight: 500;
+}
+
+.contract-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.status-active {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-open {
+    background: #cce5ff;
+    color: #004085;
+}
+
+.select-contract-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.select-contract-btn:hover {
+    background: #2980b9;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
-    .dashboard-grid {
-        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    }
-    
     .analytics-overview {
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     }
@@ -375,14 +534,13 @@ body {
         font-size: 1rem;
     }
     
-    .dashboard-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
-    
     .analytics-overview {
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
         gap: 12px;
+    }
+    
+    .category-grid {
+        grid-template-columns: 1fr;
     }
     
     .metric-card {
@@ -412,6 +570,17 @@ body {
     .action-btn {
         padding: 12px 16px;
         font-size: 0.9rem;
+    }
+    
+    .table-header,
+    .contract-row {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .header-cell,
+    .contract-cell {
+        padding: 0.25rem 0;
     }
 }
 

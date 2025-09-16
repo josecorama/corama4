@@ -1937,6 +1937,43 @@ def Welcome():
 
 
 
+@app.route('/api/contracts', methods=['GET'])
+def get_contracts_api():
+    """API endpoint to get contract data for the dashboard"""
+    try:
+        import pandas as pd
+        csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+        df = pd.read_csv(csv_path)
+        
+        # Convert to list of dictionaries
+        contracts = df.to_dict('records')
+        
+        return jsonify(contracts)
+    except Exception as e:
+        logging.error(f"Error loading contracts: {e}")
+        return jsonify([
+            {
+                "bid_name": "City Infrastructure Improvement Project",
+                "category": "Construction",
+                "due_date": "2025-10-15",
+                "status": "active",
+                "bid_number": "BID-2025-001"
+            }
+        ])
+
+@app.route('/ai-assistant')
+def ai_assistant_room():
+    """AI Assistant room for bid response creation"""
+    contract_id = request.args.get('contract')
+    contract_name = request.args.get('name')
+    
+    if not contract_id:
+        return redirect('/welcome')
+    
+    return render_template('ai_assistant_room.html', 
+                         contract_id=contract_id,
+                         contract_name=contract_name)
+
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
 def Welcome2():
@@ -2707,6 +2744,50 @@ def enhanced_ai_assistant():
     except Exception as e:
         app.logger.error(f"Error in enhanced AI assistant: {str(e)}")
         return jsonify({"error": f"Enhanced AI assistant error: {str(e)}"}), 500
+
+@app.route('/upload_document', methods=['POST'])
+def upload_document():
+    """Upload document to user's profile for AI assistant use"""
+    try:
+        if 'user' not in session:
+            return jsonify({"error": "User not authenticated"}), 401
+            
+        user = session['user']
+        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        
+        if not user_data or 'uploads_dir' not in user_data:
+            return jsonify({"error": "User uploads directory not found"}), 400
+            
+        user_uploads_dir = user_data['uploads_dir']
+        
+        if 'file' not in request.files:
+            return jsonify({"error": "No file provided"}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+            
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(user_uploads_dir, filename)
+            file.save(file_path)
+            
+            documents_ref = db.child("users").child(user['localId']).child("documents")
+            document_data = {
+                'filename': filename,
+                'upload_date': datetime.now().isoformat(),
+                'file_path': file_path,
+                'file_type': filename.split('.')[-1].lower()
+            }
+            documents_ref.push(document_data, user['idToken'])
+            
+            return jsonify({"success": True, "filename": filename})
+        else:
+            return jsonify({"error": "File type not allowed"}), 400
+            
+    except Exception as e:
+        logging.error(f"Error uploading document: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/contract_analysis', methods=['POST'])
 def analyze_contract_endpoint():
@@ -4181,6 +4262,93 @@ def not_found_error(error):
 @app.errorhandler(500)
 def internal_error(error):
     return render_template('500.html'), 500
+
+
+@app.route('/api/contracts', methods=['GET'])
+def get_contracts_api():
+    """API endpoint to get contract data for the dashboard"""
+    try:
+        import pandas as pd
+        csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+        df = pd.read_csv(csv_path)
+        
+        # Convert to list of dictionaries
+        contracts = df.to_dict('records')
+        
+        return jsonify(contracts)
+    except Exception as e:
+        logging.error(f"Error loading contracts: {e}")
+        return jsonify([
+            {
+                "bid_name": "City Infrastructure Improvement Project",
+                "category": "Construction",
+                "due_date": "2025-10-15",
+                "status": "active",
+                "bid_number": "BID-2025-001"
+            }
+        ])
+
+@app.route('/ai-assistant')
+def ai_assistant_room():
+    """AI Assistant room for bid response creation"""
+    contract_id = request.args.get('contract')
+    contract_name = request.args.get('name')
+    
+    if not contract_id:
+        return redirect('/welcome')
+    
+    return render_template('ai_assistant_room.html', 
+                         contract_id=contract_id,
+                         contract_name=contract_name)
+
+@app.route('/upload_document', methods=['POST'])
+def upload_document():
+    """Upload document to user's profile"""
+    try:
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'User not authenticated'})
+        
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'})
+        
+        # Save file to user's directory
+        user_id = user['localId']
+        user_dir = os.path.join('uploads', f'user_{user_id}')
+        os.makedirs(user_dir, exist_ok=True)
+        
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(user_dir, filename)
+        file.save(file_path)
+        
+        try:
+            user_data = db.child("users").child(user_id).get(user['idToken']).val()
+            if not user_data:
+                user_data = {}
+            
+            if 'documents' not in user_data:
+                user_data['documents'] = []
+            
+            user_data['documents'].append({
+                'filename': filename,
+                'upload_date': datetime.now().isoformat(),
+                'file_path': file_path
+            })
+            
+            db.child("users").child(user_id).update(user_data, user['idToken'])
+            
+            return jsonify({'success': True, 'filename': filename})
+        except Exception as e:
+            logging.error(f"Error updating user documents: {e}")
+            return jsonify({'success': True, 'filename': filename})
+        
+    except Exception as e:
+        logging.error(f"Error uploading document: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))

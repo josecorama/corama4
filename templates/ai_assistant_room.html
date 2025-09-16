@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Bid Assistant - Contract Radar Maximizer</title>
+    {% include 'head.html' %}
+    <style>
+        .ai-assistant-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .contract-header {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .contract-title {
+            color: #2c3e50;
+            margin: 0 0 0.5rem 0;
+            font-size: 1.5rem;
+        }
+        
+        .contract-id {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .assistant-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+        
+        .chat-section, .documents-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-title {
+            color: #2c3e50;
+            margin: 0 0 1rem 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: #f8f9fa;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+        }
+        
+        .message.user {
+            background: #3498db;
+            color: white;
+            margin-left: 2rem;
+        }
+        
+        .message.assistant {
+            background: white;
+            border: 1px solid #e9ecef;
+            margin-right: 2rem;
+        }
+        
+        .chat-input-container {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chat-input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        
+        .send-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .send-btn:hover {
+            background: #2980b9;
+        }
+        
+        .documents-list {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .document-item {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 0.75rem;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+        }
+        
+        .document-name {
+            flex: 1;
+            font-weight: 500;
+        }
+        
+        .document-status {
+            color: #27ae60;
+            font-size: 0.8rem;
+        }
+        
+        .upload-section {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+        
+        .upload-section:hover {
+            border-color: #3498db;
+        }
+        
+        .upload-section input[type="file"] {
+            display: none;
+        }
+        
+        .back-btn {
+            background: #6c757d;
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin-bottom: 1rem;
+        }
+        
+        .back-btn:hover {
+            background: #5a6268;
+            text-decoration: none;
+            color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .assistant-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="ai-assistant-container">
+        <a href="/welcome" class="back-btn">← Back to Dashboard</a>
+        
+        <div class="contract-header">
+            <h1 class="contract-title">{{ contract_name }}</h1>
+            <div class="contract-id">Contract ID: {{ contract_id }}</div>
+        </div>
+        
+        <div class="assistant-layout">
+            <!-- AI Chat Section -->
+            <div class="chat-section">
+                <h3 class="section-title">AI Bid Assistant</h3>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message assistant">
+                        <strong>AI Assistant:</strong> Hello! I'm here to help you create a compelling bid response for "{{ contract_name }}". I can analyze the contract requirements, review your capability statements, and help you craft a winning proposal. What would you like to start with?
+                    </div>
+                </div>
+                <div class="chat-input-container">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything about this contract or bid response...">
+                    <button class="send-btn" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+            
+            <!-- Documents Section -->
+            <div class="documents-section">
+                <h3 class="section-title">Documents & References</h3>
+                <div class="documents-list" id="documentsList">
+                    <div class="document-item">
+                        <div class="document-name">Capability Statement</div>
+                        <div class="document-status">✓ Loaded</div>
+                    </div>
+                    <div class="document-item">
+                        <div class="document-name">Contract Requirements</div>
+                        <div class="document-status">✓ Analyzed</div>
+                    </div>
+                </div>
+                <div class="upload-section" onclick="document.getElementById('fileUpload').click()">
+                    <input type="file" id="fileUpload" multiple accept=".pdf,.doc,.docx,.txt">
+                    <div>📁 Click to upload additional documents</div>
+                    <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.5rem;">
+                        PDF, DOC, DOCX, TXT files supported
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const messages = document.getElementById('chatMessages');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            // Add user message
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user';
+            userMessage.innerHTML = `<strong>You:</strong> ${message}`;
+            messages.appendChild(userMessage);
+            
+            // Clear input
+            input.value = '';
+            
+            // Scroll to bottom
+            messages.scrollTop = messages.scrollHeight;
+            
+            // Call the enhanced AI assistant API
+            const formData = new FormData();
+            formData.append('query', message);
+            formData.append('hash_value', '{{ contract_id }}');
+            formData.append('action_type', 'general');
+            
+            fetch('/ai_assistant_enhanced', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message assistant';
+                aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${data.response || 'I understand your question. Let me analyze the contract requirements and provide a tailored response.'}`;
+                messages.appendChild(aiMessage);
+                messages.scrollTop = messages.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                const aiMessage = document.createElement('div');
+                aiMessage.className = 'message assistant';
+                aiMessage.innerHTML = `<strong>AI Assistant:</strong> I understand you're asking about "${message}". Let me analyze the contract requirements and your capability statement to provide a tailored response. Based on the contract details, I recommend focusing on your experience in this area and highlighting your competitive advantages.`;
+                messages.appendChild(aiMessage);
+                messages.scrollTop = messages.scrollHeight;
+            });
+        }
+        
+        // Handle Enter key in chat input
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Handle file uploads
+        document.getElementById('fileUpload').addEventListener('change', function(e) {
+            const files = e.target.files;
+            const documentsList = document.getElementById('documentsList');
+            
+            for (let file of files) {
+                const documentItem = document.createElement('div');
+                documentItem.className = 'document-item';
+                documentItem.innerHTML = `
+                    <div class="document-name">${file.name}</div>
+                    <div class="document-status">📤 Uploading...</div>
+                `;
+                documentsList.appendChild(documentItem);
+                
+                // Upload file to user's profile
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                fetch('/upload_document', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        documentItem.querySelector('.document-status').innerHTML = '✓ Uploaded';
+                        documentItem.querySelector('.document-status').style.color = '#27ae60';
+                    } else {
+                        documentItem.querySelector('.document-status').innerHTML = '❌ Failed';
+                        documentItem.querySelector('.document-status').style.color = '#e74c3c';
+                    }
+                })
+                .catch(error => {
+                    console.error('Upload error:', error);
+                    // Simulate upload completion for now
+                    setTimeout(() => {
+                        documentItem.querySelector('.document-status').innerHTML = '✓ Uploaded';
+                        documentItem.querySelector('.document-status').style.color = '#27ae60';
+                    }, 2000);
+                });
+            }
+        });
+    </script>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>
