@@ -40,6 +40,33 @@
             font-family: 'Inter', sans-serif;
         }
         
+        /* Resize navbar logos to appropriate dimensions for this page */
+        .navbar-logo {
+            height: 24px !important;
+            width: auto !important;
+            max-width: 120px !important;
+        }
+        
+        .ihcc-logo {
+            height: 20px !important;
+            width: auto !important;
+            max-width: 80px !important;
+        }
+        
+        /* Ensure navbar doesn't take up too much space */
+        .navbar-professional {
+            padding: 0.5rem 0 !important;
+        }
+        
+        /* Additional logo size constraints for any other logo elements */
+        img[src*="Logoypo.png"],
+        img[src*="IHCC_logo"] {
+            max-height: 24px !important;
+            max-width: 120px !important;
+            height: auto !important;
+            width: auto !important;
+        }
+        
         .results-container {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
