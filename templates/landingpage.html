@@ -514,6 +514,85 @@
     }
 
 
+    /* AI FEATURES GRID */
+    .ai-features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 30px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    
+    .ai-feature-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      text-align: center;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .ai-feature-card:hover {
+      transform: translateY(-10px);
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .ai-feature-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #75BCE2, #4A90E2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+      font-size: 32px;
+      color: white;
+    }
+    
+    .ai-feature-card h3 {
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+    
+    .ai-feature-card p {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 0;
+    }
+    
+    @media (max-width: 768px) {
+      .ai-features-grid {
+        grid-template-columns: 1fr;
+        gap: 20px;
+        padding: 0 15px;
+      }
+      
+      .ai-feature-card {
+        padding: 25px;
+      }
+      
+      .ai-feature-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 24px;
+      }
+      
+      .ai-feature-card h3 {
+        font-size: 20px;
+      }
+      
+      .ai-feature-card p {
+        font-size: 14px;
+      }
+    }
+
     /* NAVBAR_OVERRIDES - Use consistent dark styling */
     .navbar-professional {
       position: fixed;
@@ -783,20 +862,65 @@
     </div>
   </section>
 
-  <!-- KEY FEATURES SECTION (White Background) -->
+  <!-- AI-POWERED FEATURES SECTION -->
   <section id="key-features-black" style="background: #0f172a !important; padding: 80px 0; width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); position: relative; z-index: 10;">
     <div class="container" style="text-align: center; background: transparent;">
-      <h2 style="color: #e2e8f0; font-size: 50px; font-family: 'Inter', sans-serif; font-weight: 700; margin-bottom: 20px;">KEY FEATURES</h2>
+      <h2 style="color: #e2e8f0; font-size: 50px; font-family: 'Inter', sans-serif; font-weight: 700; margin-bottom: 20px;">AI-POWERED FEATURES</h2>
       <p style="color: #94a3b8; font-size: 20px; max-width: 800px; margin: 0 auto 50px;">
-        From finding the right opportunities to managing submissions, our AI-powered platform
-        streamlines the government contracting process for businesses of all sizes.
+        Harness the power of artificial intelligence to revolutionize your government contracting success
       </p>
     </div>
   
-    <!-- Features Grid -->
+    <!-- AI Features Grid -->
     <div class="container" style="background: transparent !important; position: relative; z-index: 11;">
-      <div class="row justify-content-center" style="max-width: 1200px; margin: 0 auto;">
-        <!-- Feature icons removed as requested -->
+      <div class="ai-features-grid">
+        <div class="ai-feature-card">
+          <div class="ai-feature-icon">
+            <i class="fas fa-brain"></i>
+          </div>
+          <h3>Smart Contract Matching</h3>
+          <p>Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.</p>
+        </div>
+        
+        <div class="ai-feature-card">
+          <div class="ai-feature-icon">
+            <i class="fas fa-robot"></i>
+          </div>
+          <h3>Automated Proposal Generation</h3>
+          <p>Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.</p>
+        </div>
+        
+        <div class="ai-feature-card">
+          <div class="ai-feature-icon">
+            <i class="fas fa-shield-alt"></i>
+          </div>
+          <h3>Compliance Intelligence</h3>
+          <p>Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.</p>
+        </div>
+        
+        <div class="ai-feature-card">
+          <div class="ai-feature-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <h3>Win Probability Scoring</h3>
+          <p>Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.</p>
+        </div>
+        
+        <div class="ai-feature-card">
+          <div class="ai-feature-icon">
+            <i class="fas fa-search-plus"></i>
+          </div>
+          <h3>Intelligent Market Research</h3>
+          <p>Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.</p>
+        </div>
+        
+        <div class="ai-feature-card">
+          <div class="ai-feature-icon">
+            <i class="fas fa-clock"></i>
+          </div>
+          <h3>Smart Deadline Management</h3>
+          <p>Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.</p>
+        </div>
       </div>
     </div>
   </section>

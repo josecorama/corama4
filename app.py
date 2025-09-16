@@ -1474,13 +1474,24 @@ def Login():
         
         except Exception as e:
             app.logger.error(f"Login error: {e}")
+            app.logger.error(f"Login error type: {type(e)}")
+            app.logger.error(f"Login error args: {e.args if hasattr(e, 'args') else 'No args'}")
+            
             error_message = "Login failed. Check your email or password and try again."
             if 'EMAIL_NOT_FOUND' in str(e):
                 error_message = "This email is not registered. Please sign up first."
-            elif 'INVALID_PASSWORD' in str(e):
-                error_message = "Incorrect password. Please try again."
+            elif 'INVALID_PASSWORD' in str(e) or 'INVALID_LOGIN_CREDENTIALS' in str(e):
+                error_message = "Incorrect email or password. Please try again."
             elif 'USER_DISABLED' in str(e):
                 error_message = "This account has been disabled. Contact support for assistance."
+            elif 'INVALID_EMAIL' in str(e):
+                error_message = "Invalid email format. Please check your email address."
+            elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in str(e):
+                error_message = "Too many failed login attempts. Please try again later."
+            else:
+                app.logger.error(f"Unhandled login error: {str(e)}")
+                error_message = f"Login failed: {str(e)}"
+            
             return render_template('login.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
     
     return render_template('login.html', RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
