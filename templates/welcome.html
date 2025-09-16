@@ -343,7 +343,14 @@
               }
               const file = fileInput.files[0];
               if (!file) {
-                  alert("Please select a PDF before uploading.");
+                  alert("Please select a file before uploading.");
+                  return;
+              }
+              
+              // Check file type
+              const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+              if (!allowedTypes.includes(file.type)) {
+                  alert("Please select a PDF, JPG, PNG, or JPEG file.");
                   return;
               }
               const formData = new FormData();
@@ -364,13 +371,13 @@
                   if (data.success) {
                       window.location.href = '/contracts';
                   } else {
-                      alert('Error: ' + data.message);
+                      alert('Upload Error: ' + data.message);
                       document.getElementById('loadingOverlay').style.display = 'none';
                   }
               })
               .catch(error => {
                   console.error('Error:', error);
-                  alert('An error occurred while uploading the file.');
+                  alert('Network error occurred while uploading the file. Please check your connection and try again.');
                   document.getElementById('loadingOverlay').style.display = 'none';
               });
           });

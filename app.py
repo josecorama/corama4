@@ -2354,8 +2354,10 @@ def upload_and_process():
 
     # 1) Grab the file from the form
     file = request.files.get('file')
-    if not file or not allowed_file(file.filename):
-        return jsonify({"success": False, "message": "Invalid or missing file (must be .pdf)."})
+    if not file:
+        return jsonify({"success": False, "message": "No file selected. Please choose a file to upload."})
+    if not allowed_file(file.filename):
+        return jsonify({"success": False, "message": "Invalid file type. Please upload a PDF, JPG, PNG, or JPEG file."})
     
     try:
         # 2) Determine if user selected "federal"/"state" or passed a hash_value from the modal
