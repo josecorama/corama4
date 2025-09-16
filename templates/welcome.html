@@ -10,169 +10,11 @@
 
     <head>
         <style>
-            /* 🔹 Reset default margin and padding */
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-
+            /* Enhanced Dashboard Styles - Inline for immediate loading */
             body {
-                font-family: var(--font-family);
-                background: var(--background-primary);
-                color: var(--text-secondary);
-            }
-
-            /* 🔹 Background section */
-            .background-section {
-                width: 100%;
-                min-height: 600px;
-                background: var(--background-card);
-                border: 1px solid var(--border-color);
-                border-radius: 24px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                padding: var(--spacing-lg);
-                margin: 2rem auto;
-                backdrop-filter: blur(20px);
-                box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            }
-
-            /* 🔹 Wrapper to align items */
-            .container-wrapper {
-                display: flex;
-                justify-content: space-between;
-                width: 900px;
-                gap: 20px;
-            }
-
-            /* 🔹 Individual Boxes */
-            .container-box {
-                width: 280px;
-                height: 400px;
-                background: rgba(255, 255, 255, 0.8);
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-                padding: 20px;
-                border-radius: 10px;
-                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-                justify-content: space-between;
-            }
-
-            .container-box img {
-                width: 70px;
-                height: 70px;
-                border-radius: 10px;
-                object-fit: cover;
-            }
-
-            .container-box h2 {
-                font-size: 20px;
-                font-weight: 700;
-                color: #002f49;
-                text-transform: uppercase;
-                margin-top: 15px;
-            }
-
-            .container-box p {
-                font-size: 18px;
-                font-weight: 400;
-                color: #55666d;
-                margin-top: 10px;
-                line-height: 1.5;
-                flex-grow: 1;
-            }
-
-            .container-box button {
-                margin-top: auto;
-                align-self: center;
-                width: 80%;
-                font-size: 1rem;
-                padding: 10px 20px;
-            }
-
-            .useButtonLightBlue{
-                white-space: nowrap;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-width: 165px;
-            }
-
-            /* 🔹 Responsive Design */
-            @media (max-width: 1200px) {
-                .container-wrapper {
-                    flex-wrap: wrap;
-                    justify-content: center;
-                    gap: var(--spacing-md);
-                }
-                
-                .container-box {
-                    width: 45%;
-                    min-width: 280px;
-                }
-            }
-            
-            @media (max-width: 768px) {
-                .background-section {
-                    min-height: auto;
-                    padding: var(--spacing-xl) var(--spacing-md);
-                }
-
-                .container-wrapper {
-                    flex-direction: column;
-                    align-items: center;
-                    width: 100%;
-                    gap: var(--spacing-lg);
-                }
-
-                .container-box {
-                    width: 100%;
-                    max-width: 350px;
-                    height: auto;
-                    padding: var(--spacing-lg);
-                }
-
-                .container-box img {
-                    width: 60px;
-                    height: 60px;
-                }
-
-                .container-box h2 {
-                    font-size: var(--font-size-lg);
-                }
-
-                .container-box p {
-                    font-size: var(--font-size-sm);
-                }
-
-                .container-box button {
-                    width: 100%;
-                    font-size: var(--font-size-sm);
-                    padding: var(--spacing-sm) var(--spacing-md);
-                }
-            }
-            
-            @media (max-width: 480px) {
-                .background-section {
-                    padding: var(--spacing-lg) var(--spacing-sm);
-                }
-                
-                .container-box {
-                    max-width: 100%;
-                    padding: var(--spacing-md);
-                }
-                
-                .container-box h2 {
-                    font-size: var(--font-size-base);
-                }
-                
-                .container-box p {
-                    font-size: var(--font-size-xs);
-                }
+                font-family: 'Jost', sans-serif;
+                background: #f8f9fa;
+                color: #333;
             }
 
             /* Loading overlay spinning effect */
@@ -184,14 +26,36 @@
                 100% { transform: rotate(360deg); }
             }
 
-            /* 
-               🔹 Make the .btn-secondary in the modal footer the same size 
-               as your .useButtonLightBlue. 
-            */
+            /* Modal footer button styling */
             .modal-footer .btn.btn-secondary {
-                padding: 10px 20px !important;  /* matches .useButtonLightBlue's padding */
-                font-size: 1rem !important;     /* matches .useButtonLightBlue's font-size */
-                border-radius: 5px !important;  /* adjust this if needed */
+                padding: 10px 20px !important;
+                font-size: 1rem !important;
+                border-radius: 5px !important;
+            }
+
+            /* Ensure useButtonLightBlue compatibility */
+            .useButtonLightBlue {
+                white-space: nowrap;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 165px;
+                background-color: #55889d;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                text-decoration: none;
+                font-weight: 500;
+                transition: all 0.3s ease;
+            }
+
+            .useButtonLightBlue:hover {
+                background-color: #002f49;
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 47, 73, 0.3);
+                color: white;
+                text-decoration: none;
             }
         </style>
     </head>
@@ -211,44 +75,178 @@
         </section>
     </div>
 
-    <!-- New Background Section with Three Containers -->
-    <section class="background-section">
-        <div class="container-wrapper">
-            <!-- Container 1: Smart Search -->
-            <div class="container-box">
-                <img src="{{ url_for('static', filename='images/ss.png') }}" alt="Image 1">
-                <h2> AI SMART SEARCH</h2>
-                <p>Access thousands of government contracts in one place with smart filters to find your best match.</p>
-                <button class="useButtonLightBlue" onclick="window.location.href='/smartsearch'">Search</button> 
+    <!-- Enhanced Dashboard Section -->
+    <section class="dashboard-section">
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">Contract Analysis Dashboard</h2>
+            <p class="dashboard-subtitle">Your comprehensive contract intelligence center</p>
+        </div>
+
+        <!-- Analytics Overview Row -->
+        <div class="analytics-overview">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="avgWinProbability">--</h3>
+                    <p class="metric-label">Avg Win Probability</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-file-contract"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="totalContracts">--</h3>
+                    <p class="metric-label">Contracts Analyzed</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-trophy"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="highScoreContracts">--</h3>
+                    <p class="metric-label">High-Score Opportunities</p>
+                </div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="upcomingDeadlines">--</h3>
+                    <p class="metric-label">Upcoming Deadlines</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Quick Actions Panel -->
+            <div class="dashboard-card quick-actions-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-bolt"></i>
+                        Quick Actions
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <div class="action-buttons">
+                        <button class="action-btn primary" onclick="window.location.href='/smartsearch'">
+                            <i class="fas fa-search"></i>
+                            <span>AI Smart Search</span>
+                        </button>
+                        <button class="action-btn secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                            <i class="fas fa-upload"></i>
+                            <span>Find Top 5 Contracts</span>
+                        </button>
+                        <button class="action-btn tertiary" onclick="window.location.href='/form'">
+                            <i class="fas fa-file-alt"></i>
+                            <span>Build Capability Statement</span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <!-- Container 2: Top 5 CONTRACTs with Modal Trigger -->
-            <div class="container-box">
-                <img src="{{ url_for('static', filename='images/t5.png') }}" alt="Image 2">
-                <h2>TOP 5 CONTRACTS</h2>
-                <p>Matches your capability statement with the best 5 contract opportunities.</p>
-                
-                <!-- Button triggers the modal -->
-                <button type="button" class="useButtonLightBlue" data-bs-toggle="modal" data-bs-target="#filterModal">
-                    Upload & Match
-                </button>
+            <!-- Contract Pipeline Chart -->
+            <div class="dashboard-card chart-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Contract Pipeline
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="pipelineChart" width="400" height="200"></canvas>
+                </div>
             </div>
 
-            <!-- Container 3: Capability Statement Builder -->
-            <div class="container-box">
-                <img src="{{ url_for('static', filename='images/cs.png') }}" alt="Image 3">
-                <h2>Capability Statement Builder</h2>
-                <p>Create a professional capability statement tailored to industry standards in minutes.</p>
-                <button class="useButtonLightBlue" onclick="window.location.href='/form'">Create</button>
+            <!-- Recent Activity -->
+            <div class="dashboard-card activity-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-history"></i>
+                        Recent Activity
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <div class="activity-list" id="recentActivity">
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <div class="activity-content">
+                                <p class="activity-text">Welcome to Contract Radar Maximizer</p>
+                                <span class="activity-time">Just now</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="container-box">
-              <img src="{{ url_for('static', filename='images/cs.png') }}" alt="Image 3">
-              <h2>Membership Status</h2>
-              <p>Check or cancel your Contract Radar Maximizer membership.</p>
-              <button class="useButtonLightBlue" onclick="window.location.href='/membershipstatus'">Membership Status</button>
+
+            <!-- Win Probability Trends -->
+            <div class="dashboard-card trends-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-trending-up"></i>
+                        Win Probability Trends
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <canvas id="trendsChart" width="400" height="200"></canvas>
+                </div>
             </div>
-            
+
+            <!-- Top Opportunities -->
+            <div class="dashboard-card opportunities-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-star"></i>
+                        Top Opportunities
+                    </h3>
+                    <button class="card-action-btn" onclick="window.location.href='/smartsearch'">
+                        View All
+                    </button>
+                </div>
+                <div class="card-content">
+                    <div class="opportunities-list" id="topOpportunities">
+                        <div class="opportunity-item">
+                            <div class="opportunity-info">
+                                <h4 class="opportunity-title">Upload your capability statement to see personalized opportunities</h4>
+                                <p class="opportunity-agency">Get started with AI-powered contract matching</p>
+                            </div>
+                            <div class="opportunity-score">
+                                <span class="score-badge">Start</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Insights -->
+            <div class="dashboard-card insights-card">
+                <div class="card-header">
+                    <h3 class="card-title">
+                        <i class="fas fa-brain"></i>
+                        AI Insights
+                    </h3>
+                </div>
+                <div class="card-content">
+                    <div class="insights-list" id="aiInsights">
+                        <div class="insight-item">
+                            <div class="insight-icon">
+                                <i class="fas fa-lightbulb"></i>
+                            </div>
+                            <div class="insight-content">
+                                <p>Upload your capability statement to receive personalized AI insights and contract recommendations.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -332,6 +330,9 @@
     
     <!-- jQuery (if needed for other scripts) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Chart.js for dashboard analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <!-- Custom Scripts -->
     <script>
@@ -495,6 +496,171 @@
               stateDiv.style.display = 'none';
           }
       });
+    </script>
+
+    <!-- Dashboard Analytics Script -->
+    <script>
+        // Initialize dashboard analytics
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeDashboard();
+        });
+
+        function initializeDashboard() {
+            // Initialize metrics with sample data
+            updateMetrics();
+            
+            // Initialize charts
+            initializePipelineChart();
+            initializeTrendsChart();
+            
+            // Load recent activity
+            loadRecentActivity();
+            
+            // Load AI insights
+            loadAIInsights();
+        }
+
+        function updateMetrics() {
+            // Sample metrics - in production, these would come from API calls
+            document.getElementById('avgWinProbability').textContent = '75%';
+            document.getElementById('totalContracts').textContent = '12';
+            document.getElementById('highScoreContracts').textContent = '8';
+            document.getElementById('upcomingDeadlines').textContent = '3';
+        }
+
+        function initializePipelineChart() {
+            const ctx = document.getElementById('pipelineChart');
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['High Probability', 'Medium Probability', 'Low Probability'],
+                    datasets: [{
+                        data: [40, 35, 25],
+                        backgroundColor: [
+                            '#28a745',
+                            '#ffc107',
+                            '#dc3545'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function initializeTrendsChart() {
+            const ctx = document.getElementById('trendsChart');
+            if (!ctx) return;
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Win Probability %',
+                        data: [65, 70, 68, 75, 78, 75],
+                        borderColor: '#55889d',
+                        backgroundColor: 'rgba(85, 136, 157, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        function loadRecentActivity() {
+            const activityContainer = document.getElementById('recentActivity');
+            if (!activityContainer) return;
+            
+            // Sample activity data
+            const activities = [
+                {
+                    icon: 'fas fa-user-plus',
+                    text: 'Welcome to Contract Radar Maximizer',
+                    time: 'Just now'
+                },
+                {
+                    icon: 'fas fa-info-circle',
+                    text: 'Upload your capability statement to get started',
+                    time: '1 minute ago'
+                }
+            ];
+
+            activityContainer.innerHTML = activities.map(activity => `
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="${activity.icon}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p class="activity-text">${activity.text}</p>
+                        <span class="activity-time">${activity.time}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadAIInsights() {
+            const insightsContainer = document.getElementById('aiInsights');
+            if (!insightsContainer) return;
+            
+            // Sample insights
+            const insights = [
+                {
+                    icon: 'fas fa-lightbulb',
+                    text: 'Upload your capability statement to receive personalized AI insights and contract recommendations.'
+                },
+                {
+                    icon: 'fas fa-chart-line',
+                    text: 'Use AI Smart Search to find contracts that match your expertise and increase your win probability.'
+                }
+            ];
+
+            insightsContainer.innerHTML = insights.map(insight => `
+                <div class="insight-item">
+                    <div class="insight-icon">
+                        <i class="${insight.icon}"></i>
+                    </div>
+                    <div class="insight-content">
+                        <p>${insight.text}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Function to refresh dashboard data
+        function refreshDashboard() {
+            updateMetrics();
+            loadRecentActivity();
+            loadAIInsights();
+        }
+
+        // Auto-refresh dashboard every 5 minutes
+        setInterval(refreshDashboard, 300000);
     </script>
 
 
