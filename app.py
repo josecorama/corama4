@@ -1914,9 +1914,15 @@ def Welcome():
         company_name = user_data.get('company', 'No Company')
         first_name = user_data.get('first_name', 'User')
         
+        from csv_analytics import get_dashboard_metrics
+        analytics_data = get_dashboard_metrics()
+        
         # Contract Radar Maximizer is now completely FREE - no Stripe validation needed
         logging.info(f"✅ FREE ACCESS granted to {user_id} - Contract Radar Maximizer is completely free!")
-        return render_template('welcome.html', company_name=company_name, first_name=first_name)
+        return render_template('welcome.html', 
+                             company_name=company_name, 
+                             first_name=first_name,
+                             analytics=analytics_data)
 
     except Exception as e:
         logging.exception(f"❌ Unexpected error in /welcome: {e}")
