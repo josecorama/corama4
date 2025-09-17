@@ -3035,12 +3035,15 @@ def generate_enhanced_pdf():
 def process_capability_statement():
     try:
         user_id = session.get('user_id', 'test_user')
+        logging.info(f"Processing capability statement for user: {user_id}")
         
         # Handle file upload or URL
         capability_text = ""
         
         if 'capabilityFile' in request.files and request.files['capabilityFile'].filename:
             file = request.files['capabilityFile']
+            logging.info(f"Processing file upload: {file.filename}, size: {file.content_length if hasattr(file, 'content_length') else 'unknown'}")
+            
             if file and allowed_file(file.filename):
                 user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"user_{user_id}")
                 os.makedirs(user_upload_dir, exist_ok=True)
@@ -3048,84 +3051,182 @@ def process_capability_statement():
                 filename = f"temp_capability_{int(time.time())}_{file.filename}"
                 filepath = os.path.join(user_upload_dir, filename)
                 file.save(filepath)
+                logging.info(f"File saved to: {filepath}")
                 
                 # Extract text from PDF
                 capability_text = extract_text_from_pdf(filepath)
+                logging.info(f"Extracted text length: {len(capability_text) if capability_text else 0}")
                 
                 os.remove(filepath)
+            else:
+                logging.error(f"File validation failed for: {file.filename}")
+                return jsonify({'error': f'Invalid file type. Please upload a PDF file.'}), 400
         
         elif request.json and 'url' in request.json:
             url = request.json['url']
+            logging.info(f"Processing URL import: {url}")
             capability_text = download_and_extract_from_url(url)
+            logging.info(f"URL extracted text length: {len(capability_text) if capability_text else 0}")
         
-        if not capability_text:
-            return jsonify({'error': 'Could not extract text from capability statement'}), 400
+        else:
+            logging.error("No file or URL provided in request")
+            return jsonify({'error': 'No file or URL provided'}), 400
+        
+        if not capability_text or len(capability_text.strip()) < 10:
+            logging.error(f"Insufficient text extracted: '{capability_text[:100]}...' (length: {len(capability_text) if capability_text else 0})")
+            return jsonify({'error': 'Could not extract meaningful text from capability statement. Please ensure the PDF contains readable text.'}), 400
         
         # Use AI to parse and structure the capability statement
+        logging.info("Starting AI parsing of capability statement")
         parsed_data = parse_capability_statement_with_ai(capability_text)
+        logging.info(f"AI parsing completed, fields found: {list(parsed_data.keys()) if parsed_data else 'none'}")
+        
+        if not parsed_data:
+            logging.error("AI parsing returned empty result")
+            return jsonify({'error': 'Could not parse capability statement content. Please try a different document.'}), 400
         
         return jsonify({'success': True, 'data': parsed_data})
         
     except Exception as e:
-        logging.error(f"Error processing capability statement: {str(e)}")
-        return jsonify({'error': 'Failed to process capability statement'}), 500
+        logging.error(f"Error processing capability statement: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Failed to process capability statement: {str(e)}'}), 500
 
 def extract_text_from_pdf(filepath):
     """Extract text from PDF file"""
     try:
         import PyPDF2
+        logging.info(f"Attempting to extract text from PDF: {filepath}")
+        
+        if not os.path.exists(filepath):
+            logging.error(f"PDF file does not exist: {filepath}")
+            return ""
+        
+        file_size = os.path.getsize(filepath)
+        logging.info(f"PDF file size: {file_size} bytes")
+        
         with open(filepath, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
+            logging.info(f"PDF has {len(reader.pages)} pages")
+            
             text = ""
-            for page in reader.pages:
-                text += page.extract_text()
-        return text
+            for i, page in enumerate(reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    text += page_text
+                    logging.debug(f"Page {i+1} extracted {len(page_text)} characters")
+                except Exception as page_error:
+                    logging.warning(f"Error extracting text from page {i+1}: {str(page_error)}")
+                    continue
+            
+            logging.info(f"Total extracted text length: {len(text)}")
+            return text.strip()
+            
     except Exception as e:
-        logging.error(f"Error extracting PDF text: {str(e)}")
+        logging.error(f"Error extracting PDF text from {filepath}: {str(e)}", exc_info=True)
         return ""
 
 def download_and_extract_from_url(url):
     """Download PDF from URL and extract text"""
     try:
         import requests
-        response = requests.get(url, timeout=30)
+        logging.info(f"Attempting to download PDF from URL: {url}")
+        
+        if not url.startswith(('http://', 'https://')):
+            logging.error(f"Invalid URL format: {url}")
+            return ""
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        response = requests.get(url, timeout=30, headers=headers, stream=True)
+        logging.info(f"URL response status: {response.status_code}, content-type: {response.headers.get('content-type', 'unknown')}")
+        
         if response.status_code == 200:
+            # Check if content is actually a PDF
+            content_type = response.headers.get('content-type', '').lower()
+            if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
+                logging.warning(f"URL may not be a PDF file. Content-Type: {content_type}")
+            
             temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+            
+            max_size = 10 * 1024 * 1024  # 10MB
+            downloaded_size = 0
+            
             with open(temp_path, 'wb') as f:
-                f.write(response.content)
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        downloaded_size += len(chunk)
+                        if downloaded_size > max_size:
+                            logging.error(f"File too large: {downloaded_size} bytes")
+                            os.remove(temp_path)
+                            return ""
+                        f.write(chunk)
+            
+            logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
             text = extract_text_from_pdf(temp_path)
             os.remove(temp_path)
             return text
+        else:
+            logging.error(f"Failed to download URL: HTTP {response.status_code}")
+            return ""
+            
+    except requests.exceptions.Timeout:
+        logging.error(f"Timeout downloading from URL: {url}")
+        return ""
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Request error downloading from URL {url}: {str(e)}")
+        return ""
     except Exception as e:
-        logging.error(f"Error downloading from URL: {str(e)}")
+        logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
         return ""
 
 def parse_capability_statement_with_ai(text):
     """Use AI to parse capability statement text into structured data"""
     try:
+        logging.info("Starting AI parsing of capability statement text")
+        
+        max_chars = 8000  # Conservative limit for GPT-3.5-turbo
+        if len(text) > max_chars:
+            text = text[:max_chars] + "..."
+            logging.info(f"Truncated text to {max_chars} characters")
+        
         messages = [
-            {"role": "system", "content": "You are an expert at parsing capability statements. Extract structured data from the provided text and return it as JSON with fields: companyName, contactName, phone, email, address, city, state, zipCode, website, companyDescription, competencies (array), differentiators (array), ueiCode, cageCode, naicsCodes (array), certifications (array). Only include fields that you can clearly identify from the text."},
-            {"role": "user", "content": f"Parse this capability statement text:\n\n{text}"}
+            {"role": "system", "content": "You are an expert at parsing capability statements. Extract structured data from the provided text and return it as valid JSON with fields: companyName, contactName, phone, email, address, city, state, zipCode, website, companyDescription, competencies (array), differentiators (array), ueiCode, cageCode, naicsCodes (array), certifications (array). Only include fields that you can clearly identify from the text. Return ONLY the JSON object, no additional text."},
+            {"role": "user", "content": f"Parse this capability statement text and return only JSON:\n\n{text}"}
         ]
         
         completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
-            max_tokens=1000
+            max_tokens=1000,
+            temperature=0.1
         )
         
         response_text = completion.choices[0].message.content.strip()
+        logging.info(f"AI response length: {len(response_text)}")
+        logging.debug(f"AI response: {response_text[:200]}...")
+        
         import json
         import re
         
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
-            return json.loads(json_match.group())
+            json_str = json_match.group()
+            parsed_data = json.loads(json_str)
+            logging.info(f"Successfully parsed JSON with fields: {list(parsed_data.keys())}")
+            return parsed_data
         else:
-            return json.loads(response_text)
+            try:
+                parsed_data = json.loads(response_text)
+                logging.info(f"Successfully parsed entire response as JSON with fields: {list(parsed_data.keys())}")
+                return parsed_data
+            except json.JSONDecodeError:
+                logging.error(f"Could not parse AI response as JSON: {response_text}")
+                return {}
         
     except Exception as e:
-        logging.error(f"Error parsing with AI: {str(e)}")
+        logging.error(f"Error parsing with AI: {str(e)}", exc_info=True)
         return {}
 
 @app.route('/upload_document', methods=['POST'])

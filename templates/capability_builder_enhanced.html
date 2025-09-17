@@ -1239,16 +1239,24 @@
                     })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
+                console.log('AI enhancement response:', data);
+                
                 if (data.description) {
                     document.getElementById('enhancedDescriptionContainer').style.display = 'block';
                     document.getElementById('enhancedDescription').value = data.description;
+                } else if (data.error) {
+                    alert('Error generating enhanced description: ' + data.error);
                 } else {
-                    alert('Error generating enhanced description: ' + (data.error || 'Please try again.'));
+                    alert('Error generating enhanced description: No description returned from AI service.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error generating enhanced description. Please try again.');
+                console.error('Error enhancing description:', error);
+                alert('Error generating enhanced description: ' + error.message);
             }
         }
         
@@ -1283,8 +1291,14 @@
                     body: JSON.stringify({ ideas: ideas })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const data = await response.json();
-                if (data.bulletPoints) {
+                console.log('AI competencies response:', data);
+                
+                if (data.bulletPoints && Array.isArray(data.bulletPoints)) {
                     document.getElementById('aiCompetenciesContainer').style.display = 'block';
                     const container = document.getElementById('aiCompetenciesList');
                     container.innerHTML = data.bulletPoints.map((comp, index) => `
@@ -1293,12 +1307,14 @@
                             <label class="form-check-label" for="aiComp${index}">${comp}</label>
                         </div>
                     `).join('');
+                } else if (data.error) {
+                    alert('Error generating competencies: ' + data.error);
                 } else {
-                    alert('Error generating competencies: ' + (data.error || 'Please try again.'));
+                    alert('Error generating competencies: No competencies returned from AI service.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error generating competencies. Please try again.');
+                console.error('Error generating competencies:', error);
+                alert('Error generating competencies: ' + error.message);
             }
         }
         
@@ -1335,6 +1351,18 @@
             
             if (!file) return;
             
+            // Validate file type
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('Please select a PDF file.');
+                return;
+            }
+            
+            // Validate file size (10MB limit)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File size must be less than 10MB.');
+                return;
+            }
+            
             const formData = new FormData();
             formData.append('capabilityFile', file);
             
@@ -1345,23 +1373,33 @@
                 });
                 
                 const result = await response.json();
+                console.log('Import response:', result);
+                
                 if (result.success && result.data) {
                     populateFormFromImport(result.data);
                     alert('Capability statement imported successfully!');
+                } else if (result.error) {
+                    alert('Error importing capability statement: ' + result.error);
                 } else {
-                    alert('Error importing capability statement: ' + (result.error || 'Unknown error'));
+                    alert('Error importing capability statement: Unknown error occurred.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error importing capability statement. Please try again.');
+                console.error('Error importing capability statement:', error);
+                alert('Error importing capability statement: ' + error.message);
             }
         }
         
         async function importFromUrl() {
-            const url = document.getElementById('capabilityUrl').value;
+            const url = document.getElementById('capabilityUrl').value.trim();
             
             if (!url) {
                 alert('Please enter a URL');
+                return;
+            }
+            
+            // Basic URL validation
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                alert('Please enter a valid URL starting with http:// or https://');
                 return;
             }
             
@@ -1375,15 +1413,19 @@
                 });
                 
                 const result = await response.json();
+                console.log('URL import response:', result);
+                
                 if (result.success && result.data) {
                     populateFormFromImport(result.data);
                     alert('Capability statement imported from URL successfully!');
+                } else if (result.error) {
+                    alert('Error importing from URL: ' + result.error);
                 } else {
-                    alert('Error importing from URL: ' + (result.error || 'Unknown error'));
+                    alert('Error importing from URL: Unknown error occurred.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error importing from URL. Please try again.');
+                console.error('Error importing from URL:', error);
+                alert('Error importing from URL: ' + error.message);
             }
         }
         
