@@ -2015,6 +2015,125 @@ def get_contracts_api():
             "total_pages": 1
         })
 
+@app.route('/dashboard_search', methods=['POST'])
+def dashboard_search():
+    """Search contracts for dashboard with real-time filtering and analytics update"""
+    try:
+        if 'user' not in session:
+            return jsonify({"success": False, "message": "User not logged in."}), 401
+
+        data = request.get_json(force=True) or {}
+        user_query = data.get('query', '').strip()
+        page = data.get('page', 1)
+        items_per_page = 10
+
+        if not user_query:
+            import pandas as pd
+            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+            df = pd.read_csv(csv_path)
+            
+            total_contracts = len(df)
+            total_pages = (total_contracts + items_per_page - 1) // items_per_page
+            start = (page - 1) * items_per_page
+            end = start + items_per_page
+            
+            paginated_df = df.iloc[start:end]
+            contracts = paginated_df.to_dict('records')
+            
+            from csv_analytics import analyze_contract_data
+            analytics = analyze_contract_data()
+            
+            return jsonify({
+                "success": True,
+                "contracts": contracts,
+                "total_contracts": total_contracts,
+                "current_page": page,
+                "total_pages": total_pages,
+                "analytics": analytics
+            })
+
+        if not vector_store:
+            logging.error("Vector store not initialized.")
+            return jsonify({"success": False, "message": "Search unavailable."}), 500
+
+        valid, msg = validate_query(user_query)
+        if not valid:
+            logging.warning(f"Invalid query: {msg}")
+            return jsonify({"success": False, "message": msg}), 400
+
+        user_query_embedding = generate_query_embedding(user_query)
+        search_results = find_matches_with_query(
+            query_embedding=user_query_embedding,
+            bid_store=vector_store,
+            top_k=10000
+        )
+        
+        # Filter results with similarity >= 0.7
+        filtered_results = [res for res in search_results if res.get('Similarity_Score', 0) >= 0.7]
+        
+        if not filtered_results:
+            return jsonify({
+                "success": True,
+                "contracts": [],
+                "total_contracts": 0,
+                "current_page": 1,
+                "total_pages": 1,
+                "analytics": {
+                    'total_contracts': 0,
+                    'category_distribution': {},
+                    'status_distribution': {},
+                    'win_probability': 0,
+                    'open_contracts': 0,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': 0
+                }
+            })
+
+        total_contracts = len(filtered_results)
+        total_pages = (total_contracts + items_per_page - 1) // items_per_page
+        start = (page - 1) * items_per_page
+        end = start + items_per_page
+        paginated_contracts = filtered_results[start:end]
+
+        import pandas as pd
+        filtered_df = pd.DataFrame(filtered_results)
+        
+        category_counts = filtered_df['category'].value_counts().to_dict()
+        status_counts = filtered_df['status'].value_counts().to_dict()
+        open_contracts = status_counts.get('open', 0)
+        
+        category_diversity = len(category_counts)
+        win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20)))
+        
+        high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+        high_score_contracts = filtered_df[
+            filtered_df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)
+        ]
+        high_score_count = len(high_score_contracts)
+
+        analytics = {
+            'total_contracts': total_contracts,
+            'category_distribution': category_counts,
+            'status_distribution': status_counts,
+            'win_probability': round(win_probability, 1),
+            'open_contracts': open_contracts,
+            'upcoming_deadlines': 0,
+            'high_score_opportunities': high_score_count
+        }
+
+        return jsonify({
+            "success": True,
+            "contracts": paginated_contracts,
+            "total_contracts": total_contracts,
+            "current_page": page,
+            "total_pages": total_pages,
+            "analytics": analytics
+        })
+
+    except Exception as e:
+        logging.error(f"Error in /dashboard_search: {e}", exc_info=True)
+        return jsonify({"success": False, "message": "Error processing the search."}), 500
+
 @app.route('/ai-assistant')
 def ai_assistant_room():
     """AI Assistant room for bid response creation"""

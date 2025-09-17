@@ -97,11 +97,14 @@
                 </h3>
             </div>
             <div class="card-content">
-                <div class="action-buttons">
-                    <button class="action-btn primary" onclick="window.location.href='/smartsearch'">
-                        <i class="fas fa-search"></i>
-                        <span>AI Smart Search</span>
-                    </button>
+                <div class="action-buttons" style="display: flex; gap: 10px; align-items: center;">
+                    <div class="search-container" style="flex: 1; max-width: 400px;">
+                        <input type="text" 
+                               id="dashboardSearchInput" 
+                               placeholder="Search contracts..." 
+                               class="form-control"
+                               style="border-radius: 8px; border: 1px solid #ddd; padding: 10px 15px;">
+                    </div>
                     <button class="action-btn secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
                         <i class="fas fa-upload"></i>
                         <span>Find Top 5 Contracts</span>
@@ -531,34 +534,38 @@
         }
         
         function loadContractListing(page = 1) {
-            // Fetch contracts from the backend with pagination
-            // Use XMLHttpRequest to avoid credential parsing issues
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', `/api/contracts?page=${page}`, true);
-            xhr.onreadystatechange = function() {
-                if (xhr.readyState === 4) {
-                    if (xhr.status === 200) {
-                        const data = JSON.parse(xhr.responseText);
-                        populateContractTable(data.contracts);
-                        updatePagination(data.current_page, data.total_pages, data.total_contracts);
-                    } else {
-                        console.error('Error loading contracts:', xhr.statusText);
-                        // Show sample data if API fails
-                        populateContractTable([
-                            {
-                                bid_name: "City Infrastructure Improvement Project",
-                                category: "Construction",
-                                due_date: "2025-10-15",
-                                status: "active",
-                                bid_number: "BID-2025-001",
-                                detail_link: "https://example.com/contract"
-                            }
-                        ]);
-                        updatePagination(1, 1, 1);
+            const searchInput = document.getElementById('dashboardSearchInput');
+            const query = searchInput ? searchInput.value.trim() : '';
+            
+            if (query) {
+                performDashboardSearch(query, page);
+            } else {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', `/api/contracts?page=${page}`, true);
+                xhr.onreadystatechange = function() {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            const data = JSON.parse(xhr.responseText);
+                            populateContractTable(data.contracts);
+                            updatePagination(data.current_page, data.total_pages, data.total_contracts);
+                        } else {
+                            console.error('Error loading contracts:', xhr.statusText);
+                            populateContractTable([
+                                {
+                                    bid_name: "City Infrastructure Improvement Project",
+                                    category: "Construction",
+                                    due_date: "2025-10-15",
+                                    status: "active",
+                                    bid_number: "BID-2025-001",
+                                    detail_link: "https://example.com/contract"
+                                }
+                            ]);
+                            updatePagination(1, 1, 1);
+                        }
                     }
-                }
-            };
-            xhr.send();
+                };
+                xhr.send();
+            }
         }
         
         function populateContractTable(contracts) {
@@ -600,6 +607,77 @@
         function selectContract(bidNumber, bidName) {
             // Navigate to AI assistant room with selected contract
             window.location.href = `/ai-assistant?contract=${encodeURIComponent(bidNumber)}&name=${encodeURIComponent(bidName)}`;
+        }
+
+        // Dashboard search functionality
+        let searchTimeout;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('dashboardSearchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(() => {
+                        performDashboardSearch(this.value.trim(), 1);
+                    }, 500);
+                });
+            }
+        });
+        
+        function performDashboardSearch(query, page = 1) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/dashboard_search', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        const data = JSON.parse(xhr.responseText);
+                        if (data.success) {
+                            populateContractTable(data.contracts);
+                            updatePagination(data.current_page, data.total_pages, data.total_contracts);
+                            updateCategoryDisplay(data.analytics);
+                        } else {
+                            console.error('Search failed:', data.message);
+                        }
+                    } else {
+                        console.error('Search request failed:', xhr.statusText);
+                    }
+                }
+            };
+            xhr.send(JSON.stringify({ query: query, page: page }));
+        }
+        
+        function updateCategoryDisplay(analytics) {
+            const categoryContainer = document.querySelector('.category-grid');
+            if (!categoryContainer || !analytics.category_distribution) return;
+            
+            categoryContainer.innerHTML = '';
+            
+            const categories = Object.entries(analytics.category_distribution).slice(0, 5);
+            
+            categories.forEach(([category, count]) => {
+                const percentage = analytics.total_contracts > 0 ? 
+                    ((count / analytics.total_contracts) * 100).toFixed(1) : 0;
+                
+                const categoryCard = document.createElement('div');
+                categoryCard.className = 'category-card';
+                categoryCard.innerHTML = `
+                    <div class="category-name">${category}</div>
+                    <div class="category-percentage">${percentage}%</div>
+                    <div class="category-count">${count} contracts</div>
+                `;
+                categoryContainer.appendChild(categoryCard);
+            });
+            
+            if (categories.length === 0) {
+                categoryContainer.innerHTML = `
+                    <div class="category-card">
+                        <div class="category-name">No results</div>
+                        <div class="category-percentage">0%</div>
+                        <div class="category-count">0 contracts</div>
+                    </div>
+                `;
+            }
         }
     </script>
 
