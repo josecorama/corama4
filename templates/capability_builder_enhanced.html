@@ -1074,7 +1074,8 @@
             const formData = collectFormData();
             
             try {
-                const response = await fetch('/save-capability-statement', {
+                const baseUrl = window.location.protocol + '//' + window.location.host;
+                const response = await fetch(baseUrl + '/save-capability-statement', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1096,7 +1097,8 @@
         // Load capability statement
         async function loadCapabilityStatement() {
             try {
-                const response = await fetch('/load-capability-statement');
+                const baseUrl = window.location.protocol + '//' + window.location.host;
+                const response = await fetch(baseUrl + '/load-capability-statement');
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -1164,7 +1166,8 @@
             }
             
             try {
-                const response = await fetch('/generate-enhanced-pdf', {
+                const baseUrl = window.location.protocol + '//' + window.location.host;
+                const response = await fetch(baseUrl + '/generate-enhanced-pdf', {
                     method: 'POST',
                     body: new FormData(document.getElementById('capabilityForm'))
                 });
@@ -1228,7 +1231,8 @@
             }
             
             try {
-                const response = await fetch('/generate_description', {
+                const baseUrl = window.location.protocol + '//' + window.location.host;
+                const response = await fetch(baseUrl + '/generate_description', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1283,7 +1287,8 @@
             }
             
             try {
-                const response = await fetch('/generate_bullet_points', {
+                const baseUrl = window.location.protocol + '//' + window.location.host;
+                const response = await fetch(baseUrl + '/generate_bullet_points', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1367,7 +1372,8 @@
             formData.append('capabilityFile', file);
             
             try {
-                const response = await fetch('/process-capability-statement', {
+                const baseUrl = window.location.protocol + '//' + window.location.host;
+                const response = await fetch(baseUrl + '/process-capability-statement', {
                     method: 'POST',
                     body: formData
                 });
@@ -1404,7 +1410,8 @@
             }
             
             try {
-                const response = await fetch('/process-capability-statement', {
+                const baseUrl = window.location.protocol + '//' + window.location.host;
+                const response = await fetch(baseUrl + '/process-capability-statement', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
