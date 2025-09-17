@@ -219,11 +219,11 @@ app.logger.setLevel(logging.INFO)
 
 #OPEN AI 
 
-client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY'))
+client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CORAMA1'))
 
-client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY'))
+client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CORAMA1'))
 
-client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
+client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('CORAMA1'))
 
 
 
