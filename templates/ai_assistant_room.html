@@ -257,16 +257,19 @@
                 <div class="ai-tools-section" style="margin-bottom: 1rem;">
                     <div class="tools-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem;">
                         <button class="tool-btn" onclick="triggerAnalysis('analyze')" style="background: #3498db; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            📊 Analyze Contract
+                            📊 Analyze (3 credits)
                         </button>
                         <button class="tool-btn" onclick="triggerAnalysis('compliance')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            ✅ Compliance Check
+                            ✅ Compliance (2 credits)
                         </button>
                         <button class="tool-btn" onclick="triggerAnalysis('strategy')" style="background: #e74c3c; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            🎯 Bid Strategy
+                            🎯 Strategy (3 credits)
                         </button>
                         <button class="tool-btn" onclick="triggerAnalysis('outline')" style="background: #9b59b6; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            📝 Proposal Outline
+                            📝 Outline (2 credits)
+                        </button>
+                        <button class="tool-btn" onclick="triggerAnalysis('full_proposal')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+                            📄 Full Proposal (15 credits)
                         </button>
                     </div>
                 </div>
@@ -353,11 +356,37 @@
                 // Remove loading message
                 messages.removeChild(loadingMessage);
                 
+                if (data.error && data.credits_required) {
+                    // Handle insufficient credits
+                    const errorMessage = document.createElement('div');
+                    errorMessage.className = 'message assistant error';
+                    errorMessage.innerHTML = `
+                        <strong>AI Assistant:</strong> ${data.error}<br>
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fee; border-radius: 6px; color: #c33;">
+                            <strong>Credits Required:</strong> ${data.credits_required}<br>
+                            <strong>Current Balance:</strong> ${data.current_balance || 0}<br>
+                            <a href="/purchase_credits" style="color: #3498db;">Purchase more credits</a>
+                        </div>
+                    `;
+                    messages.appendChild(errorMessage);
+                    messages.scrollTop = messages.scrollHeight;
+                    return;
+                }
+                
                 // Create enhanced response with structured data
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant enhanced';
                 
                 let responseHTML = `<strong>AI Assistant:</strong> ${data.response}`;
+                
+                // Add credit usage info
+                if (data.credits_used) {
+                    responseHTML += `
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f5e8; border-radius: 6px; font-size: 0.8rem;">
+                            💎 Credits used: ${data.credits_used} | Remaining: ${data.remaining_credits}
+                        </div>
+                    `;
+                }
                 
                 // Add specialized visualizations based on action type
                 if (actionType === 'analyze' && data.win_probability) {
@@ -366,6 +395,8 @@
                     responseHTML += createComplianceDisplay(data.compliance_checklist);
                 } else if (actionType === 'outline' && data.proposal_outline) {
                     responseHTML += createOutlineDisplay(data.proposal_outline);
+                } else if (actionType === 'full_proposal' && data.proposal) {
+                    responseHTML += createFullProposalDisplay(data.proposal);
                 }
                 
                 aiMessage.innerHTML = responseHTML;
@@ -410,6 +441,46 @@
                 return `<div class="outline-display" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;"><pre style="white-space: pre-wrap; font-family: inherit;">${outlineData}</pre></div>`;
             }
             return `<div class="outline-display" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;"><strong>Proposal Outline:</strong><br>${JSON.stringify(outlineData, null, 2)}</div>`;
+        }
+        
+        function createFullProposalDisplay(proposalData) {
+            if (!proposalData.proposal_sections) {
+                return `<div class="proposal-display" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;"><pre style="white-space: pre-wrap; font-family: inherit;">${JSON.stringify(proposalData, null, 2)}</pre></div>`;
+            }
+            
+            let sectionsHTML = '';
+            proposalData.proposal_sections.forEach(section => {
+                sectionsHTML += `
+                    <div class="proposal-section" style="margin-bottom: 2rem; border-left: 4px solid #3498db; padding-left: 1rem;">
+                        <h4 style="color: #2c3e50; margin-bottom: 0.5rem;">${section.section} (${section.pages} pages)</h4>
+                        <div style="background: white; padding: 1rem; border-radius: 6px; max-height: 200px; overflow-y: auto;">
+                            <pre style="white-space: pre-wrap; font-family: inherit; font-size: 0.9rem;">${section.content}</pre>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            return `
+                <div class="full-proposal-display" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="margin: 0; color: #27ae60;">📄 Complete Proposal Generated</h3>
+                        <span style="background: #27ae60; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.8rem;">
+                            ${proposalData.total_estimated_pages} pages
+                        </span>
+                    </div>
+                    ${sectionsHTML}
+                    <div style="text-align: center; margin-top: 1rem;">
+                        <button onclick="downloadProposal()" style="background: #3498db; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 6px; cursor: pointer;">
+                            📥 Download Full Proposal
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function downloadProposal() {
+            // This would implement proposal download functionality
+            alert('Proposal download functionality would be implemented here');
         }
 
         function sendMessage() {
@@ -518,8 +589,11 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        documentItem.querySelector('.document-status').innerHTML = '✓ Uploaded';
+                        documentItem.querySelector('.document-status').innerHTML = `✓ Uploaded (${data.credits_used} credits)`;
                         documentItem.querySelector('.document-status').style.color = '#27ae60';
+                    } else if (data.error && data.credits_required) {
+                        documentItem.querySelector('.document-status').innerHTML = `❌ Insufficient credits (${data.credits_required} needed)`;
+                        documentItem.querySelector('.document-status').style.color = '#e74c3c';
                     } else {
                         documentItem.querySelector('.document-status').innerHTML = '❌ Failed';
                         documentItem.querySelector('.document-status').style.color = '#e74c3c';

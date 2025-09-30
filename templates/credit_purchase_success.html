@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Successful - Contract Radar Maximizer</title>
+    {% include 'head.html' %}
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="container" style="max-width: 600px; margin: 4rem auto; padding: 0 1rem; text-align: center;">
+        <div style="background: white; border-radius: 12px; padding: 3rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
+            <h1 style="color: #27ae60; margin-bottom: 1rem;">Purchase Successful!</h1>
+            <p style="font-size: 1.2rem; color: #2c3e50; margin-bottom: 2rem;">
+                {{ credits }} credits have been added to your account.
+            </p>
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 2rem;">
+                <p style="margin: 0; color: #7f8c8d;">
+                    Your credits are now available for use with AI contract analysis, proposal generation, and document processing.
+                </p>
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <a href="/welcome" style="background: #3498db; color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                    Go to Dashboard
+                </a>
+                <a href="/purchase_credits" style="background: #95a5a6; color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                    Buy More Credits
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>

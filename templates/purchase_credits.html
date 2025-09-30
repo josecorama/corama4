@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Credits - Contract Radar Maximizer</title>
+    {% include 'head.html' %}
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="container" style="max-width: 1000px; margin: 2rem auto; padding: 0 1rem;">
+        <div class="credit-header" style="text-align: center; margin-bottom: 3rem;">
+            <h1 style="color: #2c3e50; margin-bottom: 1rem;">Purchase CORAMA Credits</h1>
+            <div style="background: #f8f9fa; padding: 1rem; border-radius: 8px; display: inline-block;">
+                <h3 style="margin: 0; color: #27ae60;">Current Balance: {{ current_credits }} Credits</h3>
+            </div>
+        </div>
+        
+        <div class="credit-packages" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem;">
+            {% for package in credit_packages %}
+            <div class="credit-package" style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                <div style="font-size: 2.5rem; margin-bottom: 1rem;">💎</div>
+                <h3 style="color: #2c3e50; margin-bottom: 0.5rem;">{{ package.credits }} Credits</h3>
+                <p style="color: #7f8c8d; margin-bottom: 1.5rem; font-size: 0.9rem;">{{ package.description }}</p>
+                <div style="font-size: 2rem; font-weight: bold; color: #27ae60; margin-bottom: 1.5rem;">${{ "%.2f"|format(package.price/100) }}</div>
+                <button class="purchase-btn" onclick="purchaseCredits({{ package.credits }}, {{ package.price }})" 
+                        style="background: #3498db; color: white; border: none; padding: 1rem 2rem; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; transition: background 0.3s ease;">
+                    Purchase Now
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div style="margin-top: 3rem; text-align: center; color: #7f8c8d;">
+            <h4>How Credits Work</h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <strong>Basic AI Chat:</strong> 1 credit
+                </div>
+                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <strong>Contract Analysis:</strong> 3 credits
+                </div>
+                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <strong>Compliance Check:</strong> 2 credits
+                </div>
+                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <strong>Document Upload:</strong> 2 credits
+                </div>
+                <div style="padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                    <strong>Full Proposal (30-50 pages):</strong> 15 credits
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function purchaseCredits(credits, price) {
+            fetch('/create_credit_checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    credits: credits,
+                    price: price
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                } else {
+                    alert('Error creating checkout session: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error processing request');
+            });
+        }
+    </script>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>

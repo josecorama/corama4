@@ -39,6 +39,7 @@ from pdf_class import create_pdf
 from dotenv import load_dotenv
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
+from credit_manager import CreditManager
 
 # Load environment variables
 load_dotenv()
@@ -1503,7 +1504,11 @@ def Login():
                     "first_name": email.split('@')[0],
                     "last_name": "",
                     "company": "",
-                    "username": email.split('@')[0]
+                    "username": email.split('@')[0],
+                    "credits_balance": 100,
+                    "credits_used": 0,
+                    "last_credit_update": datetime.now().isoformat(),
+                    "credit_purchase_history": []
                 }
                 
                 db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
@@ -2940,29 +2945,80 @@ def ask_model_question():
 
 @app.route('/ai_assistant_enhanced', methods=['POST'])
 def enhanced_ai_assistant():
-    """Enhanced AI assistant endpoint with comprehensive bid creation capabilities"""
+    """Enhanced AI assistant endpoint with credit-based billing"""
     try:
         user_query = request.form.get('query')
         hash_value = request.form.get('hash_value')
-        action_type = request.form.get('action_type', 'general')  # general, analyze, strategy, compliance, outline
+        action_type = request.form.get('action_type', 'general')
         
         if not user_query:
             return jsonify({"error": "Query is required"}), 400
             
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
-        user_uploads_dir = user_data['uploads_dir']
         user_id = user['localId']
+        id_token = user['idToken']
         
-        conversation_history = enhanced_ai.get_conversation_context(user_id, hash_value) if hash_value else []
+        # Initialize credit manager
+        credit_manager = CreditManager(db)
         
+        current_credits = credit_manager.get_user_credits(user_id, id_token)
+        if current_credits < 1:
+            return jsonify({
+                "error": "Insufficient credits", 
+                "credits_required": 1,
+                "current_balance": current_credits
+            }), 402
+        
+        # Determine credit cost based on action type
+        credit_costs = {
+            'general': 1,
+            'analyze': 3,
+            'compliance': 2,
+            'strategy': 3,
+            'outline': 2,
+            'full_proposal': 15
+        }
+        
+        required_credits = credit_costs.get(action_type, 1)
+        
+        # Check if user has enough credits
+        if current_credits < required_credits:
+            return jsonify({
+                "error": "Insufficient credits",
+                "credits_required": required_credits,
+                "current_balance": current_credits
+            }), 402
+        
+        # Process the request with credit deduction
         context_data = {}
         
         if hash_value:
+            user_uploads_dir = user_data['uploads_dir']
             context_data['contract_info'] = process_selected_contract(user_uploads_dir, hash_value)
             context_data['capability_statement'] = process_files_user_input(user_uploads_dir)
             
-            if action_type == 'analyze':
+            if action_type == 'full_proposal':
+                # Generate comprehensive multi-page proposal
+                success, message = credit_manager.deduct_credits(
+                    user_id, id_token, required_credits, action_type, "Full proposal generation"
+                )
+                if not success:
+                    return jsonify({"error": message}), 402
+                    
+                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data['contract_info'])
+                full_proposal = enhanced_ai.generate_full_proposal(
+                    contract_requirements,
+                    context_data['capability_statement']
+                )
+                return jsonify({
+                    "response": "Comprehensive proposal generated successfully",
+                    "proposal": full_proposal,
+                    "credits_used": required_credits,
+                    "remaining_credits": current_credits - required_credits
+                })
+                
+            elif action_type == 'analyze':
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data['contract_info'])
                 context_data['contract_requirements'] = contract_requirements
                 
@@ -2991,7 +3047,14 @@ def enhanced_ai_assistant():
                 proposal_outline = enhanced_ai.generate_proposal_outline(contract_requirements, context_data['capability_statement'])
                 context_data['proposal_outline'] = proposal_outline
         
-        # Generate enhanced response
+        success, message = credit_manager.deduct_credits(
+            user_id, id_token, required_credits, action_type, user_query[:100]
+        )
+        if not success:
+            return jsonify({"error": message}), 402
+        
+        # Generate AI response
+        conversation_history = enhanced_ai.get_conversation_context(user_id, hash_value) if hash_value else []
         ai_response = enhanced_ai.generate_enhanced_response(user_query, context_data, conversation_history)
         
         # Save conversation turn
@@ -2999,7 +3062,11 @@ def enhanced_ai_assistant():
             enhanced_ai.save_conversation_turn(user_id, hash_value, user_query, ai_response)
         
         # Return response with additional context if requested
-        response_data = {"response": ai_response}
+        response_data = {
+            "response": ai_response,
+            "credits_used": required_credits,
+            "remaining_credits": current_credits - required_credits
+        }
         
         if action_type == 'analyze' and 'win_probability' in context_data:
             response_data['win_probability'] = context_data['win_probability']
@@ -3398,16 +3465,29 @@ def parse_capability_statement_with_ai(text):
 
 @app.route('/upload_document', methods=['POST'])
 def upload_document():
-    """Upload document to user's profile for AI assistant use"""
+    """Upload document to user's profile for AI assistant use with credit deduction"""
     try:
         if 'user' not in session:
             return jsonify({"error": "User not authenticated"}), 401
             
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        user_id = user['localId']
+        id_token = user['idToken']
         
         if not user_data or 'uploads_dir' not in user_data:
             return jsonify({"error": "User uploads directory not found"}), 400
+            
+        # Initialize credit manager and check credits
+        credit_manager = CreditManager(db)
+        current_credits = credit_manager.get_user_credits(user_id, id_token)
+        
+        if current_credits < 2:
+            return jsonify({
+                "error": "Insufficient credits for document upload",
+                "credits_required": 2,
+                "current_balance": current_credits
+            }), 402
             
         user_uploads_dir = user_data['uploads_dir']
         
@@ -3419,6 +3499,12 @@ def upload_document():
             return jsonify({"error": "No file selected"}), 400
             
         if file and allowed_file(file.filename):
+            success, message = credit_manager.deduct_credits(
+                user_id, id_token, 2, "document_upload", f"Upload document: {file.filename}"
+            )
+            if not success:
+                return jsonify({"error": message}), 402
+            
             filename = secure_filename(file.filename)
             file_path = os.path.join(user_uploads_dir, filename)
             file.save(file_path)
@@ -3428,11 +3514,17 @@ def upload_document():
                 'filename': filename,
                 'upload_date': datetime.now().isoformat(),
                 'file_path': file_path,
-                'file_type': filename.split('.')[-1].lower()
+                'file_type': filename.split('.')[-1].lower(),
+                'credits_used': 2
             }
             documents_ref.push(document_data, user['idToken'])
             
-            return jsonify({"success": True, "filename": filename})
+            return jsonify({
+                "success": True, 
+                "filename": filename,
+                "credits_used": 2,
+                "remaining_credits": current_credits - 2
+            })
         else:
             return jsonify({"error": "File type not allowed"}), 400
             
@@ -4884,6 +4976,19 @@ def stripe_webhook():
 def handle_successful_payment(session):
     customer_id = session["customer"]
     subscription_id = session.get("subscription")
+    metadata = session.get("metadata", {})
+    
+    if metadata.get("purchase_type") == "credits":
+        user_id = metadata.get("user_id")
+        credits = int(metadata.get("credits", 0))
+        
+        if user_id and credits:
+            credit_manager = CreditManager(db)
+            success, new_balance = credit_manager.add_credits(
+                user_id, None, credits, "stripe_purchase"
+            )
+            app.logger.info(f"✅ Credits added for user {user_id}: {credits} credits, new balance: {new_balance}")
+    
     app.logger.info(f"✅ Payment successful for customer {customer_id}, subscription {subscription_id}")
 
 def handle_invoice_payment(invoice):
@@ -4929,6 +5034,88 @@ def internal_error(error):
     return render_template('500.html'), 500
 
 
+
+@app.route('/purchase_credits', methods=['GET'])
+def purchase_credits():
+    """Display credit purchase options"""
+    if 'user' not in session:
+        return redirect(url_for('Login'))
+        
+    user = session['user']
+    user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+    current_credits = user_data.get('credits_balance', 0)
+    
+    credit_packages = [
+        {"credits": 100, "price": 1000, "description": "Starter Pack - Perfect for small projects"},
+        {"credits": 300, "price": 2500, "description": "Professional Pack - Great for multiple proposals"},
+        {"credits": 750, "price": 5000, "description": "Enterprise Pack - Best value for frequent users"},
+        {"credits": 2000, "price": 10000, "description": "Agency Pack - For consulting firms and agencies"}
+    ]
+    
+    return render_template('purchase_credits.html', 
+                         current_credits=current_credits,
+                         credit_packages=credit_packages)
+
+@app.route('/create_credit_checkout', methods=['POST'])
+def create_credit_checkout():
+    """Create Stripe checkout session for credit purchase"""
+    try:
+        if 'user' not in session:
+            return jsonify({"error": "User not authenticated"}), 401
+            
+        user = session['user']
+        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        stripe_customer_id = user_data.get('stripe_customer_id')
+        
+        if not stripe_customer_id:
+            return jsonify({"error": "Stripe customer not found"}), 400
+            
+        credits = int(request.json.get('credits'))
+        price = int(request.json.get('price'))  # Price in cents
+        
+        checkout_session = stripe.checkout.Session.create(
+            customer=stripe_customer_id,
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': f'{credits} CORAMA Credits',
+                        'description': f'AI-powered contract analysis and proposal generation credits'
+                    },
+                    'unit_amount': price,
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            success_url=url_for('credit_purchase_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=url_for('purchase_credits', _external=True),
+            metadata={
+                'user_id': user['localId'],
+                'credits': credits,
+                'purchase_type': 'credits'
+            }
+        )
+        
+        return jsonify({"checkout_url": checkout_session.url})
+        
+    except Exception as e:
+        logging.error(f"Error creating credit checkout: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/credit_purchase_success')
+def credit_purchase_success():
+    """Handle successful credit purchase"""
+    session_id = request.args.get('session_id')
+    if session_id:
+        try:
+            checkout_session = stripe.checkout.Session.retrieve(session_id)
+            credits = checkout_session.metadata.get('credits', 0)
+            return render_template('credit_purchase_success.html', credits=credits)
+        except Exception as e:
+            logging.error(f"Error retrieving checkout session: {e}")
+    
+    return redirect(url_for('purchase_credits'))
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))

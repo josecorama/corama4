@@ -203,3 +203,205 @@ class EnhancedAIAssistant:
         except Exception as e:
             self.app.logger.error(f"Error generating proposal outline: {e}")
             return {"error": "Failed to generate proposal outline"}
+    
+    def generate_full_proposal(self, contract_requirements, capability_statement, user_documents=None, target_pages=35):
+        """Generate comprehensive multi-page proposal (30-50 pages)"""
+        try:
+            proposal_sections = []
+            
+            exec_summary = self._generate_executive_summary(contract_requirements, capability_statement)
+            proposal_sections.append({"section": "Executive Summary", "content": exec_summary, "pages": 3})
+            
+            technical_approach = self._generate_technical_approach(contract_requirements, capability_statement)
+            proposal_sections.append({"section": "Technical Approach", "content": technical_approach, "pages": 10})
+            
+            management_plan = self._generate_management_plan(contract_requirements, capability_statement)
+            proposal_sections.append({"section": "Management Plan", "content": management_plan, "pages": 7})
+            
+            past_performance = self._generate_past_performance(capability_statement, user_documents)
+            proposal_sections.append({"section": "Past Performance", "content": past_performance, "pages": 6})
+            
+            pricing_strategy = self._generate_pricing_strategy(contract_requirements, capability_statement)
+            proposal_sections.append({"section": "Pricing Strategy", "content": pricing_strategy, "pages": 4})
+            
+            quality_assurance = self._generate_quality_assurance(contract_requirements)
+            proposal_sections.append({"section": "Quality Assurance", "content": quality_assurance, "pages": 3})
+            
+            risk_management = self._generate_risk_management(contract_requirements)
+            proposal_sections.append({"section": "Risk Management", "content": risk_management, "pages": 2})
+            
+            return {
+                "proposal_sections": proposal_sections,
+                "total_estimated_pages": sum(section["pages"] for section in proposal_sections),
+                "generation_timestamp": datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            self.app.logger.error(f"Error generating full proposal: {e}")
+            return {"error": "Failed to generate comprehensive proposal"}
+    
+    def _generate_executive_summary(self, contract_requirements, capability_statement):
+        """Generate detailed executive summary section"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """Create a comprehensive 2-3 page executive summary for this government contract proposal. Include:
+                1. Project understanding and objectives
+                2. Our unique value proposition and competitive advantages
+                3. Key personnel and team qualifications
+                4. Technical approach overview
+                5. Past performance highlights
+                6. Pricing competitiveness
+                7. Risk mitigation summary
+                8. Expected outcomes and benefits
+                
+                Write in professional government contracting language with specific details."""},
+                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        return response.choices[0].message.content
+    
+    def _generate_technical_approach(self, contract_requirements, capability_statement):
+        """Generate detailed technical approach section"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """Create a comprehensive 8-12 page technical approach section. Include:
+                1. Detailed methodology and work breakdown structure
+                2. Technical specifications and compliance
+                3. Innovation and technology solutions
+                4. Implementation timeline and milestones
+                5. Quality control procedures
+                6. Performance metrics and KPIs
+                7. Technical team structure and expertise
+                8. Tools, software, and equipment
+                9. Deliverables and documentation
+                10. Technical risk mitigation
+                
+                Provide specific, actionable details that demonstrate deep understanding."""},
+                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        return response.choices[0].message.content
+    
+    def _generate_management_plan(self, contract_requirements, capability_statement):
+        """Generate detailed management plan section"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """Create a comprehensive 6-8 page management plan section. Include:
+                1. Project management methodology and framework
+                2. Organizational structure and reporting relationships
+                3. Key personnel roles and responsibilities
+                4. Communication and coordination procedures
+                5. Schedule management and milestone tracking
+                6. Resource allocation and management
+                7. Quality management system
+                8. Change management procedures
+                9. Performance monitoring and control
+                10. Stakeholder engagement strategy
+                
+                Demonstrate proven management capabilities and processes."""},
+                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        return response.choices[0].message.content
+    
+    def _generate_past_performance(self, capability_statement, user_documents):
+        """Generate detailed past performance section"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """Create a comprehensive 5-7 page past performance section. Include:
+                1. Relevant project examples with detailed descriptions
+                2. Contract performance metrics and outcomes
+                3. Client testimonials and references
+                4. Lessons learned and continuous improvement
+                5. Awards, certifications, and recognition
+                6. Team experience and qualifications
+                7. Subcontractor and partner performance
+                8. Performance against schedule, budget, and quality metrics
+                
+                Highlight directly relevant experience that demonstrates capability."""},
+                {"role": "user", "content": f"Capabilities: {capability_statement[:3000]}\nDocuments: {str(user_documents)[:1000] if user_documents else 'No additional documents'}"}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        return response.choices[0].message.content
+    
+    def _generate_pricing_strategy(self, contract_requirements, capability_statement):
+        """Generate detailed pricing strategy section"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """Create a comprehensive 3-5 page pricing strategy section. Include:
+                1. Cost breakdown structure and methodology
+                2. Labor categories and rates justification
+                3. Direct and indirect cost analysis
+                4. Fee structure and profit margins
+                5. Cost control measures and efficiency strategies
+                6. Value engineering opportunities
+                7. Pricing competitiveness analysis
+                8. Cost risk assessment and mitigation
+                9. Payment terms and cash flow considerations
+                
+                Provide transparent, competitive pricing that demonstrates value."""},
+                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        return response.choices[0].message.content
+    
+    def _generate_quality_assurance(self, contract_requirements):
+        """Generate detailed quality assurance section"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """Create a comprehensive 3-4 page quality assurance section. Include:
+                1. Quality management system and standards
+                2. Quality control procedures and checkpoints
+                3. Testing and validation methodologies
+                4. Documentation and record keeping
+                5. Continuous improvement processes
+                6. Quality metrics and performance indicators
+                7. Corrective and preventive action procedures
+                8. Quality training and certification requirements
+                
+                Demonstrate commitment to delivering high-quality results."""},
+                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}"}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        return response.choices[0].message.content
+    
+    def _generate_risk_management(self, contract_requirements):
+        """Generate detailed risk management section"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """Create a comprehensive 2-3 page risk management section. Include:
+                1. Risk identification and assessment methodology
+                2. Risk register with probability and impact analysis
+                3. Risk mitigation strategies and contingency plans
+                4. Risk monitoring and reporting procedures
+                5. Escalation procedures and decision-making authority
+                6. Insurance and liability considerations
+                7. Business continuity and disaster recovery plans
+                8. Lessons learned from previous projects
+                
+                Show proactive risk management capabilities."""},
+                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}"}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        return response.choices[0].message.content
