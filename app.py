@@ -3030,13 +3030,7 @@ def enhanced_ai_assistant():
         
         # Handle specialized actions regardless of hash_value
         if action_type == 'full_proposal':
-            # Generate comprehensive multi-page proposal
-            # success, message = credit_manager.deduct_credits(
-            #     user_id, id_token, required_credits, action_type, "Full proposal generation"
-            # )
-            # if not success:
-            #     return jsonify({"error": message}), 402
-                
+            # Generate comprehensive multi-page proposal (temporarily bypass credit check for testing)
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
@@ -3048,8 +3042,8 @@ def enhanced_ai_assistant():
                 return jsonify({
                     "response": "Comprehensive proposal generated successfully",
                     "proposal": full_proposal,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
+                    "credits_used": 0,
+                    "remaining_credits": current_credits
                 })
                 
             except Exception as e:

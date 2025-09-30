@@ -205,35 +205,15 @@ class EnhancedAIAssistant:
             return {"error": "Failed to generate proposal outline"}
     
     def generate_full_proposal(self, contract_requirements, capability_statement, user_documents=None, target_pages=35):
-        """Generate comprehensive multi-page proposal (30-50 pages)"""
+        """Generate comprehensive multi-page proposal (30-50 pages) - optimized to avoid timeouts"""
         try:
-            proposal_sections = []
-            
-            exec_summary = self._generate_executive_summary(contract_requirements, capability_statement)
-            proposal_sections.append({"section": "Executive Summary", "content": exec_summary, "pages": 3})
-            
-            technical_approach = self._generate_technical_approach(contract_requirements, capability_statement)
-            proposal_sections.append({"section": "Technical Approach", "content": technical_approach, "pages": 10})
-            
-            management_plan = self._generate_management_plan(contract_requirements, capability_statement)
-            proposal_sections.append({"section": "Management Plan", "content": management_plan, "pages": 7})
-            
-            past_performance = self._generate_past_performance(capability_statement, user_documents)
-            proposal_sections.append({"section": "Past Performance", "content": past_performance, "pages": 6})
-            
-            pricing_strategy = self._generate_pricing_strategy(contract_requirements, capability_statement)
-            proposal_sections.append({"section": "Pricing Strategy", "content": pricing_strategy, "pages": 4})
-            
-            quality_assurance = self._generate_quality_assurance(contract_requirements)
-            proposal_sections.append({"section": "Quality Assurance", "content": quality_assurance, "pages": 3})
-            
-            risk_management = self._generate_risk_management(contract_requirements)
-            proposal_sections.append({"section": "Risk Management", "content": risk_management, "pages": 2})
+            proposal_content = self._generate_comprehensive_proposal_optimized(contract_requirements, capability_statement)
             
             return {
-                "proposal_sections": proposal_sections,
-                "total_estimated_pages": sum(section["pages"] for section in proposal_sections),
-                "generation_timestamp": datetime.now().isoformat()
+                "proposal_sections": proposal_content["sections"],
+                "total_estimated_pages": proposal_content["total_pages"],
+                "generation_timestamp": datetime.now().isoformat(),
+                "comprehensive_content": proposal_content["full_content"]
             }
             
         except Exception as e:
@@ -405,3 +385,138 @@ class EnhancedAIAssistant:
             max_tokens=4000
         )
         return response.choices[0].message.content
+    
+    def _generate_comprehensive_proposal_optimized(self, contract_requirements, capability_statement):
+        """Generate comprehensive proposal in optimized way to avoid timeouts"""
+        response = self.client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": """You are an expert proposal writer creating a comprehensive 30-50 page government contract proposal. Generate a complete, detailed proposal with the following sections:
+
+1. EXECUTIVE SUMMARY (3-4 pages)
+- Project understanding and objectives
+- Unique value proposition and competitive advantages
+- Key personnel and team qualifications
+- Technical approach overview
+- Past performance highlights
+- Pricing competitiveness
+- Risk mitigation summary
+- Expected outcomes and benefits
+
+2. TECHNICAL APPROACH (12-15 pages)
+- Detailed methodology and work breakdown structure
+- Technical specifications and compliance
+- Innovation and technology solutions
+- Implementation timeline and milestones
+- Quality control procedures
+- Performance metrics and KPIs
+- Technical team structure and expertise
+- Tools, software, and equipment
+- Deliverables and documentation
+- Technical risk mitigation
+
+3. MANAGEMENT PLAN (8-10 pages)
+- Project management methodology and framework
+- Organizational structure and reporting relationships
+- Key personnel roles and responsibilities
+- Communication and coordination procedures
+- Schedule management and milestone tracking
+- Resource allocation and management
+- Quality management system
+- Change management procedures
+- Performance monitoring and control
+- Stakeholder engagement strategy
+
+4. PAST PERFORMANCE (6-8 pages)
+- Relevant project examples with detailed descriptions
+- Contract performance metrics and outcomes
+- Client testimonials and references
+- Lessons learned and continuous improvement
+- Awards, certifications, and recognition
+- Team experience and qualifications
+- Subcontractor and partner performance
+- Performance against schedule, budget, and quality metrics
+
+5. PRICING STRATEGY (4-5 pages)
+- Cost breakdown structure and methodology
+- Labor categories and rates justification
+- Direct and indirect cost analysis
+- Fee structure and profit margins
+- Cost control measures and efficiency strategies
+- Value engineering opportunities
+- Pricing competitiveness analysis
+- Cost risk assessment and mitigation
+
+6. QUALITY ASSURANCE (3-4 pages)
+- Quality management system and standards
+- Quality control procedures and checkpoints
+- Testing and validation methodologies
+- Documentation and record keeping
+- Continuous improvement processes
+- Quality metrics and performance indicators
+- Corrective and preventive action procedures
+
+7. RISK MANAGEMENT (2-3 pages)
+- Risk identification and assessment methodology
+- Risk register with probability and impact analysis
+- Risk mitigation strategies and contingency plans
+- Risk monitoring and reporting procedures
+- Escalation procedures and decision-making authority
+- Insurance and liability considerations
+
+Write each section with substantial, detailed content that demonstrates deep expertise and understanding. Use professional government contracting language with specific details, metrics, and examples. Make it comprehensive like a Gamma.app presentation with rich, detailed content."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2000]}\n\nCapability Statement: {capability_statement[:1500]}\n\nGenerate a comprehensive, detailed proposal for this government contract."}
+            ],
+            temperature=0.2,
+            max_tokens=6000
+        )
+        
+        full_content = response.choices[0].message.content
+        
+        sections = []
+        section_titles = [
+            "EXECUTIVE SUMMARY",
+            "TECHNICAL APPROACH", 
+            "MANAGEMENT PLAN",
+            "PAST PERFORMANCE",
+            "PRICING STRATEGY",
+            "QUALITY ASSURANCE",
+            "RISK MANAGEMENT"
+        ]
+        
+        current_section = ""
+        current_content = ""
+        
+        for line in full_content.split('\n'):
+            line_upper = line.strip().upper()
+            if any(title in line_upper for title in section_titles):
+                if current_section and current_content:
+                    sections.append({
+                        "section": current_section,
+                        "content": current_content.strip(),
+                        "pages": self._estimate_pages(current_content)
+                    })
+                current_section = line.strip()
+                current_content = ""
+            else:
+                current_content += line + "\n"
+        
+        if current_section and current_content:
+            sections.append({
+                "section": current_section,
+                "content": current_content.strip(),
+                "pages": self._estimate_pages(current_content)
+            })
+        
+        total_pages = sum(section.get("pages", 0) for section in sections)
+        
+        return {
+            "sections": sections,
+            "total_pages": total_pages,
+            "full_content": full_content
+        }
+    
+    def _estimate_pages(self, content):
+        """Estimate number of pages based on content length"""
+        words = len(content.split())
+        return max(1, round(words / 250))
