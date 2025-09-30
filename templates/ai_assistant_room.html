@@ -406,11 +406,27 @@
                     } else {
                         messages.removeChild(loadingMessage);
                         console.error('Error:', xhr.statusText);
-                        const aiMessage = document.createElement('div');
-                        aiMessage.className = 'message assistant';
-                        aiMessage.innerHTML = `<strong>AI Assistant:</strong> I'm analyzing your request using advanced contract intelligence. Based on the contract requirements and your capability statement, I'll provide specialized recommendations that go beyond general AI assistance.`;
-                        messages.appendChild(aiMessage);
-                        messages.scrollTop = messages.scrollHeight;
+                        
+                        // For timeout errors, wait and retry once
+                        if (xhr.status === 504 || xhr.status === 0) {
+                            const retryMessage = document.createElement('div');
+                            retryMessage.className = 'message assistant';
+                            retryMessage.innerHTML = `<strong>AI Assistant:</strong> ⏳ Generation taking longer than expected. Retrying...`;
+                            messages.appendChild(retryMessage);
+                            messages.scrollTop = messages.scrollHeight;
+                            
+                            // Retry after 3 seconds
+                            setTimeout(() => {
+                                messages.removeChild(retryMessage);
+                                triggerAnalysis(actionType);
+                            }, 3000);
+                        } else {
+                            const aiMessage = document.createElement('div');
+                            aiMessage.className = 'message assistant error';
+                            aiMessage.innerHTML = `<strong>AI Assistant:</strong> ❌ Error generating ${actionType} response. Please try again.`;
+                            messages.appendChild(aiMessage);
+                            messages.scrollTop = messages.scrollHeight;
+                        }
                     }
                 }
             };
