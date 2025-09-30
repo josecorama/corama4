@@ -1959,6 +1959,7 @@ def Welcome():
         return render_template('welcome.html', 
                              company_name=company_name, 
                              first_name=first_name,
+                             user_data=user_data,
                              analytics=analytics_data,
                              current_page=page,
                              items_per_page=items_per_page)
