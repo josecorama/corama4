@@ -326,7 +326,8 @@
                 'analyze': 'Please analyze this contract and calculate my win probability',
                 'compliance': 'Generate a compliance checklist for this contract',
                 'strategy': 'Suggest an optimal bid strategy for this contract',
-                'outline': 'Create a detailed proposal outline for this contract'
+                'outline': 'Create a detailed proposal outline for this contract',
+                'full_proposal': 'Generate a comprehensive 30-50 page proposal for this contract'
             };
             
             const userMessage = document.createElement('div');
@@ -347,14 +348,14 @@
             formData.append('hash_value', '{{ contract_id }}');
             formData.append('action_type', actionType);
             
-            fetch('/ai_assistant_enhanced', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Remove loading message
-                messages.removeChild(loadingMessage);
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/ai_assistant_enhanced', true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        const data = JSON.parse(xhr.responseText);
+                        // Remove loading message
+                        messages.removeChild(loadingMessage);
                 
                 if (data.error && data.credits_required) {
                     // Handle insufficient credits
@@ -400,18 +401,20 @@
                 }
                 
                 aiMessage.innerHTML = responseHTML;
-                messages.appendChild(aiMessage);
-                messages.scrollTop = messages.scrollHeight;
-            })
-            .catch(error => {
-                messages.removeChild(loadingMessage);
-                console.error('Error:', error);
-                const aiMessage = document.createElement('div');
-                aiMessage.className = 'message assistant';
-                aiMessage.innerHTML = `<strong>AI Assistant:</strong> I'm analyzing your request using advanced contract intelligence. Based on the contract requirements and your capability statement, I'll provide specialized recommendations that go beyond general AI assistance.`;
-                messages.appendChild(aiMessage);
-                messages.scrollTop = messages.scrollHeight;
-            });
+                        messages.appendChild(aiMessage);
+                        messages.scrollTop = messages.scrollHeight;
+                    } else {
+                        messages.removeChild(loadingMessage);
+                        console.error('Error:', xhr.statusText);
+                        const aiMessage = document.createElement('div');
+                        aiMessage.className = 'message assistant';
+                        aiMessage.innerHTML = `<strong>AI Assistant:</strong> I'm analyzing your request using advanced contract intelligence. Based on the contract requirements and your capability statement, I'll provide specialized recommendations that go beyond general AI assistance.`;
+                        messages.appendChild(aiMessage);
+                        messages.scrollTop = messages.scrollHeight;
+                    }
+                }
+            };
+            xhr.send(formData);
         }
         
         function createWinProbabilityDisplay(winProbData) {
@@ -515,14 +518,14 @@
             formData.append('hash_value', '{{ contract_id }}');
             formData.append('action_type', 'general');
             
-            fetch('/ai_assistant_enhanced', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                // Remove typing indicator
-                messages.removeChild(typingMessage);
+            const xhr2 = new XMLHttpRequest();
+            xhr2.open('POST', '/ai_assistant_enhanced', true);
+            xhr2.onreadystatechange = function() {
+                if (xhr2.readyState === 4) {
+                    if (xhr2.status === 200) {
+                        const data = JSON.parse(xhr2.responseText);
+                        // Remove typing indicator
+                        messages.removeChild(typingMessage);
                 
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant';
@@ -544,17 +547,19 @@
                     messages.appendChild(suggestionsMessage);
                 }
                 
-                messages.scrollTop = messages.scrollHeight;
-            })
-            .catch(error => {
-                messages.removeChild(typingMessage);
-                console.error('Error:', error);
-                const aiMessage = document.createElement('div');
-                aiMessage.className = 'message assistant';
-                aiMessage.innerHTML = `<strong>AI Assistant:</strong> I understand your question about "${message}". Let me analyze this in the context of your specific contract and capability statement. Based on the contract requirements and your company profile, I can provide specialized recommendations that leverage government contracting expertise and industry best practices.`;
-                messages.appendChild(aiMessage);
-                messages.scrollTop = messages.scrollHeight;
-            });
+                        messages.scrollTop = messages.scrollHeight;
+                    } else {
+                        messages.removeChild(typingMessage);
+                        console.error('Error:', xhr2.statusText);
+                        const aiMessage = document.createElement('div');
+                        aiMessage.className = 'message assistant';
+                        aiMessage.innerHTML = `<strong>AI Assistant:</strong> I understand your question about "${message}". Let me analyze this in the context of your specific contract and capability statement. Based on the contract requirements and your company profile, I can provide specialized recommendations that leverage government contracting expertise and industry best practices.`;
+                        messages.appendChild(aiMessage);
+                        messages.scrollTop = messages.scrollHeight;
+                    }
+                }
+            };
+            xhr2.send(formData);
         }
         
         // Handle Enter key in chat input
@@ -582,12 +587,12 @@
                 const formData = new FormData();
                 formData.append('file', file);
                 
-                fetch('/upload_document', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
+                const xhr3 = new XMLHttpRequest();
+                xhr3.open('POST', '/upload_document', true);
+                xhr3.onreadystatechange = function() {
+                    if (xhr3.readyState === 4) {
+                        if (xhr3.status === 200) {
+                            const data = JSON.parse(xhr3.responseText);
                     if (data.success) {
                         documentItem.querySelector('.document-status').innerHTML = `✓ Uploaded (${data.credits_used} credits)`;
                         documentItem.querySelector('.document-status').style.color = '#27ae60';
@@ -598,15 +603,17 @@
                         documentItem.querySelector('.document-status').innerHTML = '❌ Failed';
                         documentItem.querySelector('.document-status').style.color = '#e74c3c';
                     }
-                })
-                .catch(error => {
-                    console.error('Upload error:', error);
-                    // Simulate upload completion for now
-                    setTimeout(() => {
-                        documentItem.querySelector('.document-status').innerHTML = '✓ Uploaded';
-                        documentItem.querySelector('.document-status').style.color = '#27ae60';
-                    }, 2000);
-                });
+                        } else {
+                            console.error('Upload error:', xhr3.statusText);
+                            // Simulate upload completion for now
+                            setTimeout(() => {
+                                documentItem.querySelector('.document-status').innerHTML = '✓ Uploaded';
+                                documentItem.querySelector('.document-status').style.color = '#27ae60';
+                            }, 2000);
+                        }
+                    }
+                };
+                xhr3.send(formData);
             }
         });
     </script>
