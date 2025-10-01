@@ -465,10 +465,10 @@ class EnhancedAIAssistant:
 - Insurance and liability considerations
 
 Write each section with substantial, detailed content that demonstrates deep expertise and understanding. Use professional government contracting language with specific details, metrics, and examples. Make it comprehensive like a Gamma.app presentation with rich, detailed content."""},
-                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2000]}\n\nCapability Statement: {capability_statement[:1500]}\n\nGenerate a comprehensive, detailed proposal for this government contract."}
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2500]}\n\nCapability Statement: {capability_statement[:2000]}\n\nGenerate a comprehensive, detailed 30-50 page proposal for this government contract with extensive content in each section."}
             ],
             temperature=0.2,
-            max_tokens=6000
+            max_tokens=12000
         )
         
         full_content = response.choices[0].message.content

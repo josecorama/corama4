@@ -220,11 +220,11 @@ app.logger.setLevel(logging.INFO)
 
 #OPEN AI 
 
-client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CORAMA1'))
+client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY'))
 
-client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CORAMA1'))
+client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY'))
 
-client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('CORAMA1'))
+client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
 
 
 
@@ -1743,6 +1743,8 @@ def Signup():
                 "account_type": account_type,
                 "subscription_end_date": subscription_end_date,
                 "uploads_dir": create_user_directory(user_id),
+                "credits_balance": 100,
+                "credits_used": 0
             }, user_logged_in['idToken'])
 
             app.logger.info("✅ User successfully added to Firebase Database!")
@@ -3030,7 +3032,13 @@ def enhanced_ai_assistant():
         
         # Handle specialized actions regardless of hash_value
         if action_type == 'full_proposal':
-            # Generate comprehensive multi-page proposal (temporarily bypass credit check for testing)
+            success, message = credit_manager.deduct_credits(
+                user_id, id_token, required_credits, action_type, "Full proposal generation"
+            )
+            if not success:
+                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
+            
+            # Generate comprehensive multi-page proposal
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
@@ -3042,12 +3050,13 @@ def enhanced_ai_assistant():
                 return jsonify({
                     "response": "Comprehensive proposal generated successfully",
                     "proposal": full_proposal,
-                    "credits_used": 0,
-                    "remaining_credits": current_credits
+                    "credits_used": required_credits,
+                    "remaining_credits": current_credits - required_credits
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error generating full proposal: {e}")
+                credit_manager.add_credits(user_id, id_token, required_credits, "refund_failed_generation")
                 return jsonify({"error": "Failed to generate comprehensive proposal"}), 500
             
         elif action_type == 'analyze':
