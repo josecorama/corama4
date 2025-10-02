@@ -56,28 +56,36 @@
     
     <script>
         function purchaseCredits(credits, price) {
-            fetch('/create_credit_checkout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    credits: credits,
-                    price: price
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.checkout_url) {
-                    window.location.href = data.checkout_url;
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/create_credit_checkout', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    const data = JSON.parse(xhr.responseText);
+                    if (data.checkout_url) {
+                        window.location.href = data.checkout_url;
+                    } else {
+                        alert('Error creating checkout session: ' + (data.error || 'Unknown error'));
+                    }
                 } else {
-                    alert('Error creating checkout session: ' + (data.error || 'Unknown error'));
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    } catch (e) {
+                        alert('Error processing request');
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
+            };
+            
+            xhr.onerror = function() {
                 alert('Error processing request');
-            });
+            };
+            
+            xhr.send(JSON.stringify({
+                credits: credits,
+                price: price
+            }));
         }
     </script>
     
