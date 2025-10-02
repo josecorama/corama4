@@ -407,8 +407,49 @@
                         messages.removeChild(loadingMessage);
                         console.error('Error:', xhr.statusText);
                         
+                        // Handle insufficient credits (402 Payment Required)
+                        if (xhr.status === 402) {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                const errorMessage = document.createElement('div');
+                                errorMessage.className = 'message assistant error';
+                                errorMessage.innerHTML = `
+                                    <strong>AI Assistant:</strong> 💎 Insufficient Credits<br>
+                                    <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">
+                                            <strong>Credits Required:</strong> ${data.credits_required || 'N/A'}<br>
+                                            <strong>Your Balance:</strong> ${data.current_balance || 0}
+                                        </div>
+                                        <div style="margin-top: 1rem;">
+                                            <a href="/purchase_credits" style="display: inline-block; background: #3498db; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                                                💳 Purchase Credits Now
+                                            </a>
+                                        </div>
+                                        <div style="margin-top: 0.75rem; font-size: 0.9rem; color: #666;">
+                                            <strong>💡 Tip:</strong> Get started with one of our credit packages to unlock AI-powered proposal generation.
+                                        </div>
+                                    </div>
+                                `;
+                                messages.appendChild(errorMessage);
+                                messages.scrollTop = messages.scrollHeight;
+                            } catch (e) {
+                                // Fallback if parsing fails
+                                const errorMessage = document.createElement('div');
+                                errorMessage.className = 'message assistant error';
+                                errorMessage.innerHTML = `
+                                    <strong>AI Assistant:</strong> 💎 Insufficient Credits<br>
+                                    <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px;">
+                                        <a href="/purchase_credits" style="display: inline-block; background: #3498db; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                                            💳 Purchase Credits
+                                        </a>
+                                    </div>
+                                `;
+                                messages.appendChild(errorMessage);
+                                messages.scrollTop = messages.scrollHeight;
+                            }
+                        }
                         // For timeout errors, wait and retry once
-                        if (xhr.status === 504 || xhr.status === 0) {
+                        else if (xhr.status === 504 || xhr.status === 0) {
                             const retryMessage = document.createElement('div');
                             retryMessage.className = 'message assistant';
                             retryMessage.innerHTML = `<strong>AI Assistant:</strong> ⏳ Generation taking longer than expected. Retrying...`;
