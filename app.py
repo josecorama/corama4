@@ -5174,10 +5174,39 @@ def create_credit_checkout():
         stripe_customer_id = user_data.get('stripe_customer_id')
         
         if not stripe_customer_id:
-            return jsonify({"error": "Stripe customer not found"}), 400
+            user_email = user_data.get('email', '')
+            first_name = user_data.get('first_name', '')
+            last_name = user_data.get('last_name', '')
+            company = user_data.get('company', '')
+            
+            try:
+                logging.info(f"No stripe_customer_id found for {user_email}, attempting to fetch from Stripe API")
+                stripe_customers = stripe.Customer.list(email=user_email).data
+                
+                if stripe_customers:
+                    stripe_customer_id = stripe_customers[0].id
+                    logging.info(f"Found existing Stripe customer: {stripe_customer_id}")
+                else:
+                    logging.info(f"No existing Stripe customer found, creating new customer for {user_email}")
+                    stripe_customer = stripe.Customer.create(
+                        email=user_email,
+                        description=f"{first_name} {last_name} from {company}"
+                    )
+                    stripe_customer_id = stripe_customer.id
+                    logging.info(f"Created new Stripe customer: {stripe_customer_id}")
+                
+                db.child("users").child(user['localId']).update(
+                    {"stripe_customer_id": stripe_customer_id},
+                    user['idToken']
+                )
+                logging.info(f"Updated Firebase with stripe_customer_id for user {user['localId']}")
+                
+            except Exception as stripe_error:
+                logging.error(f"Error handling Stripe customer for {user_email}: {stripe_error}")
+                return jsonify({"error": "Failed to set up payment account. Please try again."}), 500
             
         credits = int(request.json.get('credits'))
-        price = int(request.json.get('price'))  # Price in cents
+        price = int(request.json.get('price'))
         
         checkout_session = stripe.checkout.Session.create(
             customer=stripe_customer_id,
