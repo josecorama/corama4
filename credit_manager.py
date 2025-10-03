@@ -86,6 +86,61 @@ class CreditManager:
         except Exception as e:
             logging.error(f"Error adding credits: {e}")
             return False, 0
+    
+    def add_credits_admin(self, user_id, amount, source="purchase"):
+        """Add credits to user balance using Firebase REST API (for webhook/admin operations)"""
+        try:
+            import os
+            import requests
+            
+            database_url = os.getenv('DATABASE_URL')
+            api_key = os.getenv('FIREBASE_API_KEY')
+            
+            if not database_url or not api_key:
+                logging.error("Firebase credentials not found for admin operation")
+                return False, 0
+            
+            user_url = f"{database_url}/users/{user_id}.json?auth={api_key}"
+            response = requests.get(user_url)
+            
+            if response.status_code != 200:
+                logging.error(f"Failed to fetch user data: {response.status_code}")
+                return False, 0
+            
+            user_data = response.json()
+            if not user_data:
+                logging.error(f"User {user_id} not found")
+                return False, 0
+            
+            current_balance = user_data.get('credits_balance', 0)
+            new_balance = current_balance + amount
+            
+            update_data = {
+                'credits_balance': new_balance,
+                'last_credit_update': datetime.now().isoformat()
+            }
+            update_response = requests.patch(user_url, json=update_data)
+            
+            if update_response.status_code != 200:
+                logging.error(f"Failed to update credits: {update_response.status_code}")
+                return False, 0
+            
+            transaction_url = f"{database_url}/credit_transactions/{user_id}.json?auth={api_key}"
+            transaction_data = {
+                'amount': amount,
+                'operation_type': source,
+                'description': f"Credits added via {source}",
+                'timestamp': datetime.now().isoformat(),
+                'balance_after': new_balance
+            }
+            requests.post(transaction_url, json=transaction_data)
+            
+            logging.info(f"✅ Admin operation: Added {amount} credits to user {user_id}, new balance: {new_balance}")
+            return True, new_balance
+            
+        except Exception as e:
+            logging.error(f"Error in admin credit addition: {e}")
+            return False, 0
 
 def require_credits(cost, operation_type):
     """Decorator to require credits for AI operations"""

@@ -5090,10 +5090,13 @@ def handle_successful_payment(session):
         
         if user_id and credits:
             credit_manager = CreditManager(db)
-            success, new_balance = credit_manager.add_credits(
-                user_id, None, credits, "stripe_purchase"
+            success, new_balance = credit_manager.add_credits_admin(
+                user_id, credits, "stripe_purchase"
             )
-            app.logger.info(f"✅ Credits added for user {user_id}: {credits} credits, new balance: {new_balance}")
+            if success:
+                app.logger.info(f"✅ Credits added for user {user_id}: {credits} credits, new balance: {new_balance}")
+            else:
+                app.logger.error(f"❌ Failed to add credits for user {user_id} via webhook")
     
     app.logger.info(f"✅ Payment successful for customer {customer_id}, subscription {subscription_id}")
 
@@ -5251,6 +5254,35 @@ def credit_purchase_success():
             logging.error(f"Error retrieving checkout session: {e}")
     
     return redirect(url_for('purchase_credits'))
+
+@app.route('/credit_history', methods=['GET'])
+def credit_history():
+    """Display credit transaction history and usage analytics"""
+    if 'user' not in session:
+        return redirect(url_for('Login'))
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        user_data = db.child("users").child(user_id).get(user['idToken']).val()
+        current_credits = user_data.get('credits_balance', 0)
+        credits_used = user_data.get('credits_used', 0)
+        
+        transactions = db.child("credit_transactions").child(user_id).get(user['idToken']).val()
+        transaction_list = []
+        if transactions:
+            for key, transaction in transactions.items():
+                transaction_list.append(transaction)
+            transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        return render_template('credit_history.html',
+                             current_credits=current_credits,
+                             credits_used=credits_used,
+                             transactions=transaction_list)
+    except Exception as e:
+        logging.error(f"Error fetching credit history: {e}")
+        return redirect(url_for('Welcome'))
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
