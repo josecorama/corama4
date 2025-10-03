@@ -5248,7 +5248,19 @@ def credit_purchase_success():
     if session_id:
         try:
             checkout_session = stripe.checkout.Session.retrieve(session_id)
-            credits = checkout_session.metadata.get('credits', 0)
+            credits = int(checkout_session.metadata.get('credits', 0))
+            user_id = checkout_session.metadata.get('user_id')
+            
+            if user_id and credits > 0:
+                credit_manager = CreditManager(db)
+                success, new_balance = credit_manager.add_credits_admin(
+                    user_id, credits, "stripe_purchase_success_page"
+                )
+                if success:
+                    app.logger.info(f"✅ Credits added via success page for user {user_id}: {credits} credits, new balance: {new_balance}")
+                else:
+                    app.logger.error(f"❌ Failed to add credits via success page for user {user_id}")
+            
             return render_template('credit_purchase_success.html', credits=credits)
         except Exception as e:
             logging.error(f"Error retrieving checkout session: {e}")
