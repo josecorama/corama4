@@ -11,6 +11,7 @@
     
     <div class="container" style="max-width: 600px; margin: 4rem auto; padding: 0 1rem; text-align: center;">
         <div style="background: white; border-radius: 12px; padding: 3rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            {% if success %}
             <div style="font-size: 4rem; margin-bottom: 1rem;">✅</div>
             <h1 style="color: #27ae60; margin-bottom: 1rem;">Purchase Successful!</h1>
             <p style="font-size: 1.2rem; color: #2c3e50; margin-bottom: 2rem;">
@@ -21,6 +22,18 @@
                     Your credits are now available for use with AI contract analysis, proposal generation, and document processing.
                 </p>
             </div>
+            {% else %}
+            <div style="font-size: 4rem; margin-bottom: 1rem;">⚠️</div>
+            <h1 style="color: #e74c3c; margin-bottom: 1rem;">Payment Received</h1>
+            <p style="font-size: 1.2rem; color: #2c3e50; margin-bottom: 2rem;">
+                Your payment of {{ credits }} credits was successful, but there was an issue adding the credits to your account.
+            </p>
+            <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; border: 1px solid #ffc107;">
+                <p style="margin: 0; color: #856404;">
+                    <strong>Don't worry!</strong> Your payment was processed successfully. Please contact support and we'll add your credits manually. Reference your payment confirmation email.
+                </p>
+            </div>
+            {% endif %}
             <div style="display: flex; gap: 1rem; justify-content: center;">
                 <a href="/welcome" style="background: #3498db; color: white; padding: 1rem 2rem; border-radius: 8px; text-decoration: none; font-weight: bold;">
                     Go to Dashboard
