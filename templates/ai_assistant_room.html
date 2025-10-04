@@ -236,7 +236,19 @@
     {% include 'navbar.html' %}
     
     <div class="ai-assistant-container">
-        <a href="/welcome" class="back-btn">← Back to Dashboard</a>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <a href="/welcome" class="back-btn">← Back to Dashboard</a>
+            
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.75rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); font-weight: 600;">
+                    <span style="font-size: 1.2rem;">💎</span>
+                    <span style="font-size: 1.1rem;">{{ current_credits }} Credits</span>
+                </div>
+                <a href="/purchase_credits" style="background: white; color: #667eea; padding: 0.75rem 1.25rem; border-radius: 12px; text-decoration: none; font-weight: 600; border: 2px solid #667eea; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;" onmouseover="this.style.background='#667eea'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#667eea';">
+                    <span>+</span> Buy More
+                </a>
+            </div>
+        </div>
         
         <div class="contract-header">
             <h1 class="contract-title">{{ contract_name }}</h1>

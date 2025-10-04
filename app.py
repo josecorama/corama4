@@ -2221,15 +2221,40 @@ def dashboard_search():
 @app.route('/ai-assistant')
 def ai_assistant_room():
     """AI Assistant room for bid response creation"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
     contract_id = request.args.get('contract')
     contract_name = request.args.get('name')
     
     if not contract_id:
         return redirect('/welcome')
     
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+                logging.info(f"✅ Admin SDK: Fetched credit balance for AI Assistant: {current_credits} credits")
+        else:
+            logging.warning("⚠️ Using fallback method to fetch credit balance for AI Assistant")
+            user_data = db.child("users").child(user_id).get(user['idToken']).val()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credit balance for AI Assistant: {e}")
+        current_credits = 0
+    
     return render_template('ai_assistant_room.html', 
                          contract_id=contract_id,
-                         contract_name=contract_name)
+                         contract_name=contract_name,
+                         current_credits=current_credits)
 
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
@@ -5314,16 +5339,38 @@ def credit_history():
     user_id = user['localId']
     
     try:
-        user_data = db.child("users").child(user_id).get(user['idToken']).val()
-        current_credits = user_data.get('credits_balance', 0)
-        credits_used = user_data.get('credits_used', 0)
-        
-        transactions = db.child("credit_transactions").child(user_id).get(user['idToken']).val()
-        transaction_list = []
-        if transactions:
-            for key, transaction in transactions.items():
-                transaction_list.append(transaction)
-            transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            
+            if not user_data:
+                logging.error(f"User {user_id} not found in database")
+                return redirect(url_for('Welcome'))
+            
+            current_credits = user_data.get('credits_balance', 0)
+            credits_used = user_data.get('credits_used', 0)
+            
+            transactions_ref = admin_db.reference(f'credit_transactions/{user_id}')
+            transactions = transactions_ref.get()
+            transaction_list = []
+            if transactions:
+                for key, transaction in transactions.items():
+                    transaction_list.append(transaction)
+                transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+            
+            logging.info(f"✅ Admin SDK: Fetched credit history for user {user_id}")
+        else:
+            logging.warning("⚠️ Using fallback method to fetch credit history")
+            user_data = db.child("users").child(user_id).get(user['idToken']).val()
+            current_credits = user_data.get('credits_balance', 0)
+            credits_used = user_data.get('credits_used', 0)
+            
+            transactions = db.child("credit_transactions").child(user_id).get(user['idToken']).val()
+            transaction_list = []
+            if transactions:
+                for key, transaction in transactions.items():
+                    transaction_list.append(transaction)
+                transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
         return render_template('credit_history.html',
                              current_credits=current_credits,
