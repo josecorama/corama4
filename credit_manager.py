@@ -87,9 +87,49 @@ class CreditManager:
             logging.error(f"Error adding credits: {e}")
             return False, 0
     
-    def add_credits_admin(self, user_id, amount, source="purchase"):
-        """Add credits to user balance using Firebase REST API (for webhook/admin operations)"""
+    def add_credits_admin(self, user_id, amount, source="purchase", admin_db=None):
+        """
+        Add credits to user balance using Firebase Admin SDK (preferred) or REST API fallback.
+        This is designed for server-side operations like Stripe webhooks.
+        
+        Args:
+            user_id: Firebase user ID
+            amount: Number of credits to add
+            source: Source of credits (e.g., "stripe_purchase", "manual_grant")
+            admin_db: Firebase Admin SDK database reference (if available)
+        """
         try:
+            if admin_db:
+                logging.info(f"Using Firebase Admin SDK to add {amount} credits to user {user_id}")
+                
+                user_ref = admin_db.reference(f'users/{user_id}')
+                user_data = user_ref.get()
+                
+                if not user_data:
+                    logging.error(f"User {user_id} not found in database")
+                    return False, 0
+                
+                current_balance = user_data.get('credits_balance', 0)
+                new_balance = current_balance + amount
+                
+                user_ref.update({
+                    'credits_balance': new_balance,
+                    'last_credit_update': datetime.now().isoformat()
+                })
+                
+                transaction_ref = admin_db.reference(f'credit_transactions/{user_id}')
+                transaction_ref.push({
+                    'amount': amount,
+                    'operation_type': source,
+                    'description': f"Credits added via {source}",
+                    'timestamp': datetime.now().isoformat(),
+                    'balance_after': new_balance
+                })
+                
+                logging.info(f"✅ Admin SDK: Added {amount} credits to user {user_id}, new balance: {new_balance}")
+                return True, new_balance
+            
+            logging.warning("⚠️ Falling back to REST API for credit addition (Admin SDK not available)")
             import os
             import requests
             
@@ -135,7 +175,7 @@ class CreditManager:
             }
             requests.post(transaction_url, json=transaction_data)
             
-            logging.info(f"✅ Admin operation: Added {amount} credits to user {user_id}, new balance: {new_balance}")
+            logging.info(f"REST API: Added {amount} credits to user {user_id}, new balance: {new_balance}")
             return True, new_balance
             
         except Exception as e:

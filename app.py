@@ -197,6 +197,34 @@ try:
 except Exception as e:
     logging.warning(f"Firebase initialization failed: {e}. Firebase services will be disabled.")
 
+admin_initialized = False
+admin_db = None
+
+try:
+    import firebase_admin
+    from firebase_admin import credentials, db as admin_database
+    
+    service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
+    
+    if os.path.exists(service_account_path):
+        cred = credentials.Certificate(service_account_path)
+        firebase_admin.initialize_app(cred, {
+            'databaseURL': os.getenv('DATABASE_URL')
+        })
+        admin_db = admin_database
+        admin_initialized = True
+        logging.info("✅ Firebase Admin SDK initialized successfully")
+    else:
+        logging.warning(f"⚠️ Firebase Admin SDK service account not found at {service_account_path}")
+        logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
+        
+except ImportError:
+    logging.warning("⚠️ firebase-admin package not installed. Run: pip install firebase-admin")
+    logging.warning("Credit purchase via webhook will use fallback method.")
+except Exception as e:
+    logging.error(f"❌ Failed to initialize Firebase Admin SDK: {e}")
+    logging.warning("Credit purchase via webhook will use fallback method.")
+
 
 
 # Set secure HTTP headers
@@ -5091,12 +5119,13 @@ def handle_successful_payment(session):
         if user_id and credits:
             credit_manager = CreditManager(db)
             success, new_balance = credit_manager.add_credits_admin(
-                user_id, credits, "stripe_purchase"
+                user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
             )
             if success:
                 app.logger.info(f"✅ Credits added for user {user_id}: {credits} credits, new balance: {new_balance}")
             else:
                 app.logger.error(f"❌ Failed to add credits for user {user_id} via webhook")
+                app.logger.error(f"User {user_id} completed payment but credits were not added - manual intervention required")
     
     app.logger.info(f"✅ Payment successful for customer {customer_id}, subscription {subscription_id}")
 
@@ -5261,8 +5290,8 @@ def credit_purchase_success():
             success = False
             if metadata_user_id == user_id and credits > 0:
                 credit_manager = CreditManager(db)
-                success, new_balance = credit_manager.add_credits(
-                    user_id, id_token, credits, "stripe_purchase"
+                success, new_balance = credit_manager.add_credits_admin(
+                    user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
                 )
                 if success:
                     app.logger.info(f"✅ Credits added via success page for user {user_id}: {credits} credits, new balance: {new_balance}")
