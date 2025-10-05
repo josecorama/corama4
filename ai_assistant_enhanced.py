@@ -92,21 +92,30 @@ class EnhancedAIAssistant:
             self.app.logger.error(f"Error calculating win probability: {e}")
             return {"probability": 0, "error": "Failed to calculate win probability"}
     
-    def generate_compliance_checklist(self, contract_requirements):
+    def generate_compliance_checklist(self, contract_requirements, company_name="your company"):
         """Generate compliance checklist for the contract"""
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": """Create a comprehensive compliance checklist for this government contract. Include:
-                    1. Required certifications and registrations
-                    2. Documentation requirements
-                    3. Technical compliance items
-                    4. Submission requirements and deadlines
-                    5. Format and presentation requirements
+                    {"role": "system", "content": f"""Create a comprehensive compliance checklist for {company_name} for this government contract bid. Include:
+                    1. Mandatory requirements and certifications
+                    2. Technical compliance items
+                    3. Administrative requirements
+                    4. Documentation needs
+                    5. Deadline and submission requirements
+                    6. Special provisions and clauses
                     
-                    Return as a structured JSON with categories and checklist items."""},
-                    {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:3000]}"}
+                    FORMAT YOUR RESPONSE WITH PROFESSIONAL MARKDOWN:
+                    
+                    ### Mandatory Requirements
+                    - [ ] Requirement 1
+                    - [ ] Requirement 2
+                    
+                    - [ ] Technical item 1
+                    
+                    Make it actionable and specific to {company_name}'s proposal needs. Return as professional markdown ready for copy/paste."""},
+                    {"role": "user", "content": f"Generate compliance checklist for {company_name}. Contract Requirements: {json.dumps(contract_requirements)[:2000]}"}
                 ],
                 temperature=0.1
             )
@@ -117,22 +126,29 @@ class EnhancedAIAssistant:
             self.app.logger.error(f"Error generating compliance checklist: {e}")
             return {"error": "Failed to generate compliance checklist"}
     
-    def suggest_bid_strategy(self, contract_analysis, capability_analysis, win_probability):
-        """Suggest optimal bid strategy based on analysis"""
+    def suggest_bid_strategy(self, contract_requirements, capability_statement, company_name="your company"):
+        """Suggest optimal bidding strategy"""
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": """You are a senior bid strategist. Based on the contract analysis, capability assessment, and win probability, recommend a comprehensive bid strategy including:
-                    1. Positioning and value proposition
+                    {"role": "system", "content": f"""Analyze the contract and {company_name}'s capabilities to suggest an optimal bid strategy. Consider:
+                    1. Competitive positioning for {company_name}
                     2. Pricing strategy recommendations
-                    3. Team composition and partnerships
+                    3. Win themes and differentiators specific to {company_name}
                     4. Risk mitigation approaches
-                    5. Differentiation strategies
-                    6. Proposal structure and emphasis areas
+                    5. Partnership opportunities that leverage {company_name}'s strengths
+                    6. Timeline and resource planning
                     
-                    Provide actionable, specific recommendations."""},
-                    {"role": "user", "content": f"Contract Analysis: {json.dumps(contract_analysis)[:1500]}\nCapability Analysis: {json.dumps(capability_analysis)[:1500]}\nWin Probability: {win_probability}%"}
+                    FORMAT YOUR RESPONSE WITH MARKDOWN:
+                    
+                    - Key differentiator 1
+                    - Key differentiator 2
+                    
+                    - Recommendation 1
+                    
+                    Provide actionable strategic recommendations specific to {company_name}. Make it professional and ready for copy/paste."""},
+                    {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:2000]}\n\n{company_name} Capabilities: {capability_statement[:1500]}"}
                 ],
                 temperature=0.3
             )
@@ -145,12 +161,30 @@ class EnhancedAIAssistant:
     def generate_enhanced_response(self, user_query, context_data, conversation_history):
         """Generate enhanced AI response with full context"""
         try:
+            company_name = context_data.get('company_name', 'your company')
+            uploaded_docs = context_data.get('uploaded_documents', [])
+            
+            docs_context = ""
+            if uploaded_docs:
+                docs_context = "\n\nAdditional Company Documents:\n"
+                for doc in uploaded_docs:
+                    docs_context += f"- {doc['filename']} ({doc['file_type']}): {doc['content_excerpt'][:300]}...\n"
+            
             system_prompt = f"""You are an expert government contracting consultant and bid writer for Contract Radar Maximizer. 
-            You help small businesses create winning government contract proposals.
+            You help {company_name} create winning government contract proposals.
+            
+            CRITICAL INSTRUCTIONS FOR RESPONSE FORMATTING:
+            - Format ALL responses with professional markdown structure
+            - Use headers (##), subheaders (###), bullet points, and bold text
+            - Structure content in clear sections for easy copy/paste
+            - Make responses ready for direct use in proposals
+            
+            Company Profile: {company_name}
             
             Context Information:
             - Contract Details: {context_data.get('contract_info', 'Not provided')}
             - Company Capabilities: {context_data.get('capability_statement', 'Not provided')}
+            {docs_context}
             - Contract Requirements: {json.dumps(context_data.get('contract_requirements', {}))[:1000]}
             - Win Probability Analysis: {json.dumps(context_data.get('win_probability', {}))[:500]}
             - Compliance Checklist: {json.dumps(context_data.get('compliance_checklist', {}))[:500]}
@@ -158,9 +192,17 @@ class EnhancedAIAssistant:
             Previous Conversation:
             {json.dumps(conversation_history[-5:])[:1000] if conversation_history else 'No previous conversation'}
             
-            Provide comprehensive, actionable guidance for creating compelling bid responses. 
-            Focus on helping small businesses win government contracts through strategic positioning, 
-            compliance adherence, and compelling value propositions."""
+            Provide comprehensive, actionable guidance specifically tailored to {company_name}'s strengths and capabilities. 
+            Focus on helping {company_name} win this government contract through strategic positioning based on their unique profile,
+            compliance adherence, and compelling value propositions. Reference uploaded documents when relevant.
+            
+            FORMAT YOUR RESPONSE WITH:
+            - Bullet point 1
+            - Bullet point 2
+            
+            - Specific action 1
+            - Specific action 2
+            """
             
             response = self.client.chat.completions.create(
                 model=self.fine_tuned_model,
@@ -177,21 +219,28 @@ class EnhancedAIAssistant:
             self.app.logger.error(f"Error generating enhanced response: {e}")
             return "I apologize, but I'm experiencing technical difficulties. Please try again."
     
-    def generate_proposal_outline(self, contract_requirements, capability_statement):
-        """Generate a structured proposal outline"""
+    def generate_proposal_outline(self, contract_requirements, capability_statement, company_name="your company"):
+        """Generate detailed proposal outline"""
         try:
             response = self.client.chat.completions.create(
                 model="gpt-4",
                 messages=[
-                    {"role": "system", "content": """Create a comprehensive proposal outline for this government contract bid. Include:
-                    1. Executive Summary structure
-                    2. Technical Approach sections
+                    {"role": "system", "content": f"""Create a comprehensive proposal outline for {company_name} for this government contract. Include:
+                    1. Executive Summary structure highlighting {company_name}'s value
+                    2. Technical Approach sections leveraging {company_name}'s capabilities
                     3. Management Plan components
-                    4. Past Performance organization
-                    5. Pricing Strategy framework
+                    4. Past Performance organization showcasing {company_name}'s experience
+                    5. Pricing section breakdown
                     6. Appendices and supporting documents
                     
-                    Tailor the outline to the specific contract requirements and company capabilities.
+                    FORMAT WITH MARKDOWN:
+                    
+                    - Company overview and qualifications
+                    - Understanding of requirements
+                    
+                    - Section 2.1: ...
+                    
+                    Structure it as a detailed table of contents with section descriptions. Make it professional and ready for copy/paste.
                     Return as a structured JSON with sections, subsections, and key points to address."""},
                     {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2000]}\nCompany Capabilities: {capability_statement[:1500]}"}
                 ],
@@ -204,10 +253,15 @@ class EnhancedAIAssistant:
             self.app.logger.error(f"Error generating proposal outline: {e}")
             return {"error": "Failed to generate proposal outline"}
     
-    def generate_full_proposal(self, contract_requirements, capability_statement, user_documents=None, target_pages=35):
+    def generate_full_proposal(self, contract_requirements, capability_statement, company_name="your company", user_documents=None, target_pages=35):
         """Generate comprehensive multi-page proposal (30-50 pages) - optimized to avoid timeouts"""
         try:
-            proposal_content = self._generate_comprehensive_proposal_optimized(contract_requirements, capability_statement)
+            proposal_content = self._generate_comprehensive_proposal_optimized(
+                contract_requirements, 
+                capability_statement,
+                company_name=company_name,
+                uploaded_docs=user_documents
+            )
             
             return {
                 "proposal_sections": proposal_content["sections"],
@@ -386,16 +440,31 @@ class EnhancedAIAssistant:
         )
         return response.choices[0].message.content
     
-    def _generate_comprehensive_proposal_optimized(self, contract_requirements, capability_statement):
+    def _generate_comprehensive_proposal_optimized(self, contract_requirements, capability_statement, company_name="your company", uploaded_docs=None):
         """Generate comprehensive proposal in optimized way to avoid timeouts"""
+        
+        docs_context = ""
+        if uploaded_docs:
+            docs_context = "\n\nAdditional Company Documents to Reference:\n"
+            for doc in uploaded_docs:
+                docs_context += f"- {doc['filename']}: {doc['content_excerpt'][:200]}...\n"
+        
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """You are an expert proposal writer creating a comprehensive 30-50 page government contract proposal. Generate a complete, detailed proposal with the following sections:
+                {"role": "system", "content": f"""You are an expert proposal writer creating a comprehensive 30-50 page government contract proposal for {company_name}. Generate a complete, detailed proposal with the following sections:
+
+**CRITICAL FORMATTING REQUIREMENTS:**
+- Use professional markdown formatting throughout
+- Include clear section headers with ##
+- Use bullet points for lists
+- Bold key terms and company strengths
+- Structure content for immediate copy/paste into proposal documents
+- Emphasize {company_name}'s unique capabilities and competitive advantages
 
 1. EXECUTIVE SUMMARY (3-4 pages)
-- Project understanding and objectives
-- Unique value proposition and competitive advantages
+- Project understanding and objectives **specific to {company_name}**
+- {company_name}'s unique value proposition and competitive advantages
 - Key personnel and team qualifications
 - Technical approach overview
 - Past performance highlights
@@ -404,9 +473,9 @@ class EnhancedAIAssistant:
 - Expected outcomes and benefits
 
 2. TECHNICAL APPROACH (12-15 pages)
-- Detailed methodology and work breakdown structure
+- Detailed methodology and work breakdown structure **tailored to {company_name}'s strengths**
 - Technical specifications and compliance
-- Innovation and technology solutions
+- Innovation and technology solutions {company_name} will employ
 - Implementation timeline and milestones
 - Quality control procedures
 - Performance metrics and KPIs
@@ -416,7 +485,7 @@ class EnhancedAIAssistant:
 - Technical risk mitigation
 
 3. MANAGEMENT PLAN (8-10 pages)
-- Project management methodology and framework
+- {company_name}'s project management methodology and framework
 - Organizational structure and reporting relationships
 - Key personnel roles and responsibilities
 - Communication and coordination procedures
@@ -428,7 +497,7 @@ class EnhancedAIAssistant:
 - Stakeholder engagement strategy
 
 4. PAST PERFORMANCE (6-8 pages)
-- Relevant project examples with detailed descriptions
+- {company_name}'s relevant project examples with detailed descriptions
 - Contract performance metrics and outcomes
 - Client testimonials and references
 - Lessons learned and continuous improvement
@@ -448,7 +517,7 @@ class EnhancedAIAssistant:
 - Cost risk assessment and mitigation
 
 6. QUALITY ASSURANCE (3-4 pages)
-- Quality management system and standards
+- {company_name}'s quality management system and standards
 - Quality control procedures and checkpoints
 - Testing and validation methodologies
 - Documentation and record keeping
@@ -464,8 +533,8 @@ class EnhancedAIAssistant:
 - Escalation procedures and decision-making authority
 - Insurance and liability considerations
 
-Write each section with substantial, detailed content that demonstrates deep expertise and understanding. Use professional government contracting language with specific details, metrics, and examples. Make it comprehensive like a Gamma.app presentation with rich, detailed content."""},
-                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2500]}\n\nCapability Statement: {capability_statement[:2000]}\n\nGenerate a comprehensive, detailed 30-50 page proposal for this government contract with extensive content in each section."}
+Write each section with substantial, detailed content that demonstrates {company_name}'s deep expertise and understanding. Use professional government contracting language with specific details, metrics, and examples. Make it comprehensive and ready for copy/paste into final proposal documents."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2500]}\n\nCapability Statement for {company_name}: {capability_statement[:2000]}{docs_context}\n\nGenerate a comprehensive, detailed 30-50 page proposal for {company_name} for this government contract with extensive content in each section. Format professionally with markdown."}
             ],
             temperature=0.2,
             max_tokens=12000

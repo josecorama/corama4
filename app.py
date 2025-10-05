@@ -3090,11 +3090,24 @@ def enhanced_ai_assistant():
                 user_uploads_dir = user_data['uploads_dir']
                 context_data['contract_info'] = process_selected_contract(user_uploads_dir, hash_value)
                 context_data['capability_statement'] = process_files_user_input(user_uploads_dir)
+                
+                company_identity = extract_company_identity(user_uploads_dir)
+                context_data['company_name'] = company_identity.get('company_name', 'your company')
+                
+                if admin_initialized and admin_db:
+                    uploaded_docs = get_user_uploaded_documents(user_id, admin_db)
+                    context_data['uploaded_documents'] = uploaded_docs
+                else:
+                    context_data['uploaded_documents'] = []
+                    
         except Exception as e:
             app.logger.warning(f"Error processing context data: {e}")
-            # Provide fallback context data
-            context_data['contract_info'] = "2024 Salt Purchase - Municipal salt procurement contract"
-            context_data['capability_statement'] = "Government contracting experience with procurement and delivery services"
+            context_data = {
+                'contract_info': 'Not available',
+                'capability_statement': 'Not available',
+                'company_name': 'your company',
+                'uploaded_documents': []
+            }
         
         # Handle specialized actions regardless of hash_value
         if action_type == 'full_proposal':
@@ -3111,11 +3124,13 @@ def enhanced_ai_assistant():
                 
                 full_proposal = enhanced_ai.generate_full_proposal(
                     contract_requirements,
-                    context_data.get('capability_statement', '')
+                    context_data.get('capability_statement', ''),
+                    company_name=context_data.get('company_name', 'your company'),
+                    user_documents=context_data.get('uploaded_documents', [])
                 )
                 
                 return jsonify({
-                    "response": "Comprehensive proposal generated successfully",
+                    "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
                     "proposal": full_proposal,
                     "credits_used": required_credits,
                     "remaining_credits": current_credits - required_credits
@@ -3165,7 +3180,10 @@ def enhanced_ai_assistant():
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
-                compliance_checklist = enhanced_ai.generate_compliance_checklist(contract_requirements)
+                compliance_checklist = enhanced_ai.generate_compliance_checklist(
+                    contract_requirements,
+                    company_name=context_data.get('company_name', 'your company')
+                )
                 
                 return jsonify({
                     "response": "Compliance checklist generated successfully",
@@ -3194,7 +3212,11 @@ def enhanced_ai_assistant():
                     contract_requirements
                 )
                 
-                strategy = enhanced_ai.suggest_bid_strategy(contract_requirements, context_data.get('capability_statement', ''), win_probability.get('probability', 50))
+                strategy = enhanced_ai.suggest_bid_strategy(
+                    contract_requirements, 
+                    context_data.get('capability_statement', ''),
+                    company_name=context_data.get('company_name', 'your company')
+                )
                 
                 return jsonify({
                     "response": "Bid strategy generated successfully",
@@ -3219,7 +3241,11 @@ def enhanced_ai_assistant():
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
-                proposal_outline = enhanced_ai.generate_proposal_outline(contract_requirements, context_data.get('capability_statement', ''))
+                proposal_outline = enhanced_ai.generate_proposal_outline(
+                    contract_requirements,
+                    context_data.get('capability_statement', ''),
+                    company_name=context_data.get('company_name', 'your company')
+                )
                 
                 return jsonify({
                     "response": "Proposal outline generated successfully",
@@ -3709,6 +3735,85 @@ def upload_document():
     except Exception as e:
         logging.error(f"Error uploading document: {e}")
         return jsonify({"error": str(e)}), 500
+
+def get_user_uploaded_documents(user_id, admin_db=None):
+    """
+    Retrieve uploaded documents from user's profile
+    
+    Args:
+        user_id: Firebase user ID
+        admin_db: Firebase Admin SDK database reference (if available)
+    
+    Returns:
+        list: List of document metadata with content excerpts
+    """
+    try:
+        documents = []
+        
+        if admin_db:
+            documents_ref = admin_db.reference(f'users/{user_id}/documents')
+            docs_data = documents_ref.get()
+            
+            if docs_data:
+                for doc_key, doc_info in docs_data.items():
+                    file_path = doc_info.get('file_path', '')
+                    filename = doc_info.get('filename', '')
+                    
+                    content_excerpt = ""
+                    if os.path.exists(file_path):
+                        try:
+                            if file_path.lower().endswith('.pdf'):
+                                import fitz
+                                doc = fitz.open(file_path)
+                                content_excerpt = doc[0].get_text()[:1000] if len(doc) > 0 else ""
+                            elif file_path.lower().endswith(('.txt', '.doc', '.docx')):
+                                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                    content_excerpt = f.read()[:1000]
+                        except Exception as e:
+                            logging.warning(f"Could not read document {filename}: {e}")
+                    
+                    documents.append({
+                        'filename': filename,
+                        'file_type': doc_info.get('file_type', ''),
+                        'upload_date': doc_info.get('upload_date', ''),
+                        'content_excerpt': content_excerpt
+                    })
+                
+                logging.info(f"Retrieved {len(documents)} uploaded documents for user {user_id}")
+        
+        return documents
+        
+    except Exception as e:
+        logging.error(f"Error retrieving user documents: {e}")
+        return []
+
+def extract_company_identity(user_uploads_dir):
+    """
+    Extract company name and identity from capability statement
+    
+    Args:
+        user_uploads_dir: User's uploads directory path
+    
+    Returns:
+        dict: Company identity information
+    """
+    try:
+        cs_file = os.path.join(user_uploads_dir, "capability_statements_processed.csv")
+        if os.path.exists(cs_file):
+            cs_df = pd.read_csv(cs_file, dtype=str)
+            if not cs_df.empty and 'Company' in cs_df.columns:
+                company_name = cs_df["Company"].iloc[0]
+                logging.info(f"Extracted company name: {company_name}")
+                return {'company_name': company_name}
+        
+        logging.warning("Could not extract company identity")
+        return {'company_name': 'your company'}
+        
+    except Exception as e:
+        logging.error(f"Error extracting company identity: {e}")
+        return {'company_name': 'your company'}
+
+
 
 @app.route('/contract_analysis', methods=['POST'])
 def analyze_contract_endpoint():
