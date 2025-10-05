@@ -181,6 +181,103 @@ class CreditManager:
         except Exception as e:
             logging.error(f"Error in admin credit addition: {e}")
             return False, 0
+    def get_user_credits_admin(self, user_id, admin_db=None):
+        """
+        Get current credit balance using Firebase Admin SDK (preferred) or fallback.
+        This is designed for server-side operations where user tokens may be unreliable.
+        
+        Args:
+            user_id: Firebase user ID
+            admin_db: Firebase Admin SDK database reference (if available)
+        
+        Returns:
+            int: Current credit balance
+        """
+        try:
+            if admin_db:
+                user_ref = admin_db.reference(f'users/{user_id}')
+                user_data = user_ref.get()
+                
+                if not user_data:
+                    logging.error(f"User {user_id} not found in database")
+                    return 0
+                
+                credits = user_data.get('credits_balance', 0)
+                logging.info(f"✅ Admin SDK: Fetched credit balance for user {user_id}: {credits}")
+                return credits
+            
+            logging.warning("⚠️ Using fallback method to fetch credit balance")
+            return self.get_user_credits(user_id, None)
+            
+        except Exception as e:
+            logging.error(f"Error getting user credits via admin: {e}")
+
+    def deduct_credits_admin(self, user_id, amount, operation_type, description="", admin_db=None):
+        """
+        Deduct credits using Firebase Admin SDK (preferred) or fallback.
+        This is designed for server-side operations where user tokens may be unreliable.
+        
+        Args:
+            user_id: Firebase user ID
+            amount: Number of credits to deduct
+            operation_type: Type of operation (e.g., "analyze", "compliance")
+            description: Description of the operation
+            admin_db: Firebase Admin SDK database reference (if available)
+        
+        Returns:
+            tuple: (success: bool, message: str, new_balance: int)
+        """
+        try:
+            if admin_db:
+                logging.info(f"Using Firebase Admin SDK to deduct {amount} credits from user {user_id}")
+                
+                user_ref = admin_db.reference(f'users/{user_id}')
+                user_data = user_ref.get()
+                
+                if not user_data:
+                    logging.error(f"User {user_id} not found in database")
+                    return False, "User data not found", 0
+                
+                current_balance = user_data.get('credits_balance', 0)
+                if current_balance < amount:
+                    logging.warning(f"Insufficient credits for user {user_id}: required {amount}, available {current_balance}")
+                    return False, f"Insufficient credits. Required: {amount}, Available: {current_balance}", current_balance
+                
+                new_balance = current_balance - amount
+                credits_used = user_data.get('credits_used', 0) + amount
+                
+                user_ref.update({
+                    'credits_balance': new_balance,
+                    'credits_used': credits_used,
+                    'last_credit_update': datetime.now().isoformat()
+                })
+                
+                transaction_ref = admin_db.reference(f'credit_transactions/{user_id}')
+                transaction_ref.push({
+                    'amount': -amount,
+                    'operation_type': operation_type,
+                    'description': description,
+                    'timestamp': datetime.now().isoformat(),
+                    'balance_after': new_balance
+                })
+                
+                logging.info(f"✅ Admin SDK: Deducted {amount} credits from user {user_id}, new balance: {new_balance}")
+                return True, f"Credits deducted successfully. New balance: {new_balance}", new_balance
+            
+            logging.warning("⚠️ Using fallback method to deduct credits")
+            success, message = self.deduct_credits(user_id, None, amount, operation_type, description)
+            if success:
+                new_balance = self.get_user_credits(user_id, None)
+                return True, message, new_balance
+            return False, message, 0
+            
+        except Exception as e:
+            logging.error(f"Error deducting credits via admin: {e}")
+            return False, str(e), 0
+
+            return 0
+
+
 
 def require_credits(cost, operation_type):
     """Decorator to require credits for AI operations"""

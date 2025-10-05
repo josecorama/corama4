@@ -181,21 +181,29 @@ try:
         auth = firebase.auth()
         db = firebase.database()
         logging.info("Firebase initialized successfully")
-        
-        # Initialize Enhanced AI Assistant and additional features after Firebase setup
-        from openai import OpenAI
-        bid_response_client = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
-        
-        enhanced_ai = EnhancedAIAssistant(app, db)
-        opportunity_scorer = ContractOpportunityScorer(bid_response_client)
-        competitive_intel = CompetitiveIntelligence(bid_response_client)
-        proposal_optimizer = ProposalOptimizer(bid_response_client)
-        deadline_manager = DeadlineManager(db)
-        template_library = IndustryTemplateLibrary(bid_response_client)
     else:
         logging.warning("Firebase configuration incomplete. Firebase services will be disabled.")
 except Exception as e:
     logging.warning(f"Firebase initialization failed: {e}. Firebase services will be disabled.")
+
+enhanced_ai = None
+if db:
+    try:
+        enhanced_ai = EnhancedAIAssistant(app, db)
+        logging.info("✅ Enhanced AI Assistant initialized successfully")
+    except Exception as e:
+        logging.warning(f"⚠️ Enhanced AI Assistant initialization failed: {e}")
+
+try:
+    from openai import OpenAI
+    bid_response_client = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
+    opportunity_scorer = ContractOpportunityScorer(bid_response_client)
+    competitive_intel = CompetitiveIntelligence(bid_response_client)
+    proposal_optimizer = ProposalOptimizer(bid_response_client)
+    deadline_manager = DeadlineManager(db)
+    template_library = IndustryTemplateLibrary(bid_response_client)
+except Exception as e:
+    logging.warning(f"⚠️ OpenAI-dependent features initialization failed: {e}")
 
 admin_initialized = False
 admin_db = None
@@ -3034,6 +3042,8 @@ def add_test_credits():
 @app.route('/ai_assistant_enhanced', methods=['POST'])
 def enhanced_ai_assistant():
     """Enhanced AI assistant endpoint with credit-based billing"""
+    global enhanced_ai
+    
     user_query = request.form.get('query')
     hash_value = request.form.get('hash_value')
     action_type = request.form.get('action_type', 'general')
@@ -3052,10 +3062,13 @@ def enhanced_ai_assistant():
         # Initialize credit manager
         credit_manager = CreditManager(db)
         
-        try:
-            current_credits = credit_manager.get_user_credits(user_id, id_token)
-        except:
-            current_credits = 100
+        if admin_initialized and admin_db:
+            current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
+        else:
+            try:
+                current_credits = credit_manager.get_user_credits(user_id, id_token)
+            except:
+                current_credits = 0
         
         # Determine credit cost based on action type
         credit_costs = {
@@ -3085,8 +3098,9 @@ def enhanced_ai_assistant():
         
         # Handle specialized actions regardless of hash_value
         if action_type == 'full_proposal':
-            success, message = credit_manager.deduct_credits(
-                user_id, id_token, required_credits, action_type, "Full proposal generation"
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, required_credits, action_type, "Full proposal generation",
+                admin_db=admin_db if admin_initialized else None
             )
             if not success:
                 return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
@@ -3113,11 +3127,12 @@ def enhanced_ai_assistant():
                 return jsonify({"error": "Failed to generate comprehensive proposal"}), 500
             
         elif action_type == 'analyze':
-            success, message = credit_manager.deduct_credits(
-                user_id, id_token, required_credits, action_type, "Contract analysis"
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, required_credits, action_type, "Contract analysis",
+                admin_db=admin_db if admin_initialized else None
             )
             if not success:
-                return jsonify({"error": message}), 402
+                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
@@ -3140,11 +3155,12 @@ def enhanced_ai_assistant():
                 return jsonify({"error": "Failed to analyze contract"}), 500
             
         elif action_type == 'compliance':
-            success, message = credit_manager.deduct_credits(
-                user_id, id_token, required_credits, action_type, "Compliance checklist generation"
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, required_credits, action_type, "Compliance checklist generation",
+                admin_db=admin_db if admin_initialized else None
             )
             if not success:
-                return jsonify({"error": message}), 402
+                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
@@ -3163,11 +3179,12 @@ def enhanced_ai_assistant():
                 return jsonify({"error": "Failed to generate compliance checklist"}), 500
             
         elif action_type == 'strategy':
-            success, message = credit_manager.deduct_credits(
-                user_id, id_token, required_credits, action_type, "Bid strategy generation"
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, required_credits, action_type, "Bid strategy generation",
+                admin_db=admin_db if admin_initialized else None
             )
             if not success:
-                return jsonify({"error": message}), 402
+                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
@@ -3192,11 +3209,12 @@ def enhanced_ai_assistant():
                 return jsonify({"error": "Failed to generate bid strategy"}), 500
             
         elif action_type == 'outline':
-            success, message = credit_manager.deduct_credits(
-                user_id, id_token, required_credits, action_type, "Proposal outline generation"
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, required_credits, action_type, "Proposal outline generation",
+                admin_db=admin_db if admin_initialized else None
             )
             if not success:
-                return jsonify({"error": message}), 402
+                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
@@ -3217,11 +3235,12 @@ def enhanced_ai_assistant():
         
         # For general queries (non-specialized actions), generate AI response
         if action_type == 'general':
-            success, message = credit_manager.deduct_credits(
-                user_id, id_token, required_credits, action_type, user_query[:100]
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, required_credits, action_type, user_query[:100],
+                admin_db=admin_db if admin_initialized else None
             )
             if not success:
-                return jsonify({"error": message}), 402
+                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
             conversation_history = enhanced_ai.get_conversation_context(user_id, hash_value) if hash_value else []
             ai_response = enhanced_ai.generate_enhanced_response(user_query, context_data, conversation_history)
