@@ -3048,7 +3048,7 @@ def enhanced_ai_assistant():
     hash_value = request.form.get('hash_value')
     action_type = request.form.get('action_type', 'general')
     
-    app.logger.info(f"Enhanced AI Assistant called with action_type: {action_type}, query: {user_query[:50] if user_query else 'None'}...")
+    app.logger.info(f"Enhanced AI Assistant called with action_type: {action_type}, hash_value: '{hash_value}', query: {user_query[:50] if user_query else 'None'}...")
     
     try:
         if not user_query:
@@ -3087,21 +3087,26 @@ def enhanced_ai_assistant():
         
         try:
             if hash_value:
+                app.logger.info(f"Processing context data with hash_value: {hash_value}")
                 user_uploads_dir = user_data['uploads_dir']
                 context_data['contract_info'] = process_selected_contract(user_uploads_dir, hash_value)
                 context_data['capability_statement'] = process_files_user_input(user_uploads_dir)
                 
                 company_identity = extract_company_identity(user_uploads_dir)
                 context_data['company_name'] = company_identity.get('company_name', 'your company')
+                app.logger.info(f"Extracted company name: {context_data['company_name']}")
                 
                 if admin_initialized and admin_db:
                     uploaded_docs = get_user_uploaded_documents(user_id, admin_db)
                     context_data['uploaded_documents'] = uploaded_docs
+                    app.logger.info(f"Retrieved {len(uploaded_docs)} uploaded documents")
                 else:
                     context_data['uploaded_documents'] = []
+            else:
+                app.logger.warning(f"No hash_value provided, skipping context gathering")
                     
         except Exception as e:
-            app.logger.warning(f"Error processing context data: {e}")
+            app.logger.error(f"Error processing context data: {e}", exc_info=True)
             context_data = {
                 'contract_info': 'Not available',
                 'capability_statement': 'Not available',
