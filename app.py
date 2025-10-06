@@ -3092,6 +3092,15 @@ def enhanced_ai_assistant():
                 context_data['contract_info'] = process_selected_contract(user_uploads_dir, hash_value)
                 context_data['capability_statement'] = process_files_user_input(user_uploads_dir)
                 
+                # Check if user has a valid capability statement
+                capability_statement = context_data.get('capability_statement', '')
+                if not capability_statement or capability_statement in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] or len(capability_statement.strip()) < 50:
+                    app.logger.warning(f"User {user_id} has no valid capability statement")
+                    return jsonify({
+                        "error": "No capability statement found. Please upload or create your capability statement in the Capability Statement section to use AI features. This helps us provide personalized, accurate responses based on your company's unique profile and capabilities.",
+                        "requires_capability_statement": True
+                    }), 400
+                
                 company_identity = extract_company_identity(user_uploads_dir)
                 context_data['company_name'] = company_identity.get('company_name', 'your company')
                 app.logger.info(f"Extracted company name: {context_data['company_name']}")

@@ -93,13 +93,13 @@ class EnhancedAIAssistant:
             return {"probability": 0, "error": "Failed to calculate win probability"}
     
     def generate_contract_analysis(self, contract_requirements, capability_statement, company_name="your company", uploaded_docs=None):
-        """Generate comprehensive contract analysis with markdown formatting"""
+        """Generate comprehensive contract analysis in plain text format"""
         try:
             docs_context = ""
             if uploaded_docs:
                 docs_context = "\n\nAdditional Company Documents:\n"
                 for doc in uploaded_docs:
-                    docs_context += f"- {doc['filename']}: {doc['content_excerpt'][:200]}...\n"
+                    docs_context += f"{doc['filename']}: {doc['content_excerpt'][:200]}...\n"
             
             response = self.client.chat.completions.create(
                 model="gpt-4",
@@ -107,34 +107,39 @@ class EnhancedAIAssistant:
                     {"role": "system", "content": f"""You are an expert government contracting analyst for {company_name}. Provide a comprehensive contract opportunity analysis.
                     
                     CRITICAL FORMATTING REQUIREMENTS:
-                    - Use professional markdown with headers (##, ###), bullet points, and bold text
+                    - Output PLAIN TEXT ONLY - NO markdown symbols
+                    - NO asterisks (**), NO hashtags (##), NO bullets (-, •), NO special formatting
+                    - Use simple numbered lists and clear section headings in UPPERCASE
+                    - Write in paragraph form ready to copy/paste directly into documents
                     - Structure content in clear sections for easy copy/paste into proposals
                     - Emphasize {company_name}'s unique strengths and competitive advantages
-                    - Make response immediately usable for proposal writing
                     
                     FORMAT YOUR ANALYSIS AS:
                     
-                    ## Contract Opportunity Analysis for {company_name}
+                    CONTRACT OPPORTUNITY ANALYSIS FOR {company_name.upper()}
                     
-                    **Estimated Win Probability:** [percentage]%
+                    ESTIMATED WIN PROBABILITY
+                    Probability: [percentage]%
                     
-                    **Key Factors:**
-                    - Factor 1 impacting {company_name}'s chances
-                    - Factor 2 specific to {company_name}
+                    KEY FACTORS
+                    Write detailed paragraphs about factors impacting {company_name}'s chances...
                     
-                    - **Strength 1:** Specific capability that gives {company_name} an edge
-                    - **Strength 2:** Another advantage for {company_name}
+                    COMPETITIVE STRENGTHS OF {company_name.upper()}
+                    1. First specific capability that gives {company_name} an edge
+                    2. Second advantage for {company_name}
                     
-                    - **Gap 1:** What {company_name} needs to address
-                      - *Mitigation:* How {company_name} can overcome this
+                    GAPS AND MITIGATION
+                    1. First gap that {company_name} needs to address and how to overcome it
+                    2. Second challenge and mitigation strategy
                     
-                    - **Risk 1:** Challenge {company_name} should prepare for
-                      - *Mitigation:* Action plan for {company_name}
+                    RISKS AND MITIGATION
+                    1. First risk {company_name} should prepare for and action plan
+                    2. Second challenge and response strategy
                     
-                    ### Strategic Recommendations for {company_name}
-                    1. **Immediate Actions:** What {company_name} should do now
-                    2. **Proposal Focus Areas:** Where {company_name} should emphasize strengths
-                    3. **Teaming Considerations:** Potential partners for {company_name}
+                    STRATEGIC RECOMMENDATIONS FOR {company_name.upper()}
+                    1. Immediate actions that {company_name} should do now
+                    2. Proposal focus areas where {company_name} should emphasize strengths
+                    3. Teaming considerations and potential partners for {company_name}
                     
                     Provide detailed, actionable insights specific to {company_name}'s profile and the uploaded context."""},
                     {"role": "user", "content": f"Analyze this contract opportunity for {company_name}.\n\nContract Requirements: {json.dumps(contract_requirements)[:2500]}\n\n{company_name} Capabilities: {capability_statement[:2000]}{docs_context}"}
@@ -146,7 +151,7 @@ class EnhancedAIAssistant:
             return response.choices[0].message.content
         except Exception as e:
             self.app.logger.error(f"Error generating contract analysis: {e}")
-            return f"## Analysis Error\nFailed to generate comprehensive analysis for {company_name}. Please try again."
+            return f"Analysis Error: Failed to generate comprehensive analysis for {company_name}. Please try again."
     
     def generate_compliance_checklist(self, contract_requirements, company_name="your company"):
         """Generate compliance checklist for the contract"""
@@ -162,16 +167,25 @@ class EnhancedAIAssistant:
                     5. Deadline and submission requirements
                     6. Special provisions and clauses
                     
-                    FORMAT YOUR RESPONSE WITH PROFESSIONAL MARKDOWN:
-                    ## Compliance Checklist for {company_name}
+                    CRITICAL FORMATTING REQUIREMENTS:
+                    - Output PLAIN TEXT ONLY - NO markdown symbols
+                    - NO asterisks (**), NO hashtags (##), NO checkboxes (- [ ]), NO special formatting
+                    - Use simple numbered lists and clear section headings
+                    - Write in plain paragraph and list form ready to copy/paste directly
                     
-                    ### Mandatory Requirements
-                    - [ ] Requirement 1
-                    - [ ] Requirement 2
+                    Format your response like:
                     
-                    - [ ] Technical item 1
+                    COMPLIANCE CHECKLIST FOR {company_name.upper()}
                     
-                    Make it actionable and specific to {company_name}'s proposal needs. Return as professional markdown ready for copy/paste."""},
+                    MANDATORY REQUIREMENTS
+                    1. First requirement description
+                    2. Second requirement description
+                    
+                    TECHNICAL COMPLIANCE
+                    1. First technical item
+                    2. Second technical item
+                    
+                    Make it actionable and specific to {company_name}'s proposal needs."""},
                     {"role": "user", "content": f"Generate compliance checklist for {company_name}. Contract Requirements: {json.dumps(contract_requirements)[:2000]}"}
                 ],
                 temperature=0.1
@@ -180,7 +194,7 @@ class EnhancedAIAssistant:
             return response.choices[0].message.content
         except Exception as e:
             self.app.logger.error(f"Error generating compliance checklist: {e}")
-            return f"## Compliance Checklist Error\nFailed to generate checklist for {company_name}."
+            return f"Compliance Checklist Error: Failed to generate checklist for {company_name}."
     
     def suggest_bid_strategy(self, contract_requirements, capability_statement, company_name="your company"):
         """Suggest optimal bidding strategy"""
@@ -196,19 +210,27 @@ class EnhancedAIAssistant:
                     5. Partnership opportunities that leverage {company_name}'s strengths
                     6. Timeline and resource planning
                     
-                    FORMAT YOUR RESPONSE WITH PROFESSIONAL MARKDOWN:
-                    ## Bid Strategy for {company_name}
+                    CRITICAL FORMATTING REQUIREMENTS:
+                    - Output PLAIN TEXT ONLY - NO markdown symbols
+                    - NO asterisks (**), NO hashtags (##), NO bullets (-, •), NO special formatting
+                    - Use simple numbered lists and clear section headings
+                    - Write in paragraph form ready to copy/paste directly into documents
                     
-                    - **Differentiator 1:** Specific strength of {company_name}
-                    - **Differentiator 2:** Another advantage
+                    Format your response like:
                     
-                    ### Strategic Recommendations
-                    1. **Recommendation 1:** Specific action for {company_name}
-                    2. **Recommendation 2:** Another strategy for {company_name}
+                    BID STRATEGY FOR {company_name.upper()}
                     
-                    How {company_name} should position itself...
+                    KEY DIFFERENTIATORS
+                    1. First specific strength of {company_name}
+                    2. Second advantage that sets {company_name} apart
                     
-                    Provide actionable strategic recommendations specific to {company_name}. Make it professional and ready for copy/paste."""},
+                    STRATEGIC RECOMMENDATIONS
+                    1. First specific action for {company_name}
+                    2. Second strategy recommendation for {company_name}
+                    
+                    Write detailed paragraphs explaining how {company_name} should position itself...
+                    
+                    Provide actionable strategic recommendations specific to {company_name}."""},
                     {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:2000]}\n\n{company_name} Capabilities: {capability_statement[:1500]}"}
                 ],
                 temperature=0.3
@@ -217,7 +239,7 @@ class EnhancedAIAssistant:
             return response.choices[0].message.content
         except Exception as e:
             self.app.logger.error(f"Error generating bid strategy: {e}")
-            return f"## Bid Strategy Error\nFailed to generate strategy recommendations for {company_name}."
+            return f"Bid Strategy Error: Failed to generate strategy recommendations for {company_name}."
     
     def generate_enhanced_response(self, user_query, context_data, conversation_history):
         """Generate enhanced AI response with full context"""
@@ -235,8 +257,10 @@ class EnhancedAIAssistant:
             You help {company_name} create winning government contract proposals.
             
             CRITICAL INSTRUCTIONS FOR RESPONSE FORMATTING:
-            - Format ALL responses with professional markdown structure
-            - Use headers (##), subheaders (###), bullet points, and bold text
+            - Output PLAIN TEXT ONLY - NO markdown symbols
+            - NO asterisks (**), NO hashtags (##), NO bullets (-, •), NO special formatting
+            - Use simple numbered lists and clear section headings in UPPERCASE
+            - Write in paragraph form ready to copy/paste directly into documents
             - Structure content in clear sections for easy copy/paste
             - Make responses ready for direct use in proposals
             
@@ -257,12 +281,12 @@ class EnhancedAIAssistant:
             Focus on helping {company_name} win this government contract through strategic positioning based on their unique profile,
             compliance adherence, and compelling value propositions. Reference uploaded documents when relevant.
             
-            FORMAT YOUR RESPONSE WITH:
-            - Bullet point 1
-            - Bullet point 2
+            FORMAT YOUR RESPONSE WITH PLAIN TEXT:
+            Use numbered lists like:
+            1. First point
+            2. Second point
             
-            - Specific action 1
-            - Specific action 2
+            Use clear section headings in UPPERCASE followed by paragraphs.
             """
             
             response = self.client.chat.completions.create(
@@ -517,87 +541,37 @@ class EnhancedAIAssistant:
             messages=[
                 {"role": "system", "content": f"""You are an expert proposal writer creating a comprehensive 30-50 page government contract proposal for {company_name}. Generate a complete, detailed proposal with the following sections:
 
-**CRITICAL FORMATTING REQUIREMENTS:**
-- Use professional markdown formatting throughout
-- Include clear section headers with ##
-- Use bullet points for lists
-- Bold key terms and company strengths
+CRITICAL FORMATTING REQUIREMENTS:
+- Output PLAIN TEXT ONLY - NO markdown symbols
+- NO asterisks (**), NO hashtags (##), NO bullets (-, •), NO special formatting
+- Use simple numbered lists and clear section headings in UPPERCASE
+- Write in paragraph form ready to copy/paste directly into Word documents
 - Structure content for immediate copy/paste into proposal documents
 - Emphasize {company_name}'s unique capabilities and competitive advantages
 
 1. EXECUTIVE SUMMARY (3-4 pages)
-- Project understanding and objectives **specific to {company_name}**
-- {company_name}'s unique value proposition and competitive advantages
-- Key personnel and team qualifications
-- Technical approach overview
-- Past performance highlights
-- Pricing competitiveness
-- Risk mitigation summary
-- Expected outcomes and benefits
+Project understanding and objectives specific to {company_name}, including {company_name}'s unique value proposition and competitive advantages, key personnel and team qualifications, technical approach overview, past performance highlights, pricing competitiveness, risk mitigation summary, and expected outcomes and benefits.
 
 2. TECHNICAL APPROACH (12-15 pages)
-- Detailed methodology and work breakdown structure **tailored to {company_name}'s strengths**
-- Technical specifications and compliance
-- Innovation and technology solutions {company_name} will employ
-- Implementation timeline and milestones
-- Quality control procedures
-- Performance metrics and KPIs
-- Technical team structure and expertise
-- Tools, software, and equipment
-- Deliverables and documentation
-- Technical risk mitigation
+Detailed methodology and work breakdown structure tailored to {company_name}'s strengths, technical specifications and compliance, innovation and technology solutions {company_name} will employ, implementation timeline and milestones, quality control procedures, performance metrics and KPIs, technical team structure and expertise, tools, software, and equipment, deliverables and documentation, and technical risk mitigation.
 
 3. MANAGEMENT PLAN (8-10 pages)
-- {company_name}'s project management methodology and framework
-- Organizational structure and reporting relationships
-- Key personnel roles and responsibilities
-- Communication and coordination procedures
-- Schedule management and milestone tracking
-- Resource allocation and management
-- Quality management system
-- Change management procedures
-- Performance monitoring and control
-- Stakeholder engagement strategy
+{company_name}'s project management methodology and framework, organizational structure and reporting relationships, key personnel roles and responsibilities, communication and coordination procedures, schedule management and milestone tracking, resource allocation and management, quality management system, change management procedures, performance monitoring and control, and stakeholder engagement strategy.
 
 4. PAST PERFORMANCE (6-8 pages)
-- {company_name}'s relevant project examples with detailed descriptions
-- Contract performance metrics and outcomes
-- Client testimonials and references
-- Lessons learned and continuous improvement
-- Awards, certifications, and recognition
-- Team experience and qualifications
-- Subcontractor and partner performance
-- Performance against schedule, budget, and quality metrics
+{company_name}'s relevant project examples with detailed descriptions, contract performance metrics and outcomes, client testimonials and references, lessons learned and continuous improvement, awards, certifications, and recognition, team experience and qualifications, subcontractor and partner performance, and performance against schedule, budget, and quality metrics.
 
 5. PRICING STRATEGY (4-5 pages)
-- Cost breakdown structure and methodology
-- Labor categories and rates justification
-- Direct and indirect cost analysis
-- Fee structure and profit margins
-- Cost control measures and efficiency strategies
-- Value engineering opportunities
-- Pricing competitiveness analysis
-- Cost risk assessment and mitigation
+Cost breakdown structure and methodology, labor categories and rates justification, direct and indirect cost analysis, fee structure and profit margins, cost control measures and efficiency strategies, value engineering opportunities, pricing competitiveness analysis, and cost risk assessment and mitigation.
 
 6. QUALITY ASSURANCE (3-4 pages)
-- {company_name}'s quality management system and standards
-- Quality control procedures and checkpoints
-- Testing and validation methodologies
-- Documentation and record keeping
-- Continuous improvement processes
-- Quality metrics and performance indicators
-- Corrective and preventive action procedures
+{company_name}'s quality management system and standards, quality control procedures and checkpoints, testing and validation methodologies, documentation and record keeping, continuous improvement processes, quality metrics and performance indicators, and corrective and preventive action procedures.
 
 7. RISK MANAGEMENT (2-3 pages)
-- Risk identification and assessment methodology
-- Risk register with probability and impact analysis
-- Risk mitigation strategies and contingency plans
-- Risk monitoring and reporting procedures
-- Escalation procedures and decision-making authority
-- Insurance and liability considerations
+Risk identification and assessment methodology, risk register with probability and impact analysis, risk mitigation strategies and contingency plans, risk monitoring and reporting procedures, escalation procedures and decision-making authority, and insurance and liability considerations.
 
-Write each section with substantial, detailed content that demonstrates {company_name}'s deep expertise and understanding. Use professional government contracting language with specific details, metrics, and examples. Make it comprehensive and ready for copy/paste into final proposal documents."""},
-                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2500]}\n\nCapability Statement for {company_name}: {capability_statement[:2000]}{docs_context}\n\nGenerate a comprehensive, detailed 30-50 page proposal for {company_name} for this government contract with extensive content in each section. Format professionally with markdown."}
+Write each section with substantial, detailed content that demonstrates {company_name}'s deep expertise and understanding. Use professional government contracting language with specific details, metrics, and examples. Make it comprehensive and ready for copy/paste into final proposal documents. Output in plain text format without any markdown symbols."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2500]}\n\nCapability Statement for {company_name}: {capability_statement[:2000]}{docs_context}\n\nGenerate a comprehensive, detailed 30-50 page proposal for {company_name} for this government contract with extensive content in each section. Format in plain text without markdown symbols."}
             ],
             temperature=0.2,
             max_tokens=6000
