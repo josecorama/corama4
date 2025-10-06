@@ -3143,7 +3143,7 @@ def enhanced_ai_assistant():
                 
             except Exception as e:
                 app.logger.error(f"Error generating full proposal: {e}")
-                credit_manager.add_credits(user_id, id_token, required_credits, "refund_failed_generation")
+                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate comprehensive proposal"}), 500
             
         elif action_type == 'analyze':
@@ -3157,21 +3157,22 @@ def enhanced_ai_assistant():
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
-                win_probability = enhanced_ai.calculate_win_probability(
-                    context_data.get('capability_statement', ''), 
-                    contract_requirements
+                analysis_response = enhanced_ai.generate_contract_analysis(
+                    contract_requirements,
+                    context_data.get('capability_statement', ''),
+                    company_name=context_data.get('company_name', 'your company'),
+                    uploaded_docs=context_data.get('uploaded_documents', [])
                 )
                 
                 return jsonify({
-                    "response": "Contract analysis completed successfully",
-                    "win_probability": win_probability,
-                    "contract_requirements": contract_requirements,
+                    "response": analysis_response,
                     "credits_used": required_credits,
                     "remaining_credits": current_credits - required_credits
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error in analyze action: {e}")
+                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_analysis", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to analyze contract"}), 500
             
         elif action_type == 'compliance':
@@ -3191,14 +3192,14 @@ def enhanced_ai_assistant():
                 )
                 
                 return jsonify({
-                    "response": "Compliance checklist generated successfully",
-                    "compliance_checklist": compliance_checklist,
+                    "response": compliance_checklist,
                     "credits_used": required_credits,
                     "remaining_credits": current_credits - required_credits
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error in compliance action: {e}")
+                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_compliance", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate compliance checklist"}), 500
             
         elif action_type == 'strategy':
@@ -3212,11 +3213,6 @@ def enhanced_ai_assistant():
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
-                win_probability = enhanced_ai.calculate_win_probability(
-                    context_data.get('capability_statement', ''), 
-                    contract_requirements
-                )
-                
                 strategy = enhanced_ai.suggest_bid_strategy(
                     contract_requirements, 
                     context_data.get('capability_statement', ''),
@@ -3224,15 +3220,14 @@ def enhanced_ai_assistant():
                 )
                 
                 return jsonify({
-                    "response": "Bid strategy generated successfully",
-                    "bid_strategy": strategy,
-                    "win_probability": win_probability,
+                    "response": strategy,
                     "credits_used": required_credits,
                     "remaining_credits": current_credits - required_credits
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error generating bid strategy: {e}")
+                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_strategy", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate bid strategy"}), 500
             
         elif action_type == 'outline':
@@ -3253,14 +3248,14 @@ def enhanced_ai_assistant():
                 )
                 
                 return jsonify({
-                    "response": "Proposal outline generated successfully",
-                    "proposal_outline": proposal_outline,
+                    "response": proposal_outline,
                     "credits_used": required_credits,
                     "remaining_credits": current_credits - required_credits
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error generating proposal outline: {e}")
+                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_outline", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate proposal outline"}), 500
             
         
