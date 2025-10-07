@@ -295,33 +295,52 @@
             <!-- Documents Section -->
             <div class="documents-section">
                 <h3 class="section-title">Contract Intelligence</h3>
-                <div class="documents-list" id="documentsList">
-                    <div class="document-item">
-                        <div class="document-name">Capability Statement</div>
-                        <div class="document-status">✓ Loaded</div>
+                
+                <!-- Compact horizontal status cards -->
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                    <div style="flex: 1; min-width: 120px; background: {% if has_capability_statement %}#e8f5e8{% else %}#fff3cd{% endif %}; border: 1px solid {% if has_capability_statement %}#27ae60{% else %}#ffc107{% endif %}; border-radius: 8px; padding: 0.5rem; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #666; margin-bottom: 0.25rem;">Capability</div>
+                        <div style="font-weight: 600; color: {% if has_capability_statement %}#27ae60{% else %}#856404{% endif %}; font-size: 0.85rem;">
+                            {% if has_capability_statement %}✓ Loaded{% else %}⚠ Missing{% endif %}
+                        </div>
                     </div>
-                    <div class="document-item">
-                        <div class="document-name">Contract Requirements</div>
-                        <div class="document-status">✓ Analyzed</div>
+                    <div style="flex: 1; min-width: 120px; background: #e8f5e8; border: 1px solid #27ae60; border-radius: 8px; padding: 0.5rem; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #666; margin-bottom: 0.25rem;">Score</div>
+                        <div style="font-weight: 600; color: #27ae60; font-size: 0.85rem;">85/100</div>
                     </div>
-                    <div class="document-item" style="background: #e8f5e8; border-color: #27ae60;">
-                        <div class="document-name">🎯 Opportunity Score</div>
-                        <div class="document-status" style="color: #27ae60;">85/100</div>
-                    </div>
-                    <div class="document-item" style="background: #fff3cd; border-color: #ffc107;">
-                        <div class="document-name">⚡ Competition Level</div>
-                        <div class="document-status" style="color: #856404;">Medium</div>
-                    </div>
-                    <div class="document-item" style="background: #d1ecf1; border-color: #17a2b8;">
-                        <div class="document-name">📍 Geographic Match</div>
-                        <div class="document-status" style="color: #0c5460;">High</div>
+                    <div style="flex: 1; min-width: 120px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 0.5rem; text-align: center;">
+                        <div style="font-size: 0.75rem; color: #666; margin-bottom: 0.25rem;">Competition</div>
+                        <div style="font-weight: 600; color: #856404; font-size: 0.85rem;">Medium</div>
                     </div>
                 </div>
+                
+                <!-- Capability Statement prompt if missing -->
+                {% if not has_capability_statement %}
+                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                    <div style="font-weight: 600; color: #856404; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="font-size: 1.2rem;">⚠️</span>
+                        <span>Capability Statement Required</span>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 0.75rem;">
+                        To get personalized, accurate AI responses based on your company's profile, you need a capability statement.
+                    </p>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <a href="/capability-builder-enhanced" style="background: #667eea; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-block;">
+                            ✨ Create in CORAMA
+                        </a>
+                        <button onclick="document.getElementById('fileUpload').click()" style="background: white; color: #667eea; padding: 0.5rem 1rem; border-radius: 6px; border: 2px solid #667eea; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
+                            📤 Upload Existing
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- File upload section -->
                 <div class="upload-section" onclick="document.getElementById('fileUpload').click()">
                     <input type="file" id="fileUpload" multiple accept=".pdf,.doc,.docx,.txt">
-                    <div>📁 Click to upload additional documents</div>
-                    <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.5rem;">
-                        PDF, DOC, DOCX, TXT files supported
+                    <div style="font-size: 0.9rem;">📁 Upload additional documents</div>
+                    <div style="font-size: 0.75rem; color: #7f8c8d; margin-top: 0.25rem;">
+                        PDF, DOC, DOCX, TXT files
                     </div>
                 </div>
             </div>
@@ -329,7 +348,15 @@
     </div>
     
     <script>
-        // Enhanced AI Analysis Functions
+        // Helper function to update credit display (important-comment)
+        function updateCreditDisplay(newBalance) {
+            const creditDisplay = document.querySelector('[style*="font-size: 1.1rem"]');
+            if (creditDisplay) {
+                creditDisplay.textContent = newBalance + ' Credits';
+            }
+        }
+        
+        // Enhanced AI Analysis Functions (important-comment)
         function triggerAnalysis(actionType) {
             const messages = document.getElementById('chatMessages');
             
@@ -399,6 +426,9 @@
                             💎 Credits used: ${data.credits_used} | Remaining: ${data.remaining_credits}
                         </div>
                     `;
+                    
+                    // Update credit display at the top (important-comment)
+                    updateCreditDisplay(data.remaining_credits);
                 }
                 
                 // Add specialized visualizations based on action type
@@ -419,7 +449,39 @@
                         messages.removeChild(loadingMessage);
                         console.error('Error:', xhr.statusText);
                         
-                        // Handle insufficient credits (402 Payment Required)
+                        // Handle capability statement requirement (400 Bad Request) (important-comment)
+                        if (xhr.status === 400) {
+                            try {
+                                const data = JSON.parse(xhr.responseText);
+                                if (data.requires_capability_statement) {
+                                    const errorMessage = document.createElement('div');
+                                    errorMessage.className = 'message assistant error';
+                                    errorMessage.innerHTML = `
+                                        <strong>AI Assistant:</strong> ⚠️ Capability Statement Required<br>
+                                        <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
+                                            <div style="font-size: 1rem; margin-bottom: 0.75rem; color: #856404;">
+                                                ${data.error}
+                                            </div>
+                                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                                <a href="/capability-builder-enhanced" style="display: inline-block; background: #667eea; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                                                    ✨ Create in CORAMA
+                                                </a>
+                                                <button onclick="document.getElementById('fileUpload').click()" style="background: white; color: #667eea; padding: 0.75rem 1.5rem; border-radius: 6px; border: 2px solid #667eea; font-weight: bold; cursor: pointer;">
+                                                    📤 Upload Existing
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
+                                    messages.appendChild(errorMessage);
+                                    messages.scrollTop = messages.scrollHeight;
+                                    return;
+                                }
+                            } catch (e) {
+                                // Fall through to generic error (important-comment)
+                            }
+                        }
+                        
+                        // Handle insufficient credits (402 Payment Required) (important-comment)
                         if (xhr.status === 402) {
                             try {
                                 const data = JSON.parse(xhr.responseText);
@@ -601,7 +663,12 @@
                 aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${data.response || 'Based on your capability statement and this specific contract, I can provide tailored guidance that goes beyond general AI assistance. I have access to your company profile, contract requirements, and government contracting best practices.'}`;
                 messages.appendChild(aiMessage);
                 
-                // Add follow-up suggestions for contract-specific questions
+                // Update credit display if credits were used (important-comment)
+                if (data.remaining_credits !== undefined) {
+                    updateCreditDisplay(data.remaining_credits);
+                }
+                
+                // Add follow-up suggestions for contract-specific questions (important-comment)
                 if (Math.random() > 0.7) {
                     const suggestionsMessage = document.createElement('div');
                     suggestionsMessage.className = 'message assistant suggestions';

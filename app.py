@@ -2241,6 +2241,7 @@ def ai_assistant_room():
     
     user_id = user['localId']
     current_credits = 0
+    has_capability_statement = False
     
     try:
         if admin_initialized and admin_db:
@@ -2250,11 +2251,36 @@ def ai_assistant_room():
             if user_data:
                 current_credits = user_data.get('credits_balance', 0)
                 logging.info(f"✅ Admin SDK: Fetched credit balance for AI Assistant: {current_credits} credits")
+                
+                user_uploads_dir = user_data.get('uploads_dir', '')
+                if user_uploads_dir and os.path.exists(user_uploads_dir):
+                    try:
+                        capability_statement = process_files_user_input(user_uploads_dir)
+                        if capability_statement and \
+                           capability_statement not in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] and \
+                           len(capability_statement.strip()) >= 50:
+                            has_capability_statement = True
+                            logging.info(f"✅ User {user_id} has valid capability statement")
+                        else:
+                            logging.warning(f"⚠️ User {user_id} has no valid capability statement")
+                    except Exception as e:
+                        logging.error(f"Error checking capability statement: {e}")
         else:
             logging.warning("⚠️ Using fallback method to fetch credit balance for AI Assistant")
             user_data = db.child("users").child(user_id).get(user['idToken']).val()
             if user_data:
                 current_credits = user_data.get('credits_balance', 0)
+                
+                user_uploads_dir = user_data.get('uploads_dir', '')
+                if user_uploads_dir and os.path.exists(user_uploads_dir):
+                    try:
+                        capability_statement = process_files_user_input(user_uploads_dir)
+                        if capability_statement and \
+                           capability_statement not in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] and \
+                           len(capability_statement.strip()) >= 50:
+                            has_capability_statement = True
+                    except Exception as e:
+                        logging.error(f"Error checking capability statement: {e}")
     except Exception as e:
         logging.error(f"Error fetching credit balance for AI Assistant: {e}")
         current_credits = 0
@@ -2262,7 +2288,8 @@ def ai_assistant_room():
     return render_template('ai_assistant_room.html', 
                          contract_id=contract_id,
                          contract_name=contract_name,
-                         current_credits=current_credits)
+                         current_credits=current_credits,
+                         has_capability_statement=has_capability_statement)
 
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
