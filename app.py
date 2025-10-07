@@ -32,7 +32,7 @@ import faiss
 import csv
 import json
 from pdf_class import create_pdf
-#from RAG.capability_statement_preprocessing import process_pdfs
+from capability_statement_preprocessing import process_pdfs
 #from RAG.Capability_statement_embedding import generate_embeddings as generate_capability_embeddings
 #from RAG.vector_store import VectorStore, load_embeddings, initialize_vector_stores
 #from RAG.matcher import find_matches
@@ -2243,6 +2243,7 @@ def ai_assistant_room():
     current_credits = 0
     has_capability_statement = False
     capability_statement_filename = None
+    company_name = None
     
     try:
         if admin_initialized and admin_db:
@@ -2262,6 +2263,17 @@ def ai_assistant_room():
                            len(capability_statement.strip()) >= 50:
                             has_capability_statement = True
                             logging.info(f"✅ User {user_id} has valid capability statement")
+                            
+                            # Extract company name from CSV
+                            csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                            if os.path.exists(csv_path):
+                                try:
+                                    df = pd.read_csv(csv_path)
+                                    if not df.empty and 'Company' in df.columns:
+                                        company_name = df['Company'].iloc[0]
+                                        logging.info(f"✅ Extracted company name: {company_name}")
+                                except Exception as e:
+                                    logging.error(f"Error reading company name from CSV: {e}")
                             
                             for fname in os.listdir(user_uploads_dir):
                                 if fname.lower().endswith(('.pdf', '.doc', '.docx')):
@@ -2286,6 +2298,17 @@ def ai_assistant_room():
                            len(capability_statement.strip()) >= 50:
                             has_capability_statement = True
                             
+                            # Extract company name from CSV
+                            csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                            if os.path.exists(csv_path):
+                                try:
+                                    df = pd.read_csv(csv_path)
+                                    if not df.empty and 'Company' in df.columns:
+                                        company_name = df['Company'].iloc[0]
+                                        logging.info(f"✅ Extracted company name: {company_name}")
+                                except Exception as e:
+                                    logging.error(f"Error reading company name from CSV: {e}")
+                            
                             for fname in os.listdir(user_uploads_dir):
                                 if fname.lower().endswith(('.pdf', '.doc', '.docx')):
                                     capability_statement_filename = fname
@@ -2301,7 +2324,8 @@ def ai_assistant_room():
                          contract_name=contract_name,
                          current_credits=current_credits,
                          has_capability_statement=has_capability_statement,
-                         capability_statement_filename=capability_statement_filename)
+                         capability_statement_filename=capability_statement_filename,
+                         company_name=company_name)
 
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
@@ -3760,6 +3784,20 @@ def upload_document():
             filename = secure_filename(file.filename)
             file_path = os.path.join(user_uploads_dir, filename)
             file.save(file_path)
+            
+            # Process all capability statement PDFs in directory into CSV
+            try:
+                pdf_files = [
+                    os.path.join(user_uploads_dir, f) 
+                    for f in os.listdir(user_uploads_dir) 
+                    if f.lower().endswith('.pdf')
+                ]
+                if pdf_files:
+                    output_csv = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                    process_pdfs(pdf_files, output_csv)
+                    logging.info(f"✅ Processed {len(pdf_files)} capability statement PDF(s) for user {user_id}")
+            except Exception as e:
+                logging.error(f"Error processing capability statement PDFs: {e}")
             
             documents_ref = db.child("users").child(user['localId']).child("documents")
             document_data = {

@@ -299,11 +299,17 @@
                         <span style="color: #27ae60; font-size: 1.2rem;">✓</span>
                         <div>
                             <div style="font-size: 0.7rem; color: #666; font-weight: 500;">Capability Statement</div>
-                            <div style="font-weight: 700; color: #27ae60; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;" title="{{ capability_statement_filename or 'Loaded' }}">
-                                {{ capability_statement_filename or 'Loaded' }}
+                            <div style="font-weight: 700; color: #27ae60; font-size: 0.95rem;">
+                                {% if company_name %}
+                                    {{ company_name }}
+                                {% else %}
+                                    Loaded
+                                {% endif %}
                             </div>
                         </div>
                     </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
                     <button onclick="document.getElementById('fileUpload').click()" style="background: #f8f9fa; border: 2px solid #dee2e6; color: #495057; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'; this.style.borderColor='#adb5bd'" onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#dee2e6'">
                         <span>📁</span> Upload More
                     </button>
@@ -710,21 +716,12 @@
             }
         });
         
-        // Handle file uploads
+        // Handle file uploads (important-comment)
         document.getElementById('fileUpload').addEventListener('change', function(e) {
             const files = e.target.files;
-            const documentsList = document.getElementById('documentsList');
             
             for (let file of files) {
-                const documentItem = document.createElement('div');
-                documentItem.className = 'document-item';
-                documentItem.innerHTML = `
-                    <div class="document-name">${file.name}</div>
-                    <div class="document-status">📤 Uploading...</div>
-                `;
-                documentsList.appendChild(documentItem);
-                
-                // Upload file to user's profile
+                // Upload file to user's profile (important-comment)
                 const formData = new FormData();
                 formData.append('file', file);
                 
@@ -734,23 +731,18 @@
                     if (xhr3.readyState === 4) {
                         if (xhr3.status === 200) {
                             const data = JSON.parse(xhr3.responseText);
-                    if (data.success) {
-                        documentItem.querySelector('.document-status').innerHTML = `✓ Uploaded (${data.credits_used} credits)`;
-                        documentItem.querySelector('.document-status').style.color = '#27ae60';
-                    } else if (data.error && data.credits_required) {
-                        documentItem.querySelector('.document-status').innerHTML = `❌ Insufficient credits (${data.credits_required} needed)`;
-                        documentItem.querySelector('.document-status').style.color = '#e74c3c';
-                    } else {
-                        documentItem.querySelector('.document-status').innerHTML = '❌ Failed';
-                        documentItem.querySelector('.document-status').style.color = '#e74c3c';
-                    }
+                            if (data.success) {
+                                // Show success confirmation and reload page to display company name (important-comment)
+                                alert('✅ Capability statement uploaded and processed successfully!\n\nThe page will refresh to display your company information.');
+                                window.location.reload();
+                            } else if (data.error && data.credits_required) {
+                                alert(`❌ Insufficient credits. ${data.credits_required} credits needed to upload this file.`);
+                            } else {
+                                alert('❌ Upload failed. Please try again.');
+                            }
                         } else {
                             console.error('Upload error:', xhr3.statusText);
-                            // Simulate upload completion for now
-                            setTimeout(() => {
-                                documentItem.querySelector('.document-status').innerHTML = '✓ Uploaded';
-                                documentItem.querySelector('.document-status').style.color = '#27ae60';
-                            }, 2000);
+                            alert('❌ Upload failed. Please try again.');
                         }
                     }
                 };
