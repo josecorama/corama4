@@ -2242,6 +2242,7 @@ def ai_assistant_room():
     user_id = user['localId']
     current_credits = 0
     has_capability_statement = False
+    capability_statement_filename = None
     
     try:
         if admin_initialized and admin_db:
@@ -2261,6 +2262,11 @@ def ai_assistant_room():
                            len(capability_statement.strip()) >= 50:
                             has_capability_statement = True
                             logging.info(f"✅ User {user_id} has valid capability statement")
+                            
+                            for fname in os.listdir(user_uploads_dir):
+                                if fname.lower().endswith(('.pdf', '.doc', '.docx')):
+                                    capability_statement_filename = fname
+                                    break
                         else:
                             logging.warning(f"⚠️ User {user_id} has no valid capability statement")
                     except Exception as e:
@@ -2279,6 +2285,11 @@ def ai_assistant_room():
                            capability_statement not in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] and \
                            len(capability_statement.strip()) >= 50:
                             has_capability_statement = True
+                            
+                            for fname in os.listdir(user_uploads_dir):
+                                if fname.lower().endswith(('.pdf', '.doc', '.docx')):
+                                    capability_statement_filename = fname
+                                    break
                     except Exception as e:
                         logging.error(f"Error checking capability statement: {e}")
     except Exception as e:
@@ -2289,7 +2300,8 @@ def ai_assistant_room():
                          contract_id=contract_id,
                          contract_name=contract_name,
                          current_credits=current_credits,
-                         has_capability_statement=has_capability_statement)
+                         has_capability_statement=has_capability_statement,
+                         capability_statement_filename=capability_statement_filename)
 
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
