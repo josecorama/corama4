@@ -32,9 +32,20 @@
         }
         
         .assistant-layout {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .status-banner {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
         }
         
         .chat-section {
@@ -43,16 +54,6 @@
             padding: 1.5rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             height: 600px;
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .documents-section {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            height: 350px;
             display: flex;
             flex-direction: column;
         }
@@ -236,8 +237,9 @@
         }
 
         @media (max-width: 768px) {
-            .assistant-layout {
-                grid-template-columns: 1fr;
+            .status-banner {
+                flex-direction: column;
+                align-items: flex-start;
             }
         }
     </style>
@@ -266,7 +268,52 @@
         </div>
         
         <div class="assistant-layout">
-            <!-- AI Chat Section -->
+            <!-- Status Banner -->
+            {% if not has_capability_statement %}
+            <div style="background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 250px;">
+                        <div style="color: white; font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span style="font-size: 1.3rem;">⚠️</span>
+                            <span>Capability Statement Required</span>
+                        </div>
+                        <p style="color: rgba(255,255,255,0.95); font-size: 0.9rem; margin: 0;">
+                            Get personalized AI responses based on your company's profile
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                        <a href="/capability-builder-enhanced" style="background: white; color: #667eea; padding: 0.75rem 1.5rem; border-radius: 8px; text-decoration: none; font-size: 0.9rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <span>✨</span> Create in CORAMA
+                        </a>
+                        <button onclick="document.getElementById('fileUpload').click()" style="background: rgba(255,255,255,0.25); backdrop-filter: blur(10px); color: white; padding: 0.75rem 1.5rem; border-radius: 8px; border: 2px solid white; font-size: 0.9rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.35)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'">
+                            <span>📤</span> Upload File
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="status-banner">
+                <div style="display: flex; align-items: center; gap: 1rem; flex: 1;">
+                    <div style="background: #e8f5e8; border: 2px solid #27ae60; border-radius: 8px; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="color: #27ae60; font-size: 1.2rem;">✓</span>
+                        <div>
+                            <div style="font-size: 0.7rem; color: #666; font-weight: 500;">Capability Statement</div>
+                            <div style="font-weight: 700; color: #27ae60; font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px;" title="{{ capability_statement_filename or 'Loaded' }}">
+                                {{ capability_statement_filename or 'Loaded' }}
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="document.getElementById('fileUpload').click()" style="background: #f8f9fa; border: 2px solid #dee2e6; color: #495057; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'; this.style.borderColor='#adb5bd'" onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#dee2e6'">
+                        <span>📁</span> Upload More
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Hidden file upload input -->
+            <input type="file" id="fileUpload" multiple accept=".pdf,.doc,.docx,.txt" style="display: none;">
+            
+            <!-- AI Chat Section (Full Width) -->
             <div class="chat-section">
                 <h3 class="section-title">AI Bid Assistant</h3>
                 <div class="chat-messages" id="chatMessages">
@@ -299,58 +346,6 @@
                 <div class="chat-input-container">
                     <input type="text" class="chat-input" id="chatInput" placeholder="Ask me anything about this contract or bid response...">
                     <button class="send-btn" onclick="sendMessage()">Send</button>
-                </div>
-            </div>
-            
-            <!-- Documents Section -->
-            <div class="documents-section">
-                <h3 class="section-title">Contract Intelligence</h3>
-                
-                <!-- Compact capability statement card -->
-                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem;">
-                    <div style="flex: 1; min-width: 200px; background: {% if has_capability_statement %}#e8f5e8{% else %}#fff3cd{% endif %}; border: 1px solid {% if has_capability_statement %}#27ae60{% else %}#ffc107{% endif %}; border-radius: 8px; padding: 0.75rem;">
-                        <div style="font-size: 0.75rem; color: #666; margin-bottom: 0.25rem;">Capability Statement</div>
-                        <div style="font-weight: 600; color: {% if has_capability_statement %}#27ae60{% else %}#856404{% endif %}; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">
-                            {% if has_capability_statement %}
-                                <span>✓</span>
-                                <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="{{ capability_statement_filename or 'Loaded' }}">
-                                    {{ capability_statement_filename or 'Loaded' }}
-                                </span>
-                            {% else %}
-                                <span>⚠️ Missing</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Capability Statement prompt if missing -->
-                {% if not has_capability_statement %}
-                <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                    <div style="font-weight: 600; color: #856404; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span style="font-size: 1.2rem;">⚠️</span>
-                        <span>Capability Statement Required</span>
-                    </div>
-                    <p style="font-size: 0.85rem; color: #666; margin-bottom: 0.75rem;">
-                        To get personalized, accurate AI responses based on your company's profile, you need a capability statement.
-                    </p>
-                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <a href="/capability-builder-enhanced" style="background: #667eea; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-block;">
-                            ✨ Create in CORAMA
-                        </a>
-                        <button onclick="document.getElementById('fileUpload').click()" style="background: white; color: #667eea; padding: 0.5rem 1rem; border-radius: 6px; border: 2px solid #667eea; font-size: 0.85rem; font-weight: 600; cursor: pointer;">
-                            📤 Upload Existing
-                        </button>
-                    </div>
-                </div>
-                {% endif %}
-                
-                <!-- File upload section -->
-                <div class="upload-section" onclick="document.getElementById('fileUpload').click()">
-                    <input type="file" id="fileUpload" multiple accept=".pdf,.doc,.docx,.txt">
-                    <div style="font-size: 0.9rem;">📁 Upload additional documents</div>
-                    <div style="font-size: 0.75rem; color: #7f8c8d; margin-top: 0.25rem;">
-                        PDF, DOC, DOCX, TXT files
-                    </div>
                 </div>
             </div>
         </div>
