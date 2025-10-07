@@ -248,8 +248,15 @@
     {% include 'navbar.html' %}
     
     <div class="ai-assistant-container" style="padding-top: 80px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <a href="/welcome" class="back-btn">← Back to Dashboard</a>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background: white; padding: 1rem 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+            <div style="display: flex; align-items: center; gap: 1.5rem;">
+                <a href="/welcome" class="back-btn">← Back to Dashboard</a>
+                <div style="border-left: 2px solid #e0e0e0; height: 40px;"></div>
+                <div>
+                    <h1 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #2c3e50;">{{ contract_name }}</h1>
+                    <div style="font-size: 0.8rem; color: #7f8c8d; margin-top: 0.15rem;">Contract ID: {{ contract_id }}</div>
+                </div>
+            </div>
             
             <div style="display: flex; align-items: center; gap: 0.5rem;">
                 <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.75rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); font-weight: 600;">
@@ -260,11 +267,6 @@
                     <span>+</span> Buy More
                 </a>
             </div>
-        </div>
-        
-        <div class="contract-header">
-            <h1 class="contract-title">{{ contract_name }}</h1>
-            <div class="contract-id">Contract ID: {{ contract_id }}</div>
         </div>
         
         <div class="assistant-layout">
