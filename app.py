@@ -3754,18 +3754,29 @@ def upload_document():
         if not user_data or 'uploads_dir' not in user_data:
             return jsonify({"error": "User uploads directory not found"}), 400
             
-        # Initialize credit manager and check credits
-        credit_manager = CreditManager(db)
-        current_credits = credit_manager.get_user_credits(user_id, id_token)
+        skip_credits = True  # TODO: Set to False to re-enable credit checks after Firebase is fixed
         
-        if current_credits < 2:
-            return jsonify({
-                "error": "Insufficient credits for document upload",
-                "credits_required": 2,
-                "current_balance": current_credits
-            }), 402
+        if not skip_credits:
+            # Initialize credit manager and check credits
+            credit_manager = CreditManager(db)
+            current_credits = credit_manager.get_user_credits(user_id, id_token)
+            
+            if current_credits < 2:
+                return jsonify({
+                    "error": "Insufficient credits for document upload",
+                    "credits_required": 2,
+                    "current_balance": current_credits
+                }), 402
+        else:
+            current_credits = 0  # Placeholder when credits are bypassed
+            logging.info(f"⚠️ TEMPORARY: Bypassing credit checks for capability statement upload")
             
         user_uploads_dir = user_data['uploads_dir']
+        
+        # Create uploads directory if it doesn't exist
+        if not os.path.exists(user_uploads_dir):
+            os.makedirs(user_uploads_dir)
+            logging.info(f"✅ Created uploads directory: {user_uploads_dir}")
         
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
@@ -3775,11 +3786,12 @@ def upload_document():
             return jsonify({"error": "No file selected"}), 400
             
         if file and allowed_file(file.filename):
-            success, message = credit_manager.deduct_credits(
-                user_id, id_token, 2, "document_upload", f"Upload document: {file.filename}"
-            )
-            if not success:
-                return jsonify({"error": message}), 402
+            if not skip_credits:
+                success, message = credit_manager.deduct_credits(
+                    user_id, id_token, 2, "document_upload", f"Upload document: {file.filename}"
+                )
+                if not success:
+                    return jsonify({"error": message}), 402
             
             filename = secure_filename(file.filename)
             file_path = os.path.join(user_uploads_dir, filename)
@@ -3812,8 +3824,8 @@ def upload_document():
             return jsonify({
                 "success": True, 
                 "filename": filename,
-                "credits_used": 2,
-                "remaining_credits": current_credits - 2
+                "credits_used": 0 if skip_credits else 2,
+                "remaining_credits": current_credits if skip_credits else current_credits - 2
             })
         else:
             return jsonify({"error": "File type not allowed"}), 400
