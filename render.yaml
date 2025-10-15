@@ -1,0 +1,55 @@
+services:
+  - type: web
+    name: corama-flask-app
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT --timeout 120 --workers 2 app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: ENV
+        value: production
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: AUTH_DOMAIN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: PROJECT_ID
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: MESSAGING_SENDER_ID
+        sync: false
+      - key: APP_ID
+        sync: false
+      - key: MEASUREMENT_ID
+        sync: false
+      - key: SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: SMART_SEARCH_OPENAI_API_KEY
+        sync: false
+      - key: BID_RESPONSE_OPENAI_API_KEY
+        sync: false
+      - key: CS_BUILDER_OPENAI_API_KEY
+        sync: false
+      - key: CS_BID_SEARCH_OPENAI_API_KEY
+        sync: false
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: STRIPE_API_KEY
+        sync: false
+      - key: STRIPE_API_WEBHOOK_KEY
+        sync: false
+      - key: RECAPTCHA_SECRET_KEY
+        sync: false
+      - key: RECAPTCHA_SITE_KEY
+        sync: false
+      - key: EMAIL_GOOGLE_USER
+        sync: false
+      - key: EMAIL_GOOGLE_PASS
+        sync: false
