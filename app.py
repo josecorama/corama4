@@ -1712,7 +1712,7 @@ def send_welcome_email(email, display_name):
 
         app.logger.debug("📧 Styled HTML email composed successfully.")
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10) as server:
             app.logger.debug("🔐 Connecting to SMTP server...")
             server.login(sender_email, sender_password)
             app.logger.debug("🔐 SMTP login successful.")
@@ -1770,10 +1770,15 @@ def Signup():
 
             app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
 
-            # ✅ Send Welcome Email
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
+            # ✅ Send Welcome Email (non-blocking - don't fail signup if email fails)
+            try:
+                app.logger.info("📨 Attempting to send welcome email...")
+                import threading
+                email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+                email_thread.start()
+                app.logger.info("📨 Welcome email queued for sending.")
+            except Exception as email_error:
+                app.logger.warning(f"⚠️ Could not send welcome email: {email_error}")
 
             # ✅ Store User Data in Session
             session['user_data'] = {
@@ -3167,6 +3172,9 @@ def enhanced_ai_assistant():
     """Enhanced AI assistant endpoint with credit-based billing"""
     global enhanced_ai
     
+    if not enhanced_ai:
+        return jsonify({"error": "AI Assistant service is currently unavailable. Please try again later."}), 503
+    
     user_query = request.form.get('query')
     hash_value = request.form.get('hash_value')
     action_type = request.form.get('action_type', 'general')
@@ -3682,7 +3690,9 @@ def process_capability_statement():
             return jsonify({'error': 'No file or URL provided'}), 400
         
         if not capability_text or len(capability_text.strip()) < 10:
-            logging.error(f"Insufficient text extracted: '{capability_text[:100]}...' (length: {len(capability_text) if capability_text else 0})")
+            logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}' (length: {len(capability_text) if capability_text else 0})")
+            if 'url' in request.json:
+                return jsonify({'error': 'Could not extract company information from this website. Please try a different URL or upload a capability statement file instead.'}), 400
             return jsonify({'error': 'Could not extract meaningful text from capability statement. Please ensure the PDF contains readable text.'}), 400
         
         # Use AI to parse and structure the capability statement
@@ -5768,7 +5778,10 @@ def create_credit_checkout():
         
     except Exception as e:
         logging.error(f"Error creating credit checkout: {e}")
-        return jsonify({"error": str(e)}), 500
+        error_message = str(e)
+        if "Expired API key" in error_message or "API key" in error_message:
+            return jsonify({"error": "Payment system is temporarily unavailable. Please contact support at support@contractradarmaxmizer.com"}), 503
+        return jsonify({"error": "Unable to process payment at this time. Please try again later."}), 500
 
 @app.route('/credit_purchase_success')
 def credit_purchase_success():
