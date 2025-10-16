@@ -3735,10 +3735,11 @@ def extract_text_from_pdf(filepath):
         return ""
 
 def download_and_extract_from_url(url):
-    """Download PDF from URL and extract text"""
+    """Download from URL - supports both PDF files and HTML websites"""
     try:
         import requests
-        logging.info(f"Attempting to download PDF from URL: {url}")
+        from bs4 import BeautifulSoup
+        logging.info(f"Attempting to extract content from URL: {url}")
         
         if not url.startswith(('http://', 'https://')):
             logging.error(f"Invalid URL format: {url}")
@@ -3752,42 +3753,96 @@ def download_and_extract_from_url(url):
         logging.info(f"URL response status: {response.status_code}, content-type: {response.headers.get('content-type', 'unknown')}")
         
         if response.status_code == 200:
-            # Check if content is actually a PDF
             content_type = response.headers.get('content-type', '').lower()
-            if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
-                logging.warning(f"URL may not be a PDF file. Content-Type: {content_type}")
             
-            temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+            # Check if it's a PDF
+            if 'pdf' in content_type or url.lower().endswith('.pdf'):
+                logging.info("Detected PDF content, processing as PDF")
+                temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                
+                max_size = 10 * 1024 * 1024
+                downloaded_size = 0
+                
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            downloaded_size += len(chunk)
+                            if downloaded_size > max_size:
+                                logging.error(f"File too large: {downloaded_size} bytes")
+                                os.remove(temp_path)
+                                return ""
+                            f.write(chunk)
+                
+                logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
+                text = extract_text_from_pdf(temp_path)
+                os.remove(temp_path)
+                return text
             
-            max_size = 10 * 1024 * 1024  # 10MB
-            downloaded_size = 0
-            
-            with open(temp_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        downloaded_size += len(chunk)
-                        if downloaded_size > max_size:
-                            logging.error(f"File too large: {downloaded_size} bytes")
-                            os.remove(temp_path)
-                            return ""
-                        f.write(chunk)
-            
-            logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
-            text = extract_text_from_pdf(temp_path)
-            os.remove(temp_path)
-            return text
+            else:
+                logging.info("Detected HTML content, scraping website")
+                html_content = response.text
+                soup = BeautifulSoup(html_content, 'html.parser')
+                
+                for script in soup(["script", "style", "nav", "footer", "header"]):
+                    script.decompose()
+                
+                main_content = soup.find('main') or soup.find('article') or soup.find(class_='content') or soup.find('body')
+                
+                if main_content:
+                    # Extract text from various elements
+                    text_parts = []
+                    
+                    title = soup.find('title')
+                    if title:
+                        text_parts.append(f"Company: {title.get_text(strip=True)}")
+                    
+                    h1 = soup.find('h1')
+                    if h1 and h1.get_text(strip=True) != (title.get_text(strip=True) if title else ''):
+                        text_parts.append(f"Company: {h1.get_text(strip=True)}")
+                    
+                    # Meta description
+                    meta_desc = soup.find('meta', attrs={'name': 'description'})
+                    if meta_desc and meta_desc.get('content'):
+                        text_parts.append(f"Description: {meta_desc['content']}")
+                    
+                    # Extract paragraphs and headings
+                    for element in main_content.find_all(['h1', 'h2', 'h3', 'p', 'li', 'address']):
+                        text = element.get_text(strip=True)
+                        if text and len(text) > 10:
+                            text_parts.append(text)
+                    
+                    email_pattern = r'[\w\.-]+@[\w\.-]+\.\w+'
+                    phone_pattern = r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+                    
+                    body_text = soup.get_text()
+                    import re
+                    
+                    emails = re.findall(email_pattern, body_text)
+                    if emails:
+                        text_parts.append(f"Email: {emails[0]}")
+                    
+                    phones = re.findall(phone_pattern, body_text)
+                    if phones:
+                        text_parts.append(f"Phone: {phones[0]}")
+                    
+                    extracted_text = '\n\n'.join(text_parts)
+                    logging.info(f"Extracted {len(extracted_text)} characters from website")
+                    return extracted_text
+                else:
+                    logging.warning("Could not find main content area in HTML")
+                    return ""
         else:
-            logging.error(f"Failed to download URL: HTTP {response.status_code}")
+            logging.error(f"Failed to access URL: HTTP {response.status_code}")
             return ""
             
     except requests.exceptions.Timeout:
-        logging.error(f"Timeout downloading from URL: {url}")
+        logging.error(f"Timeout accessing URL: {url}")
         return ""
     except requests.exceptions.RequestException as e:
-        logging.error(f"Request error downloading from URL {url}: {str(e)}")
+        logging.error(f"Request error accessing URL {url}: {str(e)}")
         return ""
     except Exception as e:
-        logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
+        logging.error(f"Error extracting from URL {url}: {str(e)}", exc_info=True)
         return ""
 
 def parse_capability_statement_with_ai(text):

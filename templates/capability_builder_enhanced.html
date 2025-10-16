@@ -306,13 +306,14 @@
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Or Import from URL</label>
+                                <label class="form-label">Or Extract from Website URL</label>
                                 <div class="input-group">
-                                    <input type="url" class="form-control" id="capabilityUrl" placeholder="https://example.com/capability-statement.pdf">
+                                    <input type="url" class="form-control" id="capabilityUrl" placeholder="https://example.com">
                                     <button type="button" class="btn btn-primary" onclick="importFromUrl()">
-                                        <i class="fas fa-download"></i> Import
+                                        <i class="fas fa-magic"></i> Extract
                                     </button>
                                 </div>
+                                <small class="text-muted">AI will automatically extract company info from the website</small>
                             </div>
                         </div>
                     </div>
@@ -1464,11 +1465,12 @@
                 return;
             }
             
-            // Basic URL validation
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 alert('Please enter a valid URL starting with http:// or https://');
                 return;
             }
+            
+            showUploadProgress(url, 'Extracting company information from website...');
             
             try {
                 const baseUrl = window.location.protocol + '//' + window.location.host;
@@ -1484,14 +1486,18 @@
                 console.log('URL import response:', result);
                 
                 if (result.success && result.data) {
+                    hideUploadProgress();
                     populateFormFromImport(result.data);
-                    alert('Capability statement imported from URL successfully!');
+                    showSuccessMessage('✅ Company information extracted successfully!');
                 } else if (result.error) {
+                    hideUploadProgress();
                     alert('Error importing from URL: ' + result.error);
                 } else {
+                    hideUploadProgress();
                     alert('Error importing from URL: Unknown error occurred.');
                 }
             } catch (error) {
+                hideUploadProgress();
                 console.error('Error importing from URL:', error);
                 alert('Error importing from URL: ' + error.message);
             }
