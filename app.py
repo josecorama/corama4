@@ -3457,12 +3457,13 @@ How can I help you with your contract response today?"""
 def capability_builder_enhanced():
     user = session.get('user')
     current_credits = 0
+    is_logged_in = user is not None
     if user:
         user_id = user['localId']
         credit_manager = CreditManager(db)
         if admin_initialized and admin_db:
             current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
-    return render_template('capability_builder_enhanced.html', current_credits=current_credits)
+    return render_template('capability_builder_enhanced.html', current_credits=current_credits, is_logged_in=is_logged_in)
 
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
