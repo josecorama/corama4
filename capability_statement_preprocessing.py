@@ -2,6 +2,8 @@ import PyPDF2
 import csv
 import re
 import os
+from datetime import datetime
+import pandas as pd
 
 def extract_text_from_pdf(pdf_path):
     try:
@@ -23,16 +25,27 @@ def clean_text(text):
     return text.strip()
 
 def process_pdfs(pdf_paths, output_csv):
-    with open(output_csv, 'w', newline='', encoding='utf-8') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Company', 'Capability_Statement'])
+    # Create output DataFrame with metadata
+    data = []
+    for pdf_path in pdf_paths:
+        company_name = os.path.splitext(os.path.basename(pdf_path))[0]
+        company_name = company_name.replace('_', ' ').replace('+', ' ')
         
-        for pdf_path in pdf_paths:
-            text = extract_text_from_pdf(pdf_path)
-            if text:
-                cleaned_text = clean_text(text)
-                company_name = os.path.splitext(os.path.basename(pdf_path))[0]
-                writer.writerow([company_name, cleaned_text])
+        text = extract_text_from_pdf(pdf_path)
+        cleaned_text = clean_text(text)
+        
+        # Add row with metadata
+        data.append({
+            'Company': company_name,
+            'Capability_Statement': cleaned_text,
+            'filename': os.path.basename(pdf_path),
+            'upload_date': datetime.now().isoformat(),
+            'is_primary': len(data) == 0  # First one is primary by default (important-comment)
+        })
+    
+    df = pd.DataFrame(data)
+    df.to_csv(output_csv, index=False)
+    print(f"Processed {len(pdf_paths)} files and saved to {output_csv}")
 
 # 使用示例
 pdf_paths = ['HOH Company Firm Overview One Page.pdf']

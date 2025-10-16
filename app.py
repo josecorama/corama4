@@ -2264,16 +2264,30 @@ def ai_assistant_room():
                             has_capability_statement = True
                             logging.info(f"✅ User {user_id} has valid capability statement")
                             
-                            # Extract company name from CSV
+                            # Extract all capability statements from CSV
                             csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                            capability_statements = []
+                            capability_statement_count = 0
+                            
                             if os.path.exists(csv_path):
                                 try:
                                     df = pd.read_csv(csv_path)
                                     if not df.empty and 'Company' in df.columns:
-                                        company_name = df['Company'].iloc[0]
-                                        logging.info(f"✅ Extracted company name: {company_name}")
+                                        company_name = df['Company'].iloc[0]  # Primary company (important-comment)
+                                        capability_statement_count = len(df)
+                                        
+                                        # Build list of all capabilities for selection
+                                        for idx, row in df.iterrows():
+                                            capability_statements.append({
+                                                'company': row.get('Company', 'Unknown'),
+                                                'filename': row.get('filename', ''),
+                                                'upload_date': row.get('upload_date', ''),
+                                                'is_primary': idx == 0 or row.get('is_primary', False)
+                                            })
+                                        
+                                        logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
                                 except Exception as e:
-                                    logging.error(f"Error reading company name from CSV: {e}")
+                                    logging.error(f"Error reading company names from CSV: {e}")
                             
                             for fname in os.listdir(user_uploads_dir):
                                 if fname.lower().endswith(('.pdf', '.doc', '.docx')):
@@ -2298,7 +2312,7 @@ def ai_assistant_room():
                            len(capability_statement.strip()) >= 50:
                             has_capability_statement = True
                             
-                            # Extract company name from CSV
+                            # Extract all capability statements from CSV
                             csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
                             if os.path.exists(csv_path):
                                 try:
@@ -2325,7 +2339,9 @@ def ai_assistant_room():
                          current_credits=current_credits,
                          has_capability_statement=has_capability_statement,
                          capability_statement_filename=capability_statement_filename,
-                         company_name=company_name)
+                         company_name=company_name,
+                         capability_statements=capability_statements if 'capability_statements' in locals() else [],
+                         capability_statement_count=capability_statement_count if 'capability_statement_count' in locals() else 0)
 
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
@@ -3362,9 +3378,14 @@ def enhanced_ai_assistant():
 
 @app.route('/capability-builder-enhanced')
 def capability_builder_enhanced():
-    # if 'user_id' not in session:
-    #     return redirect(url_for('Login'))
-    return render_template('capability_builder_enhanced.html')
+    user = session.get('user')
+    current_credits = 0
+    if user:
+        user_id = user['localId']
+        credit_manager = CreditManager(db)
+        if admin_initialized and admin_db:
+            current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
+    return render_template('capability_builder_enhanced.html', current_credits=current_credits)
 
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
@@ -3738,6 +3759,44 @@ def parse_capability_statement_with_ai(text):
     except Exception as e:
         logging.error(f"Error parsing with AI: {str(e)}", exc_info=True)
         return {}
+
+@app.route('/update_selected_capability', methods=['POST'])
+def update_selected_capability():
+    """Update which capability statement is currently selected as primary"""
+    try:
+        if 'user' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        user = session['user']
+        user_id = user['localId']
+        id_token = user['idToken']
+        filename = request.json.get('filename')
+        
+        if not filename:
+            return jsonify({'error': 'Filename is required'}), 400
+        
+        # Get user uploads directory
+        user_data = db.child("users").child(user_id).get(id_token).val()
+        if not user_data or 'uploads_dir' not in user_data:
+            return jsonify({'error': 'User uploads directory not found'}), 400
+        
+        user_uploads_dir = user_data['uploads_dir']
+        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+        
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'Capability statements CSV not found'}), 404
+        
+        df = pd.read_csv(csv_path)
+        df['is_primary'] = df['filename'] == filename
+        df.to_csv(csv_path, index=False)
+        
+        logging.info(f"✅ Updated primary capability statement to {filename} for user {user_id}")
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating selected capability: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/upload_document', methods=['POST'])
 def upload_document():
@@ -4239,6 +4298,67 @@ def index():
     else:
         app.logger.error(f"找不到合同详情，hash_value={hash_value}, bid_number={bid_number}")
         return "Contract details not found", 404
+
+@app.route('/download_proposal', methods=['POST'])
+def download_proposal():
+    """Generate and download full proposal document in Word format"""
+    try:
+        if 'user' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        # Get proposal data from request
+        proposal_data = request.json.get('proposal_data')
+        contract_name = request.json.get('contract_name', 'Government Contract Proposal')
+        company_name = request.json.get('company_name', 'Your Company')
+        
+        if not proposal_data:
+            return jsonify({'error': 'Proposal data is required'}), 400
+        
+        # Create Word document
+        doc = Document()
+        
+        # Add title page
+        doc.add_heading(f'{company_name}', 0)
+        doc.add_heading(f'Proposal Response', 1)
+        doc.add_heading(f'{contract_name}', 2)
+        doc.add_paragraph(f'\nSubmitted: {datetime.now().strftime("%B %d, %Y")}')
+        doc.add_page_break()
+        
+        # Add each section
+        sections = proposal_data.get('proposal_sections', [])
+        for section in sections:
+            doc.add_heading(section['section'], 1)
+            doc.add_paragraph(section['content'])
+            doc.add_page_break()
+        
+        # Add footer with page numbers
+        for section in doc.sections:
+            footer = section.footer
+            footer_para = footer.paragraphs[0]
+            footer_para.text = f'{company_name} - {contract_name}\t'
+            footer_para.alignment = 1  # Center alignment (important-comment)
+        
+        # Save to buffer
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        # Generate filename
+        safe_contract_name = "".join(c for c in contract_name if c.isalnum() or c in (' ', '-', '_')).strip()
+        filename = f'{company_name}_{safe_contract_name}_Proposal.docx'
+        
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Error generating proposal download: {e}")
+        return jsonify({'error': 'Failed to generate proposal document'}), 500
+
+
 
 
 

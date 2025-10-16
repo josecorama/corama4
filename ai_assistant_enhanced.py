@@ -340,6 +340,35 @@ class EnhancedAIAssistant:
             self.app.logger.error(f"Error generating proposal outline: {e}")
             return f"## Proposal Outline Error\nFailed to generate outline for {company_name}."
     
+    def _generate_cover_letter(self, contract_requirements, capability_statement, company_name="your company", contact_info=None):
+        """Generate professional cover letter section"""
+        try:
+            contact_details = ""
+            if contact_info:
+                contact_details = f"\n\nContact: {contact_info.get('name', '')}\n{contact_info.get('title', '')}\n{contact_info.get('email', '')}\n{contact_info.get('phone', '')}"
+            
+            response = self.client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": f"""Create a professional cover letter (1-2 pages) for {company_name}'s government contract proposal. Include:
+                    1. Date and recipient information (placeholder format)
+                    2. Opening paragraph expressing interest and understanding
+                    3. Brief company introduction highlighting unique qualifications
+                    4. Summary of key competitive advantages for this contract
+                    5. Expression of commitment and readiness
+                    6. Professional closing with signature block
+                    
+                    Format in plain text without markdown symbols. Use formal government contracting language."""},
+                    {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:2000]}\n\nCompany: {company_name}\nCapabilities: {capability_statement[:1500]}{contact_details}"}
+                ],
+                temperature=0.2
+            )
+            
+            return response.choices[0].message.content
+        except Exception as e:
+            self.app.logger.error(f"Error generating cover letter: {e}")
+            return f"COVER LETTER\n\n[Date]\n\n[Recipient Information]\n\nDear Selection Committee,\n\n{company_name} is pleased to submit this proposal..."
+    
     def generate_full_proposal(self, contract_requirements, capability_statement, company_name="your company", user_documents=None, target_pages=35):
         """Generate comprehensive multi-page proposal (30-50 pages) - optimized to avoid timeouts"""
         try:
@@ -549,6 +578,9 @@ CRITICAL FORMATTING REQUIREMENTS:
 - Structure content for immediate copy/paste into proposal documents
 - Emphasize {company_name}'s unique capabilities and competitive advantages
 
+0. COVER LETTER (1-2 pages)
+Professional cover letter with date, recipient info, expression of interest, company introduction, key qualifications summary, and closing signature block.
+
 1. EXECUTIVE SUMMARY (3-4 pages)
 Project understanding and objectives specific to {company_name}, including {company_name}'s unique value proposition and competitive advantages, key personnel and team qualifications, technical approach overview, past performance highlights, pricing competitiveness, risk mitigation summary, and expected outcomes and benefits.
 
@@ -581,6 +613,7 @@ Write each section with substantial, detailed content that demonstrates {company
         
         sections = []
         section_titles = [
+            "COVER LETTER",
             "EXECUTIVE SUMMARY",
             "TECHNICAL APPROACH", 
             "MANAGEMENT PLAN",
