@@ -3118,6 +3118,30 @@ def add_test_credits():
         app.logger.error(f"Error adding test credits: {e}")
         return jsonify({"error": str(e)}), 500
 
+def detect_query_intent(query):
+    """Detect if query is casual/greeting or an actual task request"""
+    query_lower = query.lower().strip()
+    
+    # Casual greetings and test messages
+    casual_patterns = [
+        'hi', 'hello', 'hey', 'greetings',
+        'you there', 'are you there', 'are you online',
+        'test', 'testing', 'ping',
+        'good morning', 'good afternoon', 'good evening',
+        'how are you', 'whats up', 'what\'s up',
+    ]
+    
+    # Check for exact matches or if query starts with casual phrase
+    for pattern in casual_patterns:
+        if query_lower == pattern or query_lower.startswith(pattern + ' '):
+            return 'casual'
+    
+    # If very short (< 5 chars) and doesn't contain keywords, likely casual
+    if len(query_lower) < 5 and not any(keyword in query_lower for keyword in ['analyze', 'help', 'what', 'how', 'why']):
+        return 'casual'
+    
+    return 'task'
+
 @app.route('/ai_assistant_enhanced', methods=['POST'])
 def enhanced_ai_assistant():
     """Enhanced AI assistant endpoint with credit-based billing"""
@@ -3149,6 +3173,31 @@ def enhanced_ai_assistant():
             except:
                 current_credits = 0
         
+        # Detect query intent - skip credits for casual greetings
+        query_intent = detect_query_intent(user_query)
+        
+        if query_intent == 'casual' and action_type == 'general':
+            # Respond to casual query without deducting credits
+            casual_response = f"""Hello! I'm your AI Bid Assistant for Contract Radar Maximizer. I'm here to help you create winning government contract proposals.
+
+I can assist you with:
+• Analyzing contract opportunities and calculating win probability (3 credits)
+• Generating compliance checklists (2 credits)  
+• Developing bid strategies (3 credits)
+• Creating proposal outlines (2 credits)
+• Generating comprehensive 30-50 page proposals (15 credits)
+
+You currently have {current_credits} credits available.
+
+How can I help you with your contract response today?"""
+            
+            return jsonify({
+                "response": casual_response,
+                "credits_used": 0,
+                "remaining_credits": current_credits,
+                "casual_greeting": True
+            })
+        
         # Determine credit cost based on action type
         credit_costs = {
             'general': 1,
@@ -3160,6 +3209,14 @@ def enhanced_ai_assistant():
         }
         
         required_credits = credit_costs.get(action_type, 1)
+        
+        # Check if user has enough credits BEFORE deduction
+        if current_credits < required_credits:
+            return jsonify({
+                "error": f"Insufficient credits. You have {current_credits} credits but this operation requires {required_credits} credits.",
+                "credits_required": required_credits,
+                "current_balance": current_credits
+            }), 402
         
         # Process the request with credit deduction
         context_data = {}

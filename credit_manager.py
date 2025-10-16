@@ -207,7 +207,19 @@ class CreditManager:
                 return credits
             
             logging.warning("⚠️ Using fallback method to fetch credit balance")
-            return self.get_user_credits(user_id, None)
+            
+            # Try to get user token from session
+            try:
+                from flask import session
+                if 'user' in session:
+                    user = session['user']
+                    id_token = user.get('idToken')
+                    if id_token:
+                        return self.get_user_credits(user_id, id_token)
+            except Exception as e:
+                logging.error(f"Fallback credit fetch failed: {e}")
+            
+            return 0
             
         except Exception as e:
             logging.error(f"Error getting user credits via admin: {e}")
@@ -265,11 +277,23 @@ class CreditManager:
                 return True, f"Credits deducted successfully. New balance: {new_balance}", new_balance
             
             logging.warning("⚠️ Using fallback method to deduct credits")
-            success, message = self.deduct_credits(user_id, None, amount, operation_type, description)
-            if success:
-                new_balance = self.get_user_credits(user_id, None)
-                return True, message, new_balance
-            return False, message, 0
+            
+            # Fallback needs a valid user token - try to get from session
+            try:
+                from flask import session
+                if 'user' in session:
+                    user = session['user']
+                    id_token = user.get('idToken')
+                    if id_token:
+                        success, message = self.deduct_credits(user_id, id_token, amount, operation_type, description)
+                        if success:
+                            new_balance = self.get_user_credits(user_id, id_token)
+                            return True, message, new_balance
+                        return False, message, 0
+            except Exception as e:
+                logging.error(f"Fallback method failed: {e}")
+            
+            return False, "Credit deduction failed - authentication unavailable", 0
             
         except Exception as e:
             logging.error(f"Error deducting credits via admin: {e}")

@@ -183,6 +183,15 @@
             color: white;
         }
         
+        .message.error {
+            background: #fee;
+            border-left: 4px solid #dc3545;
+        }
+        
+        .message.error strong {
+            color: #dc3545;
+        }
+        
         /* Enhanced AI Assistant Styles */
         .ai-tools-section {
             border-top: 1px solid #e9ecef;
@@ -742,9 +751,36 @@
                     } else {
                         messages.removeChild(typingMessage);
                         console.error('Error:', xhr2.statusText);
+                        console.error('Response:', xhr2.responseText);
+                        
+                        // Parse error response (important-comment)
+                        let errorMessage = 'An error occurred. Please try again.';
+                        let requiresCapability = false;
+                        let creditsRequired = null;
+                        
+                        try {
+                            const errorData = JSON.parse(xhr2.responseText);
+                            errorMessage = errorData.error || errorMessage;
+                            requiresCapability = errorData.requires_capability_statement || false;
+                            creditsRequired = errorData.credits_required || null;
+                        } catch (e) {
+                            console.error('Failed to parse error response:', e);
+                        }
+                        
                         const aiMessage = document.createElement('div');
-                        aiMessage.className = 'message assistant';
-                        aiMessage.innerHTML = `<strong>AI Assistant:</strong> I understand your question about "${message}". Let me analyze this in the context of your specific contract and capability statement. Based on the contract requirements and your company profile, I can provide specialized recommendations that leverage government contracting expertise and industry best practices.`;
+                        aiMessage.className = 'message assistant error';
+                        
+                        // Display appropriate error message based on error type (important-comment)
+                        if (requiresCapability) {
+                            aiMessage.innerHTML = `<strong>⚠️ Capability Statement Required:</strong><br>${errorMessage}<br><br>
+                                <a href="#upload-section" class="btn btn-primary btn-sm">Upload Capability Statement</a>`;
+                        } else if (creditsRequired) {
+                            aiMessage.innerHTML = `<strong>💎 Insufficient Credits:</strong><br>${errorMessage}<br><br>
+                                <button onclick="window.location.href='/purchase_credits'" class="btn btn-primary btn-sm">💳 Purchase Credits</button>`;
+                        } else {
+                            aiMessage.innerHTML = `<strong>❌ Error:</strong><br>${errorMessage}`;
+                        }
+                        
                         messages.appendChild(aiMessage);
                         messages.scrollTop = messages.scrollHeight;
                     }
