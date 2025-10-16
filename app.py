@@ -211,20 +211,40 @@ admin_db = None
 try:
     import firebase_admin
     from firebase_admin import credentials, db as admin_database
+    import json
     
-    service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
+    firebase_creds_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
     
-    if os.path.exists(service_account_path):
-        cred = credentials.Certificate(service_account_path)
-        firebase_admin.initialize_app(cred, {
-            'databaseURL': os.getenv('DATABASE_URL')
-        })
-        admin_db = admin_database
-        admin_initialized = True
-        logging.info("✅ Firebase Admin SDK initialized successfully")
+    if firebase_creds_json:
+        try:
+            # Parse JSON string from environment variable
+            service_account_dict = json.loads(firebase_creds_json)
+            cred = credentials.Certificate(service_account_dict)
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': os.getenv('DATABASE_URL')
+            })
+            admin_db = admin_database
+            admin_initialized = True
+            logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
+        except json.JSONDecodeError as e:
+            logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+            logging.warning("Credit purchase via webhook will use fallback method.")
     else:
-        logging.warning(f"⚠️ Firebase Admin SDK service account not found at {service_account_path}")
-        logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
+        service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
+        
+        if os.path.exists(service_account_path):
+            cred = credentials.Certificate(service_account_path)
+            firebase_admin.initialize_app(cred, {
+                'databaseURL': os.getenv('DATABASE_URL')
+            })
+            admin_db = admin_database
+            admin_initialized = True
+            logging.info("✅ Firebase Admin SDK initialized successfully from file")
+        else:
+            logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
+            logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
+            logging.warning(f"   - File path: {service_account_path} (does not exist)")
+            logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
         
 except ImportError:
     logging.warning("⚠️ firebase-admin package not installed. Run: pip install firebase-admin")
