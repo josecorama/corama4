@@ -5847,10 +5847,25 @@ def credit_history():
                     transaction_list.append(transaction)
                 transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        cycle_start = now.replace(day=1)
+        if now.month == 12:
+            cycle_end = now.replace(year=now.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            cycle_end = now.replace(month=now.month + 1, day=1) - timedelta(days=1)
+        
+        gift_credits = 100
+        purchased_credits = (current_credits + credits_used) - gift_credits if (current_credits + credits_used) > gift_credits else 0
+        
         return render_template('credit_history.html',
                              current_credits=current_credits,
                              credits_used=credits_used,
-                             transactions=transaction_list)
+                             transactions=transaction_list,
+                             cycle_start=cycle_start.strftime('%b %d, %Y'),
+                             cycle_end=cycle_end.strftime('%b %d, %Y'),
+                             gift_credits=gift_credits,
+                             purchased_credits=purchased_credits)
     except Exception as e:
         logging.error(f"Error fetching credit history: {e}")
         return redirect(url_for('Welcome'))
