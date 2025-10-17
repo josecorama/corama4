@@ -543,37 +543,41 @@ THE USER IS GOING TO INPUT THEIR OWN company description YOU NEED TO TRANSFORM
 #CS BUILDER
 @app.route('/generate_description', methods=['POST'])
 def generate_description():
-    data = request.json
-    company_name = data.get('companyName', 'your company')
-    company_description = data.get('companyDescription', '')
+    try:
+        data = request.json
+        company_name = data.get('companyName', 'your company')
+        company_description = data.get('companyDescription', '')
 
-    # Check if enough information is provided
-    if not company_description or len(company_description.strip()) < 5:  # Check for empty or insufficient description
-        missing_info_message = (
-            "Please provide this information in the previous box to generate your company description:\n"
-            "Founding Date: When did you start your business?\n"
-            "Founders: Who started the business?\n"
-            "Describe what you do: What products or services do you offer?\n"
-            "What makes your products or services special?"
+        # Check if enough information is provided
+        if not company_description or len(company_description.strip()) < 5:  # Check for empty or insufficient description
+            missing_info_message = (
+                "Please provide this information in the previous box to generate your company description:\n"
+                "Founding Date: When did you start your business?\n"
+                "Founders: Who started the business?\n"
+                "Describe what you do: What products or services do you offer?\n"
+                "What makes your products or services special?"
+            )
+            return jsonify({'description': missing_info_message})
+
+        # If company description is provided, ask GPT to revise it
+        messages = [
+            {"role": "system", "content": GPTSystemPrompt},
+            {"role": "user", "content": f"Revise the following company description based on this description:\n\n"
+                                        f"Existing Description: {company_description}\n\n"
+                                        f"Company Name: {company_name}\n"}
+        ]
+
+        completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=150
         )
-        return jsonify({'description': missing_info_message})
-
-    # If company description is provided, ask GPT to revise it
-    messages = [
-        {"role": "system", "content": GPTSystemPrompt},
-        {"role": "user", "content": f"Revise the following company description based on this description:\n\n"
-                                    f"Existing Description: {company_description}\n\n"
-                                    f"Company Name: {company_name}\n"}
-    ]
-
-    completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages,
-        max_tokens=150
-    )
-    
-    description = completion.choices[0].message.content.strip()
-    return jsonify({'description': description})
+        
+        description = completion.choices[0].message.content.strip()
+        return jsonify({'description': description})
+    except Exception as e:
+        app.logger.error(f"Error in generate_description: {e}")
+        return jsonify({'error': 'AI service is temporarily unavailable. Please try again later or refine your description manually.'}), 500
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -1782,6 +1786,7 @@ def Signup():
 
             # ✅ Store User Data in Session
             session['user_data'] = {
+                "user_id": user_id,
                 "first_name": first_name,
                 "last_name": last_name,
                 "company": company,
@@ -1791,6 +1796,9 @@ def Signup():
                 "billing_period": billing_period,
                 "subscription_end_date": subscription_end_date
             }
+            
+            # ✅ Store User Session for Authentication
+            session['user'] = user_logged_in
 
             app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
 

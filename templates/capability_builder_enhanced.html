@@ -262,43 +262,46 @@
             opacity: 1;
         }
         
-        /* Color Palette Customization Styles */
+        /* Color Palette Customization Styles - Compact & Efficient */
         .color-palette-option {
             cursor: pointer;
             text-align: center;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
+            display: inline-block;
+            margin-right: 0.75rem;
+            margin-bottom: 0.75rem;
         }
         
         .palette-preview {
-            width: 100%;
-            height: 80px;
-            border-radius: 12px;
-            margin-bottom: 0.5rem;
+            width: 80px;
+            height: 50px;
+            border-radius: 8px;
+            margin-bottom: 0.35rem;
             position: relative;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            transition: all 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
         }
         
         .color-palette-option:hover .palette-preview {
-            transform: translateY(-4px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
         }
         
         .palette-check {
             position: absolute;
-            top: 8px;
-            right: 8px;
+            top: 5px;
+            right: 5px;
             background: white;
             color: #10b981;
-            width: 28px;
-            height: 28px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             display: none;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            font-size: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         
         .palette-check.active {
@@ -306,13 +309,14 @@
         }
         
         .palette-name {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             font-weight: 500;
             color: var(--text-dark);
+            display: block;
         }
         
         .color-palette-option.selected .palette-preview {
-            box-shadow: 0 0 0 3px var(--primary-color);
+            box-shadow: 0 0 0 2px var(--primary-color);
             transform: scale(1.05);
         }
     </style>
@@ -372,7 +376,7 @@
                         </div>
                     </div>
 
-                    <!-- Color Palette Customization Section -->
+                    <!-- Color Palette Customization Section - Compact -->
                     <div class="section-card">
                         <h3 class="section-title">
                             <i class="fas fa-palette"></i>
@@ -380,56 +384,44 @@
                             <i class="fas fa-question-circle tooltip-icon ms-2" title="Choose a color scheme for your capability statement PDF"></i>
                         </h3>
                         
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label class="form-label">Select Color Theme</label>
-                                <div class="row g-2">
-                                    <div class="col-md-3 col-6">
-                                        <div class="color-palette-option" data-palette="blue" onclick="selectColorPalette('blue')">
-                                            <div class="palette-preview" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
-                                                <div class="palette-check" id="palette-check-blue"><i class="fas fa-check"></i></div>
-                                            </div>
-                                            <span class="palette-name">Blue Corporate</span>
-                                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Select Color Theme</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                <div class="color-palette-option" data-palette="blue" onclick="selectColorPalette('blue')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
+                                        <div class="palette-check" id="palette-check-blue"><i class="fas fa-check"></i></div>
                                     </div>
-                                    <div class="col-md-3 col-6">
-                                        <div class="color-palette-option" data-palette="gray" onclick="selectColorPalette('gray')">
-                                            <div class="palette-preview" style="background: linear-gradient(135deg, #4b5563 0%, #9ca3af 100%);">
-                                                <div class="palette-check" id="palette-check-gray"><i class="fas fa-check"></i></div>
-                                            </div>
-                                            <span class="palette-name">Gray Neutral</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 col-6">
-                                        <div class="color-palette-option" data-palette="dark" onclick="selectColorPalette('dark')">
-                                            <div class="palette-preview" style="background: linear-gradient(135deg, #1f2937 0%, #374151 100%);">
-                                                <div class="palette-check" id="palette-check-dark"><i class="fas fa-check"></i></div>
-                                            </div>
-                                            <span class="palette-name">Dark Mode</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 col-6">
-                                        <div class="color-palette-option" data-palette="gold" onclick="selectColorPalette('gold')">
-                                            <div class="palette-preview" style="background: linear-gradient(135deg, #92400e 0%, #fbbf24 100%);">
-                                                <div class="palette-check" id="palette-check-gold"><i class="fas fa-check"></i></div>
-                                            </div>
-                                            <span class="palette-name">Accent Gold</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-3 col-6">
-                                        <div class="color-palette-option" data-palette="green" onclick="selectColorPalette('green')">
-                                            <div class="palette-preview" style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%);">
-                                                <div class="palette-check" id="palette-check-green"><i class="fas fa-check"></i></div>
-                                            </div>
-                                            <span class="palette-name">Professional Green</span>
-                                        </div>
-                                    </div>
+                                    <span class="palette-name">Blue</span>
                                 </div>
-                                <input type="hidden" id="selectedColorPalette" name="colorPalette" value="blue">
-                                <small class="text-muted d-block mt-2">
-                                    <i class="fas fa-info-circle"></i> The selected color scheme will be applied to your PDF exports
-                                </small>
+                                <div class="color-palette-option" data-palette="gray" onclick="selectColorPalette('gray')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #4b5563 0%, #9ca3af 100%);">
+                                        <div class="palette-check" id="palette-check-gray"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Gray</span>
+                                </div>
+                                <div class="color-palette-option" data-palette="dark" onclick="selectColorPalette('dark')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #1f2937 0%, #374151 100%);">
+                                        <div class="palette-check" id="palette-check-dark"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Dark</span>
+                                </div>
+                                <div class="color-palette-option" data-palette="gold" onclick="selectColorPalette('gold')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #92400e 0%, #fbbf24 100%);">
+                                        <div class="palette-check" id="palette-check-gold"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Gold</span>
+                                </div>
+                                <div class="color-palette-option" data-palette="green" onclick="selectColorPalette('green')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%);">
+                                        <div class="palette-check" id="palette-check-green"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Green</span>
+                                </div>
                             </div>
+                            <input type="hidden" id="selectedColorPalette" name="colorPalette" value="blue">
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> Selected theme will be applied to PDF exports
+                            </small>
                         </div>
                     </div>
 
@@ -782,8 +774,52 @@
 
                         <div class="mb-3">
                             <label class="form-label">Certifications</label>
+                            
+                            <!-- Predefined Certifications Dropdown -->
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Quick Add from Common Certifications:</label>
+                                <select class="form-select form-select-sm" id="certificationTemplate" onchange="addPredefinedCertification()">
+                                    <option value="">-- Select a common certification --</option>
+                                    <optgroup label="Small Business Certifications">
+                                        <option value="SBA 8(a) Business Development">SBA 8(a) Business Development</option>
+                                        <option value="HUBZone Certified">HUBZone Certified</option>
+                                        <option value="Woman-Owned Small Business (WOSB)">Woman-Owned Small Business (WOSB)</option>
+                                        <option value="Economically Disadvantaged WOSB (EDWOSB)">Economically Disadvantaged WOSB (EDWOSB)</option>
+                                        <option value="Service-Disabled Veteran-Owned (SDVOSB)">Service-Disabled Veteran-Owned (SDVOSB)</option>
+                                        <option value="Veteran-Owned Small Business (VOSB)">Veteran-Owned Small Business (VOSB)</option>
+                                        <option value="Minority Business Enterprise (MBE)">Minority Business Enterprise (MBE)</option>
+                                        <option value="Disadvantaged Business Enterprise (DBE)">Disadvantaged Business Enterprise (DBE)</option>
+                                    </optgroup>
+                                    <optgroup label="Quality & Management">
+                                        <option value="ISO 9001:2015 Quality Management">ISO 9001:2015 Quality Management</option>
+                                        <option value="ISO 14001:2015 Environmental Management">ISO 14001:2015 Environmental Management</option>
+                                        <option value="ISO 27001 Information Security">ISO 27001 Information Security</option>
+                                        <option value="ISO 45001 Occupational Health & Safety">ISO 45001 Occupational Health & Safety</option>
+                                        <option value="AS9100 Aerospace Quality">AS9100 Aerospace Quality</option>
+                                        <option value="CMMI Level 3 or 5">CMMI Level 3 or 5</option>
+                                    </optgroup>
+                                    <optgroup label="Federal & Security">
+                                        <option value="FedRAMP Authorized">FedRAMP Authorized</option>
+                                        <option value="FISMA Compliant">FISMA Compliant</option>
+                                        <option value="CMMC Level 1-3">CMMC Level 1-3</option>
+                                        <option value="NIST 800-171 Compliant">NIST 800-171 Compliant</option>
+                                        <option value="DoD Approved Contractor">DoD Approved Contractor</option>
+                                        <option value="GSA Schedule Holder">GSA Schedule Holder</option>
+                                        <option value="ITAR Registered">ITAR Registered</option>
+                                    </optgroup>
+                                    <optgroup label="Industry-Specific">
+                                        <option value="LEED Accredited Professional">LEED Accredited Professional</option>
+                                        <option value="PMP (Project Management Professional)">PMP (Project Management Professional)</option>
+                                        <option value="OSHA 30-Hour Certified">OSHA 30-Hour Certified</option>
+                                        <option value="HIPAA Compliant">HIPAA Compliant</option>
+                                        <option value="SOC 2 Type II">SOC 2 Type II</option>
+                                        <option value="PCI DSS Certified">PCI DSS Certified</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            
                             <div class="input-group mb-2">
-                                <input type="text" class="form-control" id="certificationInput" placeholder="Enter certification (e.g., ISO 9001:2015, SBA 8(a), HUBZone)">
+                                <input type="text" class="form-control" id="certificationInput" placeholder="Or enter a custom certification">
                                 <button type="button" class="btn btn-primary" onclick="addCertification()">
                                     <i class="fas fa-plus"></i> Add
                                 </button>
@@ -1177,6 +1213,21 @@
                 input.value = '';
                 generatePreview();
             }
+        }
+
+        // Add predefined certification from dropdown
+        function addPredefinedCertification() {
+            const select = document.getElementById('certificationTemplate');
+            const value = select.value;
+            
+            if (value && !certifications.includes(value)) {
+                certifications.push(value);
+                updateCertificationsList();
+                generatePreview();
+            }
+            
+            // Reset select to default
+            select.selectedIndex = 0;
         }
 
         // Update certifications list
