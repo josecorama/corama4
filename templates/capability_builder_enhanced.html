@@ -904,13 +904,13 @@
                                         <button type="button" class="btn btn-primary" onclick="generatePDF()">
                                             <i class="fas fa-file-pdf"></i> Generate PDF
                                         </button>
-                                        <button type="button" class="btn btn-success" onclick="loadIntoAIAssistant()">
-                                            <i class="fas fa-robot"></i> Load into AI Assistant
+                                        <button type="button" class="btn btn-success" onclick="saveToMyProfile()">
+                                            <i class="fas fa-save"></i> Save to My Profile
                                         </button>
                                     </div>
                                 </div>
                                 <small class="text-muted d-block mt-1">
-                                    <i class="fas fa-info-circle"></i> Preview your document, export as PDF, or load into AI Assistant for bid matching
+                                    <i class="fas fa-info-circle"></i> Preview your document, export as PDF, or save to your profile for use in AI Assistant
                                 </small>
                             </div>
                         </div>
@@ -1887,19 +1887,53 @@
             generatePreview();
         }
         
-        function loadIntoAIAssistant() {
-            // Check if there's a saved/generated capability statement (important-comment)
+        function saveToMyProfile() {
+            // Check if there's basic information filled out
             const companyName = document.getElementById('companyName').value;
             
             if (!companyName) {
-                alert('Please fill in at least the company name before loading into AI Assistant.');
+                alert('Please fill in at least the company name before saving to your profile.');
                 return;
             }
             
-            // Redirect to dashboard where user can select a contract (important-comment)
-            if (confirm('This will take you to the dashboard where you can select a contract to work on with the AI Assistant. Continue?')) {
-                window.location.href = '/welcome?capability_loaded=true';
-            }
+            // Collect all form data
+            const formData = {
+                companyName: companyName,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                website: document.getElementById('website').value,
+                address: document.getElementById('address').value,
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                zip: document.getElementById('zip').value,
+                description: document.getElementById('description').value,
+                competencies: competencies,
+                differentiators: differentiators,
+                certifications: certifications,
+                naicsCodes: naicsCodes,
+                colorPalette: document.getElementById('selectedColorPalette').value
+            };
+            
+            // Save to backend
+            fetch('/save-capability-statement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Capability statement saved to your profile!\n\nYou can now use it in the AI Assistant by selecting it from the dropdown menu.');
+                } else {
+                    alert('❌ Error: ' + (data.error || 'Failed to save capability statement'));
+                }
+            })
+            .catch(error => {
+                console.error('Error saving capability statement:', error);
+                alert('❌ Error: Unable to save capability statement. Please try again.');
+            });
         }
 
         // Color Palette Selection

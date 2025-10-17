@@ -2277,6 +2277,8 @@ def ai_assistant_room():
     has_capability_statement = False
     capability_statement_filename = None
     company_name = None
+    capability_statements = []
+    capability_statement_count = 0
     
     try:
         if admin_initialized and admin_db:
@@ -2366,7 +2368,31 @@ def ai_assistant_room():
         logging.error(f"Error fetching credit balance for AI Assistant: {e}")
         current_credits = 0
     
-    return render_template('ai_assistant_room.html', 
+    # Also load capability statements saved from the Capability Builder
+    try:
+        if db:
+            saved_caps = db.child('users').child(user_id).child('capability_statements').get().val()
+            if saved_caps:
+                from datetime import datetime
+                for cap_id, cap_data in saved_caps.items():
+                    capability_statements.append({
+                        'company': cap_data.get('company_name', 'Unknown'),
+                        'filename': f'saved_{cap_id}',
+                        'upload_date': datetime.fromtimestamp(cap_data.get('created_at', 0)).strftime('%Y-%m-%d %H:%M:%S'),
+                        'is_primary': False,
+                        'is_saved': True
+                    })
+                    has_capability_statement = True
+                
+                capability_statement_count = len(capability_statements)
+                if not company_name and capability_statements:
+                    company_name = capability_statements[0]['company']
+                
+                logging.info(f"✅ Loaded {len(saved_caps)} saved capability statement(s) from Firebase")
+    except Exception as e:
+        logging.error(f"Error loading saved capability statements: {e}")
+    
+    return render_template('ai_assistant_room.html',
                          contract_id=contract_id,
                          contract_name=contract_name,
                          current_credits=current_credits,
@@ -3484,22 +3510,48 @@ def capability_builder_enhanced():
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
     try:
-        # if 'user_id' not in session:
-        #     return jsonify({'error': 'User not authenticated'}), 401
+        if 'user_id' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
         
-        user_id = session.get('user_id', 'test_user')
+        user_id = session.get('user_id')
         data = request.get_json()
         
-        # Save to Firebase (temporarily disabled due to configuration issues)
-        # if db:
-        #     doc_ref = db.collection('capability_statements').document(user_id)
-        #     doc_ref.set({
-        #         'data': data,
-        #         'updated_at': 'timestamp_placeholder',
-        #         'user_id': user_id
-        #     })
+        if not data or not data.get('companyName'):
+            return jsonify({'error': 'Company name is required'}), 400
+        
+        # Save to Firebase
+        if db:
+            import time
+            timestamp = int(time.time())
             
-        return jsonify({'success': True, 'message': 'Capability statement saved successfully'})
+            capability_data = {
+                'company_name': data.get('companyName'),
+                'email': data.get('email', ''),
+                'phone': data.get('phone', ''),
+                'website': data.get('website', ''),
+                'address': data.get('address', ''),
+                'city': data.get('city', ''),
+                'state': data.get('state', ''),
+                'zip': data.get('zip', ''),
+                'description': data.get('description', ''),
+                'competencies': data.get('competencies', []),
+                'differentiators': data.get('differentiators', []),
+                'certifications': data.get('certifications', []),
+                'naicsCodes': data.get('naicsCodes', []),
+                'colorPalette': data.get('colorPalette', 'blue'),
+                'created_at': timestamp,
+                'updated_at': timestamp,
+                'user_id': user_id
+            }
+            
+            # Save to Firebase under user's capability statements
+            db.child('users').child(user_id).child('capability_statements').child(timestamp).set(capability_data)
+            
+            logging.info(f"✅ Capability statement saved for user {user_id}")
+            return jsonify({'success': True, 'message': 'Capability statement saved successfully'})
+        else:
+            logging.warning("Firebase not initialized, cannot save capability statement")
+            return jsonify({'error': 'Database not available'}), 503
         
     except Exception as e:
         logging.error(f"Error saving capability statement: {str(e)}")
