@@ -5774,15 +5774,25 @@ def create_credit_checkout():
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         stripe_customer_id = user_data.get('stripe_customer_id')
+        user_email = user_data.get('email', '')
+        first_name = user_data.get('first_name', '')
+        last_name = user_data.get('last_name', '')
+        company = user_data.get('company', '')
         
-        if not stripe_customer_id:
-            user_email = user_data.get('email', '')
-            first_name = user_data.get('first_name', '')
-            last_name = user_data.get('last_name', '')
-            company = user_data.get('company', '')
-            
+        # Verify the stripe_customer_id is valid, or create a new one
+        customer_valid = False
+        if stripe_customer_id:
             try:
-                logging.info(f"No stripe_customer_id found for {user_email}, attempting to fetch from Stripe API")
+                stripe.Customer.retrieve(stripe_customer_id)
+                customer_valid = True
+                logging.info(f"Verified existing Stripe customer: {stripe_customer_id}")
+            except stripe.error.InvalidRequestError as e:
+                logging.warning(f"Stored stripe_customer_id {stripe_customer_id} is invalid: {e}. Will create new customer.")
+                stripe_customer_id = None
+        
+        if not customer_valid:
+            try:
+                logging.info(f"Creating/fetching Stripe customer for {user_email}")
                 stripe_customers = stripe.Customer.list(email=user_email).data
                 
                 if stripe_customers:
