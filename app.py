@@ -2125,7 +2125,7 @@ def dashboard_search():
             if user_query:
                 mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
                         df['category'].str.contains(user_query, case=False, na=False) |
-                        df['agency'].str.contains(user_query, case=False, na=False))
+                        df['bid_description'].str.contains(user_query, case=False, na=False))
                 df = df[mask]
             
             total_contracts = len(df)
@@ -3681,8 +3681,13 @@ def process_capability_statement():
             return jsonify({'error': 'No file or URL provided'}), 400
         
         if not capability_text or len(capability_text.strip()) < 10:
-            logging.error(f"Insufficient text extracted: '{capability_text[:100]}...' (length: {len(capability_text) if capability_text else 0})")
-            return jsonify({'error': 'Could not extract meaningful text from capability statement. Please ensure the PDF contains readable text.'}), 400
+            logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}...' (length: {len(capability_text) if capability_text else 0})")
+            error_msg = 'Could not extract meaningful text from capability statement. '
+            if 'url' in request.json:
+                error_msg += 'Please ensure the URL points to a text-based PDF file (not a scanned image). Try uploading the PDF directly instead.'
+            else:
+                error_msg += 'Please ensure the PDF contains readable text (not scanned images). Try using a text-based PDF or OCR software first.'
+            return jsonify({'error': error_msg}), 400
         
         # Use AI to parse and structure the capability statement
         logging.info("Starting AI parsing of capability statement")
@@ -4389,7 +4394,10 @@ def download_proposal():
         company_name = request.json.get('company_name', 'Your Company')
         
         if not proposal_data:
+            app.logger.error("No proposal data provided")
             return jsonify({'error': 'Proposal data is required'}), 400
+        
+        app.logger.info(f"Proposal data keys: {proposal_data.keys()}")
         
         # Create Word document
         doc = Document()
@@ -4401,11 +4409,20 @@ def download_proposal():
         doc.add_paragraph(f'\nSubmitted: {datetime.now().strftime("%B %d, %Y")}')
         doc.add_page_break()
         
-        # Add each section
-        sections = proposal_data.get('proposal_sections', [])
+        # Add each section - handle both 'sections' and 'proposal_sections' keys
+        sections = proposal_data.get('sections', proposal_data.get('proposal_sections', []))
+        
+        if not sections:
+            app.logger.error(f"No sections found in proposal data. Keys: {proposal_data.keys()}")
+            return jsonify({'error': 'No proposal sections found in data'}), 400
+        
+        app.logger.info(f"Processing {len(sections)} sections")
+        
         for section in sections:
-            doc.add_heading(section['section'], 1)
-            doc.add_paragraph(section['content'])
+            section_title = section.get('section', section.get('title', 'Untitled Section'))
+            section_content = section.get('content', '')
+            doc.add_heading(section_title, 1)
+            doc.add_paragraph(section_content)
             doc.add_page_break()
         
         # Add footer with page numbers
@@ -4413,7 +4430,7 @@ def download_proposal():
             footer = section.footer
             footer_para = footer.paragraphs[0]
             footer_para.text = f'{company_name} - {contract_name}\t'
-            footer_para.alignment = 1  # Center alignment (important-comment)
+            footer_para.alignment = 1
         
         # Save to buffer
         buffer = io.BytesIO()
@@ -4424,6 +4441,8 @@ def download_proposal():
         safe_contract_name = "".join(c for c in contract_name if c.isalnum() or c in (' ', '-', '_')).strip()
         filename = f'{company_name}_{safe_contract_name}_Proposal.docx'
         
+        app.logger.info(f"Successfully generated proposal document: {filename}")
+        
         return send_file(
             buffer,
             as_attachment=True,
@@ -4432,8 +4451,8 @@ def download_proposal():
         )
         
     except Exception as e:
-        app.logger.error(f"Error generating proposal download: {e}")
-        return jsonify({'error': 'Failed to generate proposal document'}), 500
+        app.logger.error(f"Error generating proposal download: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to generate proposal document: {str(e)}'}), 500
 
 
 
@@ -4832,7 +4851,7 @@ def process_smartsearch():
             if user_query:
                 mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
                         df['category'].str.contains(user_query, case=False, na=False) |
-                        df['agency'].str.contains(user_query, case=False, na=False))
+                        df['bid_description'].str.contains(user_query, case=False, na=False))
                 df = df[mask]
             
             contracts = df.to_dict('records')

@@ -302,8 +302,8 @@
                                 <div class="upload-area" id="capabilityUpload">
                                     <i class="fas fa-file-pdf fa-2x mb-2"></i>
                                     <p>Drag & drop your capability statement here or click to browse</p>
-                                    <small class="text-muted">Supports PDF files (Max 10MB)</small>
-                                    <input type="file" id="capabilityFile" name="capabilityFile" accept=".pdf" style="display: none;">
+                                    <small class="text-muted">Supports PDF and image files (PNG, JPG, JPEG - Max 10MB)</small>
+                                    <input type="file" id="capabilityFile" name="capabilityFile" accept=".pdf,.png,.jpg,.jpeg" style="display: none;">
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
@@ -1365,15 +1365,21 @@
             
             if (!file) return;
             
-            // Validate file type
-            if (!file.name.toLowerCase().endsWith('.pdf')) {
-                alert('Please select a PDF file.');
+            // Validate file type - support PDF and images
+            const fileName = file.name.toLowerCase();
+            const validExtensions = ['.pdf', '.png', '.jpg', '.jpeg'];
+            const isValidType = validExtensions.some(ext => fileName.endsWith(ext));
+            
+            if (!isValidType) {
+                alert('Please select a PDF or image file (PNG, JPG, JPEG).');
+                fileInput.value = '';
                 return;
             }
             
             // Validate file size (10MB limit)
             if (file.size > 10 * 1024 * 1024) {
                 alert('File size must be less than 10MB.');
+                fileInput.value = '';
                 return;
             }
             
@@ -1393,14 +1399,18 @@
                 if (result.success && result.data) {
                     populateFormFromImport(result.data);
                     alert('Capability statement imported successfully!');
+                    fileInput.value = '';
                 } else if (result.error) {
                     alert('Error importing capability statement: ' + result.error);
+                    fileInput.value = '';
                 } else {
                     alert('Error importing capability statement: Unknown error occurred.');
+                    fileInput.value = '';
                 }
             } catch (error) {
                 console.error('Error importing capability statement:', error);
                 alert('Error importing capability statement: ' + error.message);
+                fileInput.value = '';
             }
         }
         

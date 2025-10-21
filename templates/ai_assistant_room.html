@@ -362,9 +362,12 @@
                         <button class="tool-btn" onclick="triggerAnalysis('outline')" style="background: #9b59b6; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
                             📝 Outline (2 credits)
                         </button>
-                        <button class="tool-btn" onclick="triggerAnalysis('full_proposal')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+                        <button class="tool-btn" onclick="triggerAnalysis('full_proposal')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;" title="Generates a comprehensive 30-50 page proposal with 8 sections">
                             📄 Full Proposal (15 credits)
                         </button>
+                    </div>
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f5e9; border-radius: 6px; font-size: 0.75rem; color: #2e7d32;">
+                        ℹ️ <strong>Full Proposal:</strong> Generates up to 50 pages with 8 comprehensive sections. For longer proposals, you can request additional sections separately.
                     </div>
                 </div>
                 
@@ -383,6 +386,30 @@
             if (creditDisplay) {
                 creditDisplay.textContent = newBalance + ' Credits';
             }
+        }
+        
+        // Helper function to format markdown text for display (important-comment)
+        function formatMarkdownText(text) {
+            if (!text) return '';
+            
+            let formatted = text;
+            
+            formatted = formatted.replace(/###\s+(.+?)(\n|$)/g, '<h3 style="margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.25rem; font-weight: 600; color: #2c3e50;">$1</h3>');
+            formatted = formatted.replace(/##\s+(.+?)(\n|$)/g, '<h2 style="margin-top: 1.75rem; margin-bottom: 0.75rem; font-size: 1.5rem; font-weight: 600; color: #2c3e50;">$1</h2>');
+            formatted = formatted.replace(/#\s+(.+?)(\n|$)/g, '<h1 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 1.75rem; font-weight: 700; color: #2c3e50;">$1</h1>');
+            
+            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            formatted = formatted.replace(/^\s*[-*]\s+(.+?)$/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.5rem;">$1</li>');
+            formatted = formatted.replace(/(<li[^>]*>.*<\/li>)/s, '<ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 0;">$1</ul>');
+            
+            formatted = formatted.replace(/^\s*\d+\.\s+(.+?)$/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.5rem;">$1</li>');
+            
+            formatted = formatted.replace(/\n\n+/g, '</p><p style="margin-bottom: 1rem;">');
+            formatted = '<p style="margin-bottom: 1rem;">' + formatted + '</p>';
+            
+            return formatted;
         }
         
         // Enhanced AI Analysis Functions (important-comment)
@@ -446,7 +473,7 @@
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant enhanced';
                 
-                let responseHTML = `<strong>AI Assistant:</strong> ${data.response}`;
+                let responseHTML = `<strong>AI Assistant:</strong> ${formatMarkdownText(data.response)}`;
                 
                 // Add credit usage info
                 if (data.credits_used) {
@@ -724,7 +751,7 @@
                 
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant';
-                aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${data.response || 'Based on your capability statement and this specific contract, I can provide tailored guidance that goes beyond general AI assistance. I have access to your company profile, contract requirements, and government contracting best practices.'}`;
+                aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${formatMarkdownText(data.response || 'Based on your capability statement and this specific contract, I can provide tailored guidance that goes beyond general AI assistance. I have access to your company profile, contract requirements, and government contracting best practices.')}`;
                 messages.appendChild(aiMessage);
                 
                 // Update credit display if credits were used (important-comment)

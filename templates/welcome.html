@@ -107,12 +107,16 @@
                     </div>
                 </div>
                 <div class="action-buttons" style="display: flex; gap: 10px; align-items: center;">
-                    <div class="search-container" style="flex: 2; max-width: 600px; min-width: 300px;">
+                    <div class="search-container" style="flex: 2; max-width: 600px; min-width: 300px; display: flex; gap: 8px;">
                         <input type="text" 
                                id="dashboardSearchInput" 
                                placeholder="Search contracts..." 
                                class="form-control"
-                               style="border-radius: 8px; border: 1px solid #ddd; padding: 12px 15px; height: 48px; font-size: 14px; width: 100%;">
+                               style="border-radius: 8px; border: 1px solid #ddd; padding: 12px 15px; height: 48px; font-size: 14px; flex: 1;">
+                        <button id="dashboardSearchButton" class="action-btn primary" style="height: 48px; padding: 0 20px; white-space: nowrap;">
+                            <i class="fas fa-search"></i>
+                            <span>Search</span>
+                        </button>
                     </div>
                     <button class="action-btn secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
                         <i class="fas fa-upload"></i>
@@ -624,12 +628,29 @@
         
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('dashboardSearchInput');
+            const searchButton = document.getElementById('dashboardSearchButton');
+            
             if (searchInput) {
                 searchInput.addEventListener('input', function() {
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         performDashboardSearch(this.value.trim(), 1);
                     }, 500);
+                });
+                
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        clearTimeout(searchTimeout);
+                        performDashboardSearch(this.value.trim(), 1);
+                    }
+                });
+            }
+            
+            if (searchButton) {
+                searchButton.addEventListener('click', function() {
+                    const query = searchInput ? searchInput.value.trim() : '';
+                    performDashboardSearch(query, 1);
                 });
             }
         });
