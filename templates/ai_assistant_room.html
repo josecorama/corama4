@@ -501,6 +501,23 @@
                 }
                 
                 aiMessage.innerHTML = responseHTML;
+                
+                // Add copy button to AI response (important-comment)
+                const copyBtn = document.createElement('button');
+                copyBtn.innerHTML = '📋 Copy Response';
+                copyBtn.style.cssText = 'margin-top: 0.5rem; padding: 0.5rem 1rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;';
+                copyBtn.onclick = function() {
+                    const textContent = aiMessage.innerText.replace('AI Assistant:', '').replace('📋 Copy Response', '').trim();
+                    navigator.clipboard.writeText(textContent).then(() => {
+                        copyBtn.innerHTML = '✅ Copied!';
+                        setTimeout(() => { copyBtn.innerHTML = '📋 Copy Response'; }, 2000);
+                    }).catch(err => {
+                        console.error('Copy failed:', err);
+                        alert('Failed to copy. Please select and copy manually.');
+                    });
+                };
+                aiMessage.appendChild(copyBtn);
+                
                         messages.appendChild(aiMessage);
                         messages.scrollTop = messages.scrollHeight;
                     } else {
@@ -763,6 +780,23 @@
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant';
                 aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${formatMarkdownText(data.response || 'Based on your capability statement and this specific contract, I can provide tailored guidance that goes beyond general AI assistance. I have access to your company profile, contract requirements, and government contracting best practices.')}`;
+                
+                // Add copy button to AI response (important-comment)
+                const copyBtn = document.createElement('button');
+                copyBtn.innerHTML = '📋 Copy Response';
+                copyBtn.style.cssText = 'margin-top: 0.5rem; padding: 0.5rem 1rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;';
+                copyBtn.onclick = function() {
+                    const textContent = aiMessage.innerText.replace('AI Assistant:', '').replace('📋 Copy Response', '').trim();
+                    navigator.clipboard.writeText(textContent).then(() => {
+                        copyBtn.innerHTML = '✅ Copied!';
+                        setTimeout(() => { copyBtn.innerHTML = '📋 Copy Response'; }, 2000);
+                    }).catch(err => {
+                        console.error('Copy failed:', err);
+                        alert('Failed to copy. Please select and copy manually.');
+                    });
+                };
+                aiMessage.appendChild(copyBtn);
+                
                 messages.appendChild(aiMessage);
                 
                 // Update credit display if credits were used (important-comment)
