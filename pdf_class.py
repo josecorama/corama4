@@ -7,438 +7,226 @@ class PDF(FPDF):
     def __init__(self, data, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.data = data
+        self.primary_color = data.get("logo_color", [(46, 76, 139), (168, 213, 226)])[0]
+        self.secondary_color = data.get("logo_color", [(46, 76, 139), (168, 213, 226)])[1]
 
-    # Header of the PDF
     def header(self):
-        self.set_font("Helvetica", "B", 12)
-
-        # logo
+        """Professional header with logo and company name"""
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, 0, self.w, 45, 'F')
+        
         logo_path = self.data.get("logo_path")
         if logo_path and os.path.exists(logo_path):
-            logo = Image.open(logo_path)
-            logo_width, logo_height = logo.size
-            aspect_ratio = logo_width / logo_height
-            height = 20
-            width = height * aspect_ratio
-            if width > 50:
-                width = 50
-                height = width / aspect_ratio
-            self.image(logo_path, 2, 8, width, height)
-            self.set_xy(width + 5, 10)
-
-        # No Logo
-        else:
-            self.set_xy(10, 10)
-
-        # Company Name
-        primary_color = self.data["logo_color"][0]
-        self.set_text_color(*primary_color)
-        company_name_upper = self.data["company_name"].upper()
-        self.cell(0, 15, company_name_upper, 0, 0, "L")
-        self.ln(20)
-
-    # Footer of the PDF
-    def footer(self):
-        # Rectangle
-        self.set_y(-30)
-        self.set_fill_color(96, 96, 96)
-        self.rect(0, self.get_y(), self.w, 30, "F")
-
-        # Number of columns
-        col_count = 3
-        if self.data.get("social_media") or self.data.get("qr_code_path"):
-            col_count = 4
-        col_width = (self.w - 20) / col_count
-        y_start = self.get_y() + 6
-        x_start = 10
-
-        self.set_font("Helvetica", "B", 8)
-        self.set_text_color(255, 255, 255)
-
-        def add_footer_text(x, y, text, is_title=False):
-            if text.strip():
-                self.set_xy(x, y)
-                font_style = "B" if is_title else ""
-                self.set_font("Helvetica", font_style, 6 if not is_title else 8)
-                self.multi_cell(col_width, 5, text, border=0, align="L")
-
-        def add_zapf_text(x, y, char_code, text):
-            self.set_xy(x, y)
-            self.set_font("ZapfDingbats", "", 8)
-            self.cell(5, 5, chr(char_code), 0, 0, "L")
-            self.set_font("Helvetica", "", 6)
-            self.cell(col_width - 5, 5, text, 0, 1, "L")
-
-        # Adding "POINT OF CONTACT" aligned with the phone number
-        add_footer_text(x_start, y_start, "POINT OF CONTACT", is_title=True)
-        add_zapf_text(
-            x_start + col_width,
-            y_start,
-            0x25,
-            self.data.get("contact_phone", "").strip(),
-        )
-
-        # Adding contact name aligned with the email
-        add_footer_text(x_start, y_start + 5, self.data.get("contact_name", "").strip())
-        add_zapf_text(
-            x_start + col_width,
-            y_start + 5,
-            0x29,
-            self.data.get("contact_email", "").strip(),
-        )
-
-        # Adding contact title aligned with the website and social media text
-        add_footer_text(
-            x_start, y_start + 10, self.data.get("contact_title", "").strip()
-        )
-        add_zapf_text(
-            x_start + col_width,
-            y_start + 10,
-            0x2B,
-            self.data.get("contact_website", "").strip(),
-        )
-        add_footer_text(
-            x_start + 2 * col_width,
-            y_start + 10,
-            self.data.get("social_media", "").strip(),
-        )
-
-        # Adding address
-        address = "\n".join(
-            filter(
-                None,
-                [
-                    self.data.get("contact_address", "").strip(),
-                    ", ".join(
-                        filter(
-                            None,
-                            [
-                                self.data.get("city", "").strip(),
-                                self.data.get("state", "").strip(),
-                                self.data.get("zip", "").strip(),
-                            ],
-                        )
-                    ),
-                ],
-            )
-        )
-        add_footer_text(x_start + 2 * col_width, y_start, address)
-
-        if col_count == 4:
-            if self.data.get("qr_code_path") and os.path.exists(
-                self.data.get("qr_code_path")
-            ):
-                qr_img = Image.open(self.data.get("qr_code_path"))
-                qr_width, qr_height = qr_img.size
-                aspect_ratio = qr_height / qr_width
-                qr_display_width = 20
-                qr_display_height = qr_display_width * aspect_ratio
-
-                # Adjust the x position for the QR code to center it in the column
-                qr_x_position = (
-                    x_start + 3 * col_width + (col_width - qr_display_width) / 2
-                )
-
-                # Ensure the QR code starts at the same y position as the first line
-                self.image(
-                    self.data["qr_code_path"],
-                    x=qr_x_position,
-                    y=y_start,
-                    w=qr_display_width,
-                    h=qr_display_height,
-                )
-            else:
-                add_footer_text(
-                    x_start + 3 * col_width,
-                    y_start + 10,
-                    self.data.get("social_media", "").strip(),
-                )
-
-        self.set_text_color(0, 0, 0)
-
-    def main_title(self):
-
-        # Choose colors for rectangles
-        ##capability statement color
-        primary_color = self.data["logo_color"][0]
-        ##naics box color
-        secondary_color = self.data["logo_color"][1]
-
-        self.set_font("Helvetica", "B", 25)
-        self.set_fill_color(*primary_color)
-        self.set_text_color(255, 255, 255)
-
-        # capability statements title
-        current_y = self.get_y()
-        self.rect(0, current_y, self.w, 50, "F")
-        self.set_y(current_y + 10)
-        self.cell(0, 10, "C A P A B I L I T Y", 0, 1, "L", 0)
-        self.ln(5)
-        self.cell(0, 10, "S T A T E M E N T", 0, 1, "L", 0)
-
-        # UEI and CAGE
-        UEI = self.data.get("uei_code")
-        CAGE = self.data.get("cage_code")
-        self.set_font("Helvetica", "", 10)
-        if UEI and not CAGE:
-            self.cell(0, 8, f"UEI: {UEI}", 0, 1, "L", 0)
-            self.ln(2)
-        if CAGE and not UEI:
-            self.cell(0, 8, f"CAGE CODE: {CAGE}", 0, 1, "L", 0)
-            self.ln(2)
-        if UEI and CAGE:
-            self.cell(0, 8, f"UEI: {UEI}   |   CAGE CODE: {CAGE}", 0, 1, "L", 0)
-            self.ln(2)
-        self.set_text_color(0, 0, 0)
-
-        # Company Picture
-        image_path = self.data.get("image_path")
-        image_width, image_height = 0, 0
-        if image_path and os.path.exists(image_path):
-            img = Image.open(image_path)
-            img_width, img_height = img.size
-            aspect_ratio = img_width / img_height
-            max_width = 90
-            max_height = 80
-
-            # Resize image if it exceeds max dimensions
-            if img_width > max_width or img_height > max_height:
-                if img_width > img_height:
-                    width = min(max_width, img_width)
+            try:
+                logo = Image.open(logo_path)
+                logo_width, logo_height = logo.size
+                aspect_ratio = logo_width / logo_height
+                height = 30
+                width = height * aspect_ratio
+                if width > 60:
+                    width = 60
                     height = width / aspect_ratio
-                    if height > max_height:
-                        height = max_height
-                        width = height * aspect_ratio
-                else:
-                    height = min(max_height, img_height)
-                    width = height * aspect_ratio
-                    if width > max_width:
-                        width = max_width
-                        height = width / aspect_ratio
-            else:
-                width, height = img_width, img_height
+                self.image(logo_path, 10, 7, width, height)
+            except:
+                pass
+        
+        # Company Name - Large and prominent
+        self.set_xy(10, 8)
+        self.set_font("Helvetica", "B", 20)
+        self.set_text_color(255, 255, 255)
+        company_name_upper = self.data.get("company_name", "").upper()
+        self.cell(0, 10, company_name_upper, 0, 1, "C")
+        
+        self.set_xy(10, 20)
+        self.set_font("Helvetica", "B", 16)
+        self.cell(0, 8, "C A P A B I L I T Y", 0, 1, "C")
+        self.set_xy(10, 28)
+        self.cell(0, 8, "S T A T E M E N T", 0, 1, "C")
+        
+        # UEI and CAGE codes
+        self.set_xy(10, 38)
+        self.set_font("Helvetica", "", 8)
+        uei = self.data.get("uei_code", "")
+        cage = self.data.get("cage_code", "")
+        codes_text = ""
+        if uei and cage:
+            codes_text = f"UEI: {uei}   |   CAGE CODE: {cage}"
+        elif uei:
+            codes_text = f"UEI: {uei}"
+        elif cage:
+            codes_text = f"CAGE CODE: {cage}"
+        
+        if codes_text:
+            self.cell(0, 4, codes_text, 0, 1, "C")
+        
+        self.set_text_color(0, 0, 0)
+        self.ln(5)
 
-            image_width, image_height = width, height
-
-            image_y = max(10, 40 - height)
-            self.image(image_path, 110, image_y, width, height)
-
-        # Handling NAICS box
-        self.set_font("Helvetica", "B", 10)
+    def footer(self):
+        """Professional footer with contact information"""
+        self.set_y(-25)
+        self.set_fill_color(50, 50, 50)
+        self.rect(0, self.get_y(), self.w, 25, 'F')
+        
+        self.set_y(-22)
+        self.set_font("Helvetica", "B", 9)
+        self.set_text_color(255, 255, 255)
+        self.set_x(10)
+        self.cell(0, 5, "POINT OF CONTACT", 0, 1, "L")
+        
+        self.set_font("Helvetica", "", 7)
+        y_pos = self.get_y()
+        
+        self.set_xy(10, y_pos)
+        contact_name = self.data.get("contact_name", "")
+        contact_title = self.data.get("contact_title", "")
+        if contact_name:
+            self.cell(50, 4, contact_name, 0, 1, "L")
+        if contact_title:
+            self.set_x(10)
+            self.cell(50, 4, contact_title, 0, 1, "L")
+        
+        self.set_xy(70, y_pos)
+        phone = self.data.get("contact_phone", "")
+        email = self.data.get("contact_email", "")
+        if phone:
+            self.set_font("ZapfDingbats", "", 8)
+            self.cell(3, 4, chr(0x25), 0, 0, "L")
+            self.set_font("Helvetica", "", 7)
+            self.cell(60, 4, phone, 0, 1, "L")
+        if email:
+            self.set_x(70)
+            self.set_font("ZapfDingbats", "", 8)
+            self.cell(3, 4, chr(0x29), 0, 0, "L")
+            self.set_font("Helvetica", "", 7)
+            self.cell(60, 4, email, 0, 1, "L")
+        
+        self.set_xy(140, y_pos)
+        website = self.data.get("contact_website", "")
+        if website:
+            self.set_font("ZapfDingbats", "", 8)
+            self.cell(3, 4, chr(0x2B), 0, 0, "L")
+            self.set_font("Helvetica", "", 7)
+            self.cell(60, 4, website, 0, 1, "L")
+        
+        address_parts = []
+        if self.data.get("contact_address"):
+            address_parts.append(self.data.get("contact_address"))
+        city_state_zip = ", ".join(filter(None, [
+            self.data.get("city", ""),
+            self.data.get("state", ""),
+            self.data.get("zip", "")
+        ]))
+        if city_state_zip:
+            address_parts.append(city_state_zip)
+        
+        if address_parts:
+            self.set_x(140)
+            self.multi_cell(60, 4, "\n".join(address_parts), 0, "L")
+        
         self.set_text_color(0, 0, 0)
 
-        line_height = 4
-        title_height = 10
-        text_box_width = 90
-
-        # Determine NAICS box position
-        if image_path and os.path.exists(image_path):
-            text_box_y = image_y + image_height + 5
-        else:
-            text_box_y = current_y + 50 + 5
-
-        # Calculate text box height based on the content
-        y_position = text_box_y + title_height + 3
-        self.set_font("Helvetica", "", 8)
-        naics_code_lines = 0
-        for code in self.data["naics_codes"]:
-            self.set_xy(115, y_position)
-            self.multi_cell(
-                text_box_width - 5, line_height, f"{code}", border=0, align="L"
-            )
-            y_position += line_height + 5  # Increased spacing between bullets
-            naics_code_lines += 1
-
-        text_box_height = (y_position - text_box_y) + 5
-
-        self.set_fill_color(*secondary_color)
-        self.rect(110, text_box_y, text_box_width, text_box_height, "F")
-        self.set_xy(115, text_box_y + 3)
+    def section_title(self, title, x, y, width):
+        """Create a professional section title with background"""
+        self.set_xy(x, y)
+        self.set_fill_color(*self.secondary_color)
         self.set_font("Helvetica", "B", 10)
-        self.cell(text_box_width, title_height, "NAICS CODE", border=0, align="L")
-
-        # Reset y_position for actual drawing
-        y_position = text_box_y + title_height + 3
-        self.set_font("Helvetica", "", 8)
-        for code in self.data["naics_codes"]:
-            self.set_xy(115, y_position)
-            self.multi_cell(
-                text_box_width - 5, line_height, f"{code}", border=0, align="L"
-            )
-            y_position += line_height + 5  # Adjust y_position for the next bullet point
-
-        self.naics_end_y = text_box_y + text_box_height + 5
         self.set_text_color(0, 0, 0)
+        self.cell(width, 7, title, 0, 1, "L", True)
+        return self.get_y()
 
-    # Chapter title formatting
-    def chapter_title(self, title, width=90):
-        self.set_font("Helvetica", "B", 12)
-        self.set_fill_color(224, 224, 224)
-        self.cell(width, 10, title, 0, 1, "C", 1)
-        self.ln(4)
-
-    # Chapter body formatting
-    def chapter_body(self, body, width=90):
+    def add_bullet_list(self, items, x, y, width, bullet_char="l"):
+        """Add a bulleted list"""
+        if not items:
+            return y
+        
+        self.set_xy(x, y)
         self.set_font("Helvetica", "", 8)
-        self.multi_cell(width, 5, body)
-        self.ln(2)
-
-    def add_bullet_points(
-        self, bullet_points, x, start_y, width=90, bullet_font_size=8, bullet_char="l"
-    ):
-        line_height = 5
-        bullet_margin = -1
-        y = start_y
-        for point in bullet_points:
+        
+        for item in items:
+            if not item:
+                continue
             self.set_xy(x, y)
-            self.set_font("ZapfDingbats", "", bullet_font_size)
-            self.cell(bullet_font_size, line_height, bullet_char, 0, 0)
+            self.set_font("ZapfDingbats", "", 6)
+            self.cell(3, 4, bullet_char, 0, 0, "L")
             self.set_font("Helvetica", "", 8)
-            self.set_xy(x + bullet_font_size + bullet_margin, y)
-            self.multi_cell(
-                width - bullet_font_size - bullet_margin, line_height, point, 0, "L"
-            )
-            y = (
-                self.get_y() + 1
-            )  # Update y position for the next bullet point, reduce spacing
+            self.set_xy(x + 4, y)
+            self.multi_cell(width - 4, 4, str(item), 0, "L")
+            y = self.get_y() + 1
+        
         return y
 
-    # Add columns
-    def add_columns(self):
-        # Calculate the width for each column
-        col_width = (self.w - 30) / 2
-        y_start = 85
-
-        # Left column start
-        current_y = y_start
-
-        # "About Us" section
-        self.set_xy(10, current_y)
-        self.chapter_title("ABOUT US", col_width)
-        self.chapter_body(self.data["company_description"], col_width)
-        current_y = self.get_y() + 2
+    def create_content(self):
+        """Create the main content in a professional 2-column layout"""
+        start_y = 55
+        col_width = 90
+        col_spacing = 10
+        left_x = 10
+        right_x = left_x + col_width + col_spacing
         
-        # Conditional "Past Performance" section
-        if "private_performance" in self.data and self.data["private_performance"]:
-            self.set_xy(10, current_y)
-            self.chapter_title("PAST PERFORMANCE", col_width)
-            current_y = self.get_y()  # Update current_y to be just below the title
-
-            # Add performance logos if available
-            if "public_performance_logo_paths" in self.data and self.data["public_performance_logo_paths"]:
-                pub_logo_paths = self.data["public_performance_logo_paths"]
-                max_logo_width = 15
-                spacing = 5
-                x = 10
-                y = current_y
-                for i, pub_logo_path in enumerate(pub_logo_paths):
-                    if os.path.exists(pub_logo_path):
-                        self.image(pub_logo_path, x, y, max_logo_width)
-                        x += max_logo_width + spacing
-                        if x + max_logo_width > col_width + 10:  # Move to next line if exceeding column width
-                            x = 10
-                            y += max_logo_width + spacing
-                current_y = y + max_logo_width + 2  # Original spacing
-
-            self.set_xy(10, current_y)
-            current_y = self.add_bullet_points(self.data["private_performance"], 10, current_y, col_width, bullet_font_size=4, bullet_char="l")
-            current_y += 5  # Original spacing
-        elif "public_performance_logo_paths" in self.data and self.data["public_performance_logo_paths"]:
-            # Only public performance
-            self.set_xy(10, current_y)
-            self.chapter_title("PAST PERFORMANCE", col_width)
-            current_y = self.get_y()  # Update current_y to be just below the title
+        current_y = start_y
+        
+        naics_codes = self.data.get("naics_codes", [])
+        if naics_codes:
+            naics_y = start_y
+            naics_width = 85
+            naics_x = right_x
             
-            pub_logo_paths = self.data["public_performance_logo_paths"]
-            max_logo_width = 15
-            spacing = 5
-            x = 10
-            y = current_y
-            for i, pub_logo_path in enumerate(pub_logo_paths):
-                if os.path.exists(pub_logo_path):
-                    self.image(pub_logo_path, x, y, max_logo_width)
-                    x += max_logo_width + spacing
-                    if x + max_logo_width > col_width + 10:  # Move to next line if exceeding column width
-                        x = 10
-                        y += max_logo_width + spacing
-            current_y = y + max_logo_width + 5  # Original spacing
-
-
-        # "Differentiators" section
-        self.set_xy(10, current_y)
-        self.chapter_title("DIFFERENTIATORS", col_width)
-        current_y = self.get_y() + 2  # Ensure consistent spacing below the title
-        current_y = self.add_bullet_points(
-            self.data["differentiators"],
-            10,
-            current_y,
-            col_width,
-            bullet_font_size=4,
-            bullet_char="l",
-        )
-        current_y += 5
-
-        # Right column start just below the NAICS code rectangle
-        right_col_y_start = self.naics_end_y
-
-        # Determine if we need to add "CORE COMPETENCIES" and "CERTIFICATIONS"
-        include_certifications = "certifications" in self.data
-
-        # Right column content
-        if include_certifications and self.data["certifications"]:
-            # "CORE COMPETENCIES" section
-            self.set_xy(10 + col_width + 10, right_col_y_start)
-            self.chapter_title("CORE COMPETENCIES", col_width)
-            right_col_y_start = (
-                self.get_y() + 2
-            )  # Ensure consistent spacing below the title
-            right_col_y_start = self.add_bullet_points(
-                self.data["core_competencies"],
-                10 + col_width + 10,
-                right_col_y_start,
-                col_width,
-                bullet_font_size=12,
-                bullet_char="3",
-            )
-            right_col_y_start += 5
-
-            # "CERTIFICATIONS" section
-            self.set_xy(10 + col_width + 10, right_col_y_start)
-            self.chapter_title("CERTIFICATIONS", col_width)
-            right_col_y_start = (
-                self.get_y() + 2
-            )  # Ensure consistent spacing below the title
-            right_col_y_start = self.add_bullet_points(
-                self.data["certifications"],
-                10 + col_width + 10,
-                right_col_y_start,
-                col_width,
-                bullet_font_size=4,
-                bullet_char="l",
-            )
-            right_col_y_start += 5
+            naics_height = 10 + (len(naics_codes) * 5)
+            
+            self.set_fill_color(*self.secondary_color)
+            self.rect(naics_x, naics_y, naics_width, naics_height, 'F')
+            
+            self.set_xy(naics_x + 3, naics_y + 2)
+            self.set_font("Helvetica", "B", 10)
+            self.cell(naics_width - 6, 6, "NAICS CODE", 0, 1, "L")
+            
+            self.set_font("Helvetica", "", 8)
+            naics_text_y = naics_y + 9
+            for code in naics_codes:
+                self.set_xy(naics_x + 3, naics_text_y)
+                self.cell(naics_width - 6, 4, str(code), 0, 1, "L")
+                naics_text_y += 4
+            
+            right_col_start = naics_y + naics_height + 5
         else:
-            # Only "CORE COMPETENCIES" section
-            self.set_xy(10 + col_width + 10, right_col_y_start)
-            self.chapter_title("CORE COMPETENCIES", col_width)
-            right_col_y_start = (
-                self.get_y() + 2
-            )  # Ensure consistent spacing below the title
-            right_col_y_start = self.add_bullet_points(
-                self.data["core_competencies"],
-                10 + col_width + 10,
-                right_col_y_start,
-                col_width,
-                bullet_font_size=12,
-                bullet_char="3",
-            )
-            right_col_y_start += 5
+            right_col_start = start_y
+        
+        current_y = self.section_title("ABOUT US", left_x, current_y, col_width)
+        self.set_xy(left_x, current_y + 2)
+        self.set_font("Helvetica", "", 8)
+        company_desc = self.data.get("company_description", "")
+        self.multi_cell(col_width, 4, company_desc, 0, "L")
+        current_y = self.get_y() + 3
+        
+        past_performance = self.data.get("private_performance", [])
+        if past_performance:
+            current_y = self.section_title("PAST PERFORMANCE", left_x, current_y, col_width)
+            current_y = self.add_bullet_list(past_performance, left_x + 2, current_y + 2, col_width - 2)
+            current_y += 3
+        
+        core_competencies = self.data.get("core_competencies", [])
+        if core_competencies:
+            right_col_start = self.section_title("CORE COMPETENCIES", right_x, right_col_start, col_width)
+            right_col_start = self.add_bullet_list(core_competencies, right_x + 2, right_col_start + 2, col_width - 2, bullet_char="3")
+            right_col_start += 3
+        
+        differentiators = self.data.get("differentiators", [])
+        if differentiators:
+            current_y = self.section_title("DIFFERENTIATORS", left_x, current_y, col_width)
+            current_y = self.add_bullet_list(differentiators, left_x + 2, current_y + 2, col_width - 2)
+            current_y += 3
+        
+        certifications = self.data.get("certifications", [])
+        if certifications:
+            right_col_start = self.section_title("CERTIFICATIONS", right_x, right_col_start, col_width)
+            right_col_start = self.add_bullet_list(certifications, right_x + 2, right_col_start + 2, col_width - 2)
 
 
 def create_pdf(data, output_path="output.pdf"):
+    """Create a professional capability statement PDF"""
     pdf = PDF(data)
     pdf.add_page()
-    pdf.main_title()
-    pdf.add_columns()
+    pdf.create_content()
     pdf.output(output_path)
     return output_path

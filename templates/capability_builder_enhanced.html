@@ -1971,10 +1971,7 @@
         }
 
         // Capability Statement Import Functions
-        document.getElementById('capabilityUpload').addEventListener('click', function() {
-            document.getElementById('capabilityFile').click();
-        });
-        
+        // File change handler for capability statement import
         document.getElementById('capabilityFile').addEventListener('change', function() {
             if (this.files[0]) {
                 importCapabilityStatement();
