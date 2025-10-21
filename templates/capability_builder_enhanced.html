@@ -1243,6 +1243,11 @@
             const uploadAreas = document.querySelectorAll('.upload-area');
             
             uploadAreas.forEach(area => {
+                // Skip capability statement upload area - it has its own handler
+                if (area.id === 'capabilityUpload') {
+                    return;
+                }
+                
                 area.addEventListener('click', function() {
                     const fileInput = this.querySelector('input[type="file"]');
                     fileInput.click();
@@ -1994,8 +1999,39 @@
             overlay.style.display = 'none';
         }
         
+        // Capability statement upload area handlers
+        const capabilityUploadArea = document.getElementById('capabilityUpload');
+        const capabilityFileInput = document.getElementById('capabilityFile');
+        
+        // Click handler
+        capabilityUploadArea.addEventListener('click', function() {
+            capabilityFileInput.click();
+        });
+        
+        // Drag and drop handlers
+        capabilityUploadArea.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            this.classList.add('dragover');
+        });
+        
+        capabilityUploadArea.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+        });
+        
+        capabilityUploadArea.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                capabilityFileInput.files = files;
+                importCapabilityStatement();
+            }
+        });
+        
         // File change handler for capability statement import
-        document.getElementById('capabilityFile').addEventListener('change', function() {
+        capabilityFileInput.addEventListener('change', function() {
             if (this.files[0]) {
                 importCapabilityStatement();
             }
