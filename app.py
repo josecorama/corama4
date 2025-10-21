@@ -3682,9 +3682,9 @@ def process_capability_statement():
         
         if not capability_text or len(capability_text.strip()) < 10:
             logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}...' (length: {len(capability_text) if capability_text else 0})")
-            error_msg = 'Could not extract meaningful text from capability statement. '
+            error_msg = 'Could not extract meaningful text. '
             if 'url' in request.json:
-                error_msg += 'Please ensure the URL points to a text-based PDF file (not a scanned image). Try uploading the PDF directly instead.'
+                error_msg += 'The system can import from both PDF URLs and websites. If the content is too short or not relevant, please try: (1) A direct PDF URL, (2) Uploading the PDF file directly, or (3) A different webpage with more detailed company information.'
             else:
                 error_msg += 'Please ensure the PDF contains readable text (not scanned images). Try using a text-based PDF or OCR software first.'
             return jsonify({'error': error_msg}), 400
@@ -3739,10 +3739,11 @@ def extract_text_from_pdf(filepath):
         return ""
 
 def download_and_extract_from_url(url):
-    """Download PDF from URL and extract text"""
+    """Download PDF from URL or scrape text from website"""
     try:
         import requests
-        logging.info(f"Attempting to download PDF from URL: {url}")
+        from bs4 import BeautifulSoup
+        logging.info(f"Attempting to download content from URL: {url}")
         
         if not url.startswith(('http://', 'https://')):
             logging.error(f"Invalid URL format: {url}")
@@ -3752,37 +3753,69 @@ def download_and_extract_from_url(url):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        response = requests.get(url, timeout=30, headers=headers, stream=True)
-        logging.info(f"URL response status: {response.status_code}, content-type: {response.headers.get('content-type', 'unknown')}")
+        try:
+            head_response = requests.head(url, timeout=10, headers=headers, allow_redirects=True)
+            content_type = head_response.headers.get('content-type', '').lower()
+            logging.info(f"HEAD request content-type: {content_type}")
+        except:
+            content_type = ''
         
-        if response.status_code == 200:
-            # Check if content is actually a PDF
-            content_type = response.headers.get('content-type', '').lower()
-            if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
-                logging.warning(f"URL may not be a PDF file. Content-Type: {content_type}")
+        if 'pdf' in content_type or url.lower().endswith('.pdf'):
+            logging.info("Detected PDF file, downloading...")
+            response = requests.get(url, timeout=30, headers=headers, stream=True)
             
-            temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
-            
-            max_size = 10 * 1024 * 1024  # 10MB
-            downloaded_size = 0
-            
-            with open(temp_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        downloaded_size += len(chunk)
-                        if downloaded_size > max_size:
-                            logging.error(f"File too large: {downloaded_size} bytes")
-                            os.remove(temp_path)
-                            return ""
-                        f.write(chunk)
-            
-            logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
-            text = extract_text_from_pdf(temp_path)
-            os.remove(temp_path)
-            return text
+            if response.status_code == 200:
+                temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                
+                max_size = 10 * 1024 * 1024  # 10MB
+                downloaded_size = 0
+                
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            downloaded_size += len(chunk)
+                            if downloaded_size > max_size:
+                                logging.error(f"File too large: {downloaded_size} bytes")
+                                os.remove(temp_path)
+                                return ""
+                            f.write(chunk)
+                
+                logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
+                text = extract_text_from_pdf(temp_path)
+                os.remove(temp_path)
+                return text
+            else:
+                logging.error(f"Failed to download PDF: HTTP {response.status_code}")
+                return ""
+        
         else:
-            logging.error(f"Failed to download URL: HTTP {response.status_code}")
-            return ""
+            logging.info("Detected website, scraping text content...")
+            response = requests.get(url, timeout=30, headers=headers)
+            
+            if response.status_code == 200:
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                for script in soup(["script", "style", "nav", "footer", "header"]):
+                    script.decompose()
+                
+                text_content = []
+                
+                main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=['content', 'main-content', 'page-content'])
+                
+                if main_content:
+                    text_content.append(main_content.get_text(separator='\n', strip=True))
+                else:
+                    text_content.append(soup.get_text(separator='\n', strip=True))
+                
+                text = '\n'.join(text_content)
+                lines = [line.strip() for line in text.split('\n') if line.strip()]
+                text = '\n'.join(lines)
+                
+                logging.info(f"Scraped {len(text)} characters from website")
+                return text
+            else:
+                logging.error(f"Failed to fetch website: HTTP {response.status_code}")
+                return ""
             
     except requests.exceptions.Timeout:
         logging.error(f"Timeout downloading from URL: {url}")
