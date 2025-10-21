@@ -694,6 +694,17 @@
                                     </button>
                                 </div>
                             </div>
+                            
+                            <!-- Loading Overlay -->
+                            <div id="importLoadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
+                                <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3);">
+                                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 1rem;">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                    <h5 id="importLoadingMessage" style="margin: 0; color: #333;">Processing capability statement...</h5>
+                                    <p style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;">This may take a few moments</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1971,6 +1982,18 @@
         }
 
         // Capability Statement Import Functions
+        function showImportLoading(message) {
+            const overlay = document.getElementById('importLoadingOverlay');
+            const messageEl = document.getElementById('importLoadingMessage');
+            messageEl.textContent = message;
+            overlay.style.display = 'flex';
+        }
+        
+        function hideImportLoading() {
+            const overlay = document.getElementById('importLoadingOverlay');
+            overlay.style.display = 'none';
+        }
+        
         // File change handler for capability statement import
         document.getElementById('capabilityFile').addEventListener('change', function() {
             if (this.files[0]) {
@@ -2002,6 +2025,9 @@
                 return;
             }
             
+            // Show loading overlay
+            showImportLoading('Uploading and extracting information from PDF...');
+            
             const formData = new FormData();
             formData.append('capabilityFile', file);
             
@@ -2014,6 +2040,8 @@
                 
                 const result = await response.json();
                 console.log('Import response:', result);
+                
+                hideImportLoading();
                 
                 if (result.success && result.data) {
                     populateFormFromImport(result.data);
@@ -2028,6 +2056,7 @@
                 }
             } catch (error) {
                 console.error('Error importing capability statement:', error);
+                hideImportLoading();
                 alert('Error importing capability statement: ' + error.message);
                 fileInput.value = '';
             }
@@ -2047,6 +2076,9 @@
                 return;
             }
             
+            // Show loading overlay
+            showImportLoading('Fetching and extracting information from URL...');
+            
             try {
                 const baseUrl = window.location.protocol + '//' + window.location.host;
                 const response = await fetch(baseUrl + '/process-capability-statement', {
@@ -2060,6 +2092,8 @@
                 const result = await response.json();
                 console.log('URL import response:', result);
                 
+                hideImportLoading();
+                
                 if (result.success && result.data) {
                     populateFormFromImport(result.data);
                     alert('Capability statement imported from URL successfully!');
@@ -2070,6 +2104,7 @@
                 }
             } catch (error) {
                 console.error('Error importing from URL:', error);
+                hideImportLoading();
                 alert('Error importing from URL: ' + error.message);
             }
         }
