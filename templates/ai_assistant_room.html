@@ -682,7 +682,8 @@
             console.log('Proposal data:', proposalData);
             
             // Send to download endpoint (important-comment)
-            fetch('/download_proposal', {
+            const downloadUrl = window.location.origin + '/download_proposal';
+            fetch(downloadUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
