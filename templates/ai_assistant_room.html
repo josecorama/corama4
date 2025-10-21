@@ -679,6 +679,8 @@
                 return;
             }
             
+            console.log('Proposal data:', proposalData);
+            
             // Send to download endpoint (important-comment)
             fetch('/download_proposal', {
                 method: 'POST',
@@ -691,7 +693,15 @@
                     company_name: proposalData.company_name || '{{ company_name }}'
                 })
             })
-            .then(response => response.blob())
+            .then(response => {
+                console.log('Download response status:', response.status);
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.error || 'Download failed');
+                    });
+                }
+                return response.blob();
+            })
             .then(blob => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -704,7 +714,7 @@
             })
             .catch(error => {
                 console.error('Download error:', error);
-                alert('Failed to download proposal. Please try again.');
+                alert('Failed to download proposal: ' + error.message);
             });
         }
 
