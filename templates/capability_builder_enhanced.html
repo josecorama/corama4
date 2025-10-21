@@ -409,6 +409,63 @@
                         </div>
                     </div>
 
+                    <!-- Color Scheme Section -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-palette"></i>
+                            Color Scheme
+                        </h3>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Primary Color (Headers/Accents)</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="color" class="form-control form-control-color" id="primaryColor" name="primaryColor" value="#2E4C8B" title="Choose primary color">
+                                    <input type="text" class="form-control" id="primaryColorHex" value="#2E4C8B" readonly style="max-width: 100px;">
+                                </div>
+                                <small class="text-muted">Used for headers, titles, and main accents</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Secondary Color (Sections/Backgrounds)</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="color" class="form-control form-control-color" id="secondaryColor" name="secondaryColor" value="#A8D5E2" title="Choose secondary color">
+                                    <input type="text" class="form-control" id="secondaryColorHex" value="#A8D5E2" readonly style="max-width: 100px;">
+                                </div>
+                                <small class="text-muted">Used for section backgrounds and highlights</small>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Quick Color Presets</label>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setColorPreset('#2E4C8B', '#A8D5E2')">
+                                    <span style="display: inline-block; width: 20px; height: 20px; background: #2E4C8B; border-radius: 3px; margin-right: 5px;"></span>
+                                    Blue
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setColorPreset('#1E3A5F', '#4A90A4')">
+                                    <span style="display: inline-block; width: 20px; height: 20px; background: #1E3A5F; border-radius: 3px; margin-right: 5px;"></span>
+                                    Navy
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setColorPreset('#2C5F2D', '#97BC62')">
+                                    <span style="display: inline-block; width: 20px; height: 20px; background: #2C5F2D; border-radius: 3px; margin-right: 5px;"></span>
+                                    Green
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setColorPreset('#8B2E2E', '#D4A5A5')">
+                                    <span style="display: inline-block; width: 20px; height: 20px; background: #8B2E2E; border-radius: 3px; margin-right: 5px;"></span>
+                                    Red
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setColorPreset('#4A4A4A', '#B8B8B8')">
+                                    <span style="display: inline-block; width: 20px; height: 20px; background: #4A4A4A; border-radius: 3px; margin-right: 5px;"></span>
+                                    Gray
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setColorPreset('#6B2C91', '#C8A2D0')">
+                                    <span style="display: inline-block; width: 20px; height: 20px; background: #6B2C91; border-radius: 3px; margin-right: 5px;"></span>
+                                    Purple
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Company Description Section -->
                     <div class="section-card">
                         <h3 class="section-title">
@@ -668,9 +725,39 @@
             // Initialize auto-save
             initializeAutoSave();
             
+            // Initialize color pickers
+            initializeColorPickers();
+            
             // Generate initial preview
             generatePreview();
         });
+
+        // Color picker initialization
+        function initializeColorPickers() {
+            const primaryColor = document.getElementById('primaryColor');
+            const primaryColorHex = document.getElementById('primaryColorHex');
+            const secondaryColor = document.getElementById('secondaryColor');
+            const secondaryColorHex = document.getElementById('secondaryColorHex');
+            
+            primaryColor.addEventListener('input', function() {
+                primaryColorHex.value = this.value.toUpperCase();
+                generatePreview();
+            });
+            
+            secondaryColor.addEventListener('input', function() {
+                secondaryColorHex.value = this.value.toUpperCase();
+                generatePreview();
+            });
+        }
+
+        // Set color preset
+        function setColorPreset(primary, secondary) {
+            document.getElementById('primaryColor').value = primary;
+            document.getElementById('primaryColorHex').value = primary.toUpperCase();
+            document.getElementById('secondaryColor').value = secondary;
+            document.getElementById('secondaryColorHex').value = secondary.toUpperCase();
+            generatePreview();
+        }
 
         // Drag and drop functionality
         function initializeDragAndDrop() {

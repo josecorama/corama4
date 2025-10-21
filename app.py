@@ -3564,18 +3564,20 @@ def generate_enhanced_pdf():
         except json.JSONDecodeError:
             pass
         
-        colors = {
-            'blue': [(64, 64, 128), (192, 192, 255)],
-            'green': [(64, 128, 64), (192, 255, 192)],
-            'red': [(128, 64, 64), (255, 192, 192)],
-            'purple': [(128, 64, 128), (255, 192, 255)],
-            'orange': [(255, 140, 0), (255, 218, 185)],
-            'pink': [(206, 120, 120), (250, 188, 188)],
-        }
+        # Convert hex colors to RGB tuples
+        def hex_to_rgb(hex_color):
+            hex_color = hex_color.lstrip('#')
+            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        
+        primary_color = form_data.get('primaryColor', '#2E4C8B')
+        secondary_color = form_data.get('secondaryColor', '#A8D5E2')
+        
+        primary_rgb = hex_to_rgb(primary_color)
+        secondary_rgb = hex_to_rgb(secondary_color)
         
         formatted_data = {
             'company_name': form_data.get('companyName', ''),
-            'logo_color': colors.get('blue', [(64, 64, 128), (192, 192, 255)]),
+            'logo_color': [primary_rgb, secondary_rgb],
             'logo_path': logo_path,
             'image_path': image_path,
             'uei_code': form_data.get('ueiCode', ''),
