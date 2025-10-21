@@ -9,6 +9,7 @@ from openai import OpenAI
 from flask import request, jsonify, session
 from datetime import datetime
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class EnhancedAIAssistant:
     def __init__(self, app, db):
@@ -370,80 +371,53 @@ class EnhancedAIAssistant:
             return f"COVER LETTER\n\n[Date]\n\n[Recipient Information]\n\nDear Selection Committee,\n\n{company_name} is pleased to submit this proposal..."
     
     def generate_full_proposal(self, contract_requirements, capability_statement, company_name="your company", user_documents=None, target_pages=35):
-        """Generate comprehensive multi-page proposal (30-50 pages) using multi-prompt approach for stronger content"""
+        """Generate comprehensive multi-page proposal (30-50 pages) using parallel multi-prompt approach"""
         try:
-            self.app.logger.info("Starting multi-prompt proposal generation...")
+            self.app.logger.info("Starting parallel multi-prompt proposal generation...")
+            
+            section_tasks = {
+                "COVER LETTER": lambda: self._generate_cover_letter(contract_requirements, capability_statement, company_name),
+                "EXECUTIVE SUMMARY": lambda: self._generate_executive_summary(contract_requirements, capability_statement, company_name),
+                "TECHNICAL APPROACH": lambda: self._generate_technical_approach(contract_requirements, capability_statement, company_name),
+                "MANAGEMENT PLAN": lambda: self._generate_management_plan(contract_requirements, capability_statement, company_name),
+                "PAST PERFORMANCE": lambda: self._generate_past_performance(capability_statement, user_documents, company_name),
+                "PRICING STRATEGY": lambda: self._generate_pricing_strategy(contract_requirements, capability_statement, company_name),
+                "QUALITY ASSURANCE": lambda: self._generate_quality_assurance(contract_requirements, company_name),
+                "RISK MANAGEMENT": lambda: self._generate_risk_management(contract_requirements, company_name)
+            }
+            
             sections = []
+            section_order = list(section_tasks.keys())
             
-            self.app.logger.info("Generating Cover Letter...")
-            cover_letter = self._generate_cover_letter(contract_requirements, capability_statement, company_name)
-            sections.append({
-                "section": "COVER LETTER",
-                "content": cover_letter,
-                "pages": self._estimate_pages(cover_letter)
-            })
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                future_to_section = {
+                    executor.submit(task): section_name 
+                    for section_name, task in section_tasks.items()
+                }
+                
+                completed_sections = {}
+                for future in as_completed(future_to_section):
+                    section_name = future_to_section[future]
+                    try:
+                        content = future.result()
+                        completed_sections[section_name] = content
+                        self.app.logger.info(f"✓ Completed: {section_name}")
+                    except Exception as e:
+                        self.app.logger.error(f"Error generating {section_name}: {e}")
+                        completed_sections[section_name] = f"Error generating {section_name}: {str(e)}"
             
-            self.app.logger.info("Generating Executive Summary...")
-            exec_summary = self._generate_executive_summary(contract_requirements, capability_statement, company_name)
-            sections.append({
-                "section": "EXECUTIVE SUMMARY",
-                "content": exec_summary,
-                "pages": self._estimate_pages(exec_summary)
-            })
-            
-            self.app.logger.info("Generating Technical Approach...")
-            tech_approach = self._generate_technical_approach(contract_requirements, capability_statement, company_name)
-            sections.append({
-                "section": "TECHNICAL APPROACH",
-                "content": tech_approach,
-                "pages": self._estimate_pages(tech_approach)
-            })
-            
-            self.app.logger.info("Generating Management Plan...")
-            mgmt_plan = self._generate_management_plan(contract_requirements, capability_statement, company_name)
-            sections.append({
-                "section": "MANAGEMENT PLAN",
-                "content": mgmt_plan,
-                "pages": self._estimate_pages(mgmt_plan)
-            })
-            
-            # Generate Past Performance
-            self.app.logger.info("Generating Past Performance...")
-            past_perf = self._generate_past_performance(capability_statement, user_documents, company_name)
-            sections.append({
-                "section": "PAST PERFORMANCE",
-                "content": past_perf,
-                "pages": self._estimate_pages(past_perf)
-            })
-            
-            self.app.logger.info("Generating Pricing Strategy...")
-            pricing = self._generate_pricing_strategy(contract_requirements, capability_statement, company_name)
-            sections.append({
-                "section": "PRICING STRATEGY",
-                "content": pricing,
-                "pages": self._estimate_pages(pricing)
-            })
-            
-            self.app.logger.info("Generating Quality Assurance...")
-            quality = self._generate_quality_assurance(contract_requirements, company_name)
-            sections.append({
-                "section": "QUALITY ASSURANCE",
-                "content": quality,
-                "pages": self._estimate_pages(quality)
-            })
-            
-            self.app.logger.info("Generating Risk Management...")
-            risk_mgmt = self._generate_risk_management(contract_requirements, company_name)
-            sections.append({
-                "section": "RISK MANAGEMENT",
-                "content": risk_mgmt,
-                "pages": self._estimate_pages(risk_mgmt)
-            })
+            for section_name in section_order:
+                content = completed_sections.get(section_name, "")
+                sections.append({
+                    "section": section_name,
+                    "content": content,
+                    "pages": self._estimate_pages(content)
+                })
             
             total_pages = sum(section.get("pages", 0) for section in sections)
             full_content = "\n\n".join([f"{s['section']}\n\n{s['content']}" for s in sections])
             
-            self.app.logger.info(f"Multi-prompt proposal generation complete. Total pages: {total_pages}")
+            self.app.logger.info(f"Parallel proposal generation complete. Total pages: {total_pages}")
             
             return {
                 "proposal_sections": sections,
