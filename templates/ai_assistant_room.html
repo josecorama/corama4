@@ -412,6 +412,103 @@
             return formatted;
         }
         
+        // Poll job status for async proposal generation (important-comment)
+        function pollJobStatus(jobId, loadingMessage, progressInterval, actionType) {
+            const messages = document.getElementById('chatMessages');
+            let pollCount = 0;
+            const maxPolls = 120; // 2 minutes max (120 * 1 second)
+            
+            const pollInterval = setInterval(() => {
+                pollCount++;
+                console.log(`Polling job ${jobId}, attempt ${pollCount}`);
+                
+                if (pollCount > maxPolls) {
+                    clearInterval(pollInterval);
+                    if (progressInterval) clearInterval(progressInterval);
+                    messages.removeChild(loadingMessage);
+                    
+                    const timeoutMessage = document.createElement('div');
+                    timeoutMessage.className = 'message assistant error';
+                    timeoutMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ Request timed out after 2 minutes. The proposal may still be generating. Please try again in a moment.`;
+                    messages.appendChild(timeoutMessage);
+                    messages.scrollTop = messages.scrollHeight;
+                    return;
+                }
+                
+                fetch(`/proposal_job_status/${jobId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(`Job status:`, data);
+                        
+                        if (data.status === 'completed') {
+                            clearInterval(pollInterval);
+                            if (progressInterval) clearInterval(progressInterval);
+                            messages.removeChild(loadingMessage);
+                            
+                            // Display the completed proposal
+                            displayProposalResponse(data, actionType);
+                        } else if (data.status === 'failed') {
+                            clearInterval(pollInterval);
+                            if (progressInterval) clearInterval(progressInterval);
+                            messages.removeChild(loadingMessage);
+                            
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'message assistant error';
+                            errorMessage.innerHTML = `<strong>AI Assistant:</strong> ❌ Failed to generate proposal: ${data.error || 'Unknown error'}`;
+                            messages.appendChild(errorMessage);
+                            messages.scrollTop = messages.scrollHeight;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error polling job status:', error);
+                    });
+            }, 1000); // Poll every second
+        }
+        
+        // Display proposal response (important-comment)
+        function displayProposalResponse(data, actionType) {
+            const messages = document.getElementById('chatMessages');
+            
+            const aiMessage = document.createElement('div');
+            aiMessage.className = 'message assistant enhanced';
+            
+            let responseHTML = `<strong>AI Assistant:</strong> ${formatMarkdownText(data.response)}`;
+            
+            if (data.credits_used) {
+                responseHTML += `
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f5e8; border-radius: 6px; font-size: 0.8rem;">
+                        💎 Credits used: ${data.credits_used} | Remaining: ${data.remaining_credits}
+                    </div>
+                `;
+                updateCreditDisplay(data.remaining_credits);
+            }
+            
+            if (actionType === 'full_proposal' && data.proposal) {
+                window.lastProposalData = data.proposal;
+                responseHTML += createFullProposalDisplay(data.proposal);
+            }
+            
+            aiMessage.innerHTML = responseHTML;
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.innerHTML = '📋 Copy Response';
+            copyBtn.style.cssText = 'margin-top: 0.5rem; padding: 0.5rem 1rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;';
+            copyBtn.onclick = function() {
+                const textContent = aiMessage.innerText.replace('AI Assistant:', '').replace('📋 Copy Response', '').trim();
+                navigator.clipboard.writeText(textContent).then(() => {
+                    copyBtn.innerHTML = '✅ Copied!';
+                    setTimeout(() => { copyBtn.innerHTML = '📋 Copy Response'; }, 2000);
+                }).catch(err => {
+                    console.error('Copy failed:', err);
+                    alert('Failed to copy. Please select and copy manually.');
+                });
+            };
+            aiMessage.appendChild(copyBtn);
+            
+            messages.appendChild(aiMessage);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
         // Enhanced AI Analysis Functions (important-comment)
         function triggerAnalysis(actionType) {
             const messages = document.getElementById('chatMessages');
@@ -490,20 +587,27 @@
             
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/ai_assistant_enhanced', true);
-            xhr.timeout = 120000; // 2 minute timeout for full proposals
+            xhr.timeout = 30000; // 30 second timeout for initial request
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
                     console.log(`XHR completed with status: ${xhr.status}, actionType: ${actionType}`);
                     console.log(`Response length: ${xhr.responseText ? xhr.responseText.length : 0} characters`);
                     
-                    // Clear progress interval if it exists
-                    if (progressInterval) {
-                        clearInterval(progressInterval);
-                    }
-                    
                     if (xhr.status === 200) {
                         const data = JSON.parse(xhr.responseText);
                         console.log('Parsed response data:', data);
+                        
+                        // Check if this is an async job response
+                        if (data.job_id && data.status === 'processing') {
+                            console.log(`Started async job: ${data.job_id}`);
+                            pollJobStatus(data.job_id, loadingMessage, progressInterval, actionType);
+                            return;
+                        }
+                        
+                        // Clear progress interval if it exists
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                        }
                         // Remove loading message
                         messages.removeChild(loadingMessage);
                 

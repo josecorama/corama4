@@ -31,6 +31,8 @@ import ast
 import faiss
 import csv
 import json
+import threading
+import uuid
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
 #from RAG.Capability_statement_embedding import generate_embeddings as generate_capability_embeddings
@@ -94,6 +96,9 @@ if os.getenv('ENV') == 'production':
     logging.basicConfig(level=logging.WARNING)
 else:
     logging.basicConfig(level=logging.INFO)
+
+proposal_jobs = {}
+job_lock = threading.Lock()
 
 
 
@@ -3288,28 +3293,61 @@ How can I help you with your contract response today?"""
             if not success:
                 return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
-            # Generate comprehensive multi-page proposal
-            try:
-                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
-                
-                full_proposal = enhanced_ai.generate_full_proposal(
-                    contract_requirements,
-                    context_data.get('capability_statement', ''),
-                    company_name=context_data.get('company_name', 'your company'),
-                    user_documents=context_data.get('uploaded_documents', [])
-                )
-                
-                return jsonify({
-                    "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
-                    "proposal": full_proposal,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
-                })
-                
-            except Exception as e:
-                app.logger.error(f"Error generating full proposal: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
-                return jsonify({"error": "Failed to generate comprehensive proposal"}), 500
+            job_id = str(uuid.uuid4())
+            
+            with job_lock:
+                proposal_jobs[job_id] = {
+                    'status': 'processing',
+                    'progress': 0,
+                    'result': None,
+                    'error': None,
+                    'user_id': user_id,
+                    'credits_used': required_credits,
+                    'remaining_credits': current_credits - required_credits
+                }
+            
+            def generate_proposal_async():
+                try:
+                    app.logger.info(f"Starting async proposal generation for job {job_id}")
+                    contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
+                    
+                    with job_lock:
+                        proposal_jobs[job_id]['progress'] = 20
+                    
+                    full_proposal = enhanced_ai.generate_full_proposal(
+                        contract_requirements,
+                        context_data.get('capability_statement', ''),
+                        company_name=context_data.get('company_name', 'your company'),
+                        user_documents=context_data.get('uploaded_documents', [])
+                    )
+                    
+                    with job_lock:
+                        proposal_jobs[job_id]['status'] = 'completed'
+                        proposal_jobs[job_id]['progress'] = 100
+                        proposal_jobs[job_id]['result'] = {
+                            "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
+                            "proposal": full_proposal
+                        }
+                    app.logger.info(f"Completed async proposal generation for job {job_id}")
+                    
+                except Exception as e:
+                    app.logger.error(f"Error generating full proposal for job {job_id}: {e}", exc_info=True)
+                    credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
+                    with job_lock:
+                        proposal_jobs[job_id]['status'] = 'failed'
+                        proposal_jobs[job_id]['error'] = str(e)
+            
+            thread = threading.Thread(target=generate_proposal_async)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({
+                "job_id": job_id,
+                "status": "processing",
+                "message": "Proposal generation started. Use the job_id to check status.",
+                "credits_used": required_credits,
+                "remaining_credits": current_credits - required_credits
+            })
             
         elif action_type == 'analyze':
             success, message, new_balance = credit_manager.deduct_credits_admin(
@@ -3452,6 +3490,31 @@ How can I help you with your contract response today?"""
     except Exception as e:
         app.logger.error(f"Error in enhanced AI assistant: {str(e)}")
         return jsonify({"error": f"Enhanced AI assistant error: {str(e)}"}), 500
+
+@app.route('/proposal_job_status/<job_id>', methods=['GET'])
+def proposal_job_status(job_id):
+    """Check the status of an async proposal generation job"""
+    with job_lock:
+        job = proposal_jobs.get(job_id)
+        
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        
+        response = {
+            "status": job['status'],
+            "progress": job['progress'],
+            "credits_used": job['credits_used'],
+            "remaining_credits": job['remaining_credits']
+        }
+        
+        if job['status'] == 'completed':
+            response.update(job['result'])
+            del proposal_jobs[job_id]
+        elif job['status'] == 'failed':
+            response['error'] = job['error']
+            del proposal_jobs[job_id]
+        
+        return jsonify(response)
 
 @app.route('/capability-builder-enhanced')
 def capability_builder_enhanced():
