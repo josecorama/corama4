@@ -276,11 +276,11 @@ app.logger.setLevel(logging.INFO)
 
 #OPEN AI 
 
-client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY'))
+client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
-client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY'))
+client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
-client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
+client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
 
 
@@ -3510,6 +3510,62 @@ def load_capability_statement():
         logging.error(f"Error loading capability statement: {str(e)}")
         return jsonify({'error': 'Failed to load capability statement'}), 500
 
+def enhance_capability_statement_content(data):
+    """Use AI to enhance and condense capability statement content to fit on one page"""
+    try:
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
+        prompt = f"""You are an expert in government contracting capability statements. Your task is to enhance and condense the following capability statement content to create a compelling, professional one-page document.
+
+Company: {data.get('company_name', '')}
+
+Current Content:
+- Company Description: {data.get('company_description', '')}
+- Core Competencies ({len(data.get('core_competencies', []))} items): {', '.join(data.get('core_competencies', [])[:5])}...
+- Differentiators ({len(data.get('differentiators', []))} items): {', '.join(data.get('differentiators', [])[:5])}...
+- Past Performance ({len(data.get('private_performance', []))} items): {', '.join(data.get('private_performance', [])[:3])}...
+- Certifications ({len(data.get('certifications', []))} items): {', '.join(data.get('certifications', []))}
+
+Instructions:
+1. Company Description: Rewrite to be compelling, concise (2-3 sentences max), and highlight unique value proposition
+2. Core Competencies: Condense to 6-8 powerful, action-oriented bullet points (each 5-10 words max)
+3. Differentiators: Keep the most impactful 5-7 items, make them concise and compelling
+4. Past Performance: Condense to 3-5 most impressive projects with clear value/impact
+5. Certifications: Keep all but make concise
+
+Return ONLY a JSON object with these exact keys:
+{{
+  "company_description": "enhanced description",
+  "core_competencies": ["item1", "item2", ...],
+  "differentiators": ["item1", "item2", ...],
+  "private_performance": ["item1", "item2", ...],
+  "certifications": ["item1", "item2", ...]
+}}"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert in creating compelling government contracting capability statements. Always return valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=2000
+        )
+        
+        enhanced_content = json.loads(response.choices[0].message.content)
+        
+        data['company_description'] = enhanced_content.get('company_description', data.get('company_description', ''))
+        data['core_competencies'] = enhanced_content.get('core_competencies', data.get('core_competencies', []))
+        data['differentiators'] = enhanced_content.get('differentiators', data.get('differentiators', []))
+        data['private_performance'] = enhanced_content.get('private_performance', data.get('private_performance', []))
+        data['certifications'] = enhanced_content.get('certifications', data.get('certifications', []))
+        
+        return data
+        
+    except Exception as e:
+        logging.error(f"Error enhancing capability statement content: {str(e)}")
+        return data
+
 @app.route('/generate-enhanced-pdf', methods=['POST'])
 def generate_enhanced_pdf():
     try:
@@ -3624,6 +3680,8 @@ def generate_enhanced_pdf():
                 for client, desc, value in zip(clients, descriptions, values)
                 if client or desc or value
             ]
+        
+        formatted_data = enhance_capability_statement_content(formatted_data)
         
         # Generate PDF
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
