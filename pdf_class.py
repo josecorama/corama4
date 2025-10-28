@@ -20,30 +20,30 @@ class PDF(FPDF):
                 logo = Image.open(logo_path)
                 logo_width, logo_height = logo.size
                 aspect_ratio = logo_width / logo_height
-                height = 30
+                height = 25
                 width = height * aspect_ratio
-                if width > 70:
-                    width = 70
+                if width > 60:
+                    width = 60
                     height = width / aspect_ratio
                 self.image(logo_path, 15, 8, width, height)
                 logo_height_used = height
             except:
                 pass
         
-        # Company name below logo (left side)
-        self.set_xy(15, 8 + logo_height_used + 2)
-        self.set_font("Helvetica", "B", 9)
+        # Company name below logo (left side) - smaller font
+        self.set_xy(15, 8 + logo_height_used + 1)
+        self.set_font("Helvetica", "B", 8)
         self.set_text_color(0, 0, 0)
         company_name = self.data.get("company_name", "")
-        self.cell(70, 4, company_name, 0, 1, "C")
+        self.cell(60, 3, company_name, 0, 1, "C")
         
         self.set_xy(self.w / 2 + 10, 8)
-        self.set_font("Helvetica", "B", 16)
+        self.set_font("Helvetica", "B", 14)
         self.set_text_color(*self.primary_color)
         company_name_upper = company_name.upper()
-        self.multi_cell(self.w / 2 - 20, 6, company_name_upper, 0, "L")
+        self.multi_cell(self.w / 2 - 20, 5, company_name_upper, 0, "L")
         
-        # Hero image on right side below company name
+        # Hero image on right side below company name - smaller
         image_path = self.data.get("image_path")
         if image_path and os.path.exists(image_path):
             try:
@@ -53,11 +53,11 @@ class PDF(FPDF):
                 
                 # Position image on right side, below company name
                 img_x = self.w / 2 + 10
-                img_y = self.get_y() + 2
+                img_y = self.get_y() + 1
                 img_display_width = self.w / 2 - 20
                 img_display_height = img_display_width / aspect_ratio
                 
-                max_height = 105 - img_y
+                max_height = 50 - img_y
                 if img_display_height > max_height:
                     img_display_height = max_height
                     img_display_width = img_display_height * aspect_ratio
@@ -66,14 +66,14 @@ class PDF(FPDF):
             except:
                 pass
         
-        bar_y = 110
+        bar_y = 55
         self.set_fill_color(*self.primary_color)
-        self.rect(0, bar_y, self.w, 12, 'F')
+        self.rect(0, bar_y, self.w, 10, 'F')
         
-        self.set_xy(15, bar_y + 2)
-        self.set_font("Helvetica", "B", 14)
+        self.set_xy(15, bar_y + 1.5)
+        self.set_font("Helvetica", "B", 12)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, "CAPABILITY STATEMENT", 0, 0, "L")
+        self.cell(0, 7, "CAPABILITY STATEMENT", 0, 0, "L")
         
         uei = self.data.get("uei_code", "")
         cage = self.data.get("cage_code", "")
@@ -86,12 +86,12 @@ class PDF(FPDF):
             codes_text += f"CAGE Code: {cage}"
         
         if codes_text:
-            self.set_xy(self.w / 2, bar_y + 2)
-            self.set_font("Helvetica", "", 9)
-            self.cell(0, 8, codes_text, 0, 0, "R")
+            self.set_xy(self.w / 2, bar_y + 1.5)
+            self.set_font("Helvetica", "", 8)
+            self.cell(0, 7, codes_text, 0, 0, "R")
         
         self.set_text_color(0, 0, 0)
-        self.set_y(bar_y + 15)
+        self.set_y(bar_y + 12)
 
     def footer(self):
         """Professional footer with contact information"""
@@ -185,7 +185,7 @@ class PDF(FPDF):
 
     def create_content(self):
         """Create the main content in a professional 2-column layout"""
-        start_y = 130
+        start_y = 70
         col_width = 90
         col_spacing = 10
         left_x = 15
