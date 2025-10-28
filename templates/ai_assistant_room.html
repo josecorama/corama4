@@ -439,35 +439,37 @@
                     return;
                 }
                 
-                fetch(`/proposal_job_status/${jobId}`, {
-                        credentials: 'same-origin'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log(`Job status:`, data);
-                        
-                        if (data.status === 'completed') {
-                            clearInterval(pollInterval);
-                            if (progressInterval) clearInterval(progressInterval);
-                            messages.removeChild(loadingMessage);
+                const pollXhr = new XMLHttpRequest();
+                pollXhr.open('GET', `/proposal_job_status/${jobId}`, true);
+                pollXhr.onreadystatechange = function() {
+                    if (pollXhr.readyState === 4 && pollXhr.status === 200) {
+                        try {
+                            const data = JSON.parse(pollXhr.responseText);
+                            console.log(`Job status:`, data);
                             
-                            // Display the completed proposal
-                            displayProposalResponse(data, actionType);
-                        } else if (data.status === 'failed') {
-                            clearInterval(pollInterval);
-                            if (progressInterval) clearInterval(progressInterval);
-                            messages.removeChild(loadingMessage);
-                            
-                            const errorMessage = document.createElement('div');
-                            errorMessage.className = 'message assistant error';
-                            errorMessage.innerHTML = `<strong>AI Assistant:</strong> ❌ Failed to generate proposal: ${data.error || 'Unknown error'}`;
-                            messages.appendChild(errorMessage);
-                            messages.scrollTop = messages.scrollHeight;
+                            if (data.status === 'completed') {
+                                clearInterval(pollInterval);
+                                if (progressInterval) clearInterval(progressInterval);
+                                messages.removeChild(loadingMessage);
+                                
+                                displayProposalResponse(data, actionType);
+                            } else if (data.status === 'failed') {
+                                clearInterval(pollInterval);
+                                if (progressInterval) clearInterval(progressInterval);
+                                messages.removeChild(loadingMessage);
+                                
+                                const errorMessage = document.createElement('div');
+                                errorMessage.className = 'message assistant error';
+                                errorMessage.innerHTML = `<strong>AI Assistant:</strong> ❌ Failed to generate proposal: ${data.error || 'Unknown error'}`;
+                                messages.appendChild(errorMessage);
+                                messages.scrollTop = messages.scrollHeight;
+                            }
+                        } catch (error) {
+                            console.error('Error parsing job status:', error);
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error polling job status:', error);
-                    });
+                    }
+                };
+                pollXhr.send();
             }, 1000); // Poll every second
         }
         
