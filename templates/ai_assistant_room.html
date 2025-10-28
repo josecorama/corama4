@@ -430,12 +430,57 @@
             userMessage.innerHTML = `<strong>You:</strong> ${actionMessages[actionType]}`;
             messages.appendChild(userMessage);
             
-            // Show loading indicator
+            // Show loading indicator with progress bar for full_proposal
             const loadingMessage = document.createElement('div');
             loadingMessage.className = 'message assistant loading';
-            loadingMessage.innerHTML = `<strong>AI Assistant:</strong> <div class="loading-spinner">🔄 Analyzing contract data...</div>`;
+            
+            if (actionType === 'full_proposal') {
+                loadingMessage.innerHTML = `
+                    <strong>AI Assistant:</strong>
+                    <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 1rem; margin-bottom: 0.5rem; font-weight: bold;">📝 Generating Your Comprehensive Proposal</div>
+                        <div style="margin-bottom: 1rem; color: #666;">This will take approximately 30-60 seconds. Please wait...</div>
+                        <div style="background: #e0e0e0; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 0.5rem;">
+                            <div id="progressBar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.5s;"></div>
+                        </div>
+                        <div id="progressText" style="font-size: 0.85rem; color: #666;">Analyzing contract requirements...</div>
+                    </div>
+                `;
+            } else {
+                loadingMessage.innerHTML = `<strong>AI Assistant:</strong> <div class="loading-spinner">🔄 Analyzing contract data...</div>`;
+            }
+            
             messages.appendChild(loadingMessage);
             messages.scrollTop = messages.scrollHeight;
+            
+            // Simulate progress for full_proposal
+            let progress = 0;
+            let progressInterval;
+            if (actionType === 'full_proposal') {
+                const progressStages = [
+                    { percent: 15, text: 'Analyzing contract requirements...' },
+                    { percent: 30, text: 'Generating Cover Letter...' },
+                    { percent: 45, text: 'Creating Executive Summary...' },
+                    { percent: 60, text: 'Developing Technical Approach...' },
+                    { percent: 75, text: 'Writing Management Plan...' },
+                    { percent: 90, text: 'Finalizing all sections...' },
+                    { percent: 95, text: 'Compiling proposal document...' }
+                ];
+                
+                let stageIndex = 0;
+                progressInterval = setInterval(() => {
+                    if (stageIndex < progressStages.length) {
+                        const stage = progressStages[stageIndex];
+                        const progressBar = document.getElementById('progressBar');
+                        const progressText = document.getElementById('progressText');
+                        if (progressBar && progressText) {
+                            progressBar.style.width = stage.percent + '%';
+                            progressText.textContent = stage.text;
+                        }
+                        stageIndex++;
+                    }
+                }, 8000); // Update every 8 seconds
+            }
             
             // Call the enhanced AI assistant API with specific action type
             const formData = new FormData();
@@ -445,8 +490,14 @@
             
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/ai_assistant_enhanced', true);
+            xhr.timeout = 120000; // 2 minute timeout for full proposals
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
+                    // Clear progress interval if it exists
+                    if (progressInterval) {
+                        clearInterval(progressInterval);
+                    }
+                    
                     if (xhr.status === 200) {
                         const data = JSON.parse(xhr.responseText);
                         // Remove loading message
@@ -620,6 +671,20 @@
                     }
                 }
             };
+            
+            // Add timeout handler
+            xhr.ontimeout = function() {
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+                messages.removeChild(loadingMessage);
+                const timeoutMessage = document.createElement('div');
+                timeoutMessage.className = 'message assistant error';
+                timeoutMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ Request timed out. The proposal generation is taking longer than expected. Please try again or contact support if the issue persists.`;
+                messages.appendChild(timeoutMessage);
+                messages.scrollTop = messages.scrollHeight;
+            };
+            
             xhr.send(formData);
         }
         
