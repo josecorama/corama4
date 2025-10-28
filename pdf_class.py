@@ -12,74 +12,74 @@ class PDF(FPDF):
         self.set_auto_page_break(auto=True, margin=30)
 
     def header(self):
-        """Professional header with logo, company name, and hero image"""
-        self.set_fill_color(*self.primary_color)
-        self.rect(0, 0, self.w / 2, 60, 'F')
-        
+        """Professional header matching AVG Construction example"""
         logo_path = self.data.get("logo_path")
         if logo_path and os.path.exists(logo_path):
             try:
                 logo = Image.open(logo_path)
                 logo_width, logo_height = logo.size
                 aspect_ratio = logo_width / logo_height
-                height = 40
+                height = 25
                 width = height * aspect_ratio
-                if width > 80:
-                    width = 80
+                if width > 60:
+                    width = 60
                     height = width / aspect_ratio
                 self.image(logo_path, 15, 10, width, height)
             except:
                 pass
         
-        # Company name on the right side
+        # Company name on the right side (top)
         self.set_xy(self.w / 2 + 10, 10)
-        self.set_font("Helvetica", "B", 14)
+        self.set_font("Helvetica", "B", 16)
         self.set_text_color(*self.primary_color)
         company_name_upper = self.data.get("company_name", "").upper()
-        self.multi_cell(self.w / 2 - 20, 5, company_name_upper, 0, "L")
+        self.multi_cell(self.w / 2 - 20, 6, company_name_upper, 0, "L")
         
-        image_path = self.data.get("image_path")
-        if image_path and os.path.exists(image_path):
-            try:
-                company_name_height = self.get_y() - 10
-                image_start_y = 10 + company_name_height + 3
-                
-                img = Image.open(image_path)
-                img_width, img_height = img.size
-                aspect_ratio = img_width / img_height
-                img_display_width = self.w / 2 - 20
-                available_height = 60 - image_start_y
-                img_display_height = img_display_width / aspect_ratio
-                if img_display_height > available_height:
-                    img_display_height = available_height
-                    img_display_width = img_display_height * aspect_ratio
-                self.image(image_path, self.w / 2 + 10, image_start_y, img_display_width, img_display_height)
-            except:
-                pass
+        bar_y = 38
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, bar_y, self.w, 12, 'F')
         
-        self.set_xy(15, 25)
-        self.set_font("Helvetica", "B", 18)
+        self.set_xy(15, bar_y + 2)
+        self.set_font("Helvetica", "B", 14)
         self.set_text_color(255, 255, 255)
-        self.cell(0, 8, "C A P A B I L I T Y", 0, 1, "L")
-        self.set_x(15)
-        self.cell(0, 8, "S T A T E M E N T", 0, 1, "L")
+        self.cell(0, 8, "CAPABILITY STATEMENT", 0, 0, "L")
         
-        # UEI and CAGE codes
-        self.set_xy(15, 45)
-        self.set_font("Helvetica", "", 9)
         uei = self.data.get("uei_code", "")
         cage = self.data.get("cage_code", "")
         codes_parts = []
         if uei:
             codes_parts.append(f"DUNS: {uei}")
         if cage:
-            codes_parts.append(f"CAGE Code: {cage}")
+            codes_parts.append(f"CAGE: {cage}")
         
         if codes_parts:
-            self.cell(0, 5, "    ".join(codes_parts), 0, 1, "L")
+            self.set_xy(self.w / 2, bar_y + 2)
+            self.set_font("Helvetica", "", 9)
+            self.cell(0, 8, "  |  ".join(codes_parts), 0, 0, "R")
+        
+        image_path = self.data.get("image_path")
+        if image_path and os.path.exists(image_path):
+            try:
+                img = Image.open(image_path)
+                img_width, img_height = img.size
+                aspect_ratio = img_width / img_height
+                
+                img_x = self.w / 2 + 10
+                img_y = 10 + (self.get_y() - 10) + 3  # Below company name
+                img_display_width = self.w / 2 - 20
+                img_display_height = img_display_width / aspect_ratio
+                
+                max_height = bar_y - img_y - 2
+                if img_display_height > max_height:
+                    img_display_height = max_height
+                    img_display_width = img_display_height * aspect_ratio
+                
+                self.image(image_path, img_x, img_y, img_display_width, img_display_height)
+            except:
+                pass
         
         self.set_text_color(0, 0, 0)
-        self.ln(10)
+        self.set_y(bar_y + 15)
 
     def footer(self):
         """Professional footer with contact information"""
