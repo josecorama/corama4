@@ -1831,7 +1831,7 @@
                     body: pdfFormData
                 });
                 
-                hideImportLoading();
+                hidePDFGenerationLoading();
                 
                 if (response.ok) {
                     const blob = await response.blob();
@@ -1847,7 +1847,7 @@
                     alert('Error generating PDF. Please try again.');
                 }
             } catch (error) {
-                hideImportLoading();
+                hidePDFGenerationLoading();
                 console.error('Error generating PDF:', error);
                 alert('Error generating PDF. Please try again.');
             }
@@ -1868,6 +1868,13 @@
                 </div>
             `;
             document.body.appendChild(overlay);
+        }
+        
+        function hidePDFGenerationLoading() {
+            const overlay = document.getElementById('pdfLoadingOverlay');
+            if (overlay) {
+                overlay.remove();
+            }
         }
 
         // Add event listeners for Enter key
