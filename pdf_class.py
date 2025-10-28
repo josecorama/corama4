@@ -144,7 +144,7 @@ class PDF(FPDF):
         self.cell(width, 8, title, 0, 1, "L", True)
         return self.get_y()
 
-    def add_bullet_list(self, items, x, y, width, font_size=8):
+    def add_bullet_list(self, items, x, y, width, font_size=7.5):
         """Add a bulleted list with proper formatting"""
         if not items:
             return y
@@ -160,10 +160,10 @@ class PDF(FPDF):
                 y = 75
             
             self.set_xy(x, y)
-            self.cell(3, 4, chr(0x95), 0, 0, "L")
+            self.cell(3, 3.5, chr(0x95), 0, 0, "L")
             self.set_xy(x + 5, y)
-            self.multi_cell(width - 5, 4, str(item), 0, "L")
-            y = self.get_y() + 0.5
+            self.multi_cell(width - 5, 3.5, str(item), 0, "L")
+            y = self.get_y() + 0.3
         
         return y
 
@@ -180,23 +180,16 @@ class PDF(FPDF):
         
         company_desc = self.data.get("company_description", "")
         if company_desc:
-            about_start_y = left_y
-            left_y = self.section_title("ABOUT US", left_x, left_y, col_width, use_secondary_bg=False)
-            self.set_xy(left_x + 3, left_y + 2)
-            self.set_font("Helvetica", "", 8)
-            self.multi_cell(col_width - 6, 4, company_desc, 0, "J")
-            left_y = self.get_y() + 4
-            
-            about_height = left_y - about_start_y
             self.set_fill_color(240, 240, 240)
-            self.rect(left_x, about_start_y, col_width, about_height, 'F')
+            estimated_lines = len(company_desc) / 60
+            estimated_height = 8 + (estimated_lines * 3.5) + 4
+            self.rect(left_x, left_y, col_width, estimated_height, 'F')
             
-            self.set_xy(left_x, about_start_y)
-            left_y = self.section_title("ABOUT US", left_x, about_start_y, col_width, use_secondary_bg=False)
-            self.set_xy(left_x + 3, left_y + 2)
-            self.set_font("Helvetica", "", 8)
-            self.multi_cell(col_width - 6, 4, company_desc, 0, "J")
-            left_y = self.get_y() + 4
+            left_y = self.section_title("ABOUT US", left_x, left_y, col_width, use_secondary_bg=False)
+            self.set_xy(left_x + 3, left_y + 1)
+            self.set_font("Helvetica", "", 7.5)
+            self.multi_cell(col_width - 6, 3.5, company_desc, 0, "J")
+            left_y = self.get_y() + 3
         
         naics_codes = self.data.get("naics_codes", [])
         if naics_codes:
@@ -222,25 +215,25 @@ class PDF(FPDF):
         past_performance = self.data.get("private_performance", [])
         if past_performance:
             left_y = self.section_title("PAST PERFORMANCE", left_x, left_y, col_width)
-            left_y = self.add_bullet_list(past_performance, left_x + 3, left_y + 2, col_width - 3)
-            left_y += 5
+            left_y = self.add_bullet_list(past_performance, left_x + 3, left_y + 1, col_width - 3)
+            left_y += 3
         
         core_competencies = self.data.get("core_competencies", [])
         if core_competencies:
             right_y = self.section_title("CORE COMPETENCIES", right_x, right_y, col_width)
-            right_y = self.add_bullet_list(core_competencies, right_x + 3, right_y + 2, col_width - 3)
-            right_y += 5
+            right_y = self.add_bullet_list(core_competencies, right_x + 3, right_y + 1, col_width - 3)
+            right_y += 3
         
         differentiators = self.data.get("differentiators", [])
         if differentiators:
             left_y = self.section_title("DIFFERENTIATORS", left_x, left_y, col_width)
-            left_y = self.add_bullet_list(differentiators, left_x + 3, left_y + 2, col_width - 3)
-            left_y += 5
+            left_y = self.add_bullet_list(differentiators, left_x + 3, left_y + 1, col_width - 3)
+            left_y += 3
         
         certifications = self.data.get("certifications", [])
         if certifications:
             right_y = self.section_title("CERTIFICATIONS", right_x, right_y, col_width)
-            right_y = self.add_bullet_list(certifications, right_x + 3, right_y + 2, col_width - 3)
+            right_y = self.add_bullet_list(certifications, right_x + 3, right_y + 1, col_width - 3)
 
 
 def create_pdf(data, output_path="output.pdf"):
