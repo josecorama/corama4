@@ -1814,9 +1814,19 @@
             
             try {
                 const baseUrl = window.location.protocol + '//' + window.location.host;
+                
+                // Create FormData and add all form fields
+                const pdfFormData = new FormData(document.getElementById('capabilityForm'));
+                
+                // Add the JavaScript arrays that aren't in the form
+                pdfFormData.append('competencies', JSON.stringify(competencies));
+                pdfFormData.append('differentiators', JSON.stringify(differentiators));
+                pdfFormData.append('naicsCodes', JSON.stringify(naicsCodes));
+                pdfFormData.append('certifications', JSON.stringify(certifications));
+                
                 const response = await fetch(baseUrl + '/generate-enhanced-pdf', {
                     method: 'POST',
-                    body: new FormData(document.getElementById('capabilityForm'))
+                    body: pdfFormData
                 });
                 
                 if (response.ok) {
