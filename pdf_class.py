@@ -33,23 +33,27 @@ class PDF(FPDF):
         
         # Company name on the right side
         self.set_xy(self.w / 2 + 10, 10)
-        self.set_font("Helvetica", "B", 16)
+        self.set_font("Helvetica", "B", 14)
         self.set_text_color(*self.primary_color)
         company_name_upper = self.data.get("company_name", "").upper()
-        self.multi_cell(self.w / 2 - 20, 6, company_name_upper, 0, "L")
+        self.multi_cell(self.w / 2 - 20, 5, company_name_upper, 0, "L")
         
         image_path = self.data.get("image_path")
         if image_path and os.path.exists(image_path):
             try:
+                company_name_height = self.get_y() - 10
+                image_start_y = 10 + company_name_height + 3
+                
                 img = Image.open(image_path)
                 img_width, img_height = img.size
                 aspect_ratio = img_width / img_height
                 img_display_width = self.w / 2 - 20
+                available_height = 60 - image_start_y
                 img_display_height = img_display_width / aspect_ratio
-                if img_display_height > 40:
-                    img_display_height = 40
+                if img_display_height > available_height:
+                    img_display_height = available_height
                     img_display_width = img_display_height * aspect_ratio
-                self.image(image_path, self.w / 2 + 10, 20, img_display_width, img_display_height)
+                self.image(image_path, self.w / 2 + 10, image_start_y, img_display_width, img_display_height)
             except:
                 pass
         
@@ -144,7 +148,7 @@ class PDF(FPDF):
         self.cell(width, 8, title, 0, 1, "L", True)
         return self.get_y()
 
-    def add_bullet_list(self, items, x, y, width, font_size=8):
+    def add_bullet_list(self, items, x, y, width, font_size=7.8):
         """Add a bulleted list with proper formatting"""
         if not items:
             return y
@@ -160,10 +164,10 @@ class PDF(FPDF):
                 y = 75
             
             self.set_xy(x, y)
-            self.cell(3, 4, chr(0x95), 0, 0, "L")
+            self.cell(3, 3.8, chr(0x95), 0, 0, "L")
             self.set_xy(x + 5, y)
-            self.multi_cell(width - 5, 4, str(item), 0, "L")
-            y = self.get_y() + 0.7
+            self.multi_cell(width - 5, 3.8, str(item), 0, "L")
+            y = self.get_y() + 0.5
         
         return y
 
@@ -182,14 +186,14 @@ class PDF(FPDF):
         if company_desc:
             self.set_fill_color(240, 240, 240)
             estimated_lines = len(company_desc) / 58
-            estimated_height = 8 + (estimated_lines * 4) + 5
+            estimated_height = 8 + (estimated_lines * 3.8) + 4
             self.rect(left_x, left_y, col_width, estimated_height, 'F')
             
             left_y = self.section_title("ABOUT US", left_x, left_y, col_width, use_secondary_bg=False)
             self.set_xy(left_x + 3, left_y + 2)
-            self.set_font("Helvetica", "", 8)
-            self.multi_cell(col_width - 6, 4, company_desc, 0, "J")
-            left_y = self.get_y() + 4
+            self.set_font("Helvetica", "", 7.8)
+            self.multi_cell(col_width - 6, 3.8, company_desc, 0, "J")
+            left_y = self.get_y() + 3
         
         naics_codes = self.data.get("naics_codes", [])
         if naics_codes:
@@ -216,19 +220,19 @@ class PDF(FPDF):
         if past_performance:
             left_y = self.section_title("PAST PERFORMANCE", left_x, left_y, col_width)
             left_y = self.add_bullet_list(past_performance, left_x + 3, left_y + 2, col_width - 3)
-            left_y += 4
+            left_y += 3
         
         core_competencies = self.data.get("core_competencies", [])
         if core_competencies:
             right_y = self.section_title("CORE COMPETENCIES", right_x, right_y, col_width)
             right_y = self.add_bullet_list(core_competencies, right_x + 3, right_y + 2, col_width - 3)
-            right_y += 4
+            right_y += 3
         
         differentiators = self.data.get("differentiators", [])
         if differentiators:
             left_y = self.section_title("DIFFERENTIATORS", left_x, left_y, col_width)
             left_y = self.add_bullet_list(differentiators, left_x + 3, left_y + 2, col_width - 3)
-            left_y += 4
+            left_y += 3
         
         certifications = self.data.get("certifications", [])
         if certifications:
