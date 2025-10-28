@@ -30,16 +30,11 @@ class PDF(FPDF):
             except:
                 pass
         
-        # Company name below logo (left side) - smaller font
-        self.set_xy(15, 8 + logo_height_used + 1)
-        self.set_font("Helvetica", "B", 8)
-        self.set_text_color(0, 0, 0)
-        company_name = self.data.get("company_name", "")
-        self.cell(60, 3, company_name, 0, 1, "C")
-        
+        # Company name on right side (upper right) - larger font
         self.set_xy(self.w / 2 + 10, 8)
         self.set_font("Helvetica", "B", 14)
         self.set_text_color(*self.primary_color)
+        company_name = self.data.get("company_name", "")
         company_name_upper = company_name.upper()
         self.multi_cell(self.w / 2 - 20, 5, company_name_upper, 0, "L")
         

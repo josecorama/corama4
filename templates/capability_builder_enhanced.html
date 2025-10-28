@@ -1858,22 +1858,81 @@
             overlay.id = 'pdfLoadingOverlay';
             overlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: flex; justify-content: center; align-items: center; z-index: 9999;';
             overlay.innerHTML = `
-                <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 400px;">
-                    <div class="spinner-border text-primary mb-3" role="status" style="width: 3rem; height: 3rem;">
-                        <span class="visually-hidden">Loading...</span>
+                <div style="background: white; padding: 30px; border-radius: 10px; text-align: center; max-width: 500px; width: 90%;">
+                    <h5 style="margin-bottom: 20px;">Generating Your Capability Statement</h5>
+                    <div style="width: 100%; background: #e9ecef; border-radius: 10px; height: 30px; overflow: hidden; margin-bottom: 15px;">
+                        <div id="pdfProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #4CAF50, #45a049); transition: width 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 14px;">
+                            <span id="pdfProgressText">0%</span>
+                        </div>
                     </div>
-                    <h5>Generating Your Capability Statement</h5>
-                    <p class="text-muted mb-0">AI is enhancing your content and creating a professional PDF...</p>
+                    <p class="text-muted mb-2" id="pdfProgressStage">Starting AI enhancement...</p>
                     <p class="text-muted"><small>This may take 10-15 seconds</small></p>
                 </div>
             `;
             document.body.appendChild(overlay);
+            
+            // Animate progress bar
+            let progress = 0;
+            const stages = [
+                'Starting AI enhancement...',
+                'Analyzing company information...',
+                'Enhancing core competencies...',
+                'Optimizing differentiators...',
+                'Formatting past performance...',
+                'Creating professional layout...',
+                'Finalizing PDF...'
+            ];
+            let stageIndex = 0;
+            
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                if (progress > 95) progress = 95; // Cap at 95% until complete
+                
+                const progressBar = document.getElementById('pdfProgressBar');
+                const progressText = document.getElementById('pdfProgressText');
+                const progressStage = document.getElementById('pdfProgressStage');
+                
+                if (progressBar && progressText && progressStage) {
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = progress + '%';
+                    
+                    // Update stage every 15%
+                    const newStageIndex = Math.floor(progress / 15);
+                    if (newStageIndex !== stageIndex && newStageIndex < stages.length) {
+                        stageIndex = newStageIndex;
+                        progressStage.textContent = stages[stageIndex];
+                    }
+                }
+            }, 500); // Update every 500ms
+            
+            // Store interval ID for cleanup
+            overlay.dataset.progressInterval = progressInterval;
         }
         
         function hidePDFGenerationLoading() {
             const overlay = document.getElementById('pdfLoadingOverlay');
             if (overlay) {
-                overlay.remove();
+                // Clear the progress interval
+                const progressInterval = overlay.dataset.progressInterval;
+                if (progressInterval) {
+                    clearInterval(parseInt(progressInterval));
+                }
+                
+                // Set progress to 100% before removing
+                const progressBar = document.getElementById('pdfProgressBar');
+                const progressText = document.getElementById('pdfProgressText');
+                const progressStage = document.getElementById('pdfProgressStage');
+                
+                if (progressBar && progressText && progressStage) {
+                    progressBar.style.width = '100%';
+                    progressText.textContent = '100%';
+                    progressStage.textContent = 'Complete!';
+                }
+                
+                // Remove overlay after a brief delay to show completion
+                setTimeout(() => {
+                    overlay.remove();
+                }, 300);
             }
         }
 
