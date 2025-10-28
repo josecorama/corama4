@@ -493,6 +493,9 @@
             xhr.timeout = 120000; // 2 minute timeout for full proposals
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
+                    console.log(`XHR completed with status: ${xhr.status}, actionType: ${actionType}`);
+                    console.log(`Response length: ${xhr.responseText ? xhr.responseText.length : 0} characters`);
+                    
                     // Clear progress interval if it exists
                     if (progressInterval) {
                         clearInterval(progressInterval);
@@ -500,6 +503,7 @@
                     
                     if (xhr.status === 200) {
                         const data = JSON.parse(xhr.responseText);
+                        console.log('Parsed response data:', data);
                         // Remove loading message
                         messages.removeChild(loadingMessage);
                 
@@ -648,19 +652,13 @@
                                 messages.scrollTop = messages.scrollHeight;
                             }
                         }
-                        // For timeout errors, wait and retry once
+                        // For timeout errors, show error message (don't retry for full_proposal)
                         else if (xhr.status === 504 || xhr.status === 0) {
-                            const retryMessage = document.createElement('div');
-                            retryMessage.className = 'message assistant';
-                            retryMessage.innerHTML = `<strong>AI Assistant:</strong> ⏳ Generation taking longer than expected. Retrying...`;
-                            messages.appendChild(retryMessage);
+                            const aiMessage = document.createElement('div');
+                            aiMessage.className = 'message assistant error';
+                            aiMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ The request timed out. This can happen with large proposals. The proposal may still be generating in the background. Please wait a moment and try refreshing the page, or try again with a shorter proposal.`;
+                            messages.appendChild(aiMessage);
                             messages.scrollTop = messages.scrollHeight;
-                            
-                            // Retry after 3 seconds
-                            setTimeout(() => {
-                                messages.removeChild(retryMessage);
-                                triggerAnalysis(actionType);
-                            }, 3000);
                         } else {
                             const aiMessage = document.createElement('div');
                             aiMessage.className = 'message assistant error';
