@@ -88,6 +88,8 @@ app.config['WTF_CSRF_ENABLED'] = True
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join(base_dir, 'static', 'uploads'), exist_ok=True)
@@ -3341,13 +3343,15 @@ How can I help you with your contract response today?"""
             thread.daemon = True
             thread.start()
             
-            return jsonify({
+            response_data = {
                 "job_id": job_id,
                 "status": "processing",
                 "message": "Proposal generation started. Use the job_id to check status.",
                 "credits_used": required_credits,
                 "remaining_credits": current_credits - required_credits
-            })
+            }
+            app.logger.info(f"Returning async job response: {response_data}")
+            return jsonify(response_data)
             
         elif action_type == 'analyze':
             success, message, new_balance = credit_manager.deduct_credits_admin(
