@@ -3511,45 +3511,73 @@ def load_capability_statement():
         return jsonify({'error': 'Failed to load capability statement'}), 500
 
 def enhance_capability_statement_content(data):
-    """Use AI to enhance and condense capability statement content to fit on one page"""
+    """Use AI to create professional, compelling capability statement content matching industry standards"""
     try:
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         
-        prompt = f"""You are an expert in government contracting capability statements. Your task is to enhance and condense the following capability statement content to create a compelling, professional one-page document.
+        prompt = f"""You are an expert in creating professional government contracting capability statements. Create compelling, detailed content that matches the quality of top-tier capability statements.
 
 Company: {data.get('company_name', '')}
+Industry/Focus: Based on NAICS codes {', '.join(data.get('naics_codes', [])[:3])}
 
 Current Content:
 - Company Description: {data.get('company_description', '')}
-- Core Competencies ({len(data.get('core_competencies', []))} items): {', '.join(data.get('core_competencies', [])[:5])}...
-- Differentiators ({len(data.get('differentiators', []))} items): {', '.join(data.get('differentiators', [])[:5])}...
-- Past Performance ({len(data.get('private_performance', []))} items): {', '.join(data.get('private_performance', [])[:3])}...
-- Certifications ({len(data.get('certifications', []))} items): {', '.join(data.get('certifications', []))}
+- Core Competencies: {', '.join(data.get('core_competencies', []))}
+- Differentiators: {', '.join(data.get('differentiators', []))}
+- Past Performance: {', '.join(data.get('private_performance', []))}
+- Certifications: {', '.join(data.get('certifications', []))}
 
-Instructions:
-1. Company Description: Rewrite to be compelling, concise (2-3 sentences max), and highlight unique value proposition
-2. Core Competencies: Condense to 6-8 powerful, action-oriented bullet points (each 5-10 words max)
-3. Differentiators: Keep the most impactful 5-7 items, make them concise and compelling
-4. Past Performance: Condense to 3-5 most impressive projects with clear value/impact
-5. Certifications: Keep all but make concise
+Create professional capability statement content following these guidelines:
 
-Return ONLY a JSON object with these exact keys:
+1. ABOUT US (80-120 words): Write a compelling company overview that:
+   - Highlights the company's expertise and unique value proposition
+   - Emphasizes commitment to quality, safety, and customer satisfaction
+   - Mentions years of experience or notable achievements
+   - Uses professional, confident language
+   - Focuses on what makes them stand out in their industry
+
+2. PAST PERFORMANCE (5-6 items): Create impressive, specific achievements:
+   - Format: "Brief description highlighting scale/impact and results"
+   - Include quantifiable metrics (number of projects, success rate, etc.)
+   - Emphasize on-time delivery, budget compliance, quality
+   - Show breadth of experience
+   - Use professional, achievement-focused language
+
+3. CORE COMPETENCIES (6-7 items): Detailed service descriptions:
+   - Format: "Service Name: Detailed description of capability and value"
+   - Each should be 15-25 words explaining the service comprehensively
+   - Focus on expertise, approach, and client benefits
+   - Use industry-specific terminology
+   - Emphasize comprehensive, professional service delivery
+
+4. DIFFERENTIATORS (5-6 items): Compelling competitive advantages:
+   - Format: "Advantage Title: Explanation of how this sets them apart"
+   - Each should be 15-25 words
+   - Focus on proven track record, advanced capabilities, unique approaches
+   - Emphasize commitment to excellence, innovation, compliance
+   - Use strong, confident language
+
+5. CERTIFICATIONS (keep all, enhance descriptions):
+   - Add brief context if needed (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
+
+Return ONLY a JSON object:
 {{
-  "company_description": "enhanced description",
-  "core_competencies": ["item1", "item2", ...],
-  "differentiators": ["item1", "item2", ...],
-  "private_performance": ["item1", "item2", ...],
-  "certifications": ["item1", "item2", ...]
+  "company_description": "professional 80-120 word description",
+  "past_performance": ["achievement 1", "achievement 2", ...],
+  "core_competencies": ["Service: Description", ...],
+  "differentiators": ["Advantage: Explanation", ...],
+  "certifications": ["certification with context", ...]
 }}"""
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
-                {"role": "system", "content": "You are an expert in creating compelling government contracting capability statements. Always return valid JSON."},
+                {"role": "system", "content": "You are an expert in creating professional government contracting capability statements. Create detailed, compelling content that matches industry-leading examples. Always return valid JSON."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
-            max_tokens=2000
+            response_format={"type": "json_object"},
+            temperature=0.8,
+            max_tokens=3000
         )
         
         enhanced_content = json.loads(response.choices[0].message.content)
@@ -3557,7 +3585,7 @@ Return ONLY a JSON object with these exact keys:
         data['company_description'] = enhanced_content.get('company_description', data.get('company_description', ''))
         data['core_competencies'] = enhanced_content.get('core_competencies', data.get('core_competencies', []))
         data['differentiators'] = enhanced_content.get('differentiators', data.get('differentiators', []))
-        data['private_performance'] = enhanced_content.get('private_performance', data.get('private_performance', []))
+        data['private_performance'] = enhanced_content.get('past_performance', data.get('private_performance', []))
         data['certifications'] = enhanced_content.get('certifications', data.get('certifications', []))
         
         return data

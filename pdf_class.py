@@ -144,7 +144,7 @@ class PDF(FPDF):
         self.cell(width, 8, title, 0, 1, "L", True)
         return self.get_y()
 
-    def add_bullet_list(self, items, x, y, width, font_size=9):
+    def add_bullet_list(self, items, x, y, width, font_size=8):
         """Add a bulleted list with proper formatting"""
         if not items:
             return y
@@ -160,10 +160,10 @@ class PDF(FPDF):
                 y = 75
             
             self.set_xy(x, y)
-            self.cell(3, 5, chr(0x95), 0, 0, "L")
+            self.cell(3, 4, chr(0x95), 0, 0, "L")
             self.set_xy(x + 5, y)
-            self.multi_cell(width - 5, 5, str(item), 0, "L")
-            y = self.get_y() + 1
+            self.multi_cell(width - 5, 4, str(item), 0, "L")
+            y = self.get_y() + 0.5
         
         return y
 
@@ -183,9 +183,9 @@ class PDF(FPDF):
             about_start_y = left_y
             left_y = self.section_title("ABOUT US", left_x, left_y, col_width, use_secondary_bg=False)
             self.set_xy(left_x + 3, left_y + 2)
-            self.set_font("Helvetica", "", 9)
-            self.multi_cell(col_width - 6, 5, company_desc, 0, "J")
-            left_y = self.get_y() + 5
+            self.set_font("Helvetica", "", 8)
+            self.multi_cell(col_width - 6, 4, company_desc, 0, "J")
+            left_y = self.get_y() + 4
             
             about_height = left_y - about_start_y
             self.set_fill_color(240, 240, 240)
@@ -194,9 +194,9 @@ class PDF(FPDF):
             self.set_xy(left_x, about_start_y)
             left_y = self.section_title("ABOUT US", left_x, about_start_y, col_width, use_secondary_bg=False)
             self.set_xy(left_x + 3, left_y + 2)
-            self.set_font("Helvetica", "", 9)
-            self.multi_cell(col_width - 6, 5, company_desc, 0, "J")
-            left_y = self.get_y() + 5
+            self.set_font("Helvetica", "", 8)
+            self.multi_cell(col_width - 6, 4, company_desc, 0, "J")
+            left_y = self.get_y() + 4
         
         naics_codes = self.data.get("naics_codes", [])
         if naics_codes:
