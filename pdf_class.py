@@ -180,10 +180,19 @@ class PDF(FPDF):
         
         company_desc = self.data.get("company_description", "")
         if company_desc:
-            self.set_fill_color(240, 240, 240)
-            self.rect(left_x, left_y, col_width, 50, 'F')
-            
+            about_start_y = left_y
             left_y = self.section_title("ABOUT US", left_x, left_y, col_width, use_secondary_bg=False)
+            self.set_xy(left_x + 3, left_y + 2)
+            self.set_font("Helvetica", "", 9)
+            self.multi_cell(col_width - 6, 5, company_desc, 0, "J")
+            left_y = self.get_y() + 5
+            
+            about_height = left_y - about_start_y
+            self.set_fill_color(240, 240, 240)
+            self.rect(left_x, about_start_y, col_width, about_height, 'F')
+            
+            self.set_xy(left_x, about_start_y)
+            left_y = self.section_title("ABOUT US", left_x, about_start_y, col_width, use_secondary_bg=False)
             self.set_xy(left_x + 3, left_y + 2)
             self.set_font("Helvetica", "", 9)
             self.multi_cell(col_width - 6, 5, company_desc, 0, "J")
