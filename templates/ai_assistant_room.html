@@ -439,7 +439,9 @@
                     return;
                 }
                 
-                fetch(`/proposal_job_status/${jobId}`)
+                fetch(`/proposal_job_status/${jobId}`, {
+                        credentials: 'same-origin'
+                    })
                     .then(response => response.json())
                     .then(data => {
                         console.log(`Job status:`, data);
