@@ -1,0 +1,5 @@
+# Additional dependencies for APEX Post-Award Tracking System
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.25.0
+APScheduler==3.10.4
+icalendar==5.0.11

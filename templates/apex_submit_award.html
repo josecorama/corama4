@@ -1,0 +1,259 @@
+{% include 'head.html' %}
+{% include 'navbar.html' %}
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>Submit Contract Award</h2>
+            <p class="text-muted">Report a new government contract award to track milestones and receive automated reminders.</p>
+        </div>
+    </div>
+
+    <form id="awardSubmissionForm" method="POST" action="{{ url_for('apex_submit_award') }}" enctype="multipart/form-data">
+        
+        <!-- Section 1: Contract Information -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <h5>Contract Information</h5>
+            </div>
+            <div class="card-body">
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="contractNumber" class="form-label">Contract Number *</label>
+                        <input type="text" class="form-control" id="contractNumber" name="contract_number" 
+                               placeholder="e.g., W912DY-24-C-0001" required>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="contractTitle" class="form-label">Contract Title *</label>
+                        <input type="text" class="form-control" id="contractTitle" name="contract_title" 
+                               placeholder="Brief description of contract" required>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="awardingAgency" class="form-label">Awarding Agency *</label>
+                        <select class="form-select" id="awardingAgency" name="awarding_agency" required>
+                            <option value="">Select Agency</option>
+                            <option value="Department of Defense">Department of Defense</option>
+                            <option value="Department of Homeland Security">Department of Homeland Security</option>
+                            <option value="General Services Administration">General Services Administration</option>
+                            <option value="Department of Veterans Affairs">Department of Veterans Affairs</option>
+                            <option value="Department of Energy">Department of Energy</option>
+                            <option value="NASA">NASA</option>
+                            <option value="Other">Other (specify below)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="awardingOffice" class="form-label">Awarding Office</label>
+                        <input type="text" class="form-control" id="awardingOffice" name="awarding_office" 
+                               placeholder="e.g., U.S. Army Corps of Engineers">
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="contractType" class="form-label">Contract Type *</label>
+                        <select class="form-select" id="contractType" name="contract_type" required>
+                            <option value="">Select Type</option>
+                            <option value="Firm Fixed Price">Firm Fixed Price (FFP)</option>
+                            <option value="Cost Plus Fixed Fee">Cost Plus Fixed Fee (CPFF)</option>
+                            <option value="Time and Materials">Time and Materials (T&M)</option>
+                            <option value="Indefinite Delivery">Indefinite Delivery (IDIQ)</option>
+                            <option value="Purchase Order">Purchase Order</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="contractValue" class="form-label">Contract Value (USD) *</label>
+                        <input type="number" class="form-control" id="contractValue" name="contract_value" 
+                               placeholder="500000" step="0.01" required>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="awardDate" class="form-label">Award Date *</label>
+                        <input type="date" class="form-control" id="awardDate" name="award_date" required>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label for="startDate" class="form-label">Start Date *</label>
+                        <input type="date" class="form-control" id="startDate" name="start_date" required>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="endDate" class="form-label">End Date *</label>
+                        <input type="date" class="form-control" id="endDate" name="end_date" required>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="optionYears" class="form-label">Option Years</label>
+                        <input type="number" class="form-control" id="optionYears" name="option_years" 
+                               placeholder="0" min="0" max="10" value="0">
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="naicsCode" class="form-label">NAICS Code</label>
+                        <input type="text" class="form-control" id="naicsCode" name="naics_code" 
+                               placeholder="e.g., 336411">
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="pscCode" class="form-label">PSC Code</label>
+                        <input type="text" class="form-control" id="pscCode" name="psc_code" 
+                               placeholder="e.g., 1510">
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="placeOfPerformance" class="form-label">Place of Performance</label>
+                    <input type="text" class="form-control" id="placeOfPerformance" name="place_of_performance" 
+                           placeholder="City, State">
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Section 2: Compliance & Reporting -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h5>Compliance & Reporting Requirements</h5>
+            </div>
+            <div class="card-body">
+                
+                <div class="mb-3">
+                    <label class="form-label">Does this contract require a Subcontracting Plan?</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="has_subcontracting_plan" 
+                               id="subYes" value="true">
+                        <label class="form-check-label" for="subYes">Yes</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="has_subcontracting_plan" 
+                               id="subNo" value="false" checked>
+                        <label class="form-check-label" for="subNo">No</label>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="invoicingFrequency" class="form-label">Invoicing Frequency *</label>
+                    <select class="form-select" id="invoicingFrequency" name="invoicing_frequency" required>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly" selected>Quarterly</option>
+                        <option value="milestone">Upon Milestone Completion</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="reportingRequirements" class="form-label">Special Reporting Requirements</label>
+                    <textarea class="form-control" id="reportingRequirements" name="reporting_requirements" 
+                              rows="3" placeholder="List any special reporting obligations (e.g., monthly status reports, ISR/SSR)"></textarea>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Section 3: Documentation -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5>Supporting Documentation</h5>
+            </div>
+            <div class="card-body">
+                
+                <div class="mb-3">
+                    <label for="awardNotice" class="form-label">Award Notice (PDF)</label>
+                    <input type="file" class="form-control" id="awardNotice" name="award_notice" 
+                           accept=".pdf">
+                    <small class="form-text text-muted">Upload the official award notification</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="signedContract" class="form-label">Signed Contract (PDF)</label>
+                    <input type="file" class="form-control" id="signedContract" name="signed_contract" 
+                           accept=".pdf">
+                    <small class="form-text text-muted">Upload the signed contract document</small>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="samGovUrl" class="form-label">SAM.gov Award URL (Optional)</label>
+                    <input type="url" class="form-control" id="samGovUrl" name="sam_gov_url" 
+                           placeholder="https://sam.gov/opp/...">
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Section 4: Additional Notes -->
+        <div class="card mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5>Additional Information</h5>
+            </div>
+            <div class="card-body">
+                
+                <div class="mb-3">
+                    <label for="notes" class="form-label">Notes</label>
+                    <textarea class="form-control" id="notes" name="notes" rows="3" 
+                              placeholder="Any additional information about this contract"></textarea>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- Submit Button -->
+        <div class="d-grid gap-2 mb-5">
+            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                <i class="fas fa-check-circle"></i> Submit Contract Award
+            </button>
+            <a href="{{ url_for('apex_dashboard') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+        
+    </form>
+</div>
+
+<script>
+// Form validation and submission
+document.getElementById('awardSubmissionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    // Show loading state
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Submitting...';
+    
+    // Create FormData object
+    const formData = new FormData(this);
+    
+    // Submit via AJAX
+    fetch('{{ url_for("apex_submit_award") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Contract award submitted successfully! Milestones and alerts have been created.');
+            window.location.href = '{{ url_for("apex_dashboard") }}';
+        } else {
+            alert('Error: ' + data.message);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Submit Contract Award';
+        }
+    })
+    .catch(error => {
+        alert('Submission error: ' + error);
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-check-circle"></i> Submit Contract Award';
+    });
+});
+</script>
+
+{% include 'footer.html' %}
+{% include 'scripts.html' %}
