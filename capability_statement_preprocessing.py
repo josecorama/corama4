@@ -47,9 +47,10 @@ def process_pdfs(pdf_paths, output_csv):
     df.to_csv(output_csv, index=False)
     print(f"Processed {len(pdf_paths)} files and saved to {output_csv}")
 
-# 使用示例
-pdf_paths = ['HOH Company Firm Overview One Page.pdf']
-output_file = 'capability_statements_processed.csv'
-process_pdfs(pdf_paths, output_file)
-
-print(f"Processing complete. Output saved to {output_file}")
+if __name__ == "__main__":
+    # 使用示例
+    pdf_paths = ['HOH Company Firm Overview One Page.pdf']
+    output_file = 'capability_statements_processed.csv'
+    process_pdfs(pdf_paths, output_file)
+    
+    print(f"Processing complete. Output saved to {output_file}")

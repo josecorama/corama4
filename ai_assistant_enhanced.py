@@ -14,7 +14,10 @@ class EnhancedAIAssistant:
     def __init__(self, app, db):
         self.app = app
         self.db = db
-        self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        api_key = os.getenv('OPENAI_API_KEY') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('CS_BUILDER_OPENAI_API_KEY')
+        if not api_key:
+            raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY, BID_RESPONSE_OPENAI_API_KEY, or CS_BUILDER_OPENAI_API_KEY")
+        self.client = OpenAI(api_key=api_key)
         self.fine_tuned_model = "ft:gpt-3.5-turbo-0125:personal:bid-response:9oyXR6qz"
         
     def get_conversation_context(self, user_id, contract_hash):
