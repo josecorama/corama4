@@ -1,0 +1,161 @@
+{% include 'head.html' %}
+{% include 'navbar.html' %}
+
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1>APEX Post-Award Contract Tracking</h1>
+            <p class="text-muted">Track your government contract awards and manage milestones</p>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Active Contracts</h5>
+                    <h2 class="mb-0">{{ stats.active_contracts }}</h2>
+                    <small>Total Value: ${{ "{:,.2f}".format(stats.total_value) }}</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Upcoming Milestones</h5>
+                    <h2 class="mb-0">{{ stats.upcoming_milestones }}</h2>
+                    <small>Next 30 days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Completed</h5>
+                    <h2 class="mb-0">{{ stats.completed_milestones }}</h2>
+                    <small>This month</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h5 class="card-title">Expiring Soon</h5>
+                    <h2 class="mb-0">{{ stats.expiring_contracts }}</h2>
+                    <small>Within 90 days</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <a href="{{ url_for('apex_submit_award') }}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus-circle"></i> Submit New Contract Award
+            </a>
+            <a href="{{ url_for('apex_milestones') }}" class="btn btn-outline-primary btn-lg">
+                <i class="fas fa-calendar-check"></i> View All Milestones
+            </a>
+            {% if is_staff %}
+            <a href="{{ url_for('apex_review_queue') }}" class="btn btn-outline-warning btn-lg">
+                <i class="fas fa-tasks"></i> Review Queue ({{ pending_reviews }})
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Active Contracts Table -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Active Contracts</h4>
+                </div>
+                <div class="card-body">
+                    {% if contracts %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Contract Number</th>
+                                    <th>Title</th>
+                                    <th>Agency</th>
+                                    <th>Value</th>
+                                    <th>End Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for contract in contracts %}
+                                <tr>
+                                    <td><strong>{{ contract.contract_number }}</strong></td>
+                                    <td>{{ contract.contract_title[:50] }}...</td>
+                                    <td>{{ contract.awarding_agency }}</td>
+                                    <td>${{ "{:,.2f}".format(contract.contract_value) }}</td>
+                                    <td>{{ contract.end_date }}</td>
+                                    <td>
+                                        <span class="badge bg-success">{{ contract.status }}</span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('apex_contract_details', contract_id=contract.contract_id) }}" 
+                                           class="btn btn-sm btn-primary">View</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> No active contracts found. 
+                        <a href="{{ url_for('apex_submit_award') }}">Submit your first contract award</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Milestones -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-warning text-white">
+                    <h4 class="mb-0">Upcoming Milestones (Next 30 Days)</h4>
+                </div>
+                <div class="card-body">
+                    {% if milestones %}
+                    <div class="list-group">
+                        {% for milestone in milestones %}
+                        <div class="list-group-item">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{{ milestone.milestone_title }}</h5>
+                                <small class="text-muted">{{ milestone.days_until }} days</small>
+                            </div>
+                            <p class="mb-1">{{ milestone.milestone_description }}</p>
+                            <small>
+                                <strong>Due:</strong> {{ milestone.due_date }} | 
+                                <strong>Contract:</strong> {{ milestone.contract_number }} |
+                                <span class="badge bg-{{ 'danger' if milestone.priority == 'high' else 'warning' }}">
+                                    {{ milestone.priority }}
+                                </span>
+                            </small>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> No upcoming milestones in the next 30 days.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'footer.html' %}
+{% include 'scripts.html' %}
