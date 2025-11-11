@@ -6851,14 +6851,24 @@ def directory_profile():
 def get_directory_profile():
     """Get user's directory profile"""
     try:
-        user = auth.current_user
-        if not user:
+        # Use session-based authentication instead of auth.current_user
+        if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user['localId']
+        user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
         
-        user_data = db.child("users").child(user_id).get(user['idToken']).val()
-        directory_data = db.child("corama_directory").child(user_id).get(user['idToken']).val()
+        # Get user data from Firebase
+        user_data = db.child("users").child(user_id).get(id_token).val()
+        
+        if not user_data:
+            return jsonify({'success': False, 'error': 'User data not found'}), 404
+        
+        directory_data = None
+        try:
+            directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
+        except Exception as dir_error:
+            app.logger.warning(f"Could not read directory data for user {user_id}: {dir_error}")
         
         if not directory_data:
             directory_data = {
@@ -6879,21 +6889,26 @@ def get_directory_profile():
         })
         
     except Exception as e:
-        logging.error(f"Error getting directory profile: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        app.logger.error(f"Error getting directory profile: {e}")
+        return jsonify({'success': False, 'error': 'Failed to load profile. Please try again.'}), 500
 
 @app.route('/api/update_directory_profile', methods=['POST'])
 def update_directory_profile():
     """Update user's directory profile"""
     try:
-        user = auth.current_user
-        if not user:
+        # Use session-based authentication instead of auth.current_user
+        if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user['localId']
+        user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
         data = request.json
         
-        user_data = db.child("users").child(user_id).get(user['idToken']).val()
+        # Get user data to include company name
+        user_data = db.child("users").child(user_id).get(id_token).val()
+        
+        if not user_data:
+            return jsonify({'success': False, 'error': 'User data not found'}), 404
         
         profile_data = {
             'company': user_data.get('company', ''),
@@ -6907,17 +6922,30 @@ def update_directory_profile():
             'updated_at': datetime.now().isoformat()
         }
         
-        db.child("corama_directory").child(user_id).update(profile_data, user['idToken'])
+        # Try to update directory entry, handle permission errors gracefully
+        try:
+            db.child("corama_directory").child(user_id).set(profile_data, id_token)
+        except Exception as dir_error:
+            error_str = str(dir_error).upper()
+            if 'PERMISSION' in error_str or 'UNAUTHORIZED' in error_str:
+                app.logger.error(f"Firebase permission denied for user {user_id}: {dir_error}")
+                return jsonify({
+                    'success': False, 
+                    'error': 'Permission denied. Please contact support to enable directory access.',
+                    'permission_error': True
+                }), 403
+            else:
+                raise
         
         db.child("users").child(user_id).update({
             'directory_listed': data.get('listed', False)
-        }, user['idToken'])
+        }, id_token)
         
         return jsonify({'success': True})
         
     except Exception as e:
-        logging.error(f"Error updating directory profile: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        app.logger.error(f"Error updating directory profile: {e}")
+        return jsonify({'success': False, 'error': 'Failed to update profile. Please try again.'}), 500
 
 @app.route('/api/get_directory_companies', methods=['GET'])
 def get_directory_companies():
