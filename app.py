@@ -3921,10 +3921,12 @@ def extract_text_from_pdf(filepath):
         return ""
 
 def download_and_extract_from_url(url):
-    """Download PDF from URL or scrape text from website"""
+    """Download PDF from URL or scrape text from website with robust fallbacks"""
     try:
         import requests
         from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
         logging.info(f"Attempting to download content from URL: {url}")
         
         if not url.startswith(('http://', 'https://')):
@@ -3932,19 +3934,25 @@ def download_and_extract_from_url(url):
             return ""
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': f"{urlparse(url).scheme}://{urlparse(url).netloc}/"
         }
         
         try:
             head_response = requests.head(url, timeout=10, headers=headers, allow_redirects=True)
             content_type = head_response.headers.get('content-type', '').lower()
-            logging.info(f"HEAD request content-type: {content_type}")
-        except:
+            status_code = head_response.status_code
+            logging.info(f"HEAD request - Status: {status_code}, Content-Type: {content_type}")
+        except Exception as e:
+            logging.warning(f"HEAD request failed: {e}, proceeding with GET")
             content_type = ''
+            status_code = None
         
         if 'pdf' in content_type or url.lower().endswith('.pdf'):
-            logging.info("Detected PDF file, downloading...")
-            response = requests.get(url, timeout=30, headers=headers, stream=True)
+            logging.info("Detected direct PDF URL, downloading...")
+            response = requests.get(url, timeout=30, headers=headers, stream=True, allow_redirects=True)
             
             if response.status_code == 200:
                 temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
@@ -3957,7 +3965,7 @@ def download_and_extract_from_url(url):
                         if chunk:
                             downloaded_size += len(chunk)
                             if downloaded_size > max_size:
-                                logging.error(f"File too large: {downloaded_size} bytes")
+                                logging.error(f"PDF file too large: {downloaded_size} bytes")
                                 os.remove(temp_path)
                                 return ""
                             f.write(chunk)
@@ -3965,39 +3973,105 @@ def download_and_extract_from_url(url):
                 logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
                 text = extract_text_from_pdf(temp_path)
                 os.remove(temp_path)
+                logging.info(f"Extracted {len(text)} characters from PDF")
                 return text
             else:
                 logging.error(f"Failed to download PDF: HTTP {response.status_code}")
                 return ""
         
         else:
-            logging.info("Detected website, scraping text content...")
-            response = requests.get(url, timeout=30, headers=headers)
+            logging.info("Detected HTML page, attempting to extract content...")
+            response = requests.get(url, timeout=30, headers=headers, allow_redirects=True)
             
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                for script in soup(["script", "style", "nav", "footer", "header"]):
-                    script.decompose()
-                
-                text_content = []
-                
-                main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=['content', 'main-content', 'page-content'])
-                
-                if main_content:
-                    text_content.append(main_content.get_text(separator='\n', strip=True))
-                else:
-                    text_content.append(soup.get_text(separator='\n', strip=True))
-                
-                text = '\n'.join(text_content)
-                lines = [line.strip() for line in text.split('\n') if line.strip()]
-                text = '\n'.join(lines)
-                
-                logging.info(f"Scraped {len(text)} characters from website")
-                return text
-            else:
+            if response.status_code != 200:
                 logging.error(f"Failed to fetch website: HTTP {response.status_code}")
                 return ""
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            pdf_links = []
+            for tag in soup.find_all(['a', 'iframe', 'embed', 'object']):
+                href = tag.get('href') or tag.get('src') or tag.get('data')
+                if href and ('.pdf' in href.lower() or 'pdf' in href.lower()):
+                    absolute_url = urljoin(url, href)
+                    pdf_links.append(absolute_url)
+                    logging.info(f"Found potential PDF link: {absolute_url}")
+            
+            if pdf_links:
+                logging.info(f"Attempting to download PDF from embedded link: {pdf_links[0]}")
+                try:
+                    pdf_response = requests.get(pdf_links[0], timeout=30, headers=headers, stream=True, allow_redirects=True)
+                    if pdf_response.status_code == 200 and 'pdf' in pdf_response.headers.get('content-type', '').lower():
+                        temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                        max_size = 10 * 1024 * 1024
+                        downloaded_size = 0
+                        
+                        with open(temp_path, 'wb') as f:
+                            for chunk in pdf_response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    downloaded_size += len(chunk)
+                                    if downloaded_size > max_size:
+                                        logging.error(f"Embedded PDF too large: {downloaded_size} bytes")
+                                        os.remove(temp_path)
+                                        break
+                                    f.write(chunk)
+                        
+                        if os.path.exists(temp_path):
+                            logging.info(f"Downloaded embedded PDF: {downloaded_size} bytes")
+                            text = extract_text_from_pdf(temp_path)
+                            os.remove(temp_path)
+                            if text and len(text.strip()) > 10:
+                                logging.info(f"Successfully extracted {len(text)} characters from embedded PDF")
+                                return text
+                except Exception as pdf_error:
+                    logging.warning(f"Failed to download embedded PDF: {pdf_error}")
+            
+            logging.info("No valid PDF found, scraping HTML text content...")
+            
+            for element in soup(["script", "style"]):
+                element.decompose()
+            
+            text_parts = []
+            
+            main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=['content', 'main-content', 'page-content', 'container'])
+            
+            if main_content:
+                logging.info("Found main content area")
+                text_parts.append(main_content.get_text(separator='\n', strip=True))
+            else:
+                logging.info("No main content area, extracting from common elements...")
+                
+                for meta in soup.find_all('meta', attrs={'name': ['description', 'og:description']}):
+                    content = meta.get('content', '')
+                    if content:
+                        text_parts.append(content)
+                        logging.info(f"Found meta description: {len(content)} chars")
+                
+                for tag in soup.find_all(['p', 'li', 'td', 'h1', 'h2', 'h3', 'h4', 'div']):
+                    text = tag.get_text(separator=' ', strip=True)
+                    if text and len(text) > 20:  # Only meaningful text
+                        text_parts.append(text)
+                
+                logging.info(f"Extracted text from {len(text_parts)} elements")
+            
+            combined_text = '\n'.join(text_parts)
+            lines = [line.strip() for line in combined_text.split('\n') if line.strip()]
+            final_text = '\n'.join(lines)
+            
+            import re
+            final_text = re.sub(r'\n{3,}', '\n\n', final_text)
+            final_text = re.sub(r' {2,}', ' ', final_text)
+            
+            logging.info(f"Final scraped text: {len(final_text)} characters from {len(lines)} lines")
+            
+            if len(final_text.strip()) < 200:
+                logging.info("Extracted text too short, trying full page text extraction...")
+                final_text = soup.get_text(separator='\n', strip=True)
+                lines = [line.strip() for line in final_text.split('\n') if line.strip()]
+                final_text = '\n'.join(lines)
+                logging.info(f"Full page extraction: {len(final_text)} characters")
+            
+            return final_text
             
     except requests.exceptions.Timeout:
         logging.error(f"Timeout downloading from URL: {url}")
