@@ -6879,6 +6879,12 @@ def get_directory_profile():
                 'description': '',
                 'phone': '',
                 'website': '',
+                'linkedin_url': '',
+                'certifications': '',
+                'past_projects': '',
+                'team_size': '',
+                'years_in_business': '',
+                'logo_url': '',
                 'listed': user_data.get('directory_listed', False)
             }
         
@@ -6916,8 +6922,14 @@ def update_directory_profile():
             'email': data.get('email', '').strip(),
             'phone': data.get('phone', '').strip(),
             'website': data.get('website', '').strip(),
+            'linkedin_url': data.get('linkedin_url', '').strip(),
             'services': data.get('services', '').strip(),
             'description': data.get('description', '').strip(),
+            'certifications': data.get('certifications', '').strip(),
+            'past_projects': data.get('past_projects', '').strip(),
+            'team_size': data.get('team_size', '').strip(),
+            'years_in_business': data.get('years_in_business', '').strip(),
+            'logo_url': data.get('logo_url', ''),
             'listed': data.get('listed', False),
             'updated_at': datetime.now().isoformat()
         }
