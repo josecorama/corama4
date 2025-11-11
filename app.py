@@ -1761,6 +1761,7 @@ def Signup():
         account_type = request.form.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
         billing_period = request.form.get('billing_period', 'free')
         subscription_end_date = '9999-12-31'  # Permanent free access
+        join_directory = request.form.get('join_directory') == 'on'  # Checkbox value
 
         app.logger.debug(f"📌 User Info: {first_name} {last_name} | {email} | {company}")
 
@@ -1807,8 +1808,26 @@ def Signup():
                 "subscription_end_date": subscription_end_date,
                 "uploads_dir": create_user_directory(user_id),
                 "credits_balance": 100,
-                "credits_used": 0
+                "credits_used": 0,
+                "directory_listed": join_directory
             }, user_logged_in['idToken'])
+            
+            if join_directory:
+                try:
+                    db.child("corama_directory").child(user_id).set({
+                        "company": company,
+                        "contact_name": f"{first_name} {last_name}",
+                        "email": email,
+                        "services": "",  # To be filled in directory profile
+                        "description": "",  # To be filled in directory profile
+                        "phone": "",  # To be filled in directory profile
+                        "website": "",  # To be filled in directory profile
+                        "listed": True,
+                        "created_at": datetime.now().isoformat()
+                    }, user_logged_in['idToken'])
+                    app.logger.info(f"✅ User {user_id} added to CORAMA Directory")
+                except Exception as e:
+                    app.logger.error(f"❌ Failed to add user to directory: {e}")
 
             app.logger.info("✅ User successfully added to Firebase Database!")
 
@@ -6817,6 +6836,129 @@ def generate_final_proposal():
         
     except Exception as e:
         logging.error(f"Error generating final proposal: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/directory-profile')
+def directory_profile():
+    """Directory profile management page"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    return render_template('directory_profile.html')
+
+@app.route('/api/get_directory_profile', methods=['GET'])
+def get_directory_profile():
+    """Get user's directory profile"""
+    try:
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user['localId']
+        
+        user_data = db.child("users").child(user_id).get(user['idToken']).val()
+        directory_data = db.child("corama_directory").child(user_id).get(user['idToken']).val()
+        
+        if not directory_data:
+            directory_data = {
+                'company': user_data.get('company', ''),
+                'contact_name': f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}",
+                'email': user_data.get('email', ''),
+                'services': '',
+                'description': '',
+                'phone': '',
+                'website': '',
+                'listed': user_data.get('directory_listed', False)
+            }
+        
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'profile': directory_data
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting directory profile: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update_directory_profile', methods=['POST'])
+def update_directory_profile():
+    """Update user's directory profile"""
+    try:
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user['localId']
+        data = request.json
+        
+        user_data = db.child("users").child(user_id).get(user['idToken']).val()
+        
+        profile_data = {
+            'company': user_data.get('company', ''),
+            'contact_name': data.get('contact_name', ''),
+            'email': data.get('email', ''),
+            'phone': data.get('phone', ''),
+            'website': data.get('website', ''),
+            'services': data.get('services', ''),
+            'description': data.get('description', ''),
+            'listed': data.get('listed', False),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        db.child("corama_directory").child(user_id).update(profile_data, user['idToken'])
+        
+        db.child("users").child(user_id).update({
+            'directory_listed': data.get('listed', False)
+        }, user['idToken'])
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating directory profile: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_directory_companies', methods=['GET'])
+def get_directory_companies():
+    """Get all companies listed in the directory"""
+    try:
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        search_query = request.args.get('search', '').lower()
+        
+        directory_data = db.child("corama_directory").get(user['idToken']).val()
+        
+        if not directory_data:
+            return jsonify({'success': True, 'companies': []})
+        
+        companies = []
+        for user_id, profile in directory_data.items():
+            if profile.get('listed', False):
+                if search_query:
+                    searchable_text = f"{profile.get('company', '')} {profile.get('services', '')} {profile.get('description', '')}".lower()
+                    if search_query not in searchable_text:
+                        continue
+                
+                companies.append({
+                    'user_id': user_id,
+                    'company': profile.get('company', ''),
+                    'contact_name': profile.get('contact_name', ''),
+                    'email': profile.get('email', ''),
+                    'phone': profile.get('phone', ''),
+                    'website': profile.get('website', ''),
+                    'services': profile.get('services', ''),
+                    'description': profile.get('description', '')
+                })
+        
+        companies.sort(key=lambda x: x['company'])
+        
+        return jsonify({'success': True, 'companies': companies})
+        
+    except Exception as e:
+        logging.error(f"Error getting directory companies: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':

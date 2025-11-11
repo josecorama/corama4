@@ -368,6 +368,12 @@
             
             <!-- Add Member Options -->
             <div class="add-member-options">
+                <div class="option-card" onclick="showDirectoryModal()">
+                    <div class="option-icon">👥</div>
+                    <div class="option-title">From CORAMA Directory</div>
+                    <div class="option-description">Find partners from the CORAMA network</div>
+                </div>
+                
                 <div class="option-card" onclick="showWebsiteModal()">
                     <div class="option-icon">🌐</div>
                     <div class="option-title">From Website</div>
@@ -460,6 +466,25 @@
         </div>
     </div>
     
+    <!-- CORAMA Directory Modal -->
+    <div class="modal" id="directoryModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">👥 CORAMA Partner Directory</div>
+            <div class="form-group">
+                <label class="form-label">Search Companies</label>
+                <input type="text" class="form-input" id="directorySearch" placeholder="Search by company name, services, or description..." oninput="searchDirectory()">
+            </div>
+            <div id="directoryList" style="max-height: 400px; overflow-y: auto; margin-top: 1rem;">
+                <div style="text-align: center; padding: 2rem; color: #999;">
+                    <p>Loading directory...</p>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('directoryModal')">Close</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         const draftId = '{{ draft_id }}';
         const userId = '{{ user_id }}';
@@ -535,8 +560,151 @@
             document.getElementById('manualModal').classList.add('active');
         }
         
+        function showDirectoryModal() {
+            document.getElementById('directoryModal').classList.add('active');
+            loadDirectoryCompanies();
+        }
+        
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+        }
+        
+        // Load directory companies
+        let allDirectoryCompanies = [];
+        
+        async function loadDirectoryCompanies() {
+            try {
+                const response = await fetch('/api/get_directory_companies');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allDirectoryCompanies = data.companies;
+                    renderDirectoryCompanies(allDirectoryCompanies);
+                } else {
+                    document.getElementById('directoryList').innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: #999;">
+                            <p>Failed to load directory companies</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading directory:', error);
+                document.getElementById('directoryList').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #999;">
+                        <p>Error loading directory</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Search directory
+        function searchDirectory() {
+            const searchTerm = document.getElementById('directorySearch').value.toLowerCase();
+            
+            if (!searchTerm) {
+                renderDirectoryCompanies(allDirectoryCompanies);
+                return;
+            }
+            
+            const filtered = allDirectoryCompanies.filter(company => {
+                const searchableText = `${company.company} ${company.services} ${company.description}`.toLowerCase();
+                return searchableText.includes(searchTerm);
+            });
+            
+            renderDirectoryCompanies(filtered);
+        }
+        
+        // Render directory companies
+        function renderDirectoryCompanies(companies) {
+            const list = document.getElementById('directoryList');
+            
+            if (companies.length === 0) {
+                list.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #999;">
+                        <p>No companies found</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Try a different search term or ask companies to join the directory</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = companies.map(company => `
+                <div style="border: 2px solid #e9ecef; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s ease;" 
+                     onmouseover="this.style.borderColor='#667eea'; this.style.background='#f8f9ff';" 
+                     onmouseout="this.style.borderColor='#e9ecef'; this.style.background='white';"
+                     onclick="addDirectoryMember('${company.user_id}')">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
+                        <div>
+                            <h4 style="margin: 0; color: #2c3e50; font-size: 1.1rem; font-weight: 600;">${company.company}</h4>
+                            <p style="margin: 0.25rem 0 0 0; color: #6c757d; font-size: 0.9rem;">${company.contact_name}</p>
+                        </div>
+                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="event.stopPropagation(); addDirectoryMember('${company.user_id}')">
+                            Add to Team
+                        </button>
+                    </div>
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong style="color: #495057; font-size: 0.9rem;">Services:</strong>
+                        <span style="color: #6c757d; font-size: 0.9rem;">${company.services || 'Not specified'}</span>
+                    </div>
+                    ${company.description ? `
+                        <div style="margin-bottom: 0.5rem;">
+                            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">${company.description}</p>
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: #6c757d;">
+                        ${company.email ? `<span>📧 ${company.email}</span>` : ''}
+                        ${company.phone ? `<span>📞 ${company.phone}</span>` : ''}
+                        ${company.website ? `<span>🌐 <a href="${company.website}" target="_blank" onclick="event.stopPropagation();" style="color: #667eea;">${company.website}</a></span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Add directory member to team
+        async function addDirectoryMember(userId) {
+            const company = allDirectoryCompanies.find(c => c.user_id === userId);
+            
+            if (!company) {
+                alert('Company not found');
+                return;
+            }
+            
+            const member = {
+                company: company.company,
+                contact_name: company.contact_name,
+                contact_role: 'Partner',
+                email: company.email,
+                phone: company.phone,
+                services: company.services,
+                source: 'corama_directory'
+            };
+            
+            try {
+                const response = await fetch('/api/add_team_member', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        member: member
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    teamMembers.push(member);
+                    renderTeamMembers();
+                    closeModal('directoryModal');
+                    alert(`${company.company} has been added to your team!`);
+                } else {
+                    alert('Failed to add team member');
+                }
+            } catch (error) {
+                console.error('Error adding directory member:', error);
+                alert('Failed to add team member');
+            }
         }
         
         // Extract from website
