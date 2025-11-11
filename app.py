@@ -3860,9 +3860,11 @@ def process_capability_statement():
         return jsonify({'error': f'Failed to process capability statement: {str(e)}'}), 500
 
 def extract_text_from_pdf(filepath):
-    """Extract text from PDF file"""
+    """Extract text from PDF file with robust fallback methods"""
     try:
         import PyPDF2
+        import fitz  # PyMuPDF
+        
         logging.info(f"Attempting to extract text from PDF: {filepath}")
         
         if not os.path.exists(filepath):
@@ -3872,22 +3874,47 @@ def extract_text_from_pdf(filepath):
         file_size = os.path.getsize(filepath)
         logging.info(f"PDF file size: {file_size} bytes")
         
-        with open(filepath, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            logging.info(f"PDF has {len(reader.pages)} pages")
-            
-            text = ""
-            for i, page in enumerate(reader.pages):
-                try:
-                    page_text = page.extract_text()
+        text = ""
+        try:
+            with open(filepath, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                logging.info(f"PDF has {len(reader.pages)} pages")
+                
+                for i, page in enumerate(reader.pages):
+                    try:
+                        page_text = page.extract_text()
+                        text += page_text
+                        logging.debug(f"PyPDF2: Page {i+1} extracted {len(page_text)} characters")
+                    except Exception as page_error:
+                        logging.warning(f"PyPDF2: Error extracting text from page {i+1}: {str(page_error)}")
+                        continue
+                
+                logging.info(f"PyPDF2: Total extracted text length: {len(text)}")
+        except Exception as pypdf_error:
+            logging.warning(f"PyPDF2 extraction failed: {str(pypdf_error)}")
+        
+        if len(text.strip()) < 50:
+            logging.info("PyPDF2 extracted insufficient text, trying PyMuPDF fallback...")
+            try:
+                doc = fitz.open(filepath)
+                text = ""
+                for page_num in range(len(doc)):
+                    page = doc[page_num]
+                    page_text = page.get_text("text")
                     text += page_text
-                    logging.debug(f"Page {i+1} extracted {len(page_text)} characters")
-                except Exception as page_error:
-                    logging.warning(f"Error extracting text from page {i+1}: {str(page_error)}")
-                    continue
-            
-            logging.info(f"Total extracted text length: {len(text)}")
-            return text.strip()
+                    logging.debug(f"PyMuPDF: Page {page_num+1} extracted {len(page_text)} characters")
+                
+                doc.close()
+                logging.info(f"PyMuPDF: Total extracted text length: {len(text)}")
+                
+                # Check if this is an image-only PDF
+                if len(text.strip()) < 50:
+                    logging.warning("PDF appears to be image-only or scanned. OCR may be required.")
+                    
+            except Exception as pymupdf_error:
+                logging.error(f"PyMuPDF extraction also failed: {str(pymupdf_error)}")
+        
+        return text.strip()
             
     except Exception as e:
         logging.error(f"Error extracting PDF text from {filepath}: {str(e)}", exc_info=True)
