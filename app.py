@@ -6472,7 +6472,20 @@ def get_draft_team():
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        # Placeholder - would fetch from Firebase
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if draft_data and 'team_members' in draft_data:
+                return jsonify({
+                    'success': True,
+                    'team_members': draft_data['team_members']
+                })
+        
         return jsonify({
             'success': True,
             'team_members': []
@@ -6493,7 +6506,23 @@ def add_team_member():
         if not draft_id or not member:
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
-        # Placeholder - would save to Firebase
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if not draft_data:
+                draft_data = {'team_members': []}
+            
+            if 'team_members' not in draft_data:
+                draft_data['team_members'] = []
+            
+            draft_data['team_members'].append(member)
+            draft_ref.update({'team_members': draft_data['team_members']})
+        
         return jsonify({'success': True})
         
     except Exception as e:
@@ -6511,20 +6540,77 @@ def extract_subcontractor_info():
         if not url or not draft_id:
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
-        member = {
-            'company': 'Example Company',
-            'contact_name': 'John Doe',
-            'contact_role': 'CEO',
-            'email': 'contact@example.com',
-            'phone': '+1 (555) 123-4567',
-            'services': 'Construction services',
-            'source': 'website'
-        }
+        import requests
+        from bs4 import BeautifulSoup
+        import re
         
-        return jsonify({
-            'success': True,
-            'member': member
-        })
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            response = requests.get(url, headers=headers, timeout=30)
+            response.raise_for_status()
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            # Extract company name from title or h1
+            company_name = 'Unknown Company'
+            title_tag = soup.find('title')
+            if title_tag:
+                company_name = title_tag.text.strip().split('|')[0].split('-')[0].strip()
+            
+            h1_tag = soup.find('h1')
+            if h1_tag and len(h1_tag.text.strip()) < 100:
+                company_name = h1_tag.text.strip()
+            
+            # Extract email
+            email = ''
+            email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+            emails = re.findall(email_pattern, soup.get_text())
+            if emails:
+                email = emails[0]
+            
+            # Extract phone
+            phone = ''
+            phone_pattern = r'(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+            phones = re.findall(phone_pattern, soup.get_text())
+            if phones:
+                phone = ''.join(phones[0]) if isinstance(phones[0], tuple) else phones[0]
+            
+            # Extract services from meta description or first paragraph
+            services = ''
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc and meta_desc.get('content'):
+                services = meta_desc.get('content')[:200]
+            else:
+                paragraphs = soup.find_all('p')
+                for p in paragraphs[:3]:
+                    text = p.get_text().strip()
+                    if len(text) > 50:
+                        services = text[:200]
+                        break
+            
+            member = {
+                'company': company_name,
+                'contact_name': '',
+                'contact_role': '',
+                'email': email,
+                'phone': phone,
+                'services': services or 'Services information not found. Please edit manually.',
+                'source': 'website'
+            }
+            
+            return jsonify({
+                'success': True,
+                'member': member
+            })
+            
+        except requests.RequestException as e:
+            logging.error(f"Error fetching website {url}: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch website: {str(e)}'
+            }), 500
         
     except Exception as e:
         logging.error(f"Error extracting subcontractor info: {e}")
@@ -6541,7 +6627,14 @@ def update_draft_team():
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        # Placeholder - would save to Firebase
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref.update({'team_members': team_members})
+        
         return jsonify({'success': True})
         
     except Exception as e:
@@ -6557,7 +6650,20 @@ def get_draft_pricing():
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        # Placeholder - would fetch from Firebase
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if draft_data and 'pricing' in draft_data:
+                return jsonify({
+                    'success': True,
+                    'pricing': draft_data['pricing']
+                })
+        
         return jsonify({
             'success': True,
             'pricing': {
@@ -6583,7 +6689,14 @@ def update_draft_pricing():
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        # Placeholder - would save to Firebase
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref.update({'pricing': pricing})
+        
         return jsonify({'success': True})
         
     except Exception as e:
@@ -6600,24 +6713,88 @@ def generate_pricing_strategy():
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        strategy = """
-        <h4>Recommended Pricing Strategy</h4>
-        <p><strong>Delivery Model:</strong> Fixed-price contract with milestone-based payments</p>
-        <p><strong>Competitive Positioning:</strong> Based on market analysis, similar contracts range from $150K-$250K. 
-        Recommend positioning at $185K to be competitive while maintaining healthy margins.</p>
-        <p><strong>Key Cost Drivers:</strong></p>
-        <ul>
-            <li>Labor: 60% of total cost (estimated 2,000 hours at blended rate of $65/hr)</li>
-            <li>Materials & Equipment: 25% of total cost</li>
-            <li>Overhead & Risk: 15% of total cost</li>
-        </ul>
-        <p><strong>Risk Mitigation:</strong> Include 5% contingency for weather delays and material price fluctuations.</p>
-        """
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        return jsonify({
-            'success': True,
-            'strategy': strategy
-        })
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        annotations = draft_data.get('annotations', [])
+        team_members = draft_data.get('team_members', [])
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        annotations_text = '\n'.join([f"- {ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
+        team_text = '\n'.join([f"- {member.get('company', '')}: {member.get('services', '')}" for member in team_members])
+        
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            
+            prompt = f"""You are an expert pricing strategist for government contracts. Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
+
+Contract Analysis:
+{annotations_text if annotations_text else 'No contract analysis available'}
+
+Team Composition:
+{team_text if team_text else 'No team members added yet'}
+
+Provide a detailed pricing strategy that includes:
+1. Recommended delivery model (fixed-price, time & materials, cost-plus, etc.)
+2. Competitive positioning and estimated price range
+3. Key cost drivers breakdown (labor, materials, overhead, risk)
+4. Risk mitigation strategies
+5. Win strategy recommendations
+
+Format your response in HTML with clear headings and bullet points."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert pricing strategist for government contracts. Provide detailed, actionable pricing recommendations."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500
+            )
+            
+            strategy = response.choices[0].message.content.strip()
+            
+            draft_ref.update({'pricing_strategy': strategy})
+            
+            return jsonify({
+                'success': True,
+                'strategy': strategy
+            })
+            
+        except Exception as e:
+            logging.error(f"Error generating AI pricing strategy: {e}")
+            
+            fallback_strategy = """
+            <h4>Recommended Pricing Strategy</h4>
+            <p><strong>Delivery Model:</strong> Fixed-price contract with milestone-based payments</p>
+            <p><strong>Competitive Positioning:</strong> Based on market analysis, similar contracts typically range from $150K-$250K. 
+            Recommend positioning competitively while maintaining healthy margins.</p>
+            <p><strong>Key Cost Drivers:</strong></p>
+            <ul>
+                <li>Labor: 60% of total cost (estimated hours at blended rate)</li>
+                <li>Materials & Equipment: 25% of total cost</li>
+                <li>Overhead & Risk: 15% of total cost</li>
+            </ul>
+            <p><strong>Risk Mitigation:</strong> Include 5-10% contingency for unforeseen circumstances and material price fluctuations.</p>
+            <p><em>Note: AI analysis temporarily unavailable. Please review and adjust based on your specific contract requirements.</em></p>
+            """
+            
+            return jsonify({
+                'success': True,
+                'strategy': fallback_strategy
+            })
         
     except Exception as e:
         logging.error(f"Error generating pricing strategy: {e}")
