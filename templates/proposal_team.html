@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
     <style>
-        body {
+        .proposal-wizard .proposal-wizard {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             margin: 0;
@@ -16,14 +16,14 @@
             min-height: 100vh;
         }
         
-        .container {
+        .proposal-wizard .container {
             max-width: 1400px;
             margin: 0 auto;
             padding: 2rem;
         }
         
         /* Stepper Navigation */
-        .stepper {
+        .proposal-wizard .stepper {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -34,7 +34,7 @@
             margin-bottom: 2rem;
         }
         
-        .step {
+        .proposal-wizard .step {
             flex: 1;
             display: flex;
             flex-direction: column;
@@ -42,7 +42,7 @@
             position: relative;
         }
         
-        .step:not(:last-child)::after {
+        .proposal-wizard .step:not(:last-child)::after {
             content: '';
             position: absolute;
             top: 30px;
@@ -53,12 +53,12 @@
             z-index: 0;
         }
         
-        .step.completed:not(:last-child)::after,
-        .step.active:not(:last-child)::after {
+        .proposal-wizard .step.completed:not(:last-child)::after,
+        .proposal-wizard .step.active:not(:last-child)::after {
             background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
         }
         
-        .step-circle {
+        .proposal-wizard .step-circle {
             width: 60px;
             height: 60px;
             border-radius: 50%;
@@ -73,18 +73,18 @@
             transition: all 0.3s ease;
         }
         
-        .step.active .step-circle {
+        .proposal-wizard .step.active .step-circle {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
         
-        .step.completed .step-circle {
+        .proposal-wizard .step.completed .step-circle {
             background: #27ae60;
             color: white;
         }
         
-        .step-label {
+        .proposal-wizard .step-label {
             margin-top: 0.75rem;
             font-size: 0.9rem;
             font-weight: 600;
@@ -92,16 +92,16 @@
             text-align: center;
         }
         
-        .step.active .step-label {
+        .proposal-wizard .step.active .step-label {
             color: #667eea;
         }
         
-        .step.completed .step-label {
+        .proposal-wizard .step.completed .step-label {
             color: #27ae60;
         }
         
         /* Main Content */
-        .main-content {
+        .proposal-wizard .main-content {
             background: white;
             border-radius: 16px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.08);
@@ -109,7 +109,7 @@
             margin-bottom: 2rem;
         }
         
-        .section-title {
+        .proposal-wizard .section-title {
             font-size: 1.5rem;
             font-weight: 700;
             color: #2c3e50;
@@ -117,18 +117,18 @@
         }
         
         /* Team Builder */
-        .team-section {
+        .proposal-wizard .team-section {
             margin-bottom: 2rem;
         }
         
-        .add-member-options {
+        .proposal-wizard .add-member-options {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 1rem;
             margin-bottom: 2rem;
         }
         
-        .option-card {
+        .proposal-wizard .option-card {
             padding: 1.5rem;
             border: 2px solid #e0e0e0;
             border-radius: 12px;
@@ -136,36 +136,36 @@
             transition: all 0.3s ease;
         }
         
-        .option-card:hover {
+        .proposal-wizard .option-card:hover {
             border-color: #667eea;
             background: #f8f9ff;
             transform: translateY(-2px);
         }
         
-        .option-icon {
+        .proposal-wizard .option-icon {
             font-size: 2rem;
             margin-bottom: 0.5rem;
         }
         
-        .option-title {
+        .proposal-wizard .option-title {
             font-size: 1.1rem;
             font-weight: 600;
             color: #2c3e50;
             margin-bottom: 0.5rem;
         }
         
-        .option-description {
+        .proposal-wizard .option-description {
             font-size: 0.9rem;
             color: #666;
         }
         
         /* Team Members List */
-        .team-members {
+        .proposal-wizard .team-members {
             display: grid;
             gap: 1rem;
         }
         
-        .team-member {
+        .proposal-wizard .team-member {
             padding: 1.5rem;
             background: #f8f9fa;
             border-radius: 12px;
@@ -176,18 +176,18 @@
             align-items: center;
         }
         
-        .member-info {
+        .proposal-wizard .member-info {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1rem;
         }
         
-        .member-field {
+        .proposal-wizard .member-field {
             display: flex;
             flex-direction: column;
         }
         
-        .member-label {
+        .proposal-wizard .member-label {
             font-size: 0.75rem;
             font-weight: 600;
             color: #666;
@@ -195,17 +195,17 @@
             margin-bottom: 0.25rem;
         }
         
-        .member-value {
+        .proposal-wizard .member-value {
             font-size: 0.95rem;
             color: #2c3e50;
         }
         
-        .member-actions {
+        .proposal-wizard .member-actions {
             display: flex;
             gap: 0.5rem;
         }
         
-        .btn-icon {
+        .proposal-wizard .btn-icon {
             width: 36px;
             height: 36px;
             border: none;
@@ -217,22 +217,22 @@
             transition: all 0.2s ease;
         }
         
-        .btn-edit {
+        .proposal-wizard .btn-edit {
             background: #3498db;
             color: white;
         }
         
-        .btn-delete {
+        .proposal-wizard .btn-delete {
             background: #e74c3c;
             color: white;
         }
         
-        .btn-icon:hover {
+        .proposal-wizard .btn-icon:hover {
             transform: scale(1.1);
         }
         
         /* Modal */
-        .modal {
+        .proposal-wizard .modal {
             display: none;
             position: fixed;
             top: 0;
@@ -245,11 +245,11 @@
             justify-content: center;
         }
         
-        .modal.active {
+        .proposal-wizard .modal.active {
             display: flex;
         }
         
-        .modal-content {
+        .proposal-wizard .modal-content {
             background: white;
             border-radius: 16px;
             padding: 2rem;
@@ -259,18 +259,18 @@
             overflow-y: auto;
         }
         
-        .modal-header {
+        .proposal-wizard .modal-header {
             font-size: 1.5rem;
             font-weight: 700;
             color: #2c3e50;
             margin-bottom: 1.5rem;
         }
         
-        .form-group {
+        .proposal-wizard .form-group {
             margin-bottom: 1.5rem;
         }
         
-        .form-label {
+        .proposal-wizard .form-label {
             display: block;
             font-size: 0.9rem;
             font-weight: 600;
@@ -278,7 +278,7 @@
             margin-bottom: 0.5rem;
         }
         
-        .form-input {
+        .proposal-wizard .form-input {
             width: 100%;
             padding: 0.75rem;
             border: 2px solid #e0e0e0;
@@ -287,25 +287,25 @@
             transition: all 0.2s ease;
         }
         
-        .form-input:focus {
+        .proposal-wizard .form-input:focus {
             outline: none;
             border-color: #667eea;
         }
         
-        .form-textarea {
+        .proposal-wizard .form-textarea {
             min-height: 100px;
             resize: vertical;
         }
         
         /* Action Buttons */
-        .action-buttons {
+        .proposal-wizard .action-buttons {
             display: flex;
             gap: 1rem;
             justify-content: flex-end;
             margin-top: 2rem;
         }
         
-        .btn {
+        .proposal-wizard .btn {
             padding: 0.75rem 2rem;
             border: none;
             border-radius: 8px;
@@ -315,22 +315,22 @@
             transition: all 0.3s ease;
         }
         
-        .btn-secondary {
+        .proposal-wizard .btn-secondary {
             background: #e0e0e0;
             color: #666;
         }
         
-        .btn-secondary:hover {
+        .proposal-wizard .btn-secondary:hover {
             background: #d0d0d0;
         }
         
-        .btn-primary {
+        .proposal-wizard .btn-primary {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
         }
         
-        .btn-primary:hover {
+        .proposal-wizard .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
         }
@@ -339,6 +339,7 @@
 <body>
     {% include 'navbar.html' %}
     
+    <div class="proposal-wizard">
     <div class="container">
         <!-- Stepper Navigation -->
         <div class="stepper">
@@ -661,6 +662,7 @@
             window.location.href = `/proposal/pricing?draft_id=${draftId}`;
         }
     </script>
+    </div>
     
     {% include 'scripts.html' %}
 </body>
