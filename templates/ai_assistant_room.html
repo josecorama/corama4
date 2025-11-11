@@ -351,8 +351,37 @@
                     </div>
                 </div>
                 
-                <!-- Specialized AI Tools -->
+                <!-- Primary CTA: Start Proposal Creation -->
+                <div style="margin-bottom: 1.5rem;">
+                    <button onclick="startProposalWorkflow()" style="
+                        width: 100%;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 1.25rem 2rem;
+                        border-radius: 12px;
+                        font-size: 1.1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+                        transition: all 0.3s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 0.75rem;
+                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)';">
+                        <span style="font-size: 1.5rem;">🚀</span>
+                        <span>Let's Start Creating Your Proposal</span>
+                        <span style="font-size: 0.85rem; opacity: 0.9; background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 20px;">Guided Process</span>
+                    </button>
+                    <div style="margin-top: 0.75rem; padding: 0.75rem; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); border-radius: 8px; font-size: 0.85rem; color: #2c3e50; line-height: 1.6;">
+                        <strong>✨ New Guided Proposal Process:</strong> Analyze the contract with AI annotations → Build your team → Develop pricing strategy → Generate comprehensive proposal
+                    </div>
+                </div>
+                
+                <!-- Quick AI Tools -->
                 <div class="ai-tools-section" style="margin-bottom: 1rem;">
+                    <div style="margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 600; color: #2c3e50;">Quick Analysis Tools</div>
                     <div class="tools-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem;">
                         <button class="tool-btn" onclick="triggerAnalysis('analyze')" style="background: #3498db; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
                             📊 Analyze (3 credits)
@@ -366,12 +395,6 @@
                         <button class="tool-btn" onclick="triggerAnalysis('outline')" style="background: #9b59b6; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
                             📝 Outline (2 credits)
                         </button>
-                        <button class="tool-btn" onclick="triggerAnalysis('full_proposal')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;" title="Generates a comprehensive 30-50 page proposal with 8 sections">
-                            📄 Full Proposal (15 credits)
-                        </button>
-                    </div>
-                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f5e9; border-radius: 6px; font-size: 0.75rem; color: #2e7d32;">
-                        ℹ️ <strong>Full Proposal:</strong> Generates up to 50 pages with 8 comprehensive sections. For longer proposals, you can request additional sections separately.
                     </div>
                 </div>
                 
@@ -1104,6 +1127,15 @@
                 xhr3.send(formData);
             }
         });
+        
+        // Navigate to 3-screen proposal workflow (important-comment)
+        function startProposalWorkflow() {
+            const contractId = '{{ contract_id }}';
+            const contractHash = contractId; // Using contract_id as hash for now
+            
+            // Navigate to Screen 1: Contract Analysis & PDF Annotations
+            window.location.href = `/proposal/start?hash=${contractHash}`;
+        }
     </script>
     
     {% include 'scripts.html' %}

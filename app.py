@@ -2370,6 +2370,104 @@ def ai_assistant_room():
                          capability_statements=capability_statements if 'capability_statements' in locals() else [],
                          capability_statement_count=capability_statement_count if 'capability_statement_count' in locals() else 0)
 
+@app.route('/proposal/start')
+def proposal_start():
+    """Screen 1: Contract Analysis & PDF Annotations"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    contract_hash = request.args.get('hash')
+    draft_id = request.args.get('draft_id')
+    
+    if not contract_hash:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal start: {e}")
+    
+    # Get contract details from CSV
+    contract_data = None
+    try:
+        df = pd.read_csv('Scraping_demo_results.csv')
+        contract_row = df[df['hash_value'] == contract_hash]
+        if not contract_row.empty:
+            contract_data = contract_row.iloc[0].to_dict()
+    except Exception as e:
+        logging.error(f"Error loading contract data: {e}")
+    
+    return render_template('proposal_start.html',
+                         contract_hash=contract_hash,
+                         contract_data=contract_data,
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
+@app.route('/proposal/team')
+def proposal_team():
+    """Screen 2: Team & Subcontractor Builder"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal team: {e}")
+    
+    return render_template('proposal_team.html',
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
+@app.route('/proposal/pricing')
+def proposal_pricing():
+    """Screen 3: Pricing Strategy & Review"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal pricing: {e}")
+    
+    return render_template('proposal_pricing.html',
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
 def Welcome2():

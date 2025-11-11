@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Team - CORAMA</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* Stepper Navigation */
+        .stepper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .step {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .step.completed:not(:last-child)::after,
+        .step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #999;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .step.active .step-circle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .step.completed .step-circle {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .step-label {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            text-align: center;
+        }
+        
+        .step.active .step-label {
+            color: #667eea;
+        }
+        
+        .step.completed .step-label {
+            color: #27ae60;
+        }
+        
+        /* Main Content */
+        .main-content {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Team Builder */
+        .team-section {
+            margin-bottom: 2rem;
+        }
+        
+        .add-member-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .option-card {
+            padding: 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .option-card:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-2px);
+        }
+        
+        .option-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .option-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .option-description {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        /* Team Members List */
+        .team-members {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .team-member {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .member-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .member-field {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .member-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+        
+        .member-value {
+            font-size: 0.95rem;
+            color: #2c3e50;
+        }
+        
+        .member-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .btn-icon {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .btn-edit {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-icon:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+        
+        .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="container">
+        <!-- Stepper Navigation -->
+        <div class="stepper">
+            <div class="step completed">
+                <div class="step-circle">✓</div>
+                <div class="step-label">Contract Analysis</div>
+            </div>
+            <div class="step active">
+                <div class="step-circle">2</div>
+                <div class="step-label">Build Team</div>
+            </div>
+            <div class="step">
+                <div class="step-circle">3</div>
+                <div class="step-label">Pricing & Review</div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="section-title">👥 Build Your Team</div>
+            
+            <!-- Add Member Options -->
+            <div class="add-member-options">
+                <div class="option-card" onclick="showWebsiteModal()">
+                    <div class="option-icon">🌐</div>
+                    <div class="option-title">From Website</div>
+                    <div class="option-description">Extract company info from their website</div>
+                </div>
+                
+                <div class="option-card" onclick="showManualModal()">
+                    <div class="option-icon">✍️</div>
+                    <div class="option-title">Manual Entry</div>
+                    <div class="option-description">Enter subcontractor details manually</div>
+                </div>
+                
+                <div class="option-card" onclick="suggestSubcontractors()">
+                    <div class="option-icon">🤖</div>
+                    <div class="option-title">AI Suggestions</div>
+                    <div class="option-description">Get AI-recommended subcontractors</div>
+                </div>
+            </div>
+            
+            <!-- Team Members List -->
+            <div class="team-section">
+                <h3 style="font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin-bottom: 1rem;">Team Members</h3>
+                <div class="team-members" id="teamMembersList">
+                    <div style="text-align: center; color: #999; padding: 3rem;">
+                        <p>No team members added yet</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Click one of the options above to add team members</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="previousStep()">
+                ← Back to Contract Analysis
+            </button>
+            <button class="btn btn-primary" onclick="nextStep()">
+                Continue to Pricing →
+            </button>
+        </div>
+    </div>
+    
+    <!-- Website Modal -->
+    <div class="modal" id="websiteModal">
+        <div class="modal-content">
+            <div class="modal-header">🌐 Add from Website</div>
+            <div class="form-group">
+                <label class="form-label">Company Website URL</label>
+                <input type="url" class="form-input" id="websiteUrl" placeholder="https://example.com">
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('websiteModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="extractFromWebsite()">Extract Info</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Manual Entry Modal -->
+    <div class="modal" id="manualModal">
+        <div class="modal-content">
+            <div class="modal-header">✍️ Add Team Member</div>
+            <div class="form-group">
+                <label class="form-label">Company Name</label>
+                <input type="text" class="form-input" id="companyName" placeholder="ABC Construction">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Contact Name</label>
+                <input type="text" class="form-input" id="contactName" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Role/Title</label>
+                <input type="text" class="form-input" id="contactRole" placeholder="CEO, Project Manager, etc.">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" id="contactEmail" placeholder="contact@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="tel" class="form-input" id="contactPhone" placeholder="+1 (555) 123-4567">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Services Provided</label>
+                <textarea class="form-input form-textarea" id="services" placeholder="Describe the services this subcontractor will provide..."></textarea>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('manualModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="addManualMember()">Add Member</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const draftId = '{{ draft_id }}';
+        const userId = '{{ user_id }}';
+        let teamMembers = [];
+        
+        // Load existing team members on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            loadTeamMembers();
+        });
+        
+        // Load team members from draft
+        async function loadTeamMembers() {
+            try {
+                const response = await fetch(`/api/get_draft_team?draft_id=${draftId}`);
+                const data = await response.json();
+                
+                if (data.success && data.team_members) {
+                    teamMembers = data.team_members;
+                    renderTeamMembers();
+                }
+            } catch (error) {
+                console.error('Error loading team members:', error);
+            }
+        }
+        
+        // Render team members list
+        function renderTeamMembers() {
+            const list = document.getElementById('teamMembersList');
+            
+            if (teamMembers.length === 0) {
+                list.innerHTML = `
+                    <div style="text-align: center; color: #999; padding: 3rem;">
+                        <p>No team members added yet</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Click one of the options above to add team members</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = teamMembers.map((member, index) => `
+                <div class="team-member">
+                    <div class="member-info">
+                        <div class="member-field">
+                            <div class="member-label">Company</div>
+                            <div class="member-value">${member.company}</div>
+                        </div>
+                        <div class="member-field">
+                            <div class="member-label">Contact</div>
+                            <div class="member-value">${member.contact_name} (${member.contact_role})</div>
+                        </div>
+                        <div class="member-field">
+                            <div class="member-label">Email</div>
+                            <div class="member-value">${member.email}</div>
+                        </div>
+                        <div class="member-field">
+                            <div class="member-label">Services</div>
+                            <div class="member-value">${member.services}</div>
+                        </div>
+                    </div>
+                    <div class="member-actions">
+                        <button class="btn-icon btn-delete" onclick="removeMember(${index})" title="Remove">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Show modals
+        function showWebsiteModal() {
+            document.getElementById('websiteModal').classList.add('active');
+        }
+        
+        function showManualModal() {
+            document.getElementById('manualModal').classList.add('active');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        // Extract from website
+        async function extractFromWebsite() {
+            const url = document.getElementById('websiteUrl').value;
+            if (!url) {
+                alert('Please enter a website URL');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/extract_subcontractor_info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        draft_id: draftId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.member) {
+                    teamMembers.push(data.member);
+                    renderTeamMembers();
+                    closeModal('websiteModal');
+                    document.getElementById('websiteUrl').value = '';
+                } else {
+                    alert('Failed to extract info from website');
+                }
+            } catch (error) {
+                console.error('Error extracting from website:', error);
+                alert('Failed to extract info from website');
+            }
+        }
+        
+        // Add manual member
+        async function addManualMember() {
+            const member = {
+                company: document.getElementById('companyName').value,
+                contact_name: document.getElementById('contactName').value,
+                contact_role: document.getElementById('contactRole').value,
+                email: document.getElementById('contactEmail').value,
+                phone: document.getElementById('contactPhone').value,
+                services: document.getElementById('services').value,
+                source: 'manual'
+            };
+            
+            if (!member.company || !member.contact_name || !member.services) {
+                alert('Please fill in required fields: Company Name, Contact Name, and Services');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/add_team_member', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        member: member
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    teamMembers.push(member);
+                    renderTeamMembers();
+                    closeModal('manualModal');
+                    
+                    // Clear form
+                    document.getElementById('companyName').value = '';
+                    document.getElementById('contactName').value = '';
+                    document.getElementById('contactRole').value = '';
+                    document.getElementById('contactEmail').value = '';
+                    document.getElementById('contactPhone').value = '';
+                    document.getElementById('services').value = '';
+                } else {
+                    alert('Failed to add team member');
+                }
+            } catch (error) {
+                console.error('Error adding team member:', error);
+                alert('Failed to add team member');
+            }
+        }
+        
+        // Remove member
+        async function removeMember(index) {
+            if (!confirm('Are you sure you want to remove this team member?')) {
+                return;
+            }
+            
+            teamMembers.splice(index, 1);
+            renderTeamMembers();
+            
+            // Save to backend
+            try {
+                await fetch('/api/update_draft_team', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        team_members: teamMembers
+                    })
+                });
+            } catch (error) {
+                console.error('Error updating team:', error);
+            }
+        }
+        
+        // AI suggestions
+        async function suggestSubcontractors() {
+            alert('AI Suggestions feature coming soon! This will analyze the contract and suggest relevant subcontractors.');
+        }
+        
+        // Navigation
+        function previousStep() {
+            window.location.href = `/proposal/start?hash=${draftId}`;
+        }
+        
+        function nextStep() {
+            window.location.href = `/proposal/pricing?draft_id=${draftId}`;
+        }
+    </script>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>
