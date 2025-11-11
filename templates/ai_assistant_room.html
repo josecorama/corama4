@@ -420,7 +420,7 @@
         function pollJobStatus(jobId, loadingMessage, progressInterval, actionType) {
             const messages = document.getElementById('chatMessages');
             let pollCount = 0;
-            const maxPolls = 120; // 2 minutes max (120 * 1 second)
+            const maxPolls = 900; // 15 minutes max (900 * 1 second) - full proposals can take 5-10 minutes (important-comment)
             
             const pollInterval = setInterval(() => {
                 pollCount++;
@@ -433,7 +433,7 @@
                     
                     const timeoutMessage = document.createElement('div');
                     timeoutMessage.className = 'message assistant error';
-                    timeoutMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ Request timed out after 2 minutes. The proposal may still be generating. Please try again in a moment.`;
+                    timeoutMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ Request timed out after 15 minutes. The proposal generation may have encountered an issue. Please try again or contact support if the problem persists.`;
                     messages.appendChild(timeoutMessage);
                     messages.scrollTop = messages.scrollHeight;
                     return;
