@@ -6278,33 +6278,96 @@ def analyze_contract():
         if not contract_hash or not user_id:
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
+        # Check if PDF exists
+        contracts_dir = os.path.join('uploads', 'contracts')
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        if not os.path.exists(pdf_path):
+            return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
+        
+        # Extract text from PDF using PyMuPDF
+        import fitz
+        pdf_text = ""
+        page_texts = []
+        
+        try:
+            doc = fitz.open(pdf_path)
+            for page_num, page in enumerate(doc, 1):
+                page_text = page.get_text()
+                page_texts.append({'page': page_num, 'text': page_text})
+                pdf_text += f"\n--- Page {page_num} ---\n{page_text}"
+            doc.close()
+        except Exception as e:
+            logging.error(f"Error extracting PDF text: {e}")
+            return jsonify({'success': False, 'error': f'Failed to read PDF: {str(e)}'}), 500
+        
+        if not pdf_text.strip():
+            return jsonify({'success': False, 'error': 'PDF appears to be empty or contains only images'}), 400
+        
+        max_chars = 50000
+        if len(pdf_text) > max_chars:
+            pdf_text = pdf_text[:max_chars] + "\n\n[Document truncated for analysis...]"
+        
+        # Generate AI annotations using OpenAI
+        try:
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            
+            prompt = f"""You are an expert contract analyst helping a business understand a government contract opportunity. Analyze the following contract document and provide strategic annotations in these categories:
+
+1. Key Requirements & Deliverables - What must be delivered, when, and to what standards
+2. Small Print & Critical Clauses - Important details that are easy to miss but critical to understand
+3. Compliance Requirements - Certifications, regulations, and legal requirements that must be met
+4. Risk Factors & Challenges - Potential issues, tight timelines, or difficult requirements
+5. Win Strategy Recommendations - How to position the proposal to maximize chances of winning
+
+For each category, provide 1-3 specific, actionable insights based on the actual contract text. Be concise but specific. Focus on what matters most for a business deciding whether and how to bid.
+
+Contract Document:
+{pdf_text}
+
+Provide your analysis as a JSON array with objects containing 'category' and 'text' fields."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert contract analyst. Provide strategic insights in JSON format."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000
+            )
+            
+            # Parse AI response
+            ai_response = response.choices[0].message.content.strip()
+            
+            import json
+            import re
+            
+            json_match = re.search(r'\[.*\]', ai_response, re.DOTALL)
+            if json_match:
+                annotations = json.loads(json_match.group(0))
+            else:
+                annotations = [
+                    {
+                        'category': 'AI Analysis',
+                        'text': ai_response
+                    }
+                ]
+        
+        except Exception as e:
+            logging.error(f"Error generating AI annotations: {e}")
+            annotations = [
+                {
+                    'category': 'Document Loaded',
+                    'text': f'Successfully extracted {len(page_texts)} pages from the contract PDF. AI analysis is temporarily unavailable. Please review the document manually.'
+                }
+            ]
+        
         # Generate draft ID
         import uuid
         draft_id = str(uuid.uuid4())
         
-        annotations = [
-            {
-                'category': 'Key Requirements',
-                'text': 'Contract requires delivery of services within 90 days of award. Bidder must demonstrate 3+ years of experience in similar projects.'
-            },
-            {
-                'category': 'Small Print',
-                'text': 'Section 4.2: Liquidated damages of $500/day apply for delays beyond the delivery date. Insurance requirements: $2M general liability.'
-            },
-            {
-                'category': 'Compliance',
-                'text': 'Must comply with federal regulations including FAR clauses 52.219-8 (Small Business) and 52.222-26 (Equal Opportunity).'
-            },
-            {
-                'category': 'Risk Factors',
-                'text': 'Tight timeline (90 days) may require additional resources. Weather-dependent work could cause delays.'
-            },
-            {
-                'category': 'Win Strategy',
-                'text': 'Emphasize past performance on similar projects. Highlight team qualifications and risk mitigation plan. Consider competitive pricing with 10-15% margin.'
-            }
-        ]
-        
+        # Save to Firebase
         if admin_initialized and admin_db:
             draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
             draft_ref.set({
@@ -6312,6 +6375,7 @@ def analyze_contract():
                 'user_id': user_id,
                 'contract_hash': contract_hash,
                 'annotations': annotations,
+                'page_count': len(page_texts),
                 'created_at': datetime.now().isoformat(),
                 'status': 'analysis_complete'
             })
@@ -6319,7 +6383,8 @@ def analyze_contract():
         return jsonify({
             'success': True,
             'draft_id': draft_id,
-            'annotations': annotations
+            'annotations': annotations,
+            'page_count': len(page_texts)
         })
         
     except Exception as e:
