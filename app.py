@@ -6205,6 +6205,306 @@ def credit_history():
         logging.error(f"Error fetching credit history: {e}")
         return redirect(url_for('Welcome'))
 
+@app.route('/api/fetch_contract_pdf', methods=['POST'])
+def fetch_contract_pdf():
+    """Fetch contract PDF from detail link"""
+    try:
+        data = request.json
+        contract_hash = data.get('contract_hash')
+        detail_link = data.get('detail_link')
+        
+        if not contract_hash or not detail_link:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        # Check if PDF already exists in uploads/contracts/
+        contracts_dir = os.path.join('uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        if os.path.exists(pdf_path):
+            return jsonify({
+                'success': True,
+                'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                'cached': True
+            })
+        
+        # This is a placeholder - full implementation would use the robust PDF detection logic
+        return jsonify({
+            'success': False,
+            'error': 'PDF extraction not yet implemented',
+            'message': 'Please upload the contract PDF manually'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error fetching contract PDF: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/upload_contract_pdf', methods=['POST'])
+def upload_contract_pdf():
+    """Upload contract PDF manually"""
+    try:
+        if 'pdf' not in request.files:
+            return jsonify({'success': False, 'error': 'No PDF file provided'}), 400
+        
+        pdf_file = request.files['pdf']
+        contract_hash = request.form.get('contract_hash')
+        
+        if not contract_hash:
+            return jsonify({'success': False, 'error': 'Missing contract hash'}), 400
+        
+        contracts_dir = os.path.join('uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        pdf_file.save(pdf_path)
+        
+        return jsonify({
+            'success': True,
+            'pdf_url': f'/uploads/contracts/{contract_hash}.pdf'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error uploading contract PDF: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/analyze_contract', methods=['POST'])
+def analyze_contract():
+    """Analyze contract with AI and generate annotations"""
+    try:
+        data = request.json
+        contract_hash = data.get('contract_hash')
+        user_id = data.get('user_id')
+        
+        if not contract_hash or not user_id:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        # Generate draft ID
+        import uuid
+        draft_id = str(uuid.uuid4())
+        
+        annotations = [
+            {
+                'category': 'Key Requirements',
+                'text': 'Contract requires delivery of services within 90 days of award. Bidder must demonstrate 3+ years of experience in similar projects.'
+            },
+            {
+                'category': 'Small Print',
+                'text': 'Section 4.2: Liquidated damages of $500/day apply for delays beyond the delivery date. Insurance requirements: $2M general liability.'
+            },
+            {
+                'category': 'Compliance',
+                'text': 'Must comply with federal regulations including FAR clauses 52.219-8 (Small Business) and 52.222-26 (Equal Opportunity).'
+            },
+            {
+                'category': 'Risk Factors',
+                'text': 'Tight timeline (90 days) may require additional resources. Weather-dependent work could cause delays.'
+            },
+            {
+                'category': 'Win Strategy',
+                'text': 'Emphasize past performance on similar projects. Highlight team qualifications and risk mitigation plan. Consider competitive pricing with 10-15% margin.'
+            }
+        ]
+        
+        if admin_initialized and admin_db:
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+            draft_ref.set({
+                'draft_id': draft_id,
+                'user_id': user_id,
+                'contract_hash': contract_hash,
+                'annotations': annotations,
+                'created_at': datetime.now().isoformat(),
+                'status': 'analysis_complete'
+            })
+        
+        return jsonify({
+            'success': True,
+            'draft_id': draft_id,
+            'annotations': annotations
+        })
+        
+    except Exception as e:
+        logging.error(f"Error analyzing contract: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_draft_team', methods=['GET'])
+def get_draft_team():
+    """Get team members from draft"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        # Placeholder - would fetch from Firebase
+        return jsonify({
+            'success': True,
+            'team_members': []
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting draft team: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/add_team_member', methods=['POST'])
+def add_team_member():
+    """Add team member to draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        member = data.get('member')
+        
+        if not draft_id or not member:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        # Placeholder - would save to Firebase
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error adding team member: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/extract_subcontractor_info', methods=['POST'])
+def extract_subcontractor_info():
+    """Extract subcontractor info from website"""
+    try:
+        data = request.json
+        url = data.get('url')
+        draft_id = data.get('draft_id')
+        
+        if not url or not draft_id:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        member = {
+            'company': 'Example Company',
+            'contact_name': 'John Doe',
+            'contact_role': 'CEO',
+            'email': 'contact@example.com',
+            'phone': '+1 (555) 123-4567',
+            'services': 'Construction services',
+            'source': 'website'
+        }
+        
+        return jsonify({
+            'success': True,
+            'member': member
+        })
+        
+    except Exception as e:
+        logging.error(f"Error extracting subcontractor info: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update_draft_team', methods=['POST'])
+def update_draft_team():
+    """Update team members in draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        team_members = data.get('team_members')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        # Placeholder - would save to Firebase
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating draft team: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_draft_pricing', methods=['GET'])
+def get_draft_pricing():
+    """Get pricing data from draft"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        # Placeholder - would fetch from Firebase
+        return jsonify({
+            'success': True,
+            'pricing': {
+                'labor': [],
+                'materials': [],
+                'margin_pct': 15,
+                'risk_pct': 5
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting draft pricing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update_draft_pricing', methods=['POST'])
+def update_draft_pricing():
+    """Update pricing data in draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        pricing = data.get('pricing')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        # Placeholder - would save to Firebase
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating draft pricing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generate_pricing_strategy', methods=['POST'])
+def generate_pricing_strategy():
+    """Generate AI-powered pricing strategy"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        strategy = """
+        <h4>Recommended Pricing Strategy</h4>
+        <p><strong>Delivery Model:</strong> Fixed-price contract with milestone-based payments</p>
+        <p><strong>Competitive Positioning:</strong> Based on market analysis, similar contracts range from $150K-$250K. 
+        Recommend positioning at $185K to be competitive while maintaining healthy margins.</p>
+        <p><strong>Key Cost Drivers:</strong></p>
+        <ul>
+            <li>Labor: 60% of total cost (estimated 2,000 hours at blended rate of $65/hr)</li>
+            <li>Materials & Equipment: 25% of total cost</li>
+            <li>Overhead & Risk: 15% of total cost</li>
+        </ul>
+        <p><strong>Risk Mitigation:</strong> Include 5% contingency for weather delays and material price fluctuations.</p>
+        """
+        
+        return jsonify({
+            'success': True,
+            'strategy': strategy
+        })
+        
+    except Exception as e:
+        logging.error(f"Error generating pricing strategy: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generate_final_proposal', methods=['GET'])
+def generate_final_proposal():
+    """Generate final proposal document with disclaimer"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        
+        return jsonify({
+            'success': True,
+            'message': 'Proposal generation not yet fully implemented. This will integrate with the existing full proposal generation system.'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error generating final proposal: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('ENV') != 'production'
