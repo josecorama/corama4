@@ -2377,7 +2377,7 @@ def proposal_start():
     if not user:
         return redirect(url_for('Login'))
     
-    contract_hash = request.args.get('hash')
+    contract_hash = request.args.get('hash_value') or request.args.get('hash')
     draft_id = request.args.get('draft_id')
     
     if not contract_hash:
