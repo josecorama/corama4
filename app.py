@@ -6216,7 +6216,6 @@ def fetch_contract_pdf():
         if not contract_hash or not detail_link:
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
-        # Check if PDF already exists in uploads/contracts/
         contracts_dir = os.path.join('uploads', 'contracts')
         os.makedirs(contracts_dir, exist_ok=True)
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
@@ -6228,12 +6227,85 @@ def fetch_contract_pdf():
                 'cached': True
             })
         
-        # This is a placeholder - full implementation would use the robust PDF detection logic
-        return jsonify({
-            'success': False,
-            'error': 'PDF extraction not yet implemented',
-            'message': 'Please upload the contract PDF manually'
-        })
+        import requests
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            response = requests.head(detail_link, headers=headers, timeout=10, allow_redirects=True)
+            content_type = response.headers.get('Content-Type', '').lower()
+            
+            if 'application/pdf' in content_type or detail_link.lower().endswith('.pdf'):
+                pdf_response = requests.get(detail_link, headers=headers, timeout=30)
+                pdf_response.raise_for_status()
+                
+                with open(pdf_path, 'wb') as f:
+                    f.write(pdf_response.content)
+                
+                return jsonify({
+                    'success': True,
+                    'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                    'method': 'direct_download'
+                })
+            
+            page_response = requests.get(detail_link, headers=headers, timeout=30)
+            page_response.raise_for_status()
+            soup = BeautifulSoup(page_response.content, 'html.parser')
+            
+            pdf_links = []
+            
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                full_url = urljoin(detail_link, href)
+                
+                if (href.lower().endswith('.pdf') or 
+                    'pdf' in href.lower() or 
+                    'attachment' in href.lower() or
+                    'download' in href.lower() or
+                    'file' in href.lower()):
+                    pdf_links.append(full_url)
+            
+            for iframe in soup.find_all('iframe', src=True):
+                src = iframe['src']
+                if src.lower().endswith('.pdf') or 'pdf' in src.lower():
+                    pdf_links.append(urljoin(detail_link, src))
+            
+            for embed in soup.find_all('embed', src=True):
+                src = embed['src']
+                if src.lower().endswith('.pdf') or 'pdf' in src.lower():
+                    pdf_links.append(urljoin(detail_link, src))
+            
+            if pdf_links:
+                pdf_url = pdf_links[0]
+                pdf_response = requests.get(pdf_url, headers=headers, timeout=30)
+                pdf_response.raise_for_status()
+                
+                with open(pdf_path, 'wb') as f:
+                    f.write(pdf_response.content)
+                
+                return jsonify({
+                    'success': True,
+                    'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                    'method': 'extracted_from_page'
+                })
+            
+            return jsonify({
+                'success': False,
+                'error': 'No PDF found on the page',
+                'message': 'Could not find a PDF link on the contract detail page. Please upload the PDF manually.'
+            })
+            
+        except requests.RequestException as e:
+            logging.error(f"Error fetching PDF from {detail_link}: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch PDF: {str(e)}',
+                'message': 'Please upload the contract PDF manually'
+            })
         
     except Exception as e:
         logging.error(f"Error fetching contract PDF: {e}")
