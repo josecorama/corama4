@@ -31,6 +31,8 @@ import ast
 import faiss
 import csv
 import json
+import threading
+import uuid
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
 #from RAG.Capability_statement_embedding import generate_embeddings as generate_capability_embeddings
@@ -86,6 +88,8 @@ app.config['WTF_CSRF_ENABLED'] = True
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join(base_dir, 'static', 'uploads'), exist_ok=True)
@@ -94,6 +98,9 @@ if os.getenv('ENV') == 'production':
     logging.basicConfig(level=logging.WARNING)
 else:
     logging.basicConfig(level=logging.INFO)
+
+proposal_jobs = {}
+job_lock = threading.Lock()
 
 
 
@@ -276,11 +283,11 @@ app.logger.setLevel(logging.INFO)
 
 #OPEN AI 
 
-client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY'))
+client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
-client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY'))
+client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
-client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
+client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
 
 
@@ -2125,7 +2132,7 @@ def dashboard_search():
             if user_query:
                 mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
                         df['category'].str.contains(user_query, case=False, na=False) |
-                        df['agency'].str.contains(user_query, case=False, na=False))
+                        df['bid_description'].str.contains(user_query, case=False, na=False))
                 df = df[mask]
             
             total_contracts = len(df)
@@ -3288,28 +3295,63 @@ How can I help you with your contract response today?"""
             if not success:
                 return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
-            # Generate comprehensive multi-page proposal
-            try:
-                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
-                
-                full_proposal = enhanced_ai.generate_full_proposal(
-                    contract_requirements,
-                    context_data.get('capability_statement', ''),
-                    company_name=context_data.get('company_name', 'your company'),
-                    user_documents=context_data.get('uploaded_documents', [])
-                )
-                
-                return jsonify({
-                    "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
-                    "proposal": full_proposal,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
-                })
-                
-            except Exception as e:
-                app.logger.error(f"Error generating full proposal: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
-                return jsonify({"error": "Failed to generate comprehensive proposal"}), 500
+            job_id = str(uuid.uuid4())
+            
+            with job_lock:
+                proposal_jobs[job_id] = {
+                    'status': 'processing',
+                    'progress': 0,
+                    'result': None,
+                    'error': None,
+                    'user_id': user_id,
+                    'credits_used': required_credits,
+                    'remaining_credits': current_credits - required_credits
+                }
+            
+            def generate_proposal_async():
+                try:
+                    app.logger.info(f"Starting async proposal generation for job {job_id}")
+                    contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
+                    
+                    with job_lock:
+                        proposal_jobs[job_id]['progress'] = 20
+                    
+                    full_proposal = enhanced_ai.generate_full_proposal(
+                        contract_requirements,
+                        context_data.get('capability_statement', ''),
+                        company_name=context_data.get('company_name', 'your company'),
+                        user_documents=context_data.get('uploaded_documents', [])
+                    )
+                    
+                    with job_lock:
+                        proposal_jobs[job_id]['status'] = 'completed'
+                        proposal_jobs[job_id]['progress'] = 100
+                        proposal_jobs[job_id]['result'] = {
+                            "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
+                            "proposal": full_proposal
+                        }
+                    app.logger.info(f"Completed async proposal generation for job {job_id}")
+                    
+                except Exception as e:
+                    app.logger.error(f"Error generating full proposal for job {job_id}: {e}", exc_info=True)
+                    credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
+                    with job_lock:
+                        proposal_jobs[job_id]['status'] = 'failed'
+                        proposal_jobs[job_id]['error'] = str(e)
+            
+            thread = threading.Thread(target=generate_proposal_async)
+            thread.daemon = True
+            thread.start()
+            
+            response_data = {
+                "job_id": job_id,
+                "status": "processing",
+                "message": "Proposal generation started. Use the job_id to check status.",
+                "credits_used": required_credits,
+                "remaining_credits": current_credits - required_credits
+            }
+            app.logger.info(f"Returning async job response: {response_data}")
+            return jsonify(response_data)
             
         elif action_type == 'analyze':
             success, message, new_balance = credit_manager.deduct_credits_admin(
@@ -3453,6 +3495,31 @@ How can I help you with your contract response today?"""
         app.logger.error(f"Error in enhanced AI assistant: {str(e)}")
         return jsonify({"error": f"Enhanced AI assistant error: {str(e)}"}), 500
 
+@app.route('/proposal_job_status/<job_id>', methods=['GET'])
+def proposal_job_status(job_id):
+    """Check the status of an async proposal generation job"""
+    with job_lock:
+        job = proposal_jobs.get(job_id)
+        
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        
+        response = {
+            "status": job['status'],
+            "progress": job['progress'],
+            "credits_used": job['credits_used'],
+            "remaining_credits": job['remaining_credits']
+        }
+        
+        if job['status'] == 'completed':
+            response.update(job['result'])
+            del proposal_jobs[job_id]
+        elif job['status'] == 'failed':
+            response['error'] = job['error']
+            del proposal_jobs[job_id]
+        
+        return jsonify(response)
+
 @app.route('/capability-builder-enhanced')
 def capability_builder_enhanced():
     user = session.get('user')
@@ -3510,6 +3577,90 @@ def load_capability_statement():
         logging.error(f"Error loading capability statement: {str(e)}")
         return jsonify({'error': 'Failed to load capability statement'}), 500
 
+def enhance_capability_statement_content(data):
+    """Use AI to create professional, compelling capability statement content matching industry standards"""
+    try:
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        
+        prompt = f"""You are an expert in creating professional government contracting capability statements. Create compelling, detailed content that matches the quality of top-tier capability statements.
+
+Company: {data.get('company_name', '')}
+Industry/Focus: Based on NAICS codes {', '.join(data.get('naics_codes', [])[:3])}
+
+Current Content:
+- Company Description: {data.get('company_description', '')}
+- Core Competencies: {', '.join(data.get('core_competencies', []))}
+- Differentiators: {', '.join(data.get('differentiators', []))}
+- Past Performance: {', '.join(data.get('private_performance', []))}
+- Certifications: {', '.join(data.get('certifications', []))}
+
+Create professional capability statement content following these guidelines:
+
+1. ABOUT US (80-120 words): Write a compelling company overview that:
+   - Highlights the company's expertise and unique value proposition
+   - Emphasizes commitment to quality, safety, and customer satisfaction
+   - Mentions years of experience or notable achievements
+   - Uses professional, confident language
+   - Focuses on what makes them stand out in their industry
+
+2. PAST PERFORMANCE (5-6 items): Create impressive, specific achievements:
+   - Format: "Brief description highlighting scale/impact and results"
+   - Include quantifiable metrics (number of projects, success rate, etc.)
+   - Emphasize on-time delivery, budget compliance, quality
+   - Show breadth of experience
+   - Use professional, achievement-focused language
+
+3. CORE COMPETENCIES (6-7 items): Detailed service descriptions:
+   - Format: "Service Name: Detailed description of capability and value"
+   - Each should be 15-25 words explaining the service comprehensively
+   - Focus on expertise, approach, and client benefits
+   - Use industry-specific terminology
+   - Emphasize comprehensive, professional service delivery
+
+4. DIFFERENTIATORS (5-6 items): Compelling competitive advantages:
+   - Format: "Advantage Title: Explanation of how this sets them apart"
+   - Each should be 15-25 words
+   - Focus on proven track record, advanced capabilities, unique approaches
+   - Emphasize commitment to excellence, innovation, compliance
+   - Use strong, confident language
+
+5. CERTIFICATIONS (keep all, enhance descriptions):
+   - Add brief context if needed (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
+
+Return ONLY a JSON object:
+{{
+  "company_description": "professional 80-120 word description",
+  "past_performance": ["achievement 1", "achievement 2", ...],
+  "core_competencies": ["Service: Description", ...],
+  "differentiators": ["Advantage: Explanation", ...],
+  "certifications": ["certification with context", ...]
+}}"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert in creating professional government contracting capability statements. Create detailed, compelling content that matches industry-leading examples. Always return valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.8,
+            max_tokens=3000
+        )
+        
+        enhanced_content = json.loads(response.choices[0].message.content)
+        
+        data['company_description'] = enhanced_content.get('company_description', data.get('company_description', ''))
+        data['core_competencies'] = enhanced_content.get('core_competencies', data.get('core_competencies', []))
+        data['differentiators'] = enhanced_content.get('differentiators', data.get('differentiators', []))
+        data['private_performance'] = enhanced_content.get('past_performance', data.get('private_performance', []))
+        data['certifications'] = enhanced_content.get('certifications', data.get('certifications', []))
+        
+        return data
+        
+    except Exception as e:
+        logging.error(f"Error enhancing capability statement content: {str(e)}")
+        return data
+
 @app.route('/generate-enhanced-pdf', methods=['POST'])
 def generate_enhanced_pdf():
     try:
@@ -3564,18 +3715,20 @@ def generate_enhanced_pdf():
         except json.JSONDecodeError:
             pass
         
-        colors = {
-            'blue': [(64, 64, 128), (192, 192, 255)],
-            'green': [(64, 128, 64), (192, 255, 192)],
-            'red': [(128, 64, 64), (255, 192, 192)],
-            'purple': [(128, 64, 128), (255, 192, 255)],
-            'orange': [(255, 140, 0), (255, 218, 185)],
-            'pink': [(206, 120, 120), (250, 188, 188)],
-        }
+        # Convert hex colors to RGB tuples
+        def hex_to_rgb(hex_color):
+            hex_color = hex_color.lstrip('#')
+            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        
+        primary_color = form_data.get('primaryColor', '#2E4C8B')
+        secondary_color = form_data.get('secondaryColor', '#A8D5E2')
+        
+        primary_rgb = hex_to_rgb(primary_color)
+        secondary_rgb = hex_to_rgb(secondary_color)
         
         formatted_data = {
             'company_name': form_data.get('companyName', ''),
-            'logo_color': colors.get('blue', [(64, 64, 128), (192, 192, 255)]),
+            'logo_color': [primary_rgb, secondary_rgb],
             'logo_path': logo_path,
             'image_path': image_path,
             'uei_code': form_data.get('ueiCode', ''),
@@ -3622,6 +3775,8 @@ def generate_enhanced_pdf():
                 for client, desc, value in zip(clients, descriptions, values)
                 if client or desc or value
             ]
+        
+        formatted_data = enhance_capability_statement_content(formatted_data)
         
         # Generate PDF
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
@@ -3681,8 +3836,13 @@ def process_capability_statement():
             return jsonify({'error': 'No file or URL provided'}), 400
         
         if not capability_text or len(capability_text.strip()) < 10:
-            logging.error(f"Insufficient text extracted: '{capability_text[:100]}...' (length: {len(capability_text) if capability_text else 0})")
-            return jsonify({'error': 'Could not extract meaningful text from capability statement. Please ensure the PDF contains readable text.'}), 400
+            logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}...' (length: {len(capability_text) if capability_text else 0})")
+            error_msg = 'Could not extract meaningful text. '
+            if 'url' in request.json:
+                error_msg += 'The system can import from both PDF URLs and websites. If the content is too short or not relevant, please try: (1) A direct PDF URL, (2) Uploading the PDF file directly, or (3) A different webpage with more detailed company information.'
+            else:
+                error_msg += 'Please ensure the PDF contains readable text (not scanned images). Try using a text-based PDF or OCR software first.'
+            return jsonify({'error': error_msg}), 400
         
         # Use AI to parse and structure the capability statement
         logging.info("Starting AI parsing of capability statement")
@@ -3761,50 +3921,157 @@ def extract_text_from_pdf(filepath):
         return ""
 
 def download_and_extract_from_url(url):
-    """Download PDF from URL and extract text"""
+    """Download PDF from URL or scrape text from website with robust fallbacks"""
     try:
         import requests
-        logging.info(f"Attempting to download PDF from URL: {url}")
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
+        logging.info(f"Attempting to download content from URL: {url}")
         
         if not url.startswith(('http://', 'https://')):
             logging.error(f"Invalid URL format: {url}")
             return ""
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': f"{urlparse(url).scheme}://{urlparse(url).netloc}/"
         }
         
-        response = requests.get(url, timeout=30, headers=headers, stream=True)
-        logging.info(f"URL response status: {response.status_code}, content-type: {response.headers.get('content-type', 'unknown')}")
+        try:
+            head_response = requests.head(url, timeout=10, headers=headers, allow_redirects=True)
+            content_type = head_response.headers.get('content-type', '').lower()
+            status_code = head_response.status_code
+            logging.info(f"HEAD request - Status: {status_code}, Content-Type: {content_type}")
+        except Exception as e:
+            logging.warning(f"HEAD request failed: {e}, proceeding with GET")
+            content_type = ''
+            status_code = None
         
-        if response.status_code == 200:
-            # Check if content is actually a PDF
-            content_type = response.headers.get('content-type', '').lower()
-            if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
-                logging.warning(f"URL may not be a PDF file. Content-Type: {content_type}")
+        if 'pdf' in content_type or url.lower().endswith('.pdf'):
+            logging.info("Detected direct PDF URL, downloading...")
+            response = requests.get(url, timeout=30, headers=headers, stream=True, allow_redirects=True)
             
-            temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
-            
-            max_size = 10 * 1024 * 1024  # 10MB
-            downloaded_size = 0
-            
-            with open(temp_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        downloaded_size += len(chunk)
-                        if downloaded_size > max_size:
-                            logging.error(f"File too large: {downloaded_size} bytes")
-                            os.remove(temp_path)
-                            return ""
-                        f.write(chunk)
-            
-            logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
-            text = extract_text_from_pdf(temp_path)
-            os.remove(temp_path)
-            return text
+            if response.status_code == 200:
+                temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                
+                max_size = 10 * 1024 * 1024  # 10MB
+                downloaded_size = 0
+                
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            downloaded_size += len(chunk)
+                            if downloaded_size > max_size:
+                                logging.error(f"PDF file too large: {downloaded_size} bytes")
+                                os.remove(temp_path)
+                                return ""
+                            f.write(chunk)
+                
+                logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
+                text = extract_text_from_pdf(temp_path)
+                os.remove(temp_path)
+                logging.info(f"Extracted {len(text)} characters from PDF")
+                return text
+            else:
+                logging.error(f"Failed to download PDF: HTTP {response.status_code}")
+                return ""
+        
         else:
-            logging.error(f"Failed to download URL: HTTP {response.status_code}")
-            return ""
+            logging.info("Detected HTML page, attempting to extract content...")
+            response = requests.get(url, timeout=30, headers=headers, allow_redirects=True)
+            
+            if response.status_code != 200:
+                logging.error(f"Failed to fetch website: HTTP {response.status_code}")
+                return ""
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            pdf_links = []
+            for tag in soup.find_all(['a', 'iframe', 'embed', 'object']):
+                href = tag.get('href') or tag.get('src') or tag.get('data')
+                if href and ('.pdf' in href.lower() or 'pdf' in href.lower()):
+                    absolute_url = urljoin(url, href)
+                    pdf_links.append(absolute_url)
+                    logging.info(f"Found potential PDF link: {absolute_url}")
+            
+            if pdf_links:
+                logging.info(f"Attempting to download PDF from embedded link: {pdf_links[0]}")
+                try:
+                    pdf_response = requests.get(pdf_links[0], timeout=30, headers=headers, stream=True, allow_redirects=True)
+                    if pdf_response.status_code == 200 and 'pdf' in pdf_response.headers.get('content-type', '').lower():
+                        temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                        max_size = 10 * 1024 * 1024
+                        downloaded_size = 0
+                        
+                        with open(temp_path, 'wb') as f:
+                            for chunk in pdf_response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    downloaded_size += len(chunk)
+                                    if downloaded_size > max_size:
+                                        logging.error(f"Embedded PDF too large: {downloaded_size} bytes")
+                                        os.remove(temp_path)
+                                        break
+                                    f.write(chunk)
+                        
+                        if os.path.exists(temp_path):
+                            logging.info(f"Downloaded embedded PDF: {downloaded_size} bytes")
+                            text = extract_text_from_pdf(temp_path)
+                            os.remove(temp_path)
+                            if text and len(text.strip()) > 10:
+                                logging.info(f"Successfully extracted {len(text)} characters from embedded PDF")
+                                return text
+                except Exception as pdf_error:
+                    logging.warning(f"Failed to download embedded PDF: {pdf_error}")
+            
+            logging.info("No valid PDF found, scraping HTML text content...")
+            
+            for element in soup(["script", "style"]):
+                element.decompose()
+            
+            text_parts = []
+            
+            main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=['content', 'main-content', 'page-content', 'container'])
+            
+            if main_content:
+                logging.info("Found main content area")
+                text_parts.append(main_content.get_text(separator='\n', strip=True))
+            else:
+                logging.info("No main content area, extracting from common elements...")
+                
+                for meta in soup.find_all('meta', attrs={'name': ['description', 'og:description']}):
+                    content = meta.get('content', '')
+                    if content:
+                        text_parts.append(content)
+                        logging.info(f"Found meta description: {len(content)} chars")
+                
+                for tag in soup.find_all(['p', 'li', 'td', 'h1', 'h2', 'h3', 'h4', 'div']):
+                    text = tag.get_text(separator=' ', strip=True)
+                    if text and len(text) > 20:  # Only meaningful text
+                        text_parts.append(text)
+                
+                logging.info(f"Extracted text from {len(text_parts)} elements")
+            
+            combined_text = '\n'.join(text_parts)
+            lines = [line.strip() for line in combined_text.split('\n') if line.strip()]
+            final_text = '\n'.join(lines)
+            
+            import re
+            final_text = re.sub(r'\n{3,}', '\n\n', final_text)
+            final_text = re.sub(r' {2,}', ' ', final_text)
+            
+            logging.info(f"Final scraped text: {len(final_text)} characters from {len(lines)} lines")
+            
+            if len(final_text.strip()) < 200:
+                logging.info("Extracted text too short, trying full page text extraction...")
+                final_text = soup.get_text(separator='\n', strip=True)
+                lines = [line.strip() for line in final_text.split('\n') if line.strip()]
+                final_text = '\n'.join(lines)
+                logging.info(f"Full page extraction: {len(final_text)} characters")
+            
+            return final_text
             
     except requests.exceptions.Timeout:
         logging.error(f"Timeout downloading from URL: {url}")
@@ -4416,7 +4683,10 @@ def download_proposal():
         company_name = request.json.get('company_name', 'Your Company')
         
         if not proposal_data:
+            app.logger.error("No proposal data provided")
             return jsonify({'error': 'Proposal data is required'}), 400
+        
+        app.logger.info(f"Proposal data keys: {proposal_data.keys()}")
         
         # Create Word document
         doc = Document()
@@ -4428,11 +4698,20 @@ def download_proposal():
         doc.add_paragraph(f'\nSubmitted: {datetime.now().strftime("%B %d, %Y")}')
         doc.add_page_break()
         
-        # Add each section
-        sections = proposal_data.get('proposal_sections', [])
+        # Add each section - handle both 'sections' and 'proposal_sections' keys
+        sections = proposal_data.get('sections', proposal_data.get('proposal_sections', []))
+        
+        if not sections:
+            app.logger.error(f"No sections found in proposal data. Keys: {proposal_data.keys()}")
+            return jsonify({'error': 'No proposal sections found in data'}), 400
+        
+        app.logger.info(f"Processing {len(sections)} sections")
+        
         for section in sections:
-            doc.add_heading(section['section'], 1)
-            doc.add_paragraph(section['content'])
+            section_title = section.get('section', section.get('title', 'Untitled Section'))
+            section_content = section.get('content', '')
+            doc.add_heading(section_title, 1)
+            doc.add_paragraph(section_content)
             doc.add_page_break()
         
         # Add footer with page numbers
@@ -4440,7 +4719,7 @@ def download_proposal():
             footer = section.footer
             footer_para = footer.paragraphs[0]
             footer_para.text = f'{company_name} - {contract_name}\t'
-            footer_para.alignment = 1  # Center alignment (important-comment)
+            footer_para.alignment = 1
         
         # Save to buffer
         buffer = io.BytesIO()
@@ -4451,6 +4730,8 @@ def download_proposal():
         safe_contract_name = "".join(c for c in contract_name if c.isalnum() or c in (' ', '-', '_')).strip()
         filename = f'{company_name}_{safe_contract_name}_Proposal.docx'
         
+        app.logger.info(f"Successfully generated proposal document: {filename}")
+        
         return send_file(
             buffer,
             as_attachment=True,
@@ -4459,8 +4740,8 @@ def download_proposal():
         )
         
     except Exception as e:
-        app.logger.error(f"Error generating proposal download: {e}")
-        return jsonify({'error': 'Failed to generate proposal document'}), 500
+        app.logger.error(f"Error generating proposal download: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to generate proposal document: {str(e)}'}), 500
 
 
 
@@ -4859,7 +5140,7 @@ def process_smartsearch():
             if user_query:
                 mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
                         df['category'].str.contains(user_query, case=False, na=False) |
-                        df['agency'].str.contains(user_query, case=False, na=False))
+                        df['bid_description'].str.contains(user_query, case=False, na=False))
                 df = df[mask]
             
             contracts = df.to_dict('records')
