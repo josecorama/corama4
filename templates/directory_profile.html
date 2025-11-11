@@ -252,6 +252,39 @@
                         <label class="form-label" for="website">Website</label>
                         <input type="url" class="form-control" id="website" placeholder="https://yourcompany.com">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label" for="linkedinUrl">LinkedIn Profile</label>
+                        <input type="url" class="form-control" id="linkedinUrl" placeholder="https://linkedin.com/company/yourcompany">
+                        <small class="form-text text-muted">Link to your company's LinkedIn profile</small>
+                    </div>
+                </div>
+
+                <!-- Company Details -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="fas fa-info-circle"></i> Company Details
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="teamSize">Team Size</label>
+                                <select class="form-control" id="teamSize">
+                                    <option value="">Select team size</option>
+                                    <option value="1-10">1-10 employees</option>
+                                    <option value="11-50">11-50 employees</option>
+                                    <option value="51-200">51-200 employees</option>
+                                    <option value="201-500">201-500 employees</option>
+                                    <option value="501+">501+ employees</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label class="form-label" for="yearsInBusiness">Years in Business</label>
+                                <input type="text" class="form-control" id="yearsInBusiness" placeholder="e.g., 15">
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Services & Capabilities -->
@@ -267,6 +300,30 @@
                     <div class="form-group">
                         <label class="form-label" for="description">Company Description *</label>
                         <textarea class="form-control" id="description" rows="4" placeholder="Describe your company's expertise, experience, and what makes you a great partner..." required></textarea>
+                    </div>
+                </div>
+
+                <!-- Certifications & Credentials -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="fas fa-certificate"></i> Certifications & Credentials
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="certifications">Certifications</label>
+                        <textarea class="form-control" id="certifications" rows="3" placeholder="List your company's certifications (e.g., ISO 9001, MBE, WBE, SDVOSB, 8(a), HUBZone)"></textarea>
+                        <small class="form-text text-muted">Include relevant industry certifications and government program qualifications</small>
+                    </div>
+                </div>
+
+                <!-- Past Projects & Experience -->
+                <div class="form-section">
+                    <div class="form-section-title">
+                        <i class="fas fa-project-diagram"></i> Past Projects & Experience
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="pastProjects">Notable Projects</label>
+                        <textarea class="form-control" id="pastProjects" rows="4" placeholder="Describe your most relevant past projects and achievements..."></textarea>
+                        <small class="form-text text-muted">Highlight projects that demonstrate your capabilities for government contracts</small>
                     </div>
                 </div>
 
@@ -305,8 +362,13 @@
                     document.getElementById('email').value = profile.email || '';
                     document.getElementById('phone').value = profile.phone || '';
                     document.getElementById('website').value = profile.website || '';
+                    document.getElementById('linkedinUrl').value = profile.linkedin_url || '';
+                    document.getElementById('teamSize').value = profile.team_size || '';
+                    document.getElementById('yearsInBusiness').value = profile.years_in_business || '';
                     document.getElementById('services').value = profile.services || '';
                     document.getElementById('description').value = profile.description || '';
+                    document.getElementById('certifications').value = profile.certifications || '';
+                    document.getElementById('pastProjects').value = profile.past_projects || '';
                     document.getElementById('listedToggle').checked = profile.listed || false;
 
                     updateStatusDisplay(profile.listed);
@@ -348,8 +410,13 @@
                 email: document.getElementById('email').value,
                 phone: document.getElementById('phone').value,
                 website: document.getElementById('website').value,
+                linkedin_url: document.getElementById('linkedinUrl').value,
+                team_size: document.getElementById('teamSize').value,
+                years_in_business: document.getElementById('yearsInBusiness').value,
                 services: document.getElementById('services').value,
                 description: document.getElementById('description').value,
+                certifications: document.getElementById('certifications').value,
+                past_projects: document.getElementById('pastProjects').value,
                 listed: document.getElementById('listedToggle').checked
             };
 
