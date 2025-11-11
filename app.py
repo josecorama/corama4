@@ -6912,34 +6912,70 @@ def update_directory_profile():
         
         profile_data = {
             'company': user_data.get('company', ''),
-            'contact_name': data.get('contact_name', ''),
-            'email': data.get('email', ''),
-            'phone': data.get('phone', ''),
-            'website': data.get('website', ''),
-            'services': data.get('services', ''),
-            'description': data.get('description', ''),
+            'contact_name': data.get('contact_name', '').strip(),
+            'email': data.get('email', '').strip(),
+            'phone': data.get('phone', '').strip(),
+            'website': data.get('website', '').strip(),
+            'services': data.get('services', '').strip(),
+            'description': data.get('description', '').strip(),
             'listed': data.get('listed', False),
             'updated_at': datetime.now().isoformat()
         }
         
-        # Try to update directory entry, handle permission errors gracefully
+        app.logger.info(f"Attempting to update directory profile for user {user_id}")
+        
+        directory_write_success = False
+        
         try:
             db.child("corama_directory").child(user_id).set(profile_data, id_token)
+            directory_write_success = True
+            app.logger.info(f"✅ Successfully wrote directory entry for user {user_id} using user token")
         except Exception as dir_error:
             error_str = str(dir_error).upper()
-            if 'PERMISSION' in error_str or 'UNAUTHORIZED' in error_str:
-                app.logger.error(f"Firebase permission denied for user {user_id}: {dir_error}")
-                return jsonify({
-                    'success': False, 
-                    'error': 'Permission denied. Please contact support to enable directory access.',
-                    'permission_error': True
-                }), 403
+            app.logger.warning(f"⚠️ User token write failed for user {user_id}: {repr(dir_error)}")
+            
+            if 'PERMISSION' in error_str or 'UNAUTHORIZED' in error_str or '401' in error_str:
+                if admin_initialized and admin_db:
+                    try:
+                        directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                        directory_ref.set(profile_data)
+                        directory_write_success = True
+                        app.logger.info(f"✅ Successfully wrote directory entry for user {user_id} using Admin SDK fallback")
+                    except Exception as admin_error:
+                        app.logger.error(f"❌ Admin SDK write also failed for user {user_id}: {repr(admin_error)}")
+                        return jsonify({
+                            'success': False, 
+                            'error': 'Unable to update directory profile. Please contact support.',
+                            'permission_error': True
+                        }), 403
+                else:
+                    app.logger.error(f"❌ Admin SDK not available and user token failed for user {user_id}")
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Permission denied. Please contact support to enable directory access.',
+                        'permission_error': True
+                    }), 403
             else:
                 raise
         
-        db.child("users").child(user_id).update({
-            'directory_listed': data.get('listed', False)
-        }, id_token)
+        if not directory_write_success:
+            app.logger.error(f"❌ Directory write failed for user {user_id}")
+            return jsonify({'success': False, 'error': 'Failed to update directory profile'}), 500
+        
+        try:
+            db.child("users").child(user_id).update({
+                'directory_listed': data.get('listed', False)
+            }, id_token)
+            app.logger.info(f"✅ Successfully updated directory_listed flag for user {user_id}")
+        except Exception as user_update_error:
+            app.logger.warning(f"⚠️ Failed to update directory_listed flag for user {user_id}: {repr(user_update_error)}")
+            if admin_initialized and admin_db:
+                try:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_ref.update({'directory_listed': data.get('listed', False)})
+                    app.logger.info(f"✅ Successfully updated directory_listed flag using Admin SDK for user {user_id}")
+                except Exception as admin_user_error:
+                    app.logger.error(f"❌ Admin SDK user update also failed for user {user_id}: {repr(admin_user_error)}")
         
         return jsonify({'success': True})
         
