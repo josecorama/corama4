@@ -6838,10 +6838,31 @@ def generate_final_proposal():
         logging.error(f"Error generating final proposal: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def ensure_session_from_auth():
+    """Helper function to populate session from auth.current_user if session is missing"""
+    if 'user_data' not in session:
+        user = auth.current_user
+        if user:
+            # Repopulate session from auth.current_user
+            session['user_data'] = {
+                'user_id': user.get('localId'),
+                'idToken': user.get('idToken'),
+                'refreshToken': user.get('refreshToken'),
+                'email': user.get('email', ''),
+                'first_name': user.get('first_name', ''),
+                'last_name': user.get('last_name', ''),
+                'company': user.get('company', '')
+            }
+            session.permanent = True
+            app.logger.info(f"✅ Repopulated session from auth.current_user for user {user.get('localId')}")
+            return True
+        return False
+    return True
+
 @app.route('/directory-profile')
 def directory_profile():
     """Directory profile management page"""
-    if 'user_data' not in session:
+    if not ensure_session_from_auth():
         return redirect(url_for('Login'))
     
     return render_template('directory_profile.html')
@@ -7136,7 +7157,7 @@ def get_directory_companies():
 @app.route('/directory')
 def directory_browse():
     """Public directory browse page"""
-    if 'user_data' not in session:
+    if not ensure_session_from_auth():
         return redirect(url_for('Login'))
     
     return render_template('directory_browse.html')
@@ -7144,7 +7165,7 @@ def directory_browse():
 @app.route('/directory/company/<user_id>')
 def directory_company_profile(user_id):
     """Individual company profile page"""
-    if 'user_data' not in session:
+    if not ensure_session_from_auth():
         return redirect(url_for('Login'))
     
     return render_template('directory_company_profile.html', company_user_id=user_id)
