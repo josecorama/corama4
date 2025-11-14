@@ -568,6 +568,24 @@
         
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
+            
+            // Reset modal inputs when closing
+            if (modalId === 'websiteModal') {
+                document.getElementById('websiteUrl').value = '';
+            } else if (modalId === 'manualModal') {
+                document.getElementById('companyName').value = '';
+                document.getElementById('contactName').value = '';
+                document.getElementById('contactRole').value = '';
+                document.getElementById('contactEmail').value = '';
+                document.getElementById('contactPhone').value = '';
+                document.getElementById('services').value = '';
+            } else if (modalId === 'directoryModal') {
+                document.getElementById('directorySearch').value = '';
+                // Reset directory list to show all companies
+                if (typeof allDirectoryCompanies !== 'undefined') {
+                    renderDirectoryCompanies(allDirectoryCompanies);
+                }
+            }
         }
         
         // Load directory companies
