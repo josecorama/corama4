@@ -6841,8 +6841,7 @@ def generate_final_proposal():
 @app.route('/directory-profile')
 def directory_profile():
     """Directory profile management page"""
-    user = auth.current_user
-    if not user:
+    if 'user_data' not in session:
         return redirect(url_for('Login'))
     
     return render_template('directory_profile.html')
@@ -6851,29 +6850,52 @@ def directory_profile():
 def get_directory_profile():
     """Get user's directory profile"""
     try:
-        # Use session-based authentication instead of auth.current_user
         if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = session['user_data']['user_id']
         id_token = session['user_data']['idToken']
         
-        # Get user data from Firebase
-        user_data = db.child("users").child(user_id).get(id_token).val()
+        user_data = None
+        try:
+            user_data = db.child("users").child(user_id).get(id_token).val()
+        except Exception as user_error:
+            app.logger.warning(f"Could not read user data with token for user {user_id}: {user_error}")
+            if admin_initialized and admin_db:
+                try:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_data = user_ref.get()
+                    app.logger.info(f"✅ Successfully read user data using Admin SDK for user {user_id}")
+                except Exception as admin_error:
+                    app.logger.error(f"❌ Admin SDK read also failed for user {user_id}: {repr(admin_error)}")
         
         if not user_data:
-            return jsonify({'success': False, 'error': 'User data not found'}), 404
+            user_data = {
+                'company': session['user_data'].get('company', ''),
+                'first_name': session['user_data'].get('first_name', ''),
+                'last_name': session['user_data'].get('last_name', ''),
+                'email': session['user_data'].get('email', ''),
+                'directory_listed': False
+            }
+            app.logger.warning(f"Using session data as fallback for user {user_id}")
         
         directory_data = None
         try:
             directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
         except Exception as dir_error:
-            app.logger.warning(f"Could not read directory data for user {user_id}: {dir_error}")
+            app.logger.warning(f"Could not read directory data with token for user {user_id}: {dir_error}")
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                    directory_data = directory_ref.get()
+                    app.logger.info(f"✅ Successfully read directory data using Admin SDK for user {user_id}")
+                except Exception as admin_error:
+                    app.logger.warning(f"⚠️ Admin SDK read also failed for directory data {user_id}: {repr(admin_error)}")
         
         if not directory_data:
             directory_data = {
                 'company': user_data.get('company', ''),
-                'contact_name': f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}",
+                'contact_name': f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip(),
                 'email': user_data.get('email', ''),
                 'services': '',
                 'description': '',
@@ -7056,13 +7078,24 @@ def upload_directory_logo():
 def get_directory_companies():
     """Get all companies listed in the directory"""
     try:
-        user = auth.current_user
-        if not user:
+        if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         search_query = request.args.get('search', '').lower()
         
-        directory_data = db.child("corama_directory").get(user['idToken']).val()
+        directory_data = None
+        try:
+            id_token = session['user_data']['idToken']
+            directory_data = db.child("corama_directory").get(id_token).val()
+        except Exception as token_error:
+            app.logger.warning(f"Could not read directory with user token: {token_error}")
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference('corama_directory')
+                    directory_data = directory_ref.get()
+                    app.logger.info("✅ Successfully read directory using Admin SDK")
+                except Exception as admin_error:
+                    app.logger.error(f"❌ Admin SDK read also failed for directory: {repr(admin_error)}")
         
         if not directory_data:
             return jsonify({'success': True, 'companies': []})
@@ -7097,14 +7130,13 @@ def get_directory_companies():
         return jsonify({'success': True, 'companies': companies})
         
     except Exception as e:
-        logging.error(f"Error getting directory companies: {e}")
+        app.logger.error(f"Error getting directory companies: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/directory')
 def directory_browse():
     """Public directory browse page"""
-    user = auth.current_user
-    if not user:
+    if 'user_data' not in session:
         return redirect(url_for('Login'))
     
     return render_template('directory_browse.html')
@@ -7112,8 +7144,7 @@ def directory_browse():
 @app.route('/directory/company/<user_id>')
 def directory_company_profile(user_id):
     """Individual company profile page"""
-    user = auth.current_user
-    if not user:
+    if 'user_data' not in session:
         return redirect(url_for('Login'))
     
     return render_template('directory_company_profile.html', company_user_id=user_id)
