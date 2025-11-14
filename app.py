@@ -2109,7 +2109,8 @@ def get_contracts_api():
 def dashboard_search():
     """Search contracts for dashboard with real-time filtering and analytics update"""
     try:
-        if 'user' not in session:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
             return jsonify({"success": False, "message": "User not logged in."}), 401
 
         data = request.get_json(force=True) or {}
@@ -2770,10 +2771,12 @@ ALLOWED_PERSISTENT_FILES = ['matches.csv', 'capability_statements_processed.csv'
 #BID SEARCH FUNCTION TO CLEAR USER UPLOADS EXCEPT 'embedded_bids.csv'
 @app.route('/clear_uploads', methods=['POST'])
 def clear_uploads():
-    user = session.get('user')
-    if not user:
+    # Ensure session is populated from auth.current_user if needed
+    if not ensure_session_from_auth():
         app.logger.error('User not logged in')
         return jsonify({'success': False, 'message': 'User not logged in'}), 400
+    
+    user = session.get('user')
     user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
     user_uploads_dir = user_data.get('uploads_dir')
     # Verify if the uploads directory path is retrieved correctly
