@@ -877,19 +877,45 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
     
     final_content = []
     
-    # ----- Step 1: 处理 matches.csv 中的选定合同 -----
+    # ----- Step 1: Search for contract in multiple CSV sources -----
+    selected_rows = None
+    df = None
+    
     matches_file = os.path.join(user_uploads_dir, "matches.csv")
-    if not os.path.exists(matches_file):
-        return "matches.csv not found."
+    if os.path.exists(matches_file):
+        try:
+            df = pd.read_csv(matches_file, dtype=str)
+            selected_rows = df[df["hash_value"] == hash_value]
+            if not selected_rows.empty:
+                app.logger.info(f"Contract found in matches.csv")
+        except Exception as e:
+            app.logger.error(f"Error reading matches.csv: {str(e)}")
     
-    try:
-        df = pd.read_csv(matches_file, dtype=str)
-    except Exception as e:
-        return f"Error reading matches.csv: {str(e)}"
+    if selected_rows is None or selected_rows.empty:
+        smart_search_file = os.path.join(user_uploads_dir, "matches_SMART_SEARCH.csv")
+        if os.path.exists(smart_search_file):
+            try:
+                df = pd.read_csv(smart_search_file, dtype=str)
+                selected_rows = df[df["hash_value"] == hash_value]
+                if not selected_rows.empty:
+                    app.logger.info(f"Contract found in matches_SMART_SEARCH.csv")
+            except Exception as e:
+                app.logger.error(f"Error reading matches_SMART_SEARCH.csv: {str(e)}")
     
-    selected_rows = df[df["hash_value"] == hash_value]
-    if selected_rows.empty:
-        return "No matching contract found for the provided hash_value."
+    # Try Scraping_demo_results.csv as fallback
+    if selected_rows is None or selected_rows.empty:
+        demo_file = os.path.join(os.path.dirname(__file__), "Scraping_demo_results.csv")
+        if os.path.exists(demo_file):
+            try:
+                df = pd.read_csv(demo_file, dtype=str)
+                selected_rows = df[df["hash_value"] == hash_value]
+                if not selected_rows.empty:
+                    app.logger.info(f"Contract found in Scraping_demo_results.csv")
+            except Exception as e:
+                app.logger.error(f"Error reading Scraping_demo_results.csv: {str(e)}")
+    
+    if selected_rows is None or selected_rows.empty:
+        return "No matching contract found for the provided hash_value in any data source."
     
     # 假设 hash_value 唯一，取第一行
     row_dict = selected_rows.iloc[0].to_dict()
