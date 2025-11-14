@@ -6480,7 +6480,12 @@ def upload_contract_pdf():
 @app.route('/api/analyze_contract', methods=['POST'])
 def analyze_contract():
     """Analyze contract with AI and generate annotations"""
+    ensure_session_from_auth()
+    
     try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
         data = request.json
         contract_hash = data.get('contract_hash')
         user_id = data.get('user_id')
@@ -6520,7 +6525,7 @@ def analyze_contract():
         
         # Generate AI annotations using OpenAI
         try:
-            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=60.0)
             
             prompt = f"""You are an expert contract analyst helping a business understand a government contract opportunity. Analyze the following contract document and provide strategic annotations in these categories:
 
@@ -6544,7 +6549,8 @@ Provide your analysis as a JSON array with objects containing 'category' and 'te
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                max_tokens=2000
+                max_tokens=2000,
+                timeout=60
             )
             
             # Parse AI response
