@@ -2581,7 +2581,19 @@ def Faq():
     return render_template('faq.html')
 
 
-    #TEAM DETAIL PAGE ROUTE FUNCTION 
+#TERMS OF USE ROUTE FUNCTION
+@app.route('/terms_of_use', methods=['GET'])
+def terms_of_use():
+    return redirect(url_for('static', filename='docs/TermsofUse.pdf'))
+
+
+#PRIVACY NOTICE ROUTE FUNCTION
+@app.route('/privacy_notice', methods=['GET'])
+def privacy_notice():
+    return redirect(url_for('static', filename='docs/PrivacyNotice.pdf'))
+
+
+    #TEAM DETAIL PAGE ROUTE FUNCTION
 @app.route('/businesspartner', methods=['GET']) 
 def Businesspartner():
     return render_template('businesspartner.html')
