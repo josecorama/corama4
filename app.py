@@ -6343,6 +6343,25 @@ def credit_history():
         logging.error(f"Error fetching credit history: {e}")
         return redirect(url_for('Welcome'))
 
+@app.route('/uploads/contracts/<path:filename>')
+def serve_contract_pdf(filename):
+    """Serve contract PDF files"""
+    try:
+        ensure_session_from_auth()
+        
+        if 'user' not in session:
+            abort(401)
+        
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        
+        if not os.path.exists(os.path.join(contracts_dir, filename)):
+            abort(404)
+        
+        return send_from_directory(contracts_dir, filename, mimetype='application/pdf')
+    except Exception as e:
+        logging.error(f"Error serving contract PDF {filename}: {e}")
+        abort(500)
+
 @app.route('/api/fetch_contract_pdf', methods=['POST'])
 def fetch_contract_pdf():
     """Fetch contract PDF from detail link"""
@@ -6462,7 +6481,7 @@ def upload_contract_pdf():
         if not contract_hash:
             return jsonify({'success': False, 'error': 'Missing contract hash'}), 400
         
-        contracts_dir = os.path.join('uploads', 'contracts')
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
         os.makedirs(contracts_dir, exist_ok=True)
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
         
@@ -6494,7 +6513,7 @@ def analyze_contract():
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
         # Check if PDF exists
-        contracts_dir = os.path.join('uploads', 'contracts')
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
         
         if not os.path.exists(pdf_path):
