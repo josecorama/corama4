@@ -2280,8 +2280,107 @@ def ai_assistant_room():
     if not user:
         return redirect(url_for('Login'))
     
-    contract_id = request.args.get('contract')
+    contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
     contract_name = request.args.get('name')
+    
+    if not contract_param:
+        return redirect('/welcome')
+    
+    # Determine if we have a hash_value or need to look up by bid_number
+    contract_id = None  # This will be the hash_value
+    bid_number = None
+    
+    # Check if the parameter looks like a hash (64 hex characters)
+    if len(contract_param) == 64 and all(c in '0123456789abcdef' for c in contract_param.lower()):
+        # It's already a hash_value
+        contract_id = contract_param
+    else:
+        # It's a bid_number, we need to look up the contract and compute hash_value
+        bid_number = contract_param
+        user_id = user['localId']
+        
+        try:
+            # Get user data to find uploads directory
+            user_data = None
+            if admin_initialized and admin_db:
+                user_ref = admin_db.reference(f'users/{user_id}')
+                user_data = user_ref.get()
+            else:
+                user_data = db.child("users").child(user_id).get(user['idToken']).val()
+            
+            if user_data:
+                user_uploads_dir = user_data.get('uploads_dir', '')
+                if user_uploads_dir and os.path.exists(user_uploads_dir):
+                    matches_file = os.path.join(user_uploads_dir, 'matches.csv')
+                    contract_found = False
+                    
+                    if os.path.exists(matches_file):
+                        try:
+                            with open(matches_file, 'r', encoding='utf-8') as file:
+                                reader = csv.DictReader(file)
+                                for row in reader:
+                                    row = {k.strip(): v for k, v in row.items()}
+                                    row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                    if row_bid_number == bid_number:
+                                        # Found the contract, compute hash_value
+                                        detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                        hash_input = f"{detail_link}{row_bid_number}"
+                                        contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                        if not contract_name:
+                                            contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                        contract_found = True
+                                        break
+                        except Exception as e:
+                            logging.error(f"Error reading matches.csv: {e}")
+                    
+                    # If not found in matches.csv, try matches_SMART_SEARCH.csv
+                    if not contract_found:
+                        smart_search_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
+                        if os.path.exists(smart_search_file):
+                            try:
+                                with open(smart_search_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        if row_bid_number == bid_number:
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if not contract_name:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                            contract_found = True
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading matches_SMART_SEARCH.csv: {e}")
+                    
+                    # If still not found, try demo dataset as fallback
+                    if not contract_found:
+                        demo_file = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+                        if os.path.exists(demo_file):
+                            try:
+                                with open(demo_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        if row_bid_number == bid_number:
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if not contract_name:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                            contract_found = True
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading demo dataset: {e}")
+                    
+                    if not contract_found:
+                        logging.error(f"Contract with bid_number {bid_number} not found in any dataset")
+                        contract_id = bid_number
+        except Exception as e:
+            logging.error(f"Error looking up contract by bid_number: {e}")
+            contract_id = bid_number
     
     if not contract_id:
         return redirect('/welcome')
@@ -3306,6 +3405,8 @@ def enhanced_ai_assistant():
     """Enhanced AI assistant endpoint with credit-based billing"""
     global enhanced_ai
     
+    ensure_session_from_auth()
+    
     user_query = request.form.get('query')
     hash_value = request.form.get('hash_value')
     action_type = request.form.get('action_type', 'general')
@@ -3315,6 +3416,9 @@ def enhanced_ai_assistant():
     try:
         if not user_query:
             return jsonify({"error": "Query is required"}), 400
+        
+        if 'user' not in session:
+            return jsonify({"error": "User not authenticated"}), 401
             
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
