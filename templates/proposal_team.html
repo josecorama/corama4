@@ -633,28 +633,49 @@
                      onmouseover="this.style.borderColor='#667eea'; this.style.background='#f8f9ff';" 
                      onmouseout="this.style.borderColor='#e9ecef'; this.style.background='white';"
                      onclick="addDirectoryMember('${company.user_id}')">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem;">
-                        <div>
-                            <h4 style="margin: 0; color: #2c3e50; font-size: 1.1rem; font-weight: 600;">${company.company}</h4>
-                            <p style="margin: 0.25rem 0 0 0; color: #6c757d; font-size: 0.9rem;">${company.contact_name}</p>
+                    <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+                        <div style="width: 60px; height: 60px; border-radius: 8px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                            ${company.logo_url ? 
+                                `<img src="${company.logo_url}" alt="${company.company}" style="width: 100%; height: 100%; object-fit: contain;">` : 
+                                `<span style="font-size: 1.5rem; color: #999;">🏢</span>`
+                            }
                         </div>
-                        <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="event.stopPropagation(); addDirectoryMember('${company.user_id}')">
-                            Add to Team
-                        </button>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <h4 style="margin: 0; color: #2c3e50; font-size: 1.1rem; font-weight: 600;">${company.company}</h4>
+                                    <p style="margin: 0.25rem 0 0 0; color: #6c757d; font-size: 0.9rem;">${company.contact_name}</p>
+                                </div>
+                                <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;" onclick="event.stopPropagation(); addDirectoryMember('${company.user_id}')">
+                                    Add to Team
+                                </button>
+                            </div>
+                            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; font-size: 0.85rem; color: #6c757d;">
+                                ${company.team_size ? `<span>👥 ${company.team_size}</span>` : ''}
+                                ${company.years_in_business ? `<span>📅 ${company.years_in_business} years</span>` : ''}
+                            </div>
+                        </div>
                     </div>
                     <div style="margin-bottom: 0.5rem;">
                         <strong style="color: #495057; font-size: 0.9rem;">Services:</strong>
                         <span style="color: #6c757d; font-size: 0.9rem;">${company.services || 'Not specified'}</span>
                     </div>
-                    ${company.description ? `
+                    ${company.certifications ? `
                         <div style="margin-bottom: 0.5rem;">
-                            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">${company.description}</p>
+                            <strong style="color: #495057; font-size: 0.9rem;">Certifications:</strong>
+                            <span style="color: #6c757d; font-size: 0.9rem;">${company.certifications.substring(0, 100)}${company.certifications.length > 100 ? '...' : ''}</span>
                         </div>
                     ` : ''}
-                    <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: #6c757d;">
+                    ${company.description ? `
+                        <div style="margin-bottom: 0.5rem;">
+                            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">${company.description.substring(0, 150)}${company.description.length > 150 ? '...' : ''}</p>
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: #6c757d; flex-wrap: wrap;">
                         ${company.email ? `<span>📧 ${company.email}</span>` : ''}
                         ${company.phone ? `<span>📞 ${company.phone}</span>` : ''}
                         ${company.website ? `<span>🌐 <a href="${company.website}" target="_blank" onclick="event.stopPropagation();" style="color: #667eea;">${company.website}</a></span>` : ''}
+                        ${company.linkedin_url ? `<span>💼 <a href="${company.linkedin_url}" target="_blank" onclick="event.stopPropagation();" style="color: #667eea;">LinkedIn</a></span>` : ''}
                     </div>
                 </div>
             `).join('');

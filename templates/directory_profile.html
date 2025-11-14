@@ -233,6 +233,19 @@
                         <i class="fas fa-building"></i> Company Information
                     </div>
                     <div class="form-group">
+                        <label class="form-label" for="logoUpload">Company Logo</label>
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div id="logoPreview" style="width: 100px; height: 100px; border: 2px dashed #e9ecef; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #f8f9fa;">
+                                <span style="color: #999; font-size: 0.8rem; text-align: center;">No logo</span>
+                            </div>
+                            <div style="flex: 1;">
+                                <input type="file" class="form-control" id="logoUpload" accept="image/png,image/jpeg,image/jpg,image/gif,image/webp">
+                                <small class="form-text text-muted">Max 5MB. Formats: PNG, JPG, GIF, WEBP</small>
+                            </div>
+                        </div>
+                        <input type="hidden" id="logoUrl">
+                    </div>
+                    <div class="form-group">
                         <label class="form-label" for="company">Company Name *</label>
                         <input type="text" class="form-control" id="company" required readonly>
                     </div>
@@ -370,6 +383,13 @@
                     document.getElementById('certifications').value = profile.certifications || '';
                     document.getElementById('pastProjects').value = profile.past_projects || '';
                     document.getElementById('listedToggle').checked = profile.listed || false;
+                    
+                    // Load logo if exists
+                    if (profile.logo_url) {
+                        document.getElementById('logoUrl').value = profile.logo_url;
+                        const logoPreview = document.getElementById('logoPreview');
+                        logoPreview.innerHTML = `<img src="${profile.logo_url}" style="width: 100%; height: 100%; object-fit: contain;">`;
+                    }
 
                     updateStatusDisplay(profile.listed);
                 } else {
@@ -379,6 +399,52 @@
             } catch (error) {
                 console.error('Error loading profile:', error);
                 alert('An error occurred while loading your profile.');
+            }
+        });
+        
+        // Handle logo upload
+        document.getElementById('logoUpload').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Validate file size
+            if (file.size > 5 * 1024 * 1024) {
+                alert('File too large. Maximum size is 5MB.');
+                e.target.value = '';
+                return;
+            }
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const logoPreview = document.getElementById('logoPreview');
+                logoPreview.innerHTML = `<img src="${event.target.result}" style="width: 100%; height: 100%; object-fit: contain;">`;
+            };
+            reader.readAsDataURL(file);
+            
+            // Upload to server
+            const formData = new FormData();
+            formData.append('logo', file);
+            
+            try {
+                const response = await fetch('/api/upload_directory_logo', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('logoUrl').value = data.logo_url;
+                    console.log('Logo uploaded successfully:', data.logo_url);
+                } else {
+                    alert('Failed to upload logo: ' + (data.error || 'Unknown error'));
+                    e.target.value = '';
+                }
+            } catch (error) {
+                console.error('Error uploading logo:', error);
+                alert('An error occurred while uploading the logo.');
+                e.target.value = '';
             }
         });
 
@@ -417,6 +483,7 @@
                 description: document.getElementById('description').value,
                 certifications: document.getElementById('certifications').value,
                 past_projects: document.getElementById('pastProjects').value,
+                logo_url: document.getElementById('logoUrl').value,
                 listed: document.getElementById('listedToggle').checked
             };
 

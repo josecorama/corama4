@@ -6995,6 +6995,63 @@ def update_directory_profile():
         app.logger.error(f"Error updating directory profile: {e}")
         return jsonify({'success': False, 'error': 'Failed to update profile. Please try again.'}), 500
 
+@app.route('/api/upload_directory_logo', methods=['POST'])
+def upload_directory_logo():
+    """Upload company logo for directory profile"""
+    try:
+        if 'user_data' not in session:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_data']['user_id']
+        
+        if 'logo' not in request.files:
+            return jsonify({'success': False, 'error': 'No logo file provided'}), 400
+        
+        logo_file = request.files['logo']
+        
+        if logo_file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = logo_file.filename.rsplit('.', 1)[1].lower() if '.' in logo_file.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+        
+        logo_file.seek(0, os.SEEK_END)
+        file_size = logo_file.tell()
+        logo_file.seek(0)
+        
+        if file_size > 5 * 1024 * 1024:
+            return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB'}), 400
+        
+        # Create directory logos folder if it doesn't exist
+        logos_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'directory_logos')
+        os.makedirs(logos_dir, exist_ok=True)
+        
+        # Generate unique filename
+        filename = f"{user_id}_{int(time.time())}.{file_ext}"
+        filepath = os.path.join(logos_dir, filename)
+        
+        logo_file.save(filepath)
+        
+        # Generate URL for the logo
+        logo_url = f"/static/uploads/directory_logos/{filename}"
+        
+        static_logos_dir = os.path.join(base_dir, 'static', 'uploads', 'directory_logos')
+        os.makedirs(static_logos_dir, exist_ok=True)
+        static_filepath = os.path.join(static_logos_dir, filename)
+        shutil.copy2(filepath, static_filepath)
+        
+        return jsonify({
+            'success': True,
+            'logo_url': logo_url
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error uploading directory logo: {e}")
+        return jsonify({'success': False, 'error': 'Failed to upload logo. Please try again.'}), 500
+
 @app.route('/api/get_directory_companies', methods=['GET'])
 def get_directory_companies():
     """Get all companies listed in the directory"""
@@ -7025,8 +7082,14 @@ def get_directory_companies():
                     'email': profile.get('email', ''),
                     'phone': profile.get('phone', ''),
                     'website': profile.get('website', ''),
+                    'linkedin_url': profile.get('linkedin_url', ''),
+                    'team_size': profile.get('team_size', ''),
+                    'years_in_business': profile.get('years_in_business', ''),
                     'services': profile.get('services', ''),
-                    'description': profile.get('description', '')
+                    'description': profile.get('description', ''),
+                    'certifications': profile.get('certifications', ''),
+                    'past_projects': profile.get('past_projects', ''),
+                    'logo_url': profile.get('logo_url', '')
                 })
         
         companies.sort(key=lambda x: x['company'])
@@ -7036,6 +7099,24 @@ def get_directory_companies():
     except Exception as e:
         logging.error(f"Error getting directory companies: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/directory')
+def directory_browse():
+    """Public directory browse page"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    return render_template('directory_browse.html')
+
+@app.route('/directory/company/<user_id>')
+def directory_company_profile(user_id):
+    """Individual company profile page"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    return render_template('directory_company_profile.html', company_user_id=user_id)
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
