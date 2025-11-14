@@ -303,7 +303,7 @@
             <p class="hero-description">
                 Increase your visibility and connect with businesses seeking your expertise. Be findable — upgrade now!
             </p>
-            <a href="/directory-profile" class="hero-cta">JOIN THE LIST</a>
+            <a href="/directory-profile" class="hero-cta" id="heroCTA">JOIN THE LIST</a>
         </div>
     </div>
 
@@ -339,7 +339,23 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             loadCompanies();
+            updateHeroCTA();
         });
+
+        async function updateHeroCTA() {
+            try {
+                const response = await fetch('/api/get_directory_profile');
+                const data = await response.json();
+                
+                const ctaButton = document.getElementById('heroCTA');
+                if (data.success && data.profile && data.profile.listed) {
+                    ctaButton.textContent = 'MANAGE MY LISTING';
+                    ctaButton.innerHTML = '<i class="fas fa-edit" style="margin-right: 0.5rem;"></i>MANAGE MY LISTING';
+                }
+            } catch (error) {
+                console.log('User not logged in or no profile, showing default CTA');
+            }
+        }
 
         document.getElementById('searchInput').addEventListener('input', function() {
             clearTimeout(searchTimeout);

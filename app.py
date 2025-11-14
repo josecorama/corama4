@@ -6871,7 +6871,8 @@ def directory_profile():
 def get_directory_profile():
     """Get user's directory profile"""
     try:
-        if 'user_data' not in session:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = session['user_data']['user_id']
@@ -7156,18 +7157,12 @@ def get_directory_companies():
 
 @app.route('/directory')
 def directory_browse():
-    """Public directory browse page"""
-    if not ensure_session_from_auth():
-        return redirect(url_for('Login'))
-    
+    """Public directory browse page - no login required"""
     return render_template('directory_browse.html')
 
 @app.route('/directory/company/<user_id>')
 def directory_company_profile(user_id):
-    """Individual company profile page"""
-    if not ensure_session_from_auth():
-        return redirect(url_for('Login'))
-    
+    """Individual company profile page - no login required"""
     return render_template('directory_company_profile.html', company_user_id=user_id)
 
 if __name__ == '__main__':
