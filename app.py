@@ -7268,29 +7268,43 @@ def upload_directory_logo():
 
 @app.route('/api/get_directory_companies', methods=['GET'])
 def get_directory_companies():
-    """Get all companies listed in the directory"""
+    """Get all companies listed in the directory - PUBLIC endpoint (no login required)"""
     try:
-        if 'user_data' not in session:
-            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
-        
         search_query = request.args.get('search', '').lower()
         
         directory_data = None
-        try:
-            id_token = session['user_data']['idToken']
-            directory_data = db.child("corama_directory").get(id_token).val()
-        except Exception as token_error:
-            app.logger.warning(f"Could not read directory with user token: {token_error}")
-            if admin_initialized and admin_db:
-                try:
-                    directory_ref = admin_db.reference('corama_directory')
-                    directory_data = directory_ref.get()
-                    app.logger.info("✅ Successfully read directory using Admin SDK")
-                except Exception as admin_error:
-                    app.logger.error(f"❌ Admin SDK read also failed for directory: {repr(admin_error)}")
+        
+        if 'user_data' in session:
+            try:
+                id_token = session['user_data']['idToken']
+                directory_data = db.child("corama_directory").get(id_token).val()
+            except Exception as token_error:
+                app.logger.warning(f"Could not read directory with user token: {token_error}")
+        
+        if not directory_data and admin_initialized and admin_db:
+            try:
+                directory_ref = admin_db.reference('corama_directory')
+                directory_data = directory_ref.get()
+                app.logger.info("✅ Successfully read directory using Admin SDK")
+            except Exception as admin_error:
+                app.logger.error(f"❌ Admin SDK read also failed for directory: {repr(admin_error)}")
         
         if not directory_data:
-            return jsonify({'success': True, 'companies': []})
+            app.logger.info("📋 Firebase directory is empty, loading seed data")
+            try:
+                import json
+                seed_file_path = os.path.join(os.path.dirname(__file__), 'static', 'data', 'directory_seed.json')
+                if os.path.exists(seed_file_path):
+                    with open(seed_file_path, 'r') as f:
+                        seed_data = json.load(f)
+                        directory_data = seed_data
+                        app.logger.info(f"✅ Loaded {len(seed_data)} seed companies")
+                else:
+                    app.logger.warning("⚠️ Seed data file not found")
+                    return jsonify({'success': True, 'companies': []})
+            except Exception as seed_error:
+                app.logger.error(f"❌ Error loading seed data: {seed_error}")
+                return jsonify({'success': True, 'companies': []})
         
         companies = []
         for user_id, profile in directory_data.items():
