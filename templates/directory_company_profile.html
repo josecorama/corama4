@@ -279,6 +279,38 @@
             padding: 4rem 2rem;
             color: #e74c3c;
         }
+
+        .btn-add-partner {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+
+        .btn-add-partner:hover {
+            background: #059669;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            color: white;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 2px solid #f8f9fa;
+        }
     </style>
 
     <div class="profile-container">
@@ -488,9 +520,29 @@
                                 ` : ''}
                             </div>
                         </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <button onclick="addToProposal('${company.user_id}')" class="btn-add-partner">
+                                <i class="fas fa-user-plus"></i> Add as Partner to Proposal
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
+        }
+
+        function addToProposal(userId) {
+            // Store the selected partner in localStorage for use in proposal builder
+            localStorage.setItem('selected_directory_partner', userId);
+            
+            // Show success message
+            alert('Partner added! Go to AI Assistant → Build Team (Screen 2) to add this partner to your proposal.');
+            
+            // Optionally redirect to proposal builder
+            if (confirm('Would you like to go to the proposal builder now?')) {
+                window.location.href = '/ai-assistant';
+            }
         }
 
         function showError(message) {
