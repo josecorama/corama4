@@ -881,7 +881,124 @@
         
         // AI suggestions
         async function suggestSubcontractors() {
-            alert('AI Suggestions feature coming soon! This will analyze the contract and suggest relevant subcontractors.');
+            if (!draftId) {
+                alert('❌ No draft found. Please start from the contract analysis page.');
+                return;
+            }
+            
+            const suggestBtn = document.querySelector('.option-card[onclick="suggestSubcontractors()"]');
+            const originalContent = suggestBtn ? suggestBtn.innerHTML : '';
+            
+            try {
+                if (suggestBtn) {
+                    suggestBtn.style.opacity = '0.6';
+                    suggestBtn.style.pointerEvents = 'none';
+                    suggestBtn.innerHTML = `
+                        <div class="option-icon">🤖</div>
+                        <div class="option-title">Analyzing...</div>
+                        <div class="option-description">AI is analyzing contract requirements</div>
+                    `;
+                }
+                
+                const response = await fetch('/api/suggest_team', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        team_members: teamMembers
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.suggestions) {
+                    displayAISuggestions(data.suggestions);
+                } else {
+                    const errorMsg = data.error || 'Failed to generate team suggestions';
+                    alert('❌ ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('Error getting AI suggestions:', error);
+                alert('❌ Network error: Could not connect to the server. Please check your connection and try again.');
+            } finally {
+                if (suggestBtn) {
+                    suggestBtn.style.opacity = '1';
+                    suggestBtn.style.pointerEvents = 'auto';
+                    suggestBtn.innerHTML = originalContent;
+                }
+            }
+        }
+        
+        // Display AI suggestions in a modal
+        function displayAISuggestions(suggestions) {
+            const modalHtml = `
+                <div class="modal fade" id="aiSuggestionsModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">🤖 AI Team Composition Suggestions</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <strong>Team Structure:</strong> ${suggestions.team_structure || 'Not specified'}
+                                </div>
+                                
+                                <h6 class="mt-4 mb-3"><strong>Recommended Roles:</strong></h6>
+                                ${(suggestions.recommended_roles || []).map((role, index) => `
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <h6 class="card-title">${index + 1}. ${role.role || 'Role'}</h6>
+                                            <p class="mb-2"><strong>Responsibilities:</strong> ${role.responsibilities || 'N/A'}</p>
+                                            <p class="mb-2"><strong>Why Needed:</strong> ${role.why_needed || 'N/A'}</p>
+                                            <p class="mb-2"><strong>Preferred Qualifications:</strong> ${role.preferred_qualifications || 'N/A'}</p>
+                                            <p class="mb-0"><strong>Partner Profile:</strong> ${role.partner_profile || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                
+                                ${suggestions.key_considerations && suggestions.key_considerations.length > 0 ? `
+                                    <h6 class="mt-4 mb-3"><strong>Key Considerations:</strong></h6>
+                                    <ul class="list-group mb-3">
+                                        ${suggestions.key_considerations.map(consideration => `
+                                            <li class="list-group-item">${consideration}</li>
+                                        `).join('')}
+                                    </ul>
+                                ` : ''}
+                                
+                                ${suggestions.compliance_notes ? `
+                                    <div class="alert alert-warning mt-3">
+                                        <strong>Compliance Notes:</strong> ${suggestions.compliance_notes}
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if present
+            const existingModal = document.getElementById('aiSuggestionsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('aiSuggestionsModal'));
+            modal.show();
+            
+            // Clean up modal after it's hidden
+            document.getElementById('aiSuggestionsModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
         }
         
         // Navigation

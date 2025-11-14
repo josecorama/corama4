@@ -7063,6 +7063,147 @@ def update_draft_team():
         logging.error(f"Error updating draft team: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/suggest_team', methods=['POST'])
+def suggest_team():
+    """Generate AI-powered team composition suggestions based on contract analysis"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        current_team = data.get('team_members', [])
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user['localId']
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found. Please analyze the contract first.'}), 404
+        
+        if 'annotations' not in draft_data or not draft_data['annotations']:
+            return jsonify({'success': False, 'error': 'No contract analysis found. Please run "Analyze with AI" first.'}), 400
+        
+        annotations = draft_data['annotations']
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        annotations_text = "\n".join([f"{ann.get('category', 'Note')}: {ann.get('text', '')}" for ann in annotations])
+        
+        capability_statement = ""
+        try:
+            user_uploads_dir = os.path.join('uploads', f'bid_uploads_{user_id}')
+            cs_file = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+            
+            if os.path.exists(cs_file):
+                import pandas as pd
+                cs_df = pd.read_csv(cs_file)
+                primary_cs = cs_df[cs_df['is_primary'] == True]
+                if not primary_cs.empty:
+                    capability_statement = primary_cs.iloc[0]['Capability_Statement']
+                elif not cs_df.empty:
+                    capability_statement = cs_df.iloc[0]['Capability_Statement']
+        except Exception as e:
+            app.logger.warning(f"Could not load capability statement: {e}")
+        
+        current_team_text = ""
+        if current_team:
+            current_team_text = "\n\nCurrent Team Members:\n" + "\n".join([
+                f"- {member.get('company', 'Unknown')}: {member.get('services', 'N/A')}"
+                for member in current_team
+            ])
+        
+        try:
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=45.0)
+            
+            prompt = f"""You are an expert government contracting team composition advisor. Based on the contract analysis and company capabilities, recommend a strategic team composition.
+
+CONTRACT ANALYSIS:
+{annotations_text[:3000]}
+
+COMPANY CAPABILITIES:
+{capability_statement[:2000] if capability_statement else "No capability statement available"}
+{current_team_text}
+
+Provide strategic team recommendations in JSON format with this structure:
+{{
+  "team_structure": "Brief description of recommended prime/sub structure",
+  "recommended_roles": [
+    {{
+      "role": "Role title",
+      "responsibilities": "Key responsibilities",
+      "why_needed": "Why this role is critical for this contract",
+      "preferred_qualifications": "Certifications, experience, or qualifications",
+      "partner_profile": "Type of partner to seek (e.g., SDVOSB, 8(a), specific NAICS)"
+    }}
+  ],
+  "key_considerations": [
+    "Important consideration 1",
+    "Important consideration 2"
+  ],
+  "compliance_notes": "Any compliance or certification requirements for team members"
+}}
+
+Focus on roles that fill gaps, meet compliance requirements, and strengthen the proposal. Be specific and actionable."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contracting team composition advisor. Provide strategic, actionable recommendations in JSON format."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000,
+                timeout=45
+            )
+            
+            ai_response = response.choices[0].message.content.strip()
+            
+            import json as json_lib
+            import re
+            
+            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+            if json_match:
+                suggestions_data = json_lib.loads(json_match.group(0))
+            else:
+                suggestions_data = {
+                    'team_structure': 'AI analysis completed',
+                    'recommended_roles': [{
+                        'role': 'Team Composition',
+                        'responsibilities': ai_response[:500],
+                        'why_needed': 'Based on contract analysis',
+                        'preferred_qualifications': 'See contract requirements',
+                        'partner_profile': 'Relevant to contract scope'
+                    }],
+                    'key_considerations': ['Review full analysis above'],
+                    'compliance_notes': 'Refer to contract compliance requirements'
+                }
+            
+            app.logger.info(f"Successfully generated team suggestions for draft {draft_id}")
+            
+            return jsonify({
+                'success': True,
+                'suggestions': suggestions_data
+            })
+            
+        except Exception as ai_error:
+            app.logger.error(f"Error generating team suggestions: {ai_error}")
+            return jsonify({
+                'success': False,
+                'error': f'AI analysis failed: {str(ai_error)}'
+            }), 500
+        
+    except Exception as e:
+        app.logger.error(f"Error in suggest_team: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/get_draft_pricing', methods=['GET'])
 def get_draft_pricing():
     """Get pricing data from draft"""
