@@ -6720,7 +6720,7 @@ def add_team_member():
 
 @app.route('/api/extract_subcontractor_info', methods=['POST'])
 def extract_subcontractor_info():
-    """Extract subcontractor info from website"""
+    """Extract subcontractor info from website with robust error handling"""
     try:
         data = request.json
         url = data.get('url')
@@ -6730,80 +6730,313 @@ def extract_subcontractor_info():
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
         import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
         from bs4 import BeautifulSoup
         import re
+        import json as json_lib
+        from urllib.parse import urlparse, urljoin
+        
+        normalized_url = url.strip()
+        if not normalized_url.startswith(('http://', 'https://')):
+            normalized_url = 'https://' + normalized_url
         
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            
-            response = requests.get(url, headers=headers, timeout=30)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.content, 'html.parser')
-            
-            # Extract company name from title or h1
-            company_name = 'Unknown Company'
-            title_tag = soup.find('title')
-            if title_tag:
-                company_name = title_tag.text.strip().split('|')[0].split('-')[0].strip()
-            
-            h1_tag = soup.find('h1')
-            if h1_tag and len(h1_tag.text.strip()) < 100:
-                company_name = h1_tag.text.strip()
-            
-            # Extract email
-            email = ''
-            email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-            emails = re.findall(email_pattern, soup.get_text())
-            if emails:
-                email = emails[0]
-            
-            # Extract phone
-            phone = ''
-            phone_pattern = r'(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
-            phones = re.findall(phone_pattern, soup.get_text())
-            if phones:
-                phone = ''.join(phones[0]) if isinstance(phones[0], tuple) else phones[0]
-            
-            # Extract services from meta description or first paragraph
-            services = ''
-            meta_desc = soup.find('meta', attrs={'name': 'description'})
-            if meta_desc and meta_desc.get('content'):
-                services = meta_desc.get('content')[:200]
-            else:
-                paragraphs = soup.find_all('p')
-                for p in paragraphs[:3]:
-                    text = p.get_text().strip()
-                    if len(text) > 50:
-                        services = text[:200]
-                        break
-            
-            member = {
-                'company': company_name,
-                'contact_name': '',
-                'contact_role': '',
-                'email': email,
-                'phone': phone,
-                'services': services or 'Services information not found. Please edit manually.',
-                'source': 'website'
-            }
-            
-            return jsonify({
-                'success': True,
-                'member': member
-            })
-            
-        except requests.RequestException as e:
-            logging.error(f"Error fetching website {url}: {e}")
+            parsed = urlparse(normalized_url)
+            if not parsed.netloc:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid URL format. Please enter a valid website URL (e.g., example.com or https://example.com)'
+                }), 400
+        except Exception:
             return jsonify({
                 'success': False,
-                'error': f'Failed to fetch website: {str(e)}'
+                'error': 'Invalid URL format. Please check the URL and try again.'
+            }), 400
+        
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET"]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+        
+        ssl_error_occurred = False
+        response = None
+        
+        try:
+            app.logger.info(f"Fetching website: {normalized_url}")
+            response = session.get(
+                normalized_url,
+                headers=headers,
+                timeout=(5, 15),  # (connect timeout, read timeout)
+                allow_redirects=True,
+                verify=True
+            )
+            response.raise_for_status()
+            
+        except requests.exceptions.SSLError as ssl_err:
+            app.logger.warning(f"SSL error for {normalized_url}, retrying without verification: {ssl_err}")
+            ssl_error_occurred = True
+            try:
+                response = session.get(
+                    normalized_url,
+                    headers=headers,
+                    timeout=(5, 15),
+                    allow_redirects=True,
+                    verify=False
+                )
+                response.raise_for_status()
+            except Exception as retry_err:
+                app.logger.error(f"Retry failed for {normalized_url}: {retry_err}")
+                return jsonify({
+                    'success': False,
+                    'error': f'SSL certificate error. The website may have security issues. Error: {str(retry_err)}'
+                }), 500
+                
+        except requests.exceptions.Timeout:
+            app.logger.error(f"Timeout fetching {normalized_url}")
+            return jsonify({
+                'success': False,
+                'error': 'Request timed out. The website took too long to respond. Please try again or try a different page.'
+            }), 500
+            
+        except requests.exceptions.ConnectionError as conn_err:
+            app.logger.error(f"Connection error for {normalized_url}: {conn_err}")
+            return jsonify({
+                'success': False,
+                'error': 'Could not connect to the website. Please check the URL and try again.'
+            }), 500
+            
+        except requests.exceptions.HTTPError as http_err:
+            status_code = http_err.response.status_code if http_err.response else 0
+            app.logger.error(f"HTTP error {status_code} for {normalized_url}: {http_err}")
+            
+            if status_code == 403:
+                return jsonify({
+                    'success': False,
+                    'error': 'Access denied (403). The website is blocking automated access. Please try a different page or add the company manually.'
+                }), 500
+            elif status_code == 429:
+                return jsonify({
+                    'success': False,
+                    'error': 'Rate limited (429). Too many requests to this website. Please wait a moment and try again.'
+                }), 500
+            elif status_code == 404:
+                return jsonify({
+                    'success': False,
+                    'error': 'Page not found (404). Please check the URL and try again.'
+                }), 500
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Website returned error {status_code}. Please try a different page or add the company manually.'
+                }), 500
+                
+        except requests.RequestException as req_err:
+            app.logger.error(f"Request error for {normalized_url}: {req_err}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch website: {str(req_err)}'
             }), 500
         
+        content_type = response.headers.get('Content-Type', '').lower()
+        if 'text/html' not in content_type:
+            app.logger.warning(f"Non-HTML content type for {normalized_url}: {content_type}")
+            return jsonify({
+                'success': False,
+                'error': f'Website returned non-HTML content ({content_type}). Please try the company\'s main page or About page.'
+            }), 500
+        
+        content_length = len(response.content)
+        app.logger.info(f"Fetched {normalized_url}: status={response.status_code}, content-type={content_type}, length={content_length}")
+        
+        # Check for minimal content
+        if content_length < 500:
+            app.logger.warning(f"Suspiciously small content for {normalized_url}: {content_length} bytes")
+            return jsonify({
+                'success': False,
+                'error': 'Website returned very little content. It may require JavaScript or be blocking automated access.'
+            }), 500
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        page_text = soup.get_text().lower()
+        
+        anti_bot_indicators = [
+            'cloudflare', 'access denied', 'captcha', 'please verify you are human',
+            'enable javascript', 'bot detection', 'security check'
+        ]
+        if any(indicator in page_text[:1000] for indicator in anti_bot_indicators):
+            app.logger.warning(f"Anti-bot page detected for {normalized_url}")
+            return jsonify({
+                'success': False,
+                'error': 'Website is using bot protection (Cloudflare, CAPTCHA, etc.). Please add the company manually.'
+            }), 500
+        
+        # Extract structured data (JSON-LD)
+        company_name = ''
+        email = ''
+        phone = ''
+        services = ''
+        address = ''
+        linkedin_url = ''
+        
+        json_ld_scripts = soup.find_all('script', type='application/ld+json')
+        for script in json_ld_scripts:
+            try:
+                data = json_lib.loads(script.string)
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    item_type = item.get('@type', '')
+                    if item_type in ['Organization', 'LocalBusiness', 'Corporation', 'Company']:
+                        if not company_name and item.get('name'):
+                            company_name = item['name']
+                        if not email and item.get('email'):
+                            email = item['email']
+                        if not phone and item.get('telephone'):
+                            phone = item['telephone']
+                        if not address and item.get('address'):
+                            addr = item['address']
+                            if isinstance(addr, dict):
+                                address = ', '.join(filter(None, [
+                                    addr.get('streetAddress', ''),
+                                    addr.get('addressLocality', ''),
+                                    addr.get('addressRegion', ''),
+                                    addr.get('postalCode', '')
+                                ]))
+                            elif isinstance(addr, str):
+                                address = addr
+                        if not linkedin_url and item.get('sameAs'):
+                            same_as = item['sameAs'] if isinstance(item['sameAs'], list) else [item['sameAs']]
+                            for link in same_as:
+                                if 'linkedin.com' in link.lower():
+                                    linkedin_url = link
+                                    break
+                        if not services and item.get('description'):
+                            services = item['description'][:300]
+            except (json_lib.JSONDecodeError, AttributeError, KeyError) as e:
+                app.logger.debug(f"Error parsing JSON-LD: {e}")
+                continue
+        
+        # Extract from OpenGraph / Twitter meta tags
+        if not company_name:
+            og_title = soup.find('meta', property='og:title')
+            if og_title and og_title.get('content'):
+                company_name = og_title['content'].strip()
+        
+        if not services:
+            og_desc = soup.find('meta', property='og:description')
+            if og_desc and og_desc.get('content'):
+                services = og_desc['content'][:300]
+            else:
+                twitter_desc = soup.find('meta', attrs={'name': 'twitter:description'})
+                if twitter_desc and twitter_desc.get('content'):
+                    services = twitter_desc['content'][:300]
+        
+        if not company_name:
+            title_tag = soup.find('title')
+            if title_tag and title_tag.text:
+                title_text = title_tag.text.strip()
+                for separator in [' | ', ' - ', ' – ', ' — ']:
+                    if separator in title_text:
+                        company_name = title_text.split(separator)[0].strip()
+                        break
+                if not company_name:
+                    company_name = title_text
+        
+        if not company_name or len(company_name) > 100:
+            h1_tag = soup.find('h1')
+            if h1_tag and h1_tag.text and len(h1_tag.text.strip()) < 100:
+                company_name = h1_tag.text.strip()
+        
+        # Extract email with regex if not found
+        if not email:
+            email_pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+            emails = re.findall(email_pattern, soup.get_text())
+            filtered_emails = [e for e in emails if not any(x in e.lower() for x in ['example', 'test', 'noreply', 'no-reply'])]
+            if filtered_emails:
+                email = filtered_emails[0]
+        
+        # Extract phone with regex if not found
+        if not phone:
+            phone_pattern = r'(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})'
+            phone_matches = re.findall(phone_pattern, soup.get_text())
+            if phone_matches:
+                match = phone_matches[0]
+                phone = f"({match[0]}) {match[1]}-{match[2]}"
+        
+        # Extract LinkedIn URL if not found
+        if not linkedin_url:
+            linkedin_links = soup.find_all('a', href=re.compile(r'linkedin\.com', re.I))
+            if linkedin_links:
+                linkedin_url = linkedin_links[0].get('href', '')
+        
+        # Extract services from meta description if not found
+        if not services:
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc and meta_desc.get('content'):
+                services = meta_desc['content'][:300]
+        
+        # Fallback to first substantial paragraph
+        if not services:
+            paragraphs = soup.find_all('p')
+            for p in paragraphs[:5]:
+                text = p.get_text().strip()
+                if len(text) > 80:  # Substantial paragraph
+                    services = text[:300]
+                    break
+        
+        if not company_name:
+            company_name = parsed.netloc.replace('www.', '').split('.')[0].title()
+        
+        if not services:
+            services = 'Services information not found. Please edit manually.'
+        
+        member = {
+            'company': company_name,
+            'contact_name': '',
+            'contact_role': '',
+            'email': email,
+            'phone': phone,
+            'services': services,
+            'website': normalized_url,
+            'linkedin_url': linkedin_url,
+            'address': address,
+            'source': 'website'
+        }
+        
+        app.logger.info(f"Successfully extracted info from {normalized_url}: company={company_name}")
+        
+        response_data = {
+            'success': True,
+            'member': member
+        }
+        
+        if ssl_error_occurred:
+            response_data['warning'] = 'SSL certificate could not be verified. Data was extracted but the connection may not be secure.'
+        
+        return jsonify(response_data)
+        
     except Exception as e:
-        logging.error(f"Error extracting subcontractor info: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        app.logger.error(f"Error extracting subcontractor info: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
 
 @app.route('/api/update_draft_team', methods=['POST'])
 def update_draft_team():

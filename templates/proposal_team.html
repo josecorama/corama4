@@ -749,13 +749,21 @@
         
         // Extract from website
         async function extractFromWebsite() {
-            const url = document.getElementById('websiteUrl').value;
+            const urlInput = document.getElementById('websiteUrl');
+            const url = urlInput.value.trim();
+            
             if (!url) {
                 alert('Please enter a website URL');
                 return;
             }
             
+            const extractBtn = document.querySelector('#websiteModal .btn-primary');
+            const originalBtnText = extractBtn.textContent;
+            
             try {
+                extractBtn.disabled = true;
+                extractBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Extracting...';
+                
                 const response = await fetch('/api/extract_subcontractor_info', {
                     method: 'POST',
                     headers: {
@@ -773,13 +781,23 @@
                     teamMembers.push(data.member);
                     renderTeamMembers();
                     closeModal('websiteModal');
-                    document.getElementById('websiteUrl').value = '';
+                    urlInput.value = '';
+                    
+                    if (data.warning) {
+                        setTimeout(() => {
+                            alert('⚠️ ' + data.warning);
+                        }, 300);
+                    }
                 } else {
-                    alert('Failed to extract info from website');
+                    const errorMsg = data.error || 'Failed to extract info from website';
+                    alert('❌ ' + errorMsg);
                 }
             } catch (error) {
                 console.error('Error extracting from website:', error);
-                alert('Failed to extract info from website');
+                alert('❌ Network error: Could not connect to the server. Please check your connection and try again.');
+            } finally {
+                extractBtn.disabled = false;
+                extractBtn.innerHTML = originalBtnText;
             }
         }
         
