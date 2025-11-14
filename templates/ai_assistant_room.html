@@ -818,6 +818,23 @@
                 messages.scrollTop = messages.scrollHeight;
             };
             
+            // Add error handler for network failures
+            xhr.onerror = function() {
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+                try {
+                    messages.removeChild(loadingMessage);
+                } catch (e) {
+                    // Loading message may have already been removed
+                }
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'message assistant error';
+                errorMessage.innerHTML = `<strong>AI Assistant:</strong> ❌ Network error occurred. Please check your connection and try again.`;
+                messages.appendChild(errorMessage);
+                messages.scrollTop = messages.scrollHeight;
+            };
+            
             xhr.send(formData);
         }
         
