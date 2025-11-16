@@ -107,12 +107,16 @@
                     </div>
                 </div>
                 <div class="action-buttons" style="display: flex; gap: 10px; align-items: center;">
-                    <div class="search-container" style="flex: 2; max-width: 600px; min-width: 300px;">
+                    <div class="search-container" style="flex: 2; max-width: 600px; min-width: 300px; display: flex; gap: 8px;">
                         <input type="text" 
                                id="dashboardSearchInput" 
                                placeholder="Search contracts..." 
                                class="form-control"
-                               style="border-radius: 8px; border: 1px solid #ddd; padding: 12px 15px; height: 48px; font-size: 14px; width: 100%;">
+                               style="border-radius: 8px; border: 1px solid #ddd; padding: 12px 15px; height: 48px; font-size: 14px; flex: 1;">
+                        <button id="dashboardSearchButton" class="action-btn primary" style="height: 48px; padding: 0 20px; white-space: nowrap;">
+                            <i class="fas fa-search"></i>
+                            <span>Search</span>
+                        </button>
                     </div>
                     <button class="action-btn secondary" data-bs-toggle="modal" data-bs-target="#filterModal">
                         <i class="fas fa-upload"></i>
@@ -121,6 +125,10 @@
                     <button class="action-btn tertiary" onclick="window.location.href='/capability-builder-enhanced'">
                         <i class="fas fa-file-alt"></i>
                         <span>Capability Builder</span>
+                    </button>
+                    <button class="action-btn tertiary" onclick="window.location.href='/directory'" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <i class="fas fa-users"></i>
+                        <span>CORAMA Directory</span>
                     </button>
 
                 </div>
@@ -163,6 +171,17 @@
 
     <div style="margin-bottom: 50px;"></div> 
 
+    <!-- Toast Container for Validation Errors -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;">
+        <div id="validationToast" class="toast align-items-center text-white bg-danger border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="validationToastMessage">
+                    <!-- Error message will be inserted here -->
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
     
     <!-- Prefilter Modal -->
     <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
@@ -179,7 +198,7 @@
           <div class="modal-body">
             <!-- Contract Type (Federal / State as checkboxes) -->
             <div class="mb-3">
-              <label class="form-label">Contract Types:</label><br>
+              <label class="form-label">Contract Types: <span class="text-danger">*</span></label><br>
                 <!-- All Contracts -->
                 <div class="form-check form-check-inline">
                   <input class="form-check-input" type="checkbox" id="allContractsCheckbox" value="All Contracts" name="contractTypes[]">
@@ -216,8 +235,9 @@
             
             <!-- File input for PDF -->
             <div class="mt-3">
-              <label class="form-label">Capability Statement (PDF):</label>
+              <label class="form-label">Capability Statement (PDF): <span class="text-danger">*</span></label>
               <input type="file" class="form-control" id="fileInput" name="file" accept=".pdf">
+              <small class="form-text text-muted">Maximum file size: 10MB. Accepted formats: PDF, JPG, PNG, JPEG</small>
             </div>
           </div> <!-- /modal-body -->
 
@@ -274,6 +294,18 @@
     </script>
 
     <script>
+      // Validation Error Toast Function
+      function showValidationError(message) {
+          const toastElement = document.getElementById('validationToast');
+          const toastMessage = document.getElementById('validationToastMessage');
+          toastMessage.textContent = message;
+          const toast = new bootstrap.Toast(toastElement, {
+              autohide: true,
+              delay: 5000 // Show for 5 seconds
+          });
+          toast.show();
+      }
+
       document.addEventListener('DOMContentLoaded', function() {
           // Elements for filter checkboxes and file input
           const federalCheckbox = document.getElementById('federalCheckbox');
@@ -338,6 +370,7 @@
           // HANDLE APPLY & UPLOAD
           const applyFiltersBtn = document.getElementById('applyFiltersBtn');
           applyFiltersBtn.addEventListener('click', function() {
+              // Validation: Check if at least one contract type is selected
               const selectedContractTypes = [];
               if (federalCheckbox.checked) {
                   selectedContractTypes.push('federal');
@@ -348,22 +381,44 @@
               if (allContractsCheckbox.checked) {
                   selectedContractTypes.push('All Contracts');
               }
+              
+              // Validation: Contract type is required
+              if (selectedContractTypes.length === 0) {
+                  showValidationError("Please select at least one contract type (Federal, State, or All Contracts).");
+                  return;
+              }
+              
               const selectedStates = [];
               if (stateCheckbox.checked) {
                   document.querySelectorAll('input[name="states[]"]:checked').forEach(function(chk) {
                       selectedStates.push(chk.value);
                   });
               }
-              const file = fileInput.files[0];
-              if (!file) {
-                  alert("Please select a file before uploading.");
+              
+              // Validation: If State is selected, at least one state must be chosen
+              if (stateCheckbox.checked && selectedStates.length === 0) {
+                  showValidationError("Please select at least one state or uncheck the 'State' option.");
                   return;
               }
               
-              // Check file type
+              // Validation: File is required
+              const file = fileInput.files[0];
+              if (!file) {
+                  showValidationError("Please select a Capability Statement file before uploading.");
+                  return;
+              }
+              
+              // Validation: Check file type
               const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
               if (!allowedTypes.includes(file.type)) {
-                  alert("Please select a PDF, JPG, PNG, or JPEG file.");
+                  showValidationError("Please select a PDF, JPG, PNG, or JPEG file.");
+                  return;
+              }
+              
+              // Validation: Check file size (max 10MB)
+              const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+              if (file.size > maxSize) {
+                  showValidationError("File size must be less than 10MB. Please select a smaller file.");
                   return;
               }
               const formData = new FormData();
@@ -624,12 +679,29 @@
         
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('dashboardSearchInput');
+            const searchButton = document.getElementById('dashboardSearchButton');
+            
             if (searchInput) {
                 searchInput.addEventListener('input', function() {
                     clearTimeout(searchTimeout);
                     searchTimeout = setTimeout(() => {
                         performDashboardSearch(this.value.trim(), 1);
                     }, 500);
+                });
+                
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        clearTimeout(searchTimeout);
+                        performDashboardSearch(this.value.trim(), 1);
+                    }
+                });
+            }
+            
+            if (searchButton) {
+                searchButton.addEventListener('click', function() {
+                    const query = searchInput ? searchInput.value.trim() : '';
+                    performDashboardSearch(query, 1);
                 });
             }
         });

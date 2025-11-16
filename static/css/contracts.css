@@ -1,15 +1,15 @@
 /* General Font */
 body {
-    font-family: 'Jost', sans-serif;
+    font-family: var(--font-family, 'Jost', sans-serif);
 }
 
 /* Capability Statement */
 .capability-statement {
-    font-size: 1.8rem;
+    font-size: var(--font-size-3xl);
     color: #6899B4;
     font-weight: bold;
     margin-top: 0px;
-    margin-bottom: 10px;
+    margin-bottom: var(--spacing-sm);
 }
 
 /* Clementine Button */
@@ -31,14 +31,14 @@ body {
 
 /* Section Title */
 .section-title {
-    font-family: 'Jost', sans-serif;
-    font-size: 2rem;
+    font-family: var(--font-family, 'Jost', sans-serif);
+    font-size: var(--font-size-3xl);
     font-weight: bold;
     color: #F67F00;
     text-transform: uppercase;
-    margin-bottom: 20px;
+    margin-bottom: var(--spacing-lg);
     text-align: center;
-    margin-top: 20px;
+    margin-top: var(--spacing-lg);
 }
 
 /* Contract Item */
@@ -55,10 +55,10 @@ body {
 }
 
 .contract-number {
-    font-size: 2rem;
+    font-size: var(--font-size-3xl);
     font-weight: bold;
     color: #F67F00;
-    margin-right: 15px;
+    margin-right: var(--spacing-md);
 }
 
 .contract-details {
@@ -68,23 +68,23 @@ body {
 }
 
 .bid-name {
-    font-size: 1.5rem;
+    font-size: var(--font-size-2xl);
     color: #333333;
     font-weight: bold;
 }
 
 .relevance-score {
-    font-size: 1.1rem;
+    font-size: var(--font-size-lg);
     color: #777777;
 }
 
 .relevance-score i {
     color: #F67F00;
-    margin-right: 5px;
+    margin-right: var(--spacing-xs);
 }
 
 .bid-number {
-    font-size: 1rem;
+    font-size: var(--font-size-base);
     color: #55666D;
 }
 
@@ -114,12 +114,12 @@ body {
 .table th {
     background-color: #F67F00;
     color: white;
-    padding: 15px;
-    font-size: 1.1rem;
+    padding: var(--spacing-md);
+    font-size: var(--font-size-lg);
 }
 
 .table td {
-    padding: 15px;
+    padding: var(--spacing-md);
     color: #333333;
     background-color: #f2f2f2;
 }
@@ -140,15 +140,15 @@ body {
 
 .btnSelectCustom {
     display: inline-block;
-    padding: 12px 24px;
-    font-size: 16px;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: var(--font-size-base);
     font-weight: 600;
     color: white;
     text-align: center;
     text-decoration: none;
     background-color: #6899B4; /* Professional blue */
-    border-radius: 8px; /* Smooth rounded corners */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    border-radius: var(--radius-lg); /* Smooth rounded corners */
+    box-shadow: var(--shadow-md); /* Subtle shadow */
     transition: all 0.3s ease-in-out;
     border: none;
 }
