@@ -4219,8 +4219,28 @@ def process_capability_statement():
         logging.info(f"AI parsing completed, fields found: {list(parsed_data.keys()) if parsed_data else 'none'}")
         
         if not parsed_data:
-            logging.error("AI parsing returned empty result")
-            return jsonify({'error': 'Could not parse capability statement content. Please try a different document.'}), 400
+            logging.warning("AI parsing returned empty result, using fallback parser")
+            # Fallback: Create a basic parsed result from raw text
+            import re
+            parsed_data = {
+                'companyDescription': capability_text[:500] if len(capability_text) > 500 else capability_text,
+                'parse_method': 'fallback_raw',
+                'notice': 'AI parsing temporarily unavailable. Content imported as raw text.'
+            }
+            
+            email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
+            if email_match:
+                parsed_data['email'] = email_match.group()
+            
+            phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
+            if phone_match:
+                parsed_data['phone'] = phone_match.group()
+            
+            url_match = re.search(r'https?://[^\s]+', capability_text)
+            if url_match:
+                parsed_data['website'] = url_match.group()
+            
+            logging.info(f"Fallback parser extracted fields: {list(parsed_data.keys())}")
         
         return jsonify({'success': True, 'data': parsed_data})
         
