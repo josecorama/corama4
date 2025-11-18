@@ -329,10 +329,10 @@
         
         <!-- Action Buttons -->
         <div class="action-buttons">
-            <button class="btn btn-secondary" onclick="goBack()">
+            <button type="button" class="btn btn-secondary" onclick="goBack()">
                 ← Back to AI Assistant
             </button>
-            <button class="btn btn-primary" onclick="nextStep()" id="nextBtn">
+            <button type="button" class="btn btn-primary" onclick="nextStep()" id="nextBtn">
                 Continue to Team Building →
             </button>
         </div>
@@ -543,9 +543,19 @@
             window.location.href = `/proposal/team?draft_id=${draftId}`;
         }
         
-        // Go back
+        // Go back to AI Assistant
         function goBack() {
-            window.history.back();
+            if (contractHash) {
+                window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(contractHash)}`;
+            } else {
+                const params = new URLSearchParams(window.location.search);
+                const hash = params.get('contract_hash') || params.get('hash') || params.get('hash_value') || params.get('contract');
+                if (hash) {
+                    window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(hash)}`;
+                } else {
+                    window.location.href = '/welcome';
+                }
+            }
         }
         
         // Show error in PDF viewer

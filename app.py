@@ -2418,10 +2418,15 @@ def ai_assistant_room():
     if not user:
         return redirect(url_for('Login'))
     
+    logging.info(f"🔍 /ai-assistant route hit with request.args: {dict(request.args)}")
+    
     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
     contract_name = request.args.get('name')
     
+    logging.info(f"🔍 contract_param: {contract_param}, contract_name: {contract_name}")
+    
     if not contract_param:
+        logging.warning(f"⚠️ No contract_param found, redirecting to /welcome")
         return redirect('/welcome')
     
     # Determine if we have a hash_value or need to look up by bid_number
@@ -2433,9 +2438,12 @@ def ai_assistant_room():
         # It's already a hash_value
         contract_id = contract_param
     else:
-        # It's a bid_number, we need to look up the contract and compute hash_value
+        # It's a bid_number, set it as contract_id by default
         bid_number = contract_param
+        contract_id = bid_number
         user_id = user['localId']
+        
+        logging.info(f"🔍 Treating as bid_number: {bid_number}, will attempt to compute hash_value from CSVs")
         
         try:
             # Get user data to find uploads directory

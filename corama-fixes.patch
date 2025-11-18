@@ -1,0 +1,159 @@
+From d351d089db605f7b9dbb18dfd78704db6bed571a Mon Sep 17 00:00:00 2001
+From: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+Date: Tue, 18 Nov 2025 20:40:10 +0000
+Subject: [PATCH 1/2] Fix AI assistant routing and navigation issues
+
+- Fix /ai-assistant route redirect when uploads directory missing
+  - Set contract_id = bid_number immediately to prevent None value
+  - Add debug logging to track route parameters
+  - Ensures AI assistant loads even without user uploads directory
+
+- Fix Back to AI Assistant button navigation
+  - Replace window.history.back() with explicit navigation
+  - Use /ai-assistant?hash_value= with contractHash parameter
+  - Add fallback logic to extract hash from URL parameters
+  - Add type='button' to prevent implicit form submission
+
+- Add type='button' to Team Building page buttons for consistency
+
+Fixes issue where clicking Start AI Assistant redirected to dashboard
+Fixes issue where Back to AI Assistant went forward to Team Building
+
+Co-Authored-By: mario@corama.ai <mario@corama.ai>
+---
+ app.py                        | 10 +++++++++-
+ templates/proposal_start.html | 18 ++++++++++++++----
+ templates/proposal_team.html  |  4 ++--
+ 3 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/app.py b/app.py
+index 5f3608d..493b46e 100644
+--- a/app.py
++++ b/app.py
+@@ -2418,10 +2418,15 @@ def ai_assistant_room():
+     if not user:
+         return redirect(url_for('Login'))
+     
++    logging.info(f"🔍 /ai-assistant route hit with request.args: {dict(request.args)}")
++    
+     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
+     contract_name = request.args.get('name')
+     
++    logging.info(f"🔍 contract_param: {contract_param}, contract_name: {contract_name}")
++    
+     if not contract_param:
++        logging.warning(f"⚠️ No contract_param found, redirecting to /welcome")
+         return redirect('/welcome')
+     
+     # Determine if we have a hash_value or need to look up by bid_number
+@@ -2433,10 +2438,13 @@ def ai_assistant_room():
+         # It's already a hash_value
+         contract_id = contract_param
+     else:
+-        # It's a bid_number, we need to look up the contract and compute hash_value
++        # It's a bid_number, set it as contract_id by default
+         bid_number = contract_param
++        contract_id = bid_number
+         user_id = user['localId']
+         
++        logging.info(f"🔍 Treating as bid_number: {bid_number}, will attempt to compute hash_value from CSVs")
++        
+         try:
+             # Get user data to find uploads directory
+             user_data = None
+diff --git a/templates/proposal_start.html b/templates/proposal_start.html
+index ae11136..3270033 100644
+--- a/templates/proposal_start.html
++++ b/templates/proposal_start.html
+@@ -329,10 +329,10 @@
+         
+         <!-- Action Buttons -->
+         <div class="action-buttons">
+-            <button class="btn btn-secondary" onclick="goBack()">
++            <button type="button" class="btn btn-secondary" onclick="goBack()">
+                 ← Back to AI Assistant
+             </button>
+-            <button class="btn btn-primary" onclick="nextStep()" id="nextBtn">
++            <button type="button" class="btn btn-primary" onclick="nextStep()" id="nextBtn">
+                 Continue to Team Building →
+             </button>
+         </div>
+@@ -543,9 +543,19 @@
+             window.location.href = `/proposal/team?draft_id=${draftId}`;
+         }
+         
+-        // Go back
++        // Go back to AI Assistant
+         function goBack() {
+-            window.history.back();
++            if (contractHash) {
++                window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(contractHash)}`;
++            } else {
++                const params = new URLSearchParams(window.location.search);
++                const hash = params.get('contract_hash') || params.get('hash') || params.get('hash_value') || params.get('contract');
++                if (hash) {
++                    window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(hash)}`;
++                } else {
++                    window.location.href = '/welcome';
++                }
++            }
+         }
+         
+         // Show error in PDF viewer
+diff --git a/templates/proposal_team.html b/templates/proposal_team.html
+index 28ec603..d2c3e0b 100644
+--- a/templates/proposal_team.html
++++ b/templates/proposal_team.html
+@@ -408,10 +408,10 @@
+         
+         <!-- Action Buttons -->
+         <div class="action-buttons">
+-            <button class="btn btn-secondary" onclick="previousStep()">
++            <button type="button" class="btn btn-secondary" onclick="previousStep()">
+                 ← Back to Contract Analysis
+             </button>
+-            <button class="btn btn-primary" onclick="nextStep()">
++            <button type="button" class="btn btn-primary" onclick="nextStep()">
+                 Continue to Pricing →
+             </button>
+         </div>
+-- 
+2.34.1
+
+
+From 33a1dcdced1a17fc52ec3d0b62fc17f0882ea4a9 Mon Sep 17 00:00:00 2001
+From: Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>
+Date: Tue, 18 Nov 2025 21:14:16 +0000
+Subject: [PATCH 2/2] Improve Visit Site button implementation: replace inline
+ JS with anchor tags
+
+- Replace button with onclick to proper anchor tags for Visit Site links
+- Add rel='noopener noreferrer' for security
+- Makes URLs more transparent and reliable in the DOM
+- Addresses user concern about duplicate contracts showing same URL
+  (Note: Some contracts legitimately appear in multiple categories with same URL)
+
+Co-Authored-By: mario@corama.ai <mario@corama.ai>
+---
+ templates/welcome.html | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/templates/welcome.html b/templates/welcome.html
+index bac0d38..05eac49 100644
+--- a/templates/welcome.html
++++ b/templates/welcome.html
+@@ -659,9 +659,9 @@
+                         </button>
+                     </div>
+                     <div class="contract-cell">
+-                        <button class="view-original-btn" onclick="window.open('${contract.detail_link}', '_blank')">
++                        <a href="${contract.detail_link}" target="_blank" rel="noopener noreferrer" class="view-original-btn" style="display: inline-block; padding: 8px 16px; text-decoration: none; text-align: center;">
+                             Visit Site
+-                        </button>
++                        </a>
+                     </div>
+                 `;
+                 
+-- 
+2.34.1
+
