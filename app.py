@@ -146,10 +146,15 @@ if service_account_json_path:
 else:
     service_account_json = None
 # FIREBASE 
+database_url = os.getenv('DATABASE_URL', '').rstrip('/')
+if database_url.endswith('/users'):
+    database_url = database_url[:-6]  # Remove trailing /users
+logging.info(f"🔧 Normalized DATABASE_URL: {database_url}")
+
 config = {
     "apiKey": os.getenv('FIREBASE_API_KEY'),
     "authDomain": os.getenv('AUTH_DOMAIN'),
-    "databaseURL": os.getenv('DATABASE_URL'),
+    "databaseURL": database_url,
     "projectId": os.getenv('PROJECT_ID'),
     "storageBucket": os.getenv('STORAGE_BUCKET'),
     "messagingSenderId": os.getenv('MESSAGING_SENDER_ID'),
@@ -228,7 +233,7 @@ try:
             service_account_dict = json.loads(firebase_creds_json)
             cred = credentials.Certificate(service_account_dict)
             firebase_admin.initialize_app(cred, {
-                'databaseURL': os.getenv('DATABASE_URL')
+                'databaseURL': database_url
             })
             admin_db = admin_database
             admin_initialized = True
@@ -242,7 +247,7 @@ try:
         if os.path.exists(service_account_path):
             cred = credentials.Certificate(service_account_path)
             firebase_admin.initialize_app(cred, {
-                'databaseURL': os.getenv('DATABASE_URL')
+                'databaseURL': database_url
             })
             admin_db = admin_database
             admin_initialized = True
