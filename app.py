@@ -1707,10 +1707,30 @@ prices = {
 
 
 def send_welcome_email(email, display_name):
-    app.logger.info(f"📤 Attempting to send welcome email to {email}...")
+    """Send welcome email with timeout protection and granular logging.
+    
+    This function is designed to be called in a background thread to avoid
+    blocking the signup process. It will log errors but not raise exceptions.
+    """
+    import time
+    import socket
+    
+    start_time = time.time()
+    app.logger.info(f"📤 [t=0.0s] Starting welcome email send to {email}...")
 
     sender_email = os.getenv('EMAIL_GOOGLE_USER')
     sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    
+    # Check if email sending is enabled
+    send_email_enabled = os.getenv('SEND_WELCOME_EMAIL', 'true').lower() == 'true'
+    if not send_email_enabled:
+        app.logger.info(f"📧 Welcome email disabled by SEND_WELCOME_EMAIL env var")
+        return
+    
+    if not sender_email or not sender_password:
+        app.logger.error(f"❌ Email credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+        return
+    
     subject = "🎉 Welcome To Contract Radar Maximizer!"
 
     # HTML Email Body
@@ -1743,17 +1763,40 @@ def send_welcome_email(email, display_name):
         mime_text = MIMEText(html_body, "html")
         msg.attach(mime_text)
 
-        app.logger.debug("📧 Styled HTML email composed successfully.")
+        elapsed = time.time() - start_time
+        app.logger.info(f"📧 [t={elapsed:.1f}s] Email message composed")
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            app.logger.debug("🔐 Connecting to SMTP server...")
-            server.login(sender_email, sender_password)
-            app.logger.debug("🔐 SMTP login successful.")
-            server.sendmail(sender_email, email, msg.as_string())
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(10)
+        
+        try:
+            app.logger.info(f"🔐 [t={elapsed:.1f}s] Connecting to smtp.gmail.com:465...")
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10) as server:
+                elapsed = time.time() - start_time
+                app.logger.info(f"🔐 [t={elapsed:.1f}s] Connected, attempting login...")
+                
+                server.login(sender_email, sender_password)
+                elapsed = time.time() - start_time
+                app.logger.info(f"🔐 [t={elapsed:.1f}s] Login successful, sending email...")
+                
+                server.sendmail(sender_email, email, msg.as_string())
+                elapsed = time.time() - start_time
+                app.logger.info(f"✅ [t={elapsed:.1f}s] Welcome email sent successfully to {email}")
+        finally:
+            socket.setdefaulttimeout(old_timeout)
 
-        app.logger.info(f"✅ Professional welcome email sent to {email}")
+    except socket.timeout as e:
+        elapsed = time.time() - start_time
+        app.logger.error(f"⏱️ [t={elapsed:.1f}s] SMTP timeout sending welcome email to {email}: {e}")
+    except smtplib.SMTPAuthenticationError as e:
+        elapsed = time.time() - start_time
+        app.logger.error(f"🔐 [t={elapsed:.1f}s] SMTP authentication failed for {email}: {e}")
     except Exception as e:
-        app.logger.exception(f"❌ ERROR sending welcome email to {email}: {e}")
+        elapsed = time.time() - start_time
+        app.logger.error(f"❌ [t={elapsed:.1f}s] Error sending welcome email to {email}: {type(e).__name__}: {e}")
+        # Log full traceback for debugging
+        import traceback
+        app.logger.debug(traceback.format_exc())
 #SIGNUP FIX 3/25 
 
  
@@ -1804,10 +1847,13 @@ def Signup():
 
             app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
 
-            # ✅ Send Welcome Email
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
+            # ✅ Send Welcome Email (non-blocking)
+            app.logger.info("📨 Starting welcome email in background thread...")
+            import threading
+            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+            email_thread.daemon = True
+            email_thread.start()
+            app.logger.info("📨 Welcome email thread started, continuing with signup...")
 
             # ✅ Store User Data in Session
             session['user_data'] = {
@@ -1968,10 +2014,13 @@ def signupCSBuilder():
                 description=f"{first_name} {last_name} from {company}"
             )
 
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
-
+            # ✅ Send Welcome Email (non-blocking)
+            app.logger.info("📨 Starting welcome email in background thread...")
+            import threading
+            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+            email_thread.daemon = True
+            email_thread.start()
+            app.logger.info("📨 Welcome email thread started, continuing with signup...")
 
             db.child("users").child(user_id).update(
                 {"stripe_customer_id": stripe_customer['id']},
