@@ -1855,7 +1855,7 @@ def Signup():
             email_thread.start()
             app.logger.info("📨 Welcome email thread started, continuing with signup...")
 
-            # ✅ Store User Data in Session
+            # ✅ Store User Data in Session (including user_id for confirm_terms)
             session['user_data'] = {
                 "first_name": first_name,
                 "last_name": last_name,
@@ -1864,10 +1864,20 @@ def Signup():
                 "username": username,
                 "account_type": account_type,
                 "billing_period": billing_period,
-                "subscription_end_date": subscription_end_date
+                "subscription_end_date": subscription_end_date,
+                "user_id": user_id
+            }
+            
+            # ✅ Store User Authentication in Session (for confirm_terms idToken)
+            session['user'] = {
+                'localId': user_id,
+                'idToken': user_logged_in['idToken'],
+                'email': email,
+                'refreshToken': user_logged_in['refreshToken']
             }
 
             app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
+            app.logger.debug(f"💾 User Auth Stored: localId={user_id}, email={email}")
 
             # ✅ Store User Data in Firebase Database
             db.child("users").child(user_id).set({
@@ -1944,29 +1954,46 @@ def Signup():
 @app.route('/confirm_terms', methods=['GET', 'POST'])
 def confirm_terms():
     if request.method == 'POST':
+        if not request.form.get('confirm_terms'):
+            app.logger.warning("⚠️ User attempted to proceed without agreeing to terms")
+            return render_template('confirm_terms.html', error="You must agree to the Automatic Renewal Terms and Conditions to proceed.")
+        
         # Retrieve user data from session
         user_data = session.get('user_data')
+        user_auth = session.get('user')
 
         if not user_data:
-            return redirect(url_for('signup'))
+            app.logger.error("❌ No user_data in session, redirecting to signup")
+            return redirect(url_for('Signup'))
+        
+        if not user_auth:
+            app.logger.error("❌ No user auth in session, redirecting to signup")
+            return redirect(url_for('Signup'))
 
         try:
-            user_id = user_data['user_id']
+            user_id = user_data.get('user_id')
+            if not user_id:
+                app.logger.error("❌ No user_id in session data")
+                return render_template('confirm_terms.html', error="Session expired. Please sign up again.")
             
             db.child("users").child(user_id).update({
                 "account_type": user_data['account_type'],
                 "subscription_end_date": "9999-12-31",
-                "uploads_dir": create_user_directory(user_id),
-            }, session['user']['idToken'])
+                "terms_accepted": True,
+                "terms_accepted_date": datetime.now().isoformat()
+            }, user_auth['idToken'])
             
-            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Account created successfully!")
+            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Terms accepted, redirecting to Welcome")
             return redirect(url_for('Welcome'))
 
+        except KeyError as e:
+            app.logger.error(f"❌ Missing session key in confirm_terms: {e}")
+            return render_template('confirm_terms.html', error=f"Session error: {e}. Please sign up again.")
         except Exception as e:
-            return render_template('confirm_terms.html', error=str(e))
+            app.logger.exception(f"❌ Error in confirm_terms for user: {e}")
+            return render_template('confirm_terms.html', error="An error occurred. Please try again.")
 
     # Render the terms confirmation page on GET
-
     return render_template('confirm_terms.html')
 
 
