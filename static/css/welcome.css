@@ -7,7 +7,7 @@
 
 /* Global font */
 body {
-    font-family: 'Jost', sans-serif;
+    font-family: var(--font-family, 'Jost', sans-serif);
 }
 
 /* Enhanced Dashboard Section */
@@ -52,23 +52,23 @@ body {
 }
 
 .card-title {
-    font-size: 1.2rem;
+    font-size: var(--font-size-xl);
     font-weight: 600;
     color: #002f49;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--spacing-sm);
 }
 
 .card-action-btn {
     background: none;
     border: none;
     color: #55889d;
-    font-size: 0.9rem;
+    font-size: var(--font-size-sm);
     font-weight: 500;
     cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: var(--radius-md);
     transition: background-color 0.2s ease;
 }
 
