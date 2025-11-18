@@ -2176,10 +2176,41 @@ def dashboard_search():
             df = pd.read_csv(csv_path)
             
             if user_query:
-                mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
-                        df['category'].str.contains(user_query, case=False, na=False) |
-                        df['bid_description'].str.contains(user_query, case=False, na=False))
+                df['bid_number'] = df['bid_number'].fillna('').astype(str)
+                df['bid_name'] = df['bid_name'].fillna('').astype(str)
+                df['bid_description'] = df['bid_description'].fillna('').astype(str)
+                df['category'] = df['category'].fillna('').astype(str)
+                
+                # Create a combined search field from all relevant columns
+                df['search_blob'] = (
+                    df['bid_number'] + ' ' +
+                    df['bid_name'] + ' ' +
+                    df['bid_description'] + ' ' +
+                    df['category']
+                ).str.lower()
+                
+                query_lower = user_query.lower()
+                tokens = query_lower.split()
+                
+                mask = pd.Series([True] * len(df))
+                for token in tokens:
+                    mask = mask & df['search_blob'].str.contains(token, case=False, na=False, regex=False)
+                
                 df = df[mask]
+                
+                if len(df) > 0:
+                    df['rank_score'] = 0
+                    df.loc[df['bid_number'].str.lower() == query_lower, 'rank_score'] += 100
+                    df.loc[df['bid_name'].str.lower() == query_lower, 'rank_score'] += 50
+                    df.loc[df['bid_name'].str.lower().str.startswith(query_lower), 'rank_score'] += 25
+                    # Count token matches in bid_name (more relevant than description)
+                    for token in tokens:
+                        df.loc[df['bid_name'].str.lower().str.contains(token, regex=False), 'rank_score'] += 5
+                    
+                    df = df.sort_values(by=['rank_score', 'due_date'], ascending=[False, True])
+                    df = df.drop(columns=['search_blob', 'rank_score'])
+                else:
+                    df = df.drop(columns=['search_blob'])
             
             total_contracts = len(df)
             total_pages = (total_contracts + items_per_page - 1) // items_per_page
