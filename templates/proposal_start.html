@@ -393,7 +393,8 @@
         // Load PDF in viewer
         function loadPDFViewer(pdfUrl) {
             const viewer = document.getElementById('pdfViewer');
-            viewer.innerHTML = `<iframe src="${pdfUrl}" width="100%" height="100%" style="border: none; border-radius: 12px;"></iframe>`;
+            // Remove border-radius from iframe to avoid Chrome compositing bug that causes black screen
+            viewer.innerHTML = `<iframe src="${pdfUrl}" width="100%" height="100%" style="border: none;"></iframe>`;
         }
         
         // Show PDF upload option if automatic fetch fails

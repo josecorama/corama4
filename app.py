@@ -6863,7 +6863,11 @@ def serve_contract_pdf(filename):
         if not os.path.exists(os.path.join(contracts_dir, filename)):
             abort(404)
         
-        return send_from_directory(contracts_dir, filename, mimetype='application/pdf')
+        response = send_from_directory(contracts_dir, filename, mimetype='application/pdf', as_attachment=False, conditional=True)
+        response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Cache-Control'] = 'private, max-age=600'
+        return response
     except HTTPException:
         raise
     except Exception as e:
