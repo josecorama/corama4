@@ -4055,7 +4055,8 @@ def load_capability_statement():
 def enhance_capability_statement_content(data):
     """Use AI to create professional, compelling capability statement content matching industry standards"""
     try:
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        client = OpenAI(api_key=api_key)
         
         prompt = f"""You are an expert in creating professional government contracting capability statements. Create compelling, detailed content that matches the quality of top-tier capability statements.
 
@@ -7064,7 +7065,10 @@ def analyze_contract():
         
         # Generate AI annotations using OpenAI
         try:
-            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=60.0)
+            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
+            client = OpenAI(api_key=api_key, timeout=60.0)
             
             prompt = f"""You are an expert contract analyst helping a business understand a government contract opportunity. Analyze the following contract document and provide strategic annotations in these categories:
 
@@ -7615,9 +7619,10 @@ def suggest_team():
             ])
         
         try:
-            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=45.0)
+            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            client = OpenAI(api_key=api_key, timeout=45.0)
             
-            prompt = f"""You are an expert government contracting team composition advisor. Based on the contract analysis and company capabilities, recommend a strategic team composition.
+            prompt = f"""You are an expert government contracting team composition advisor.Based on the contract analysis and company capabilities, recommend a strategic team composition.
 
 CONTRACT ANALYSIS:
 {annotations_text[:3000]}
@@ -7792,9 +7797,10 @@ def generate_pricing_strategy():
         
         try:
             from openai import OpenAI
-            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            client = OpenAI(api_key=api_key)
             
-            prompt = f"""You are an expert pricing strategist for government contracts. Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
+            prompt = f"""You are an expert pricing strategist for government contracts.Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
 
 Contract Analysis:
 {annotations_text if annotations_text else 'No contract analysis available'}
