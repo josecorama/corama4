@@ -2750,7 +2750,12 @@ def proposal_start():
     contract_name = None
     try:
         df = pd.read_csv('Scraping_demo_results.csv')
-        contract_row = df[df['hash_value'] == contract_hash]
+        # Try to find by hash_value column first (if it exists), otherwise try bid_number
+        if 'hash_value' in df.columns:
+            contract_row = df[df['hash_value'] == contract_hash]
+        else:
+            contract_row = df[df['bid_number'] == contract_hash]
+        
         if not contract_row.empty:
             contract_data = contract_row.iloc[0].to_dict()
             contract_name = contract_data.get('bid_name') or contract_data.get('Bid Name') or contract_data.get('Bid_Name')
