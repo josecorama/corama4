@@ -6852,7 +6852,7 @@ def serve_contract_pdf(filename):
     try:
         ensure_session_from_auth()
         
-        if 'user' not in session:
+        if not (session.get('user') or session.get('user_data')):
             abort(401)
         
         contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
