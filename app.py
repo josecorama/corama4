@@ -290,7 +290,14 @@ app.logger.setLevel(logging.INFO)
 
 client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
-client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_MARIO') or os.getenv('OPENAI_API_KEY'))
+cs_api_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+if os.getenv('OPENAI_MARIO'):
+    app.logger.info("CS parser using key: OPENAI_MARIO")
+elif os.getenv('CS_BUILDER_OPENAI_API_KEY'):
+    app.logger.info("CS parser using key: CS_BUILDER_OPENAI_API_KEY")
+else:
+    app.logger.info("CS parser using key: OPENAI_API_KEY")
+client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=cs_api_key)
 
 client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
