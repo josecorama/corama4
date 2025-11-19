@@ -499,7 +499,9 @@
         // Load team members from draft
         async function loadTeamMembers() {
             try {
-                const response = await fetch(`/api/get_draft_team?draft_id=${draftId}`);
+                const response = await fetch(`${window.location.origin}/api/get_draft_team?draft_id=${draftId}`, {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 if (data.success && data.team_members) {
@@ -593,7 +595,9 @@
         
         async function loadDirectoryCompanies() {
             try {
-                const response = await fetch('/api/get_directory_companies');
+                const response = await fetch(`${window.location.origin}/api/get_directory_companies`, {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 if (data.success) {
@@ -720,11 +724,12 @@
             };
             
             try {
-                const response = await fetch('/api/add_team_member', {
+                const response = await fetch(`${window.location.origin}/api/add_team_member`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         member: member
@@ -764,11 +769,12 @@
                 extractBtn.disabled = true;
                 extractBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Extracting...';
                 
-                const response = await fetch('/api/extract_subcontractor_info', {
+                const response = await fetch(`${window.location.origin}/api/extract_subcontractor_info`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         url: url,
                         draft_id: draftId
@@ -900,11 +906,12 @@
                     `;
                 }
                 
-                const response = await fetch('/api/suggest_team', {
+                const response = await fetch(`${window.location.origin}/api/suggest_team`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         team_members: teamMembers
