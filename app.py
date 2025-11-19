@@ -4232,28 +4232,125 @@ def process_capability_statement():
         logging.info(f"AI parsing completed, fields found: {list(parsed_data.keys()) if parsed_data else 'none'}")
         
         if not parsed_data:
-            logging.warning("AI parsing returned empty result, using fallback parser")
-            # Fallback: Create a basic parsed result from raw text
+            logging.warning("AI parsing returned empty result, using enhanced fallback parser")
             import re
-            parsed_data = {
-                'companyDescription': capability_text[:500] if len(capability_text) > 500 else capability_text,
-                'parse_method': 'fallback_raw',
-                'notice': 'AI parsing temporarily unavailable. Content imported as raw text.'
-            }
+            parsed_data = {}
             
+            lines = capability_text.split('\n')
+            text_lower = capability_text.lower()
+            
+            # Extract company name (look for title, h1, or "Company Name:" pattern)
+            company_patterns = [
+                r'(?:company\s*name|business\s*name)[:\s]+([^\n]+)',
+                r'^([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))',
+            ]
+            for pattern in company_patterns:
+                match = re.search(pattern, capability_text, re.IGNORECASE | re.MULTILINE)
+                if match:
+                    parsed_data['companyName'] = match.group(1).strip()
+                    break
+            
+            # Extract email
             email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
             if email_match:
                 parsed_data['email'] = email_match.group()
             
+            # Extract phone
             phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
             if phone_match:
                 parsed_data['phone'] = phone_match.group()
             
+            # Extract website
             url_match = re.search(r'https?://[^\s]+', capability_text)
             if url_match:
-                parsed_data['website'] = url_match.group()
+                parsed_data['website'] = url_match.group().rstrip('.,;)')
             
-            logging.info(f"Fallback parser extracted fields: {list(parsed_data.keys())}")
+            # Extract contact name and title (look for patterns like "Contact:", "Attn:", etc.)
+            contact_patterns = [
+                r'(?:contact|attn|attention)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+                r'(?:name)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+            ]
+            for pattern in contact_patterns:
+                match = re.search(pattern, capability_text, re.IGNORECASE)
+                if match:
+                    parsed_data['contactName'] = match.group(1).strip()
+                    break
+            
+            # Extract title (CEO, President, Director, etc.)
+            title_match = re.search(r'\b(CEO|President|Director|Manager|Owner|Principal|VP|Vice President)\b', capability_text, re.IGNORECASE)
+            if title_match:
+                parsed_data['contactTitle'] = title_match.group(1)
+            
+            # Extract address components
+            address_match = re.search(r'(\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct))', capability_text, re.IGNORECASE)
+            if address_match:
+                parsed_data['address'] = address_match.group(1).strip()
+            
+            # Extract city, state, zip
+            city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
+            if city_state_zip:
+                parsed_data['city'] = city_state_zip.group(1)
+                parsed_data['state'] = city_state_zip.group(2)
+                parsed_data['zipCode'] = city_state_zip.group(3)
+            
+            # Extract UEI code (12 alphanumeric characters)
+            uei_match = re.search(r'\b(?:UEI|Unique Entity Identifier)[:\s]+([A-Z0-9]{12})\b', capability_text, re.IGNORECASE)
+            if uei_match:
+                parsed_data['ueiCode'] = uei_match.group(1)
+            
+            # Extract CAGE code (5 alphanumeric characters)
+            cage_match = re.search(r'\b(?:CAGE|Commercial and Government Entity)[:\s]+([A-Z0-9]{5})\b', capability_text, re.IGNORECASE)
+            if cage_match:
+                parsed_data['cageCode'] = cage_match.group(1)
+            
+            # Extract NAICS codes (5-6 digit numbers near "NAICS" keyword)
+            naics_matches = re.findall(r'(?:NAICS|naics)[:\s]*([0-9]{5,6})', capability_text)
+            if naics_matches:
+                parsed_data['naicsCodes'] = list(set(naics_matches))
+            
+            # Extract certifications (common patterns)
+            cert_patterns = ['8\\(a\\)', 'WBENC', 'MBE', 'WBE', 'DBE', 'SDB', 'HUBZone', 'VOSB', 'SDVOSB', 'ISO ?9001', 'ISO ?14001', 'ISO ?27001']
+            certifications = []
+            for cert in cert_patterns:
+                if re.search(cert, capability_text, re.IGNORECASE):
+                    certifications.append(re.sub(r'\?', '', cert))
+            if certifications:
+                parsed_data['certifications'] = certifications
+            
+            # Extract core competencies (look for sections with "Competencies", "Capabilities", "Services")
+            competency_section = re.search(r'(?:core competencies|capabilities|services|expertise)[:\s]*\n((?:[-•*]\s*.+\n?)+)', capability_text, re.IGNORECASE)
+            if competency_section:
+                competencies = re.findall(r'[-•*]\s*(.+)', competency_section.group(1))
+                parsed_data['competencies'] = [c.strip() for c in competencies if c.strip()]
+            
+            # Extract differentiators (look for "Key Differentiators", "Why Us", "Competitive Advantages")
+            diff_section = re.search(r'(?:key differentiators|why us|competitive advantages|what sets us apart)[:\s]*\n((?:[-•*]\s*.+\n?)+)', capability_text, re.IGNORECASE)
+            if diff_section:
+                differentiators = re.findall(r'[-•*]\s*(.+)', diff_section.group(1))
+                parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip()]
+            
+            # Extract company description (first paragraph or "About" section)
+            about_match = re.search(r'(?:about|company overview|overview)[:\s]*\n(.+?)(?:\n\n|\n[A-Z])', capability_text, re.IGNORECASE | re.DOTALL)
+            if about_match:
+                parsed_data['companyDescription'] = about_match.group(1).strip()[:500]
+            elif len(capability_text) > 100:
+                # Use first substantial paragraph
+                paragraphs = [p.strip() for p in capability_text.split('\n\n') if len(p.strip()) > 50]
+                if paragraphs:
+                    parsed_data['companyDescription'] = paragraphs[0][:500]
+            
+            # Extract industry focus
+            industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
+            if industry_match:
+                parsed_data['industryFocus'] = industry_match.group(1).strip()
+            
+            # Extract past performance (look for "Past Performance", "Clients", "Projects")
+            past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|project experience)[:\s]*\n((?:[-•*]\s*.+\n?)+)', capability_text, re.IGNORECASE)
+            if past_perf_section:
+                past_performance = re.findall(r'[-•*]\s*(.+)', past_perf_section.group(1))
+                parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip()]
+            
+            logging.info(f"Enhanced fallback parser extracted {len(parsed_data)} fields: {list(parsed_data.keys())}")
         
         return jsonify({'success': True, 'data': parsed_data})
         
@@ -4490,20 +4587,45 @@ def parse_capability_statement_with_ai(text):
     try:
         logging.info("Starting AI parsing of capability statement text")
         
-        max_chars = 8000  # Conservative limit for GPT-3.5-turbo
+        max_chars = 10000  # Increased limit for better extraction
         if len(text) > max_chars:
             text = text[:max_chars] + "..."
             logging.info(f"Truncated text to {max_chars} characters")
         
+        system_prompt = """You are an expert at parsing capability statements and company information. Extract structured data from the provided text and return it as valid JSON.
+
+Required fields (include all that you can identify):
+- companyName: Company name
+- website: Company website URL
+- contactName: Primary contact person name
+- contactTitle: Contact person's title/position (e.g., CEO, President, Director)
+- phone: Phone number
+- email: Email address
+- address: Street address
+- city: City
+- state: State (2-letter code if possible)
+- zipCode: ZIP code
+- companyDescription: Brief company description (2-3 sentences max)
+- industryFocus: Primary industry or market focus
+- competencies: Array of core competencies/capabilities/services
+- differentiators: Array of key differentiators/competitive advantages
+- ueiCode: UEI (Unique Entity Identifier) code
+- cageCode: CAGE (Commercial and Government Entity) code
+- naicsCodes: Array of NAICS codes
+- certifications: Array of certifications (e.g., 8(a), WBENC, MBE, ISO, etc.)
+- pastPerformance: Array of past performance examples/notable projects/clients
+
+Only include fields you can clearly identify. Return ONLY valid JSON, no additional text or markdown."""
+
         messages = [
-            {"role": "system", "content": "You are an expert at parsing capability statements. Extract structured data from the provided text and return it as valid JSON with fields: companyName, contactName, phone, email, address, city, state, zipCode, website, companyDescription, competencies (array), differentiators (array), ueiCode, cageCode, naicsCodes (array), certifications (array). Only include fields that you can clearly identify from the text. Return ONLY the JSON object, no additional text."},
-            {"role": "user", "content": f"Parse this capability statement text and return only JSON:\n\n{text}"}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Parse this capability statement and extract all available information as JSON:\n\n{text}"}
         ]
         
         completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
-            max_tokens=1000,
+            max_tokens=2000,  # Increased for comprehensive extraction
             temperature=0.1
         )
         
@@ -4513,6 +4635,10 @@ def parse_capability_statement_with_ai(text):
         
         import json
         import re
+        
+        # Remove markdown code blocks if present
+        response_text = re.sub(r'^```json\s*', '', response_text)
+        response_text = re.sub(r'\s*```$', '', response_text)
         
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
