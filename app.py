@@ -4293,12 +4293,18 @@ def process_capability_statement():
                 if not re.search(r'\b(successful|completed|projects?|years?|over|under)\b', addr, re.IGNORECASE):
                     parsed_data['address'] = addr
             
-            # Extract city, state, zip
+            # Extract city, state, zip - handle both inline and multiline formats
             city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
             if city_state_zip:
                 parsed_data['city'] = city_state_zip.group(1)
                 parsed_data['state'] = city_state_zip.group(2)
                 parsed_data['zipCode'] = city_state_zip.group(3)
+            else:
+                city_state_zip_multiline = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]*[\n\s]+([A-Z]{2})[\s\n]+(\d{5}(?:-\d{4})?)', capability_text)
+                if city_state_zip_multiline:
+                    parsed_data['city'] = city_state_zip_multiline.group(1)
+                    parsed_data['state'] = city_state_zip_multiline.group(2)
+                    parsed_data['zipCode'] = city_state_zip_multiline.group(3)
             
             # Extract UEI code (12 alphanumeric characters)
             uei_match = re.search(r'\b(?:UEI|Unique Entity Identifier)[:\s]+([A-Z0-9]{12})\b', capability_text, re.IGNORECASE)
@@ -4324,40 +4330,90 @@ def process_capability_statement():
             if certifications:
                 parsed_data['certifications'] = certifications
             
-            # Extract core competencies - handle both with and without newlines after header
-            competency_section = re.search(r'(?:core competencies|capabilities|services|expertise)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+            # Extract core competencies - handle multiple formats
+            competency_section = re.search(r'(?:core competencies|capabilities|services offered|expertise|what we do)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
             if competency_section:
                 competencies = re.findall(r'[-•*–—]\s*(.+)', competency_section.group(1))
                 parsed_data['competencies'] = [c.strip() for c in competencies if c.strip() and len(c.strip()) > 3]
+            elif not competency_section:
+                for line_idx, line in enumerate(lines):
+                    if re.search(r'(?:core competencies|capabilities|services|expertise)', line, re.IGNORECASE):
+                        competencies = []
+                        for next_line in lines[line_idx+1:line_idx+15]:
+                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                                comp = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                                if len(comp) > 3:
+                                    competencies.append(comp)
+                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                                break
+                        if competencies:
+                            parsed_data['competencies'] = competencies
+                            break
             
-            # Extract differentiators - handle both with and without newlines after header
-            diff_section = re.search(r'(?:key differentiators|differentiators|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+            # Extract differentiators - handle multiple formats
+            diff_section = re.search(r'(?:key differentiators|differentiators|why choose us|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
             if diff_section:
                 differentiators = re.findall(r'[-•*–—]\s*(.+)', diff_section.group(1))
                 parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip() and len(d.strip()) > 3]
+            elif not diff_section:
+                for line_idx, line in enumerate(lines):
+                    if re.search(r'(?:key differentiators|differentiators|why choose us|why us)', line, re.IGNORECASE):
+                        differentiators = []
+                        for next_line in lines[line_idx+1:line_idx+15]:
+                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                                diff = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                                if len(diff) > 3:
+                                    differentiators.append(diff)
+                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                                break
+                        if differentiators:
+                            parsed_data['differentiators'] = differentiators
+                            break
             
-            # Extract company description - look for prose paragraph after headers
-            desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW)([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){2,}\.)', capability_text, re.IGNORECASE)
+            # Extract company description - look for prose paragraph with multiple approaches
+            desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW|DESCRIPTION)[:\s]*[\n\s]*([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){1,}\.)', capability_text, re.IGNORECASE)
             if desc_match:
-                parsed_data['companyDescription'] = desc_match.group(1).strip()[:500]
-            else:
-                # Fallback: look for any prose text with multiple sentences
-                desc_match = re.search(r'([A-Z][a-z][^•\-\*\n]{50,}?(?:\.\s+[A-Z][^•\-\*\n]+?){1,}\.)', capability_text)
-                if desc_match:
-                    desc = desc_match.group(1).strip()
-                    if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE)', desc, re.IGNORECASE):
-                        parsed_data['companyDescription'] = desc[:500]
+                desc = desc_match.group(1).strip()
+                if len(desc) > 30 and not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI)', desc, re.IGNORECASE):
+                    parsed_data['companyDescription'] = desc[:500]
+            
+            if 'companyDescription' not in parsed_data:
+                for line_start in range(0, len(lines) - 3):
+                    potential_desc = ' '.join(lines[line_start:line_start+5]).strip()
+                    if len(potential_desc) > 100 and potential_desc.count('.') >= 2:
+                        if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI|CERTIFICATIONS|CONTACT)', potential_desc, re.IGNORECASE):
+                            if not re.search(r'[-•*–—]', potential_desc[:50]):
+                                sentences = re.split(r'[.!?]+\s+', potential_desc)
+                                if len(sentences) >= 2:
+                                    parsed_data['companyDescription'] = '. '.join(sentences[:3]).strip()[:500]
+                                    if parsed_data['companyDescription'] and not parsed_data['companyDescription'].endswith('.'):
+                                        parsed_data['companyDescription'] += '.'
+                                    break
             
             # Extract industry focus
             industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
             if industry_match:
                 parsed_data['industryFocus'] = industry_match.group(1).strip()
             
-            # Extract past performance (look for "Past Performance", "Clients", "Projects")
-            past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|project experience)[:\s]*\n((?:[-•*]\s*.+\n?)+)', capability_text, re.IGNORECASE)
+            # Extract past performance - handle multiple formats
+            past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|client list|project experience|representative projects)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
             if past_perf_section:
-                past_performance = re.findall(r'[-•*]\s*(.+)', past_perf_section.group(1))
-                parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip()]
+                past_performance = re.findall(r'[-•*–—]\s*(.+)', past_perf_section.group(1))
+                parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip() and len(p.strip()) > 5]
+            elif not past_perf_section:
+                for line_idx, line in enumerate(lines):
+                    if re.search(r'(?:past performance|notable projects|key projects|clients|representative projects)', line, re.IGNORECASE):
+                        past_performance = []
+                        for next_line in lines[line_idx+1:line_idx+20]:
+                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                                perf = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                                if len(perf) > 5:
+                                    past_performance.append(perf)
+                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                                break
+                        if past_performance:
+                            parsed_data['pastPerformance'] = past_performance
+                            break
             
             logging.info(f"Enhanced fallback parser extracted {len(parsed_data)} fields: {list(parsed_data.keys())}")
             
