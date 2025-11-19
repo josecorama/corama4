@@ -7271,7 +7271,7 @@ def extract_subcontractor_info():
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': 'gzip, deflate',
             'DNT': '1',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1'
@@ -7375,7 +7375,10 @@ def extract_subcontractor_info():
                 'error': 'Website returned very little content. It may require JavaScript or be blocking automated access.'
             }), 500
         
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        cf_email_count = len(soup.find_all('a', class_='__cf_email__'))
+        app.logger.info(f"Found {cf_email_count} Cloudflare email tags")
         page_text = soup.get_text().lower()
         
         anti_bot_indicators = [
@@ -7465,6 +7468,61 @@ def extract_subcontractor_info():
             if h1_tag and h1_tag.text and len(h1_tag.text.strip()) < 100:
                 company_name = h1_tag.text.strip()
         
+        if not email:
+            try:
+                cf_email_tags = soup.find_all('a', class_='__cf_email__')
+                for tag in cf_email_tags:
+                    cfemail = tag.get('data-cfemail', '')
+                    if cfemail and len(cfemail) >= 2:
+                        try:
+                            key = int(cfemail[0:2], 16)
+                            decoded_chars = []
+                            for i in range(2, len(cfemail), 2):
+                                char_code = int(cfemail[i:i+2], 16)
+                                decoded_chars.append(chr(char_code ^ key))
+                            decoded_email = ''.join(decoded_chars)
+                            # Validate it looks like an email
+                            if '@' in decoded_email and '.' in decoded_email.split('@')[1]:
+                                if not any(x in decoded_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                                    email = decoded_email
+                                    app.logger.info(f"Decoded Cloudflare email: {email}")
+                                    break
+                        except (ValueError, IndexError) as e:
+                            app.logger.debug(f"Failed to decode Cloudflare email: {e}")
+                            continue
+            except Exception as e:
+                app.logger.debug(f"Error decoding Cloudflare emails: {e}")
+        
+        # Extract email from mailto: links
+        if not email:
+            try:
+                mailto_links = soup.find_all('a', href=re.compile(r'^mailto:', re.I))
+                for link in mailto_links:
+                    href = link.get('href', '')
+                    # Extract email from mailto:email@domain.com or mailto:email@domain.com?subject=...
+                    mailto_email = href.replace('mailto:', '').split('?')[0].strip()
+                    if '@' in mailto_email and '.' in mailto_email.split('@')[1]:
+                        if not any(x in mailto_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                            email = mailto_email
+                            app.logger.info(f"Found email from mailto link: {email}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting mailto links: {e}")
+        
+        # Extract email from microdata
+        if not email:
+            try:
+                email_microdata = soup.find_all(attrs={'itemprop': 'email'})
+                for elem in email_microdata:
+                    text = elem.get_text().strip()
+                    if '@' in text and '.' in text.split('@')[1]:
+                        if not any(x in text.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                            email = text
+                            app.logger.info(f"Found email from microdata: {email}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting email microdata: {e}")
+        
         # Extract email with regex if not found
         if not email:
             email_pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
@@ -7472,6 +7530,41 @@ def extract_subcontractor_info():
             filtered_emails = [e for e in emails if not any(x in e.lower() for x in ['example', 'test', 'noreply', 'no-reply'])]
             if filtered_emails:
                 email = filtered_emails[0]
+        
+        # Extract phone from tel: links
+        if not phone:
+            try:
+                tel_links = soup.find_all('a', href=re.compile(r'^tel:', re.I))
+                for link in tel_links:
+                    href = link.get('href', '')
+                    # Extract digits from tel:+1-234-567-8900 or tel:(234) 567-8900
+                    tel_digits = re.sub(r'[^0-9]', '', href.replace('tel:', ''))
+                    if len(tel_digits) >= 10:
+                        if len(tel_digits) == 11 and tel_digits[0] == '1':
+                            tel_digits = tel_digits[1:]
+                        if len(tel_digits) == 10:
+                            phone = f"({tel_digits[0:3]}) {tel_digits[3:6]}-{tel_digits[6:10]}"
+                            app.logger.info(f"Found phone from tel link: {phone}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting tel links: {e}")
+        
+        # Extract phone from microdata
+        if not phone:
+            try:
+                phone_microdata = soup.find_all(attrs={'itemprop': 'telephone'})
+                for elem in phone_microdata:
+                    text = elem.get_text().strip()
+                    tel_digits = re.sub(r'[^0-9]', '', text)
+                    if len(tel_digits) >= 10:
+                        if len(tel_digits) == 11 and tel_digits[0] == '1':
+                            tel_digits = tel_digits[1:]
+                        if len(tel_digits) == 10:
+                            phone = f"({tel_digits[0:3]}) {tel_digits[3:6]}-{tel_digits[6:10]}"
+                            app.logger.info(f"Found phone from microdata: {phone}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting phone microdata: {e}")
         
         # Extract phone with regex if not found
         if not phone:
@@ -7507,6 +7600,95 @@ def extract_subcontractor_info():
         
         if not services:
             services = 'Services information not found. Please edit manually.'
+        
+        if (not email or not phone) and response:
+            try:
+                app.logger.info(f"Attempting contact page fallback for {normalized_url}")
+                contact_links = []
+                for link in soup.find_all('a', href=True):
+                    href = link.get('href', '').lower()
+                    text = link.get_text().lower()
+                    if any(keyword in href or keyword in text for keyword in ['contact', 'contact-us', 'contact-1', 'about', 'team']):
+                        full_url = urljoin(normalized_url, link['href'])
+                        if urlparse(full_url).netloc == parsed.netloc:
+                            contact_links.append((full_url, 'contact' in href or 'contact' in text))
+                
+                contact_links.sort(key=lambda x: x[1], reverse=True)
+                
+                if contact_links:
+                    contact_url = contact_links[0][0]
+                    app.logger.info(f"Trying contact page: {contact_url}")
+                    
+                    try:
+                        contact_response = session.get(
+                            contact_url,
+                            headers=headers,
+                            timeout=(5, 10),
+                            allow_redirects=True,
+                            verify=not ssl_error_occurred
+                        )
+                        contact_response.raise_for_status()
+                        
+                        if 'text/html' in contact_response.headers.get('Content-Type', '').lower():
+                            contact_soup = BeautifulSoup(contact_response.text, 'html.parser')
+                            
+                            if not email:
+                                cf_email_tags = contact_soup.find_all('a', class_='__cf_email__')
+                                for tag in cf_email_tags:
+                                    cfemail = tag.get('data-cfemail', '')
+                                    if cfemail and len(cfemail) >= 2:
+                                        try:
+                                            key = int(cfemail[0:2], 16)
+                                            decoded_chars = []
+                                            for i in range(2, len(cfemail), 2):
+                                                char_code = int(cfemail[i:i+2], 16)
+                                                decoded_chars.append(chr(char_code ^ key))
+                                            decoded_email = ''.join(decoded_chars)
+                                            if '@' in decoded_email and '.' in decoded_email.split('@')[1]:
+                                                if not any(x in decoded_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                                                    email = decoded_email
+                                                    app.logger.info(f"Found email from contact page (Cloudflare): {email}")
+                                                    break
+                                        except (ValueError, IndexError):
+                                            continue
+                            
+                            if not email:
+                                mailto_links = contact_soup.find_all('a', href=re.compile(r'^mailto:', re.I))
+                                for link in mailto_links:
+                                    href = link.get('href', '')
+                                    mailto_email = href.replace('mailto:', '').split('?')[0].strip()
+                                    if '@' in mailto_email and '.' in mailto_email.split('@')[1]:
+                                        if not any(x in mailto_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                                            email = mailto_email
+                                            app.logger.info(f"Found email from contact page (mailto): {email}")
+                                            break
+                            
+                            if not phone:
+                                tel_links = contact_soup.find_all('a', href=re.compile(r'^tel:', re.I))
+                                for link in tel_links:
+                                    href = link.get('href', '')
+                                    tel_digits = re.sub(r'[^0-9]', '', href.replace('tel:', ''))
+                                    if len(tel_digits) >= 10:
+                                        if len(tel_digits) == 11 and tel_digits[0] == '1':
+                                            tel_digits = tel_digits[1:]
+                                        if len(tel_digits) == 10:
+                                            phone = f"({tel_digits[0:3]}) {tel_digits[3:6]}-{tel_digits[6:10]}"
+                                            app.logger.info(f"Found phone from contact page (tel): {phone}")
+                                            break
+                            
+                            if not phone:
+                                phone_pattern = r'(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})'
+                                phone_matches = re.findall(phone_pattern, contact_soup.get_text())
+                                if phone_matches:
+                                    match = phone_matches[0]
+                                    phone = f"({match[0]}) {match[1]}-{match[2]}"
+                                    app.logger.info(f"Found phone from contact page (regex): {phone}")
+                    
+                    except Exception as contact_err:
+                        app.logger.debug(f"Contact page fallback failed: {contact_err}")
+            
+            except Exception as e:
+                app.logger.debug(f"Error in contact page fallback: {e}")
         
         member = {
             'company': company_name,
