@@ -360,7 +360,7 @@
         // Fetch contract PDF from detail link
         async function fetchContractPDF() {
             try {
-                const response = await fetch('/api/fetch_contract_pdf', {
+                const response = await fetch(`${window.location.origin}/api/fetch_contract_pdf`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -368,8 +368,14 @@
                     body: JSON.stringify({
                         contract_hash: contractHash,
                         detail_link: contractData.detail_link
-                    })
+                    }),
+                    credentials: 'same-origin'
                 });
+                
+                if (!response.ok) {
+                    showPDFUploadOption();
+                    return;
+                }
                 
                 const data = await response.json();
                 
@@ -428,10 +434,29 @@
             `;
             
             try {
-                const response = await fetch('/api/upload_contract_pdf', {
+                const response = await fetch(`${window.location.origin}/api/upload_contract_pdf`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    credentials: 'same-origin'
                 });
+                
+                if (!response.ok) {
+                    let errorMessage = 'Failed to upload PDF';
+                    try {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        }
+                        if (response.status === 401) {
+                            errorMessage = 'Session expired. Please refresh the page and log in again.';
+                        }
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                    }
+                    showError(errorMessage);
+                    return;
+                }
                 
                 const data = await response.json();
                 
@@ -464,7 +489,7 @@
             const timeoutId = setTimeout(() => controller.abort(), 90000);
             
             try {
-                const response = await fetch('/api/analyze_contract', {
+                const response = await fetch(`${window.location.origin}/api/analyze_contract`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -473,7 +498,8 @@
                         contract_hash: contractHash,
                         user_id: userId
                     }),
-                    signal: controller.signal
+                    signal: controller.signal,
+                    credentials: 'same-origin'
                 });
                 
                 clearTimeout(timeoutId);
@@ -481,8 +507,11 @@
                 if (!response.ok) {
                     let errorMessage = 'Failed to analyze contract';
                     try {
-                        const errorData = await response.json();
-                        errorMessage = errorData.error || errorMessage;
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        }
                         if (response.status === 401) {
                             errorMessage = 'Session expired. Please refresh the page and try again.';
                         } else if (response.status === 402) {
