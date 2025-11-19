@@ -4198,7 +4198,6 @@ def process_capability_statement():
                 file.save(filepath)
                 logging.info(f"File saved to: {filepath}")
                 
-                # Extract text from PDF
                 capability_text = extract_text_from_pdf(filepath)
                 logging.info(f"Extracted text length: {len(capability_text) if capability_text else 0}")
                 
@@ -4207,7 +4206,7 @@ def process_capability_statement():
                 logging.error(f"File validation failed for: {file.filename}")
                 return jsonify({'error': f'Invalid file type. Please upload a PDF file.'}), 400
         
-        elif request.json and 'url' in request.json:
+        elif request.is_json and request.json and 'url' in request.json:
             url = request.json['url']
             logging.info(f"Processing URL import: {url}")
             capability_text = download_and_extract_from_url(url)
@@ -4236,19 +4235,25 @@ def process_capability_statement():
             import re
             parsed_data = {}
             
+            capability_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', capability_text)
+            capability_text = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', capability_text)
+            
             lines = capability_text.split('\n')
             text_lower = capability_text.lower()
             
-            # Extract company name (look for title, h1, or "Company Name:" pattern)
-            company_patterns = [
-                r'(?:company\s*name|business\s*name)[:\s]+([^\n]+)',
-                r'^([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))',
-            ]
-            for pattern in company_patterns:
-                match = re.search(pattern, capability_text, re.IGNORECASE | re.MULTILINE)
-                if match:
-                    parsed_data['companyName'] = match.group(1).strip()
-                    break
+            # Extract company name - look for line with Inc/LLC/Corp suffix
+            company_name = None
+            for line in lines:
+                line = line.strip()
+                if re.search(r'\b(?:Inc|LLC|Corp|Corporation|Company|Co\.)\b', line, re.IGNORECASE):
+                    if not re.match(r'^(CAPABILITY|ABOUT|PAST|CORE|DIFFERENTIATORS|CERTIFICATIONS)', line, re.IGNORECASE):
+                        # Extract just the company name part
+                        match = re.search(r'([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))', line, re.IGNORECASE)
+                        if match:
+                            company_name = match.group(1).strip()
+                            break
+            if company_name:
+                parsed_data['companyName'] = company_name
             
             # Extract email
             email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
@@ -4281,10 +4286,12 @@ def process_capability_statement():
             if title_match:
                 parsed_data['contactTitle'] = title_match.group(1)
             
-            # Extract address components
-            address_match = re.search(r'(\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct))', capability_text, re.IGNORECASE)
+            # Extract address components - require street number AND suffix
+            address_match = re.search(r'(\d+\s+[A-Za-z\s]{3,50}?(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Boulevard|Blvd\.|Drive|Dr\.|Lane|Ln\.|Way|Court|Ct\.))', capability_text, re.IGNORECASE)
             if address_match:
-                parsed_data['address'] = address_match.group(1).strip()
+                addr = address_match.group(1).strip()
+                if not re.search(r'\b(successful|completed|projects?|years?|over|under)\b', addr, re.IGNORECASE):
+                    parsed_data['address'] = addr
             
             # Extract city, state, zip
             city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
@@ -4317,27 +4324,29 @@ def process_capability_statement():
             if certifications:
                 parsed_data['certifications'] = certifications
             
-            # Extract core competencies (look for sections with "Competencies", "Capabilities", "Services")
-            competency_section = re.search(r'(?:core competencies|capabilities|services|expertise)[:\s]*\n((?:[-•*]\s*.+\n?)+)', capability_text, re.IGNORECASE)
+            # Extract core competencies - handle both with and without newlines after header
+            competency_section = re.search(r'(?:core competencies|capabilities|services|expertise)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
             if competency_section:
-                competencies = re.findall(r'[-•*]\s*(.+)', competency_section.group(1))
-                parsed_data['competencies'] = [c.strip() for c in competencies if c.strip()]
+                competencies = re.findall(r'[-•*–—]\s*(.+)', competency_section.group(1))
+                parsed_data['competencies'] = [c.strip() for c in competencies if c.strip() and len(c.strip()) > 3]
             
-            # Extract differentiators (look for "Key Differentiators", "Why Us", "Competitive Advantages")
-            diff_section = re.search(r'(?:key differentiators|why us|competitive advantages|what sets us apart)[:\s]*\n((?:[-•*]\s*.+\n?)+)', capability_text, re.IGNORECASE)
+            # Extract differentiators - handle both with and without newlines after header
+            diff_section = re.search(r'(?:key differentiators|differentiators|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
             if diff_section:
-                differentiators = re.findall(r'[-•*]\s*(.+)', diff_section.group(1))
-                parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip()]
+                differentiators = re.findall(r'[-•*–—]\s*(.+)', diff_section.group(1))
+                parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip() and len(d.strip()) > 3]
             
-            # Extract company description (first paragraph or "About" section)
-            about_match = re.search(r'(?:about|company overview|overview)[:\s]*\n(.+?)(?:\n\n|\n[A-Z])', capability_text, re.IGNORECASE | re.DOTALL)
-            if about_match:
-                parsed_data['companyDescription'] = about_match.group(1).strip()[:500]
-            elif len(capability_text) > 100:
-                # Use first substantial paragraph
-                paragraphs = [p.strip() for p in capability_text.split('\n\n') if len(p.strip()) > 50]
-                if paragraphs:
-                    parsed_data['companyDescription'] = paragraphs[0][:500]
+            # Extract company description - look for prose paragraph after headers
+            desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW)([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){2,}\.)', capability_text, re.IGNORECASE)
+            if desc_match:
+                parsed_data['companyDescription'] = desc_match.group(1).strip()[:500]
+            else:
+                # Fallback: look for any prose text with multiple sentences
+                desc_match = re.search(r'([A-Z][a-z][^•\-\*\n]{50,}?(?:\.\s+[A-Z][^•\-\*\n]+?){1,}\.)', capability_text)
+                if desc_match:
+                    desc = desc_match.group(1).strip()
+                    if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE)', desc, re.IGNORECASE):
+                        parsed_data['companyDescription'] = desc[:500]
             
             # Extract industry focus
             industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
@@ -4351,6 +4360,8 @@ def process_capability_statement():
                 parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip()]
             
             logging.info(f"Enhanced fallback parser extracted {len(parsed_data)} fields: {list(parsed_data.keys())}")
+            
+            parsed_data = sanitize_parsed_data(parsed_data, capability_text)
         
         return jsonify({'success': True, 'data': parsed_data})
         
@@ -4582,12 +4593,62 @@ def download_and_extract_from_url(url):
         logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
         return ""
 
+def sanitize_parsed_data(parsed_data, source_text=""):
+    """Clean and normalize extracted capability statement data"""
+    import re
+    from urllib.parse import urlparse
+    
+    sanitized = {}
+    
+    # Clean company name
+    if 'companyName' in parsed_data and parsed_data['companyName']:
+        name = parsed_data['companyName']
+        name = re.sub(r'(?i)^(capability\s+statement|about\s+us|company\s+name)[:\s]*', '', name)
+        name = name.split('\n')[0].strip()
+        if len(name) > 100:
+            suffix_match = re.search(r'(.*?(?:Inc|LLC|Corp|Corporation|Company|Co\.))', name, re.IGNORECASE)
+            if suffix_match:
+                name = suffix_match.group(1)
+            else:
+                name = name[:100]
+        sanitized['companyName'] = name.strip()
+    
+    if 'website' in parsed_data and parsed_data['website']:
+        url = parsed_data['website']
+        try:
+            parsed_url = urlparse(url if url.startswith('http') else f'http://{url}')
+            sanitized['website'] = f"{parsed_url.scheme}://{parsed_url.netloc}".rstrip('/')
+        except:
+            sanitized['website'] = url.split()[0].rstrip('.,;)')
+    
+    # Clean company description
+    if 'companyDescription' in parsed_data and parsed_data['companyDescription']:
+        desc = parsed_data['companyDescription']
+        desc = re.sub(r'(?i)^(capability\s+statement|about\s+us|company\s+overview|overview|description)[:\s]*', '', desc)
+        desc = re.sub(r'(?i)(core\s+competencies|key\s+differentiators|past\s+performance|certifications).*$', '', desc, flags=re.DOTALL)
+        sentences = re.split(r'[.!?]+\s+', desc)
+        if len(sentences) > 3:
+            desc = '. '.join(sentences[:3]) + '.'
+        desc = desc[:400].strip()
+        if desc:
+            sanitized['companyDescription'] = desc
+    
+    for field in ['contactName', 'contactTitle', 'phone', 'email', 'address', 'city', 'state', 'zipCode', 'industryFocus', 'ueiCode', 'cageCode']:
+        if field in parsed_data and parsed_data[field]:
+            sanitized[field] = str(parsed_data[field]).strip()
+    
+    for field in ['competencies', 'differentiators', 'naicsCodes', 'certifications', 'pastPerformance']:
+        if field in parsed_data and isinstance(parsed_data[field], list) and parsed_data[field]:
+            sanitized[field] = [str(item).strip() for item in parsed_data[field] if item]
+    
+    return sanitized
+
 def parse_capability_statement_with_ai(text):
     """Use AI to parse capability statement text into structured data"""
     try:
         logging.info("Starting AI parsing of capability statement text")
         
-        max_chars = 10000  # Increased limit for better extraction
+        max_chars = 10000
         if len(text) > max_chars:
             text = text[:max_chars] + "..."
             logging.info(f"Truncated text to {max_chars} characters")
@@ -4625,13 +4686,12 @@ Only include fields you can clearly identify. Return ONLY valid JSON, no additio
         completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
-            max_tokens=2000,  # Increased for comprehensive extraction
+            max_tokens=2000,
             temperature=0.1
         )
         
         response_text = completion.choices[0].message.content.strip()
-        logging.info(f"AI response length: {len(response_text)}")
-        logging.debug(f"AI response: {response_text[:200]}...")
+        logging.info(f"AI parsing succeeded, response length: {len(response_text)}")
         
         import json
         import re
@@ -4644,19 +4704,19 @@ Only include fields you can clearly identify. Return ONLY valid JSON, no additio
         if json_match:
             json_str = json_match.group()
             parsed_data = json.loads(json_str)
-            logging.info(f"Successfully parsed JSON with fields: {list(parsed_data.keys())}")
-            return parsed_data
+            logging.info(f"AI extracted fields: {list(parsed_data.keys())}")
+            return sanitize_parsed_data(parsed_data, text)
         else:
             try:
                 parsed_data = json.loads(response_text)
-                logging.info(f"Successfully parsed entire response as JSON with fields: {list(parsed_data.keys())}")
-                return parsed_data
+                logging.info(f"AI extracted fields: {list(parsed_data.keys())}")
+                return sanitize_parsed_data(parsed_data, text)
             except json.JSONDecodeError:
-                logging.error(f"Could not parse AI response as JSON: {response_text}")
+                logging.error(f"Could not parse AI response as JSON: {response_text[:200]}")
                 return {}
         
     except Exception as e:
-        logging.error(f"Error parsing with AI: {str(e)}", exc_info=True)
+        logging.warning(f"AI parsing failed: {str(e)[:100]}")
         return {}
 
 @app.route('/update_selected_capability', methods=['POST'])
