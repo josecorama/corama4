@@ -6847,6 +6847,7 @@ def credit_history():
 @app.route('/uploads/contracts/<path:filename>')
 def serve_contract_pdf(filename):
     """Serve contract PDF files"""
+    from werkzeug.exceptions import HTTPException
     try:
         ensure_session_from_auth()
         
@@ -6855,10 +6856,15 @@ def serve_contract_pdf(filename):
         
         contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
         
+        if '..' in filename or filename.startswith('/'):
+            abort(403)
+        
         if not os.path.exists(os.path.join(contracts_dir, filename)):
             abort(404)
         
         return send_from_directory(contracts_dir, filename, mimetype='application/pdf')
+    except HTTPException:
+        raise
     except Exception as e:
         logging.error(f"Error serving contract PDF {filename}: {e}")
         abort(500)
@@ -6972,7 +6978,12 @@ def fetch_contract_pdf():
 @app.route('/api/upload_contract_pdf', methods=['POST'])
 def upload_contract_pdf():
     """Upload contract PDF manually"""
+    ensure_session_from_auth()
+    
     try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
         if 'pdf' not in request.files:
             return jsonify({'success': False, 'error': 'No PDF file provided'}), 400
         
@@ -6982,11 +6993,19 @@ def upload_contract_pdf():
         if not contract_hash:
             return jsonify({'success': False, 'error': 'Missing contract hash'}), 400
         
+        if '..' in contract_hash or '/' in contract_hash or '\\' in contract_hash:
+            return jsonify({'success': False, 'error': 'Invalid contract hash'}), 400
+        
+        # Validate file extension
+        if not pdf_file.filename.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'error': 'Only PDF files are allowed'}), 400
+        
         contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
         os.makedirs(contracts_dir, exist_ok=True)
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
         
         pdf_file.save(pdf_path)
+        logging.info(f"✅ Uploaded contract PDF: {contract_hash}.pdf ({pdf_file.content_length} bytes)")
         
         return jsonify({
             'success': True,

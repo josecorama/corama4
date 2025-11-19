@@ -438,11 +438,11 @@
                 if (data.success && data.pdf_url) {
                     loadPDFViewer(data.pdf_url);
                 } else {
-                    showError('Failed to upload PDF');
+                    showError(data.error || 'Failed to upload PDF');
                 }
             } catch (error) {
                 console.error('Error uploading PDF:', error);
-                showError('Failed to upload PDF');
+                showError('Network error. Please check your connection and try again.');
             }
         }
         
