@@ -344,6 +344,7 @@
     <script>
         const contractHash = '{{ contract_hash }}';
         const contractData = {{ contract_data|tojson if contract_data else 'null' }};
+        const contractName = '{{ contract_name|e }}' || null;
         const userId = '{{ user_id }}';
         let draftId = '{{ draft_id }}' || null;
         
@@ -546,12 +547,20 @@
         // Go back to AI Assistant
         function goBack() {
             if (contractHash) {
-                window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(contractHash)}`;
+                let url = `/ai-assistant?hash_value=${encodeURIComponent(contractHash)}`;
+                if (contractName) {
+                    url += `&name=${encodeURIComponent(contractName)}`;
+                }
+                window.location.href = url;
             } else {
                 const params = new URLSearchParams(window.location.search);
                 const hash = params.get('contract_hash') || params.get('hash') || params.get('hash_value') || params.get('contract');
                 if (hash) {
-                    window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(hash)}`;
+                    let url = `/ai-assistant?hash_value=${encodeURIComponent(hash)}`;
+                    if (contractName) {
+                        url += `&name=${encodeURIComponent(contractName)}`;
+                    }
+                    window.location.href = url;
                 } else {
                     window.location.href = '/welcome';
                 }

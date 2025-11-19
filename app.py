@@ -2444,6 +2444,84 @@ def ai_assistant_room():
     if len(contract_param) == 64 and all(c in '0123456789abcdef' for c in contract_param.lower()):
         # It's already a hash_value
         contract_id = contract_param
+        
+        # If contract_name is not provided, look it up by hash_value
+        if not contract_name:
+            user_id = user['localId']
+            logging.info(f"🔍 contract_name not provided, looking up by hash_value: {contract_id}")
+            
+            try:
+                # Get user data to find uploads directory
+                user_data = None
+                if admin_initialized and admin_db:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_data = user_ref.get()
+                else:
+                    user_data = db.child("users").child(user_id).get(user['idToken']).val()
+                
+                if user_data:
+                    user_uploads_dir = user_data.get('uploads_dir', '')
+                    if user_uploads_dir and os.path.exists(user_uploads_dir):
+                        # Try matches.csv
+                        matches_file = os.path.join(user_uploads_dir, 'matches.csv')
+                        if os.path.exists(matches_file):
+                            try:
+                                with open(matches_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        hash_input = f"{detail_link}{row_bid_number}"
+                                        row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                        if row_hash == contract_id:
+                                            contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
+                                            logging.info(f"✅ Found contract_name in matches.csv: {contract_name}")
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading matches.csv for hash lookup: {e}")
+                        
+                        # If not found, try matches_SMART_SEARCH.csv
+                        if not contract_name:
+                            smart_search_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
+                            if os.path.exists(smart_search_file):
+                                try:
+                                    with open(smart_search_file, 'r', encoding='utf-8') as file:
+                                        reader = csv.DictReader(file)
+                                        for row in reader:
+                                            row = {k.strip(): v for k, v in row.items()}
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if row_hash == contract_id:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
+                                                logging.info(f"✅ Found contract_name in matches_SMART_SEARCH.csv: {contract_name}")
+                                                break
+                                except Exception as e:
+                                    logging.error(f"Error reading matches_SMART_SEARCH.csv for hash lookup: {e}")
+                        
+                        # If still not found, try demo dataset as fallback
+                        if not contract_name:
+                            demo_file = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+                            if os.path.exists(demo_file):
+                                try:
+                                    with open(demo_file, 'r', encoding='utf-8') as file:
+                                        reader = csv.DictReader(file)
+                                        for row in reader:
+                                            row = {k.strip(): v for k, v in row.items()}
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if row_hash == contract_id:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
+                                                logging.info(f"✅ Found contract_name in demo dataset: {contract_name}")
+                                                break
+                                except Exception as e:
+                                    logging.error(f"Error reading demo dataset for hash lookup: {e}")
+            except Exception as e:
+                logging.error(f"Error looking up contract_name by hash_value: {e}")
     else:
         # It's a bid_number, set it as contract_id by default
         bid_number = contract_param
@@ -2669,17 +2747,20 @@ def proposal_start():
     
     # Get contract details from CSV
     contract_data = None
+    contract_name = None
     try:
         df = pd.read_csv('Scraping_demo_results.csv')
         contract_row = df[df['hash_value'] == contract_hash]
         if not contract_row.empty:
             contract_data = contract_row.iloc[0].to_dict()
+            contract_name = contract_data.get('bid_name') or contract_data.get('Bid Name') or contract_data.get('Bid_Name')
     except Exception as e:
         logging.error(f"Error loading contract data: {e}")
     
     return render_template('proposal_start.html',
                          contract_hash=contract_hash,
                          contract_data=contract_data,
+                         contract_name=contract_name,
                          draft_id=draft_id,
                          current_credits=current_credits,
                          user_id=user_id)
