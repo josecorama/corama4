@@ -825,11 +825,12 @@
             }
             
             try {
-                const response = await fetch('/api/add_team_member', {
+                const response = await fetch(`${window.location.origin}/api/add_team_member`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         member: member
@@ -870,11 +871,12 @@
             
             // Save to backend
             try {
-                await fetch('/api/update_draft_team', {
+                await fetch(`${window.location.origin}/api/update_draft_team`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         team_members: teamMembers
