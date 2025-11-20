@@ -224,8 +224,8 @@ class PDF(FPDF):
         """Create the main content in a professional 2-column layout matching reference design"""
         start_y = 68
         
-        margin = 10  # left/right page margins in mm
-        gutter = 10  # space between columns in mm
+        margin = 2.5
+        gutter = 2.5
         available = self.w - 2 * margin - gutter
         col_width = available / 2
         left_x = margin
