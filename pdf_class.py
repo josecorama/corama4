@@ -47,13 +47,43 @@ class PDF(FPDF):
             except:
                 pass
         
+        margin = 2.5
+        gutter = 2.5
+        available = self.w - 2 * margin - gutter
+        col_width = available / 2
+        left_x = margin
+        right_x = margin + col_width + gutter
+        
         # Company name on right side (upper right) - bold and larger
-        self.set_xy(self.w / 2 + 5, 10)
+        self.set_xy(right_x, 10)
         self.set_font("Helvetica", "B", 16)
         self.set_text_color(*self.primary_color)
         company_name = self.data.get("company_name", "")
         company_name_upper = company_name.upper()
-        self.multi_cell(self.w / 2 - 15, 6, company_name_upper, 0, "C")
+        self.multi_cell(col_width, 6, company_name_upper, 0, "C")
+        
+        # Hero image on right side below company name
+        image_path = self.data.get("image_path")
+        if image_path and os.path.exists(image_path):
+            try:
+                img = Image.open(image_path)
+                img_width, img_height = img.size
+                aspect_ratio = img_width / img_height
+                
+                img_x = right_x
+                img_y = self.get_y() + 2
+                img_display_width = col_width
+                img_display_height = img_display_width / aspect_ratio
+                
+                blank_above_mm = 38.6
+                max_height = blank_above_mm - img_y - 2
+                if img_display_height > max_height:
+                    img_display_height = max_height
+                    img_display_width = img_display_height * aspect_ratio
+                
+                self.image(image_path, img_x, img_y, img_display_width, img_display_height)
+            except:
+                pass
         
         blank_above_mm = 38.6
         rect_height_mm = 41.1
@@ -62,14 +92,22 @@ class PDF(FPDF):
         self.set_fill_color(*self.primary_color)
         self.rect(0, bar_y, self.w, rect_height_mm, 'F')
         
-        self.set_xy(12, bar_y + 5)
+        capability_text = ' '.join(list('CAPABILITY'))
+        statement_text = ' '.join(list('STATEMENT'))
+        
+        line_height = 10.0
+        gap = 3.0
+        block_height = line_height * 2 + gap
+        top_y = bar_y + (rect_height_mm - block_height) / 2
+        
+        self.set_xy(left_x, top_y)
         self.set_font("Helvetica", "B", 22)
         self.set_text_color(*WHITE)
-        self.cell(0, 10, "CAPABILITY", 0, 1, "L")
+        self.cell(col_width, line_height, capability_text, 0, 1, "C")
         
-        self.set_xy(12, bar_y + 15)
+        self.set_xy(left_x, top_y + line_height + gap)
         self.set_font("Helvetica", "B", 22)
-        self.cell(0, 10, "STATEMENT", 0, 1, "L")
+        self.cell(col_width, line_height, statement_text, 0, 1, "C")
         
         uei = self.data.get("uei_code", "")
         cage = self.data.get("cage_code", "")
@@ -82,9 +120,10 @@ class PDF(FPDF):
             codes_text += f"CAGE Code: {cage}"
         
         if codes_text:
-            self.set_xy(12, bar_y + 28)
-            self.set_font("Helvetica", "", 10)
-            self.cell(0, 8, codes_text, 0, 0, "L")
+            codes_y = top_y + line_height * 2 + gap + 3
+            self.set_xy(left_x, codes_y)
+            self.set_font("Helvetica", "", 7)
+            self.cell(col_width, 6, codes_text, 0, 0, "C")
         
         self.set_text_color(*BLACK)
         self.set_y(bar_y + rect_height_mm + 4)
