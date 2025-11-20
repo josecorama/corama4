@@ -31,6 +31,39 @@ class PDF(FPDF):
         self.secondary_color = data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])[1]
         self.footer_layout = None  # Will be computed in create_content
         self.set_auto_page_break(auto=False)
+    
+    def _to_pdf_text(self, text):
+        """Sanitize text for FPDF latin-1 encoding by replacing Unicode characters"""
+        if not text:
+            return text
+        
+        import unicodedata
+        text = unicodedata.normalize('NFKC', str(text))
+        
+        replacements = {
+            '\u2122': 'TM',      # ™ → TM
+            '\u00ae': '(R)',     # ® → (R)
+            '\u00a9': '(C)',     # © → (C)
+            '\u2022': '-',       # • → -
+            '\u2013': '-',       # – → -
+            '\u2014': '-',       # — → -
+            '\u2018': "'",       # ' → '
+            '\u2019': "'",       # ' → '
+            '\u201c': '"',       # " → "
+            '\u201d': '"',       # " → "
+            '\u00a0': ' ',       # non-breaking space → space
+            '\u2026': '...',     # … → ...
+        }
+        
+        for unicode_char, ascii_equiv in replacements.items():
+            text = text.replace(unicode_char, ascii_equiv)
+        
+        try:
+            text.encode('latin-1')
+        except UnicodeEncodeError:
+            text = text.encode('latin-1', 'ignore').decode('latin-1')
+        
+        return text
 
     def header(self):
         """Professional header with tall capability statement rectangle"""
@@ -50,7 +83,7 @@ class PDF(FPDF):
         self.set_font("Helvetica", "B", 16)
         self.set_text_color(*self.primary_color)
         company_name = self.data.get("company_name", "")
-        company_name_upper = company_name.upper()
+        company_name_upper = self._to_pdf_text(company_name.upper())
         self.multi_cell(col_width, 6, company_name_upper, 0, "C")
         
         hero_img_y = self.get_y() + 2
@@ -79,7 +112,8 @@ class PDF(FPDF):
                     img_display_width = col_width
                     img_display_height = img_display_width / aspect_ratio
                 
-                img_y = bar_bottom - img_display_height
+                epsilon_mm = 0.4
+                img_y = bar_bottom - img_display_height - epsilon_mm
                 
                 self.image(image_path, img_x, img_y, img_display_width, img_display_height)
             except:
@@ -138,7 +172,7 @@ class PDF(FPDF):
             codes_y = top_y + line_height * 2 + gap + codes_gap_mm
             self.set_xy(left_x, codes_y)
             self.set_font("Helvetica", "", 7)
-            self.cell(col_width, 6, codes_text, 0, 0, "C")
+            self.cell(col_width, 6, self._to_pdf_text(codes_text), 0, 0, "C")
         
         self.set_text_color(*BLACK)
         self.set_y(bar_y + rect_height_mm + 4)
@@ -216,10 +250,10 @@ class PDF(FPDF):
         contact_name = self.data.get("contact_name", "")
         contact_title = self.data.get("contact_title", "")
         if contact_name:
-            self.cell(55, 4, contact_name, 0, 1, "L")
+            self.cell(55, 4, self._to_pdf_text(contact_name), 0, 1, "L")
         if contact_title:
             self.set_x(12)
-            self.cell(55, 4, contact_title, 0, 1, "L")
+            self.cell(55, 4, self._to_pdf_text(contact_title), 0, 1, "L")
         
         self.set_xy(70, y_pos)
         phone = self.data.get("contact_phone", "")
@@ -227,13 +261,13 @@ class PDF(FPDF):
         website = self.data.get("contact_website", "")
         
         if phone:
-            self.cell(65, 4, f"P: {phone}", 0, 1, "L")
+            self.cell(65, 4, self._to_pdf_text(f"P: {phone}"), 0, 1, "L")
         if email:
             self.set_x(70)
-            self.cell(65, 4, f"E: {email}", 0, 1, "L")
+            self.cell(65, 4, self._to_pdf_text(f"E: {email}"), 0, 1, "L")
         if website:
             self.set_x(70)
-            self.cell(65, 4, f"W: {website}", 0, 1, "L")
+            self.cell(65, 4, self._to_pdf_text(f"W: {website}"), 0, 1, "L")
         
         self.set_xy(140, y_pos)
         address_parts = []
@@ -248,7 +282,7 @@ class PDF(FPDF):
             address_parts.append(city_state_zip)
         
         if address_parts:
-            self.multi_cell(55, 4, "\n".join(address_parts), 0, "L")
+            self.multi_cell(55, 4, self._to_pdf_text("\n".join(address_parts)), 0, "L")
         
         certifications = self.data.get("certifications", [])
         if certifications:
@@ -286,7 +320,7 @@ class PDF(FPDF):
             self.set_fill_color(*LIGHT_GRAY)
         self.set_font("Helvetica", "B", 12)
         self.set_text_color(*BLACK)
-        self.cell(width, 9, title, 0, 1, "L", True)
+        self.cell(width, 9, self._to_pdf_text(title), 0, 1, "L", True)
         return self.get_y()
     
     def add_paragraph_bounded(self, text, x, y, width, font_size=8.0, line_height=4.0, bottom_limit=None):
@@ -324,11 +358,11 @@ class PDF(FPDF):
                     prev_line = lines[i-1]
                     if not prev_line.endswith("..."):
                         self.set_xy(x, y - line_height)
-                        self.cell(width, line_height, prev_line + "...", 0, 0, "J")
+                        self.cell(width, line_height, self._to_pdf_text(prev_line + "..."), 0, 0, "J")
                 break
             
             self.set_xy(x, y)
-            self.cell(width, line_height, line, 0, 0, "J")
+            self.cell(width, line_height, self._to_pdf_text(line), 0, 0, "J")
             y += line_height
         
         return y
@@ -367,7 +401,7 @@ class PDF(FPDF):
             self.set_xy(x, y)
             self.cell(3, line_height, chr(0x95), 0, 0, "L")
             self.set_xy(x + 5, y)
-            self.multi_cell(width - 5, line_height, text, 0, "L")
+            self.multi_cell(width - 5, line_height, self._to_pdf_text(text), 0, "L")
             y = self.get_y() + 0.8
         
         return y
@@ -421,7 +455,7 @@ class PDF(FPDF):
                     self.set_xy(right_x + 6, naics_text_y)
                     self.cell(3, 5.5, chr(0x95), 0, 0, "L")
                     self.set_xy(right_x + 11, naics_text_y)
-                    self.cell(col_width - 17, 5.5, str(code), 0, 1, "L")
+                    self.cell(col_width - 17, 5.5, self._to_pdf_text(str(code)), 0, 1, "L")
                     naics_text_y += 6.5
                 
                 if max_codes < len(naics_codes):
