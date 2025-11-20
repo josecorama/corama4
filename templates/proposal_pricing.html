@@ -485,7 +485,9 @@
         // Load pricing data from draft
         async function loadPricingData() {
             try {
-                const response = await fetch(`/api/get_draft_pricing?draft_id=${draftId}`);
+                const response = await fetch(`${window.location.origin}/api/get_draft_pricing?draft_id=${draftId}`, {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 if (data.success && data.pricing) {
@@ -616,11 +618,12 @@
             btn.textContent = 'Generating...';
             
             try {
-                const response = await fetch('/api/generate_pricing_strategy', {
+                const response = await fetch(`${window.location.origin}/api/generate_pricing_strategy`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId
                     })
@@ -651,11 +654,12 @@
         // Save pricing data
         async function savePricingData() {
             try {
-                await fetch('/api/update_draft_pricing', {
+                await fetch(`${window.location.origin}/api/update_draft_pricing`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         pricing: {
