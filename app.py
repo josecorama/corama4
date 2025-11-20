@@ -7951,6 +7951,16 @@ def update_draft_pricing():
         logging.error(f"Error updating draft pricing: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def extract_html_from_llm(s: str) -> str:
+    """Extract HTML content from LLM response, removing markdown code fences if present"""
+    import re
+    m = re.search(r'```(?:html)?\s*([\s\S]*?)\s*```', s, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    s = re.sub(r'^```(?:html)?\s*', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'\s*```\s*$', '', s)
+    return s.strip()
+
 @app.route('/api/generate_pricing_strategy', methods=['POST'])
 def generate_pricing_strategy():
     """Generate AI-powered pricing strategy"""
@@ -7986,7 +7996,7 @@ def generate_pricing_strategy():
             api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
             client = OpenAI(api_key=api_key)
             
-            prompt = f"""You are an expert pricing strategist for government contracts.Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
+            prompt = f"""You are an expert pricing strategist for government contracts. Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
 
 Contract Analysis:
 {annotations_text if annotations_text else 'No contract analysis available'}
@@ -8001,7 +8011,7 @@ Provide a detailed pricing strategy that includes:
 4. Risk mitigation strategies
 5. Win strategy recommendations
 
-Format your response in HTML with clear headings and bullet points."""
+Return only an HTML snippet suitable for direct insertion into a div. Use h4 or h5 for headings, p for paragraphs, and ul/li for lists. Do not wrap in markdown code fences. Do not include any explanation, summary, or text before/after the HTML. Do not include html, head, or body tags."""
 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -8013,7 +8023,8 @@ Format your response in HTML with clear headings and bullet points."""
                 max_tokens=1500
             )
             
-            strategy = response.choices[0].message.content.strip()
+            strategy_raw = response.choices[0].message.content.strip()
+            strategy = extract_html_from_llm(strategy_raw)
             
             draft_ref.update({'pricing_strategy': strategy})
             
