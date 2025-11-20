@@ -28,7 +28,7 @@ class PDF(FPDF):
         self.data = data
         self.primary_color = data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])[0]
         self.secondary_color = data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])[1]
-        self.set_auto_page_break(auto=True, margin=35)
+        self.set_auto_page_break(auto=False)
 
     def header(self):
         """Professional header matching reference design"""
@@ -196,33 +196,88 @@ class PDF(FPDF):
         self.set_text_color(*BLACK)
         self.cell(width, 9, title, 0, 1, "L", True)
         return self.get_y()
-
-    def add_bullet_list(self, items, x, y, width, font_size=8.5):
-        """Add a bulleted list with proper formatting and better spacing"""
-        if not items:
+    
+    def add_paragraph_bounded(self, text, x, y, width, font_size=8.0, line_height=4.0, bottom_limit=None):
+        """Add a paragraph with text wrapping, bounded to bottom_limit"""
+        if not text:
             return y
+        
+        if bottom_limit is None:
+            bottom_limit = self.h - 32
         
         self.set_font("Helvetica", "", font_size)
         
-        for item in items:
+        words = text.split()
+        lines = []
+        current_line = ""
+        
+        for word in words:
+            test_line = current_line + (" " if current_line else "") + word
+            if self.get_string_width(test_line) <= width:
+                current_line = test_line
+            else:
+                if current_line:
+                    lines.append(current_line)
+                current_line = word
+        
+        if current_line:
+            lines.append(current_line)
+        
+        for i, line in enumerate(lines):
+            if y + line_height > bottom_limit:
+                if i > 0 and y <= bottom_limit:
+                    prev_line = lines[i-1]
+                    if not prev_line.endswith("..."):
+                        self.set_xy(x, y - line_height)
+                        self.cell(width, line_height, prev_line + "...", 0, 0, "J")
+                break
+            
+            self.set_xy(x, y)
+            self.cell(width, line_height, line, 0, 0, "J")
+            y += line_height
+        
+        return y
+
+    def add_bullet_list(self, items, x, y, width, font_size=8.0, bottom_limit=None):
+        """Add a bulleted list with proper formatting, bounded to bottom_limit"""
+        if not items:
+            return y
+        
+        if bottom_limit is None:
+            bottom_limit = self.h - 32
+        
+        self.set_font("Helvetica", "", font_size)
+        line_height = 4.0
+        
+        for i, item in enumerate(items):
             if not item:
                 continue
             
-            if y > self.h - 42:
-                self.add_page()
-                y = 70
+            self.set_font("Helvetica", "", font_size)
+            text = str(item)
+            estimated_lines = max(1, int(self.get_string_width(text) / (width - 5)) + 1)
+            estimated_height = estimated_lines * line_height + 0.8
+            
+            if y + estimated_height > bottom_limit:
+                if y + line_height + 0.8 <= bottom_limit:
+                    self.set_xy(x, y)
+                    self.cell(3, line_height, chr(0x95), 0, 0, "L")
+                    self.set_xy(x + 5, y)
+                    self.cell(width - 5, line_height, "...", 0, 0, "L")
+                break
             
             self.set_xy(x, y)
-            self.cell(3, 4.2, chr(0x95), 0, 0, "L")
+            self.cell(3, line_height, chr(0x95), 0, 0, "L")
             self.set_xy(x + 5, y)
-            self.multi_cell(width - 5, 4.2, str(item), 0, "L")
+            self.multi_cell(width - 5, line_height, text, 0, "L")
             y = self.get_y() + 0.8
         
         return y
 
     def create_content(self):
-        """Create the main content in a professional 2-column layout matching reference design"""
+        """Create the main content in a professional 2-column layout, strictly single-page"""
         start_y = 68
+        bottom_limit = self.h - 32
         
         margin = 2.5
         gutter = 2.5
@@ -240,54 +295,61 @@ class PDF(FPDF):
         company_desc = self.data.get("company_description", "")
         if company_desc:
             left_y = self.section_title("ABOUT US", left_x, left_y, col_width, use_secondary_bg=False)
-            self.set_xy(left_x + 4, left_y + 2)
-            self.set_font("Helvetica", "", 8.5)
-            self.multi_cell(col_width - 8, 4.2, company_desc, 0, "J")
-            left_y = self.get_y() + 4
+            left_y = self.add_paragraph_bounded(company_desc, left_x + 4, left_y + 2, col_width - 8, font_size=8.0, line_height=4.0, bottom_limit=bottom_limit)
+            left_y += 4
         
         naics_codes = self.data.get("naics_codes", [])
         if naics_codes:
-            naics_height = 11 + (len(naics_codes) * 6.5)
-            self.set_fill_color(*self.secondary_color)
-            self.rect(right_x, right_y, col_width, naics_height, 'F')
-            
-            self.set_xy(right_x + 4, right_y + 2)
-            self.set_font("Helvetica", "B", 12)
-            self.cell(col_width - 8, 7, "NAICS CODE", 0, 1, "L")
-            
-            self.set_font("Helvetica", "", 8.5)
-            naics_text_y = right_y + 11
-            for code in naics_codes:
-                self.set_xy(right_x + 6, naics_text_y)
-                self.cell(3, 5.5, chr(0x95), 0, 0, "L")
-                self.set_xy(right_x + 11, naics_text_y)
-                self.cell(col_width - 17, 5.5, str(code), 0, 1, "L")
-                naics_text_y += 6.5
-            
-            right_y += naics_height + 5
+            max_codes = min(len(naics_codes), int((bottom_limit - right_y - 11) / 6.5))
+            if max_codes > 0:
+                codes_to_show = naics_codes[:max_codes]
+                naics_height = 11 + (len(codes_to_show) * 6.5)
+                self.set_fill_color(*self.secondary_color)
+                self.rect(right_x, right_y, col_width, naics_height, 'F')
+                
+                self.set_xy(right_x + 4, right_y + 2)
+                self.set_font("Helvetica", "B", 12)
+                self.cell(col_width - 8, 7, "NAICS CODE", 0, 1, "L")
+                
+                self.set_font("Helvetica", "", 8.0)
+                naics_text_y = right_y + 11
+                for code in codes_to_show:
+                    self.set_xy(right_x + 6, naics_text_y)
+                    self.cell(3, 5.5, chr(0x95), 0, 0, "L")
+                    self.set_xy(right_x + 11, naics_text_y)
+                    self.cell(col_width - 17, 5.5, str(code), 0, 1, "L")
+                    naics_text_y += 6.5
+                
+                if max_codes < len(naics_codes):
+                    self.set_xy(right_x + 6, naics_text_y)
+                    self.cell(3, 5.5, chr(0x95), 0, 0, "L")
+                    self.set_xy(right_x + 11, naics_text_y)
+                    self.cell(col_width - 17, 5.5, "...", 0, 1, "L")
+                
+                right_y += naics_height + 5
         
         past_performance = self.data.get("private_performance", [])
         if past_performance:
             left_y = self.section_title("PAST PERFORMANCE", left_x, left_y, col_width, use_secondary_bg=False)
-            left_y = self.add_bullet_list(past_performance, left_x + 4, left_y + 2, col_width - 4)
+            left_y = self.add_bullet_list(past_performance, left_x + 4, left_y + 2, col_width - 4, font_size=8.0, bottom_limit=bottom_limit)
             left_y += 4
         
         core_competencies = self.data.get("core_competencies", [])
         if core_competencies:
             right_y = self.section_title("CORE COMPETENCIES", right_x, right_y, col_width, use_secondary_bg=False)
-            right_y = self.add_bullet_list(core_competencies, right_x + 4, right_y + 2, col_width - 4)
+            right_y = self.add_bullet_list(core_competencies, right_x + 4, right_y + 2, col_width - 4, font_size=8.0, bottom_limit=bottom_limit)
             right_y += 4
         
         certifications = self.data.get("certifications", [])
         if certifications:
             right_y = self.section_title("CERTIFICATIONS", right_x, right_y, col_width, use_secondary_bg=False)
-            right_y = self.add_bullet_list(certifications, right_x + 4, right_y + 2, col_width - 4)
+            right_y = self.add_bullet_list(certifications, right_x + 4, right_y + 2, col_width - 4, font_size=8.0, bottom_limit=bottom_limit)
             right_y += 4
         
         differentiators = self.data.get("differentiators", [])
         if differentiators:
             left_y = self.section_title("DIFFERENTIATORS", left_x, left_y, col_width, use_secondary_bg=False)
-            left_y = self.add_bullet_list(differentiators, left_x + 4, left_y + 2, col_width - 4)
+            left_y = self.add_bullet_list(differentiators, left_x + 4, left_y + 2, col_width - 4, font_size=8.0, bottom_limit=bottom_limit)
             left_y += 4
 
 
