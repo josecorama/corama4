@@ -223,10 +223,16 @@ class PDF(FPDF):
     def create_content(self):
         """Create the main content in a professional 2-column layout matching reference design"""
         start_y = 68
-        col_width = 88
-        col_spacing = 12
-        left_x = 12
-        right_x = left_x + col_width + col_spacing
+        
+        margin = 10  # left/right page margins in mm
+        gutter = 10  # space between columns in mm
+        available = self.w - 2 * margin - gutter
+        col_width = available / 2
+        left_x = margin
+        right_x = margin + col_width + gutter
+        
+        assert left_x >= margin, f"Left column too close to edge: {left_x}"
+        assert right_x + col_width <= self.w - margin, f"Right column too close to edge: {right_x + col_width}"
         
         left_y = start_y
         right_y = start_y
