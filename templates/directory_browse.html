@@ -10,7 +10,8 @@
             font-family: 'Jost', sans-serif;
             background: #f8f9fa;
             min-height: 100vh;
-            padding-top: 80px;
+            margin: 0;
+            padding-top: 64px;
         }
 
         .hero-section {
@@ -417,7 +418,8 @@
 
         async function loadCompanies() {
             try {
-                const response = await fetch('/api/get_directory_companies');
+                const url = new URL('/api/get_directory_companies', window.location.origin);
+                const response = await fetch(url.toString());
                 const data = await response.json();
 
                 if (data.success) {
