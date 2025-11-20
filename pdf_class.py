@@ -32,27 +32,16 @@ class PDF(FPDF):
 
     def header(self):
         """Professional header with tall capability statement rectangle"""
-        logo_path = self.data.get("logo_path")
-        if logo_path and os.path.exists(logo_path):
-            try:
-                logo = Image.open(logo_path)
-                logo_width, logo_height = logo.size
-                aspect_ratio = logo_width / logo_height
-                height = 30
-                width = height * aspect_ratio
-                if width > 70:
-                    width = 70
-                    height = width / aspect_ratio
-                self.image(logo_path, 12, 10, width, height)
-            except:
-                pass
-        
         margin = 2.5
         gutter = 2.5
         available = self.w - 2 * margin - gutter
         col_width = available / 2
         left_x = margin
         right_x = margin + col_width + gutter
+        
+        blank_above_mm = 38.6
+        rect_height_mm = 41.1
+        bar_y = blank_above_mm
         
         # Company name on right side (upper right) - bold and larger
         self.set_xy(right_x, 10)
@@ -75,8 +64,7 @@ class PDF(FPDF):
                 img_display_width = col_width
                 img_display_height = img_display_width / aspect_ratio
                 
-                blank_above_mm = 38.6
-                max_height = blank_above_mm - img_y - 2
+                max_height = bar_y - img_y - 2
                 if img_display_height > max_height:
                     img_display_height = max_height
                     img_display_width = img_display_height * aspect_ratio
@@ -85,18 +73,34 @@ class PDF(FPDF):
             except:
                 pass
         
-        blank_above_mm = 38.6
-        rect_height_mm = 41.1
-        bar_y = blank_above_mm
-        
         self.set_fill_color(*self.primary_color)
         self.rect(0, bar_y, self.w, rect_height_mm, 'F')
+        
+        logo_path = self.data.get("logo_path")
+        if logo_path and os.path.exists(logo_path):
+            try:
+                logo = Image.open(logo_path)
+                logo_width, logo_height = logo.size
+                aspect_ratio = logo_width / logo_height
+                logo_h = 35
+                logo_w = logo_h * aspect_ratio
+                
+                if logo_w > col_width:
+                    logo_w = col_width
+                    logo_h = logo_w / aspect_ratio
+                
+                logo_y = bar_y - logo_h
+                logo_x = left_x + (col_width - logo_w) / 2
+                
+                self.image(logo_path, logo_x, logo_y, logo_w, logo_h)
+            except:
+                pass
         
         capability_text = ' '.join(list('CAPABILITY'))
         statement_text = ' '.join(list('STATEMENT'))
         
         line_height = 10.0
-        gap = 3.0
+        gap = 4.0
         block_height = line_height * 2 + gap
         top_y = bar_y + (rect_height_mm - block_height) / 2
         
@@ -120,7 +124,7 @@ class PDF(FPDF):
             codes_text += f"CAGE Code: {cage}"
         
         if codes_text:
-            codes_y = top_y + line_height * 2 + gap + 3
+            codes_y = top_y + line_height * 2 + gap + 2.5
             self.set_xy(left_x, codes_y)
             self.set_font("Helvetica", "", 7)
             self.cell(col_width, 6, codes_text, 0, 0, "C")
