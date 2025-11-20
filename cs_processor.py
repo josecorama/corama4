@@ -20,7 +20,7 @@ class CSQueryHandler:
             api_key=qdrant_api_key,
             timeout=10            # 只保留支持的参数
         )
-        self.collection_name = "Top_5_contracts_Vector_DB"
+        self.collection_name = "government_contracts"
         self.user_upload_dir = user_upload_dir
         
         try:
@@ -381,8 +381,8 @@ def main():
     load_dotenv()
     
     OPENAI_API_KEY = os.getenv('CS_BUILDER_OPENAI_API_KEY')
-    QDRANT_URL = os.getenv('QDRANT_URL')
-    QDRANT_API_KEY = os.getenv('QDRANT_API_KEY')
+    QDRANT_URL = os.getenv('Qdrant_EP')
+    QDRANT_API_KEY = os.getenv('Qdrant_AK')
     
     user_upload_dir = "uploads"
     file_path = "example_capability_statement.pdf"

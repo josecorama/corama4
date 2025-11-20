@@ -3162,8 +3162,8 @@ def logout():
 
 
 def check_qdrant_config():
-    qdrant_url = os.getenv('QDRANT_URL')
-    qdrant_api_key = os.getenv('QDRANT_API_KEY')
+    qdrant_url = os.getenv('Qdrant_EP')
+    qdrant_api_key = os.getenv('Qdrant_AK')
     
     if not qdrant_url or not qdrant_api_key:
         raise ValueError("Qdrant configuration missing. Check your .env file.")
@@ -3263,8 +3263,8 @@ def upload_and_process():
             # (the same steps from your original upload_and_process).
             handler = CSQueryHandler(
                 openai_api_key=os.getenv('CS_BID_SEARCH_OPENAI_API_KEY'),
-                qdrant_url=os.getenv('QDRANT_URL'),
-                qdrant_api_key=os.getenv('QDRANT_API_KEY'),
+                qdrant_url=os.getenv('Qdrant_EP'),
+                qdrant_api_key=os.getenv('Qdrant_AK'),
                 user_upload_dir=user_upload_dir
             )
             with open(file_path, 'rb') as pdf_file:
@@ -3276,8 +3276,8 @@ def upload_and_process():
                 # Initialize CSQueryHandler for contract matching
                 handler = CSQueryHandler(
                     openai_api_key=os.getenv('CS_BID_SEARCH_OPENAI_API_KEY'),
-                    qdrant_url=os.getenv('QDRANT_URL'),
-                    qdrant_api_key=os.getenv('QDRANT_API_KEY'),
+                    qdrant_url=os.getenv('Qdrant_EP'),
+                    qdrant_api_key=os.getenv('Qdrant_AK'),
                     user_upload_dir=user_upload_dir
                 )
                 
@@ -5869,8 +5869,8 @@ def BlogdetailBetween_RFP_and_RFQ():
 
 class QdrantStore:
     def __init__(self, dimension=1536):
-        qdrant_url = os.getenv('QDRANT_URL')
-        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
         
         if not qdrant_url or not qdrant_api_key:
             raise ValueError("Qdrant configuration not found in environment variables")
@@ -5880,7 +5880,7 @@ class QdrantStore:
             api_key=qdrant_api_key
         )
         
-        self.collection_name = "contracts"
+        self.collection_name = "government_contracts"
         try:
             self.client.get_collection(self.collection_name)
             logging.info(f"Connected to existing collection {self.collection_name}")
@@ -5906,8 +5906,8 @@ class QdrantStore:
     @staticmethod
     def inspect_state_values():
         try:
-            qdrant_url = os.getenv('QDRANT_URL')
-            qdrant_api_key = os.getenv('QDRANT_API_KEY')
+            qdrant_url = os.getenv('Qdrant_EP')
+            qdrant_api_key = os.getenv('Qdrant_AK')
             
             client = QdrantClient(
                 url=qdrant_url,
@@ -5915,7 +5915,7 @@ class QdrantStore:
             )
             
             scroll_result = client.scroll(
-                collection_name="contracts",
+                collection_name="government_contracts",
                 limit=100,  # 取100条数据作为样本
                 with_vectors=False
             )
@@ -5950,7 +5950,7 @@ def load_all_contracts(client):
     offset = 0
     while True:
         scroll_result = client.scroll(
-            collection_name="contracts",
+            collection_name="government_contracts",
             limit=1000,
             with_vectors=True,
             offset=offset  # 使用 offset 分页（请确保你的 qdrant_client 版本支持此参数，否则请升级）
@@ -6210,8 +6210,8 @@ def Smartsearch():
         items_per_page = 50
 
         # Initialize Qdrant client
-        qdrant_url    = os.getenv('QDRANT_URL')
-        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        qdrant_url    = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
 
         def normalize_payload(payload):
@@ -6224,7 +6224,7 @@ def Smartsearch():
             """Helper to read 'raw' contract data from Qdrant with pagination."""
             try:
                 scroll_result = client.scroll(
-                    collection_name="contracts",
+                    collection_name="government_contracts",
                     limit=limit,
                     with_vectors=True,
                     offset=offset
@@ -6278,7 +6278,7 @@ def Smartsearch():
                 return search_result
             try:
                 hits = client.search(
-                    collection_name="contracts",
+                    collection_name="government_contracts",
                     query_vector=vector,
                     limit=top_k,
                     score_threshold=0.70
@@ -6311,7 +6311,7 @@ def Smartsearch():
         # If user’s query is empty => Show ALL contracts (unchanged logic)
         # ---------------------------------------------------------------------
         if query == "":
-            total_response = client.count(collection_name="contracts")
+            total_response = client.count(collection_name="government_contracts")
             total_contracts = total_response.count
             offset = (page - 1) * items_per_page
             contracts = read_contracts_from_qdrant(offset, items_per_page)
