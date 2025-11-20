@@ -67,20 +67,19 @@ class PDF(FPDF):
                 aspect_ratio = img_width / img_height
                 
                 img_x = right_x
-                img_y = hero_img_y
                 
                 hero_target_h_mm = 56.5
-                hero_clearance_mm = 1.0
-                
                 bar_bottom = bar_y + rect_height_mm
-                max_height = bar_bottom - img_y - hero_clearance_mm
+                height_by_bottom = bar_bottom - hero_img_y
                 
-                img_display_height = min(hero_target_h_mm, max_height)
+                img_display_height = min(hero_target_h_mm, height_by_bottom)
                 img_display_width = img_display_height * aspect_ratio
                 
                 if img_display_width > col_width:
                     img_display_width = col_width
                     img_display_height = img_display_width / aspect_ratio
+                
+                img_y = bar_bottom - img_display_height
                 
                 self.image(image_path, img_x, img_y, img_display_width, img_display_height)
             except:
@@ -150,15 +149,14 @@ class PDF(FPDF):
         footer_bottom_pad_mm = 3.0
         footer_label_h_mm = 5.0
         footer_info_line_h_mm = 4.0
-        footer_white_below_mm = 2.5
         
-        col1_lines = 0  # Contact name and title
+        col1_lines = 0
         if self.data.get("contact_name"):
             col1_lines += 1
         if self.data.get("contact_title"):
             col1_lines += 1
         
-        col2_lines = 0  # Phone, email, website
+        col2_lines = 0
         if self.data.get("contact_phone"):
             col2_lines += 1
         if self.data.get("contact_email"):
@@ -166,7 +164,7 @@ class PDF(FPDF):
         if self.data.get("contact_website"):
             col2_lines += 1
         
-        col3_lines = 0  # Address
+        col3_lines = 0
         if self.data.get("contact_address"):
             col3_lines += 1
         city_state_zip = ", ".join(filter(None, [
@@ -181,7 +179,7 @@ class PDF(FPDF):
         
         footer_h_mm = footer_top_pad_mm + footer_label_h_mm + (max_lines * footer_info_line_h_mm) + footer_bottom_pad_mm
         
-        footer_top_y = self.h - footer_white_below_mm - footer_h_mm
+        footer_top_y = self.h - footer_h_mm
         
         label_y = footer_top_y + footer_top_pad_mm
         cols_y = label_y + footer_label_h_mm
@@ -191,7 +189,6 @@ class PDF(FPDF):
         return {
             'footer_h_mm': footer_h_mm,
             'footer_top_y': footer_top_y,
-            'footer_white_below_mm': footer_white_below_mm,
             'label_y': label_y,
             'cols_y': cols_y,
             'badge_y': badge_y
@@ -299,7 +296,7 @@ class PDF(FPDF):
         
         if bottom_limit is None:
             if self.footer_layout:
-                bottom_limit = self.footer_layout['footer_top_y'] - 8.0
+                bottom_limit = self.h - self.footer_layout['footer_h_mm'] - 8.0
             else:
                 bottom_limit = self.h - 32
         
@@ -343,7 +340,7 @@ class PDF(FPDF):
         
         if bottom_limit is None:
             if self.footer_layout:
-                bottom_limit = self.footer_layout['footer_top_y'] - 8.0
+                bottom_limit = self.h - self.footer_layout['footer_h_mm'] - 8.0
             else:
                 bottom_limit = self.h - 32
         
@@ -384,7 +381,7 @@ class PDF(FPDF):
         
         self.footer_layout = self.compute_footer_layout()
         gap_above_footer_mm = 8.0
-        bottom_limit = self.footer_layout['footer_top_y'] - gap_above_footer_mm
+        bottom_limit = self.h - self.footer_layout['footer_h_mm'] - gap_above_footer_mm
         
         margin = 2.5
         gutter = 2.5
@@ -460,19 +457,16 @@ class PDF(FPDF):
             left_y += 4
         
         last_content_y = max(left_y, right_y)
-        desired_footer_top = last_content_y + gap_above_footer_mm
-        default_footer_top = self.footer_layout['footer_top_y']
-        
-        final_footer_top = min(default_footer_top, desired_footer_top)
+        footer_top_y = last_content_y + gap_above_footer_mm
         
         footer_h_mm = self.footer_layout['footer_h_mm']
         footer_top_pad_mm = 3.0
         footer_label_h_mm = 5.0
         
-        self.footer_layout['footer_top_y'] = final_footer_top
-        self.footer_layout['label_y'] = final_footer_top + footer_top_pad_mm
-        self.footer_layout['cols_y'] = final_footer_top + footer_top_pad_mm + footer_label_h_mm
-        self.footer_layout['badge_y'] = final_footer_top + footer_h_mm - 3.0 - 12 - 1
+        self.footer_layout['footer_top_y'] = footer_top_y
+        self.footer_layout['label_y'] = footer_top_y + footer_top_pad_mm
+        self.footer_layout['cols_y'] = footer_top_y + footer_top_pad_mm + footer_label_h_mm
+        self.footer_layout['badge_y'] = footer_top_y + footer_h_mm - 3.0 - 12 - 1
 
 
 def create_pdf(data, output_path="output.pdf"):
