@@ -89,7 +89,8 @@ class PDF(FPDF):
                     logo_w = col_width
                     logo_h = logo_w / aspect_ratio
                 
-                logo_y = bar_y - logo_h
+                logo_clearance_mm = 0.8
+                logo_y = bar_y - logo_h - logo_clearance_mm
                 logo_x = left_x + (col_width - logo_w) / 2
                 
                 self.image(logo_path, logo_x, logo_y, logo_w, logo_h)
@@ -124,7 +125,8 @@ class PDF(FPDF):
             codes_text += f"CAGE Code: {cage}"
         
         if codes_text:
-            codes_y = top_y + line_height * 2 + gap + 2.5
+            codes_gap_mm = 2.0
+            codes_y = top_y + line_height * 2 + gap + codes_gap_mm
             self.set_xy(left_x, codes_y)
             self.set_font("Helvetica", "", 7)
             self.cell(col_width, 6, codes_text, 0, 0, "C")
