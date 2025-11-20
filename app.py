@@ -4410,10 +4410,10 @@ def process_capability_statement():
             if cage_match:
                 parsed_data['cageCode'] = cage_match.group(1)
             
-            # Extract NAICS codes (5-6 digit numbers near "NAICS" keyword)
-            naics_matches = re.findall(r'(?:NAICS|naics)[:\s]*([0-9]{5,6})', capability_text)
-            if naics_matches:
-                parsed_data['naicsCodes'] = list(set(naics_matches))
+            # Extract NAICS codes with descriptions
+            naics_codes_with_desc = extract_naics_codes_with_descriptions(capability_text)
+            if naics_codes_with_desc:
+                parsed_data['naicsCodes'] = naics_codes_with_desc
             
             # Extract certifications (common patterns)
             cert_patterns = ['8\\(a\\)', 'WBENC', 'MBE', 'WBE', 'DBE', 'SDB', 'HUBZone', 'VOSB', 'SDVOSB', 'ISO ?9001', 'ISO ?14001', 'ISO ?27001']
@@ -4743,6 +4743,148 @@ def download_and_extract_from_url(url):
         logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
         return ""
 
+def extract_naics_section(text):
+    """Extract the NAICS section from capability statement text"""
+    import re
+    
+    temp_text = re.sub(
+        r'(?i)\s+(?=(ABOUT\s+US|NAICS(?:\s+CODE)?|PAST\s+PERFORMANCE|CORE\s+COMPETENCIES|DIFFERENTIATORS?|CERTIFICATIONS?|POINT\s+OF\s+CONTACT|CONTACT\s+INFORMATION)\b)',
+        '\n',
+        text
+    )
+    
+    naics_start = re.search(r'(?i)\bNAICS(?:\s+CODE)?\b', temp_text)
+    if not naics_start:
+        return ""
+    
+    next_section_pattern = r'(?i)\b(?:CERTIFICATIONS?|ABOUT\s+US|CORE\s+COMPETENCIES|DIFFERENTIATORS?|PAST\s+PERFORMANCE|CONTACT|POINT\s+OF\s+CONTACT)\b'
+    next_section = re.search(next_section_pattern, temp_text[naics_start.end():])
+    
+    if next_section:
+        naics_text = temp_text[naics_start.start():naics_start.end() + next_section.start()]
+    else:
+        naics_text = temp_text[naics_start.start():]
+    
+    return naics_text
+
+def extract_naics_codes_with_descriptions(text):
+    """Extract NAICS codes with descriptions from text"""
+    import re
+    
+    naics_section = extract_naics_section(text)
+    naics_list = []
+    seen_codes = set()
+    
+    if len(naics_section) < 50:
+        fallback_pattern = r'(\d{5,6})\s*[\(\[]([^\)\]]{10,100})[\)\]]'
+        fallback_matches = re.findall(fallback_pattern, text)
+        if len(fallback_matches) >= 2:
+            return [f"{code} ({' '.join(desc.split())})" for code, desc in fallback_matches]
+        return []
+    
+    code_pattern = r'(?m)^[\s•*\-–—]*([0-9]{5,6})\b'
+    code_matches = re.finditer(code_pattern, naics_section)
+    
+    for match in code_matches:
+        code = match.group(1)
+        if code in seen_codes:
+            continue
+        seen_codes.add(code)
+        
+        desc_search_text = naics_section[match.end():]
+        desc_match = re.search(r'\(([\s\S]*?)\)', desc_search_text[:200])
+        
+        if desc_match:
+            description = ' '.join(desc_match.group(1).split())
+            naics_list.append(f"{code} ({description})")
+        else:
+            line_end = desc_search_text.find('\n')
+            if line_end > 0:
+                rest_of_line = desc_search_text[:line_end].strip()
+                rest_of_line = re.sub(r'^[\s\-–—:]+', '', rest_of_line)
+                if rest_of_line and len(rest_of_line) > 3:
+                    naics_list.append(f"{code} ({rest_of_line})")
+                else:
+                    naics_list.append(code)
+            else:
+                naics_list.append(code)
+    
+    if not naics_list:
+        secondary_pattern = r'(\d{5,6})\b[^\n\(]{0,50}\(([\s\S]{10,200}?)\)'
+        secondary_matches = re.findall(secondary_pattern, naics_section)
+        for code, desc in secondary_matches:
+            if code not in seen_codes:
+                seen_codes.add(code)
+                naics_list.append(f"{code} ({' '.join(desc.split())})")
+    
+    if not naics_list:
+        fallback_pattern = r'(\d{5,6})\s*[\(\[]([^\)\]]{10,100})[\)\]]'
+        fallback_matches = re.findall(fallback_pattern, text)
+        if len(fallback_matches) >= 2:
+            return [f"{code} ({' '.join(desc.split())})" for code, desc in fallback_matches]
+    
+    return naics_list
+
+def generate_naics_descriptions(codes):
+    """Generate NAICS descriptions using OpenAI API for codes without descriptions"""
+    import re
+    from openai import OpenAI
+    
+    codes_without_desc = [code for code in codes if '(' not in code]
+    
+    if not codes_without_desc:
+        return codes  # All codes already have descriptions
+    
+    try:
+        openai_api_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            logging.warning("No OpenAI API key found for NAICS description generation")
+            return codes
+        
+        client = OpenAI(api_key=openai_api_key)
+        
+        # Generate descriptions for all missing codes in one API call
+        prompt = f"""Given these NAICS codes, return the official NAICS titles as short descriptions.
+Output strict JSON mapping code to description.
+
+Codes: {codes_without_desc}
+
+Format: {{"code": "description", ...}}
+Keep descriptions concise (under 50 words each)."""
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a NAICS code expert. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        
+        import json
+        descriptions_dict = json.loads(response.choices[0].message.content)
+        
+        updated_codes = []
+        for code in codes:
+            if '(' in code:
+                # Already has description
+                updated_codes.append(code)
+            else:
+                # Add generated description
+                if code in descriptions_dict:
+                    updated_codes.append(f"{code} ({descriptions_dict[code]})")
+                else:
+                    # Fallback: keep code without description
+                    updated_codes.append(code)
+        
+        logging.info(f"Generated descriptions for {len(codes_without_desc)} NAICS codes")
+        return updated_codes
+        
+    except Exception as e:
+        logging.error(f"Error generating NAICS descriptions: {str(e)}")
+        return codes  # Return original codes on error
+
 def sanitize_parsed_data(parsed_data, source_text=""):
     """Clean and normalize extracted capability statement data"""
     import re
@@ -4787,7 +4929,33 @@ def sanitize_parsed_data(parsed_data, source_text=""):
         if field in parsed_data and parsed_data[field]:
             sanitized[field] = str(parsed_data[field]).strip()
     
-    for field in ['competencies', 'differentiators', 'naicsCodes', 'certifications', 'pastPerformance']:
+    if 'naicsCodes' in parsed_data and isinstance(parsed_data['naicsCodes'], list) and parsed_data['naicsCodes']:
+        naics_codes = [str(item).strip() for item in parsed_data['naicsCodes'] if item]
+        
+        # Check if codes already have descriptions (contain parentheses)
+        codes_with_desc = [code for code in naics_codes if '(' in code]
+        codes_without_desc = [code for code in naics_codes if '(' not in code]
+        
+        if codes_without_desc and source_text:
+            extracted_codes = extract_naics_codes_with_descriptions(source_text)
+            for extracted in extracted_codes:
+                # Extract just the code number for comparison
+                extracted_num = re.search(r'^([0-9]{5,6})', extracted)
+                if extracted_num:
+                    extracted_num = extracted_num.group(1)
+                    if extracted_num in codes_without_desc:
+                        codes_without_desc.remove(extracted_num)
+                        codes_with_desc.append(extracted)
+            
+            naics_codes = codes_with_desc + codes_without_desc
+        
+        # Generate descriptions for any remaining codes without descriptions
+        if any('(' not in code for code in naics_codes):
+            naics_codes = generate_naics_descriptions(naics_codes)
+        
+        sanitized['naicsCodes'] = naics_codes
+    
+    for field in ['competencies', 'differentiators', 'certifications', 'pastPerformance']:
         if field in parsed_data and isinstance(parsed_data[field], list) and parsed_data[field]:
             sanitized[field] = [str(item).strip() for item in parsed_data[field] if item]
     
@@ -4822,7 +4990,7 @@ Required fields (include all that you can identify):
 - differentiators: Array of key differentiators/competitive advantages
 - ueiCode: UEI (Unique Entity Identifier) code
 - cageCode: CAGE (Commercial and Government Entity) code
-- naicsCodes: Array of NAICS codes
+- naicsCodes: Array of NAICS codes WITH descriptions in format "CODE (Description)", e.g. ["236220 (Commercial and Institutional Building Construction)", "237110 (Water and Sewer Line Construction)"]. Use official NAICS titles and keep descriptions concise.
 - certifications: Array of certifications (e.g., 8(a), WBENC, MBE, ISO, etc.)
 - pastPerformance: Array of past performance examples/notable projects/clients
 

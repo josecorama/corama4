@@ -320,7 +320,7 @@ class PDF(FPDF):
             self.set_fill_color(*LIGHT_GRAY)
         self.set_font("Helvetica", "B", 12)
         self.set_text_color(*BLACK)
-        self.cell(width, 9, self._to_pdf_text(title), 0, 1, "L", True)
+        self.cell(width, 9, self._to_pdf_text(title), 0, 1, "C", True)
         return self.get_y()
     
     def add_paragraph_bounded(self, text, x, y, width, font_size=8.0, line_height=4.0, bottom_limit=None):
