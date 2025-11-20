@@ -6,6 +6,7 @@ PRIMARY_BLUE = (46, 76, 139)  # #2E4C8B - Rich blue for headers
 LIGHT_BLUE = (168, 213, 226)  # #A8D5E2 - Light blue for section backgrounds
 LIGHT_GRAY = (240, 240, 240)  # #F0F0F0 - Light gray for alternate sections
 DARK_GRAY = (45, 45, 45)  # #2D2D2D - Dark gray for footer
+FOOTER_GRAY = (87, 88, 90)  # #57585a - Footer background color
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
@@ -28,6 +29,7 @@ class PDF(FPDF):
         self.data = data
         self.primary_color = data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])[0]
         self.secondary_color = data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])[1]
+        self.footer_layout = None  # Will be computed in create_content
         self.set_auto_page_break(auto=False)
 
     def header(self):
@@ -61,13 +63,19 @@ class PDF(FPDF):
                 
                 img_x = right_x
                 img_y = self.get_y() + 2
-                img_display_width = col_width
-                img_display_height = img_display_width / aspect_ratio
                 
-                max_height = bar_y - img_y - 2
-                if img_display_height > max_height:
-                    img_display_height = max_height
-                    img_display_width = img_display_height * aspect_ratio
+                hero_target_h_mm = 56.5
+                hero_clearance_mm = 1.0
+                
+                bar_bottom = bar_y + rect_height_mm
+                max_height = bar_bottom - img_y - hero_clearance_mm
+                
+                img_display_height = min(hero_target_h_mm, max_height)
+                img_display_width = img_display_height * aspect_ratio
+                
+                if img_display_width > col_width:
+                    img_display_width = col_width
+                    img_display_height = img_display_width / aspect_ratio
                 
                 self.image(image_path, img_x, img_y, img_display_width, img_display_height)
             except:
@@ -134,20 +142,76 @@ class PDF(FPDF):
         self.set_text_color(*BLACK)
         self.set_y(bar_y + rect_height_mm + 4)
 
+    def compute_footer_layout(self):
+        """Compute dynamic footer layout based on content"""
+        footer_top_pad_mm = 3.0
+        footer_bottom_pad_mm = 3.0
+        footer_label_h_mm = 5.0
+        footer_info_line_h_mm = 4.0
+        footer_white_below_mm = 2.5
+        
+        col1_lines = 0  # Contact name and title
+        if self.data.get("contact_name"):
+            col1_lines += 1
+        if self.data.get("contact_title"):
+            col1_lines += 1
+        
+        col2_lines = 0  # Phone, email, website
+        if self.data.get("contact_phone"):
+            col2_lines += 1
+        if self.data.get("contact_email"):
+            col2_lines += 1
+        if self.data.get("contact_website"):
+            col2_lines += 1
+        
+        col3_lines = 0  # Address
+        if self.data.get("contact_address"):
+            col3_lines += 1
+        city_state_zip = ", ".join(filter(None, [
+            self.data.get("city", ""),
+            self.data.get("state", ""),
+            self.data.get("zip", "")
+        ]))
+        if city_state_zip:
+            col3_lines += 1
+        
+        max_lines = max(col1_lines, col2_lines, col3_lines)
+        
+        footer_h_mm = footer_top_pad_mm + footer_label_h_mm + (max_lines * footer_info_line_h_mm) + footer_bottom_pad_mm
+        
+        footer_top_y = self.h - footer_white_below_mm - footer_h_mm
+        
+        label_y = footer_top_y + footer_top_pad_mm
+        cols_y = label_y + footer_label_h_mm
+        
+        badge_y = footer_top_y + footer_h_mm - footer_bottom_pad_mm - 12 - 1
+        
+        return {
+            'footer_h_mm': footer_h_mm,
+            'footer_top_y': footer_top_y,
+            'footer_white_below_mm': footer_white_below_mm,
+            'label_y': label_y,
+            'cols_y': cols_y,
+            'badge_y': badge_y
+        }
+    
     def footer(self):
         """Professional footer with contact information and certification badges"""
-        self.set_y(-32)
-        self.set_fill_color(*DARK_GRAY)
-        self.rect(0, self.get_y(), self.w, 32, 'F')
+        if self.footer_layout is None:
+            return
         
-        self.set_y(-29)
+        layout = self.footer_layout
+        
+        self.set_fill_color(*FOOTER_GRAY)
+        self.rect(0, layout['footer_top_y'], self.w, layout['footer_h_mm'], 'F')
+        
+        self.set_xy(12, layout['label_y'])
         self.set_font("Helvetica", "B", 10)
         self.set_text_color(*WHITE)
-        self.set_x(12)
         self.cell(0, 5, "POINT OF CONTACT", 0, 1, "L")
         
         self.set_font("Helvetica", "", 8)
-        y_pos = self.get_y()
+        y_pos = layout['cols_y']
         
         self.set_xy(12, y_pos)
         contact_name = self.data.get("contact_name", "")
@@ -190,7 +254,7 @@ class PDF(FPDF):
         certifications = self.data.get("certifications", [])
         if certifications:
             badge_x = 140
-            badge_y = self.h - 15
+            badge_y = layout['badge_y']
             badge_size = 12
             badge_spacing = 2
             
@@ -232,7 +296,10 @@ class PDF(FPDF):
             return y
         
         if bottom_limit is None:
-            bottom_limit = self.h - 32
+            if self.footer_layout:
+                bottom_limit = self.footer_layout['footer_top_y'] - 8.0
+            else:
+                bottom_limit = self.h - 32
         
         self.set_font("Helvetica", "", font_size)
         
@@ -273,7 +340,10 @@ class PDF(FPDF):
             return y
         
         if bottom_limit is None:
-            bottom_limit = self.h - 32
+            if self.footer_layout:
+                bottom_limit = self.footer_layout['footer_top_y'] - 8.0
+            else:
+                bottom_limit = self.h - 32
         
         self.set_font("Helvetica", "", font_size)
         line_height = 4.0
@@ -309,7 +379,10 @@ class PDF(FPDF):
         rect_height_mm = 41.1
         spacing_mm = 4
         start_y = blank_above_mm + rect_height_mm + spacing_mm
-        bottom_limit = self.h - 32
+        
+        self.footer_layout = self.compute_footer_layout()
+        gap_above_footer_mm = 8.0
+        bottom_limit = self.footer_layout['footer_top_y'] - gap_above_footer_mm
         
         margin = 2.5
         gutter = 2.5
