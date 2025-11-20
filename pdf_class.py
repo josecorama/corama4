@@ -31,7 +31,7 @@ class PDF(FPDF):
         self.set_auto_page_break(auto=False)
 
     def header(self):
-        """Professional header matching reference design"""
+        """Professional header with tall capability statement rectangle"""
         logo_path = self.data.get("logo_path")
         if logo_path and os.path.exists(logo_path):
             try:
@@ -55,37 +55,21 @@ class PDF(FPDF):
         company_name_upper = company_name.upper()
         self.multi_cell(self.w / 2 - 15, 6, company_name_upper, 0, "C")
         
-        # Hero image on right side below company name - professional sizing
-        image_path = self.data.get("image_path")
-        if image_path and os.path.exists(image_path):
-            try:
-                img = Image.open(image_path)
-                img_width, img_height = img.size
-                aspect_ratio = img_width / img_height
-                
-                # Position image on right side, below company name
-                img_x = self.w / 2 + 5
-                img_y = self.get_y() + 2
-                img_display_width = self.w / 2 - 15
-                img_display_height = img_display_width / aspect_ratio
-                
-                max_height = 48 - img_y
-                if img_display_height > max_height:
-                    img_display_height = max_height
-                    img_display_width = img_display_height * aspect_ratio
-                
-                self.image(image_path, img_x, img_y, img_display_width, img_display_height)
-            except:
-                pass
+        blank_above_mm = 38.6
+        rect_height_mm = 41.1
+        bar_y = blank_above_mm
         
-        bar_y = 52
         self.set_fill_color(*self.primary_color)
-        self.rect(0, bar_y, self.w, 12, 'F')
+        self.rect(0, bar_y, self.w, rect_height_mm, 'F')
         
-        self.set_xy(12, bar_y + 2)
-        self.set_font("Helvetica", "B", 14)
+        self.set_xy(12, bar_y + 5)
+        self.set_font("Helvetica", "B", 22)
         self.set_text_color(*WHITE)
-        self.cell(0, 8, "C A P A B I L I T Y   S T A T E M E N T", 0, 0, "L")
+        self.cell(0, 10, "CAPABILITY", 0, 1, "L")
+        
+        self.set_xy(12, bar_y + 15)
+        self.set_font("Helvetica", "B", 22)
+        self.cell(0, 10, "STATEMENT", 0, 1, "L")
         
         uei = self.data.get("uei_code", "")
         cage = self.data.get("cage_code", "")
@@ -98,12 +82,12 @@ class PDF(FPDF):
             codes_text += f"CAGE Code: {cage}"
         
         if codes_text:
-            self.set_xy(self.w / 2, bar_y + 2)
-            self.set_font("Helvetica", "", 9)
-            self.cell(0, 8, codes_text, 0, 0, "R")
+            self.set_xy(12, bar_y + 28)
+            self.set_font("Helvetica", "", 10)
+            self.cell(0, 8, codes_text, 0, 0, "L")
         
         self.set_text_color(*BLACK)
-        self.set_y(bar_y + 14)
+        self.set_y(bar_y + rect_height_mm + 4)
 
     def footer(self):
         """Professional footer with contact information and certification badges"""
@@ -276,7 +260,10 @@ class PDF(FPDF):
 
     def create_content(self):
         """Create the main content in a professional 2-column layout, strictly single-page"""
-        start_y = 68
+        blank_above_mm = 38.6
+        rect_height_mm = 41.1
+        spacing_mm = 4
+        start_y = blank_above_mm + rect_height_mm + spacing_mm
         bottom_limit = self.h - 32
         
         margin = 2.5
