@@ -233,11 +233,6 @@ class PDF(FPDF):
         
         company_desc = self.data.get("company_description", "")
         if company_desc:
-            self.set_fill_color(*LIGHT_GRAY)
-            estimated_lines = len(company_desc) / 60
-            estimated_height = 9 + (estimated_lines * 4.2) + 5
-            self.rect(left_x, left_y, col_width, estimated_height, 'F')
-            
             left_y = self.section_title("ABOUT US", left_x, left_y, col_width, use_secondary_bg=False)
             self.set_xy(left_x + 4, left_y + 2)
             self.set_font("Helvetica", "", 8.5)
@@ -273,8 +268,14 @@ class PDF(FPDF):
         
         core_competencies = self.data.get("core_competencies", [])
         if core_competencies:
-            right_y = self.section_title("CORE COMPETENCIES", right_x, right_y, col_width)
+            right_y = self.section_title("CORE COMPETENCIES", right_x, right_y, col_width, use_secondary_bg=False)
             right_y = self.add_bullet_list(core_competencies, right_x + 4, right_y + 2, col_width - 4)
+            right_y += 4
+        
+        certifications = self.data.get("certifications", [])
+        if certifications:
+            right_y = self.section_title("CERTIFICATIONS", right_x, right_y, col_width, use_secondary_bg=False)
+            right_y = self.add_bullet_list(certifications, right_x + 4, right_y + 2, col_width - 4)
             right_y += 4
         
         differentiators = self.data.get("differentiators", [])
@@ -282,11 +283,6 @@ class PDF(FPDF):
             left_y = self.section_title("DIFFERENTIATORS", left_x, left_y, col_width, use_secondary_bg=False)
             left_y = self.add_bullet_list(differentiators, left_x + 4, left_y + 2, col_width - 4)
             left_y += 4
-        
-        certifications = self.data.get("certifications", [])
-        if certifications:
-            right_y = self.section_title("CERTIFICATIONS", right_x, right_y, col_width)
-            right_y = self.add_bullet_list(certifications, right_x + 4, right_y + 2, col_width - 4)
 
 
 def create_pdf(data, output_path="output.pdf"):
