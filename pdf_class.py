@@ -53,7 +53,12 @@ class PDF(FPDF):
         company_name_upper = company_name.upper()
         self.multi_cell(col_width, 6, company_name_upper, 0, "C")
         
-        # Hero image on right side below company name
+        hero_img_y = self.get_y() + 2
+        
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, bar_y, self.w, rect_height_mm, 'F')
+        
+        # Hero image on right side below company name (drawn after rectangle to appear in front)
         image_path = self.data.get("image_path")
         if image_path and os.path.exists(image_path):
             try:
@@ -62,7 +67,7 @@ class PDF(FPDF):
                 aspect_ratio = img_width / img_height
                 
                 img_x = right_x
-                img_y = self.get_y() + 2
+                img_y = hero_img_y
                 
                 hero_target_h_mm = 56.5
                 hero_clearance_mm = 1.0
@@ -80,9 +85,6 @@ class PDF(FPDF):
                 self.image(image_path, img_x, img_y, img_display_width, img_display_height)
             except:
                 pass
-        
-        self.set_fill_color(*self.primary_color)
-        self.rect(0, bar_y, self.w, rect_height_mm, 'F')
         
         logo_path = self.data.get("logo_path")
         if logo_path and os.path.exists(logo_path):
@@ -456,6 +458,21 @@ class PDF(FPDF):
             left_y = self.section_title("DIFFERENTIATORS", left_x, left_y, col_width, use_secondary_bg=False)
             left_y = self.add_bullet_list(differentiators, left_x + 4, left_y + 2, col_width - 4, font_size=8.0, bottom_limit=bottom_limit)
             left_y += 4
+        
+        last_content_y = max(left_y, right_y)
+        desired_footer_top = last_content_y + gap_above_footer_mm
+        default_footer_top = self.footer_layout['footer_top_y']
+        
+        final_footer_top = min(default_footer_top, desired_footer_top)
+        
+        footer_h_mm = self.footer_layout['footer_h_mm']
+        footer_top_pad_mm = 3.0
+        footer_label_h_mm = 5.0
+        
+        self.footer_layout['footer_top_y'] = final_footer_top
+        self.footer_layout['label_y'] = final_footer_top + footer_top_pad_mm
+        self.footer_layout['cols_y'] = final_footer_top + footer_top_pad_mm + footer_label_h_mm
+        self.footer_layout['badge_y'] = final_footer_top + footer_h_mm - 3.0 - 12 - 1
 
 
 def create_pdf(data, output_path="output.pdf"):
