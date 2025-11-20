@@ -5893,8 +5893,7 @@ class QdrantStore:
             search_result = self.client.search(
                 collection_name=self.collection_name,
                 query_vector=query_vector,
-                limit=top_k,
-                score_threshold=0.75  # 保证只返回相似度 ≥ 0.7 的结果
+                limit=top_k
             )
             logging.info(f"Search returned {len(search_result)} results")
             return [(hit.payload, hit.score) for hit in search_result]
@@ -5993,29 +5992,30 @@ def generate_query_embedding(query):
 
 def find_matches_with_query(query_embedding, bid_store, top_k=50):
     matches = []
-    # 调用 search 方法，此时 score_threshold=0.7 会过滤出分数 ≥ 0.7 的结果
     search_result = bid_store.search(query_embedding, top_k=10000)
     logging.info(f"Raw search results count: {len(search_result)}")
+    
     for bid, sim in search_result:
         try:
-            normalized_bid = normalize_payload(bid)
+            
             match_data = {
-                "bid_number": normalized_bid.get("bid_number"),
-                "bid_name": normalized_bid.get("bid_name"),
-                "organization": normalized_bid.get("organization"),
-                "status": normalized_bid.get("status"),
-                "due_date": normalized_bid.get("due_date"),
-                "category": normalized_bid.get("category"),
-                "industry": normalized_bid.get("industry"),
-                "department": normalized_bid.get("department"),
-                "state": normalized_bid.get("state"),
-                "detail_link": normalized_bid.get("detail_link"),
+                "bid_number": bid.get("contract_number") or bid.get("bid_number") or "",
+                "bid_name": bid.get("title") or bid.get("bid_name") or "",
+                "bid_description": bid.get("summary") or bid.get("bid_description") or "",
+                "organization": bid.get("agency") or bid.get("organization") or "",
+                "status": bid.get("status") or "open",  # Default to "open" if missing
+                "due_date": bid.get("due_date") or "",
+                "category": bid.get("category") or "",
+                "industry": bid.get("industry") or "",
+                "department": bid.get("department") or "",
+                "state": bid.get("state") or "",
+                "detail_link": bid.get("source_url") or bid.get("detail_link") or "",
                 "Similarity_Score": sim
             }
 
             # --- Add the hash_value ---
-            detail_link = normalized_bid.get("detail_link", "")
-            bid_number  = normalized_bid.get("bid_number", "")
+            detail_link = match_data["detail_link"]
+            bid_number  = match_data["bid_number"]
             hash_input  = f"{detail_link}{bid_number}"
             match_data["hash_value"] = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
 
@@ -6023,6 +6023,8 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
         except Exception as e:
             logging.error(f"Error processing a search result row: {e}", exc_info=True)
             continue
+    
+    logging.info(f"Processed {len(matches)} matches with scores ranging from {min([m['Similarity_Score'] for m in matches]) if matches else 0:.3f} to {max([m['Similarity_Score'] for m in matches]) if matches else 0:.3f}")
     return matches
 
 
@@ -6232,24 +6234,22 @@ def Smartsearch():
                 points = scroll_result[0]
                 contracts_list = []
                 for p in points:
-                    normal = normalize_payload(p.payload)
-                    # build row
+                    payload = p.payload
                     row = {
-                        'bid_number':      normal.get('bid_number', ''),
-                        'bid_name':        normal.get('bid_name', ''),
-                        'organization':    normal.get('organization', ''),
-                        'status':          normal.get('status', ''),
-                        'available_date':  normal.get('available_date', ''),
-                        'due_date':        normal.get('due_date', ''),
-                        'industry':        normal.get('industry', ''),
-                        'category':        normal.get('category', ''),
-                        'budget_estimate': normal.get('budget_estimate', ''),
-                        'department':      normal.get('department', ''),
-                        'state':           normal.get('state', ''),
-                        'duration':        normal.get('duration', ''),
-                        'detail_link':     normal.get('detail_link', '#'),
+                        'bid_number':      payload.get('contract_number') or payload.get('bid_number') or '',
+                        'bid_name':        payload.get('title') or payload.get('bid_name') or '',
+                        'organization':    payload.get('agency') or payload.get('organization') or '',
+                        'status':          payload.get('status') or 'open',
+                        'available_date':  payload.get('available_date') or payload.get('posted_date') or '',
+                        'due_date':        payload.get('due_date') or '',
+                        'industry':        payload.get('industry') or '',
+                        'category':        payload.get('category') or '',
+                        'budget_estimate': payload.get('budget_estimate') or '',
+                        'department':      payload.get('department') or '',
+                        'state':           payload.get('state') or '',
+                        'duration':        payload.get('duration') or '',
+                        'detail_link':     payload.get('source_url') or payload.get('detail_link') or '#',
                     }
-                    # add a hash_value
                     detail_link  = row['detail_link']
                     bid_number   = row['bid_number']
                     hash_input   = f"{detail_link}{bid_number}"
@@ -6284,21 +6284,20 @@ def Smartsearch():
                     score_threshold=0.70
                 )
                 for hit in hits:
-                    payload = normalize_payload(hit.payload)
+                    payload = hit.payload
                     row = {
-                        'bid_number':       payload.get('bid_number', ''),
-                        'bid_name':         payload.get('bid_name', ''),
-                        'organization':     payload.get('organization', ''),
-                        'status':           payload.get('status', ''),
-                        'due_date':         payload.get('due_date', ''),
-                        'category':         payload.get('category', ''),
-                        'industry':         payload.get('industry', ''),
-                        'department':       payload.get('department', ''),
-                        'state':            payload.get('state', ''),
-                        'detail_link':      payload.get('detail_link', '#'),
+                        'bid_number':       payload.get('contract_number') or payload.get('bid_number') or '',
+                        'bid_name':         payload.get('title') or payload.get('bid_name') or '',
+                        'organization':     payload.get('agency') or payload.get('organization') or '',
+                        'status':           payload.get('status') or 'open',
+                        'due_date':         payload.get('due_date') or '',
+                        'category':         payload.get('category') or '',
+                        'industry':         payload.get('industry') or '',
+                        'department':       payload.get('department') or '',
+                        'state':            payload.get('state') or '',
+                        'detail_link':      payload.get('source_url') or payload.get('detail_link') or '#',
                         'Similarity_Score': hit.score,
                     }
-                    # hash
                     detail_link = row['detail_link']
                     bnum        = row['bid_number']
                     row['hash_value'] = hashlib.sha256(f"{detail_link}{bnum}".encode('utf-8')).hexdigest()
