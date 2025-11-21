@@ -4693,6 +4693,36 @@ def download_and_extract_from_url(url):
             
             text_parts = []
             
+            footer = soup.find('footer') or soup.find('div', class_=lambda x: x and ('footer' in x.lower() if isinstance(x, str) else any('footer' in c.lower() for c in x)))
+            if footer:
+                footer_text = footer.get_text(separator='\n', strip=True)
+                text_parts.append("CONTACT INFORMATION:\n" + footer_text)
+                logging.info(f"Found footer with {len(footer_text)} chars")
+            
+            contact_links = []
+            for link in soup.find_all('a', href=True):
+                href = link.get('href', '').lower()
+                link_text = link.get_text(strip=True).lower()
+                if any(keyword in href or keyword in link_text for keyword in ['contact', 'about', 'location']):
+                    absolute_url = urljoin(url, link.get('href'))
+                    if absolute_url not in contact_links and absolute_url != url:
+                        contact_links.append(absolute_url)
+                        logging.info(f"Found potential contact page: {absolute_url}")
+            
+            # Try to fetch the first contact page
+            if contact_links:
+                try:
+                    contact_response = requests.get(contact_links[0], timeout=15, headers=headers, allow_redirects=True)
+                    if contact_response.status_code == 200:
+                        contact_soup = BeautifulSoup(contact_response.content, 'html.parser')
+                        for element in contact_soup(["script", "style"]):
+                            element.decompose()
+                        contact_text = contact_soup.get_text(separator='\n', strip=True)
+                        text_parts.append("CONTACT PAGE:\n" + contact_text[:2000])  # Limit to 2000 chars
+                        logging.info(f"Fetched contact page with {len(contact_text)} chars")
+                except Exception as contact_error:
+                    logging.warning(f"Failed to fetch contact page: {contact_error}")
+            
             main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=['content', 'main-content', 'page-content', 'container'])
             
             if main_content:
