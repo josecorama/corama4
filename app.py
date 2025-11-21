@@ -276,6 +276,12 @@ def set_secure_headers(response):
     response.headers['Strict-Transport-Security'] = 'max-age=63072000; includeSubDomains'
     return response
 
+from werkzeug.exceptions import RequestEntityTooLarge
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_413(e):
+    return jsonify({'success': False, 'error': 'File too large. Maximum size is 16MB.'}), 413
+
 
 #LOGGING
 
@@ -8486,29 +8492,36 @@ def upload_directory_logo():
     """Upload company logo for directory profile"""
     try:
         if 'user_data' not in session:
+            app.logger.warning("Logo upload attempted without authentication")
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = session['user_data']['user_id']
         
         if 'logo' not in request.files:
+            app.logger.warning(f"Logo upload for user {user_id}: No logo file in request")
             return jsonify({'success': False, 'error': 'No logo file provided'}), 400
         
         logo_file = request.files['logo']
         
         if logo_file.filename == '':
+            app.logger.warning(f"Logo upload for user {user_id}: Empty filename")
             return jsonify({'success': False, 'error': 'No file selected'}), 400
         
         allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
         file_ext = logo_file.filename.rsplit('.', 1)[1].lower() if '.' in logo_file.filename else ''
         
         if file_ext not in allowed_extensions:
-            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+            app.logger.warning(f"Logo upload for user {user_id}: Invalid file type '{file_ext}' for file '{logo_file.filename}'")
+            return jsonify({'success': False, 'error': f'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
         
         logo_file.seek(0, os.SEEK_END)
         file_size = logo_file.tell()
         logo_file.seek(0)
         
+        app.logger.info(f"Logo upload for user {user_id}: file='{logo_file.filename}', ext='{file_ext}', size={file_size} bytes")
+        
         if file_size > 5 * 1024 * 1024:
+            app.logger.warning(f"Logo upload for user {user_id}: File too large ({file_size} bytes)")
             return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB'}), 400
         
         # Create directory logos folder if it doesn't exist
@@ -8519,6 +8532,7 @@ def upload_directory_logo():
         filename = f"{user_id}_{int(time.time())}.{file_ext}"
         filepath = os.path.join(logos_dir, filename)
         
+        app.logger.info(f"Saving logo to: {filepath}")
         logo_file.save(filepath)
         
         # Generate URL for the logo
@@ -8527,16 +8541,19 @@ def upload_directory_logo():
         static_logos_dir = os.path.join(base_dir, 'static', 'uploads', 'directory_logos')
         os.makedirs(static_logos_dir, exist_ok=True)
         static_filepath = os.path.join(static_logos_dir, filename)
+        
+        app.logger.info(f"Copying logo to static directory: {static_filepath}")
         shutil.copy2(filepath, static_filepath)
         
+        app.logger.info(f"✅ Logo uploaded successfully for user {user_id}: {logo_url}")
         return jsonify({
             'success': True,
             'logo_url': logo_url
         })
         
     except Exception as e:
-        app.logger.error(f"Error uploading directory logo: {e}")
-        return jsonify({'success': False, 'error': 'Failed to upload logo. Please try again.'}), 500
+        app.logger.error(f"❌ Error uploading directory logo: {repr(e)}")
+        return jsonify({'success': False, 'error': f'Failed to upload logo: {str(e)}'}), 500
 
 @app.route('/api/get_directory_companies', methods=['GET'])
 def get_directory_companies():

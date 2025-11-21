@@ -370,7 +370,7 @@
             </form>
 
             <!-- Loading Overlay -->
-            <div id="dirLoadingOverlay" style="display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.95); z-index: 1000; justify-content: center; align-items: center; border-radius: 16px; pointer-events: auto;">
+            <div id="dirLoadingOverlay" style="display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.95); z-index: 1000; justify-content: center; align-items: flex-start; padding-top: 10vh; border-radius: 16px; pointer-events: auto;">
                 <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 2px solid #667eea;">
                     <div id="dirLoadingSpinner" class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 1rem; color: #667eea;">
                         <span class="visually-hidden">Loading...</span>
@@ -393,7 +393,8 @@
 
     <script>
         let userId = null;
-        const SUCCESS_DISPLAY_MS = 2000;
+        const SUCCESS_DISPLAY_MS = 1000;
+        const ERROR_DISPLAY_MS = 1000;
 
         // Overlay control functions
         function showDirLoading(message, subtitle = '') {
@@ -458,7 +459,7 @@
             
             setTimeout(() => {
                 hideDirOverlay();
-            }, 3000);
+            }, ERROR_DISPLAY_MS);
         }
 
         function hideDirOverlay() {
@@ -563,7 +564,17 @@
                     body: formData
                 });
                 
-                const data = await response.json();
+                // Parse response with fallback for non-JSON responses
+                const text = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (parseError) {
+                    data = { 
+                        success: false, 
+                        error: text || `${response.status} ${response.statusText}` 
+                    };
+                }
                 
                 if (response.ok && data.success) {
                     document.getElementById('logoUrl').value = data.logo_url;
@@ -572,6 +583,7 @@
                 } else {
                     // Revert preview on failure
                     logoPreview.innerHTML = originalPreview;
+                    console.error('Logo upload failed:', data.error);
                     showDirError(data.error || 'Failed to upload logo. Please try again.');
                     e.target.value = '';
                 }
