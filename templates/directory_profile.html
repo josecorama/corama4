@@ -396,6 +396,10 @@
         const SUCCESS_DISPLAY_MS = 1000;
         const ERROR_DISPLAY_MS = 1000;
 
+        // Helper to build safe absolute URLs that don't inherit basic-auth credentials from page URL
+        const ORIGIN = window.location.origin || `${location.protocol}//${location.host}`;
+        const apiUrl = (path) => new URL(path, ORIGIN).toString();
+
         // Overlay control functions
         function showDirLoading(message, subtitle = '') {
             const card = document.querySelector('.directory-card');
@@ -485,7 +489,7 @@
         document.addEventListener('DOMContentLoaded', async function() {
             showDirLoading('Loading your profile...', 'Please wait');
             try {
-                const response = await fetch('/api/get_directory_profile', {
+                const response = await fetch(apiUrl('/api/get_directory_profile'), {
                     credentials: 'same-origin'
                 });
                 const data = await response.json();
@@ -558,7 +562,7 @@
             showDirLoading('Uploading logo...', 'Please wait');
             
             try {
-                const response = await fetch('/api/upload_directory_logo', {
+                const response = await fetch(apiUrl('/api/upload_directory_logo'), {
                     method: 'POST',
                     credentials: 'same-origin',
                     body: formData
@@ -643,7 +647,7 @@
             showDirLoading('Saving your profile...', 'Please wait');
 
             try {
-                const response = await fetch('/api/update_directory_profile', {
+                const response = await fetch(apiUrl('/api/update_directory_profile'), {
                     method: 'POST',
                     credentials: 'same-origin',
                     headers: {

@@ -392,6 +392,10 @@
         let allCompanies = [];
         let searchTimeout = null;
 
+        // Helper to build safe absolute URLs that don't inherit basic-auth credentials from page URL
+        const ORIGIN = window.location.origin || `${location.protocol}//${location.host}`;
+        const apiUrl = (path) => new URL(path, ORIGIN).toString();
+
         document.addEventListener('DOMContentLoaded', function() {
             loadCompanies();
             updateHeroCTA();
@@ -399,7 +403,7 @@
 
         async function updateHeroCTA() {
             try {
-                const response = await fetch('/api/get_directory_profile', {
+                const response = await fetch(apiUrl('/api/get_directory_profile'), {
                     credentials: 'same-origin'
                 });
                 const data = await response.json();
@@ -423,8 +427,7 @@
 
         async function loadCompanies() {
             try {
-                const url = new URL('/api/get_directory_companies', window.location.origin);
-                const response = await fetch(url.toString(), {
+                const response = await fetch(apiUrl('/api/get_directory_companies'), {
                     credentials: 'same-origin'
                 });
                 const data = await response.json();
