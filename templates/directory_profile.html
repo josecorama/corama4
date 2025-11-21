@@ -363,7 +363,7 @@
                     <button type="button" class="btn btn-secondary" onclick="window.location.href='/welcome'">
                         <i class="fas fa-times"></i> Cancel
                     </button>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="saveProfileBtn">
                         <i class="fas fa-save"></i> Save Profile
                     </button>
                 </div>
@@ -623,30 +623,23 @@
             updateStatusDisplay(this.checked);
         });
 
-        // Normalize URL fields before form submission to prevent browser validation issues
-        function normalizeUrl(url) {
-            if (!url || url.trim() === '') return '';
-            url = url.trim();
-            if (!url.match(/^https?:\/\//i)) {
-                return 'https://' + url;
+        // Normalize URL fields BEFORE browser validation runs (on button click)
+        document.getElementById('saveProfileBtn').addEventListener('click', function() {
+            const websiteInput = document.getElementById('website');
+            const linkedinInput = document.getElementById('linkedinUrl');
+            
+            // Prefix https:// if missing to prevent browser validation from blocking submit
+            if (websiteInput && websiteInput.value && !/^https?:\/\//i.test(websiteInput.value)) {
+                websiteInput.value = 'https://' + websiteInput.value.trim();
             }
-            return url;
-        }
+            if (linkedinInput && linkedinInput.value && !/^https?:\/\//i.test(linkedinInput.value)) {
+                linkedinInput.value = 'https://' + linkedinInput.value.trim();
+            }
+        });
 
         // Handle form submission
         document.getElementById('directoryForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-
-            // Normalize URL fields to prevent browser validation from blocking submit
-            const websiteInput = document.getElementById('website');
-            const linkedinInput = document.getElementById('linkedinUrl');
-            
-            if (websiteInput.value) {
-                websiteInput.value = normalizeUrl(websiteInput.value);
-            }
-            if (linkedinInput.value) {
-                linkedinInput.value = normalizeUrl(linkedinInput.value);
-            }
 
             const formData = {
                 company: document.getElementById('company').value,
@@ -680,9 +673,9 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showDirSuccess('Your directory profile has been updated successfully!');
+                    showDirSuccess('Your profile was successfully saved');
                     setTimeout(() => {
-                        window.location.href = '/welcome';
+                        window.location.href = '/directory';
                     }, SUCCESS_DISPLAY_MS);
                 } else {
                     showDirError(data.error || 'Failed to update profile. Please try again.');
