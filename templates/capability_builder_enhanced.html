@@ -614,6 +614,19 @@
         .tooltip-icon:hover {
             opacity: 1;
         }
+        
+        #importSection.loading > *:not(#importLoadingOverlay) {
+            pointer-events: none;
+            user-select: none;
+        }
+        
+        #importLoadingOverlay {
+            display: none;
+        }
+        
+        #importSection.loading #importLoadingOverlay {
+            display: flex;
+        }
     </style>
 </head>
 <body>
@@ -668,7 +681,7 @@
             <div class="form-section">
                 <form id="capabilityForm">
                     <!-- Import Existing Capability Statement Section -->
-                    <div class="section-card" style="position: relative;">
+                    <div id="importSection" class="section-card" style="position: relative;">
                         <h3 class="section-title">
                             <i class="fas fa-upload"></i>
                             Import Existing Capability Statement
@@ -696,7 +709,7 @@
                             </div>
                             
                             <!-- Loading Overlay -->
-                            <div id="importLoadingOverlay" style="display: none; position: absolute; top: 0; left: 0; width: 100%; min-height: 200px; background: rgba(255,255,255,0.95); z-index: 100; justify-content: center; align-items: center; border-radius: 8px;">
+                            <div id="importLoadingOverlay" style="display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.95); z-index: 1000; justify-content: center; align-items: center; border-radius: 8px; touch-action: none;">
                                 <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.1); border: 2px solid var(--primary-color);">
                                     <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 1rem;">
                                         <span class="visually-hidden">Loading...</span>
@@ -2087,14 +2100,18 @@
         // Capability Statement Import Functions
         function showImportLoading(message) {
             const overlay = document.getElementById('importLoadingOverlay');
+            const section = document.getElementById('importSection');
             const messageEl = document.getElementById('importLoadingMessage');
             messageEl.textContent = message;
+            section.classList.add('loading');
             overlay.style.display = 'flex';
         }
         
         function hideImportLoading() {
             const overlay = document.getElementById('importLoadingOverlay');
+            const section = document.getElementById('importSection');
             overlay.style.display = 'none';
+            section.classList.remove('loading');
         }
         
         // Capability statement upload area handlers
