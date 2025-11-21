@@ -8525,9 +8525,16 @@ def upload_directory_logo():
             app.logger.warning(f"Logo upload for user {user_id}: File too large ({file_size} bytes)")
             return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB'}), 400
         
-        # Create directory logos folder if it doesn't exist
-        logos_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'directory_logos')
+        logos_dir = os.path.join(base_dir, 'static', 'uploads', 'directory_logos')
         os.makedirs(logos_dir, exist_ok=True)
+        
+        import glob
+        for old_logo in glob.glob(os.path.join(logos_dir, f"{user_id}_*.*")):
+            try:
+                os.remove(old_logo)
+                app.logger.info(f"🗑️ Removed old logo: {old_logo}")
+            except Exception as cleanup_error:
+                app.logger.warning(f"Could not remove old logo {old_logo}: {cleanup_error}")
         
         # Generate unique filename
         filename = f"{user_id}_{int(time.time())}.{file_ext}"
@@ -8538,13 +8545,6 @@ def upload_directory_logo():
         
         # Generate URL for the logo
         logo_url = f"/static/uploads/directory_logos/{filename}"
-        
-        static_logos_dir = os.path.join(base_dir, 'static', 'uploads', 'directory_logos')
-        os.makedirs(static_logos_dir, exist_ok=True)
-        static_filepath = os.path.join(static_logos_dir, filename)
-        
-        app.logger.info(f"Copying logo to static directory: {static_filepath}")
-        shutil.copy2(filepath, static_filepath)
         
         app.logger.info(f"✅ Logo uploaded successfully for user {user_id}: {logo_url}")
         return jsonify({
