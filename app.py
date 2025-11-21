@@ -8399,7 +8399,7 @@ def update_directory_profile():
             return jsonify({'success': False, 'error': 'User data not found'}), 404
         
         profile_data = {
-            'company': user_data.get('company', ''),
+            'company': data.get('company', user_data.get('company', '')).strip(),
             'contact_name': data.get('contact_name', '').strip(),
             'email': data.get('email', '').strip(),
             'phone': data.get('phone', '').strip(),
@@ -8458,16 +8458,20 @@ def update_directory_profile():
         
         try:
             db.child("users").child(user_id).update({
-                'directory_listed': data.get('listed', False)
+                'directory_listed': data.get('listed', False),
+                'company': profile_data['company']
             }, id_token)
-            app.logger.info(f"✅ Successfully updated directory_listed flag for user {user_id}")
+            app.logger.info(f"✅ Successfully updated directory_listed flag and company for user {user_id}")
         except Exception as user_update_error:
-            app.logger.warning(f"⚠️ Failed to update directory_listed flag for user {user_id}: {repr(user_update_error)}")
+            app.logger.warning(f"⚠️ Failed to update directory_listed flag and company for user {user_id}: {repr(user_update_error)}")
             if admin_initialized and admin_db:
                 try:
                     user_ref = admin_db.reference(f'users/{user_id}')
-                    user_ref.update({'directory_listed': data.get('listed', False)})
-                    app.logger.info(f"✅ Successfully updated directory_listed flag using Admin SDK for user {user_id}")
+                    user_ref.update({
+                        'directory_listed': data.get('listed', False),
+                        'company': profile_data['company']
+                    })
+                    app.logger.info(f"✅ Successfully updated directory_listed flag and company using Admin SDK for user {user_id}")
                 except Exception as admin_user_error:
                     app.logger.error(f"❌ Admin SDK user update also failed for user {user_id}: {repr(admin_user_error)}")
         

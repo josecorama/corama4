@@ -399,7 +399,9 @@
 
         async function updateHeroCTA() {
             try {
-                const response = await fetch('/api/get_directory_profile');
+                const response = await fetch('/api/get_directory_profile', {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 const ctaButton = document.getElementById('heroCTA');
@@ -422,7 +424,9 @@
         async function loadCompanies() {
             try {
                 const url = new URL('/api/get_directory_companies', window.location.origin);
-                const response = await fetch(url.toString());
+                const response = await fetch(url.toString(), {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
 
                 if (data.success) {
