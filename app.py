@@ -8490,6 +8490,7 @@ def update_directory_profile():
 @app.route('/api/upload_directory_logo', methods=['POST'])
 def upload_directory_logo():
     """Upload company logo for directory profile"""
+    app.logger.info("📤 Entered upload_directory_logo route")
     try:
         if 'user_data' not in session:
             app.logger.warning("Logo upload attempted without authentication")
