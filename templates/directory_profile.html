@@ -623,17 +623,38 @@
             updateStatusDisplay(this.checked);
         });
 
+        // Normalize URL fields before form submission to prevent browser validation issues
+        function normalizeUrl(url) {
+            if (!url || url.trim() === '') return '';
+            url = url.trim();
+            if (!url.match(/^https?:\/\//i)) {
+                return 'https://' + url;
+            }
+            return url;
+        }
+
         // Handle form submission
         document.getElementById('directoryForm').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            // Normalize URL fields to prevent browser validation from blocking submit
+            const websiteInput = document.getElementById('website');
+            const linkedinInput = document.getElementById('linkedinUrl');
+            
+            if (websiteInput.value) {
+                websiteInput.value = normalizeUrl(websiteInput.value);
+            }
+            if (linkedinInput.value) {
+                linkedinInput.value = normalizeUrl(linkedinInput.value);
+            }
 
             const formData = {
                 company: document.getElementById('company').value,
                 contact_name: document.getElementById('contactName').value,
                 email: document.getElementById('email').value,
                 phone: document.getElementById('phone').value,
-                website: document.getElementById('website').value,
-                linkedin_url: document.getElementById('linkedinUrl').value,
+                website: websiteInput.value,
+                linkedin_url: linkedinInput.value,
                 team_size: document.getElementById('teamSize').value,
                 years_in_business: document.getElementById('yearsInBusiness').value,
                 services: document.getElementById('services').value,
