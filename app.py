@@ -2640,44 +2640,45 @@ def ai_assistant_room():
                 user_uploads_dir = user_data.get('uploads_dir', '')
                 if user_uploads_dir and os.path.exists(user_uploads_dir):
                     try:
-                        capability_statement = process_files_user_input(user_uploads_dir)
-                        if capability_statement and \
-                           capability_statement not in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] and \
-                           len(capability_statement.strip()) >= 50:
-                            has_capability_statement = True
-                            logging.info(f"✅ User {user_id} has valid capability statement")
-                            
-                            # Extract all capability statements from CSV
-                            csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
-                            capability_statements = []
-                            capability_statement_count = 0
-                            
-                            if os.path.exists(csv_path):
-                                try:
-                                    df = pd.read_csv(csv_path)
-                                    if not df.empty and 'Company' in df.columns:
-                                        company_name = df['Company'].iloc[0]  # Primary company (important-comment)
-                                        capability_statement_count = len(df)
-                                        
-                                        # Build list of all capabilities for selection
-                                        for idx, row in df.iterrows():
-                                            capability_statements.append({
-                                                'company': row.get('Company', 'Unknown'),
-                                                'filename': row.get('filename', ''),
-                                                'upload_date': row.get('upload_date', ''),
-                                                'is_primary': idx == 0 or row.get('is_primary', False)
-                                            })
-                                        
-                                        logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
-                                except Exception as e:
-                                    logging.error(f"Error reading company names from CSV: {e}")
-                            
-                            for fname in os.listdir(user_uploads_dir):
-                                if fname.lower().endswith(('.pdf', '.doc', '.docx')):
-                                    capability_statement_filename = fname
-                                    break
+                        # First check if CSV exists and has data rows
+                        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                        capability_statements = []
+                        capability_statement_count = 0
+                        
+                        if os.path.exists(csv_path):
+                            try:
+                                df = pd.read_csv(csv_path)
+                                # Check if DataFrame has actual data rows (not just headers)
+                                if not df.empty and len(df) > 0 and 'Company' in df.columns:
+                                    has_capability_statement = True
+                                    company_name = df['Company'].iloc[0]  # Primary company (important-comment)
+                                    capability_statement_count = len(df)
+                                    
+                                    # Build list of all capabilities for selection
+                                    for idx, row in df.iterrows():
+                                        capability_statements.append({
+                                            'company': row.get('Company', 'Unknown'),
+                                            'filename': row.get('filename', ''),
+                                            'upload_date': row.get('upload_date', ''),
+                                            'is_primary': idx == 0 or row.get('is_primary', False)
+                                        })
+                                    
+                                    logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
+                                    
+                                    # Find a capability statement file
+                                    for fname in os.listdir(user_uploads_dir):
+                                        if fname.lower().endswith(('.pdf', '.doc', '.docx')):
+                                            capability_statement_filename = fname
+                                            break
+                                else:
+                                    logging.warning(f"⚠️ User {user_id} has empty capability statements CSV")
+                                    has_capability_statement = False
+                            except Exception as e:
+                                logging.error(f"Error reading capability statements CSV: {e}")
+                                has_capability_statement = False
                         else:
-                            logging.warning(f"⚠️ User {user_id} has no valid capability statement")
+                            logging.warning(f"⚠️ User {user_id} has no capability statements CSV")
+                            has_capability_statement = False
                     except Exception as e:
                         logging.error(f"Error checking capability statement: {e}")
         else:
@@ -2689,27 +2690,45 @@ def ai_assistant_room():
                 user_uploads_dir = user_data.get('uploads_dir', '')
                 if user_uploads_dir and os.path.exists(user_uploads_dir):
                     try:
-                        capability_statement = process_files_user_input(user_uploads_dir)
-                        if capability_statement and \
-                           capability_statement not in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] and \
-                           len(capability_statement.strip()) >= 50:
-                            has_capability_statement = True
-                            
-                            # Extract all capability statements from CSV
-                            csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
-                            if os.path.exists(csv_path):
-                                try:
-                                    df = pd.read_csv(csv_path)
-                                    if not df.empty and 'Company' in df.columns:
-                                        company_name = df['Company'].iloc[0]
-                                        logging.info(f"✅ Extracted company name: {company_name}")
-                                except Exception as e:
-                                    logging.error(f"Error reading company name from CSV: {e}")
-                            
-                            for fname in os.listdir(user_uploads_dir):
-                                if fname.lower().endswith(('.pdf', '.doc', '.docx')):
-                                    capability_statement_filename = fname
-                                    break
+                        # First check if CSV exists and has data rows
+                        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                        capability_statements = []
+                        capability_statement_count = 0
+                        
+                        if os.path.exists(csv_path):
+                            try:
+                                df = pd.read_csv(csv_path)
+                                # Check if DataFrame has actual data rows (not just headers)
+                                if not df.empty and len(df) > 0 and 'Company' in df.columns:
+                                    has_capability_statement = True
+                                    company_name = df['Company'].iloc[0]
+                                    capability_statement_count = len(df)
+                                    
+                                    # Build list of all capabilities for selection
+                                    for idx, row in df.iterrows():
+                                        capability_statements.append({
+                                            'company': row.get('Company', 'Unknown'),
+                                            'filename': row.get('filename', ''),
+                                            'upload_date': row.get('upload_date', ''),
+                                            'is_primary': idx == 0 or row.get('is_primary', False)
+                                        })
+                                    
+                                    logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
+                                    
+                                    # Find a capability statement file
+                                    for fname in os.listdir(user_uploads_dir):
+                                        if fname.lower().endswith(('.pdf', '.doc', '.docx')):
+                                            capability_statement_filename = fname
+                                            break
+                                else:
+                                    logging.warning(f"⚠️ User {user_id} has empty capability statements CSV")
+                                    has_capability_statement = False
+                            except Exception as e:
+                                logging.error(f"Error reading capability statements CSV: {e}")
+                                has_capability_statement = False
+                        else:
+                            logging.warning(f"⚠️ User {user_id} has no capability statements CSV")
+                            has_capability_statement = False
                     except Exception as e:
                         logging.error(f"Error checking capability statement: {e}")
     except Exception as e:
