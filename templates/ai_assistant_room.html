@@ -1123,9 +1123,81 @@
             });
         }
         
+        // Upload overlay constants and helper functions
+        const AI_UPLOAD_SUCCESS_MS = 1000;
+        const AI_UPLOAD_ERROR_MS = 1500;
+        
+        function showAiUploadLoading(message, subtitle = '') {
+            const overlay = document.getElementById('aiUploadOverlay');
+            const spinner = document.getElementById('aiUploadSpinner');
+            const successIcon = document.getElementById('aiUploadSuccessIcon');
+            const errorIcon = document.getElementById('aiUploadErrorIcon');
+            const messageEl = document.getElementById('aiUploadMessage');
+            const subtitleEl = document.getElementById('aiUploadSubtitle');
+            
+            spinner.style.display = 'block';
+            successIcon.style.display = 'none';
+            errorIcon.style.display = 'none';
+            messageEl.textContent = message;
+            subtitleEl.textContent = subtitle;
+            overlay.style.display = 'flex';
+        }
+        
+        function showAiUploadSuccess(message, options = {}) {
+            const overlay = document.getElementById('aiUploadOverlay');
+            const spinner = document.getElementById('aiUploadSpinner');
+            const successIcon = document.getElementById('aiUploadSuccessIcon');
+            const errorIcon = document.getElementById('aiUploadErrorIcon');
+            const messageEl = document.getElementById('aiUploadMessage');
+            const subtitleEl = document.getElementById('aiUploadSubtitle');
+            
+            spinner.style.display = 'none';
+            successIcon.style.display = 'flex';
+            errorIcon.style.display = 'none';
+            messageEl.textContent = message;
+            subtitleEl.textContent = options.subtitle || '';
+            overlay.style.display = 'flex';
+            
+            if (options.reload) {
+                setTimeout(() => {
+                    window.location.reload();
+                }, AI_UPLOAD_SUCCESS_MS);
+            }
+        }
+        
+        function showAiUploadError(message) {
+            const overlay = document.getElementById('aiUploadOverlay');
+            const spinner = document.getElementById('aiUploadSpinner');
+            const successIcon = document.getElementById('aiUploadSuccessIcon');
+            const errorIcon = document.getElementById('aiUploadErrorIcon');
+            const messageEl = document.getElementById('aiUploadMessage');
+            const subtitleEl = document.getElementById('aiUploadSubtitle');
+            
+            spinner.style.display = 'none';
+            successIcon.style.display = 'none';
+            errorIcon.style.display = 'flex';
+            messageEl.textContent = message;
+            subtitleEl.textContent = '';
+            overlay.style.display = 'flex';
+            
+            setTimeout(() => {
+                hideAiUploadOverlay();
+            }, AI_UPLOAD_ERROR_MS);
+        }
+        
+        function hideAiUploadOverlay() {
+            const overlay = document.getElementById('aiUploadOverlay');
+            overlay.style.display = 'none';
+        }
+        
         // Handle file uploads (important-comment)
         document.getElementById('fileUpload').addEventListener('change', function(e) {
             const files = e.target.files;
+            
+            if (files.length === 0) return;
+            
+            // Show loading overlay before upload starts
+            showAiUploadLoading('Uploading capability statement...', 'This may take a few moments.');
             
             for (let file of files) {
                 // Upload file to user's profile (important-comment)
@@ -1140,16 +1212,18 @@
                             const data = JSON.parse(xhr3.responseText);
                             if (data.success) {
                                 // Show success confirmation and reload page to display company name (important-comment)
-                                alert('✅ Capability statement uploaded and processed successfully!\n\nThe page will refresh to display your company information.');
-                                window.location.reload();
+                                showAiUploadSuccess('Capability statement uploaded and processed successfully!', {
+                                    subtitle: 'Refreshing to display your updated company information...',
+                                    reload: true
+                                });
                             } else if (data.error && data.credits_required) {
-                                alert(`❌ Insufficient credits. ${data.credits_required} credits needed to upload this file.`);
+                                showAiUploadError(`Insufficient credits. ${data.credits_required} credits are needed to upload this file.`);
                             } else {
-                                alert('❌ Upload failed. Please try again.');
+                                showAiUploadError('Upload failed. Please try again.');
                             }
                         } else {
                             console.error('Upload error:', xhr3.statusText);
-                            alert('❌ Upload failed. Please try again.');
+                            showAiUploadError('Upload failed. Please try again.');
                         }
                     }
                 };
@@ -1166,6 +1240,23 @@
             window.location.href = `/proposal/start?hash=${contractHash}`;
         }
     </script>
+    
+    <!-- Upload Overlay -->
+    <div id="aiUploadOverlay" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.85); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid #667eea; min-width: 300px;">
+            <div id="aiUploadSpinner" class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 1rem; color: #667eea;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div id="aiUploadSuccessIcon" style="display: none; width: 3rem; height: 3rem; border-radius: 50%; background: #22c55e; color: white; align-items: center; justify-content: center; margin: 0 auto 1rem auto; font-size: 1.5rem;">
+                <i class="fas fa-check"></i>
+            </div>
+            <div id="aiUploadErrorIcon" style="display: none; width: 3rem; height: 3rem; border-radius: 50%; background: #ef4444; color: white; align-items: center; justify-content: center; margin: 0 auto 1rem auto; font-size: 1.5rem;">
+                <i class="fas fa-times"></i>
+            </div>
+            <h5 id="aiUploadMessage" style="margin: 0; color: #333;">Processing...</h5>
+            <p id="aiUploadSubtitle" style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;"></p>
+        </div>
+    </div>
     
     {% include 'scripts.html' %}
 </body>
