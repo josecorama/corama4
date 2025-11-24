@@ -1246,11 +1246,12 @@
             showAiUploadLoading('Removing capability statement...', 'Please wait');
             
             // Make DELETE request to backend
-            fetch('/delete_capability_statement', {
+            fetch(window.location.origin + '/delete_capability_statement', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({
                     filename: filenameToDelete
                 })
