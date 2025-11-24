@@ -955,7 +955,19 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
         try:
             cs_df = pd.read_csv(cs_file, dtype=str)
             if not cs_df.empty and 'Capability_Statement' in cs_df.columns:
-                cs_text = cs_df["Capability_Statement"].iloc[0]
+                # Use primary capability statement if is_primary column exists
+                if 'is_primary' in cs_df.columns:
+                    primary_cs = cs_df[cs_df['is_primary'].astype(str).str.lower() == 'true']
+                    if not primary_cs.empty:
+                        cs_text = primary_cs.iloc[0]["Capability_Statement"]
+                        app.logger.info(f"✅ Using primary capability statement: {primary_cs.iloc[0].get('filename', 'unknown')}")
+                    else:
+                        # Fallback to first row if no primary found
+                        cs_text = cs_df["Capability_Statement"].iloc[0]
+                        app.logger.warning(f"⚠️ No primary capability statement found, using first row")
+                else:
+                    # Fallback to first row if is_primary column doesn't exist
+                    cs_text = cs_df["Capability_Statement"].iloc[0]
             else:
                 cs_text = "[No capability statement text found]"
         except Exception as e:
@@ -2654,16 +2666,31 @@ def ai_assistant_room():
                                 # Check if DataFrame has actual data rows (not just headers)
                                 if not df.empty and len(df) > 0 and 'Company' in df.columns:
                                     has_capability_statement = True
-                                    company_name = df['Company'].iloc[0]  # Primary company (important-comment)
                                     capability_statement_count = len(df)
+                                    
+                                    # Get primary company name from is_primary flag if available
+                                    if 'is_primary' in df.columns:
+                                        primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
+                                        if not primary_row.empty:
+                                            company_name = primary_row.iloc[0]['Company']
+                                        else:
+                                            company_name = df['Company'].iloc[0]  # Fallback to first row
+                                    else:
+                                        company_name = df['Company'].iloc[0]  # Fallback if column doesn't exist
                                     
                                     # Build list of all capabilities for selection
                                     for idx, row in df.iterrows():
+                                        # Use is_primary from CSV if available, otherwise fallback to first row
+                                        if 'is_primary' in df.columns:
+                                            is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
+                                        else:
+                                            is_primary_val = (idx == 0)  # Fallback: first row is primary
+                                        
                                         capability_statements.append({
                                             'company': row.get('Company', 'Unknown'),
                                             'filename': row.get('filename', ''),
                                             'upload_date': row.get('upload_date', ''),
-                                            'is_primary': idx == 0 or row.get('is_primary', False)
+                                            'is_primary': is_primary_val
                                         })
                                     
                                     logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
@@ -2704,16 +2731,31 @@ def ai_assistant_room():
                                 # Check if DataFrame has actual data rows (not just headers)
                                 if not df.empty and len(df) > 0 and 'Company' in df.columns:
                                     has_capability_statement = True
-                                    company_name = df['Company'].iloc[0]
                                     capability_statement_count = len(df)
+                                    
+                                    # Get primary company name from is_primary flag if available
+                                    if 'is_primary' in df.columns:
+                                        primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
+                                        if not primary_row.empty:
+                                            company_name = primary_row.iloc[0]['Company']
+                                        else:
+                                            company_name = df['Company'].iloc[0]  # Fallback to first row
+                                    else:
+                                        company_name = df['Company'].iloc[0]  # Fallback if column doesn't exist
                                     
                                     # Build list of all capabilities for selection
                                     for idx, row in df.iterrows():
+                                        # Use is_primary from CSV if available, otherwise fallback to first row
+                                        if 'is_primary' in df.columns:
+                                            is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
+                                        else:
+                                            is_primary_val = (idx == 0)  # Fallback: first row is primary
+                                        
                                         capability_statements.append({
                                             'company': row.get('Company', 'Unknown'),
                                             'filename': row.get('filename', ''),
                                             'upload_date': row.get('upload_date', ''),
-                                            'is_primary': idx == 0 or row.get('is_primary', False)
+                                            'is_primary': is_primary_val
                                         })
                                     
                                     logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
@@ -5099,6 +5141,10 @@ Only include fields you can clearly identify. Return ONLY valid JSON, no additio
 def update_selected_capability():
     """Update which capability statement is currently selected as primary"""
     try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({'error': 'User not authenticated'}), 401
+        
         if 'user' not in session:
             return jsonify({'error': 'User not authenticated'}), 401
         
@@ -5258,15 +5304,63 @@ def upload_document():
             
             # Process all capability statement PDFs in directory into CSV
             try:
+                output_csv = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                
+                # Preserve existing is_primary flags before reprocessing
+                prior_primaries = {}
+                if os.path.exists(output_csv):
+                    try:
+                        old_df = pd.read_csv(output_csv)
+                        if 'filename' in old_df.columns and 'is_primary' in old_df.columns:
+                            prior_primaries = {
+                                row['filename']: bool(str(row.get('is_primary', 'false')).lower() == 'true')
+                                for _, row in old_df.iterrows()
+                            }
+                            logging.info(f"📋 Preserved {len(prior_primaries)} existing capability statement primary flags")
+                    except Exception as e:
+                        logging.warning(f"⚠️ Could not read existing CSV for primary preservation: {e}")
+                
+                # Reprocess all PDFs (this regenerates the CSV)
                 pdf_files = [
                     os.path.join(user_uploads_dir, f) 
                     for f in os.listdir(user_uploads_dir) 
                     if f.lower().endswith('.pdf')
                 ]
                 if pdf_files:
-                    output_csv = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
                     process_pdfs(pdf_files, output_csv)
                     logging.info(f"✅ Processed {len(pdf_files)} capability statement PDF(s) for user {user_id}")
+                    
+                    # Re-apply primary flags after reprocessing
+                    try:
+                        df = pd.read_csv(output_csv)
+                        if 'filename' in df.columns:
+                            # Reset all to False first
+                            df['is_primary'] = False
+                            
+                            # Re-mark any that were previously primary
+                            for i, row in df.iterrows():
+                                fname = row.get('filename')
+                                if fname in prior_primaries and prior_primaries[fname]:
+                                    df.at[i, 'is_primary'] = True
+                                    logging.info(f"✅ Restored primary flag for: {fname}")
+                            
+                            # If nothing ended up primary (first upload or previous CSV was empty),
+                            # make the newly uploaded file primary
+                            if not df['is_primary'].any() and not df.empty:
+                                # Find the newly uploaded file
+                                new_file_idx = df[df['filename'] == filename].index
+                                if len(new_file_idx) > 0:
+                                    df.at[new_file_idx[0], 'is_primary'] = True
+                                    logging.info(f"✅ Set newly uploaded file as primary: {filename}")
+                                else:
+                                    # Fallback: make first row primary
+                                    df.at[0, 'is_primary'] = True
+                                    logging.info(f"✅ Set first row as primary (fallback)")
+                            
+                            df.to_csv(output_csv, index=False)
+                            logging.info(f"✅ Saved capability statements CSV with preserved primary flags")
+                    except Exception as e:
+                        logging.error(f"⚠️ Error re-applying primary flags: {e}")
             except Exception as e:
                 logging.error(f"Error processing capability statement PDFs: {e}")
             
