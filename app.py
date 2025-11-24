@@ -880,14 +880,15 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
     """
         Process only selected contract data and capability statements from the user upload catalog.
         
-        1. read matches.csv and filter out the corresponding contract rows using hash_value.
-        Merge all the columns of the row into a single paragraph of text as "Key: Value". 2.
-        2. read the capability statements from capability_statements_processed.csv. 3. calculate the token for each of the two parts.
-        3. count the number of tokens in each of the two sections, or summarize them if a section is too long.
-        4. Merge the contract information and capability statement content to form the final contextual text to be returned.
+        NOW FETCHES CONTRACT DATA DIRECTLY FROM QDRANT (CSV data is obsolete).
+        
+        1. Fetch contract from Qdrant using point ID (hash_value is now the Qdrant point ID)
+        2. Read capability statements from capability_statements_processed.csv
+        3. Calculate tokens for each section and summarize if needed
+        4. Merge contract information and capability statement content
         
         :param user_uploads_dir: The directory where the user uploaded the file.
-        :param hash_value: the hash_value used to uniquely locate the contract
+        :param hash_value: the Qdrant point ID used to uniquely locate the contract
         :param model: name of the OpenAI model used, default "gpt-3.5-turbo"
         :param total_token_threshold: total token limit, need to summarize if exceeding this value
         :return: final merged text string
@@ -895,52 +896,47 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
     
     final_content = []
     
-    # ----- Step 1: Search for contract in multiple CSV sources -----
-    selected_rows = None
-    df = None
+    # ----- Step 1: Fetch contract from Qdrant by point ID -----
+    app.logger.info(f"🔍 Fetching contract from Qdrant with point ID: {hash_value}")
+    contract = get_contract_from_qdrant_by_id(hash_value)
     
-    matches_file = os.path.join(user_uploads_dir, "matches.csv")
-    if os.path.exists(matches_file):
-        try:
-            df = pd.read_csv(matches_file, dtype=str)
-            selected_rows = df[df["hash_value"] == hash_value]
-            if not selected_rows.empty:
-                app.logger.info(f"Contract found in matches.csv")
-        except Exception as e:
-            app.logger.error(f"Error reading matches.csv: {str(e)}")
-    
-    if selected_rows is None or selected_rows.empty:
-        smart_search_file = os.path.join(user_uploads_dir, "matches_SMART_SEARCH.csv")
-        if os.path.exists(smart_search_file):
-            try:
-                df = pd.read_csv(smart_search_file, dtype=str)
-                selected_rows = df[df["hash_value"] == hash_value]
-                if not selected_rows.empty:
-                    app.logger.info(f"Contract found in matches_SMART_SEARCH.csv")
-            except Exception as e:
-                app.logger.error(f"Error reading matches_SMART_SEARCH.csv: {str(e)}")
-    
-    # Try Scraping_demo_results.csv as fallback
-    if selected_rows is None or selected_rows.empty:
+    if contract is None:
+        # Fallback to demo data if Qdrant lookup fails
+        app.logger.warning(f"⚠️ Contract not found in Qdrant, trying Scraping_demo_results.csv fallback")
         demo_file = os.path.join(os.path.dirname(__file__), "Scraping_demo_results.csv")
         if os.path.exists(demo_file):
             try:
                 df = pd.read_csv(demo_file, dtype=str)
                 selected_rows = df[df["hash_value"] == hash_value]
                 if not selected_rows.empty:
-                    app.logger.info(f"Contract found in Scraping_demo_results.csv")
+                    app.logger.info(f"Contract found in Scraping_demo_results.csv fallback")
+                    row_dict = selected_rows.iloc[0].to_dict()
+                    contract_text = "\n".join([f"{key}: {value}" for key, value in row_dict.items()])
+                else:
+                    return f"No matching contract found for point ID {hash_value} in Qdrant or fallback sources."
             except Exception as e:
                 app.logger.error(f"Error reading Scraping_demo_results.csv: {str(e)}")
+                return f"No matching contract found for point ID {hash_value} in Qdrant or fallback sources."
+        else:
+            return f"No matching contract found for point ID {hash_value} in Qdrant."
+    else:
+        # Build contract text from Qdrant payload
+        contract_text = "\n".join([
+            f"Bid Name: {contract['Bid_Name']}",
+            f"Bid Number: {contract['Bid_Number']}",
+            f"Organization: {contract['Organization']}",
+            f"Description: {contract['Bid_Description']}",
+            f"Due Date: {contract['Due_Date']}",
+            f"Category: {contract['Category']}",
+            f"State: {contract['State']}",
+            f"Budget: {contract['Budget']}",
+            f"Detail Link: {contract['Detail_Link']}",
+            f"NAICS Code: {contract.get('NAICS_CODE', 'N/A')}",
+            f"NAICS Title: {contract.get('NAICS_TITLE', 'N/A')}",
+        ])
+        app.logger.info(f"✅ Using contract from Qdrant: {contract['Bid_Name']}")
     
-    if selected_rows is None or selected_rows.empty:
-        return "No matching contract found for the provided hash_value in any data source."
-    
-    # 假设 hash_value 唯一，取第一行
-    row_dict = selected_rows.iloc[0].to_dict()
-    # 将每个键值对格式化为 "Key: Value" 并合并为一段文本
-    contract_text = "\n".join([f"{key}: {value}" for key, value in row_dict.items()])
-    
-    # 如果合同信息太长，进行摘要
+    # Summarize contract text if too long
     contract_tokens = count_tokens(contract_text, model=model)
     if contract_tokens > total_token_threshold / 2:
         contract_text = summarize_text(contract_text, model=model, max_tokens=500)
@@ -1073,28 +1069,49 @@ def Aboutus():
 
 @app.route('/top_five_results')
 def top_five_results():
-    """Display the top 5 contract matches from the uploaded capability statement."""
+    """Display the top 5 contract matches from the uploaded capability statement.
+    
+    NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
+    Uses session storage for search results or falls back to CSV if needed.
+    """
     if 'user' not in session:
         return redirect(url_for('Login'))
     
     user = session['user']
     user_id = user['localId']
     user_upload_dir = f"uploads/bid_uploads_{user_id}"
-    matches_file = os.path.join(user_upload_dir, 'matches.csv')
     
     matches = []
-    if os.path.exists(matches_file):
-        try:
-            import pandas as pd
-            df = pd.read_csv(matches_file)
-            matches = df.to_dict('records')
-            app.logger.info(f"Loaded {len(matches)} matches from {matches_file}")
-        except Exception as e:
-            app.logger.error(f"Error loading matches: {str(e)}")
-            flash(f"Error loading contract matches: {str(e)}", 'error')
+    
+    # Try to get matches from session first (new approach)
+    if 'top5_results' in session:
+        matches = session['top5_results']
+        app.logger.info(f"✅ Loaded {len(matches)} matches from session")
     else:
-        app.logger.warning(f"Matches file not found: {matches_file}")
-        flash("No contract matches found. Please upload a capability statement first.", 'warning')
+        # Fallback: try CSV if session doesn't have results
+        matches_file = os.path.join(user_upload_dir, 'matches.csv')
+        if os.path.exists(matches_file):
+            try:
+                import pandas as pd
+                df = pd.read_csv(matches_file)
+                csv_matches = df.to_dict('records')
+                
+                # Fetch full contract data from Qdrant using point IDs
+                if csv_matches:
+                    point_ids = [m.get('hash_value') or m.get('contract_id') for m in csv_matches if m.get('hash_value') or m.get('contract_id')]
+                    if point_ids:
+                        matches = get_contracts_from_qdrant_by_ids(point_ids)
+                        app.logger.info(f"✅ Loaded {len(matches)} matches from Qdrant (via CSV point IDs)")
+                    else:
+                        # CSV doesn't have point IDs, use CSV data as fallback
+                        matches = csv_matches
+                        app.logger.warning(f"⚠️ Using CSV data as fallback (no point IDs found)")
+            except Exception as e:
+                app.logger.error(f"Error loading matches: {str(e)}")
+                flash(f"Error loading contract matches: {str(e)}", 'error')
+        else:
+            app.logger.warning(f"No matches found in session or CSV")
+            flash("No contract matches found. Please upload a capability statement first.", 'warning')
     
     return render_template('top_five_results.html', matches=matches)
 
@@ -3362,33 +3379,41 @@ def upload_and_process():
                 
                 app.logger.info(f"Qdrant matching completed. Found {len(results)} results")
                 
-                matches_file = os.path.join(user_upload_dir, 'matches.csv')
-                with open(matches_file, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=[
-                        'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
-                        'Status', 'Category', 'Due_Date', 'Detail_Link',
-                        'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value'
-                    ])
-                    writer.writeheader()
-                    for row in results:
-                        # If we have pdf_company_name, use it:
-                        writer.writerow({
-                            'Company':         pdf_company_name if pdf_company_name else "Unknown",
-                            'Bid_Number':      row['Bid_Number'],
-                            'Bid_Name':        row['Bid_Name'],
-                            'Bid_Description': row.get('Bid_Description',''),
-                            'Status':          row.get('Status',''),
-                            'Category':        row.get('Category',''),
-                            'Due_Date':        row.get('Due_Date',''),
-                            'Detail_Link':     row.get('Detail_Link','#'),
-                            'State':           row.get('State',''),
-                            'Organization':    row.get('Organization',''),
-                            'Budget':          row.get('Budget',''),
-                            'Similarity_Score': row.get('Similarity_Score',''),
-                            'hash_value':      row.get('hash_value','')
-                        })
+                # Store results in session (NEW: CSV data is obsolete)
+                session['top5_results'] = results
+                app.logger.info(f"✅ Stored {len(results)} matches in session")
                 
-                app.logger.info(f"Successfully saved {len(results)} matches to {matches_file}")
+                # Also write to CSV for backward compatibility (fallback)
+                matches_file = os.path.join(user_upload_dir, 'matches.csv')
+                try:
+                    with open(matches_file, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=[
+                            'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
+                            'Status', 'Category', 'Due_Date', 'Detail_Link',
+                            'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id'
+                        ])
+                        writer.writeheader()
+                        for row in results:
+                            # If we have pdf_company_name, use it:
+                            writer.writerow({
+                                'Company':         pdf_company_name if pdf_company_name else "Unknown",
+                                'Bid_Number':      row['Bid_Number'],
+                                'Bid_Name':        row['Bid_Name'],
+                                'Bid_Description': row.get('Bid_Description',''),
+                                'Status':          row.get('Status',''),
+                                'Category':        row.get('Category',''),
+                                'Due_Date':        row.get('Due_Date',''),
+                                'Detail_Link':     row.get('Detail_Link','#'),
+                                'State':           row.get('State',''),
+                                'Organization':    row.get('Organization',''),
+                                'Budget':          row.get('Budget',''),
+                                'Similarity_Score': row.get('Similarity_Score',''),
+                                'hash_value':      row.get('hash_value',''),
+                                'contract_id':     row.get('contract_id','')
+                            })
+                    app.logger.info(f"Also saved {len(results)} matches to CSV fallback: {matches_file}")
+                except Exception as csv_error:
+                    app.logger.warning(f"Failed to write CSV fallback: {csv_error}")
                 
                 # If success, redirect to the top-5 results page
                 return jsonify({"success": True, "message": "Upload success (top-5 matches).", "redirect": "/top_five_results"})
@@ -6199,6 +6224,140 @@ def normalize_payload(payload):
         new_key = key.strip().lower().replace(" ", "_")
         normalized[new_key] = value
     return normalized
+
+
+def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
+    """
+    Convert Qdrant payload to the contract view format expected by templates.
+    Maps new Qdrant field names to legacy CSV field names for compatibility.
+    
+    Args:
+        payload: Qdrant point payload dict
+        point_id: Qdrant point ID (used as contract identifier)
+        score: Similarity score from vector search (optional)
+    
+    Returns:
+        Dict with legacy field names for template compatibility
+    """
+    return {
+        # Primary identifier (replaces hash_value)
+        "contract_id": str(point_id) if point_id is not None else None,
+        "hash_value": str(point_id) if point_id is not None else None,  # For backward compatibility
+        
+        # Core contract fields (Qdrant → CSV mapping)
+        "Bid_Name": payload.get("title", "Unknown Bid"),
+        "Detail_Link": payload.get("source_url", "#"),
+        "Bid_Number": payload.get("contract_number", "N/A"),
+        "Bid_Description": payload.get("summary", "No description available"),
+        "Organization": payload.get("agency", "Unknown"),
+        "Due_Date": payload.get("due_date") or payload.get("posted_date", "Not Specified"),
+        "Category": payload.get("category", "Unknown"),
+        "Status": "Open",  # Qdrant doesn't have status field, default to Open
+        
+        # Fields that may not exist in Qdrant
+        "State": payload.get("state") or "Unknown",
+        "Budget": payload.get("budget") or "Not Specified",
+        
+        # NAICS information
+        "NAICS_CODE": payload.get("NAICS_CODE", ""),
+        "NAICS_TITLE": payload.get("NAICS_TITLE", ""),
+        
+        # Search metadata
+        "Similarity_Score": f"{score * 100:.2f}%" if score is not None else None,
+        "source": payload.get("source", ""),
+        "urgency": payload.get("urgency", ""),
+    }
+
+
+def get_contract_from_qdrant_by_id(point_id):
+    """
+    Fetch a single contract from Qdrant by point ID.
+    
+    Args:
+        point_id: Qdrant point ID (string or int)
+    
+    Returns:
+        Dict with contract data in template-compatible format, or None if not found
+    """
+    try:
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured")
+            return None
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Retrieve the specific point by ID
+        points = client.retrieve(
+            collection_name="government_contracts",
+            ids=[int(point_id) if isinstance(point_id, str) and point_id.isdigit() else point_id],
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        if not points or len(points) == 0:
+            logging.warning(f"Contract with point_id {point_id} not found in Qdrant")
+            return None
+        
+        point = points[0]
+        contract = qdrant_payload_to_contract_view(point.payload, point_id=point.id, score=None)
+        logging.info(f"✅ Retrieved contract from Qdrant: {contract['Bid_Name']} (ID: {point_id})")
+        return contract
+        
+    except Exception as e:
+        logging.error(f"Error fetching contract from Qdrant by ID {point_id}: {e}")
+        return None
+
+
+def get_contracts_from_qdrant_by_ids(point_ids):
+    """
+    Fetch multiple contracts from Qdrant by point IDs.
+    
+    Args:
+        point_ids: List of Qdrant point IDs
+    
+    Returns:
+        List of dicts with contract data in template-compatible format
+    """
+    try:
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured")
+            return []
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Convert point_ids to integers if they're strings
+        ids_to_fetch = []
+        for pid in point_ids:
+            if isinstance(pid, str) and pid.isdigit():
+                ids_to_fetch.append(int(pid))
+            else:
+                ids_to_fetch.append(pid)
+        
+        # Retrieve multiple points by IDs
+        points = client.retrieve(
+            collection_name="government_contracts",
+            ids=ids_to_fetch,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        contracts = []
+        for point in points:
+            contract = qdrant_payload_to_contract_view(point.payload, point_id=point.id, score=None)
+            contracts.append(contract)
+        
+        logging.info(f"✅ Retrieved {len(contracts)} contracts from Qdrant")
+        return contracts
+        
+    except Exception as e:
+        logging.error(f"Error fetching contracts from Qdrant: {e}")
+        return []
 
 
 def load_all_contracts(client):

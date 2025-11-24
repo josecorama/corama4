@@ -334,28 +334,27 @@ class CSQueryHandler:
 
             print(f"About to create formatted results with company: '{user_company}'")
 
-            # 6. 格式化结果
+            # 6. 格式化结果 (使用新的 Qdrant 字段名称)
             formatted_results = []
             for res in final_results:
-                detail_link = res.payload.get('Detail Link', '#')
-                bid_number = res.payload.get('Bid Number', '')
-
-                hash_input = f"{detail_link}{bid_number}"
-                hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                # Use actual Qdrant field names (lowercase)
                 entry = {
                     'Company': user_company,
-                    'Bid_Number': res.payload.get('Bid Number', 'N/A'),
-                    'Bid_Name': res.payload.get('Bid Name', 'Unknown Bid'),
-                    'Bid_Description': res.payload.get('Bid Description', 'No description available'),
-                    'Status': res.payload.get('Status', 'Unknown'),
-                    'Category': res.payload.get('Category', 'Unknown'),
-                    'Due_Date': res.payload.get('Due Date', 'Not Specified'),
-                    'Detail_Link': res.payload.get('Detail Link', '#'),
-                    'State': res.payload.get('State', 'Unknown'),
-                    'Organization': res.payload.get('Organization', 'Unknown'),
-                    'Budget': res.payload.get('Budget Estimate', 'Not Specified'),
+                    'contract_id': str(res.id),  # Qdrant point ID (replaces hash_value)
+                    'hash_value': str(res.id),  # For backward compatibility
+                    'Bid_Number': res.payload.get('contract_number', 'N/A'),
+                    'Bid_Name': res.payload.get('title', 'Unknown Bid'),
+                    'Bid_Description': res.payload.get('summary', 'No description available'),
+                    'Status': 'Open',  # Qdrant doesn't have status field
+                    'Category': res.payload.get('category', 'Unknown'),
+                    'Due_Date': res.payload.get('due_date') or res.payload.get('posted_date', 'Not Specified'),
+                    'Detail_Link': res.payload.get('source_url', '#'),
+                    'State': res.payload.get('state', 'Unknown'),
+                    'Organization': res.payload.get('agency', 'Unknown'),
+                    'Budget': res.payload.get('budget', 'Not Specified'),
                     'Similarity_Score': f"{res.score * 100:.2f}%",
-                    'hash_value': hash_value
+                    'NAICS_CODE': res.payload.get('NAICS_CODE', ''),
+                    'NAICS_TITLE': res.payload.get('NAICS_TITLE', ''),
                 }
                 formatted_results.append(entry)
             
