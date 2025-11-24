@@ -2431,6 +2431,9 @@ def ai_assistant_room():
     if not user:
         return redirect(url_for('Login'))
     
+    user_id = user['localId']
+    user_email = user.get('email', 'unknown')
+    logging.info(f"🤖 /ai-assistant: user_id={user_id}, email={user_email}")
     logging.info(f"🔍 /ai-assistant route hit with request.args: {dict(request.args)}")
     
     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
@@ -5192,12 +5195,19 @@ def delete_capability_statement():
 def upload_document():
     """Upload document to user's profile for AI assistant use with credit deduction"""
     try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({"error": "User not authenticated"}), 401
+        
         if 'user' not in session:
             return jsonify({"error": "User not authenticated"}), 401
             
         user = session['user']
-        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         user_id = user['localId']
+        user_email = user.get('email', 'unknown')
+        logging.info(f"📤 /upload_document: user_id={user_id}, email={user_email}")
+        
+        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         id_token = user['idToken']
         
         if not user_data or 'uploads_dir' not in user_data:
