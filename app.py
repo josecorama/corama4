@@ -294,7 +294,13 @@ app.logger.setLevel(logging.INFO)
 
 #OPEN AI 
 
-client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
+# Use OPENAI_MARIO as primary key for all AI features (including smart search embeddings)
+smart_search_api_key = os.getenv('OPENAI_MARIO') or os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
+if os.getenv('OPENAI_MARIO'):
+    app.logger.info("✅ Smart search embeddings using OPENAI_MARIO key")
+else:
+    app.logger.warning("⚠️ Smart search using fallback key (OPENAI_MARIO not found)")
 
 cs_api_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
 if os.getenv('OPENAI_MARIO'):
@@ -6314,6 +6320,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         Dict with lowercase field names for dashboard JavaScript compatibility
     """
     import hashlib
+    import re
     
     # Map Qdrant fields to dashboard format (lowercase)
     detail_link = payload.get("source_url", "#")
@@ -6322,6 +6329,28 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     # Generate hash_value for backward compatibility (same as find_matches_with_query)
     hash_input = f"{detail_link}{bid_number}"
     hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+    
+    # Extract NAICS code numbers only (e.g., "541512 (Computer Systems Design)" -> "541512")
+    raw_naics = payload.get("NAICS_CODE", "")
+    naics_codes = []
+    
+    if isinstance(raw_naics, list):
+        items = raw_naics
+    elif raw_naics:
+        items = [raw_naics]
+    else:
+        items = []
+    
+    for item in items:
+        s = str(item)
+        # Extract first run of 2+ digits
+        m = re.search(r'\d{2,}', s)
+        if m:
+            code = m.group(0)
+            if code not in naics_codes:
+                naics_codes.append(code)
+    
+    naics_code_str = ", ".join(naics_codes) if naics_codes else ""
     
     return {
         # Identifiers
@@ -6335,6 +6364,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         "detail_link": detail_link,
         "organization": payload.get("agency", "Unknown"),
         "category": payload.get("category", "Unknown"),
+        "naics_code": naics_code_str,  # NAICS Code column (numbers only)
         "due_date": payload.get("due_date") or payload.get("posted_date", "Not Specified"),
         "status": payload.get("status", "active"),  # Default to "active" for dashboard
         "state": payload.get("state", "Unknown"),

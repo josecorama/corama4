@@ -143,6 +143,7 @@
                 <div class="table-header">
                     <div class="header-cell">Contract Name</div>
                     <div class="header-cell">Category</div>
+                    <div class="header-cell">NAICS Code</div>
                     <div class="header-cell">Due Date</div>
                     <div class="header-cell">Status</div>
                     <div class="header-cell">AI Assistant</div>
@@ -645,10 +646,12 @@
                 
                 const dueDate = new Date(contract.due_date).toLocaleDateString();
                 const statusClass = contract.status === 'active' ? 'status-active' : 'status-open';
+                const naicsCode = contract.naics_code || '';
                 
                 row.innerHTML = `
                     <div class="contract-cell contract-name">${contract.bid_name}</div>
                     <div class="contract-cell contract-category">${contract.category}</div>
+                    <div class="contract-cell contract-naics">${naicsCode}</div>
                     <div class="contract-cell contract-due-date">${dueDate}</div>
                     <div class="contract-cell">
                         <span class="contract-status ${statusClass}">${contract.status}</span>
