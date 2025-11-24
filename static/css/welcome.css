@@ -396,8 +396,8 @@ body {
 
 .table-header {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
-    gap: 1rem;
+    grid-template-columns: 2fr 1fr 0.8fr 1fr 0.8fr 1.2fr 0.8fr;
+    gap: 0.8rem;
     padding: 1rem;
     background: #f8f9fa;
     border-radius: 8px;
@@ -422,8 +422,8 @@ body {
 
 .contract-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr;
-    gap: 1rem;
+    grid-template-columns: 2fr 1fr 0.8fr 1fr 0.8fr 1.2fr 0.8fr;
+    gap: 0.8rem;
     padding: 1rem;
     background: #fff;
     border: 1px solid #e9ecef;

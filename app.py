@@ -6567,8 +6567,11 @@ def load_all_contracts(client):
     return all_contracts
 
 def validate_query(query):
-    if len(query) < 3:
-        return False, "Query is too short. Please provide a more detailed search."
+    # Allow queries of 2+ characters to support short terms like "IT", bid numbers, NAICS codes
+    if len(query) < 2:
+        return False, "Query is too short. Please provide at least 2 characters."
+    if len(query) > 500:
+        return False, "Query is too long. Please limit to 500 characters."
     return True, ""
 
 def initialize_vector_store():
