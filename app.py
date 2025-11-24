@@ -5115,6 +5115,10 @@ def update_selected_capability():
 def delete_capability_statement():
     """Delete a capability statement from user's profile"""
     try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({'error': 'User not authenticated'}), 401
+        
         if 'user' not in session:
             return jsonify({'error': 'User not authenticated'}), 401
         

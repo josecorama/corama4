@@ -1238,6 +1238,9 @@
                 return;
             }
             
+            // Save filename before hiding overlay (which resets pendingDeleteFilename)
+            const filenameToDelete = pendingDeleteFilename;
+            
             // Hide confirmation overlay and show loading
             hideAiDeleteConfirm();
             showAiUploadLoading('Removing capability statement...', 'Please wait');
@@ -1249,7 +1252,7 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    filename: pendingDeleteFilename
+                    filename: filenameToDelete
                 })
             })
             .then(response => response.json())
