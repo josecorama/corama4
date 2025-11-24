@@ -2211,24 +2211,19 @@ def Welcome():
 
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
-    """API endpoint to get contract data for the dashboard with pagination"""
+    """API endpoint to get contract data for the dashboard with pagination.
+    
+    NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
+    """
     try:
-        import pandas as pd
-        csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-        df = pd.read_csv(csv_path)
-        
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         items_per_page = 10
         
-        total_contracts = len(df)
-        total_pages = (total_contracts + items_per_page - 1) // items_per_page
-        start = (page - 1) * items_per_page
-        end = start + items_per_page
+        # Fetch contracts from Qdrant with pagination
+        contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
         
-        # Get paginated contracts
-        paginated_df = df.iloc[start:end]
-        contracts = paginated_df.to_dict('records')
+        logging.info(f"✅ /api/contracts: Returning {len(contracts)} contracts from Qdrant (page {page}/{total_pages})")
         
         return jsonify({
             "contracts": contracts,
@@ -2237,21 +2232,13 @@ def get_contracts_api():
             "total_pages": total_pages
         })
     except Exception as e:
-        logging.error(f"Error loading contracts: {e}")
+        logging.error(f"Error loading contracts from Qdrant: {e}", exc_info=True)
         return jsonify({
-            "contracts": [
-                {
-                    "bid_name": "City Infrastructure Improvement Project",
-                    "category": "Construction",
-                    "due_date": "2025-10-15",
-                    "status": "active",
-                    "bid_number": "BID-2025-001",
-                    "detail_link": "https://example.com/contract"
-                }
-            ],
-            "total_contracts": 1,
+            "contracts": [],
+            "total_contracts": 0,
             "current_page": 1,
-            "total_pages": 1
+            "total_pages": 1,
+            "error": "Failed to load contracts from database"
         })
 
 @app.route('/dashboard_search', methods=['POST'])
@@ -2268,20 +2255,47 @@ def dashboard_search():
         items_per_page = 10
 
         if not user_query:
+            # No query provided - return all contracts from Qdrant (CSV data is obsolete)
+            contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
+            
+            # Compute analytics from Qdrant data
             import pandas as pd
-            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-            df = pd.read_csv(csv_path)
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)  # Get all for analytics
+            df = pd.DataFrame(all_contracts)
             
-            total_contracts = len(df)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
-            start = (page - 1) * items_per_page
-            end = start + items_per_page
+            if len(df) > 0:
+                category_counts = df['category'].value_counts().to_dict()
+                status_counts = df['status'].value_counts().to_dict()
+                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+                
+                category_diversity = len(category_counts)
+                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+                
+                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+                high_score_contracts = df[df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)]
+                high_score_count = len(high_score_contracts)
+                
+                analytics = {
+                    'total_contracts': total_contracts,
+                    'category_distribution': category_counts,
+                    'status_distribution': status_counts,
+                    'win_probability': round(win_probability, 1),
+                    'open_contracts': open_contracts,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': high_score_count
+                }
+            else:
+                analytics = {
+                    'total_contracts': 0,
+                    'category_distribution': {},
+                    'status_distribution': {},
+                    'win_probability': 0,
+                    'open_contracts': 0,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': 0
+                }
             
-            paginated_df = df.iloc[start:end]
-            contracts = paginated_df.to_dict('records')
-            
-            from csv_analytics import analyze_contract_data
-            analytics = analyze_contract_data()
+            logging.info(f"✅ /dashboard_search (no query): Returning {len(contracts)} contracts from Qdrant")
             
             return jsonify({
                 "success": True,
@@ -2293,12 +2307,16 @@ def dashboard_search():
             })
 
         if not vector_store:
-            logging.warning("Vector store not initialized, falling back to basic text search")
-            import pandas as pd
-            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-            df = pd.read_csv(csv_path)
+            # Vector store not initialized - use Qdrant directly with basic text search (CSV data is obsolete)
+            logging.warning("Vector store not initialized, using Qdrant with basic text search")
             
-            if user_query:
+            # Get all contracts from Qdrant for text search
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+            
+            import pandas as pd
+            df = pd.DataFrame(all_contracts)
+            
+            if user_query and len(df) > 0:
                 df['bid_number'] = df['bid_number'].fillna('').astype(str)
                 df['bid_name'] = df['bid_name'].fillna('').astype(str)
                 df['bid_description'] = df['bid_description'].fillna('').astype(str)
@@ -2343,28 +2361,41 @@ def dashboard_search():
             paginated_df = df.iloc[start:end]
             contracts = paginated_df.to_dict('records')
             
-            category_counts = df['category'].value_counts().to_dict()
-            status_counts = df['status'].value_counts().to_dict()
-            open_contracts = status_counts.get('open', 0)
-            
-            category_diversity = len(category_counts)
-            win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
-            
-            high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
-            high_score_contracts = df[
-                df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)
-            ]
-            high_score_count = len(high_score_contracts)
+            if len(df) > 0:
+                category_counts = df['category'].value_counts().to_dict()
+                status_counts = df['status'].value_counts().to_dict()
+                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+                
+                category_diversity = len(category_counts)
+                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+                
+                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+                high_score_contracts = df[
+                    df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)
+                ]
+                high_score_count = len(high_score_contracts)
 
-            analytics = {
-                'total_contracts': total_contracts,
-                'category_distribution': category_counts,
-                'status_distribution': status_counts,
-                'win_probability': round(win_probability, 1),
-                'open_contracts': open_contracts,
-                'upcoming_deadlines': 0,
-                'high_score_opportunities': high_score_count
-            }
+                analytics = {
+                    'total_contracts': total_contracts,
+                    'category_distribution': category_counts,
+                    'status_distribution': status_counts,
+                    'win_probability': round(win_probability, 1),
+                    'open_contracts': open_contracts,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': high_score_count
+                }
+            else:
+                analytics = {
+                    'total_contracts': 0,
+                    'category_distribution': {},
+                    'status_distribution': {},
+                    'win_probability': 0,
+                    'open_contracts': 0,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': 0
+                }
+            
+            logging.info(f"✅ /dashboard_search (no vector_store): Returning {len(contracts)} contracts from Qdrant")
 
             return jsonify({
                 "success": True,
@@ -6237,7 +6268,7 @@ def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
         score: Similarity score from vector search (optional)
     
     Returns:
-        Dict with legacy field names for template compatibility
+        Dict with legacy field names for template compatibility (Title Case)
     """
     return {
         # Primary identifier (replaces hash_value)
@@ -6266,6 +6297,54 @@ def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
         "Similarity_Score": f"{score * 100:.2f}%" if score is not None else None,
         "source": payload.get("source", ""),
         "urgency": payload.get("urgency", ""),
+    }
+
+
+def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
+    """
+    Convert Qdrant payload to dashboard contract format with lowercase field names.
+    This is specifically for the dashboard frontend which expects lowercase snake_case keys.
+    
+    Args:
+        payload: Qdrant point payload dict
+        point_id: Qdrant point ID (used as contract identifier)
+        score: Similarity score from vector search (optional)
+    
+    Returns:
+        Dict with lowercase field names for dashboard JavaScript compatibility
+    """
+    import hashlib
+    
+    # Map Qdrant fields to dashboard format (lowercase)
+    detail_link = payload.get("source_url", "#")
+    bid_number = payload.get("contract_number", "N/A")
+    
+    # Generate hash_value for backward compatibility (same as find_matches_with_query)
+    hash_input = f"{detail_link}{bid_number}"
+    hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+    
+    return {
+        # Identifiers
+        "contract_id": str(point_id) if point_id is not None else None,
+        "hash_value": hash_value,
+        
+        # Core fields (lowercase for dashboard JS)
+        "bid_name": payload.get("title", "Unknown Bid"),
+        "bid_number": bid_number,
+        "bid_description": payload.get("summary", "No description available"),
+        "detail_link": detail_link,
+        "organization": payload.get("agency", "Unknown"),
+        "category": payload.get("category", "Unknown"),
+        "due_date": payload.get("due_date") or payload.get("posted_date", "Not Specified"),
+        "status": payload.get("status", "active"),  # Default to "active" for dashboard
+        "state": payload.get("state", "Unknown"),
+        
+        # Optional fields
+        "industry": payload.get("industry", ""),
+        "department": payload.get("department", ""),
+        
+        # Search metadata
+        "Similarity_Score": score if score is not None else None,  # Keep numeric for filtering
     }
 
 
@@ -6358,6 +6437,83 @@ def get_contracts_from_qdrant_by_ids(point_ids):
     except Exception as e:
         logging.error(f"Error fetching contracts from Qdrant: {e}")
         return []
+
+
+# Module-level cache for dashboard contracts
+# TODO: This assumes the Qdrant collection is updated infrequently and isn't huge (< 2000 contracts)
+# For larger or frequently-updated collections, implement proper pagination with scroll tokens
+_dashboard_contracts_cache = None
+_dashboard_contracts_total = 0
+
+
+def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
+    """
+    Fetch contracts from Qdrant for dashboard display with pagination.
+    Uses module-level caching to avoid repeated Qdrant queries.
+    
+    Args:
+        page: Page number (1-indexed)
+        items_per_page: Number of contracts per page
+    
+    Returns:
+        Tuple of (contracts_list, total_contracts, total_pages)
+    """
+    global _dashboard_contracts_cache, _dashboard_contracts_total
+    
+    # Initialize cache on first call
+    if _dashboard_contracts_cache is None:
+        try:
+            qdrant_url = os.getenv('Qdrant_EP')
+            qdrant_api_key = os.getenv('Qdrant_AK')
+            
+            if not qdrant_url or not qdrant_api_key:
+                logging.error("Qdrant credentials not configured for dashboard")
+                return [], 0, 0
+            
+            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+            
+            # Fetch first 1500 contracts from Qdrant using scroll
+            # This is a reasonable limit for dashboard browsing
+            logging.info("🔄 Fetching contracts from Qdrant for dashboard cache...")
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=1500,
+                with_vectors=False,
+                with_payload=True
+            )
+            
+            points = scroll_result[0]  # scroll returns (points, next_page_offset)
+            
+            # Map each point to dashboard format (lowercase keys)
+            _dashboard_contracts_cache = []
+            for point in points:
+                contract = qdrant_payload_to_dashboard_contract(
+                    point.payload,
+                    point_id=point.id,
+                    score=None
+                )
+                _dashboard_contracts_cache.append(contract)
+            
+            _dashboard_contracts_total = len(_dashboard_contracts_cache)
+            logging.info(f"✅ Cached {_dashboard_contracts_total} contracts from Qdrant for dashboard")
+            
+        except Exception as e:
+            logging.error(f"Error fetching dashboard contracts from Qdrant: {e}", exc_info=True)
+            _dashboard_contracts_cache = []
+            _dashboard_contracts_total = 0
+            return [], 0, 0
+    
+    # Paginate the cached contracts
+    total_contracts = _dashboard_contracts_total
+    total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
+    
+    start = (page - 1) * items_per_page
+    end = start + items_per_page
+    
+    paginated_contracts = _dashboard_contracts_cache[start:end]
+    
+    logging.info(f"📄 Dashboard page {page}/{total_pages}: returning {len(paginated_contracts)} contracts")
+    return paginated_contracts, total_contracts, total_pages
 
 
 def load_all_contracts(client):
