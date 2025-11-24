@@ -5374,11 +5374,54 @@ def upload_document():
             }
             documents_ref.push(document_data, user['idToken'])
             
+            # Read capability statements to return current state for UI update
+            capability_state = {
+                'has_capability_statement': False,
+                'company_name': None,
+                'capability_statements': [],
+                'capability_statement_count': 0
+            }
+            
+            try:
+                output_csv = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                if os.path.exists(output_csv):
+                    df = pd.read_csv(output_csv)
+                    if len(df) > 0:
+                        capability_state['has_capability_statement'] = True
+                        capability_state['capability_statement_count'] = len(df)
+                        
+                        # Get primary company name
+                        if 'is_primary' in df.columns:
+                            primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
+                            if not primary_row.empty:
+                                capability_state['company_name'] = primary_row.iloc[0]['Company']
+                            else:
+                                capability_state['company_name'] = df['Company'].iloc[0]
+                        else:
+                            capability_state['company_name'] = df['Company'].iloc[0]
+                        
+                        # Build list of all capabilities
+                        for idx, row in df.iterrows():
+                            if 'is_primary' in df.columns:
+                                is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
+                            else:
+                                is_primary_val = (idx == 0)
+                            
+                            capability_state['capability_statements'].append({
+                                'company': row.get('Company', 'Unknown'),
+                                'filename': row.get('filename', ''),
+                                'upload_date': row.get('upload_date', ''),
+                                'is_primary': is_primary_val
+                            })
+            except Exception as e:
+                logging.error(f"Error reading capability state: {e}")
+            
             return jsonify({
                 "success": True, 
                 "filename": filename,
                 "credits_used": 0 if skip_credits else 2,
-                "remaining_credits": current_credits if skip_credits else current_credits - 2
+                "remaining_credits": current_credits if skip_credits else current_credits - 2,
+                "capability_state": capability_state
             })
         else:
             return jsonify({"error": "File type not allowed"}), 400
