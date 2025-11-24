@@ -347,6 +347,9 @@
                     <button onclick="document.getElementById('fileUpload').click()" style="background: #f8f9fa; border: 2px solid #dee2e6; color: #495057; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'; this.style.borderColor='#adb5bd'" onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#dee2e6'">
                         <span>📁</span> Upload More
                     </button>
+                    <button onclick="confirmRemoveCapability()" style="background: #fff5f5; border: 2px solid #feb2b2; color: #c53030; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fed7d7'; this.style.borderColor='#fc8181'" onmouseout="this.style.background='#fff5f5'; this.style.borderColor='#feb2b2'">
+                        <span>🗑️</span> Remove file
+                    </button>
                 </div>
             </div>
             {% endif %}
@@ -1190,6 +1193,82 @@
             overlay.style.display = 'none';
         }
         
+        // Delete confirmation overlay functions
+        let pendingDeleteFilename = null;
+        
+        function confirmRemoveCapability() {
+            // Determine which capability statement to delete
+            const capabilitySelect = document.getElementById('capabilitySelect');
+            let filename = '';
+            
+            if (capabilitySelect) {
+                // Multiple capability statements - get selected one
+                filename = capabilitySelect.value;
+            } else {
+                // Single capability statement - get from template variable
+                filename = '{{ capability_statement_filename }}';
+            }
+            
+            if (!filename) {
+                showAiUploadError('No capability statement selected');
+                return;
+            }
+            
+            pendingDeleteFilename = filename;
+            showAiDeleteConfirm(filename);
+        }
+        
+        function showAiDeleteConfirm(filename) {
+            const overlay = document.getElementById('aiDeleteConfirmOverlay');
+            const messageEl = document.getElementById('aiDeleteConfirmMessage');
+            
+            messageEl.textContent = `Are you sure you want to remove the Capability Statement ${filename}?`;
+            overlay.style.display = 'flex';
+        }
+        
+        function hideAiDeleteConfirm() {
+            const overlay = document.getElementById('aiDeleteConfirmOverlay');
+            overlay.style.display = 'none';
+            pendingDeleteFilename = null;
+        }
+        
+        function executeDeleteCapability() {
+            if (!pendingDeleteFilename) {
+                showAiUploadError('No file selected for deletion');
+                return;
+            }
+            
+            // Hide confirmation overlay and show loading
+            hideAiDeleteConfirm();
+            showAiUploadLoading('Removing capability statement...', 'Please wait');
+            
+            // Make DELETE request to backend
+            fetch('/delete_capability_statement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: pendingDeleteFilename
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAiUploadSuccess('Capability statement removed successfully!', {
+                        subtitle: 'Refreshing page...',
+                        reload: true
+                    });
+                } else {
+                    showAiUploadError(data.error || 'Failed to remove capability statement');
+                }
+            })
+            .catch(error => {
+                console.error('Error removing capability statement:', error);
+                showAiUploadError('Failed to remove capability statement. Please try again.');
+            });
+        }
+        
         // Handle file uploads (important-comment)
         document.getElementById('fileUpload').addEventListener('change', function(e) {
             const files = e.target.files;
@@ -1255,6 +1334,25 @@
             </div>
             <h5 id="aiUploadMessage" style="margin: 0; color: #333;">Processing...</h5>
             <p id="aiUploadSubtitle" style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;"></p>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Overlay -->
+    <div id="aiDeleteConfirmOverlay" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.85); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid #ef4444; min-width: 400px; max-width: 500px;">
+            <div style="width: 3rem; height: 3rem; border-radius: 50%; background: #fff5f5; color: #c53030; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; font-size: 1.5rem;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h5 style="margin: 0 0 1rem 0; color: #333; font-size: 1.1rem;">Confirm Deletion</h5>
+            <p id="aiDeleteConfirmMessage" style="margin: 0 0 1.5rem 0; color: #666; font-size: 0.95rem; line-height: 1.5;"></p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button onclick="hideAiDeleteConfirm()" style="background: #f8f9fa; border: 2px solid #dee2e6; color: #495057; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                    No, Cancel
+                </button>
+                <button onclick="executeDeleteCapability()" style="background: #c53030; border: 2px solid #c53030; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#9b2c2c'" onmouseout="this.style.background='#c53030'">
+                    Yes, Remove
+                </button>
+            </div>
         </div>
     </div>
     

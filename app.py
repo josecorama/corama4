@@ -5111,6 +5111,60 @@ def update_selected_capability():
         logging.error(f"Error updating selected capability: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/delete_capability_statement', methods=['POST'])
+def delete_capability_statement():
+    """Delete a capability statement from user's profile"""
+    try:
+        if 'user' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        user = session['user']
+        user_id = user['localId']
+        id_token = user['idToken']
+        filename = request.json.get('filename')
+        
+        if not filename:
+            return jsonify({'error': 'Filename is required'}), 400
+        
+        # Get user uploads directory
+        user_data = db.child("users").child(user_id).get(id_token).val()
+        if not user_data or 'uploads_dir' not in user_data:
+            return jsonify({'error': 'User uploads directory not found'}), 400
+        
+        user_uploads_dir = user_data['uploads_dir']
+        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+        
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'Capability statements CSV not found'}), 404
+        
+        # Read CSV and remove the row for this filename
+        df = pd.read_csv(csv_path)
+        initial_count = len(df)
+        df = df[df['filename'] != filename]
+        
+        if len(df) == initial_count:
+            return jsonify({'error': 'Capability statement not found in database'}), 404
+        
+        # Save updated CSV
+        df.to_csv(csv_path, index=False)
+        
+        # Delete the physical file if it exists
+        file_path = os.path.join(user_uploads_dir, filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logging.info(f"✅ Deleted file: {file_path}")
+            except Exception as e:
+                logging.warning(f"⚠️ Could not delete file {file_path}: {e}")
+        
+        logging.info(f"✅ Deleted capability statement {filename} for user {user_id}")
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error deleting capability statement: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/upload_document', methods=['POST'])
 def upload_document():
     """Upload document to user's profile for AI assistant use with credit deduction"""
