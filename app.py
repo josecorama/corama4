@@ -2424,8 +2424,9 @@ def dashboard_search():
             top_k=10000
         )
         
-        # Filter results with similarity >= 0.7
-        filtered_results = [res for res in search_results if res.get('Similarity_Score', 0) >= 0.7]
+        # Filter results with similarity >= 0.0 (vector search already ranks by relevance)
+        # Note: Vector similarity scores typically range from -1 to 1, not 0 to 1
+        filtered_results = [res for res in search_results if res.get('Similarity_Score', -1) >= 0.0]
         
         if not filtered_results:
             return jsonify({
