@@ -100,9 +100,10 @@
         <button id="nextPage" title="Next Page">Next</button>
         <span id="pageInfo">Page <span id="currentPage">1</span> of <span id="totalPages">-</span></span>
         <select id="zoomSelect">
+            <option value="page-width" selected>Page Width</option>
             <option value="0.5">50%</option>
             <option value="0.75">75%</option>
-            <option value="1" selected>100%</option>
+            <option value="1">100%</option>
             <option value="1.25">125%</option>
             <option value="1.5">150%</option>
             <option value="2">200%</option>
@@ -138,7 +139,9 @@
             let pdfDoc = null;
             let currentPage = 1;
             let scale = 1;
+            let usePageWidth = true;
             const viewer = document.getElementById('viewer');
+            const viewerContainer = document.getElementById('viewerContainer');
             const loading = document.getElementById('loading');
             const errorMessage = document.getElementById('errorMessage');
 
@@ -168,7 +171,16 @@
             // Render a single page
             async function renderPage(pageNum) {
                 const page = await pdfDoc.getPage(pageNum);
-                const viewport = page.getViewport({ scale: scale });
+                
+                // Calculate scale based on page width if usePageWidth is true
+                let actualScale = scale;
+                if (usePageWidth) {
+                    const containerWidth = viewerContainer.clientWidth - 40; // 40px for margins
+                    const defaultViewport = page.getViewport({ scale: 1 });
+                    actualScale = containerWidth / defaultViewport.width;
+                }
+                
+                const viewport = page.getViewport({ scale: actualScale });
 
                 const canvas = document.createElement('canvas');
                 canvas.className = 'page';
@@ -211,15 +223,26 @@
 
             // Zoom
             document.getElementById('zoomSelect').addEventListener('change', (e) => {
-                scale = parseFloat(e.target.value);
+                const value = e.target.value;
+                if (value === 'page-width') {
+                    usePageWidth = true;
+                } else {
+                    usePageWidth = false;
+                    scale = parseFloat(value);
+                }
                 if (pdfDoc) {
                     renderAllPages();
                 }
             });
 
-            // Download
+            // Download - create a temporary link with download attribute
             document.getElementById('downloadBtn').addEventListener('click', () => {
-                window.open(pdfUrl, '_blank');
+                const link = document.createElement('a');
+                link.href = pdfUrl;
+                link.download = pdfUrl.split('/').pop() || 'document.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
             });
 
             // Track current page on scroll
