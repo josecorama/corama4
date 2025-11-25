@@ -307,7 +307,9 @@ def generate_naics_codes_with_ai(payload, hash_value=None):
     Uses OPENAI_MARIO key and caches results to avoid repeated API calls.
     
     Args:
-        payload: Qdrant point payload dict with contract info
+        payload: Qdrant point payload dict OR search match dict with contract info
+                 Supports both Qdrant fields (title, summary, agency, notice_type)
+                 and search match fields (bid_name, bid_description, organization, category)
         hash_value: Unique identifier for caching (computed from detail_link + bid_number)
     
     Returns:
@@ -322,11 +324,11 @@ def generate_naics_codes_with_ai(payload, hash_value=None):
     try:
         import json
         
-        # Extract contract info for the prompt
-        title = payload.get("title", "Unknown")
-        summary = payload.get("summary", "")
-        agency = payload.get("agency", "")
-        notice_type = payload.get("notice_type", "")
+        # Extract contract info for the prompt (support both Qdrant payload and search match dict)
+        title = payload.get("title") or payload.get("bid_name") or "Unknown"
+        summary = payload.get("summary") or payload.get("bid_description") or ""
+        agency = payload.get("agency") or payload.get("organization") or ""
+        notice_type = payload.get("notice_type") or payload.get("category") or ""
         
         # Build the prompt
         system_prompt = (
@@ -2707,6 +2709,14 @@ def dashboard_search():
         start = (page - 1) * items_per_page
         end = start + items_per_page
         paginated_contracts = filtered_results[start:end]
+        
+        # Enrich paginated results with AI-generated NAICS codes (only for contracts missing them)
+        for res in paginated_contracts:
+            if not res.get("naics_code"):
+                hash_value = res.get("hash_value")
+                ai_naics = generate_naics_codes_with_ai(res, hash_value=hash_value)
+                if ai_naics:
+                    res["naics_code"] = ai_naics
 
         import pandas as pd
         filtered_df = pd.DataFrame(filtered_results)
@@ -3303,13 +3313,31 @@ def Faq():
 #TERMS OF USE ROUTE FUNCTION
 @app.route('/terms_of_use', methods=['GET'])
 def terms_of_use():
-    return redirect(url_for('static', filename='docs/TermsofUse.pdf'))
+    # Use send_file with explicit headers for better browser compatibility (OperaGX, Edge)
+    pdf_path = os.path.join(app.static_folder, 'docs', 'TermsofUse.pdf')
+    response = send_file(
+        pdf_path,
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name='TermsOfUse.pdf'
+    )
+    response.headers["Content-Disposition"] = "inline; filename=TermsOfUse.pdf"
+    return response
 
 
 #PRIVACY NOTICE ROUTE FUNCTION
 @app.route('/privacy_notice', methods=['GET'])
 def privacy_notice():
-    return redirect(url_for('static', filename='docs/PrivacyNotice.pdf'))
+    # Use send_file with explicit headers for better browser compatibility (OperaGX, Edge)
+    pdf_path = os.path.join(app.static_folder, 'docs', 'PrivacyNotice.pdf')
+    response = send_file(
+        pdf_path,
+        mimetype='application/pdf',
+        as_attachment=False,
+        download_name='PrivacyNotice.pdf'
+    )
+    response.headers["Content-Disposition"] = "inline; filename=PrivacyNotice.pdf"
+    return response
 
 
     #TEAM DETAIL PAGE ROUTE FUNCTION
