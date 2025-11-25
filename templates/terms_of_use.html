@@ -3,7 +3,7 @@
     {% include 'navbar.html' %}
 
     <div class="container-fluid" style="padding: 0; margin-top: 80px;">
-        <div id="pdf-preview" style="width: 33.333%; margin: 0 auto 40px; display: block;">
+        <div id="pdf-preview" style="width: 40%; margin: 0 auto 40px; display: block;">
             <iframe
                 src="{{ url_for('static', filename='pdfjs/web/viewer.html') }}?file={{ url_for('static', filename='docs/TermsofUse.pdf') | urlencode }}"
                 width="100%"

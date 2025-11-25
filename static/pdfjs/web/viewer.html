@@ -27,9 +27,94 @@
             background: #474747;
             display: flex;
             align-items: center;
+            justify-content: space-between;
             padding: 0 10px;
-            gap: 10px;
             z-index: 1;
+        }
+        #toolbar-left,
+        #toolbar-center,
+        #toolbar-right {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        #toolbar-center {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #toolbar button {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #toolbar button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        #toolbar button svg {
+            width: 18px;
+            height: 18px;
+        }
+        #zoomInput {
+            width: 40px;
+            text-align: center;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            padding: 2px 4px;
+        }
+        #zoomInput:focus {
+            outline: none;
+            border-bottom-color: white;
+        }
+        #toolbar-center span {
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        #pageInfo {
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        #viewerLayout {
+            flex: 1 1 auto;
+            display: flex;
+            overflow: hidden;
+        }
+        #thumbnailSidebar {
+            width: 120px;
+            background: #333;
+            border-right: 1px solid #444;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+        #thumbnailSidebar.hidden {
+            display: none;
+        }
+        .thumbnail {
+            width: 100px;
+            margin: 8px auto;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: block;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .thumbnail:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+        .thumbnail.selected {
+            border-color: #4a9eff;
         }
         #viewerContainer {
             flex: 1 1 auto;
@@ -43,29 +128,6 @@
             margin: 10px auto;
             background: white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-        #toolbar button {
-            background: #5a5a5a;
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            cursor: pointer;
-            border-radius: 3px;
-        }
-        #toolbar button:hover {
-            background: #6a6a6a;
-        }
-        #pageInfo {
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
-        }
-        #zoomSelect {
-            background: #5a5a5a;
-            color: white;
-            border: none;
-            padding: 5px;
-            border-radius: 3px;
         }
         #loading {
             position: absolute;
@@ -94,35 +156,67 @@
 </head>
 <body>
     <div id="toolbar">
-        <button id="prevPage" title="Previous Page">Prev</button>
-        <button id="nextPage" title="Next Page">Next</button>
-        <span id="pageInfo">Page <span id="currentPage">1</span> of <span id="totalPages">-</span></span>
-        <select id="zoomSelect">
-            <option value="page-width" selected>Page Width</option>
-            <option value="0.5">50%</option>
-            <option value="0.75">75%</option>
-            <option value="1">100%</option>
-            <option value="1.25">125%</option>
-            <option value="1.5">150%</option>
-            <option value="2">200%</option>
-        </select>
-        <button id="downloadBtn" title="Download PDF">Download</button>
+        <div id="toolbar-left">
+            <button id="toggleThumbnails" title="Toggle thumbnails" aria-label="Toggle thumbnails">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="toolbar-center">
+            <button id="zoomOut" title="Zoom out" aria-label="Zoom out">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+            </button>
+            <input id="zoomInput" type="text" value="100" aria-label="Zoom percentage">
+            <span>%</span>
+            <button id="zoomIn" title="Zoom in" aria-label="Zoom in">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="toolbar-right">
+            <span id="pageInfo">Page <span id="currentPage">1</span> of <span id="totalPages">-</span></span>
+            <button id="downloadBtn" title="Download" aria-label="Download">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+            </button>
+            <button id="printBtn" title="Print" aria-label="Print">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 6 2 18 2 18 9" />
+                    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                    <rect x="6" y="14" width="12" height="8" />
+                </svg>
+            </button>
+        </div>
     </div>
     
-    <div id="viewerContainer">
-        <div id="viewer"></div>
-        <div id="loading">Loading PDF...</div>
-        <div id="errorMessage"></div>
+    <div id="viewerLayout">
+        <div id="thumbnailSidebar" class="hidden">
+            <div id="thumbnailList"></div>
+        </div>
+        <div id="viewerContainer">
+            <div id="viewer"></div>
+            <div id="loading">Loading PDF...</div>
+            <div id="errorMessage"></div>
+        </div>
     </div>
 
     <script type="module">
-        // Import PDF.js
         import * as pdfjsLib from '../build/pdf.mjs';
-
-        // Set worker source
         pdfjsLib.GlobalWorkerOptions.workerSrc = '../build/pdf.worker.mjs';
 
-        // Get PDF URL from query parameter
         const urlParams = new URLSearchParams(window.location.search);
         let pdfUrl = urlParams.get('file');
 
@@ -131,25 +225,27 @@
             document.getElementById('errorMessage').style.display = 'block';
             document.getElementById('errorMessage').textContent = 'No PDF file specified. Please provide a file parameter.';
         } else {
-            // Decode URL if needed
             pdfUrl = decodeURIComponent(pdfUrl);
             
             let pdfDoc = null;
             let currentPage = 1;
-            let scale = 1;
-            let usePageWidth = true;
+            let zoomPercent = 100;
+            
             const viewer = document.getElementById('viewer');
             const viewerContainer = document.getElementById('viewerContainer');
             const loading = document.getElementById('loading');
             const errorMessage = document.getElementById('errorMessage');
+            const thumbnailSidebar = document.getElementById('thumbnailSidebar');
+            const thumbnailList = document.getElementById('thumbnailList');
+            const zoomInput = document.getElementById('zoomInput');
 
-            // Load PDF
             async function loadPDF() {
                 try {
                     pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
                     document.getElementById('totalPages').textContent = pdfDoc.numPages;
                     loading.style.display = 'none';
-                    renderAllPages();
+                    await renderAllPages();
+                    await renderThumbnails();
                 } catch (error) {
                     console.error('Error loading PDF:', error);
                     loading.style.display = 'none';
@@ -158,7 +254,6 @@
                 }
             }
 
-            // Render all pages
             async function renderAllPages() {
                 viewer.innerHTML = '';
                 for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
@@ -166,17 +261,13 @@
                 }
             }
 
-            // Render a single page
             async function renderPage(pageNum) {
                 const page = await pdfDoc.getPage(pageNum);
                 
-                // Calculate scale based on page width if usePageWidth is true
-                let actualScale = scale;
-                if (usePageWidth) {
-                    const containerWidth = viewerContainer.clientWidth - 40; // 40px for margins
-                    const defaultViewport = page.getViewport({ scale: 1 });
-                    actualScale = containerWidth / defaultViewport.width;
-                }
+                const containerWidth = viewerContainer.clientWidth - 40;
+                const defaultViewport = page.getViewport({ scale: 1 });
+                const pageWidthScale = containerWidth / defaultViewport.width;
+                const actualScale = pageWidthScale * (zoomPercent / 100);
                 
                 const viewport = page.getViewport({ scale: actualScale });
 
@@ -195,22 +286,39 @@
                 viewer.appendChild(canvas);
             }
 
-            // Navigation
-            document.getElementById('prevPage').addEventListener('click', () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    document.getElementById('currentPage').textContent = currentPage;
-                    scrollToPage(currentPage);
-                }
-            });
+            async function renderThumbnails() {
+                thumbnailList.innerHTML = '';
+                for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                    const page = await pdfDoc.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 0.15 });
+                    
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    canvas.className = 'thumbnail';
+                    canvas.dataset.pageNumber = pageNum;
+                    if (pageNum === 1) canvas.classList.add('selected');
 
-            document.getElementById('nextPage').addEventListener('click', () => {
-                if (pdfDoc && currentPage < pdfDoc.numPages) {
-                    currentPage++;
-                    document.getElementById('currentPage').textContent = currentPage;
-                    scrollToPage(currentPage);
+                    const ctx = canvas.getContext('2d');
+                    await page.render({ canvasContext: ctx, viewport }).promise;
+
+                    canvas.addEventListener('click', () => {
+                        scrollToPage(pageNum);
+                        updateSelectedThumbnail(pageNum);
+                    });
+
+                    thumbnailList.appendChild(canvas);
                 }
-            });
+            }
+
+            function updateSelectedThumbnail(pageNum) {
+                thumbnailList.querySelectorAll('.thumbnail').forEach(thumb => {
+                    thumb.classList.remove('selected');
+                    if (parseInt(thumb.dataset.pageNumber) === pageNum) {
+                        thumb.classList.add('selected');
+                    }
+                });
+            }
 
             function scrollToPage(pageNum) {
                 const canvas = viewer.querySelector(`canvas[data-page-number="${pageNum}"]`);
@@ -219,21 +327,46 @@
                 }
             }
 
-            // Zoom
-            document.getElementById('zoomSelect').addEventListener('change', (e) => {
-                const value = e.target.value;
-                if (value === 'page-width') {
-                    usePageWidth = true;
-                } else {
-                    usePageWidth = false;
-                    scale = parseFloat(value);
-                }
+            function updateZoom(newPercent) {
+                const min = 25;
+                const max = 400;
+                zoomPercent = Math.min(max, Math.max(min, newPercent));
+                zoomInput.value = zoomPercent;
                 if (pdfDoc) {
                     renderAllPages();
                 }
+            }
+
+            document.getElementById('toggleThumbnails').addEventListener('click', () => {
+                thumbnailSidebar.classList.toggle('hidden');
+                if (pdfDoc) {
+                    setTimeout(() => renderAllPages(), 50);
+                }
             });
 
-            // Download - create a temporary link with download attribute
+            document.getElementById('zoomOut').addEventListener('click', () => {
+                updateZoom(zoomPercent - 10);
+            });
+
+            document.getElementById('zoomIn').addEventListener('click', () => {
+                updateZoom(zoomPercent + 10);
+            });
+
+            zoomInput.addEventListener('change', () => {
+                const value = parseInt(zoomInput.value.replace('%', '').trim(), 10);
+                if (!isNaN(value)) {
+                    updateZoom(value);
+                } else {
+                    zoomInput.value = zoomPercent;
+                }
+            });
+
+            zoomInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    zoomInput.blur();
+                }
+            });
+
             document.getElementById('downloadBtn').addEventListener('click', () => {
                 const link = document.createElement('a');
                 link.href = pdfUrl;
@@ -243,22 +376,48 @@
                 document.body.removeChild(link);
             });
 
-            // Track current page on scroll
-            document.getElementById('viewerContainer').addEventListener('scroll', () => {
+            document.getElementById('printBtn').addEventListener('click', () => {
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'fixed';
+                iframe.style.right = '0';
+                iframe.style.bottom = '0';
+                iframe.style.width = '0';
+                iframe.style.height = '0';
+                iframe.style.border = '0';
+                iframe.src = pdfUrl;
+
+                iframe.onload = () => {
+                    try {
+                        iframe.contentWindow.focus();
+                        iframe.contentWindow.print();
+                    } catch (e) {
+                        console.error('Print failed', e);
+                        window.open(pdfUrl, '_blank');
+                    }
+                };
+
+                document.body.appendChild(iframe);
+                setTimeout(() => iframe.remove(), 10000);
+            });
+
+            viewerContainer.addEventListener('scroll', () => {
                 const canvases = viewer.querySelectorAll('canvas');
-                const containerRect = document.getElementById('viewerContainer').getBoundingClientRect();
+                const containerRect = viewerContainer.getBoundingClientRect();
                 
                 for (const canvas of canvases) {
                     const rect = canvas.getBoundingClientRect();
                     if (rect.top <= containerRect.top + 100 && rect.bottom > containerRect.top + 100) {
-                        currentPage = parseInt(canvas.dataset.pageNumber);
-                        document.getElementById('currentPage').textContent = currentPage;
+                        const pageNum = parseInt(canvas.dataset.pageNumber);
+                        if (pageNum !== currentPage) {
+                            currentPage = pageNum;
+                            document.getElementById('currentPage').textContent = currentPage;
+                            updateSelectedThumbnail(currentPage);
+                        }
                         break;
                     }
                 }
             });
 
-            // Start loading
             loadPDF();
         }
     </script>
