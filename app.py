@@ -349,7 +349,8 @@ Requirements:
 - Output a JSON object with exactly these keys:
   - "codes": an array of 6-digit NAICS code strings (e.g. ["332999", "336413"])
 - Include at most 3 codes.
-- If you are very uncertain, return an empty list for "codes".
+- ALWAYS provide at least one code based on your best guess from the title, even if the title is cryptic or abbreviated.
+- For titles like "30--ROD,PISTON" or similar part numbers, infer the industry from the component name (e.g., piston = machinery/automotive parts).
 - Do NOT include any explanation or text outside of the JSON."""
         
         # Call OpenAI with OPENAI_MARIO key
@@ -2711,10 +2712,14 @@ def dashboard_search():
         paginated_contracts = filtered_results[start:end]
         
         # Enrich paginated results with AI-generated NAICS codes (only for contracts missing them)
+        app.logger.info(f"[AI_NAICS_DEBUG] page={page}, contracts={len(paginated_contracts)}")
         for res in paginated_contracts:
+            app.logger.info(f"[AI_NAICS_DEBUG] bid_name={res.get('bid_name')[:30] if res.get('bid_name') else '?'} | naics={repr(res.get('naics_code'))}")
             if not res.get("naics_code"):
                 hash_value = res.get("hash_value")
+                app.logger.info(f"[AI_NAICS_DEBUG] Calling AI for {res.get('bid_name')[:30] if res.get('bid_name') else '?'}")
                 ai_naics = generate_naics_codes_with_ai(res, hash_value=hash_value)
+                app.logger.info(f"[AI_NAICS_DEBUG] AI result: {repr(ai_naics)}")
                 if ai_naics:
                     res["naics_code"] = ai_naics
 
@@ -3313,34 +3318,18 @@ def Faq():
 #TERMS OF USE ROUTE FUNCTION
 @app.route('/terms_of_use', methods=['GET'])
 def terms_of_use():
-    # Use send_file with explicit headers for better browser compatibility (OperaGX, Edge)
-    pdf_path = os.path.join(app.static_folder, 'docs', 'TermsofUse.pdf')
-    response = send_file(
-        pdf_path,
-        mimetype='application/pdf',
-        as_attachment=False,
-        download_name='TermsOfUse.pdf'
-    )
-    response.headers["Content-Disposition"] = "inline; filename=TermsOfUse.pdf"
-    return response
+    # Render HTML template with embedded PDF iframe for better browser compatibility
+    return render_template('terms_of_use.html')
 
 
 #PRIVACY NOTICE ROUTE FUNCTION
 @app.route('/privacy_notice', methods=['GET'])
 def privacy_notice():
-    # Use send_file with explicit headers for better browser compatibility (OperaGX, Edge)
-    pdf_path = os.path.join(app.static_folder, 'docs', 'PrivacyNotice.pdf')
-    response = send_file(
-        pdf_path,
-        mimetype='application/pdf',
-        as_attachment=False,
-        download_name='PrivacyNotice.pdf'
-    )
-    response.headers["Content-Disposition"] = "inline; filename=PrivacyNotice.pdf"
-    return response
+    # Render HTML template with embedded PDF iframe for better browser compatibility
+    return render_template('privacy_notice.html')
 
 
-    #TEAM DETAIL PAGE ROUTE FUNCTION
+#TEAM DETAIL PAGE ROUTE FUNCTION
 @app.route('/businesspartner', methods=['GET']) 
 def Businesspartner():
     return render_template('businesspartner.html')
