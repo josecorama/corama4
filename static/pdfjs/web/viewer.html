@@ -13,15 +13,26 @@
         }
         html, body {
             height: 100%;
+            margin: 0;
             overflow: hidden;
+        }
+        body {
+            display: flex;
+            flex-direction: column;
             background: #404040;
         }
+        #toolbar {
+            flex: 0 0 40px;
+            height: 40px;
+            background: #474747;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+            z-index: 1;
+        }
         #viewerContainer {
-            position: absolute;
-            top: 40px;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            flex: 1 1 auto;
             overflow: auto;
             background: #525659;
         }
@@ -32,19 +43,6 @@
             margin: 10px auto;
             background: white;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-        #toolbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 40px;
-            background: #474747;
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-            gap: 10px;
-            z-index: 100;
         }
         #toolbar button {
             background: #5a5a5a;
