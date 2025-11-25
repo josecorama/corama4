@@ -297,6 +297,93 @@ app.logger.setLevel(logging.INFO)
 # Use OPENAI_MARIO as primary key for all AI features (including smart search embeddings)
 smart_search_api_key = os.getenv('OPENAI_MARIO') or os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
 client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
+
+# In-memory cache for AI-generated NAICS codes (keyed by hash_value)
+AI_NAICS_CACHE = {}
+
+def generate_naics_codes_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to generate NAICS codes for contracts that don't have them.
+    Uses OPENAI_MARIO key and caches results to avoid repeated API calls.
+    
+    Args:
+        payload: Qdrant point payload dict with contract info
+        hash_value: Unique identifier for caching (computed from detail_link + bid_number)
+    
+    Returns:
+        String of comma-separated NAICS codes (e.g., "332999, 336413") or empty string on failure
+    """
+    global AI_NAICS_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_NAICS_CACHE:
+        return AI_NAICS_CACHE[hash_value]
+    
+    try:
+        import json
+        
+        # Extract contract info for the prompt
+        title = payload.get("title", "Unknown")
+        summary = payload.get("summary", "")
+        agency = payload.get("agency", "")
+        notice_type = payload.get("notice_type", "")
+        
+        # Build the prompt
+        system_prompt = (
+            "You are an expert in US federal procurement classification. "
+            "Given a government contract title, description, and related metadata, "
+            "determine the most likely NAICS (North American Industry Classification System) code or codes. "
+            "Use official US NAICS 2022 codes. "
+            "Return ONLY a JSON object, no extra text."
+        )
+        
+        user_prompt = f"""Contract information:
+Title: {title}
+Description: {summary or "N/A"}
+Agency: {agency or "N/A"}
+Notice type: {notice_type or "N/A"}
+
+Requirements:
+- Output a JSON object with exactly these keys:
+  - "codes": an array of 6-digit NAICS code strings (e.g. ["332999", "336413"])
+- Include at most 3 codes.
+- If you are very uncertain, return an empty list for "codes".
+- Do NOT include any explanation or text outside of the JSON."""
+        
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=100,
+            temperature=0.3
+        )
+        
+        content = response.choices[0].message.content.strip()
+        
+        # Parse JSON response
+        data = json.loads(content)
+        codes = data.get("codes", [])
+        
+        # Sanitize: ensure they look like 6-digit numbers
+        cleaned_codes = [c for c in codes if isinstance(c, str) and c.isdigit() and len(c) == 6]
+        naics_code_str = ", ".join(cleaned_codes)
+        
+        # Cache the result
+        if hash_value:
+            AI_NAICS_CACHE[hash_value] = naics_code_str
+            app.logger.info(f"[AI_NAICS] Generated codes for '{title[:50]}...': {naics_code_str}")
+        
+        return naics_code_str
+        
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS] Error generating NAICS codes: {e}")
+        # Cache empty result to avoid repeated failures
+        if hash_value:
+            AI_NAICS_CACHE[hash_value] = ""
+        return ""
 if os.getenv('OPENAI_MARIO'):
     app.logger.info("✅ Smart search embeddings using OPENAI_MARIO key")
 else:
@@ -6529,6 +6616,10 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
                     naics_codes.append(code)
     
     naics_code_str = ", ".join(naics_codes) if naics_codes else ""
+    
+    # If no NAICS codes found, use AI to generate them
+    if not naics_code_str:
+        naics_code_str = generate_naics_codes_with_ai(payload, hash_value=hash_value)
     
     # Due date - only use due_date field, fallback to "No due date" (not posted_date)
     raw_due_date = payload.get("due_date")
