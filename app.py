@@ -2148,6 +2148,82 @@ def signupCSBuilder():
 
 
 
+def get_qdrant_analytics():
+    """
+    Compute analytics from ALL contracts in Qdrant for the dashboard.
+    This ensures Top Contract Categories shows totals from all 1,160+ contracts.
+    """
+    from datetime import datetime
+    from collections import Counter
+    
+    try:
+        # Get ALL contracts from Qdrant
+        all_contracts, total_contracts, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+        
+        if not all_contracts:
+            logging.warning("No contracts found in Qdrant, using fallback values")
+            return {
+                'total_contracts': 0,
+                'win_probability': 0,
+                'open_contracts': 0,
+                'upcoming_deadlines': 0,
+                'high_score_opportunities': 0,
+                'top_categories': [],
+                'category_distribution': {},
+                'status_distribution': {},
+                'top_agencies': {},
+                'analysis_date': datetime.now().strftime('%Y-%m-%d')
+            }
+        
+        total_contracts = len(all_contracts)
+        
+        # Category distribution from Qdrant data
+        category_counts = Counter(c.get('category', 'Unknown') for c in all_contracts)
+        top_categories = [cat for cat, _ in category_counts.most_common(5)]
+        
+        # Status distribution
+        status_counts = Counter(c.get('status', 'active') for c in all_contracts)
+        open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+        
+        # Calculate win probability based on category diversity
+        category_diversity = len(category_counts)
+        win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+        
+        # High score opportunities
+        high_score_categories = ['Construction', 'Information Technology', 'Professional Services', 'Solicitation', 'Award Notice']
+        high_score_count = sum(1 for c in all_contracts if any(cat.lower() in c.get('category', '').lower() for cat in high_score_categories))
+        
+        logging.info(f"Qdrant analytics: {total_contracts} total contracts, {len(category_counts)} categories")
+        
+        return {
+            'total_contracts': total_contracts,
+            'win_probability': round(win_probability, 1),
+            'open_contracts': open_contracts,
+            'upcoming_deadlines': 0,
+            'high_score_opportunities': high_score_count,
+            'top_categories': top_categories,
+            'category_distribution': dict(category_counts),
+            'status_distribution': dict(status_counts),
+            'top_agencies': {},
+            'analysis_date': datetime.now().strftime('%Y-%m-%d')
+        }
+        
+    except Exception as e:
+        logging.error(f"Error computing Qdrant analytics: {e}")
+        return {
+            'total_contracts': 0,
+            'win_probability': 0,
+            'open_contracts': 0,
+            'upcoming_deadlines': 0,
+            'high_score_opportunities': 0,
+            'top_categories': [],
+            'category_distribution': {},
+            'status_distribution': {},
+            'top_agencies': {},
+            'analysis_date': datetime.now().strftime('%Y-%m-%d')
+        }
+
+
 # updated 3/17/25 - Permanent Stripe Validation Fix
 @app.route('/welcome', methods=['GET'])
 def Welcome():
@@ -2186,9 +2262,9 @@ def Welcome():
         company_name = user_data.get('company', 'No Company')
         first_name = user_data.get('first_name', 'User')
         
-        from csv_analytics import get_dashboard_metrics
-        analytics_data = get_dashboard_metrics()
-        logging.info(f"📊 Analytics data loaded: {analytics_data}")
+        # Get analytics from Qdrant (all 1,160+ contracts) for Top Contract Categories
+        analytics_data = get_qdrant_analytics()
+        logging.info(f"📊 Qdrant analytics loaded: {analytics_data.get('total_contracts', 0)} contracts")
         
         page = request.args.get('page', 1, type=int)
         items_per_page = 10  # Dashboard shows fewer items than smartsearch for better UX
@@ -6365,8 +6441,10 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         # Get category from notice_type or NAICS_TITLE (no "category" field exists in Qdrant)
         "category": (payload.get("notice_type") or payload.get("NAICS_TITLE") or "Unknown").strip(),
         "naics_code": naics_code_str,  # NAICS Code column (numbers only)
-        "due_date": payload.get("due_date") or payload.get("posted_date") or "Not Specified",
-        "status": payload.get("status", "active"),  # Default to "active" for dashboard
+        # Due date with fallback to posted_date, then "No due date"
+        "due_date": payload.get("due_date") or payload.get("posted_date") or "No due date",
+        # Status is "open" only when due date fallback occurs (no due_date or posted_date)
+        "status": payload.get("status") or ("open" if not (payload.get("due_date") or payload.get("posted_date")) else "active"),
         "state": payload.get("state", "Unknown"),
         
         # Optional fields
@@ -6633,15 +6711,21 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
             raw_category = notice_type or naics_title or "Unknown"
             category = raw_category.strip()
             
-            # Get due_date with fallback to posted_date
+            # Get due_date with fallback to posted_date, then "No due date"
             due_date = bid.get("due_date") or bid.get("posted_date") or ""
+            has_due_date = bool(due_date)
+            if not has_due_date:
+                due_date = "No due date"
+            
+            # Status is "open" with special styling only when due date fallback occurs
+            status = bid.get("status") or ("open" if not has_due_date else "active")
             
             match_data = {
                 "bid_number": bid.get("contract_number") or bid.get("bid_number") or "",
                 "bid_name": bid.get("title") or bid.get("bid_name") or "",
                 "bid_description": bid.get("summary") or bid.get("bid_description") or "",
                 "organization": bid.get("agency") or bid.get("organization") or "",
-                "status": bid.get("status") or "open",  # Default to "open" if missing
+                "status": status,
                 "due_date": due_date,
                 "category": category,
                 "naics_code": naics_code_str,  # NAICS Code column (numbers only)

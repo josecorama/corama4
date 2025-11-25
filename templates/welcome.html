@@ -645,15 +645,17 @@
                 row.className = 'contract-row';
                 
                 // Handle Invalid Date gracefully - show raw string if date parsing fails
-                let dueDate = contract.due_date || 'Not Specified';
-                if (dueDate && dueDate !== 'Not Specified') {
+                let dueDate = contract.due_date || 'No due date';
+                const hasNoDueDate = dueDate === 'No due date';
+                if (!hasNoDueDate) {
                     const parsedDate = new Date(dueDate);
                     if (!isNaN(parsedDate.getTime())) {
                         dueDate = parsedDate.toLocaleDateString();
                     }
                     // If parsing fails, keep the raw string (e.g., "2025-11-20")
                 }
-                const statusClass = contract.status === 'active' ? 'status-active' : 'status-open';
+                // Use status-open with #abc5fe color only when due date fallback occurs
+                const statusClass = hasNoDueDate ? 'status-no-due-date' : (contract.status === 'active' ? 'status-active' : 'status-open');
                 const naicsCode = contract.naics_code || '';
                 
                 row.innerHTML = `
@@ -728,7 +730,7 @@
                         if (data.success) {
                             populateContractTable(data.contracts);
                             updatePagination(data.current_page, data.total_pages, data.total_contracts);
-                            updateCategoryDisplay(data.analytics);
+                            // Top Contract Categories stay fixed - don't update on search
                         } else {
                             console.error('Search failed:', data.message);
                         }

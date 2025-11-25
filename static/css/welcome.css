@@ -476,6 +476,11 @@ body {
     color: #004085;
 }
 
+.status-no-due-date {
+    background: #abc5fe;
+    color: #004085;
+}
+
 .select-contract-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
