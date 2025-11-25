@@ -6364,7 +6364,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         "bid_description": payload.get("summary", "No description available"),
         "detail_link": detail_link,
         "organization": payload.get("agency", "Unknown"),
-        "category": payload.get("category", "Unknown"),
+        "category": (payload.get("category") or "Unknown").capitalize(),  # Capitalize first letter
         "naics_code": naics_code_str,  # NAICS Code column (numbers only)
         "due_date": payload.get("due_date") or payload.get("posted_date", "Not Specified"),
         "status": payload.get("status", "active"),  # Default to "active" for dashboard
@@ -6606,6 +6606,31 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
     
     for bid, sim in search_result:
         try:
+            # Extract NAICS code numbers only (same logic as qdrant_payload_to_dashboard_contract)
+            raw_naics = bid.get("NAICS_CODE", "")
+            naics_codes = []
+            
+            if isinstance(raw_naics, list):
+                items = raw_naics
+            elif raw_naics:
+                items = [raw_naics]
+            else:
+                items = []
+            
+            for item in items:
+                s = str(item)
+                # Extract first run of 2+ digits
+                m = re.search(r'\d{2,}', s)
+                if m:
+                    code = m.group(0)
+                    if code not in naics_codes:
+                        naics_codes.append(code)
+            
+            naics_code_str = ", ".join(naics_codes) if naics_codes else ""
+            
+            # Get category and capitalize first letter
+            raw_category = bid.get("category") or ""
+            category = raw_category.capitalize() if raw_category else ""
             
             match_data = {
                 "bid_number": bid.get("contract_number") or bid.get("bid_number") or "",
@@ -6614,7 +6639,8 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
                 "organization": bid.get("agency") or bid.get("organization") or "",
                 "status": bid.get("status") or "open",  # Default to "open" if missing
                 "due_date": bid.get("due_date") or "",
-                "category": bid.get("category") or "",
+                "category": category,
+                "naics_code": naics_code_str,  # NAICS Code column (numbers only)
                 "industry": bid.get("industry") or "",
                 "department": bid.get("department") or "",
                 "state": bid.get("state") or "",
