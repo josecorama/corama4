@@ -74,6 +74,19 @@ class CSQueryHandler:
         vector = vector / np.linalg.norm(vector)
         return vector.tolist()
 
+    def _is_past_due(self, due_date_str):
+        """Check if a due date has passed (contract is closed)"""
+        if not due_date_str:
+            return False
+        try:
+            from datetime import date, datetime
+            # Parse date, stripping time/offset if present (e.g., "2025-12-05T14:00:00-05:00" -> "2025-12-05")
+            date_part = due_date_str.split("T")[0]
+            parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+            return parsed_date < date.today()
+        except Exception:
+            return False
+
     def enrich_with_ai(self, contracts):
         """Use OpenAI to extract Industry Sector and Geographic Area for contracts"""
         if not contracts:
@@ -408,7 +421,21 @@ Respond with ONLY valid JSON array, no other text:
 
             unique_results.sort(key=lambda x: x.score, reverse=True)
 
-            final_results = unique_results[:5]
+            # Filter out closed contracts (past due dates) before selecting top 5
+            open_results = []
+            closed_count = 0
+            for res in unique_results:
+                due_date = res.payload.get("due_date", "")
+                if self._is_past_due(due_date):
+                    closed_count += 1
+                    print(f"   - 跳过已关闭合同: {res.payload.get('title', 'Unknown')} (截止日期: {due_date})")
+                else:
+                    open_results.append(res)
+            
+            if closed_count > 0:
+                print(f"\n(2.5) 过滤掉 {closed_count} 个已关闭合同 (截止日期已过)")
+            
+            final_results = open_results[:5]
 
             print("\n(2) 去重过程记录：")
             for line in duplicate_logs:

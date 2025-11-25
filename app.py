@@ -3536,8 +3536,10 @@ def upload_and_process():
         if selected_contract_types or selected_states or not hash_value:
             # Example: re-run your Qdrant or RAG logic to produce “matches.csv”
             # (the same steps from your original upload_and_process).
+            # Use OPENAI_MARIO as primary key for all AI features (including Top 5 enrichment)
+            openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
             handler = CSQueryHandler(
-                openai_api_key=os.getenv('CS_BID_SEARCH_OPENAI_API_KEY'),
+                openai_api_key=openai_key,
                 qdrant_url=os.getenv('Qdrant_EP'),
                 qdrant_api_key=os.getenv('Qdrant_AK'),
                 user_upload_dir=user_upload_dir
@@ -3548,9 +3550,10 @@ def upload_and_process():
             try:
                 app.logger.info(f"Starting Qdrant matching with contract_types: {selected_contract_types}, states: {selected_states}")
                 
-                # Initialize CSQueryHandler for contract matching
+                # Initialize CSQueryHandler for contract matching - use OPENAI_MARIO as primary key
+                openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
                 handler = CSQueryHandler(
-                    openai_api_key=os.getenv('CS_BID_SEARCH_OPENAI_API_KEY'),
+                    openai_api_key=openai_key,
                     qdrant_url=os.getenv('Qdrant_EP'),
                     qdrant_api_key=os.getenv('Qdrant_AK'),
                     user_upload_dir=user_upload_dir
@@ -6513,8 +6516,25 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     has_due_date = bool(raw_due_date)
     due_date = raw_due_date or "No due date"
     
-    # Status is "open" only when due date fallback occurs (no due_date)
-    status = payload.get("status") or ("open" if not has_due_date else "active")
+    # Check if due date has passed (contract is closed)
+    from datetime import date, datetime
+    is_past_due = False
+    if raw_due_date:
+        try:
+            # Parse date, stripping time/offset if present (e.g., "2025-12-05T14:00:00-05:00" -> "2025-12-05")
+            date_part = raw_due_date.split("T")[0]
+            parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+            is_past_due = parsed_date < date.today()
+        except Exception:
+            is_past_due = False
+    
+    # Status: "closed" if past due, "open" if no due date, "active" otherwise
+    if is_past_due:
+        status = "closed"
+    elif not has_due_date:
+        status = "open"
+    else:
+        status = payload.get("status") or "active"
     
     return {
         # Identifiers

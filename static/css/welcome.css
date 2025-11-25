@@ -481,6 +481,11 @@ body {
     color: #004085;
 }
 
+.status-closed {
+    background: #FF6961;
+    color: white;
+}
+
 .select-contract-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;

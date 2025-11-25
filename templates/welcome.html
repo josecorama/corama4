@@ -654,8 +654,18 @@
                     }
                     // If parsing fails, keep the raw string (e.g., "2025-11-20")
                 }
-                // Use status-open with #abc5fe color only when due date fallback occurs
-                const statusClass = hasNoDueDate ? 'status-no-due-date' : (contract.status === 'active' ? 'status-active' : 'status-open');
+                // Determine status class based on contract status
+                // closed = past due date (#FF6961), open = no due date (#abc5fe), active = has future due date
+                let statusClass;
+                if (contract.status === 'closed') {
+                    statusClass = 'status-closed';
+                } else if (hasNoDueDate) {
+                    statusClass = 'status-no-due-date';
+                } else if (contract.status === 'active') {
+                    statusClass = 'status-active';
+                } else {
+                    statusClass = 'status-open';
+                }
                 const naicsCode = contract.naics_code || '';
                 
                 row.innerHTML = `
