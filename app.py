@@ -2578,6 +2578,9 @@ def dashboard_search():
         # Note: Vector similarity scores typically range from -1 to 1, not 0 to 1
         filtered_results = [res for res in search_results if res.get('Similarity_Score', -1) >= 0.0]
         
+        # Sort by similarity score in descending order (highest similarity first)
+        filtered_results.sort(key=lambda x: x.get('Similarity_Score', 0), reverse=True)
+        
         if not filtered_results:
             return jsonify({
                 "success": True,
