@@ -644,7 +644,15 @@
                 const row = document.createElement('div');
                 row.className = 'contract-row';
                 
-                const dueDate = new Date(contract.due_date).toLocaleDateString();
+                // Handle Invalid Date gracefully - show raw string if date parsing fails
+                let dueDate = contract.due_date || 'Not Specified';
+                if (dueDate && dueDate !== 'Not Specified') {
+                    const parsedDate = new Date(dueDate);
+                    if (!isNaN(parsedDate.getTime())) {
+                        dueDate = parsedDate.toLocaleDateString();
+                    }
+                    // If parsing fails, keep the raw string (e.g., "2025-11-20")
+                }
                 const statusClass = contract.status === 'active' ? 'status-active' : 'status-open';
                 const naicsCode = contract.naics_code || '';
                 

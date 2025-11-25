@@ -6362,9 +6362,10 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         "bid_description": payload.get("summary", "No description available"),
         "detail_link": detail_link,
         "organization": payload.get("agency", "Unknown"),
-        "category": (payload.get("category") or "Unknown").capitalize(),  # Capitalize first letter
+        # Get category from notice_type or NAICS_TITLE (no "category" field exists in Qdrant)
+        "category": (payload.get("notice_type") or payload.get("NAICS_TITLE") or "Unknown").strip(),
         "naics_code": naics_code_str,  # NAICS Code column (numbers only)
-        "due_date": payload.get("due_date") or payload.get("posted_date", "Not Specified"),
+        "due_date": payload.get("due_date") or payload.get("posted_date") or "Not Specified",
         "status": payload.get("status", "active"),  # Default to "active" for dashboard
         "state": payload.get("state", "Unknown"),
         
@@ -6624,9 +6625,16 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
             
             naics_code_str = ", ".join(naics_codes) if naics_codes else ""
             
-            # Get category and capitalize first letter (default to "Unknown" not empty string)
-            raw_category = bid.get("category") or "Unknown"
-            category = raw_category.capitalize()
+            # Get category from NAICS_TITLE or notice_type (no "category" field exists in Qdrant)
+            # NAICS_TITLE format is like "NAICS 221210" - extract the title part if available
+            naics_title = bid.get("NAICS_TITLE") or ""
+            notice_type = bid.get("notice_type") or ""
+            # Use notice_type as category since it's more descriptive (e.g., "Award Notice", "Combined Synopsis/Solicitation")
+            raw_category = notice_type or naics_title or "Unknown"
+            category = raw_category.strip()
+            
+            # Get due_date with fallback to posted_date
+            due_date = bid.get("due_date") or bid.get("posted_date") or ""
             
             match_data = {
                 "bid_number": bid.get("contract_number") or bid.get("bid_number") or "",
@@ -6634,7 +6642,7 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
                 "bid_description": bid.get("summary") or bid.get("bid_description") or "",
                 "organization": bid.get("agency") or bid.get("organization") or "",
                 "status": bid.get("status") or "open",  # Default to "open" if missing
-                "due_date": bid.get("due_date") or "",
+                "due_date": due_date,
                 "category": category,
                 "naics_code": naics_code_str,  # NAICS Code column (numbers only)
                 "industry": bid.get("industry") or "",
