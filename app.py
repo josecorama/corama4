@@ -2177,9 +2177,13 @@ def get_qdrant_analytics():
         
         total_contracts = len(all_contracts)
         
-        # Category distribution from Qdrant data
+        # Category distribution from Qdrant data - sorted by count in descending order
         category_counts = Counter(c.get('category', 'Unknown') for c in all_contracts)
-        top_categories = [cat for cat, _ in category_counts.most_common(5)]
+        # Get top 5 categories sorted by count (highest first) for display left-to-right
+        top_categories_with_counts = category_counts.most_common(5)
+        top_categories = [cat for cat, _ in top_categories_with_counts]
+        # Create ordered dict for category_distribution (descending order)
+        category_distribution_ordered = {cat: count for cat, count in top_categories_with_counts}
         
         # Status distribution
         status_counts = Counter(c.get('status', 'active') for c in all_contracts)
@@ -2202,7 +2206,7 @@ def get_qdrant_analytics():
             'upcoming_deadlines': 0,
             'high_score_opportunities': high_score_count,
             'top_categories': top_categories,
-            'category_distribution': dict(category_counts),
+            'category_distribution': category_distribution_ordered,  # Sorted by count descending (left-to-right)
             'status_distribution': dict(status_counts),
             'top_agencies': {},
             'analysis_date': datetime.now().strftime('%Y-%m-%d')
@@ -6407,25 +6411,40 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     hash_input = f"{detail_link}{bid_number}"
     hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
     
-    # Extract NAICS code numbers only (e.g., "541512 (Computer Systems Design)" -> "541512")
+    # Extract NAICS codes from NAICS_CODES_ALL (semicolon-separated) or fallback to NAICS_CODE
+    # NAICS_CODES_ALL contains all codes like "238220;423720"
+    raw_naics_all = payload.get("NAICS_CODES_ALL", "")
     raw_naics = payload.get("NAICS_CODE", "")
     naics_codes = []
     
-    if isinstance(raw_naics, list):
-        items = raw_naics
-    elif raw_naics:
-        items = [raw_naics]
-    else:
-        items = []
+    # First try NAICS_CODES_ALL which contains all codes
+    if raw_naics_all:
+        # Split by semicolon and extract numeric codes
+        for part in str(raw_naics_all).split(";"):
+            for code in re.findall(r'\d{2,}', part.strip()):
+                if code not in naics_codes:
+                    naics_codes.append(code)
     
-    for item in items:
-        s = str(item)
-        # Extract ALL runs of 2+ digits using findall (not just the first one)
-        for code in re.findall(r'\d{2,}', s):
-            if code not in naics_codes:
-                naics_codes.append(code)
+    # Fallback to NAICS_CODE if NAICS_CODES_ALL is empty
+    if not naics_codes and raw_naics:
+        if isinstance(raw_naics, list):
+            items = raw_naics
+        else:
+            items = [raw_naics]
+        for item in items:
+            for code in re.findall(r'\d{2,}', str(item)):
+                if code not in naics_codes:
+                    naics_codes.append(code)
     
     naics_code_str = ", ".join(naics_codes) if naics_codes else ""
+    
+    # Due date - only use due_date field, fallback to "No due date" (not posted_date)
+    raw_due_date = payload.get("due_date")
+    has_due_date = bool(raw_due_date)
+    due_date = raw_due_date or "No due date"
+    
+    # Status is "open" only when due date fallback occurs (no due_date)
+    status = payload.get("status") or ("open" if not has_due_date else "active")
     
     return {
         # Identifiers
@@ -6440,11 +6459,9 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         "organization": payload.get("agency", "Unknown"),
         # Get category from notice_type or NAICS_TITLE (no "category" field exists in Qdrant)
         "category": (payload.get("notice_type") or payload.get("NAICS_TITLE") or "Unknown").strip(),
-        "naics_code": naics_code_str,  # NAICS Code column (numbers only)
-        # Due date with fallback to posted_date, then "No due date"
-        "due_date": payload.get("due_date") or payload.get("posted_date") or "No due date",
-        # Status is "open" only when due date fallback occurs (no due_date or posted_date)
-        "status": payload.get("status") or ("open" if not (payload.get("due_date") or payload.get("posted_date")) else "active"),
+        "naics_code": naics_code_str,  # NAICS Code(s) column (numbers only)
+        "due_date": due_date,
+        "status": status,
         "state": payload.get("state", "Unknown"),
         
         # Optional fields
@@ -6683,39 +6700,44 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
     
     for bid, sim in search_result:
         try:
-            # Extract NAICS code numbers only (same logic as qdrant_payload_to_dashboard_contract)
+            # Extract NAICS codes from NAICS_CODES_ALL (semicolon-separated) or fallback to NAICS_CODE
+            # NAICS_CODES_ALL contains all codes like "238220;423720"
+            raw_naics_all = bid.get("NAICS_CODES_ALL", "")
             raw_naics = bid.get("NAICS_CODE", "")
             naics_codes = []
             
-            if isinstance(raw_naics, list):
-                items = raw_naics
-            elif raw_naics:
-                items = [raw_naics]
-            else:
-                items = []
+            # First try NAICS_CODES_ALL which contains all codes
+            if raw_naics_all:
+                # Split by semicolon and extract numeric codes
+                for part in str(raw_naics_all).split(";"):
+                    for code in re.findall(r'\d{2,}', part.strip()):
+                        if code not in naics_codes:
+                            naics_codes.append(code)
             
-            for item in items:
-                s = str(item)
-                # Extract ALL runs of 2+ digits using findall (not just the first one)
-                for code in re.findall(r'\d{2,}', s):
-                    if code not in naics_codes:
-                        naics_codes.append(code)
+            # Fallback to NAICS_CODE if NAICS_CODES_ALL is empty
+            if not naics_codes and raw_naics:
+                if isinstance(raw_naics, list):
+                    items = raw_naics
+                else:
+                    items = [raw_naics]
+                for item in items:
+                    for code in re.findall(r'\d{2,}', str(item)):
+                        if code not in naics_codes:
+                            naics_codes.append(code)
             
             naics_code_str = ", ".join(naics_codes) if naics_codes else ""
             
             # Get category from NAICS_TITLE or notice_type (no "category" field exists in Qdrant)
-            # NAICS_TITLE format is like "NAICS 221210" - extract the title part if available
             naics_title = bid.get("NAICS_TITLE") or ""
             notice_type = bid.get("notice_type") or ""
             # Use notice_type as category since it's more descriptive (e.g., "Award Notice", "Combined Synopsis/Solicitation")
             raw_category = notice_type or naics_title or "Unknown"
             category = raw_category.strip()
             
-            # Get due_date with fallback to posted_date, then "No due date"
-            due_date = bid.get("due_date") or bid.get("posted_date") or ""
-            has_due_date = bool(due_date)
-            if not has_due_date:
-                due_date = "No due date"
+            # Due date - only use due_date field, fallback to "No due date" (not posted_date)
+            raw_due_date = bid.get("due_date")
+            has_due_date = bool(raw_due_date)
+            due_date = raw_due_date or "No due date"
             
             # Status is "open" with special styling only when due date fallback occurs
             status = bid.get("status") or ("open" if not has_due_date else "active")
