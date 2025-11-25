@@ -74,6 +74,91 @@ class CSQueryHandler:
         vector = vector / np.linalg.norm(vector)
         return vector.tolist()
 
+    def enrich_with_ai(self, contracts):
+        """Use OpenAI to extract Industry Sector and Geographic Area for contracts"""
+        if not contracts:
+            return contracts
+        
+        try:
+            # Build compact representation of contracts for AI analysis
+            contracts_data = []
+            for i, contract in enumerate(contracts):
+                contracts_data.append({
+                    "id": str(i),
+                    "title": contract.get('Bid_Name', ''),
+                    "summary": contract.get('Bid_Description', '')[:300],
+                    "naics_code": contract.get('NAICS_CODE', ''),
+                    "naics_title": contract.get('NAICS_TITLE', ''),
+                    "agency": contract.get('Organization', ''),
+                    "source": contract.get('source', ''),
+                    "state": contract.get('State', '')
+                })
+            
+            import json
+            prompt = f"""You are a classifier for US government contracts.
+For each contract, analyze its data and return:
+1. industry_sector: a short phrase like "Construction", "IT Services", "Defense Logistics", "Healthcare Equipment", "Plumbing & HVAC", etc.
+2. geographic_area: a short description of where the work is located, like "Chicago, IL", "Columbus, OH", "Nationwide (USA)", or "Unknown" if not clear.
+
+Contracts (JSON list):
+{json.dumps(contracts_data, indent=2)}
+
+Respond with ONLY valid JSON array, no other text:
+[{{"id": "0", "industry_sector": "...", "geographic_area": "..."}}, ...]"""
+
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a contract classifier. Respond with valid JSON only."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=500
+            )
+            
+            result_text = response.choices[0].message.content.strip()
+            # Clean up response - remove markdown code blocks if present
+            if result_text.startswith("```"):
+                result_text = result_text.split("```")[1]
+                if result_text.startswith("json"):
+                    result_text = result_text[4:]
+            result_text = result_text.strip()
+            
+            enrichments = json.loads(result_text)
+            
+            # Apply enrichments to contracts
+            enrichment_map = {e["id"]: e for e in enrichments}
+            for i, contract in enumerate(contracts):
+                enrichment = enrichment_map.get(str(i), {})
+                contract['Industry_Sector'] = enrichment.get('industry_sector', contract.get('Category', 'Unknown'))
+                contract['Geographic_Area'] = enrichment.get('geographic_area', contract.get('State', 'Unknown'))
+            
+            print(f"✅ AI enrichment successful for {len(contracts)} contracts")
+            return contracts
+            
+        except Exception as e:
+            print(f"⚠️ AI enrichment failed: {str(e)}, using fallback values")
+            # Fallback: use existing fields
+            for contract in contracts:
+                # Use NAICS_TITLE as fallback for Industry Sector
+                naics_title = contract.get('NAICS_TITLE', '')
+                if naics_title:
+                    contract['Industry_Sector'] = naics_title
+                else:
+                    contract['Industry_Sector'] = contract.get('Category', 'Unknown').capitalize()
+                
+                # Use source/agency hints for Geographic Area
+                agency = contract.get('Organization', '')
+                source = contract.get('source', '')
+                if 'chicago' in source.lower() or 'chicago' in agency.lower():
+                    contract['Geographic_Area'] = 'Chicago, IL'
+                elif contract.get('State') and contract.get('State') != 'Unknown':
+                    contract['Geographic_Area'] = contract.get('State')
+                else:
+                    contract['Geographic_Area'] = 'Unknown'
+            
+            return contracts
+
     def inspect_data(self):
         """检查数据库中的实际内容"""
         try:
@@ -361,8 +446,12 @@ class CSQueryHandler:
                     'Similarity_Score': f"{res.score * 100:.2f}%",
                     'NAICS_CODE': res.payload.get('NAICS_CODE', ''),
                     'NAICS_TITLE': res.payload.get('NAICS_TITLE', ''),
+                    'source': res.payload.get('source', ''),  # For AI enrichment
                 }
                 formatted_results.append(entry)
+            
+            # 7. Enrich with AI-derived Industry Sector and Geographic Area
+            formatted_results = self.enrich_with_ai(formatted_results)
             
             print(f"First result company: {formatted_results[0]['Company']}")
             

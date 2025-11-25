@@ -123,7 +123,7 @@
         
         .match-rank {
             position: absolute;
-            top: -15px;
+            top: 15px;
             right: 30px;
             background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
             color: white;
@@ -136,6 +136,7 @@
             font-weight: 700;
             font-size: 1.4rem;
             box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+            z-index: 10;
         }
         
         .similarity-score {
@@ -317,22 +318,30 @@
                 <div class="contract-details">
                     <div class="detail-item">
                         <div class="detail-label">📍 Geographic Area</div>
-                        <div class="detail-value">{{ match.State or 'Not specified' }}</div>
+                        <div class="detail-value">{{ match.Geographic_Area or match.State or 'Unknown' }}</div>
                     </div>
                     
                     <div class="detail-item">
                         <div class="detail-label">🏢 Industry Sector</div>
-                        <div class="detail-value">{{ match.Category or 'Not specified' }}</div>
+                        <div class="detail-value">{{ match.Industry_Sector or match.Category or 'Unknown' }}</div>
                     </div>
                     
                     <div class="detail-item">
                         <div class="detail-label">💰 Contract Value</div>
-                        <div class="detail-value">{{ match.Budget or 'Not specified' }}</div>
+                        <div class="detail-value">{{ match.Budget or 'Not Specified' }}</div>
                     </div>
                     
                     <div class="detail-item">
                         <div class="detail-label">📅 Submission Deadline</div>
-                        <div class="detail-value">{{ match.Due_Date or 'Not specified' }}</div>
+                        <div class="detail-value">
+                            {% set raw_due = match.Due_Date or 'Not Specified' %}
+                            {% if 'T' in raw_due %}
+                                {% set parts = raw_due.split('T') %}
+                                {{ parts[0] }}<br>{{ parts[1] }}
+                            {% else %}
+                                {{ raw_due }}
+                            {% endif %}
+                        </div>
                     </div>
                     
                     <div class="detail-item">
