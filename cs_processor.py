@@ -257,7 +257,8 @@ class CSQueryHandler:
 
             print(f"\n(1) 初步搜索结果: 共 {len(results)} 条 (limit={limit})")
             for idx, res in enumerate(results, 1):
-                name = res.payload.get('Bid Name', 'Unknown Bid')
+                # Use correct Qdrant field name: 'title' instead of 'Bid Name'
+                name = res.payload.get('title', 'Unknown Bid')
                 score_str = f"{res.score*100:.2f}%"
                 print(f"  {idx:2d}. {name} => {score_str}")
             
@@ -283,32 +284,36 @@ class CSQueryHandler:
             replaced_logs = []
 
             for res in results:
-                url = res.payload.get("Detail Link", "")
-                name = res.payload.get("Bid Name", "Unknown Bid")
+                # Use correct Qdrant field names: 'source_url' instead of 'Detail Link', 'title' instead of 'Bid Name'
+                url = res.payload.get("source_url", "")
+                name = res.payload.get("title", "Unknown Bid")
                 score = res.score
                 score_str = f"{score*100:.2f}%"
 
-                if url in seen_urls:
+                # Skip empty URLs for deduplication (don't treat all empty URLs as duplicates)
+                if url and url in seen_urls:
                     duplicate_logs.append(f"丢弃重复URL: {name} ({score_str}), URL={url}")
                     continue
                 else:
                     if name not in best_by_name:
                         best_by_name[name] = res
-                        seen_urls.add(url)
+                        if url:
+                            seen_urls.add(url)
 
                     else:
                         existing_res = best_by_name[name]
                         if score > existing_res.score:
                             old_score_str = f"{existing_res.score*100:.2f}%"
-                            old_url = existing_res.payload.get("Detail Link", "")
+                            old_url = existing_res.payload.get("source_url", "")
                             replaced_logs.append(
                                 f"替换: {name}, 原分数={old_score_str} URL={old_url}, 新分数={score_str} URL={url}"
                             )
-                            if old_url in seen_urls:
+                            if old_url and old_url in seen_urls:
                                 seen_urls.remove(old_url)
 
                             best_by_name[name] = res
-                            seen_urls.add(url)
+                            if url:
+                                seen_urls.add(url)
                         else:
                             duplicate_logs.append(
                                 f"丢弃相同名称: {name} ({score_str}), 存在更高分({existing_res.score*100:.2f}%)"
@@ -328,7 +333,8 @@ class CSQueryHandler:
 
             print("\n(3) 最终保留的 5 条：")
             for i, fr in enumerate(final_results, 1):
-                final_name = fr.payload.get("Bid Name", "Unknown Bid")
+                # Use correct Qdrant field name: 'title' instead of 'Bid Name'
+                final_name = fr.payload.get("title", "Unknown Bid")
                 final_score_str = f"{fr.score*100:.2f}%"
                 print(f"  {i}. {final_name} => {final_score_str}")
 

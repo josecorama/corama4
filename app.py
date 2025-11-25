@@ -2340,6 +2340,76 @@ def dashboard_search():
         page = data.get('page', 1)
         items_per_page = 10
 
+        # Check if query is a NAICS code (4-6 digit number) - use exact matching instead of vector search
+        naics_match = re.fullmatch(r'\d{4,6}', user_query)
+        if naics_match:
+            logging.info(f"🔍 NAICS code search detected: {user_query}")
+            # Get all contracts from Qdrant for NAICS filtering
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+            
+            import pandas as pd
+            df = pd.DataFrame(all_contracts)
+            
+            if len(df) > 0:
+                # Filter by NAICS code - exact match within the naics_code field
+                df['naics_code'] = df['naics_code'].fillna('').astype(str)
+                # Match the NAICS code as a whole word (not partial match)
+                naics_code = naics_match.group(0)
+                mask = df['naics_code'].str.contains(rf'\b{naics_code}\b', regex=True, na=False)
+                df = df[mask]
+                
+                logging.info(f"✅ NAICS search found {len(df)} contracts with code {naics_code}")
+            
+            total_contracts = len(df)
+            total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
+            start = (page - 1) * items_per_page
+            end = start + items_per_page
+            
+            paginated_df = df.iloc[start:end]
+            contracts = paginated_df.to_dict('records')
+            
+            # Build analytics from filtered results
+            if len(df) > 0:
+                category_counts = df['category'].value_counts().to_dict()
+                status_counts = df['status'].value_counts().to_dict()
+                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+                
+                category_diversity = len(category_counts)
+                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+                
+                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+                high_score_contracts = df[df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)]
+                high_score_count = len(high_score_contracts)
+                
+                analytics = {
+                    'total_contracts': total_contracts,
+                    'category_distribution': category_counts,
+                    'status_distribution': status_counts,
+                    'win_probability': round(win_probability, 1),
+                    'open_contracts': open_contracts,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': high_score_count
+                }
+            else:
+                analytics = {
+                    'total_contracts': 0,
+                    'category_distribution': {},
+                    'status_distribution': {},
+                    'win_probability': 0,
+                    'open_contracts': 0,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': 0
+                }
+            
+            return jsonify({
+                "success": True,
+                "contracts": contracts,
+                "total_contracts": total_contracts,
+                "current_page": page,
+                "total_pages": total_pages,
+                "analytics": analytics
+            })
+
         if not user_query:
             # No query provided - return all contracts from Qdrant (CSV data is obsolete)
             contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
