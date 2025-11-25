@@ -2574,16 +2574,10 @@ def dashboard_search():
             top_k=10000
         )
         
-        # Filter results with similarity >= 0.5 (stricter threshold for more relevant results)
-        # If no results pass the threshold, fall back to all results sorted by similarity
-        similarity_threshold = 0.5
-        filtered_results = [res for res in search_results if res.get('Similarity_Score', -1) >= similarity_threshold]
-        
-        # Fallback: if no results pass the threshold, use all results
-        if not filtered_results:
-            filtered_results = search_results
-        
         # Sort by similarity score in descending order (highest similarity first)
+        # Note: Qdrant uses dot product metric, so scores are typically small (-0.1 to 0.1 range)
+        # We rely on relative ranking rather than absolute thresholds
+        filtered_results = list(search_results)
         filtered_results.sort(key=lambda x: x.get('Similarity_Score', 0), reverse=True)
         
         # Prioritize results where query appears in contract name or category (exact text match)
