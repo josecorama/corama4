@@ -6344,10 +6344,8 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     
     for item in items:
         s = str(item)
-        # Extract first run of 2+ digits
-        m = re.search(r'\d{2,}', s)
-        if m:
-            code = m.group(0)
+        # Extract ALL runs of 2+ digits using findall (not just the first one)
+        for code in re.findall(r'\d{2,}', s):
             if code not in naics_codes:
                 naics_codes.append(code)
     
@@ -6619,18 +6617,16 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
             
             for item in items:
                 s = str(item)
-                # Extract first run of 2+ digits
-                m = re.search(r'\d{2,}', s)
-                if m:
-                    code = m.group(0)
+                # Extract ALL runs of 2+ digits using findall (not just the first one)
+                for code in re.findall(r'\d{2,}', s):
                     if code not in naics_codes:
                         naics_codes.append(code)
             
             naics_code_str = ", ".join(naics_codes) if naics_codes else ""
             
-            # Get category and capitalize first letter
-            raw_category = bid.get("category") or ""
-            category = raw_category.capitalize() if raw_category else ""
+            # Get category and capitalize first letter (default to "Unknown" not empty string)
+            raw_category = bid.get("category") or "Unknown"
+            category = raw_category.capitalize()
             
             match_data = {
                 "bid_number": bid.get("contract_number") or bid.get("bid_number") or "",
