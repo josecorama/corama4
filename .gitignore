@@ -3,3 +3,8 @@ __pycache__/
 *.pyc
 capability_statements_processed.csv
 static/*.zip
+
+# Local upload directories (files are stored in Firebase Storage for persistence)
+uploads/
+static/uploads/
+capability_statements/

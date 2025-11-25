@@ -322,6 +322,29 @@
     </style>
 </head>
 <body>
+    <!-- Site Alert Modal -->
+    <div class="site-modal" id="siteAlertModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 16px; max-width: 450px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+            <h4 id="siteAlertTitle" style="margin-bottom: 1rem; color: #2c3e50;">Notification</h4>
+            <p id="siteAlertMessage" style="margin-bottom: 1.5rem; color: #666;"></p>
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="closeSiteAlert()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Site Confirm Modal -->
+    <div class="site-modal" id="siteConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 16px; max-width: 450px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+            <h4 id="siteConfirmTitle" style="margin-bottom: 1rem; color: #2c3e50;">Confirm Action</h4>
+            <p id="siteConfirmMessage" style="margin-bottom: 1.5rem; color: #666;"></p>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="btn btn-secondary" onclick="handleSiteConfirm(false)">No</button>
+                <button class="btn btn-primary" onclick="handleSiteConfirm(true)" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">Yes</button>
+            </div>
+        </div>
+    </div>
+
     {% include 'navbar.html' %}
     
     <div class="proposal-wizard">
@@ -486,6 +509,48 @@
         let laborRows = [];
         let materialRows = [];
         
+        // Site Alert/Confirm Modal Helpers
+        let siteAlertResolve = null;
+        let siteConfirmResolve = null;
+        
+        function showSiteAlert(message, title = 'Notification') {
+            return new Promise(resolve => {
+                siteAlertResolve = resolve;
+                document.getElementById('siteAlertTitle').textContent = title;
+                document.getElementById('siteAlertMessage').textContent = message;
+                const modal = document.getElementById('siteAlertModal');
+                modal.style.display = 'flex';
+            });
+        }
+        
+        function closeSiteAlert() {
+            document.getElementById('siteAlertModal').style.display = 'none';
+            if (siteAlertResolve) {
+                const resolve = siteAlertResolve;
+                siteAlertResolve = null;
+                resolve();
+            }
+        }
+        
+        function showSiteConfirm(message, title = 'Confirm Action') {
+            return new Promise(resolve => {
+                siteConfirmResolve = resolve;
+                document.getElementById('siteConfirmTitle').textContent = title;
+                document.getElementById('siteConfirmMessage').textContent = message;
+                const modal = document.getElementById('siteConfirmModal');
+                modal.style.display = 'flex';
+            });
+        }
+        
+        function handleSiteConfirm(result) {
+            document.getElementById('siteConfirmModal').style.display = 'none';
+            if (siteConfirmResolve) {
+                const resolve = siteConfirmResolve;
+                siteConfirmResolve = null;
+                resolve(result);
+            }
+        }
+        
         // Load existing pricing data on page load
         window.addEventListener('DOMContentLoaded', function() {
             loadPricingData();
@@ -643,11 +708,11 @@
                 if (data.success && data.strategy) {
                     document.getElementById('aiStrategy').innerHTML = data.strategy;
                 } else {
-                    alert('Failed to generate AI strategy');
+                    showSiteAlert('Failed to generate AI strategy', 'Error');
                 }
             } catch (error) {
                 console.error('Error generating strategy:', error);
-                alert('Failed to generate AI strategy');
+                showSiteAlert('Failed to generate AI strategy', 'Error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Generate AI Strategy';
@@ -657,7 +722,7 @@
         // Save and continue
         async function saveAndContinue() {
             await savePricingData();
-            alert('Pricing data saved successfully!');
+            showSiteAlert('Pricing data saved successfully!', 'Saved');
         }
         
         // Save pricing data
@@ -686,7 +751,8 @@
         
         // Generate final proposal
         async function generateProposal() {
-            if (!confirm('Generate the final proposal document? This will use 15 credits.')) {
+            const confirmed = await showSiteConfirm('Generate the final proposal document? This will use 15 credits.', 'Generate Proposal');
+            if (!confirmed) {
                 return;
             }
             

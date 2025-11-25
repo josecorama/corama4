@@ -266,6 +266,50 @@ except Exception as e:
     logging.warning("Credit purchase via webhook will use fallback method.")
 
 
+# Firebase Storage Helper Function
+def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type: str = None) -> str:
+    """
+    Upload a file to Firebase Storage and return the public URL.
+    
+    Args:
+        file_data: The file content as bytes
+        storage_path: The path in Firebase Storage (e.g., 'contracts/abc123.pdf')
+        content_type: Optional MIME type (e.g., 'application/pdf', 'image/png')
+    
+    Returns:
+        The public URL of the uploaded file, or None if upload fails
+    """
+    try:
+        if not storage:
+            logging.error("Firebase Storage not initialized")
+            return None
+        
+        # Create a temporary file to upload
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(file_data)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Upload to Firebase Storage using Pyrebase
+            storage.child(storage_path).put(tmp_path)
+            
+            # Get the download URL
+            # Pyrebase returns a URL with token for authenticated access
+            download_url = storage.child(storage_path).get_url(None)
+            
+            logging.info(f"✅ Uploaded file to Firebase Storage: {storage_path}")
+            return download_url
+        finally:
+            # Clean up temporary file
+            import os as temp_os
+            if temp_os.path.exists(tmp_path):
+                temp_os.remove(tmp_path)
+                
+    except Exception as e:
+        logging.error(f"❌ Failed to upload to Firebase Storage: {e}")
+        return None
+
 
 # Set secure HTTP headers
 @app.after_request
@@ -8134,7 +8178,7 @@ def fetch_contract_pdf():
 
 @app.route('/api/upload_contract_pdf', methods=['POST'])
 def upload_contract_pdf():
-    """Upload contract PDF manually"""
+    """Upload contract PDF manually - stores in Firebase Storage for persistence"""
     ensure_session_from_auth()
     
     try:
@@ -8157,16 +8201,38 @@ def upload_contract_pdf():
         if not pdf_file.filename.lower().endswith('.pdf'):
             return jsonify({'success': False, 'error': 'Only PDF files are allowed'}), 400
         
+        # Read file data
+        pdf_data = pdf_file.read()
+        
+        # Try to upload to Firebase Storage first
+        firebase_url = upload_to_firebase_storage(
+            pdf_data, 
+            f'contracts/{contract_hash}.pdf',
+            'application/pdf'
+        )
+        
+        if firebase_url:
+            logging.info(f"✅ Uploaded contract PDF to Firebase Storage: {contract_hash}.pdf")
+            return jsonify({
+                'success': True,
+                'pdf_url': firebase_url,
+                'storage': 'firebase'
+            })
+        
+        # Fallback to local storage if Firebase fails
+        logging.warning("Firebase Storage upload failed, falling back to local storage")
         contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
         os.makedirs(contracts_dir, exist_ok=True)
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
         
-        pdf_file.save(pdf_path)
-        logging.info(f"✅ Uploaded contract PDF: {contract_hash}.pdf ({pdf_file.content_length} bytes)")
+        with open(pdf_path, 'wb') as f:
+            f.write(pdf_data)
+        logging.info(f"✅ Uploaded contract PDF locally: {contract_hash}.pdf ({len(pdf_data)} bytes)")
         
         return jsonify({
             'success': True,
-            'pdf_url': f'/uploads/contracts/{contract_hash}.pdf'
+            'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+            'storage': 'local'
         })
         
     except Exception as e:
@@ -9438,7 +9504,7 @@ def update_directory_profile():
 
 @app.route('/api/upload_directory_logo', methods=['POST'])
 def upload_directory_logo():
-    """Upload company logo for directory profile"""
+    """Upload company logo for directory profile - stores in Firebase Storage for persistence"""
     app.logger.info("📤 Entered upload_directory_logo route")
     try:
         if 'user_data' not in session:
@@ -9474,6 +9540,39 @@ def upload_directory_logo():
             app.logger.warning(f"Logo upload for user {user_id}: File too large ({file_size} bytes)")
             return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB'}), 400
         
+        # Read file data
+        logo_data = logo_file.read()
+        
+        # Generate unique filename
+        filename = f"{user_id}_{int(time.time())}.{file_ext}"
+        
+        # Determine content type
+        content_type_map = {
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'webp': 'image/webp'
+        }
+        content_type = content_type_map.get(file_ext, 'image/png')
+        
+        # Try to upload to Firebase Storage first
+        firebase_url = upload_to_firebase_storage(
+            logo_data,
+            f'directory_logos/{filename}',
+            content_type
+        )
+        
+        if firebase_url:
+            app.logger.info(f"✅ Logo uploaded to Firebase Storage for user {user_id}: {firebase_url}")
+            return jsonify({
+                'success': True,
+                'logo_url': firebase_url,
+                'storage': 'firebase'
+            })
+        
+        # Fallback to local storage if Firebase fails
+        app.logger.warning("Firebase Storage upload failed, falling back to local storage")
         logos_dir = os.path.join(base_dir, 'static', 'uploads', 'directory_logos')
         os.makedirs(logos_dir, exist_ok=True)
         
@@ -9485,20 +9584,20 @@ def upload_directory_logo():
             except Exception as cleanup_error:
                 app.logger.warning(f"Could not remove old logo {old_logo}: {cleanup_error}")
         
-        # Generate unique filename
-        filename = f"{user_id}_{int(time.time())}.{file_ext}"
         filepath = os.path.join(logos_dir, filename)
         
         app.logger.info(f"Saving logo to: {filepath}")
-        logo_file.save(filepath)
+        with open(filepath, 'wb') as f:
+            f.write(logo_data)
         
         # Generate URL for the logo
         logo_url = f"/static/uploads/directory_logos/{filename}"
         
-        app.logger.info(f"✅ Logo uploaded successfully for user {user_id}: {logo_url}")
+        app.logger.info(f"✅ Logo uploaded locally for user {user_id}: {logo_url}")
         return jsonify({
             'success': True,
-            'logo_url': logo_url
+            'logo_url': logo_url,
+            'storage': 'local'
         })
         
     except Exception as e:
