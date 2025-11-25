@@ -2574,12 +2574,34 @@ def dashboard_search():
             top_k=10000
         )
         
-        # Filter results with similarity >= 0.0 (vector search already ranks by relevance)
-        # Note: Vector similarity scores typically range from -1 to 1, not 0 to 1
-        filtered_results = [res for res in search_results if res.get('Similarity_Score', -1) >= 0.0]
+        # Filter results with similarity >= 0.5 (stricter threshold for more relevant results)
+        # If no results pass the threshold, fall back to all results sorted by similarity
+        similarity_threshold = 0.5
+        filtered_results = [res for res in search_results if res.get('Similarity_Score', -1) >= similarity_threshold]
+        
+        # Fallback: if no results pass the threshold, use all results
+        if not filtered_results:
+            filtered_results = search_results
         
         # Sort by similarity score in descending order (highest similarity first)
         filtered_results.sort(key=lambda x: x.get('Similarity_Score', 0), reverse=True)
+        
+        # Prioritize results where query appears in contract name or category (exact text match)
+        # This gives users the "text filtering" behavior they expect for these columns
+        query_lower = user_query.lower()
+        exact_matches = []
+        other_matches = []
+        
+        for res in filtered_results:
+            bid_name = (res.get('bid_name') or '').lower()
+            category = (res.get('category') or '').lower()
+            if query_lower in bid_name or query_lower in category:
+                exact_matches.append(res)
+            else:
+                other_matches.append(res)
+        
+        # Combine: exact matches first (sorted by similarity), then other matches (sorted by similarity)
+        filtered_results = exact_matches + other_matches
         
         if not filtered_results:
             return jsonify({
