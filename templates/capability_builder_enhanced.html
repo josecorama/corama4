@@ -1142,6 +1142,29 @@
         <i class="fas fa-check"></i> Auto-saved
     </div>
 
+    <!-- Site Alert Modal -->
+    <div class="site-modal" id="siteAlertModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 16px; max-width: 450px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+            <h4 id="siteAlertTitle" style="margin-bottom: 1rem; color: var(--text-dark);">Notification</h4>
+            <p id="siteAlertMessage" style="margin-bottom: 1.5rem; color: var(--text-light);"></p>
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="closeSiteAlert()" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); border: none;">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Site Confirm Modal -->
+    <div class="site-modal" id="siteConfirmModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 16px; max-width: 450px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+            <h4 id="siteConfirmTitle" style="margin-bottom: 1rem; color: var(--text-dark);">Confirm Action</h4>
+            <p id="siteConfirmMessage" style="margin-bottom: 1.5rem; color: var(--text-light);"></p>
+            <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+                <button class="btn btn-secondary" onclick="handleSiteConfirm(false)">No</button>
+                <button class="btn btn-primary" onclick="handleSiteConfirm(true)" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); border: none;">Yes</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Global variables
@@ -1150,6 +1173,48 @@
         let naicsCodes = [];
         let certifications = [];
         let autoSaveTimer;
+        
+        // Site Alert/Confirm Modal Helpers
+        let siteAlertResolve = null;
+        let siteConfirmResolve = null;
+        
+        function showSiteAlert(message, title = 'Notification') {
+            return new Promise(resolve => {
+                siteAlertResolve = resolve;
+                document.getElementById('siteAlertTitle').textContent = title;
+                document.getElementById('siteAlertMessage').textContent = message;
+                const modal = document.getElementById('siteAlertModal');
+                modal.style.display = 'flex';
+            });
+        }
+        
+        function closeSiteAlert() {
+            document.getElementById('siteAlertModal').style.display = 'none';
+            if (siteAlertResolve) {
+                const resolve = siteAlertResolve;
+                siteAlertResolve = null;
+                resolve();
+            }
+        }
+        
+        function showSiteConfirm(message, title = 'Confirm Action') {
+            return new Promise(resolve => {
+                siteConfirmResolve = resolve;
+                document.getElementById('siteConfirmTitle').textContent = title;
+                document.getElementById('siteConfirmMessage').textContent = message;
+                const modal = document.getElementById('siteConfirmModal');
+                modal.style.display = 'flex';
+            });
+        }
+        
+        function handleSiteConfirm(result) {
+            document.getElementById('siteConfirmModal').style.display = 'none';
+            if (siteConfirmResolve) {
+                const resolve = siteConfirmResolve;
+                siteConfirmResolve = null;
+                resolve(result);
+            }
+        }
 
         // Initialize tooltips
         document.addEventListener('DOMContentLoaded', function() {
@@ -1310,13 +1375,13 @@
             // Validate file type
             const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/svg+xml'];
             if (!allowedTypes.includes(file.type)) {
-                alert('Please upload a valid image file (PNG, JPG, JPEG, GIF, SVG)');
+                showSiteAlert('Please upload a valid image file (PNG, JPG, JPEG, GIF, SVG)', 'Invalid File Type');
                 return;
             }
 
             // Validate file size (10MB)
             if (file.size > 10 * 1024 * 1024) {
-                alert('File size must be less than 10MB');
+                showSiteAlert('File size must be less than 10MB', 'File Too Large');
                 return;
             }
 
@@ -1747,13 +1812,13 @@
                 });
                 
                 if (response.ok) {
-                    alert('Capability statement saved successfully!');
+                    showSiteAlert('Capability statement saved successfully!', 'Saved');
                 } else {
-                    alert('Error saving capability statement. Please try again.');
+                    showSiteAlert('Error saving capability statement. Please try again.', 'Error');
                 }
             } catch (error) {
                 console.error('Error saving:', error);
-                alert('Error saving capability statement. Please try again.');
+                showSiteAlert('Error saving capability statement. Please try again.', 'Error');
             }
         }
 
@@ -1767,7 +1832,7 @@
                     const data = await response.json();
                     populateForm(data);
                     generatePreview();
-                    alert('Capability statement loaded successfully!');
+                    showSiteAlert('Capability statement loaded successfully!', 'Loaded');
                 } else {
                     // Try loading from localStorage as fallback
                     const draftData = localStorage.getItem('capabilityStatementDraft');
@@ -1775,14 +1840,14 @@
                         const data = JSON.parse(draftData);
                         populateForm(data);
                         generatePreview();
-                        alert('Draft loaded from local storage!');
+                        showSiteAlert('Draft loaded from local storage!', 'Loaded');
                     } else {
-                        alert('No saved capability statement found.');
+                        showSiteAlert('No saved capability statement found.', 'Not Found');
                     }
                 }
             } catch (error) {
                 console.error('Error loading:', error);
-                alert('Error loading capability statement. Please try again.');
+                showSiteAlert('Error loading capability statement. Please try again.', 'Error');
             }
         }
 
@@ -1824,7 +1889,7 @@
             const missingFields = requiredFields.filter(field => !formData[field]);
             
             if (missingFields.length > 0) {
-                alert(`Please fill in the following required fields: ${missingFields.join(', ')}`);
+                showSiteAlert(`Please fill in the following required fields: ${missingFields.join(', ')}`, 'Required Fields Missing');
                 return;
             }
             
@@ -1860,12 +1925,12 @@
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
                 } else {
-                    alert('Error generating PDF. Please try again.');
+                    showSiteAlert('Error generating PDF. Please try again.', 'Error');
                 }
             } catch (error) {
                 hidePDFGenerationLoading();
                 console.error('Error generating PDF:', error);
-                alert('Error generating PDF. Please try again.');
+                showSiteAlert('Error generating PDF. Please try again.', 'Error');
             }
         }
         
@@ -1987,7 +2052,7 @@
             const companyName = document.getElementById('companyName').value;
             
             if (!companyDescription.trim()) {
-                alert('Please enter a company description first.');
+                showSiteAlert('Please enter a company description first.', 'Missing Information');
                 return;
             }
             
@@ -2015,13 +2080,13 @@
                     document.getElementById('enhancedDescriptionContainer').style.display = 'block';
                     document.getElementById('enhancedDescription').value = data.description;
                 } else if (data.error) {
-                    alert('Error generating enhanced description: ' + data.error);
+                    showSiteAlert('Error generating enhanced description: ' + data.error, 'Error');
                 } else {
-                    alert('Error generating enhanced description: No description returned from AI service.');
+                    showSiteAlert('Error generating enhanced description: No description returned from AI service.', 'Error');
                 }
             } catch (error) {
                 console.error('Error enhancing description:', error);
-                alert('Error generating enhanced description: ' + error.message);
+                showSiteAlert('Error generating enhanced description: ' + error.message, 'Error');
             }
         }
         
@@ -2043,7 +2108,7 @@
             const ideas = `Industry: ${industryFocus}. Company: ${companyDescription}`;
             
             if (!ideas.trim() || ideas === 'Industry: . Company: ') {
-                alert('Please fill in industry focus and company description first.');
+                showSiteAlert('Please fill in industry focus and company description first.', 'Missing Information');
                 return;
             }
             
@@ -2074,13 +2139,13 @@
                         </div>
                     `).join('');
                 } else if (data.error) {
-                    alert('Error generating competencies: ' + data.error);
+                    showSiteAlert('Error generating competencies: ' + data.error, 'Error');
                 } else {
-                    alert('Error generating competencies: No competencies returned from AI service.');
+                    showSiteAlert('Error generating competencies: No competencies returned from AI service.', 'Error');
                 }
             } catch (error) {
                 console.error('Error generating competencies:', error);
-                alert('Error generating competencies: ' + error.message);
+                showSiteAlert('Error generating competencies: ' + error.message, 'Error');
             }
         }
         
@@ -2213,14 +2278,14 @@
             const isValidType = validExtensions.some(ext => fileName.endsWith(ext));
             
             if (!isValidType) {
-                alert('Please select a PDF or image file (PNG, JPG, JPEG).');
+                showSiteAlert('Please select a PDF or image file (PNG, JPG, JPEG).', 'Invalid File Type');
                 fileInput.value = '';
                 return;
             }
             
             // Validate file size (10MB limit)
             if (file.size > 10 * 1024 * 1024) {
-                alert('File size must be less than 10MB.');
+                showSiteAlert('File size must be less than 10MB.', 'File Too Large');
                 fileInput.value = '';
                 return;
             }
@@ -2248,16 +2313,16 @@
                 } else {
                     hideImportLoading();
                     if (result.error) {
-                        alert('Error importing capability statement: ' + result.error);
+                        showSiteAlert('Error importing capability statement: ' + result.error, 'Error');
                     } else {
-                        alert('Error importing capability statement: Unknown error occurred.');
+                        showSiteAlert('Error importing capability statement: Unknown error occurred.', 'Error');
                     }
                     fileInput.value = '';
                 }
             } catch (error) {
                 console.error('Error importing capability statement:', error);
                 hideImportLoading();
-                alert('Error importing capability statement: ' + error.message);
+                showSiteAlert('Error importing capability statement: ' + error.message, 'Error');
                 fileInput.value = '';
             }
         }
@@ -2266,13 +2331,13 @@
             const url = document.getElementById('capabilityUrl').value.trim();
             
             if (!url) {
-                alert('Please enter a URL');
+                showSiteAlert('Please enter a URL', 'Missing URL');
                 return;
             }
             
             // Basic URL validation
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
-                alert('Please enter a valid URL starting with http:// or https://');
+                showSiteAlert('Please enter a valid URL starting with http:// or https://', 'Invalid URL');
                 return;
             }
             
@@ -2298,15 +2363,15 @@
                 } else {
                     hideImportLoading();
                     if (result.error) {
-                        alert('Error importing from URL: ' + result.error);
+                        showSiteAlert('Error importing from URL: ' + result.error, 'Error');
                     } else {
-                        alert('Error importing from URL: Unknown error occurred.');
+                        showSiteAlert('Error importing from URL: Unknown error occurred.', 'Error');
                     }
                 }
             } catch (error) {
                 console.error('Error importing from URL:', error);
                 hideImportLoading();
-                alert('Error importing from URL: ' + error.message);
+                showSiteAlert('Error importing from URL: ' + error.message, 'Error');
             }
         }
         
@@ -2340,17 +2405,18 @@
             generatePreview();
         }
         
-        function loadIntoAIAssistant() {
+        async function loadIntoAIAssistant() {
             // Check if there's a saved/generated capability statement (important-comment)
             const companyName = document.getElementById('companyName').value;
             
             if (!companyName) {
-                alert('Please fill in at least the company name before loading into AI Assistant.');
+                showSiteAlert('Please fill in at least the company name before loading into AI Assistant.', 'Missing Information');
                 return;
             }
             
             // Redirect to dashboard where user can select a contract (important-comment)
-            if (confirm('This will take you to the dashboard where you can select a contract to work on with the AI Assistant. Continue?')) {
+            const confirmed = await showSiteConfirm('This will take you to the dashboard where you can select a contract to work on with the AI Assistant. Continue?', 'Load into AI Assistant');
+            if (confirmed) {
                 window.location.href = '/welcome?capability_loaded=true';
             }
         }

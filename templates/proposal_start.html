@@ -390,11 +390,12 @@
             }
         }
         
-        // Load PDF in viewer
+        // Load PDF in viewer using PDF.js for cross-browser compatibility
         function loadPDFViewer(pdfUrl) {
             const viewer = document.getElementById('pdfViewer');
-            // Remove border-radius from iframe to avoid Chrome compositing bug that causes black screen
-            viewer.innerHTML = `<iframe src="${pdfUrl}" width="100%" height="100%" style="border: none;"></iframe>`;
+            // Use PDF.js viewer for reliable cross-browser PDF rendering (without thumbnail sidebar)
+            const pdfjsViewerUrl = `{{ url_for('static', filename='pdfjs/web/viewer.html') }}?file=${encodeURIComponent(pdfUrl)}&noThumbnails=true`;
+            viewer.innerHTML = `<iframe src="${pdfjsViewerUrl}" width="100%" height="100%" style="border: none; border-radius: 8px;"></iframe>`;
         }
         
         // Show PDF upload option if automatic fetch fails

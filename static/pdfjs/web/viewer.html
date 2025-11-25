@@ -219,6 +219,12 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         let pdfUrl = urlParams.get('file');
+        const noThumbnails = urlParams.get('noThumbnails') === 'true';
+        
+        // Hide thumbnail toggle button if noThumbnails parameter is set
+        if (noThumbnails) {
+            document.getElementById('toggleThumbnails').style.display = 'none';
+        }
 
         if (!pdfUrl) {
             document.getElementById('loading').style.display = 'none';

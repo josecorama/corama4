@@ -4418,20 +4418,33 @@ def capability_builder_enhanced():
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
     try:
-        # if 'user_id' not in session:
-        #     return jsonify({'error': 'User not authenticated'}), 401
-        
         user_id = session.get('user_id', 'test_user')
         data = request.get_json()
         
-        # Save to Firebase (temporarily disabled due to configuration issues)
-        # if db:
-        #     doc_ref = db.collection('capability_statements').document(user_id)
-        #     doc_ref.set({
-        #         'data': data,
-        #         'updated_at': 'timestamp_placeholder',
-        #         'user_id': user_id
-        #     })
+        # Save to local file storage (reliable fallback)
+        save_dir = os.path.join(os.path.dirname(__file__), 'capability_statements')
+        os.makedirs(save_dir, exist_ok=True)
+        
+        save_path = os.path.join(save_dir, f'{user_id}.json')
+        with open(save_path, 'w') as f:
+            import json
+            json.dump({
+                'data': data,
+                'updated_at': datetime.now().isoformat(),
+                'user_id': user_id
+            }, f)
+        
+        # Also try Firebase if available
+        if db:
+            try:
+                doc_ref = db.collection('capability_statements').document(user_id)
+                doc_ref.set({
+                    'data': data,
+                    'updated_at': firestore.SERVER_TIMESTAMP,
+                    'user_id': user_id
+                })
+            except Exception as firebase_error:
+                logging.warning(f"Firebase save failed (using local storage): {str(firebase_error)}")
             
         return jsonify({'success': True, 'message': 'Capability statement saved successfully'})
         
@@ -4442,20 +4455,30 @@ def save_capability_statement():
 @app.route('/load-capability-statement', methods=['GET'])
 def load_capability_statement():
     try:
-        # if 'user_id' not in session:
-        #     return jsonify({'error': 'User not authenticated'}), 401
-        
         user_id = session.get('user_id', 'test_user')
         
-        # Load from Firebase (temporarily disabled due to configuration issues)
-        # if db:
-        #     doc_ref = db.collection('capability_statements').document(user_id)
-        #     doc = doc_ref.get()
-        #     
-        #     if doc.exists:
-        #         return jsonify(doc.to_dict().get('data', {}))
+        # Try Firebase first if available
+        if db:
+            try:
+                doc_ref = db.collection('capability_statements').document(user_id)
+                doc = doc_ref.get()
+                
+                if doc.exists:
+                    return jsonify(doc.to_dict().get('data', {}))
+            except Exception as firebase_error:
+                logging.warning(f"Firebase load failed (trying local storage): {str(firebase_error)}")
         
-        return jsonify({'error': 'Load functionality temporarily disabled'}), 404
+        # Fallback to local file storage
+        save_dir = os.path.join(os.path.dirname(__file__), 'capability_statements')
+        save_path = os.path.join(save_dir, f'{user_id}.json')
+        
+        if os.path.exists(save_path):
+            with open(save_path, 'r') as f:
+                import json
+                saved_data = json.load(f)
+                return jsonify(saved_data.get('data', {}))
+        
+        return jsonify({'error': 'No saved capability statement found'}), 404
         
     except Exception as e:
         logging.error(f"Error loading capability statement: {str(e)}")
