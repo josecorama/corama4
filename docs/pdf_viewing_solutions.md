@@ -9,7 +9,8 @@ This document summarizes all the approaches tried to fix PDF viewing across brow
 | 1 | Direct static links | Flask static files, browser PDF viewer | Firefox OK, OperaGX shows only filename, Edge sometimes fails |
 | 2 | send_file with headers | Flask `send_file`, `os` module | Black screen on all browsers |
 | 3 | HTML + iframe | Flask `render_template`, browser PDF viewer | Still not working on OperaGX/Edge |
-| 4 | HTML + object/embed | Flask `render_template`, browser PDF viewer | Current implementation |
+| 4 | HTML + object/embed | Flask `render_template`, browser PDF viewer | Not working on OperaGX/Edge |
+| 5 | PDF.js viewer | Flask, PDF.js (pdfjs-dist v4.0.379) | Current implementation |
 
 ---
 
@@ -150,31 +151,69 @@ def terms_of_use():
 
 ---
 
-## Potential Future Solution: PDF.js
+## Attempt 5: PDF.js Viewer (Current Implementation)
 
-If the object/embed approach still doesn't work, the next option would be to use **PDF.js** (Mozilla's JavaScript PDF renderer) which takes control of rendering instead of relying on browser plugins.
+**Approach:** Use PDF.js (Mozilla's JavaScript PDF renderer) which takes full control of rendering instead of relying on browser plugins. Self-hosted viewer in `static/pdfjs/` with custom viewer.html.
 
-**Libraries/Tools Required:**
-- PDF.js (`pdfjs-dist` npm package or CDN)
-- Would need to add JavaScript assets to `static/` folder
+**Libraries/Tools Used:**
+- Flask `render_template` function
+- Jinja2 templating
+- **PDF.js** (`pdfjs-dist` v4.0.379 via npm)
+- Custom viewer.html with PDF.js canvas rendering
 
-**Approach:**
+**Installation:**
+```bash
+cd static
+npm pack pdfjs-dist@4.0.379
+tar -xzf pdfjs-dist-4.0.379.tgz
+mv package pdfjs
+```
+
+**Files Added:**
+- `static/pdfjs/build/pdf.mjs` - Main PDF.js library
+- `static/pdfjs/build/pdf.worker.mjs` - Web worker for PDF processing
+- `static/pdfjs/web/viewer.html` - Custom viewer page
+- `static/pdfjs/web/pdf_viewer.css` - Viewer styles
+
+**Code (terms_of_use.html):**
 ```html
+<h2>Terms of Use</h2>
+
+<p>
+    <a href="{{ url_for('static', filename='docs/TermsofUse.pdf') }}" 
+       target="_blank" 
+       class="btn btn-primary">
+        Download PDF
+    </a>
+    <span>Click to download if the document does not display below.</span>
+</p>
+
 <iframe
-    src="https://mozilla.github.io/pdf.js/web/viewer.html?file={{ url_for('static', filename='docs/TermsofUse.pdf', _external=True) | urlencode }}"
+    src="{{ url_for('static', filename='pdfjs/web/viewer.html') }}?file={{ url_for('static', filename='docs/TermsofUse.pdf') | urlencode }}"
     width="100%"
-    height="800px">
+    height="800px"
+    style="border: 1px solid #ccc; border-radius: 4px;">
 </iframe>
 ```
 
+**Custom Viewer Features:**
+- Page navigation (Prev/Next buttons)
+- Zoom controls (50% - 200%)
+- Download button
+- Current page indicator
+- Scroll-based page tracking
+- Error handling with download fallback link
+
 **Pros:**
-- Consistent PDF rendering across all browsers
-- Not dependent on browser's built-in PDF viewer
+- Consistent PDF rendering across all browsers (OperaGX, Edge, Firefox, Chrome)
+- Not dependent on browser's built-in PDF viewer plugins
+- Full control over the viewer UI
+- Same-origin serving avoids CORS issues
 
 **Cons:**
-- Adds a new JavaScript dependency
-- Heavier front-end code
-- Requires explicit approval before adding new libraries
+- Adds ~2MB of JavaScript assets to the static folder
+- Slightly heavier front-end code
+- Requires maintaining the PDF.js version
 
 ---
 

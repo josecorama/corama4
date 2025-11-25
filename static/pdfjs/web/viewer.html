@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <link rel="stylesheet" href="pdf_viewer.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            background: #404040;
+        }
+        #viewerContainer {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: auto;
+            background: #525659;
+        }
+        #viewer {
+            margin: 0 auto;
+        }
+        .page {
+            margin: 10px auto;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        #toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: #474747;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+            z-index: 100;
+        }
+        #toolbar button {
+            background: #5a5a5a;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        #toolbar button:hover {
+            background: #6a6a6a;
+        }
+        #pageInfo {
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+        }
+        #zoomSelect {
+            background: #5a5a5a;
+            color: white;
+            border: none;
+            padding: 5px;
+            border-radius: 3px;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+        }
+        #errorMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff6b6b;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            text-align: center;
+            padding: 20px;
+            background: #333;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <button id="prevPage" title="Previous Page">Prev</button>
+        <button id="nextPage" title="Next Page">Next</button>
+        <span id="pageInfo">Page <span id="currentPage">1</span> of <span id="totalPages">-</span></span>
+        <select id="zoomSelect">
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1" selected>100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+            <option value="2">200%</option>
+        </select>
+        <button id="downloadBtn" title="Download PDF">Download</button>
+    </div>
+    
+    <div id="viewerContainer">
+        <div id="viewer"></div>
+        <div id="loading">Loading PDF...</div>
+        <div id="errorMessage"></div>
+    </div>
+
+    <script type="module">
+        // Import PDF.js
+        import * as pdfjsLib from '../build/pdf.mjs';
+
+        // Set worker source
+        pdfjsLib.GlobalWorkerOptions.workerSrc = '../build/pdf.worker.mjs';
+
+        // Get PDF URL from query parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        let pdfUrl = urlParams.get('file');
+
+        if (!pdfUrl) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('errorMessage').textContent = 'No PDF file specified. Please provide a file parameter.';
+        } else {
+            // Decode URL if needed
+            pdfUrl = decodeURIComponent(pdfUrl);
+            
+            let pdfDoc = null;
+            let currentPage = 1;
+            let scale = 1;
+            const viewer = document.getElementById('viewer');
+            const loading = document.getElementById('loading');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Load PDF
+            async function loadPDF() {
+                try {
+                    pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+                    document.getElementById('totalPages').textContent = pdfDoc.numPages;
+                    loading.style.display = 'none';
+                    renderAllPages();
+                } catch (error) {
+                    console.error('Error loading PDF:', error);
+                    loading.style.display = 'none';
+                    errorMessage.style.display = 'block';
+                    errorMessage.innerHTML = `Failed to load PDF.<br><br>Error: ${error.message}<br><br><a href="${pdfUrl}" style="color: #4a9eff;">Click here to download the PDF directly</a>`;
+                }
+            }
+
+            // Render all pages
+            async function renderAllPages() {
+                viewer.innerHTML = '';
+                for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                    await renderPage(pageNum);
+                }
+            }
+
+            // Render a single page
+            async function renderPage(pageNum) {
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: scale });
+
+                const canvas = document.createElement('canvas');
+                canvas.className = 'page';
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                canvas.dataset.pageNumber = pageNum;
+
+                const context = canvas.getContext('2d');
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+
+                viewer.appendChild(canvas);
+            }
+
+            // Navigation
+            document.getElementById('prevPage').addEventListener('click', () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    document.getElementById('currentPage').textContent = currentPage;
+                    scrollToPage(currentPage);
+                }
+            });
+
+            document.getElementById('nextPage').addEventListener('click', () => {
+                if (pdfDoc && currentPage < pdfDoc.numPages) {
+                    currentPage++;
+                    document.getElementById('currentPage').textContent = currentPage;
+                    scrollToPage(currentPage);
+                }
+            });
+
+            function scrollToPage(pageNum) {
+                const canvas = viewer.querySelector(`canvas[data-page-number="${pageNum}"]`);
+                if (canvas) {
+                    canvas.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+
+            // Zoom
+            document.getElementById('zoomSelect').addEventListener('change', (e) => {
+                scale = parseFloat(e.target.value);
+                if (pdfDoc) {
+                    renderAllPages();
+                }
+            });
+
+            // Download
+            document.getElementById('downloadBtn').addEventListener('click', () => {
+                window.open(pdfUrl, '_blank');
+            });
+
+            // Track current page on scroll
+            document.getElementById('viewerContainer').addEventListener('scroll', () => {
+                const canvases = viewer.querySelectorAll('canvas');
+                const containerRect = document.getElementById('viewerContainer').getBoundingClientRect();
+                
+                for (const canvas of canvases) {
+                    const rect = canvas.getBoundingClientRect();
+                    if (rect.top <= containerRect.top + 100 && rect.bottom > containerRect.top + 100) {
+                        currentPage = parseInt(canvas.dataset.pageNumber);
+                        document.getElementById('currentPage').textContent = currentPage;
+                        break;
+                    }
+                }
+            });
+
+            // Start loading
+            loadPDF();
+        }
+    </script>
+</body>
+</html>
