@@ -6707,6 +6707,9 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     
     # Due date - only use due_date field, fallback to "No due date" (not posted_date)
     raw_due_date = payload.get("due_date")
+    # Handle "nan" string as missing date (some Qdrant records have this)
+    if raw_due_date and str(raw_due_date).lower() == "nan":
+        raw_due_date = None
     has_due_date = bool(raw_due_date)
     due_date = raw_due_date or "No due date"
     
@@ -6730,19 +6733,28 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     else:
         status = payload.get("status") or "active"
     
+    # Handle both old and new Qdrant field names
+    # Old format: title, summary, agency, notice_type
+    # New format: bid_name, bid_description, organization, category
+    bid_name_value = payload.get("title") or payload.get("bid_name") or "Unknown Bid"
+    bid_description_value = payload.get("summary") or payload.get("bid_description") or "No description available"
+    organization_value = payload.get("agency") or payload.get("organization") or "Unknown"
+    category_value = (payload.get("notice_type") or payload.get("NAICS_TITLE") or payload.get("category") or "Unknown")
+    if isinstance(category_value, str):
+        category_value = category_value.strip()
+    
     return {
         # Identifiers
         "contract_id": str(point_id) if point_id is not None else None,
         "hash_value": hash_value,
         
         # Core fields (lowercase for dashboard JS)
-        "bid_name": payload.get("title", "Unknown Bid"),
+        "bid_name": bid_name_value,
         "bid_number": bid_number,
-        "bid_description": payload.get("summary", "No description available"),
+        "bid_description": bid_description_value,
         "detail_link": detail_link,
-        "organization": payload.get("agency", "Unknown"),
-        # Get category from notice_type or NAICS_TITLE (no "category" field exists in Qdrant)
-        "category": (payload.get("notice_type") or payload.get("NAICS_TITLE") or "Unknown").strip(),
+        "organization": organization_value,
+        "category": category_value,
         "naics_code": naics_code_str,  # NAICS Code(s) column (numbers only)
         "due_date": due_date,
         "status": status,
@@ -8191,10 +8203,14 @@ def upload_contract_pdf():
         pdf_file = request.files['pdf']
         contract_hash = request.form.get('contract_hash')
         
+        # Debug logging to identify invalid contract hash issue
+        logging.info(f"upload_contract_pdf: contract_hash={repr(contract_hash)}, form_keys={list(request.form.keys())}")
+        
         if not contract_hash:
             return jsonify({'success': False, 'error': 'Missing contract hash'}), 400
         
         if '..' in contract_hash or '/' in contract_hash or '\\' in contract_hash:
+            logging.warning(f"Invalid contract hash rejected: {repr(contract_hash)}")
             return jsonify({'success': False, 'error': 'Invalid contract hash'}), 400
         
         # Validate file extension
