@@ -1281,10 +1281,12 @@ def get_naics_description(naics_code, qdrant_description=None):
         NAICS description string or None if not found
     """
     # First check if Qdrant has a valid description
-    if qdrant_description and str(qdrant_description).lower() not in ('nan', 'none', ''):
-        # Skip descriptions that are just the NAICS code repeated
-        if not qdrant_description.startswith('NAICS '):
-            return qdrant_description
+    if qdrant_description:
+        desc_str = str(qdrant_description).strip()
+        lower = desc_str.lower()
+        # Skip invalid descriptions: nan, none, empty, "other", "unknown", or just NAICS code
+        if lower not in ('nan', 'none', '', 'other', 'unknown') and not desc_str.startswith('NAICS '):
+            return desc_str
     
     # Fall back to lookup table
     if naics_code and naics_code in NAICS_CODE_TO_DESCRIPTION:
@@ -8589,14 +8591,17 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         raw_naics_description = ""
     
     # Use NAICS description as category - try multiple sources:
-    # 1. Qdrant NAICS description field (if valid and not just "NAICS XXXXXX")
+    # 1. Qdrant NAICS description field (if valid and not just "NAICS XXXXXX", "Other", "Unknown")
     # 2. NAICS code lookup table (for codes without descriptions in Qdrant)
-    # 3. Fall back to original category field
+    # 3. Fall back to original category field (notice_type preferred)
     category_value = None
     
-    # First try Qdrant NAICS description (skip if it's just "NAICS XXXXXX")
-    if raw_naics_description and raw_naics_description.strip() and not raw_naics_description.startswith('NAICS '):
-        category_value = raw_naics_description.strip()
+    # First try Qdrant NAICS description (skip invalid values)
+    if raw_naics_description and raw_naics_description.strip():
+        desc_lower = raw_naics_description.strip().lower()
+        # Skip invalid descriptions: "NAICS XXXXXX", "Other", "Unknown", etc.
+        if desc_lower not in ('other', 'unknown', 'nan', 'none', '') and not raw_naics_description.startswith('NAICS '):
+            category_value = raw_naics_description.strip()
     
     # If no valid description from Qdrant, try lookup from NAICS code
     if not category_value and naics_codes:
@@ -8608,10 +8613,16 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
                 category_value = lookup_desc
     
     # Fall back to original category field if no NAICS description available
+    # Prefer notice_type over category as it's more descriptive
     if not category_value:
-        category_value = payload.get("notice_type") or payload.get("category") or payload.get("Category") or "Unknown"
-        if isinstance(category_value, str):
-            category_value = category_value.strip()
+        fallback = payload.get("notice_type") or payload.get("category") or payload.get("Category") or ""
+        if isinstance(fallback, str):
+            fallback = fallback.strip()
+        # If fallback is also "Other" or "Unknown", use "Unclassified" instead
+        if fallback.lower() in ('other', 'unknown', 'nan', 'none', ''):
+            category_value = "Unclassified"
+        else:
+            category_value = fallback
     
     return {
         # Identifiers
@@ -10955,13 +10966,16 @@ def suggest_team():
         current_team = data.get('team_members', [])
         
         if not draft_id:
+            logging.warning("[suggest_team] Missing draft_id in request")
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         user = auth.current_user
         if not user:
+            logging.warning("[suggest_team] User not authenticated")
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = user['localId']
+        logging.info(f"[suggest_team] Looking up draft: user_id={user_id}, draft_id={draft_id}")
         
         if not admin_initialized or not admin_db:
             return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
@@ -10970,6 +10984,14 @@ def suggest_team():
         draft_data = draft_ref.get()
         
         if not draft_data:
+            # Log available drafts for debugging
+            try:
+                user_drafts_ref = admin_db.reference(f'proposal_drafts/{user_id}')
+                user_drafts = user_drafts_ref.get()
+                available_ids = list(user_drafts.keys()) if user_drafts else []
+                logging.warning(f"[suggest_team] Draft not found. draft_id={draft_id}, available_ids={available_ids[:5]}...")
+            except Exception as e:
+                logging.warning(f"[suggest_team] Could not list available drafts: {e}")
             return jsonify({'success': False, 'error': 'Draft not found. Please analyze the contract first.'}), 404
         
         if 'annotations' not in draft_data or not draft_data['annotations']:
