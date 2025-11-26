@@ -8252,9 +8252,11 @@ def upload_contract_pdf():
         
         if firebase_url:
             logging.info(f"✅ Uploaded contract PDF to Firebase Storage: {contract_hash}.pdf")
+            # Return proxy URL instead of Firebase URL to avoid CORS issues
+            proxy_url = f'/api/contract_pdf/{contract_hash}'
             return jsonify({
                 'success': True,
-                'pdf_url': firebase_url,
+                'pdf_url': proxy_url,
                 'storage': 'firebase'
             })
         
@@ -8277,6 +8279,44 @@ def upload_contract_pdf():
     except Exception as e:
         logging.error(f"Error uploading contract PDF: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/contract_pdf/<contract_hash>')
+def proxy_contract_pdf(contract_hash):
+    """Proxy endpoint to serve contract PDFs from Firebase Storage (avoids CORS issues)"""
+    try:
+        # Validate contract hash to prevent path traversal
+        if not contract_hash or '..' in contract_hash or '/' in contract_hash or '\\' in contract_hash:
+            return jsonify({'error': 'Invalid contract hash'}), 400
+        
+        # Build storage path
+        storage_path = f'contracts/{contract_hash}.pdf'
+        
+        # Get the download URL from Firebase Storage
+        download_url = storage.child(storage_path).get_url(None)
+        
+        if not download_url:
+            return jsonify({'error': 'PDF not found in Firebase Storage'}), 404
+        
+        # Fetch the PDF from Firebase Storage
+        response = requests.get(download_url, stream=True)
+        
+        if response.status_code != 200:
+            logging.error(f"Failed to fetch PDF from Firebase: {response.status_code}")
+            return jsonify({'error': 'Failed to fetch PDF from storage'}), 500
+        
+        # Stream the PDF back to the client
+        from flask import Response
+        return Response(
+            response.iter_content(chunk_size=8192),
+            content_type='application/pdf',
+            headers={
+                'Content-Disposition': f'inline; filename="{contract_hash}.pdf"'
+            }
+        )
+        
+    except Exception as e:
+        logging.error(f"Error serving contract PDF: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/analyze_contract', methods=['POST'])
 def analyze_contract():
