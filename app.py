@@ -1266,6 +1266,13 @@ NAICS_CODE_TO_DESCRIPTION = {
     
     # Support Activities for Agriculture (115xxx)
     '115112': 'Soil Preparation, Planting, and Cultivating',
+    
+    # Non-6-digit NAICS codes (3-5 digit industry groups)
+    # These are less specific but still valid NAICS classifications
+    '33641': 'Aerospace Product and Parts Manufacturing',  # 5-digit
+    '54133': 'Engineering Services',  # 5-digit
+    '22112': 'Electric Power Distribution',  # 5-digit
+    '457': 'Gasoline Stations and Fuel Dealers',  # 3-digit
 }
 
 def get_naics_description(naics_code, qdrant_description=None):
@@ -1297,7 +1304,8 @@ def get_naics_description(naics_code, qdrant_description=None):
 def parse_naics_codes(naics_raw):
     """
     Parse NAICS codes from various formats (e.g., "238220.0", "332312, 423720", "nan").
-    Returns a list of clean 6-digit NAICS code strings.
+    Returns a list of clean NAICS code strings (3-6 digits).
+    NAICS codes can be 2-6 digits representing different levels of specificity.
     """
     if not naics_raw or str(naics_raw).lower() in ('nan', 'none', ''):
         return []
@@ -1312,8 +1320,8 @@ def parse_naics_codes(naics_raw):
         # Remove decimal part (e.g., "238220.0" -> "238220")
         if '.' in part:
             part = part.split('.')[0]
-        # Only keep valid 6-digit codes
-        if part.isdigit() and len(part) == 6:
+        # Keep valid 3-6 digit codes (NAICS hierarchy: 2-digit sector to 6-digit industry)
+        if part.isdigit() and 3 <= len(part) <= 6:
             codes.append(part)
     
     return codes
