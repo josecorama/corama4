@@ -7847,10 +7847,12 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     import re
     
     # Map Qdrant fields to dashboard format (lowercase)
-    # IMPORTANT: Use actual Qdrant field names (detail_link, bid_number) first,
-    # then fall back to mapped names (source_url, contract_number)
-    detail_link = payload.get("detail_link") or payload.get("source_url", "#")
-    bid_number = payload.get("bid_number") or payload.get("contract_number", "N/A")
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): detail_link, bid_number
+    # Format 2 (old format): source_url, contract_number
+    # Format 3 (Title Case with spaces): Detail Link, Bid Number
+    detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url", "#")
+    bid_number = payload.get("bid_number") or payload.get("Bid Number") or payload.get("contract_number", "N/A")
     
     # Generate hash_value for backward compatibility (same as find_matches_with_query)
     # This hash MUST match the hash computed in build_balanced_category_mapping()
@@ -7858,10 +7860,12 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
     
     # Extract NAICS codes from Qdrant
-    # IMPORTANT: Qdrant uses LOWERCASE field names: naics_code, naics_description
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): naics_code, naics_codes_all
+    # Format 2 (uppercase): NAICS_CODE, NAICS_CODES_ALL
+    # Format 3 (Title Case with spaces): NAICS Code
     # NAICS codes may be stored as floats like "238220.0" - we need to extract just the integer part
-    # Also check uppercase variants for backward compatibility
-    raw_naics = payload.get("naics_code") or payload.get("NAICS_CODE", "")
+    raw_naics = payload.get("naics_code") or payload.get("NAICS Code") or payload.get("NAICS_CODE", "")
     raw_naics_all = payload.get("naics_codes_all") or payload.get("NAICS_CODES_ALL", "")
     
     naics_codes = []
@@ -7896,7 +7900,10 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         naics_code_str = AI_NAICS_CACHE[hash_value]
     
     # Due date - only use due_date field, fallback to "No due date" (not posted_date)
-    raw_due_date = payload.get("due_date")
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): due_date
+    # Format 3 (Title Case with spaces): Due Date
+    raw_due_date = payload.get("due_date") or payload.get("Due Date")
     # Handle "nan" string as missing date (some Qdrant records have this)
     if raw_due_date and str(raw_due_date).lower() == "nan":
         raw_due_date = None
@@ -7923,9 +7930,10 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     else:
         status = payload.get("status") or "active"
     
-    # Handle both old and new Qdrant field names
-    # Old format: title, summary, agency, notice_type, source_url, contract_number
-    # New format: bid_name, bid_description, organization, category, detail_link, bid_number
+    # Handle THREE different Qdrant field name formats:
+    # Format 1 (snake_case): bid_name, bid_description, organization, category, detail_link, bid_number, naics_code
+    # Format 2 (old format): title, summary, agency, notice_type, source_url, contract_number
+    # Format 3 (Title Case with spaces): Bid Name, Bid Description, Organization, Category, Detail Link, Bid Number, NAICS Code
     # IMPORTANT: Check for truthy values, not just key existence (some keys exist with None value)
     def get_first_truthy(*values):
         """Return the first truthy value from the list, or the last value (fallback)."""
@@ -7934,13 +7942,23 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
                 return v
         return values[-1]
     
-    bid_name_value = get_first_truthy(payload.get("bid_name"), payload.get("title"), "Unknown Bid")
-    bid_description_value = get_first_truthy(payload.get("bid_description"), payload.get("summary"), "No description available")
-    organization_value = get_first_truthy(payload.get("organization"), payload.get("agency"), "Unknown")
+    # Check all three formats for each field
+    bid_name_value = get_first_truthy(
+        payload.get("bid_name"), payload.get("Bid Name"), payload.get("title"), "Unknown Bid"
+    )
+    bid_description_value = get_first_truthy(
+        payload.get("bid_description"), payload.get("Bid Description"), payload.get("summary"), "No description available"
+    )
+    organization_value = get_first_truthy(
+        payload.get("organization"), payload.get("Organization"), payload.get("agency"), "Unknown"
+    )
     
-    # Get NAICS description from Qdrant (naics_description field - lowercase)
-    # Also check uppercase NAICS_TITLE for backward compatibility
-    naics_description = payload.get("naics_description") or payload.get("NAICS_TITLE") or ""
+    # Get NAICS description from Qdrant
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): naics_description
+    # Format 2 (uppercase): NAICS_TITLE
+    # Format 3 (Title Case with spaces): NAICS Description
+    naics_description = payload.get("naics_description") or payload.get("NAICS Description") or payload.get("NAICS_TITLE") or ""
     
     # Handle "nan" string values as empty (some Qdrant records have this)
     if naics_description and str(naics_description).lower() == "nan":
@@ -7953,8 +7971,12 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     else:
         # Fall back to effective category (with NAICS mapping and AI prediction for Other/Unknown)
         # Build a payload dict with all fields needed for category prediction
+        # Handle THREE different field name formats for category:
+        # Format 1 (snake_case): category
+        # Format 2 (old format): notice_type
+        # Format 3 (Title Case): Category
         category_payload = {
-            'category': payload.get("notice_type") or payload.get("category") or "Unknown",
+            'category': payload.get("notice_type") or payload.get("category") or payload.get("Category") or "Unknown",
             'naics_code': naics_code_str,
             'naics_description': naics_description,
             'bid_name': bid_name_value,
@@ -7980,7 +8002,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         "naics_code": naics_code_str,  # NAICS Code(s) column (numbers only)
         "due_date": due_date,
         "status": status,
-        "state": payload.get("state", "Unknown"),
+        "state": payload.get("state") or payload.get("State") or "Unknown",
         
         # Optional fields
         "industry": payload.get("industry", ""),
