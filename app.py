@@ -2153,6 +2153,119 @@ Requirements:
             AI_NAICS_CACHE[hash_value] = ""
             save_ai_naics_cache()  # Persist to disk
         return ""
+
+
+# Cache for AI-predicted NAICS with descriptions (separate from code-only cache)
+AI_NAICS_PREDICTION_CACHE = {}
+AI_NAICS_PREDICTION_CACHE_FILE = os.path.join(os.path.dirname(__file__), 'ai_naics_prediction_cache.json')
+
+def load_ai_naics_prediction_cache():
+    """Load AI NAICS prediction cache from disk."""
+    global AI_NAICS_PREDICTION_CACHE
+    try:
+        if os.path.exists(AI_NAICS_PREDICTION_CACHE_FILE):
+            with open(AI_NAICS_PREDICTION_CACHE_FILE, 'r') as f:
+                AI_NAICS_PREDICTION_CACHE = json.load(f)
+                app.logger.info(f"[AI_NAICS_PRED] Loaded {len(AI_NAICS_PREDICTION_CACHE)} cached predictions from disk")
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS_PRED] Error loading cache: {e}")
+        AI_NAICS_PREDICTION_CACHE = {}
+
+def save_ai_naics_prediction_cache():
+    """Save AI NAICS prediction cache to disk."""
+    try:
+        with open(AI_NAICS_PREDICTION_CACHE_FILE, 'w') as f:
+            json.dump(AI_NAICS_PREDICTION_CACHE, f)
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS_PRED] Error saving cache: {e}")
+
+# Load prediction cache on startup
+load_ai_naics_prediction_cache()
+
+
+def predict_naics_with_description(bid_name, organization, hash_value=None):
+    """
+    Use OpenAI to predict NAICS code AND description for Unclassified contracts.
+    Uses bid name and organization to make the prediction.
+    
+    Args:
+        bid_name: Contract/bid name
+        organization: Organization/agency name
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Tuple of (naics_code, naics_description) or (None, None) on failure
+    """
+    global AI_NAICS_PREDICTION_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_NAICS_PREDICTION_CACHE:
+        cached = AI_NAICS_PREDICTION_CACHE[hash_value]
+        return cached.get('code'), cached.get('description')
+    
+    try:
+        import json
+        
+        # Build the prompt
+        system_prompt = (
+            "You are an expert in US federal procurement classification. "
+            "Given a government contract bid name and organization, "
+            "determine the most likely NAICS code and its official description. "
+            "Use official US NAICS 2022 codes and descriptions. "
+            "Return ONLY a JSON object, no extra text."
+        )
+        
+        user_prompt = f"""Contract information:
+Bid Name: {bid_name}
+Organization: {organization}
+
+Requirements:
+- Output a JSON object with exactly these keys:
+  - "code": a single 6-digit NAICS code string (e.g. "332999")
+  - "description": the official NAICS description for that code (e.g. "All Other Miscellaneous Fabricated Metal Product Manufacturing")
+- ALWAYS provide a code and description based on your best guess from the bid name.
+- For cryptic titles like "30--ROD,PISTON" or part numbers, infer the industry from component names.
+- Use the OFFICIAL NAICS description, not a made-up one.
+- Do NOT include any explanation or text outside of the JSON."""
+        
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=150,
+            temperature=0.3
+        )
+        
+        content = response.choices[0].message.content.strip()
+        
+        # Parse JSON response
+        data = json.loads(content)
+        code = data.get("code", "")
+        description = data.get("description", "")
+        
+        # Validate code is 6 digits
+        if not (isinstance(code, str) and code.isdigit() and len(code) == 6):
+            code = None
+            description = None
+        
+        # Cache the result and persist to disk
+        if hash_value and code and description:
+            AI_NAICS_PREDICTION_CACHE[hash_value] = {'code': code, 'description': description}
+            save_ai_naics_prediction_cache()
+            app.logger.info(f"[AI_NAICS_PRED] Predicted for '{bid_name[:50]}...': {code} - {description}")
+        
+        return code, description
+        
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS_PRED] Error predicting NAICS: {e}")
+        # Cache empty result to avoid repeated failures
+        if hash_value:
+            AI_NAICS_PREDICTION_CACHE[hash_value] = {'code': None, 'description': None}
+            save_ai_naics_prediction_cache()
+        return None, None
 if os.getenv('OPENAI_MARIO'):
     app.logger.info("✅ Smart search embeddings using OPENAI_MARIO key")
 else:
@@ -8662,9 +8775,20 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         fallback = payload.get("notice_type") or payload.get("category") or payload.get("Category") or ""
         if isinstance(fallback, str):
             fallback = fallback.strip()
-        # If fallback is also "Other" or "Unknown", use "Unclassified" instead
+        # If fallback is also "Other" or "Unknown", try AI prediction
         if fallback.lower() in ('other', 'unknown', 'nan', 'none', ''):
-            category_value = "Unclassified"
+            # Use AI to predict NAICS code and description for Unclassified contracts
+            ai_code, ai_description = predict_naics_with_description(
+                bid_name_value, 
+                organization_value, 
+                hash_value
+            )
+            if ai_code and ai_description:
+                # Update both category and NAICS code with AI prediction
+                category_value = ai_description
+                naics_code_str = ai_code
+            else:
+                category_value = "Unclassified"
         else:
             category_value = fallback
     
