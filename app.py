@@ -9039,75 +9039,110 @@ def generate_query_embedding(query):
 
 
 def find_matches_with_query(query_embedding, bid_store, top_k=50):
+    """
+    Search for contracts matching the query embedding and return normalized results.
+    
+    Uses the dashboard contracts cache to ensure consistent data (NAICS descriptions,
+    proper due dates, etc.) between search results and the main dashboard.
+    """
+    global _dashboard_contracts_cache
+    
     matches = []
-    search_result = bid_store.search(query_embedding, top_k=10000)
+    # Reduce top_k from 10000 to 2500 for better performance (we only have ~2320 contracts)
+    search_result = bid_store.search(query_embedding, top_k=2500)
     logging.info(f"Raw search results count: {len(search_result)}")
+    
+    # Build a hash lookup from the dashboard cache for fast lookups
+    # This ensures search results use the same normalized data as the dashboard
+    hash_to_contract = {}
+    if _dashboard_contracts_cache:
+        for contract in _dashboard_contracts_cache:
+            h = contract.get('hash_value')
+            if h:
+                hash_to_contract[h] = contract
+        logging.info(f"Built hash lookup with {len(hash_to_contract)} cached contracts")
     
     for bid, sim in search_result:
         try:
-            # Extract NAICS codes from NAICS_CODES_ALL (semicolon-separated) or fallback to NAICS_CODE
-            # NAICS_CODES_ALL contains all codes like "238220;423720"
-            raw_naics_all = bid.get("NAICS_CODES_ALL", "")
-            raw_naics = bid.get("NAICS_CODE", "")
-            naics_codes = []
+            # Compute hash_value to look up the canonical contract from cache
+            detail_link = bid.get("source_url") or bid.get("detail_link") or ""
+            bid_number = bid.get("contract_number") or bid.get("bid_number") or ""
+            hash_input = f"{detail_link}{bid_number}"
+            hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
             
-            # First try NAICS_CODES_ALL which contains all codes
-            if raw_naics_all:
-                # Split by semicolon and extract numeric codes
-                for part in str(raw_naics_all).split(";"):
-                    for code in re.findall(r'\d{2,}', part.strip()):
-                        if code not in naics_codes:
-                            naics_codes.append(code)
+            # Try to get the normalized contract from cache
+            cached_contract = hash_to_contract.get(hash_value)
             
-            # Fallback to NAICS_CODE if NAICS_CODES_ALL is empty
-            if not naics_codes and raw_naics:
-                if isinstance(raw_naics, list):
-                    items = raw_naics
+            if cached_contract:
+                # Use cached contract data (has proper NAICS descriptions, due dates, etc.)
+                match_data = cached_contract.copy()
+                match_data["Similarity_Score"] = sim
+            else:
+                # Fallback: parse data manually if not in cache (shouldn't happen often)
+                # This uses the same logic as qdrant_payload_to_dashboard_contract
+                
+                # Parse NAICS codes using the shared function
+                raw_naics = bid.get("NAICS_CODE") or bid.get("naics_code") or bid.get("NAICS Code") or ""
+                naics_codes = parse_naics_codes(raw_naics)
+                naics_code_str = ", ".join(naics_codes) if naics_codes else ""
+                
+                # Get NAICS description for category
+                raw_naics_description = bid.get("NAICS_TITLE") or bid.get("naics_description") or bid.get("NAICS Description") or ""
+                
+                # Handle "nan" string values
+                if raw_naics_description and str(raw_naics_description).lower() == "nan":
+                    raw_naics_description = ""
+                
+                # Determine category using NAICS description or lookup
+                category_value = None
+                if raw_naics_description and raw_naics_description.strip():
+                    desc_lower = raw_naics_description.strip().lower()
+                    if desc_lower not in ('other', 'unknown', 'nan', 'none', '') and not raw_naics_description.startswith('NAICS '):
+                        category_value = raw_naics_description.strip()
+                
+                if not category_value and naics_codes:
+                    first_code = naics_codes[0] if naics_codes else None
+                    if first_code:
+                        lookup_desc = get_naics_description(first_code, raw_naics_description)
+                        if lookup_desc:
+                            category_value = lookup_desc
+                
+                if not category_value:
+                    notice_type = bid.get("notice_type") or ""
+                    if notice_type and notice_type.lower() not in ('other', 'unknown', 'nan', 'none', ''):
+                        category_value = notice_type
+                    else:
+                        category_value = "Unknown"
+                
+                # Due date - handle "nan" string
+                raw_due_date = bid.get("due_date") or bid.get("Due Date")
+                if raw_due_date and str(raw_due_date).lower() == "nan":
+                    raw_due_date = None
+                has_due_date = bool(raw_due_date)
+                due_date = raw_due_date or "No due date"
+                
+                # Status
+                if not has_due_date:
+                    status = "open"
                 else:
-                    items = [raw_naics]
-                for item in items:
-                    for code in re.findall(r'\d{2,}', str(item)):
-                        if code not in naics_codes:
-                            naics_codes.append(code)
-            
-            naics_code_str = ", ".join(naics_codes) if naics_codes else ""
-            
-            # Get category from NAICS_TITLE or notice_type (no "category" field exists in Qdrant)
-            naics_title = bid.get("NAICS_TITLE") or ""
-            notice_type = bid.get("notice_type") or ""
-            # Use notice_type as category since it's more descriptive (e.g., "Award Notice", "Combined Synopsis/Solicitation")
-            raw_category = notice_type or naics_title or "Unknown"
-            category = raw_category.strip()
-            
-            # Due date - only use due_date field, fallback to "No due date" (not posted_date)
-            raw_due_date = bid.get("due_date")
-            has_due_date = bool(raw_due_date)
-            due_date = raw_due_date or "No due date"
-            
-            # Status is "open" with special styling only when due date fallback occurs
-            status = bid.get("status") or ("open" if not has_due_date else "active")
-            
-            match_data = {
-                "bid_number": bid.get("contract_number") or bid.get("bid_number") or "",
-                "bid_name": bid.get("title") or bid.get("bid_name") or "",
-                "bid_description": bid.get("summary") or bid.get("bid_description") or "",
-                "organization": bid.get("agency") or bid.get("organization") or "",
-                "status": status,
-                "due_date": due_date,
-                "category": category,
-                "naics_code": naics_code_str,  # NAICS Code column (numbers only)
-                "industry": bid.get("industry") or "",
-                "department": bid.get("department") or "",
-                "state": bid.get("state") or "",
-                "detail_link": bid.get("source_url") or bid.get("detail_link") or "",
-                "Similarity_Score": sim
-            }
-
-            # --- Add the hash_value ---
-            detail_link = match_data["detail_link"]
-            bid_number  = match_data["bid_number"]
-            hash_input  = f"{detail_link}{bid_number}"
-            match_data["hash_value"] = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                    status = bid.get("status") or "active"
+                
+                match_data = {
+                    "bid_number": bid_number,
+                    "bid_name": bid.get("title") or bid.get("bid_name") or bid.get("Bid Name") or "",
+                    "bid_description": bid.get("summary") or bid.get("bid_description") or bid.get("Bid Description") or "",
+                    "organization": bid.get("agency") or bid.get("organization") or bid.get("Organization") or "",
+                    "status": status,
+                    "due_date": due_date,
+                    "category": category_value,
+                    "naics_code": naics_code_str,
+                    "industry": bid.get("industry") or "",
+                    "department": bid.get("department") or "",
+                    "state": bid.get("state") or bid.get("State") or "",
+                    "detail_link": detail_link,
+                    "hash_value": hash_value,
+                    "Similarity_Score": sim
+                }
 
             matches.append(match_data)
         except Exception as e:
