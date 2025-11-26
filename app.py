@@ -1044,6 +1044,242 @@ def refine_construction_category(payload, hash_value=None):
     return refine_construction_category_with_ai(payload, hash_value)
 
 
+# Global cache for balanced category assignments
+# This is computed once at startup and used by get_effective_category
+BALANCED_CATEGORY_BY_HASH = {}
+BALANCED_CATEGORIES_INITIALIZED = False
+
+# Keyword dictionaries for category scoring
+CATEGORY_KEYWORDS = {
+    'Goods/Supplies': [
+        'supply', 'supplies', 'equipment', 'vehicle', 'hardware', 'materials', 'parts', 'kit', 
+        'tool', 'inventory', 'warehouse', 'spare', 'component', 'item', 'commodity', 'furniture',
+        'clothing', 'textile', 'food', 'medical', 'pharmaceutical', 'chemical', 'fuel', 'oil',
+        'gas', 'battery', 'cable', 'wire', 'pipe', 'valve', 'pump', 'motor', 'engine', 'generator',
+        'compressor', 'filter', 'bearing', 'seal', 'gasket', 'bolt', 'nut', 'screw', 'fastener',
+        'rod', 'piston', 'cylinder', 'hose', 'tube', 'fitting', 'connector', 'adapter', 'bracket',
+        'mount', 'clamp', 'spring', 'gear', 'shaft', 'wheel', 'tire', 'brake', 'clutch', 'transmission'
+    ],
+    'Construction': [
+        'construction', 'renovation', 'build', 'repair', 'replacement', 'demolition', 'facility',
+        'structural', 'roofing', 'paving', 'site work', 'excavation', 'foundation', 'concrete',
+        'masonry', 'steel', 'framing', 'drywall', 'painting', 'flooring', 'ceiling', 'window',
+        'door', 'hvac', 'plumbing', 'electrical', 'mechanical', 'landscaping', 'fencing', 'paving',
+        'asphalt', 'bridge', 'road', 'highway', 'tunnel', 'dam', 'water treatment', 'sewer'
+    ],
+    'Maintenance/Operations': [
+        'maintenance', 'janitorial', 'cleaning', 'custodial', 'operations', 'support services',
+        'facility management', 'groundskeeping', 'repair services', 'preventive', 'corrective',
+        'inspection', 'testing', 'calibration', 'lubrication', 'overhaul', 'refurbishment',
+        'restoration', 'service', 'upkeep', 'care', 'preservation', 'sanitation', 'waste',
+        'recycling', 'pest control', 'lawn', 'snow removal', 'security', 'guard', 'patrol'
+    ],
+    'IT Services': [
+        'software', 'system integration', 'it support', 'cybersecurity', 'data center', 'cloud',
+        'networking', 'help desk', 'application development', 'database', 'server', 'storage',
+        'backup', 'recovery', 'virtualization', 'automation', 'analytics', 'artificial intelligence',
+        'machine learning', 'web', 'mobile', 'app', 'programming', 'coding', 'development',
+        'testing', 'qa', 'devops', 'infrastructure', 'telecommunications', 'voip', 'video'
+    ],
+    'Professional Services': [
+        'consulting', 'training', 'advisory', 'legal', 'financial', 'audit', 'management support',
+        'staffing', 'professional services', 'engineering', 'architecture', 'design', 'planning',
+        'research', 'analysis', 'study', 'assessment', 'evaluation', 'review', 'survey',
+        'investigation', 'inspection', 'certification', 'accreditation', 'licensing', 'permit',
+        'compliance', 'regulatory', 'environmental', 'health', 'safety', 'quality', 'assurance'
+    ]
+}
+
+def compute_category_score(payload, category):
+    """
+    Compute a score for how well a contract matches a category.
+    Uses NAICS codes and keyword matching in name/description.
+    
+    Returns:
+        Integer score (higher = better match)
+    """
+    score = 0
+    
+    # Get contract text fields
+    name = (payload.get('bid_name') or payload.get('title') or '').lower()
+    description = (payload.get('bid_description') or payload.get('summary') or '').lower()
+    combined_text = name + ' ' + description
+    
+    # Parse NAICS codes
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    # Check for exact NAICS match (big score boost)
+    for code in codes:
+        if code in NAICS_TO_CATEGORY and NAICS_TO_CATEGORY[code] == category:
+            score += 10  # Strong signal from NAICS
+    
+    # Check for keyword matches
+    keywords = CATEGORY_KEYWORDS.get(category, [])
+    for keyword in keywords:
+        if keyword in name:
+            score += 3  # Keyword in name is strong
+        if keyword in combined_text:
+            score += 1  # Keyword in description is weaker
+    
+    return score
+
+def build_balanced_category_mapping():
+    """
+    Build a balanced category mapping for all contracts with generic categories.
+    Uses keyword scoring and capacity limits to prevent any category from becoming dominant.
+    
+    IMPORTANT: This reads DIRECTLY from Qdrant to get the ORIGINAL categories,
+    not from the cached contracts which may have been processed by previous runs.
+    
+    This function should be called once at startup.
+    """
+    global BALANCED_CATEGORY_BY_HASH, BALANCED_CATEGORIES_INITIALIZED
+    
+    if BALANCED_CATEGORIES_INITIALIZED:
+        return
+    
+    logging.info("Building balanced category mapping (reading directly from Qdrant)...")
+    
+    try:
+        import hashlib
+        import re
+        
+        # Read directly from Qdrant to get ORIGINAL categories
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured for balanced category mapping")
+            BALANCED_CATEGORIES_INITIALIZED = True
+            return
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Fetch all contracts from Qdrant using scroll
+        all_points = []
+        offset = None
+        while True:
+            result = client.scroll(
+                collection_name="government_contracts",
+                limit=100,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False
+            )
+            points, next_offset = result
+            all_points.extend(points)
+            if next_offset is None:
+                break
+            offset = next_offset
+        
+        if not all_points:
+            logging.warning("No contracts found in Qdrant for balanced category mapping")
+            BALANCED_CATEGORIES_INITIALIZED = True
+            return
+        
+        logging.info(f"Loaded {len(all_points)} contracts directly from Qdrant")
+        
+        # Define categories and generic labels
+        categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+        generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
+        
+        # Count existing non-generic contracts per category
+        existing_counts = {cat: 0 for cat in categories}
+        generic_contracts = []
+        
+        for point in all_points:
+            payload = point.payload
+            # Get the ORIGINAL category from Qdrant (not processed)
+            original_category = payload.get('category') or 'Unknown'
+            
+            # Generate hash_value for this contract
+            # IMPORTANT: Use the actual Qdrant field names (detail_link, bid_number)
+            # NOT the mapped names (source_url, contract_number)
+            detail_link = payload.get("detail_link") or payload.get("source_url", "#")
+            bid_number = payload.get("bid_number") or payload.get("contract_number", "N/A")
+            hash_input = f"{detail_link}{bid_number}"
+            hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            
+            # Create a simplified contract dict for scoring
+            # Use actual Qdrant field names (bid_name, bid_description)
+            contract_data = {
+                'bid_name': payload.get('bid_name') or payload.get('title', ''),
+                'bid_description': payload.get('bid_description') or payload.get('summary', ''),
+                'naics_code': payload.get('NAICS_CODE', '') or payload.get('NAICS_CODES_ALL', ''),
+                'category': original_category,
+                'hash_value': hash_value
+            }
+            
+            if original_category not in generic_labels:
+                # Non-generic contract - count it
+                if original_category in existing_counts:
+                    existing_counts[original_category] += 1
+            else:
+                # Generic contract - needs assignment
+                generic_contracts.append((hash_value, contract_data))
+        
+        total = len(all_points)
+        max_share = 0.25  # 25% max per category
+        max_per_cat = int(max_share * total)
+        
+        logging.info(f"Total contracts: {total}, Generic contracts: {len(generic_contracts)}, Max per category: {max_per_cat}")
+        logging.info(f"Existing counts: {existing_counts}")
+        
+        # Compute capacity per category (max - existing)
+        capacity = {cat: max(0, max_per_cat - existing_counts[cat]) for cat in categories}
+        logging.info(f"Capacity per category: {capacity}")
+        
+        # Compute scores for each generic contract
+        scored_contracts = []
+        for hash_value, c in generic_contracts:
+            scores = {cat: compute_category_score(c, cat) for cat in categories}
+            best_cat = max(scores, key=scores.get)
+            best_score = scores[best_cat]
+            sorted_cats = sorted(categories, key=lambda x: scores[x], reverse=True)
+            margin = scores[sorted_cats[0]] - scores[sorted_cats[1]] if len(sorted_cats) > 1 else 0
+            scored_contracts.append({
+                'hash': hash_value,
+                'payload': c,
+                'scores': scores,
+                'best_cat': best_cat,
+                'best_score': best_score,
+                'sorted_cats': sorted_cats,
+                'margin': margin
+            })
+        
+        # Sort by confidence (margin) descending - assign high-confidence contracts first
+        scored_contracts.sort(key=lambda x: (x['margin'], x['best_score']), reverse=True)
+        
+        # Assign contracts to categories with capacity limits
+        assigned_counts = existing_counts.copy()
+        
+        for sc in scored_contracts:
+            hash_value = sc['hash']
+            sorted_cats = sc['sorted_cats']
+            
+            # Try to assign to best category first, then fallback
+            assigned = False
+            for cat in sorted_cats:
+                if assigned_counts[cat] < max_per_cat:
+                    BALANCED_CATEGORY_BY_HASH[hash_value] = cat
+                    assigned_counts[cat] += 1
+                    assigned = True
+                    break
+            
+            # If all preferred categories are full, assign to least full category
+            if not assigned:
+                least_full_cat = min(categories, key=lambda x: assigned_counts[x])
+                BALANCED_CATEGORY_BY_HASH[hash_value] = least_full_cat
+                assigned_counts[least_full_cat] += 1
+        
+        logging.info(f"Balanced category mapping complete. Final counts: {assigned_counts}")
+        BALANCED_CATEGORIES_INITIALIZED = True
+        
+    except Exception as e:
+        logging.error(f"Error building balanced category mapping: {e}")
+        BALANCED_CATEGORIES_INITIALIZED = True  # Mark as initialized to avoid repeated failures
+
 def get_effective_category(payload, hash_value=None):
     """
     Get the effective category for a contract.
@@ -1051,19 +1287,17 @@ def get_effective_category(payload, hash_value=None):
     IMPORTANT: Per user request, we ONLY modify contracts that originally had 
     'Other' or 'Unknown' categories. All other categories are returned unchanged.
     
-    For generic categories (Other/Unknown), we use ONLY exact NAICS-to-category mapping.
-    NO AI prediction is used to prevent any single category from becoming dominant.
-    
-    Contracts with generic categories that don't have exact NAICS matches will keep
-    their original category, but these will be filtered out from the Top Contract
-    Categories display in get_qdrant_analytics().
+    For generic categories (Other/Unknown), we use a balanced assignment approach:
+    1. Compute keyword scores for each category
+    2. Assign to best-matching category with capacity limits (max 25% per category)
+    3. This ensures no category becomes dominant while eliminating Other/Unknown
     
     Args:
         payload: Contract data dict with category, naics_code, bid_name, etc.
-        hash_value: Unique identifier for caching AI predictions (unused now)
+        hash_value: Unique identifier for looking up balanced category assignment
     
     Returns:
-        Effective category string (always a broad category, never a subcategory)
+        Effective category string (never Other or Unknown)
     """
     # Get the original category
     original_category = payload.get('category') or 'Unknown'
@@ -1077,22 +1311,35 @@ def get_effective_category(payload, hash_value=None):
         # Return the original category unchanged - do NOT refine or modify it
         return original_category
     
-    # From here on, we're only dealing with contracts that had Other/Unknown categories
-    # Parse NAICS codes
-    naics_raw = payload.get('naics_code') or ''
-    codes = parse_naics_codes(naics_raw)
+    # For generic categories, look up the balanced assignment
+    # Compute hash if not provided
+    if not hash_value:
+        hash_value = payload.get('hash_value') or payload.get('bid_number') or payload.get('detail_link', '')
     
-    # Try NAICS-to-category mapping ONLY (deterministic, no API calls)
-    # Only use exact NAICS code matches - no broad sector checks to prevent catch-all
-    for code in codes:
-        if code in NAICS_TO_CATEGORY:
-            broad_category = NAICS_TO_CATEGORY[code]
-            # Return broad category directly - no subcategory refinement
-            return broad_category
+    # Check the balanced category mapping
+    if hash_value in BALANCED_CATEGORY_BY_HASH:
+        return BALANCED_CATEGORY_BY_HASH[hash_value]
     
-    # NO AI prediction - it creates catch-all categories
-    # Return original category - it will be filtered out from Top Contract Categories display
-    return original_category
+    # Hash not found - this means the hash was computed differently
+    # Try to recompute the hash using the same method as build_balanced_category_mapping
+    import hashlib
+    detail_link = payload.get('detail_link') or payload.get('source_url', '#')
+    bid_number = payload.get('bid_number') or payload.get('contract_number', 'N/A')
+    recomputed_hash = hashlib.sha256(f"{detail_link}{bid_number}".encode('utf-8')).hexdigest()
+    
+    if recomputed_hash in BALANCED_CATEGORY_BY_HASH:
+        return BALANCED_CATEGORY_BY_HASH[recomputed_hash]
+    
+    # Fallback: compute score on-the-fly for contracts not in the mapping
+    # This handles new contracts added after startup
+    categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+    scores = {cat: compute_category_score(payload, cat) for cat in categories}
+    best_cat = max(scores, key=scores.get)
+    
+    # Cache the result using the recomputed hash
+    BALANCED_CATEGORY_BY_HASH[recomputed_hash] = best_cat
+    
+    return best_cat
 
 def generate_naics_codes_with_ai(payload, hash_value=None):
     """
@@ -3035,11 +3282,19 @@ def get_qdrant_analytics():
     """
     Compute analytics from ALL contracts in Qdrant for the dashboard.
     This ensures Top Contract Categories shows totals from all 1,160+ contracts.
+    
+    Uses balanced category assignment to ensure:
+    1. No "Other" or "Unknown" categories appear
+    2. No single category becomes too dominant (max 25% per category)
     """
     from datetime import datetime
     from collections import Counter
     
     try:
+        # Build balanced category mapping if not already done
+        # This must happen before we compute effective categories
+        build_balanced_category_mapping()
+        
         # Get ALL contracts from Qdrant
         all_contracts, total_contracts, _ = get_dashboard_contracts_from_qdrant(1, 10000)
         
@@ -3060,8 +3315,8 @@ def get_qdrant_analytics():
         
         total_contracts = len(all_contracts)
         
-        # Category distribution using effective categories (with NAICS mapping and AI prediction)
-        # This reduces "Other" and "Unknown" by using NAICS codes and AI to predict better categories
+        # Category distribution using effective categories (with balanced assignment)
+        # This eliminates "Other" and "Unknown" by assigning them to valid categories
         effective_categories = []
         for c in all_contracts:
             hash_value = c.get('hash_value') or c.get('bid_number')
@@ -3070,27 +3325,16 @@ def get_qdrant_analytics():
         
         category_counts = Counter(effective_categories)
         
-        # Separate generic categories (Other/Unknown) from real categories
-        # These will be filtered out from the Top Contract Categories display
-        generic_labels = {"Other", "Others", "OTHER", "other", "others", "Unknown", "UNKNOWN", "unknown", ""}
-        non_generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat not in generic_labels]
-        generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat in generic_labels]
+        # Sort all categories by count (highest first)
+        # With balanced assignment, there should be no "Other" or "Unknown" categories
+        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
         
-        # Sort real categories by count (highest first)
-        non_generic.sort(key=lambda x: x[1], reverse=True)
-        
-        # Take top 5 real categories, then append generic categories at the end if there's room
+        # Take top 5 categories
         max_categories = 5
-        top_categories_with_counts = non_generic[:max_categories]
-        
-        # If we have fewer than 5 real categories, add generic ones at the end
-        if len(top_categories_with_counts) < max_categories and generic:
-            generic.sort(key=lambda x: x[1], reverse=True)
-            remaining_slots = max_categories - len(top_categories_with_counts)
-            top_categories_with_counts.extend(generic[:remaining_slots])
+        top_categories_with_counts = sorted_categories[:max_categories]
         
         top_categories = [cat for cat, _ in top_categories_with_counts]
-        # Create ordered dict for category_distribution (descending order, with generic at end)
+        # Create ordered dict for category_distribution (descending order)
         category_distribution_ordered = {cat: count for cat, count in top_categories_with_counts}
         
         # Status distribution
@@ -7446,10 +7690,13 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     import re
     
     # Map Qdrant fields to dashboard format (lowercase)
-    detail_link = payload.get("source_url", "#")
-    bid_number = payload.get("contract_number", "N/A")
+    # IMPORTANT: Use actual Qdrant field names (detail_link, bid_number) first,
+    # then fall back to mapped names (source_url, contract_number)
+    detail_link = payload.get("detail_link") or payload.get("source_url", "#")
+    bid_number = payload.get("bid_number") or payload.get("contract_number", "N/A")
     
     # Generate hash_value for backward compatibility (same as find_matches_with_query)
+    # This hash MUST match the hash computed in build_balanced_category_mapping()
     hash_input = f"{detail_link}{bid_number}"
     hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
     
