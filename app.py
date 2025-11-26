@@ -1201,6 +1201,71 @@ NAICS_CODE_TO_DESCRIPTION = {
     '524291': 'Claims Adjusting',
     '524292': 'Third Party Administration of Insurance and Pension Funds',
     '524298': 'All Other Insurance Related Activities',
+    
+    # Additional NAICS codes found in "Other" contracts (added to reduce "Other" category)
+    # Food Manufacturing (311xxx)
+    '311999': 'All Other Miscellaneous Food Manufacturing',
+    '311991': 'Perishable Prepared Food Manufacturing',
+    
+    # Commercial and Service Industry Machinery (333xxx)
+    '333310': 'Commercial and Service Industry Machinery Manufacturing',
+    '333924': 'Industrial Truck, Tractor, Trailer, and Stacker Machinery Manufacturing',
+    
+    # Software Publishers (513xxx)
+    '513210': 'Software Publishers',
+    '513199': 'All Other Publishers',
+    
+    # Metal Container Manufacturing (332xxx)
+    '332439': 'Other Metal Container Manufacturing',
+    '332618': 'Other Fabricated Wire Product Manufacturing',
+    '332613': 'Spring Manufacturing',
+    '332323': 'Ornamental and Architectural Metal Work Manufacturing',
+    '332216': 'Saw Blade and Handtool Manufacturing',
+    
+    # Motor Vehicle Parts (336xxx)
+    '336370': 'Motor Vehicle Metal Stamping',
+    '336214': 'Travel Trailer and Camper Manufacturing',
+    '336330': 'Motor Vehicle Steering and Suspension Components Manufacturing',
+    '336612': 'Boat Building',
+    '336360': 'Motor Vehicle Seating and Interior Trim Manufacturing',
+    '336415': 'Guided Missile and Space Vehicle Propulsion Unit Manufacturing',
+    '336110': 'Automobile and Light Duty Motor Vehicle Manufacturing',
+    
+    # Battery Manufacturing (335xxx)
+    '335910': 'Battery Manufacturing',
+    
+    # Telecommunications (517xxx)
+    '517111': 'Wired Telecommunications Carriers',
+    
+    # Nonmetallic Mineral Products (327xxx)
+    '327999': 'All Other Miscellaneous Nonmetallic Mineral Product Manufacturing',
+    
+    # Hunting and Trapping (114xxx)
+    '114119': 'Other Animal Production',
+    
+    # Nonferrous Metal Production (331xxx)
+    '331491': 'Nonferrous Metal (except Copper and Aluminum) Rolling, Drawing, and Extruding',
+    
+    # Waste Management (562xxx)
+    '562991': 'Septic Tank and Related Services',
+    
+    # Apparel Manufacturing (315xxx)
+    '315990': 'Apparel Accessories and Other Apparel Manufacturing',
+    
+    # Accommodation (721xxx)
+    '721110': 'Hotels (except Casino Hotels) and Motels',
+    
+    # Jewelry and Silverware (339xxx)
+    '339910': 'Jewelry and Silverware Manufacturing',
+    
+    # Textile Product Mills (313xxx)
+    '313230': 'Nonwoven Fabric Mills',
+    
+    # Industrial Gas Manufacturing (325xxx)
+    '325120': 'Industrial Gas Manufacturing',
+    
+    # Support Activities for Agriculture (115xxx)
+    '115112': 'Soil Preparation, Planting, and Cultivating',
 }
 
 def get_naics_description(naics_code, qdrant_description=None):
@@ -10112,6 +10177,10 @@ def analyze_contract():
         data = request.json
         contract_hash = data.get('contract_hash')
         user_id = data.get('user_id')
+        contract_name = data.get('contract_name', '')
+        contract_description = data.get('contract_description', '')
+        naics_code = data.get('naics_code', '')
+        organization = data.get('organization', '')
         
         if not contract_hash or not user_id:
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
@@ -10184,18 +10253,38 @@ def analyze_contract():
                 return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
             client = OpenAI(api_key=api_key, timeout=60.0)
             
-            prompt = f"""You are an expert contract analyst helping a business understand a government contract opportunity. Analyze the following contract document and provide strategic annotations in these categories:
+            # Build contract context from metadata
+            contract_context = ""
+            if contract_name:
+                contract_context += f"Contract Name: {contract_name}\n"
+            if organization:
+                contract_context += f"Issuing Agency: {organization}\n"
+            if naics_code:
+                contract_context += f"NAICS Code(s): {naics_code}\n"
+            if contract_description:
+                contract_context += f"Contract Description: {contract_description}\n"
+            
+            prompt = f"""You are an expert contract analyst helping a business understand THIS SPECIFIC government contract opportunity. Your analysis must be directly relevant to this contract, not generic advice.
 
-1. Key Requirements & Deliverables - What must be delivered, when, and to what standards
-2. Small Print & Critical Clauses - Important details that are easy to miss but critical to understand
-3. Compliance Requirements - Certifications, regulations, and legal requirements that must be met
-4. Risk Factors & Challenges - Potential issues, tight timelines, or difficult requirements
-5. Win Strategy Recommendations - How to position the proposal to maximize chances of winning
+CONTRACT INFORMATION:
+{contract_context if contract_context else "No metadata available - analyze based on document content only."}
 
-For each category, provide 1-3 specific, actionable insights based on the actual contract text. Be concise but specific. Focus on what matters most for a business deciding whether and how to bid.
-
-Contract Document:
+UPLOADED CONTRACT DOCUMENT:
 {pdf_text}
+
+Analyze this specific contract and provide strategic annotations in these categories:
+
+1. Key Requirements & Deliverables - What THIS contract specifically requires: deliverables, quantities, timelines, quality standards
+2. Small Print & Critical Clauses - Important details in THIS document that are easy to miss but critical (cite specific sections/clauses)
+3. Compliance Requirements - Specific certifications, regulations, or legal requirements mentioned in THIS contract
+4. Risk Factors & Challenges - Specific issues, tight timelines, or difficult requirements in THIS contract
+5. Win Strategy Recommendations - How to position a proposal to win THIS specific contract based on its requirements
+
+IMPORTANT: 
+- Reference specific requirements, clauses, or sections from the document
+- Do NOT provide generic government contracting advice
+- Focus only on what is actually stated in THIS contract
+- Be concise but cite specific details from the document
 
 Provide your analysis as a JSON array with objects containing 'category' and 'text' fields."""
 

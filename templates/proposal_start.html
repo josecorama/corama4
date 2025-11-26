@@ -522,7 +522,11 @@
                     },
                     body: JSON.stringify({
                         contract_hash: contractHash,
-                        user_id: userId
+                        user_id: userId,
+                        contract_name: contractName || (contractData ? contractData.bid_name : ''),
+                        contract_description: contractData ? contractData.bid_description : '',
+                        naics_code: contractData ? contractData.naics_code : '',
+                        organization: contractData ? contractData.organization : ''
                     }),
                     signal: controller.signal,
                     credentials: 'same-origin'
