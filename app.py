@@ -665,6 +665,568 @@ CONSTRUCTION_PREFIX_TO_SUBCATEGORY = {
 # In-memory cache for AI-predicted construction subcategories (keyed by hash_value)
 AI_CONSTRUCTION_SUBCATEGORY_CACHE = {}
 
+# NAICS code to official description lookup table
+# Used to fill in missing NAICS descriptions from Qdrant
+# Based on the most common NAICS codes in the government contracts database
+NAICS_CODE_TO_DESCRIPTION = {
+    # Manufacturing - Aerospace (336xxx)
+    '336413': 'Other Aircraft Parts and Auxiliary Equipment Manufacturing',
+    '336412': 'Aircraft Engine and Engine Parts Manufacturing',
+    '336411': 'Aircraft Manufacturing',
+    '336390': 'Other Motor Vehicle Parts Manufacturing',
+    '336611': 'Ship Building and Repairing',
+    '336350': 'Motor Vehicle Transmission and Power Train Parts Manufacturing',
+    '336340': 'Motor Vehicle Brake System Manufacturing',
+    '336320': 'Motor Vehicle Electrical and Electronic Equipment Manufacturing',
+    '336310': 'Motor Vehicle Gasoline Engine and Engine Parts Manufacturing',
+    '336212': 'Truck Trailer Manufacturing',
+    '336120': 'Heavy Duty Truck Manufacturing',
+    '336992': 'Military Armored Vehicle, Tank, and Tank Component Manufacturing',
+    
+    # Manufacturing - Metal Products (332xxx)
+    '332911': 'Industrial Valve Manufacturing',
+    '332722': 'Bolt, Nut, Screw, Rivet, and Washer Manufacturing',
+    '332991': 'Ball and Roller Bearing Manufacturing',
+    '332996': 'Fabricated Pipe and Pipe Fitting Manufacturing',
+    '332994': 'Small Arms, Ordnance, and Ordnance Accessories Manufacturing',
+    '332510': 'Hardware Manufacturing',
+    '332999': 'All Other Miscellaneous Fabricated Metal Product Manufacturing',
+    '332312': 'Fabricated Structural Metal Manufacturing',
+    '332313': 'Plate Work Manufacturing',
+    '332321': 'Metal Window and Door Manufacturing',
+    '332410': 'Power Boiler and Heat Exchanger Manufacturing',
+    '332420': 'Metal Tank (Heavy Gauge) Manufacturing',
+    '332710': 'Machine Shops',
+    '332721': 'Precision Turned Product Manufacturing',
+    '332912': 'Fluid Power Valve and Hose Fitting Manufacturing',
+    '332913': 'Plumbing Fixture Fitting and Trim Manufacturing',
+    '332919': 'Other Metal Valve and Pipe Fitting Manufacturing',
+    
+    # Manufacturing - Electronics (334xxx)
+    '334419': 'Other Electronic Component Manufacturing',
+    '334511': 'Search, Detection, Navigation, Guidance, Aeronautical Systems',
+    '334417': 'Electronic Connector Manufacturing',
+    '334220': 'Radio and Television Broadcasting and Wireless Communications Equipment Manufacturing',
+    '334516': 'Analytical Laboratory Instrument Manufacturing',
+    '334416': 'Capacitor, Resistor, Coil, Transformer, and Other Inductor Manufacturing',
+    '334290': 'Other Communications Equipment Manufacturing',
+    '334310': 'Audio and Video Equipment Manufacturing',
+    '334412': 'Bare Printed Circuit Board Manufacturing',
+    '334413': 'Semiconductor and Related Device Manufacturing',
+    '334418': 'Printed Circuit Assembly (Electronic Assembly) Manufacturing',
+    '334510': 'Electromedical and Electrotherapeutic Apparatus Manufacturing',
+    '334512': 'Automatic Environmental Control Manufacturing',
+    '334513': 'Instruments and Related Products Manufacturing',
+    '334514': 'Totalizing Fluid Meter and Counting Device Manufacturing',
+    '334515': 'Instrument Manufacturing for Measuring and Testing Electricity',
+    '334517': 'Irradiation Apparatus Manufacturing',
+    '334519': 'Other Measuring and Controlling Device Manufacturing',
+    '334111': 'Electronic Computer Manufacturing',
+    '334112': 'Computer Storage Device Manufacturing',
+    '334118': 'Computer Terminal and Other Computer Peripheral Equipment Manufacturing',
+    
+    # Manufacturing - Electrical Equipment (335xxx)
+    '335312': 'Motor and Generator Manufacturing',
+    '335999': 'All Other Miscellaneous Electrical Equipment and Component Manufacturing',
+    '335931': 'Current-Carrying Wiring Device Manufacturing',
+    '335311': 'Power, Distribution, and Specialty Transformer Manufacturing',
+    '335313': 'Switchgear and Switchboard Apparatus Manufacturing',
+    '335314': 'Relay and Industrial Control Manufacturing',
+    '335911': 'Storage Battery Manufacturing',
+    '335912': 'Primary Battery Manufacturing',
+    '335921': 'Fiber Optic Cable Manufacturing',
+    '335929': 'Other Communication and Energy Wire Manufacturing',
+    '335932': 'Noncurrent-Carrying Wiring Device Manufacturing',
+    
+    # Manufacturing - Machinery (333xxx)
+    '333998': 'All Other Miscellaneous General Purpose Machinery Manufacturing',
+    '333613': 'Mechanical Power Transmission Equipment Manufacturing',
+    '333618': 'Other Engine Equipment Manufacturing',
+    '333996': 'Fluid Power Pump and Motor Manufacturing',
+    '333914': 'Measuring, Dispensing, and Other Pumping Equipment Manufacturing',
+    '333611': 'Turbine and Turbine Generator Set Units Manufacturing',
+    '333612': 'Speed Changer, Industrial High-Speed Drive, and Gear Manufacturing',
+    '333911': 'Pump and Pumping Equipment Manufacturing',
+    '333912': 'Air and Gas Compressor Manufacturing',
+    '333913': 'Measuring and Dispensing Pump Manufacturing',
+    '333991': 'Power-Driven Handtool Manufacturing',
+    '333992': 'Welding and Soldering Equipment Manufacturing',
+    '333993': 'Packaging Machinery Manufacturing',
+    '333994': 'Industrial Process Furnace and Oven Manufacturing',
+    '333995': 'Fluid Power Cylinder and Actuator Manufacturing',
+    '333997': 'Scale and Balance Manufacturing',
+    '333111': 'Farm Machinery and Equipment Manufacturing',
+    '333120': 'Construction Machinery Manufacturing',
+    '333131': 'Mining Machinery and Equipment Manufacturing',
+    '333132': 'Oil and Gas Field Machinery and Equipment Manufacturing',
+    '333241': 'Food Product Machinery Manufacturing',
+    '333242': 'Semiconductor Machinery Manufacturing',
+    '333243': 'Sawmill, Woodworking, and Paper Machinery Manufacturing',
+    '333244': 'Printing Machinery and Equipment Manufacturing',
+    '333249': 'Other Industrial Machinery Manufacturing',
+    '333314': 'Optical Instrument and Lens Manufacturing',
+    '333316': 'Photographic and Photocopying Equipment Manufacturing',
+    '333318': 'Other Commercial and Service Industry Machinery Manufacturing',
+    '333413': 'Industrial and Commercial Fan and Blower Manufacturing',
+    '333414': 'Heating Equipment (except Warm Air Furnaces) Manufacturing',
+    '333415': 'Air-Conditioning and Warm Air Heating Equipment Manufacturing',
+    '333511': 'Industrial Mold Manufacturing',
+    '333514': 'Special Die and Tool, Die Set, Jig, and Fixture Manufacturing',
+    '333515': 'Cutting Tool and Machine Tool Accessory Manufacturing',
+    '333517': 'Machine Tool Manufacturing',
+    '333519': 'Other Metalworking Machinery Manufacturing',
+    
+    # Manufacturing - Miscellaneous (339xxx)
+    '339991': 'Gasket, Packing, and Sealing Device Manufacturing',
+    '339112': 'Surgical and Medical Instrument Manufacturing',
+    '339113': 'Surgical Appliance and Supplies Manufacturing',
+    '339114': 'Dental Equipment and Supplies Manufacturing',
+    '339115': 'Ophthalmic Goods Manufacturing',
+    '339116': 'Dental Laboratories',
+    '339920': 'Sporting and Athletic Goods Manufacturing',
+    '339930': 'Doll, Toy, and Game Manufacturing',
+    '339940': 'Office Supplies (except Paper) Manufacturing',
+    '339950': 'Sign Manufacturing',
+    '339992': 'Musical Instrument Manufacturing',
+    '339993': 'Fastener, Button, Needle, and Pin Manufacturing',
+    '339994': 'Broom, Brush, and Mop Manufacturing',
+    '339995': 'Burial Casket Manufacturing',
+    '339999': 'All Other Miscellaneous Manufacturing',
+    
+    # Manufacturing - Chemicals (325xxx)
+    '325199': 'All Other Basic Organic Chemical Manufacturing',
+    '325211': 'Plastics Material and Resin Manufacturing',
+    '325220': 'Artificial and Synthetic Fibers and Filaments Manufacturing',
+    '325311': 'Nitrogenous Fertilizer Manufacturing',
+    '325312': 'Phosphatic Fertilizer Manufacturing',
+    '325314': 'Fertilizer (Mixing Only) Manufacturing',
+    '325320': 'Pesticide and Other Agricultural Chemical Manufacturing',
+    '325411': 'Medicinal and Botanical Manufacturing',
+    '325412': 'Pharmaceutical Preparation Manufacturing',
+    '325413': 'In-Vitro Diagnostic Substance Manufacturing',
+    '325414': 'Biological Product (except Diagnostic) Manufacturing',
+    '325510': 'Paint and Coating Manufacturing',
+    '325520': 'Adhesive Manufacturing',
+    '325611': 'Soap and Other Detergent Manufacturing',
+    '325612': 'Polish and Other Sanitation Good Manufacturing',
+    '325613': 'Surface Active Agent Manufacturing',
+    '325620': 'Toilet Preparation Manufacturing',
+    '325910': 'Printing Ink Manufacturing',
+    '325920': 'Explosives Manufacturing',
+    '325991': 'Custom Compounding of Purchased Resins',
+    '325992': 'Photographic Film, Paper, Plate, and Chemical Manufacturing',
+    '325998': 'All Other Miscellaneous Chemical Product and Preparation Manufacturing',
+    
+    # Manufacturing - Plastics and Rubber (326xxx)
+    '326111': 'Plastics Bag and Pouch Manufacturing',
+    '326112': 'Plastics Packaging Film and Sheet Manufacturing',
+    '326113': 'Unlaminated Plastics Film and Sheet Manufacturing',
+    '326121': 'Unlaminated Plastics Profile Shape Manufacturing',
+    '326122': 'Plastics Pipe and Pipe Fitting Manufacturing',
+    '326130': 'Laminated Plastics Plate, Sheet, and Shape Manufacturing',
+    '326140': 'Polystyrene Foam Product Manufacturing',
+    '326150': 'Urethane and Other Foam Product Manufacturing',
+    '326160': 'Plastics Bottle Manufacturing',
+    '326191': 'Plastics Plumbing Fixture Manufacturing',
+    '326199': 'All Other Plastics Product Manufacturing',
+    '326211': 'Tire Manufacturing (except Retreading)',
+    '326212': 'Tire Retreading',
+    '326220': 'Rubber and Plastics Hoses and Belting Manufacturing',
+    '326291': 'Rubber Product Manufacturing for Mechanical Use',
+    '326299': 'All Other Rubber Product Manufacturing',
+    
+    # Construction (236xxx, 237xxx, 238xxx)
+    '236220': 'Commercial and Institutional Building Construction',
+    '236210': 'Industrial Building Construction',
+    '236115': 'New Single-Family Housing Construction',
+    '236116': 'New Multifamily Housing Construction',
+    '236117': 'New Housing For-Sale Builders',
+    '236118': 'Residential Remodelers',
+    '237110': 'Water and Sewer Line and Related Structures Construction',
+    '237120': 'Oil and Gas Pipeline and Related Structures Construction',
+    '237130': 'Power and Communication Line and Related Structures Construction',
+    '237210': 'Land Subdivision',
+    '237310': 'Highway, Street, and Bridge Construction',
+    '237990': 'Other Heavy and Civil Engineering Construction',
+    '238110': 'Poured Concrete Foundation and Structure Contractors',
+    '238120': 'Structural Steel and Precast Concrete Contractors',
+    '238130': 'Framing Contractors',
+    '238140': 'Masonry Contractors',
+    '238150': 'Glass and Glazing Contractors',
+    '238160': 'Roofing Contractors',
+    '238170': 'Siding Contractors',
+    '238190': 'Other Foundation, Structure, and Building Exterior Contractors',
+    '238210': 'Electrical Contractors and Other Wiring Installation Contractors',
+    '238220': 'Plumbing, Heating, and Air-Conditioning Contractors',
+    '238290': 'Other Building Equipment Contractors',
+    '238310': 'Drywall and Insulation Contractors',
+    '238320': 'Painting and Wall Covering Contractors',
+    '238330': 'Flooring Contractors',
+    '238340': 'Tile and Terrazzo Contractors',
+    '238350': 'Finish Carpentry Contractors',
+    '238390': 'Other Building Finishing Contractors',
+    '238910': 'Site Preparation Contractors',
+    '238990': 'All Other Specialty Trade Contractors',
+    
+    # Professional Services (541xxx)
+    '541110': 'Offices of Lawyers',
+    '541191': 'Title Abstract and Settlement Offices',
+    '541199': 'All Other Legal Services',
+    '541211': 'Offices of Certified Public Accountants',
+    '541213': 'Tax Preparation Services',
+    '541214': 'Payroll Services',
+    '541219': 'Other Accounting Services',
+    '541310': 'Architectural Services',
+    '541320': 'Landscape Architectural Services',
+    '541330': 'Engineering Services',
+    '541340': 'Drafting Services',
+    '541350': 'Building Inspection Services',
+    '541360': 'Geophysical Surveying and Mapping Services',
+    '541370': 'Surveying and Mapping (except Geophysical) Services',
+    '541380': 'Testing Laboratories',
+    '541410': 'Interior Design Services',
+    '541420': 'Industrial Design Services',
+    '541430': 'Graphic Design Services',
+    '541490': 'Other Specialized Design Services',
+    '541511': 'Custom Computer Programming Services',
+    '541512': 'Computer Systems Design Services',
+    '541513': 'Computer Facilities Management Services',
+    '541519': 'Other Computer Related Services',
+    '541611': 'Administrative Management and General Management Consulting Services',
+    '541612': 'Human Resources Consulting Services',
+    '541613': 'Marketing Consulting Services',
+    '541614': 'Process, Physical Distribution, and Logistics Consulting Services',
+    '541618': 'Other Management Consulting Services',
+    '541620': 'Environmental Consulting Services',
+    '541690': 'Other Scientific and Technical Consulting Services',
+    '541710': 'Research and Development in the Physical, Engineering, and Life Sciences',
+    '541715': 'Research and Development in the Physical, Engineering, and Life Sciences',
+    '541720': 'Research and Development in the Social Sciences and Humanities',
+    '541810': 'Advertising Agencies',
+    '541820': 'Public Relations Agencies',
+    '541830': 'Media Buying Agencies',
+    '541840': 'Media Representatives',
+    '541850': 'Outdoor Advertising',
+    '541860': 'Direct Mail Advertising',
+    '541870': 'Advertising Material Distribution Services',
+    '541890': 'Other Services Related to Advertising',
+    '541910': 'Marketing Research and Public Opinion Polling',
+    '541921': 'Photography Studios, Portrait',
+    '541922': 'Commercial Photography',
+    '541930': 'Translation and Interpretation Services',
+    '541940': 'Veterinary Services',
+    '541990': 'All Other Professional, Scientific, and Technical Services',
+    
+    # Administrative and Support Services (561xxx)
+    '561110': 'Office Administrative Services',
+    '561210': 'Facilities Support Services',
+    '561311': 'Employment Placement Agencies',
+    '561312': 'Executive Search Services',
+    '561320': 'Temporary Help Services',
+    '561330': 'Professional Employer Organizations',
+    '561410': 'Document Preparation Services',
+    '561421': 'Telephone Answering Services',
+    '561422': 'Telemarketing Bureaus and Other Contact Centers',
+    '561431': 'Private Mail Centers',
+    '561439': 'Other Business Service Centers',
+    '561440': 'Collection Agencies',
+    '561450': 'Credit Bureaus',
+    '561491': 'Repossession Services',
+    '561492': 'Court Reporting and Stenotype Services',
+    '561499': 'All Other Business Support Services',
+    '561510': 'Travel Agencies',
+    '561520': 'Tour Operators',
+    '561591': 'Convention and Visitors Bureaus',
+    '561599': 'All Other Travel Arrangement and Reservation Services',
+    '561611': 'Investigation Services',
+    '561612': 'Security Guards and Patrol Services',
+    '561613': 'Armored Car Services',
+    '561621': 'Security Systems Services (except Locksmiths)',
+    '561622': 'Locksmiths',
+    '561710': 'Exterminating and Pest Control Services',
+    '561720': 'Janitorial Services',
+    '561730': 'Landscaping Services',
+    '561740': 'Carpet and Upholstery Cleaning Services',
+    '561790': 'Other Services to Buildings and Dwellings',
+    '561910': 'Packaging and Labeling Services',
+    '561920': 'Convention and Trade Show Organizers',
+    '561990': 'All Other Support Services',
+    
+    # Wholesale Trade (423xxx, 424xxx)
+    '423110': 'Automobile and Other Motor Vehicle Merchant Wholesalers',
+    '423120': 'Motor Vehicle Supplies and New Parts Merchant Wholesalers',
+    '423130': 'Tire and Tube Merchant Wholesalers',
+    '423140': 'Motor Vehicle Parts (Used) Merchant Wholesalers',
+    '423210': 'Furniture Merchant Wholesalers',
+    '423220': 'Home Furnishing Merchant Wholesalers',
+    '423310': 'Lumber, Plywood, Millwork, and Wood Panel Merchant Wholesalers',
+    '423320': 'Brick, Stone, and Related Construction Material Merchant Wholesalers',
+    '423330': 'Roofing, Siding, and Insulation Material Merchant Wholesalers',
+    '423390': 'Other Construction Material Merchant Wholesalers',
+    '423410': 'Photographic Equipment and Supplies Merchant Wholesalers',
+    '423420': 'Office Equipment Merchant Wholesalers',
+    '423430': 'Computer and Computer Peripheral Equipment and Software Merchant Wholesalers',
+    '423440': 'Other Commercial Equipment Merchant Wholesalers',
+    '423450': 'Medical, Dental, and Hospital Equipment and Supplies Merchant Wholesalers',
+    '423460': 'Ophthalmic Goods Merchant Wholesalers',
+    '423490': 'Other Professional Equipment and Supplies Merchant Wholesalers',
+    '423510': 'Metal Service Centers and Other Metal Merchant Wholesalers',
+    '423520': 'Coal and Other Mineral and Ore Merchant Wholesalers',
+    '423610': 'Electrical Apparatus and Equipment, Wiring Supplies Merchant Wholesalers',
+    '423620': 'Household Appliances, Electric Housewares Merchant Wholesalers',
+    '423690': 'Other Electronic Parts and Equipment Merchant Wholesalers',
+    '423710': 'Hardware Merchant Wholesalers',
+    '423720': 'Plumbing and Heating Equipment and Supplies Merchant Wholesalers',
+    '423730': 'Warm Air Heating and Air-Conditioning Equipment Merchant Wholesalers',
+    '423740': 'Refrigeration Equipment and Supplies Merchant Wholesalers',
+    '423810': 'Construction and Mining Machinery and Equipment Merchant Wholesalers',
+    '423820': 'Farm and Garden Machinery and Equipment Merchant Wholesalers',
+    '423830': 'Industrial Machinery and Equipment Merchant Wholesalers',
+    '423840': 'Industrial Supplies Merchant Wholesalers',
+    '423850': 'Service Establishment Equipment and Supplies Merchant Wholesalers',
+    '423860': 'Transportation Equipment and Supplies Merchant Wholesalers',
+    '423910': 'Sporting and Recreational Goods and Supplies Merchant Wholesalers',
+    '423920': 'Toy and Hobby Goods and Supplies Merchant Wholesalers',
+    '423930': 'Recyclable Material Merchant Wholesalers',
+    '423940': 'Jewelry, Watch, Precious Stone Merchant Wholesalers',
+    '423990': 'Other Miscellaneous Durable Goods Merchant Wholesalers',
+    '424110': 'Printing and Writing Paper Merchant Wholesalers',
+    '424120': 'Stationery and Office Supplies Merchant Wholesalers',
+    '424130': 'Industrial and Personal Service Paper Merchant Wholesalers',
+    '424210': 'Drugs and Druggists Sundries Merchant Wholesalers',
+    '424310': 'Piece Goods, Notions, and Other Dry Goods Merchant Wholesalers',
+    '424320': 'Mens and Boys Clothing and Furnishings Merchant Wholesalers',
+    '424330': 'Womens, Childrens, and Infants Clothing Merchant Wholesalers',
+    '424340': 'Footwear Merchant Wholesalers',
+    '424410': 'General Line Grocery Merchant Wholesalers',
+    '424420': 'Packaged Frozen Food Merchant Wholesalers',
+    '424430': 'Dairy Product Merchant Wholesalers',
+    '424440': 'Poultry and Poultry Product Merchant Wholesalers',
+    '424450': 'Confectionery Merchant Wholesalers',
+    '424460': 'Fish and Seafood Merchant Wholesalers',
+    '424470': 'Meat and Meat Product Merchant Wholesalers',
+    '424480': 'Fresh Fruit and Vegetable Merchant Wholesalers',
+    '424490': 'Other Grocery and Related Products Merchant Wholesalers',
+    '424510': 'Grain and Field Bean Merchant Wholesalers',
+    '424520': 'Livestock Merchant Wholesalers',
+    '424590': 'Other Farm Product Raw Material Merchant Wholesalers',
+    '424610': 'Plastics Materials and Basic Forms and Shapes Merchant Wholesalers',
+    '424690': 'Other Chemical and Allied Products Merchant Wholesalers',
+    '424710': 'Petroleum Bulk Stations and Terminals',
+    '424720': 'Petroleum and Petroleum Products Merchant Wholesalers',
+    '424810': 'Beer and Ale Merchant Wholesalers',
+    '424820': 'Wine and Distilled Alcoholic Beverage Merchant Wholesalers',
+    '424910': 'Farm Supplies Merchant Wholesalers',
+    '424920': 'Book, Periodical, and Newspaper Merchant Wholesalers',
+    '424930': 'Flower, Nursery Stock, and Florists Supplies Merchant Wholesalers',
+    '424940': 'Tobacco and Tobacco Product Merchant Wholesalers',
+    '424950': 'Paint, Varnish, and Supplies Merchant Wholesalers',
+    '424990': 'Other Miscellaneous Nondurable Goods Merchant Wholesalers',
+    
+    # Information (511xxx, 517xxx, 518xxx, 519xxx)
+    '511110': 'Newspaper Publishers',
+    '511120': 'Periodical Publishers',
+    '511130': 'Book Publishers',
+    '511140': 'Directory and Mailing List Publishers',
+    '511191': 'Greeting Card Publishers',
+    '511199': 'All Other Publishers',
+    '511210': 'Software Publishers',
+    '517110': 'Wired Telecommunications Carriers',
+    '517210': 'Wireless Telecommunications Carriers (except Satellite)',
+    '517410': 'Satellite Telecommunications',
+    '517911': 'Telecommunications Resellers',
+    '517919': 'All Other Telecommunications',
+    '518210': 'Data Processing, Hosting, and Related Services',
+    '519110': 'News Syndicates',
+    '519120': 'Libraries and Archives',
+    '519130': 'Internet Publishing and Broadcasting and Web Search Portals',
+    '519190': 'All Other Information Services',
+    
+    # Real Estate (531xxx)
+    '531110': 'Lessors of Residential Buildings and Dwellings',
+    '531120': 'Lessors of Nonresidential Buildings (except Miniwarehouses)',
+    '531130': 'Lessors of Miniwarehouses and Self-Storage Units',
+    '531190': 'Lessors of Other Real Estate Property',
+    '531210': 'Offices of Real Estate Agents and Brokers',
+    '531311': 'Residential Property Managers',
+    '531312': 'Nonresidential Property Managers',
+    '531320': 'Offices of Real Estate Appraisers',
+    '531390': 'Other Activities Related to Real Estate',
+    
+    # Repair and Maintenance (811xxx)
+    '811111': 'General Automotive Repair',
+    '811112': 'Automotive Exhaust System Repair',
+    '811113': 'Automotive Transmission Repair',
+    '811118': 'Other Automotive Mechanical and Electrical Repair',
+    '811121': 'Automotive Body, Paint, and Interior Repair',
+    '811122': 'Automotive Glass Replacement Shops',
+    '811191': 'Automotive Oil Change and Lubrication Shops',
+    '811192': 'Car Washes',
+    '811198': 'All Other Automotive Repair and Maintenance',
+    '811210': 'Electronic and Precision Equipment Repair and Maintenance',
+    '811310': 'Commercial and Industrial Machinery and Equipment Repair and Maintenance',
+    '811411': 'Home and Garden Equipment Repair and Maintenance',
+    '811412': 'Appliance Repair and Maintenance',
+    '811420': 'Reupholstery and Furniture Repair',
+    '811430': 'Footwear and Leather Goods Repair',
+    '811490': 'Other Personal and Household Goods Repair and Maintenance',
+    
+    # Food Services (722xxx)
+    '722310': 'Food Service Contractors',
+    '722320': 'Caterers',
+    '722330': 'Mobile Food Services',
+    '722410': 'Drinking Places (Alcoholic Beverages)',
+    '722511': 'Full-Service Restaurants',
+    '722513': 'Limited-Service Restaurants',
+    '722514': 'Cafeterias, Grill Buffets, and Buffets',
+    '722515': 'Snack and Nonalcoholic Beverage Bars',
+    
+    # Healthcare (621xxx, 622xxx, 623xxx)
+    '621111': 'Offices of Physicians (except Mental Health Specialists)',
+    '621112': 'Offices of Physicians, Mental Health Specialists',
+    '621210': 'Offices of Dentists',
+    '621310': 'Offices of Chiropractors',
+    '621320': 'Offices of Optometrists',
+    '621330': 'Offices of Mental Health Practitioners (except Physicians)',
+    '621340': 'Offices of Physical, Occupational and Speech Therapists',
+    '621391': 'Offices of Podiatrists',
+    '621399': 'Offices of All Other Miscellaneous Health Practitioners',
+    '621410': 'Family Planning Centers',
+    '621420': 'Outpatient Mental Health and Substance Abuse Centers',
+    '621491': 'HMO Medical Centers',
+    '621492': 'Kidney Dialysis Centers',
+    '621493': 'Freestanding Ambulatory Surgical and Emergency Centers',
+    '621498': 'All Other Outpatient Care Centers',
+    '621511': 'Medical Laboratories',
+    '621512': 'Diagnostic Imaging Centers',
+    '621610': 'Home Health Care Services',
+    '621910': 'Ambulance Services',
+    '621991': 'Blood and Organ Banks',
+    '621999': 'All Other Miscellaneous Ambulatory Health Care Services',
+    '622110': 'General Medical and Surgical Hospitals',
+    '622210': 'Psychiatric and Substance Abuse Hospitals',
+    '622310': 'Specialty (except Psychiatric and Substance Abuse) Hospitals',
+    '623110': 'Nursing Care Facilities (Skilled Nursing Facilities)',
+    '623210': 'Residential Intellectual and Developmental Disability Facilities',
+    '623220': 'Residential Mental Health and Substance Abuse Facilities',
+    '623311': 'Continuing Care Retirement Communities',
+    '623312': 'Assisted Living Facilities for the Elderly',
+    '623990': 'Other Residential Care Facilities',
+    
+    # Educational Services (611xxx)
+    '611110': 'Elementary and Secondary Schools',
+    '611210': 'Junior Colleges',
+    '611310': 'Colleges, Universities, and Professional Schools',
+    '611410': 'Business and Secretarial Schools',
+    '611420': 'Computer Training',
+    '611430': 'Professional and Management Development Training',
+    '611511': 'Cosmetology and Barber Schools',
+    '611512': 'Flight Training',
+    '611513': 'Apprenticeship Training',
+    '611519': 'Other Technical and Trade Schools',
+    '611610': 'Fine Arts Schools',
+    '611620': 'Sports and Recreation Instruction',
+    '611630': 'Language Schools',
+    '611691': 'Exam Preparation and Tutoring',
+    '611692': 'Automobile Driving Schools',
+    '611699': 'All Other Miscellaneous Schools and Instruction',
+    '611710': 'Educational Support Services',
+    
+    # Transportation (481xxx, 482xxx, 483xxx, 484xxx, 485xxx, 486xxx, 487xxx, 488xxx, 492xxx, 493xxx)
+    '481111': 'Scheduled Passenger Air Transportation',
+    '481112': 'Scheduled Freight Air Transportation',
+    '481211': 'Nonscheduled Chartered Passenger Air Transportation',
+    '481212': 'Nonscheduled Chartered Freight Air Transportation',
+    '481219': 'Other Nonscheduled Air Transportation',
+    '482111': 'Line-Haul Railroads',
+    '482112': 'Short Line Railroads',
+    '483111': 'Deep Sea Freight Transportation',
+    '483112': 'Deep Sea Passenger Transportation',
+    '483113': 'Coastal and Great Lakes Freight Transportation',
+    '483114': 'Coastal and Great Lakes Passenger Transportation',
+    '483211': 'Inland Water Freight Transportation',
+    '483212': 'Inland Water Passenger Transportation',
+    '484110': 'General Freight Trucking, Local',
+    '484121': 'General Freight Trucking, Long-Distance, Truckload',
+    '484122': 'General Freight Trucking, Long-Distance, Less Than Truckload',
+    '484210': 'Used Household and Office Goods Moving',
+    '484220': 'Specialized Freight (except Used Goods) Trucking, Local',
+    '484230': 'Specialized Freight (except Used Goods) Trucking, Long-Distance',
+    '485111': 'Mixed Mode Transit Systems',
+    '485112': 'Commuter Rail Systems',
+    '485113': 'Bus and Other Motor Vehicle Transit Systems',
+    '485119': 'Other Urban Transit Systems',
+    '485210': 'Interurban and Rural Bus Transportation',
+    '485310': 'Taxi Service',
+    '485320': 'Limousine Service',
+    '485410': 'School and Employee Bus Transportation',
+    '485510': 'Charter Bus Industry',
+    '485991': 'Special Needs Transportation',
+    '485999': 'All Other Transit and Ground Passenger Transportation',
+    '486110': 'Pipeline Transportation of Crude Oil',
+    '486210': 'Pipeline Transportation of Natural Gas',
+    '486910': 'Pipeline Transportation of Refined Petroleum Products',
+    '486990': 'All Other Pipeline Transportation',
+    '487110': 'Scenic and Sightseeing Transportation, Land',
+    '487210': 'Scenic and Sightseeing Transportation, Water',
+    '487990': 'Scenic and Sightseeing Transportation, Other',
+    '488111': 'Air Traffic Control',
+    '488119': 'Other Airport Operations',
+    '488190': 'Other Support Activities for Air Transportation',
+    '488210': 'Support Activities for Rail Transportation',
+    '488310': 'Port and Harbor Operations',
+    '488320': 'Marine Cargo Handling',
+    '488330': 'Navigational Services to Shipping',
+    '488390': 'Other Support Activities for Water Transportation',
+    '488410': 'Motor Vehicle Towing',
+    '488490': 'Other Support Activities for Road Transportation',
+    '488510': 'Freight Transportation Arrangement',
+    '488991': 'Packing and Crating',
+    '488999': 'All Other Support Activities for Transportation',
+    '492110': 'Couriers and Express Delivery Services',
+    '492210': 'Local Messengers and Local Delivery',
+    '493110': 'General Warehousing and Storage',
+    '493120': 'Refrigerated Warehousing and Storage',
+    '493130': 'Farm Product Warehousing and Storage',
+    '493190': 'Other Warehousing and Storage',
+    
+    # Insurance (524xxx)
+    '524113': 'Direct Life Insurance Carriers',
+    '524114': 'Direct Health and Medical Insurance Carriers',
+    '524126': 'Direct Property and Casualty Insurance Carriers',
+    '524127': 'Direct Title Insurance Carriers',
+    '524128': 'Other Direct Insurance (except Life, Health, and Medical) Carriers',
+    '524130': 'Reinsurance Carriers',
+    '524210': 'Insurance Agencies and Brokerages',
+    '524291': 'Claims Adjusting',
+    '524292': 'Third Party Administration of Insurance and Pension Funds',
+    '524298': 'All Other Insurance Related Activities',
+}
+
+def get_naics_description(naics_code, qdrant_description=None):
+    """
+    Get NAICS description from code, using Qdrant description if available,
+    otherwise falling back to the lookup table.
+    
+    Args:
+        naics_code: 6-digit NAICS code string
+        qdrant_description: Optional description from Qdrant payload
+        
+    Returns:
+        NAICS description string or None if not found
+    """
+    # First check if Qdrant has a valid description
+    if qdrant_description and str(qdrant_description).lower() not in ('nan', 'none', ''):
+        # Skip descriptions that are just the NAICS code repeated
+        if not qdrant_description.startswith('NAICS '):
+            return qdrant_description
+    
+    # Fall back to lookup table
+    if naics_code and naics_code in NAICS_CODE_TO_DESCRIPTION:
+        return NAICS_CODE_TO_DESCRIPTION[naics_code]
+    
+    return None
+
 def parse_naics_codes(naics_raw):
     """
     Parse NAICS codes from various formats (e.g., "238220.0", "332312, 423720", "nan").
@@ -3362,10 +3924,6 @@ def get_qdrant_analytics():
         
         logging.info(f"[Qdrant] Recomputing analytics (signature changed: {QDRANT_ANALYTICS_SIGNATURE} -> {current_signature})")
         
-        # Build balanced category mapping if not already done
-        # This must happen before we compute effective categories
-        build_balanced_category_mapping()
-        
         # Get ALL contracts from Qdrant
         all_contracts, total_contracts, _ = get_dashboard_contracts_from_qdrant(1, 10000)
         
@@ -3386,18 +3944,19 @@ def get_qdrant_analytics():
         
         total_contracts = len(all_contracts)
         
-        # Category distribution using effective categories (with balanced assignment)
-        # This eliminates "Other" and "Unknown" by assigning them to valid categories
-        effective_categories = []
+        # Category distribution using NAICS descriptions from contracts
+        # The category field now contains NAICS descriptions (from Qdrant or lookup table)
+        # This provides better distribution than the old "Goods/Supplies" catch-all
+        naics_categories = []
         for c in all_contracts:
-            hash_value = c.get('hash_value') or c.get('bid_number')
-            effective_cat = get_effective_category(c, hash_value)
-            effective_categories.append(effective_cat)
+            cat = c.get('category', '')
+            # Skip empty, "Unknown", or generic categories
+            if cat and cat.strip() and cat.lower() not in ('unknown', 'other', 'nan', 'none'):
+                naics_categories.append(cat.strip())
         
-        category_counts = Counter(effective_categories)
+        category_counts = Counter(naics_categories)
         
         # Sort all categories by count (highest first)
-        # With balanced assignment, there should be no "Other" or "Unknown" categories
         sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
         
         # Take top 5 categories
@@ -7958,32 +8517,34 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     # Format 1 (snake_case): naics_description
     # Format 2 (uppercase): NAICS_TITLE
     # Format 3 (Title Case with spaces): NAICS Description
-    naics_description = payload.get("naics_description") or payload.get("NAICS Description") or payload.get("NAICS_TITLE") or ""
+    raw_naics_description = payload.get("naics_description") or payload.get("NAICS Description") or payload.get("NAICS_TITLE") or ""
     
     # Handle "nan" string values as empty (some Qdrant records have this)
-    if naics_description and str(naics_description).lower() == "nan":
-        naics_description = ""
+    if raw_naics_description and str(raw_naics_description).lower() == "nan":
+        raw_naics_description = ""
     
-    # Use NAICS description as category when available, otherwise fall back to effective category
-    if naics_description and naics_description.strip():
-        # Use NAICS description directly as the category
-        category_value = naics_description.strip()
-    else:
-        # Fall back to effective category (with NAICS mapping and AI prediction for Other/Unknown)
-        # Build a payload dict with all fields needed for category prediction
-        # Handle THREE different field name formats for category:
-        # Format 1 (snake_case): category
-        # Format 2 (old format): notice_type
-        # Format 3 (Title Case): Category
-        category_payload = {
-            'category': payload.get("notice_type") or payload.get("category") or payload.get("Category") or "Unknown",
-            'naics_code': naics_code_str,
-            'naics_description': naics_description,
-            'bid_name': bid_name_value,
-            'bid_description': bid_description_value,
-            'organization': organization_value,
-        }
-        category_value = get_effective_category(category_payload, hash_value)
+    # Use NAICS description as category - try multiple sources:
+    # 1. Qdrant NAICS description field (if valid and not just "NAICS XXXXXX")
+    # 2. NAICS code lookup table (for codes without descriptions in Qdrant)
+    # 3. Fall back to original category field
+    category_value = None
+    
+    # First try Qdrant NAICS description (skip if it's just "NAICS XXXXXX")
+    if raw_naics_description and raw_naics_description.strip() and not raw_naics_description.startswith('NAICS '):
+        category_value = raw_naics_description.strip()
+    
+    # If no valid description from Qdrant, try lookup from NAICS code
+    if not category_value and naics_codes:
+        # Use the first NAICS code to look up description
+        first_code = naics_codes[0] if naics_codes else None
+        if first_code:
+            lookup_desc = get_naics_description(first_code, raw_naics_description)
+            if lookup_desc:
+                category_value = lookup_desc
+    
+    # Fall back to original category field if no NAICS description available
+    if not category_value:
+        category_value = payload.get("notice_type") or payload.get("category") or payload.get("Category") or "Unknown"
         if isinstance(category_value, str):
             category_value = category_value.strip()
     
