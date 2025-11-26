@@ -654,17 +654,20 @@
                     }
                     // If parsing fails, keep the raw string (e.g., "2025-11-20")
                 }
-                // Determine status class based on contract status
-                // closed = past due date (#FF6961), open = no due date (#abc5fe), active = has future due date
+                // Determine status class and display text based on contract status
+                // closed = past due date (#FF6961), no due date = "Pending" (#abc5fe), active = has future due date (#CEE3BE)
                 let statusClass;
+                let displayStatus;
                 if (contract.status === 'closed') {
                     statusClass = 'status-closed';
+                    displayStatus = 'Closed';
                 } else if (hasNoDueDate) {
                     statusClass = 'status-no-due-date';
-                } else if (contract.status === 'active') {
-                    statusClass = 'status-active';
+                    displayStatus = 'Pending';  // Changed from "open" to "Pending" for no due date
                 } else {
-                    statusClass = 'status-open';
+                    // Has due date that hasn't expired - use #CEE3BE color
+                    statusClass = 'status-active';
+                    displayStatus = 'Active';
                 }
                 const naicsCode = contract.naics_code || '';
                 
@@ -674,10 +677,10 @@
                     <div class="contract-cell contract-naics">${naicsCode}</div>
                     <div class="contract-cell contract-due-date">${dueDate}</div>
                     <div class="contract-cell">
-                        <span class="contract-status ${statusClass}">${contract.status}</span>
+                        <span class="contract-status ${statusClass}">${displayStatus}</span>
                     </div>
                     <div class="contract-cell">
-                        <button class="select-contract-btn" onclick="selectContract('${contract.bid_number}', '${contract.bid_name}')">
+                        <button class="select-contract-btn" onclick="selectContract('${contract.hash_value}', '${contract.bid_name}')">
                             Start AI Assistant
                         </button>
                     </div>
@@ -692,9 +695,9 @@
             });
         }
         
-        function selectContract(bidNumber, bidName) {
-            // Navigate to AI assistant room with selected contract
-            window.location.href = `/ai-assistant?contract=${encodeURIComponent(bidNumber)}&name=${encodeURIComponent(bidName)}`;
+        function selectContract(hashValue, bidName) {
+            // Navigate to AI assistant room with selected contract using hash_value
+            window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(hashValue)}&name=${encodeURIComponent(bidName)}`;
         }
 
         // Dashboard search functionality
