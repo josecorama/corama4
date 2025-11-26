@@ -2313,10 +2313,28 @@ def get_qdrant_analytics():
         
         # Category distribution from Qdrant data - sorted by count in descending order
         category_counts = Counter(c.get('category', 'Unknown') for c in all_contracts)
-        # Get top 5 categories sorted by count (highest first) for display left-to-right
-        top_categories_with_counts = category_counts.most_common(5)
+        
+        # Separate "Other"/"Others"/"Unknown" from real categories
+        # These should appear at the end, not at the top
+        generic_labels = {"Other", "Others", "OTHER", "other", "others", "Unknown", "UNKNOWN", "unknown"}
+        non_generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat not in generic_labels]
+        generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat in generic_labels]
+        
+        # Sort real categories by count (highest first)
+        non_generic.sort(key=lambda x: x[1], reverse=True)
+        
+        # Take top 5 real categories, then append generic categories at the end if there's room
+        max_categories = 5
+        top_categories_with_counts = non_generic[:max_categories]
+        
+        # If we have fewer than 5 real categories, add generic ones at the end
+        if len(top_categories_with_counts) < max_categories and generic:
+            generic.sort(key=lambda x: x[1], reverse=True)
+            remaining_slots = max_categories - len(top_categories_with_counts)
+            top_categories_with_counts.extend(generic[:remaining_slots])
+        
         top_categories = [cat for cat, _ in top_categories_with_counts]
-        # Create ordered dict for category_distribution (descending order)
+        # Create ordered dict for category_distribution (descending order, with generic at end)
         category_distribution_ordered = {cat: count for cat, count in top_categories_with_counts}
         
         # Status distribution
@@ -2332,6 +2350,7 @@ def get_qdrant_analytics():
         high_score_count = sum(1 for c in all_contracts if any(cat.lower() in c.get('category', '').lower() for cat in high_score_categories))
         
         logging.info(f"Qdrant analytics: {total_contracts} total contracts, {len(category_counts)} categories")
+        logging.info(f"Top categories (with 'Other' moved to end): {top_categories}")
         
         return {
             'total_contracts': total_contracts,
