@@ -153,19 +153,23 @@ Respond with ONLY valid JSON array, no other text:
             print(f"⚠️ AI enrichment failed: {str(e)}, using fallback values")
             # Fallback: use existing fields
             for contract in contracts:
-                # Use NAICS_TITLE as fallback for Industry Sector
+                # Use NAICS_TITLE as fallback for Industry Sector (handle "nan" values)
                 naics_title = contract.get('NAICS_TITLE', '')
-                if naics_title:
+                if naics_title and str(naics_title).lower() not in ('nan', 'none', 'null', ''):
                     contract['Industry_Sector'] = naics_title
                 else:
-                    contract['Industry_Sector'] = contract.get('Category', 'Unknown').capitalize()
+                    category = contract.get('Category', 'Unknown')
+                    if category and str(category).lower() not in ('nan', 'none', 'null', ''):
+                        contract['Industry_Sector'] = category.capitalize()
+                    else:
+                        contract['Industry_Sector'] = 'Unknown'
                 
                 # Use source/agency hints for Geographic Area
                 agency = contract.get('Organization', '')
                 source = contract.get('source', '')
                 if 'chicago' in source.lower() or 'chicago' in agency.lower():
                     contract['Geographic_Area'] = 'Chicago, IL'
-                elif contract.get('State') and contract.get('State') != 'Unknown':
+                elif contract.get('State') and contract.get('State') not in ('Unknown', 'nan', 'none', 'null', ''):
                     contract['Geographic_Area'] = contract.get('State')
                 else:
                     contract['Geographic_Area'] = 'Unknown'
@@ -455,24 +459,48 @@ Respond with ONLY valid JSON array, no other text:
             # 6. 格式化结果 (使用新的 Qdrant 字段名称)
             formatted_results = []
             for res in final_results:
+                # Helper function to clean values - treat None, empty, "nan", "none", "null" as missing
+                def clean_value(value, fallback):
+                    if value is None:
+                        return fallback
+                    s = str(value).strip()
+                    if not s or s.lower() in ("nan", "none", "null", "n/a", ""):
+                        return fallback
+                    return s
+                
+                # Extract NAICS code from lowercase field (handles "238220.0" format)
+                raw_naics = res.payload.get('naics_code') or res.payload.get('NAICS_CODE', '')
+                naics_code = ''
+                if raw_naics and str(raw_naics).lower() != 'nan':
+                    # Extract integer part from float format like "238220.0"
+                    import re
+                    matches = re.findall(r'(\d{2,})(?:\.\d+)?', str(raw_naics))
+                    if matches:
+                        naics_code = matches[0]
+                
+                # Extract NAICS description from lowercase field
+                naics_description = res.payload.get('naics_description') or res.payload.get('NAICS_TITLE', '')
+                if naics_description and str(naics_description).lower() == 'nan':
+                    naics_description = ''
+                
                 # Use actual Qdrant field names (lowercase)
                 entry = {
                     'Company': user_company,
                     'contract_id': str(res.id),  # Qdrant point ID (replaces hash_value)
                     'hash_value': str(res.id),  # For backward compatibility
-                    'Bid_Number': res.payload.get('contract_number', 'N/A'),
-                    'Bid_Name': res.payload.get('title', 'Unknown Bid'),
-                    'Bid_Description': res.payload.get('summary', 'No description available'),
+                    'Bid_Number': clean_value(res.payload.get('contract_number') or res.payload.get('bid_number'), 'N/A'),
+                    'Bid_Name': clean_value(res.payload.get('title') or res.payload.get('bid_name'), 'Unknown Bid'),
+                    'Bid_Description': clean_value(res.payload.get('summary') or res.payload.get('bid_description'), 'No description available'),
                     'Status': 'Open',  # Qdrant doesn't have status field
-                    'Category': res.payload.get('category', 'Unknown'),
-                    'Due_Date': res.payload.get('due_date') or res.payload.get('posted_date', 'Not Specified'),
-                    'Detail_Link': res.payload.get('source_url', '#'),
-                    'State': res.payload.get('state', 'Unknown'),
-                    'Organization': res.payload.get('agency', 'Unknown'),
-                    'Budget': res.payload.get('budget', 'Not Specified'),
+                    'Category': clean_value(res.payload.get('category'), 'Unknown'),
+                    'Due_Date': clean_value(res.payload.get('due_date'), 'Not Specified'),
+                    'Detail_Link': clean_value(res.payload.get('source_url') or res.payload.get('detail_link'), '#'),
+                    'State': clean_value(res.payload.get('state'), 'Unknown'),
+                    'Organization': clean_value(res.payload.get('agency') or res.payload.get('organization'), 'Unknown'),
+                    'Budget': clean_value(res.payload.get('budget'), 'Not Specified'),
                     'Similarity_Score': f"{res.score * 100:.2f}%",
-                    'NAICS_CODE': res.payload.get('NAICS_CODE', ''),
-                    'NAICS_TITLE': res.payload.get('NAICS_TITLE', ''),
+                    'NAICS_CODE': naics_code,
+                    'NAICS_TITLE': naics_description,
                     'source': res.payload.get('source', ''),  # For AI enrichment
                 }
                 formatted_results.append(entry)

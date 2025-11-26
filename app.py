@@ -373,6 +373,32 @@ load_ai_naics_cache()
 # In-memory cache for AI-predicted categories (keyed by hash_value)
 AI_CATEGORY_CACHE = {}
 
+# Qdrant analytics cache with signature-based invalidation
+# This allows detecting changes in Qdrant without expensive rescans
+QDRANT_ANALYTICS_CACHE = None
+QDRANT_ANALYTICS_SIGNATURE = None
+QDRANT_CONTRACTS_CACHE = None  # Cache for all contracts
+QDRANT_CONTRACTS_SIGNATURE = None
+
+def get_qdrant_collection_signature():
+    """Get a cheap signature for the Qdrant collection to detect changes.
+    
+    Returns the points_count as a string, which changes when contracts are added/deleted.
+    This is much cheaper than scanning all contracts.
+    """
+    try:
+        from qdrant_client import QdrantClient
+        qdrant_client = QdrantClient(
+            url=os.getenv('Qdrant_EP'),
+            api_key=os.getenv('Qdrant_AK'),
+            timeout=5
+        )
+        collection_info = qdrant_client.get_collection("government_contracts")
+        return str(collection_info.points_count)
+    except Exception as e:
+        logging.warning(f"[Qdrant] Failed to get collection signature: {e}")
+        return None
+
 # NAICS-to-category mapping built from existing Qdrant data
 # This mapping was derived from contracts that have good categories (not Other/Unknown)
 NAICS_TO_CATEGORY = {
@@ -3313,11 +3339,29 @@ def get_qdrant_analytics():
     Uses balanced category assignment to ensure:
     1. No "Other" or "Unknown" categories appear
     2. No single category becomes too dominant (max 25% per category)
+    
+    Uses signature-based cache invalidation to detect Qdrant changes:
+    - Only recomputes analytics when the collection signature changes
+    - This allows detecting new/deleted contracts without expensive rescans
     """
+    global QDRANT_ANALYTICS_CACHE, QDRANT_ANALYTICS_SIGNATURE
+    
     from datetime import datetime
     from collections import Counter
     
     try:
+        # Check if we can use cached analytics
+        current_signature = get_qdrant_collection_signature()
+        
+        if (QDRANT_ANALYTICS_CACHE is not None and 
+            QDRANT_ANALYTICS_SIGNATURE is not None and
+            current_signature is not None and
+            QDRANT_ANALYTICS_SIGNATURE == current_signature):
+            logging.info(f"[Qdrant] Using cached analytics (signature: {current_signature})")
+            return QDRANT_ANALYTICS_CACHE
+        
+        logging.info(f"[Qdrant] Recomputing analytics (signature changed: {QDRANT_ANALYTICS_SIGNATURE} -> {current_signature})")
+        
         # Build balanced category mapping if not already done
         # This must happen before we compute effective categories
         build_balanced_category_mapping()
@@ -3379,7 +3423,8 @@ def get_qdrant_analytics():
         logging.info(f"Qdrant analytics: {total_contracts} total contracts, {len(category_counts)} categories")
         logging.info(f"Top categories (with 'Other' moved to end): {top_categories}")
         
-        return {
+        # Cache the results with the current signature
+        analytics_result = {
             'total_contracts': total_contracts,
             'win_probability': round(win_probability, 1),
             'open_contracts': open_contracts,
@@ -3391,6 +3436,13 @@ def get_qdrant_analytics():
             'top_agencies': {},
             'analysis_date': datetime.now().strftime('%Y-%m-%d')
         }
+        
+        # Update the cache
+        QDRANT_ANALYTICS_CACHE = analytics_result
+        QDRANT_ANALYTICS_SIGNATURE = current_signature
+        logging.info(f"[Qdrant] Cached analytics with signature: {current_signature}")
+        
+        return analytics_result
         
     except Exception as e:
         logging.error(f"Error computing Qdrant analytics: {e}")
@@ -3506,6 +3558,28 @@ def get_contracts_api():
             "total_pages": 1,
             "error": "Failed to load contracts from database"
         })
+
+@app.route('/api/qdrant_version', methods=['GET'])
+def qdrant_version_api():
+    """API endpoint to check if Qdrant data has changed.
+    
+    Returns the current collection signature (points_count).
+    Frontend can poll this endpoint periodically (e.g., every 60-120 seconds)
+    and refresh data when the version changes.
+    
+    This is a very lightweight endpoint that only checks the collection count,
+    not the actual contract data, so it has minimal performance impact.
+    """
+    try:
+        current_signature = get_qdrant_collection_signature()
+        return jsonify({
+            "success": True,
+            "version": current_signature,
+            "cached_version": QDRANT_ANALYTICS_SIGNATURE
+        })
+    except Exception as e:
+        logging.error(f"Error getting Qdrant version: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/api/generate_naics', methods=['POST'])
 def generate_naics_api():
