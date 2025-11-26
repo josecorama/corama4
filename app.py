@@ -1046,96 +1046,53 @@ def refine_construction_category(payload, hash_value=None):
 
 def get_effective_category(payload, hash_value=None):
     """
-    Get the effective category for a contract, using multiple fallback strategies:
-    1. Return original category if it's not 'Other' or 'Unknown'
-    2. Look up NAICS code in the NAICS_TO_CATEGORY mapping for non-goods categories
-    3. For goods categories, refine into specific subcategories ONLY if NAICS indicates goods sector
-    4. For construction categories, refine into specific subcategories ONLY if NAICS indicates construction sector
-    5. Use OpenAI to predict the broad category (with caching)
-    6. Return 'Unknown' as last resort
+    Get the effective category for a contract.
     
-    IMPORTANT: To prevent any single subcategory from becoming a catch-all:
-    - Only refine Goods/Supplies if NAICS codes are in goods sectors (31-33, 42, 44-45)
-    - Only refine Construction if NAICS codes are in construction sector (23)
-    - If NAICS doesn't match the category, keep the broad category instead of guessing
+    IMPORTANT: Per user request, we ONLY modify contracts that originally had 
+    'Other' or 'Unknown' categories. All other categories are returned unchanged.
+    
+    For generic categories (Other/Unknown), we use ONLY exact NAICS-to-category mapping.
+    NO AI prediction is used to prevent any single category from becoming dominant.
+    
+    Contracts with generic categories that don't have exact NAICS matches will keep
+    their original category, but these will be filtered out from the Top Contract
+    Categories display in get_qdrant_analytics().
     
     Args:
         payload: Contract data dict with category, naics_code, bid_name, etc.
-        hash_value: Unique identifier for caching AI predictions
+        hash_value: Unique identifier for caching AI predictions (unused now)
     
     Returns:
-        Effective category string (may be a specific goods or construction subcategory)
+        Effective category string (always a broad category, never a subcategory)
     """
     # Get the original category
     original_category = payload.get('category') or 'Unknown'
     
-    # Parse NAICS codes once for use throughout
+    # Define generic labels that need to be replaced
+    generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
+    
+    # CRITICAL: Only modify contracts with generic categories
+    # Per user request: "only change the values of the ones that originally had values of other or unknown"
+    if original_category not in generic_labels:
+        # Return the original category unchanged - do NOT refine or modify it
+        return original_category
+    
+    # From here on, we're only dealing with contracts that had Other/Unknown categories
+    # Parse NAICS codes
     naics_raw = payload.get('naics_code') or ''
     codes = parse_naics_codes(naics_raw)
     
-    # Check if NAICS codes indicate goods or construction sectors
-    is_goods_naics = has_goods_sector_naics(codes)
-    is_construction_naics = has_construction_sector_naics(codes)
-    
-    # If it's a good non-generic category, check if it needs refinement
-    generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
-    
-    if original_category not in generic_labels:
-        # If it's already Goods/Supplies, only refine if NAICS indicates goods sector
-        if original_category == 'Goods/Supplies':
-            if is_goods_naics:
-                return refine_goods_category(payload, hash_value)
-            else:
-                # No goods NAICS - keep as broad "Goods/Supplies" to avoid catch-all
-                return 'Goods/Supplies'
-        # If it's already Construction, only refine if NAICS indicates construction sector
-        if original_category == 'Construction':
-            if is_construction_naics:
-                return refine_construction_category(payload, hash_value)
-            else:
-                # No construction NAICS - keep as broad "Construction" to avoid catch-all
-                return 'Construction'
-        return original_category
-    
-    # Try NAICS-to-category mapping for broad category
+    # Try NAICS-to-category mapping ONLY (deterministic, no API calls)
+    # Only use exact NAICS code matches - no broad sector checks to prevent catch-all
     for code in codes:
         if code in NAICS_TO_CATEGORY:
             broad_category = NAICS_TO_CATEGORY[code]
-            # If it maps to Goods/Supplies, only refine if NAICS indicates goods sector
-            if broad_category == 'Goods/Supplies':
-                if is_goods_naics:
-                    return refine_goods_category(payload, hash_value)
-                else:
-                    return 'Goods/Supplies'
-            # If it maps to Construction, only refine if NAICS indicates construction sector
-            if broad_category == 'Construction':
-                if is_construction_naics:
-                    return refine_construction_category(payload, hash_value)
-                else:
-                    return 'Construction'
+            # Return broad category directly - no subcategory refinement
             return broad_category
     
-    # Try AI prediction for broad category (with caching)
-    predicted = predict_category_with_ai(payload, hash_value)
-    if predicted:
-        # If AI predicts Goods/Supplies, only refine if NAICS indicates goods sector
-        if predicted == 'Goods/Supplies':
-            if is_goods_naics:
-                return refine_goods_category(payload, hash_value)
-            else:
-                # AI predicted goods but no goods NAICS - keep broad category
-                return 'Goods/Supplies'
-        # If AI predicts Construction, only refine if NAICS indicates construction sector
-        if predicted == 'Construction':
-            if is_construction_naics:
-                return refine_construction_category(payload, hash_value)
-            else:
-                # AI predicted construction but no construction NAICS - keep broad category
-                return 'Construction'
-        return predicted
-    
-    # Last resort
-    return 'Unknown'
+    # NO AI prediction - it creates catch-all categories
+    # Return original category - it will be filtered out from Top Contract Categories display
+    return original_category
 
 def generate_naics_codes_with_ai(payload, hash_value=None):
     """
@@ -3113,8 +3070,9 @@ def get_qdrant_analytics():
         
         category_counts = Counter(effective_categories)
         
-        # Separate "Unknown" from real categories (most "Other" should now be reclassified)
-        generic_labels = {"Unknown", "UNKNOWN", "unknown", ""}
+        # Separate generic categories (Other/Unknown) from real categories
+        # These will be filtered out from the Top Contract Categories display
+        generic_labels = {"Other", "Others", "OTHER", "other", "others", "Unknown", "UNKNOWN", "unknown", ""}
         non_generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat not in generic_labels]
         generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat in generic_labels]
         
