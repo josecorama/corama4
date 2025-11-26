@@ -564,6 +564,56 @@ GOODS_PREFIX_TO_SUBCATEGORY = {
 # In-memory cache for AI-predicted goods subcategories (keyed by hash_value)
 AI_GOODS_SUBCATEGORY_CACHE = {}
 
+# More specific construction subcategories for detailed classification
+CONSTRUCTION_SUBCATEGORIES = [
+    "Building Construction",
+    "Highway & Bridge Construction",
+    "Utility & Infrastructure Construction",
+    "Plumbing & HVAC",
+    "Electrical & Communications Installation",
+    "Roofing & Exterior Work",
+    "Site Preparation & Excavation",
+    "Renovation & Remodeling",
+    "Other Construction",
+]
+
+# NAICS 4-digit prefix to construction subcategory mapping
+# Based on NAICS sector 23 (Construction)
+CONSTRUCTION_PREFIX_TO_SUBCATEGORY = {
+    # Building Construction (236 - Construction of Buildings)
+    "2361": "Building Construction",  # Residential Building Construction
+    "2362": "Building Construction",  # Nonresidential Building Construction
+    
+    # Highway & Bridge Construction (2373)
+    "2373": "Highway & Bridge Construction",  # Highway, Street, and Bridge Construction
+    
+    # Utility & Infrastructure Construction (237 - Heavy and Civil Engineering)
+    "2371": "Utility & Infrastructure Construction",  # Utility System Construction
+    "2372": "Utility & Infrastructure Construction",  # Land Subdivision
+    "2379": "Utility & Infrastructure Construction",  # Other Heavy and Civil Engineering
+    
+    # Plumbing & HVAC (2382)
+    "2382": "Plumbing & HVAC",  # Plumbing, Heating, and Air-Conditioning Contractors
+    
+    # Electrical & Communications Installation (2381)
+    "2381": "Electrical & Communications Installation",  # Foundation, Structure, and Building Exterior
+    
+    # Roofing & Exterior Work (2383)
+    "2383": "Roofing & Exterior Work",  # Building Finishing Contractors
+    
+    # Site Preparation & Excavation (2389)
+    "2389": "Site Preparation & Excavation",  # Other Specialty Trade Contractors
+    
+    # Renovation & Remodeling - mapped from specific codes
+    "2384": "Renovation & Remodeling",  # Masonry Contractors
+    "2385": "Renovation & Remodeling",  # Carpentry Contractors
+    "2386": "Renovation & Remodeling",  # Flooring Contractors
+    "2387": "Renovation & Remodeling",  # Painting and Wall Covering Contractors
+}
+
+# In-memory cache for AI-predicted construction subcategories (keyed by hash_value)
+AI_CONSTRUCTION_SUBCATEGORY_CACHE = {}
+
 def parse_naics_codes(naics_raw):
     """
     Parse NAICS codes from various formats (e.g., "238220.0", "332312, 423720", "nan").
@@ -820,32 +870,169 @@ def refine_goods_category(payload, hash_value=None):
     return refine_goods_category_with_ai(payload, hash_value)
 
 
+def refine_construction_category_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to predict a specific construction subcategory based on contract name, description, and NAICS codes.
+    This provides more detailed classification than just "Construction".
+    
+    Args:
+        payload: Contract data dict with bid_name, bid_description, naics_code, etc.
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Specific construction subcategory string or "Other Construction" on failure
+    """
+    global AI_CONSTRUCTION_SUBCATEGORY_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_CONSTRUCTION_SUBCATEGORY_CACHE:
+        return AI_CONSTRUCTION_SUBCATEGORY_CACHE[hash_value]
+    
+    try:
+        # Extract contract info for the prompt
+        title = payload.get("bid_name") or payload.get("title") or ""
+        description = payload.get("bid_description") or payload.get("summary") or ""
+        organization = payload.get("organization") or payload.get("agency") or ""
+        naics_code = payload.get("naics_code") or ""
+        naics_description = payload.get("naics_description") or ""
+        
+        # Check if we have enough data to classify
+        if not title and not description and not naics_code:
+            return "Other Construction"
+        
+        # Build the prompt for specific construction classification
+        system_prompt = """You are a classifier for government procurement contracts related to construction.
+
+Your job is to assign each contract to exactly one category from this fixed list:
+- Building Construction
+- Highway & Bridge Construction
+- Utility & Infrastructure Construction
+- Plumbing & HVAC
+- Electrical & Communications Installation
+- Roofing & Exterior Work
+- Site Preparation & Excavation
+- Renovation & Remodeling
+- Other Construction
+
+Use NAICS code(s) and NAICS description(s) as the primary signal when available.
+Also use the contract title, contract description, and organization to refine the choice.
+
+Always choose the category that best describes the main type of construction work being procured.
+Output only the category name, exactly as written in the list above. Do not output explanations or JSON."""
+
+        user_prompt = f"""Please choose the best construction category for this contract.
+
+Contract title: {title or "N/A"}
+Contract description: {description[:500] if description else "N/A"}
+Organization: {organization or "N/A"}
+
+NAICS code(s): {naics_code or "N/A"}
+NAICS description(s): {naics_description or "N/A"}
+
+Allowed categories:
+- Building Construction
+- Highway & Bridge Construction
+- Utility & Infrastructure Construction
+- Plumbing & HVAC
+- Electrical & Communications Installation
+- Roofing & Exterior Work
+- Site Preparation & Excavation
+- Renovation & Remodeling
+- Other Construction
+
+Respond with exactly one category from the list above."""
+
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=50,
+            temperature=0.1
+        )
+        
+        predicted = response.choices[0].message.content.strip()
+        
+        # Validate the prediction is in our allowed list
+        if predicted not in CONSTRUCTION_SUBCATEGORIES:
+            # Try to match partial
+            for cat in CONSTRUCTION_SUBCATEGORIES:
+                if cat.lower() in predicted.lower():
+                    predicted = cat
+                    break
+            else:
+                predicted = "Other Construction"
+        
+        # Cache the result
+        if hash_value:
+            AI_CONSTRUCTION_SUBCATEGORY_CACHE[hash_value] = predicted
+            app.logger.info(f"[AI_CONSTRUCTION_CATEGORY] Predicted '{predicted}' for '{title[:50]}...'")
+        
+        return predicted
+        
+    except Exception as e:
+        app.logger.error(f"[AI_CONSTRUCTION_CATEGORY] Error predicting construction subcategory: {e}")
+        return "Other Construction"
+
+
+def refine_construction_category(payload, hash_value=None):
+    """
+    Refine a "Construction" category into a more specific subcategory.
+    First tries NAICS prefix mapping, then falls back to AI prediction.
+    
+    Args:
+        payload: Contract data dict with naics_code, bid_name, bid_description, etc.
+        hash_value: Unique identifier for caching AI predictions
+    
+    Returns:
+        Specific construction subcategory string
+    """
+    # Try NAICS prefix mapping first (deterministic, no API calls)
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    for code in codes:
+        # Try 4-digit prefix mapping for construction
+        prefix_4 = code[:4]
+        if prefix_4 in CONSTRUCTION_PREFIX_TO_SUBCATEGORY:
+            return CONSTRUCTION_PREFIX_TO_SUBCATEGORY[prefix_4]
+    
+    # Fall back to AI prediction using contract name, description, and NAICS
+    return refine_construction_category_with_ai(payload, hash_value)
+
+
 def get_effective_category(payload, hash_value=None):
     """
     Get the effective category for a contract, using multiple fallback strategies:
     1. Return original category if it's not 'Other' or 'Unknown'
     2. Look up NAICS code in the NAICS_TO_CATEGORY mapping for non-goods categories
     3. For goods categories, refine into specific subcategories using NAICS prefix + AI
-    4. Use OpenAI to predict the broad category (with caching)
-    5. Return 'Unknown' as last resort
+    4. For construction categories, refine into specific subcategories using NAICS prefix + AI
+    5. Use OpenAI to predict the broad category (with caching)
+    6. Return 'Unknown' as last resort
     
     Args:
         payload: Contract data dict with category, naics_code, bid_name, etc.
         hash_value: Unique identifier for caching AI predictions
     
     Returns:
-        Effective category string (may be a specific goods subcategory)
+        Effective category string (may be a specific goods or construction subcategory)
     """
     # Get the original category
     original_category = payload.get('category') or 'Unknown'
     
-    # If it's a good non-generic category, check if it's Goods/Supplies that needs refinement
+    # If it's a good non-generic category, check if it needs refinement
     generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
     
     if original_category not in generic_labels:
         # If it's already Goods/Supplies, refine it
         if original_category == 'Goods/Supplies':
             return refine_goods_category(payload, hash_value)
+        # If it's already Construction, refine it
+        if original_category == 'Construction':
+            return refine_construction_category(payload, hash_value)
         return original_category
     
     # Try NAICS-to-category mapping for broad category
@@ -858,6 +1045,9 @@ def get_effective_category(payload, hash_value=None):
             # If it maps to Goods/Supplies, refine it
             if broad_category == 'Goods/Supplies':
                 return refine_goods_category(payload, hash_value)
+            # If it maps to Construction, refine it
+            if broad_category == 'Construction':
+                return refine_construction_category(payload, hash_value)
             return broad_category
     
     # Try AI prediction for broad category (with caching)
@@ -866,6 +1056,9 @@ def get_effective_category(payload, hash_value=None):
         # If AI predicts Goods/Supplies, refine it
         if predicted == 'Goods/Supplies':
             return refine_goods_category(payload, hash_value)
+        # If AI predicts Construction, refine it
+        if predicted == 'Construction':
+            return refine_construction_category(payload, hash_value)
         return predicted
     
     # Last resort
