@@ -8115,12 +8115,12 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
             
             client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
             
-            # Fetch first 1500 contracts from Qdrant using scroll
-            # This is a reasonable limit for dashboard browsing
+            # Fetch all contracts from Qdrant using scroll (up to 3000)
+            # Qdrant currently has ~2320 contracts
             logging.info("🔄 Fetching contracts from Qdrant for dashboard cache...")
             scroll_result = client.scroll(
                 collection_name="government_contracts",
-                limit=1500,
+                limit=3000,
                 with_vectors=False,
                 with_payload=True
             )
@@ -9539,19 +9539,34 @@ def analyze_contract():
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
         
         if not os.path.exists(pdf_path):
-            # Try to download from Firebase Storage
+            # Try to download from Firebase Storage using Pyrebase (same as upload)
             try:
-                from firebase_admin import storage
-                bucket = storage.bucket()
-                blob_name = f"contracts/{contract_hash}.pdf"
-                blob = bucket.blob(blob_name)
+                if not storage:
+                    logging.error("[analyze_contract] Firebase Storage not initialized")
+                    return jsonify({'success': False, 'error': 'Storage service not available.'}), 500
                 
-                if not blob.exists():
-                    logging.warning(f"[analyze_contract] PDF not found in Firebase: {blob_name}")
+                storage_path = f"contracts/{contract_hash}.pdf"
+                
+                # Get the download URL from Pyrebase
+                try:
+                    download_url = storage.child(storage_path).get_url(None)
+                    logging.info(f"[analyze_contract] Firebase download URL: {download_url}")
+                except Exception as url_error:
+                    logging.warning(f"[analyze_contract] PDF not found in Firebase: {storage_path} - {url_error}")
                     return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
                 
-                blob.download_to_filename(pdf_path)
+                # Download the file using requests
+                import requests
+                response = requests.get(download_url, timeout=30)
+                if response.status_code != 200:
+                    logging.warning(f"[analyze_contract] Failed to download PDF: HTTP {response.status_code}")
+                    return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
+                
+                # Save to local file
+                with open(pdf_path, 'wb') as f:
+                    f.write(response.content)
                 logging.info(f"[analyze_contract] Downloaded PDF from Firebase to {pdf_path}")
+                
             except Exception as e:
                 logging.error(f"[analyze_contract] Failed to download PDF from Firebase: {e}", exc_info=True)
                 return jsonify({'success': False, 'error': 'Failed to retrieve PDF from storage.'}), 500
