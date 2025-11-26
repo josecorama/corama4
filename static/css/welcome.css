@@ -245,11 +245,12 @@ body {
 /* Enhanced Category Percentages */
 .category-percentages {
     margin-bottom: 3rem;
-    padding: 2.5rem;
+    padding: 2.5rem 3rem;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     border-radius: 24px;
     box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.3);
+    overflow: visible;
 }
 
 .category-percentages h3 {
@@ -272,6 +273,7 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 2rem;
     margin-bottom: 0;
+    padding: 0 1rem;
 }
 
 .category-card {

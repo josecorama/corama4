@@ -294,12 +294,8 @@ def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type
             # Upload to Firebase Storage using Pyrebase
             storage.child(storage_path).put(tmp_path)
             
-            # Get the download URL - properly URL-encode the path for Firebase REST API
-            # Firebase expects the full object path to be URL-encoded in the /o/<object> segment
-            from urllib.parse import quote
-            bucket = "corama-c911e.appspot.com"
-            encoded_path = quote(storage_path, safe="")
-            download_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encoded_path}?alt=media"
+            # Get the download URL from Pyrebase (includes proper encoding and auth token)
+            download_url = storage.child(storage_path).get_url(None)
             
             logging.info(f"✅ Uploaded file to Firebase Storage: {storage_path}")
             logging.info(f"✅ Firebase Storage URL: {download_url}")
