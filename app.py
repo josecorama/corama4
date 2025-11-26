@@ -638,6 +638,44 @@ def parse_naics_codes(naics_raw):
     
     return codes
 
+
+def has_goods_sector_naics(naics_codes):
+    """
+    Check if any of the NAICS codes are in goods sectors (manufacturing, wholesale, retail).
+    Goods sectors: 31-33 (Manufacturing), 42 (Wholesale Trade), 44-45 (Retail Trade)
+    
+    Args:
+        naics_codes: List of 6-digit NAICS code strings
+    
+    Returns:
+        True if at least one code is in a goods sector
+    """
+    goods_sectors = {'31', '32', '33', '42', '44', '45'}
+    for code in naics_codes:
+        if code and len(code) >= 2:
+            sector = code[:2]
+            if sector in goods_sectors:
+                return True
+    return False
+
+
+def has_construction_sector_naics(naics_codes):
+    """
+    Check if any of the NAICS codes are in the construction sector (23).
+    
+    Args:
+        naics_codes: List of 6-digit NAICS code strings
+    
+    Returns:
+        True if at least one code is in the construction sector
+    """
+    for code in naics_codes:
+        if code and len(code) >= 2:
+            sector = code[:2]
+            if sector == '23':
+                return True
+    return False
+
 def predict_category_with_ai(payload, hash_value=None):
     """
     Use OpenAI to predict the category for a contract based on its data.
@@ -769,21 +807,23 @@ def refine_goods_category_with_ai(payload, hash_value=None):
         system_prompt = """You are a classifier for government procurement contracts that purchase physical goods.
 
 Your job is to assign each contract to exactly one category from this fixed list:
-- Industrial & Structural Materials
-- Vehicles & Transportation Equipment
-- Electronics & Communications Equipment
-- Machinery & Heavy Equipment
-- Electrical & Lighting Supplies
-- Medical & Laboratory Supplies
-- Chemical & Hazardous Materials
-- Food & Food Service
-- Office & Administrative Supplies
-- Other Goods/Supplies
+- Industrial & Structural Materials (ONLY for raw metals, steel, concrete, lumber, building materials)
+- Vehicles & Transportation Equipment (cars, trucks, aircraft, boats, vehicle parts)
+- Electronics & Communications Equipment (computers, radios, phones, networking equipment)
+- Machinery & Heavy Equipment (industrial machines, construction equipment, engines)
+- Electrical & Lighting Supplies (wiring, lighting fixtures, electrical components)
+- Medical & Laboratory Supplies (medical devices, lab equipment, healthcare supplies)
+- Chemical & Hazardous Materials (chemicals, fuels, hazardous substances)
+- Food & Food Service (food products, catering, food service equipment)
+- Office & Administrative Supplies (paper, furniture, office equipment)
+- Other Goods/Supplies (use this when the goods don't clearly fit any specific category above)
 
-Use NAICS code(s) and NAICS description(s) as the primary signal when available.
-Also use the contract title, contract description, and organization to refine the choice.
+IMPORTANT RULES:
+1. Use NAICS code(s) as the PRIMARY signal - match the NAICS sector to the category
+2. "Industrial & Structural Materials" is ONLY for raw materials like steel, metals, concrete, lumber
+3. If the contract is vague, ambiguous, or doesn't clearly match a specific category, choose "Other Goods/Supplies"
+4. Do NOT default to "Industrial & Structural Materials" when uncertain - use "Other Goods/Supplies" instead
 
-Always choose the category that best describes the main type of goods being procured.
 Output only the category name, exactly as written in the list above. Do not output explanations or JSON."""
 
         user_prompt = f"""Please choose the best goods category for this contract.
@@ -904,20 +944,21 @@ def refine_construction_category_with_ai(payload, hash_value=None):
         system_prompt = """You are a classifier for government procurement contracts related to construction.
 
 Your job is to assign each contract to exactly one category from this fixed list:
-- Building Construction
-- Highway & Bridge Construction
-- Utility & Infrastructure Construction
-- Plumbing & HVAC
-- Electrical & Communications Installation
-- Roofing & Exterior Work
-- Site Preparation & Excavation
-- Renovation & Remodeling
-- Other Construction
+- Building Construction (new buildings, commercial/residential structures)
+- Highway & Bridge Construction (roads, highways, bridges, overpasses)
+- Utility & Infrastructure Construction (water, sewer, power lines, pipelines)
+- Plumbing & HVAC (plumbing systems, heating, ventilation, air conditioning)
+- Electrical & Communications Installation (electrical wiring, telecom, networking)
+- Roofing & Exterior Work (roofing, siding, windows, exterior finishing)
+- Site Preparation & Excavation (grading, excavation, demolition, land clearing)
+- Renovation & Remodeling (interior renovations, remodeling, repairs)
+- Other Construction (use this when the work doesn't clearly fit any specific category above)
 
-Use NAICS code(s) and NAICS description(s) as the primary signal when available.
-Also use the contract title, contract description, and organization to refine the choice.
+IMPORTANT RULES:
+1. Use NAICS code(s) as the PRIMARY signal - match the NAICS code to the category
+2. If the contract is vague, ambiguous, or doesn't clearly match a specific category, choose "Other Construction"
+3. Do NOT guess when uncertain - use "Other Construction" instead
 
-Always choose the category that best describes the main type of construction work being procured.
 Output only the category name, exactly as written in the list above. Do not output explanations or JSON."""
 
         user_prompt = f"""Please choose the best construction category for this contract.
@@ -1008,10 +1049,15 @@ def get_effective_category(payload, hash_value=None):
     Get the effective category for a contract, using multiple fallback strategies:
     1. Return original category if it's not 'Other' or 'Unknown'
     2. Look up NAICS code in the NAICS_TO_CATEGORY mapping for non-goods categories
-    3. For goods categories, refine into specific subcategories using NAICS prefix + AI
-    4. For construction categories, refine into specific subcategories using NAICS prefix + AI
+    3. For goods categories, refine into specific subcategories ONLY if NAICS indicates goods sector
+    4. For construction categories, refine into specific subcategories ONLY if NAICS indicates construction sector
     5. Use OpenAI to predict the broad category (with caching)
     6. Return 'Unknown' as last resort
+    
+    IMPORTANT: To prevent any single subcategory from becoming a catch-all:
+    - Only refine Goods/Supplies if NAICS codes are in goods sectors (31-33, 42, 44-45)
+    - Only refine Construction if NAICS codes are in construction sector (23)
+    - If NAICS doesn't match the category, keep the broad category instead of guessing
     
     Args:
         payload: Contract data dict with category, naics_code, bid_name, etc.
@@ -1023,42 +1069,69 @@ def get_effective_category(payload, hash_value=None):
     # Get the original category
     original_category = payload.get('category') or 'Unknown'
     
+    # Parse NAICS codes once for use throughout
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    # Check if NAICS codes indicate goods or construction sectors
+    is_goods_naics = has_goods_sector_naics(codes)
+    is_construction_naics = has_construction_sector_naics(codes)
+    
     # If it's a good non-generic category, check if it needs refinement
     generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
     
     if original_category not in generic_labels:
-        # If it's already Goods/Supplies, refine it
+        # If it's already Goods/Supplies, only refine if NAICS indicates goods sector
         if original_category == 'Goods/Supplies':
-            return refine_goods_category(payload, hash_value)
-        # If it's already Construction, refine it
+            if is_goods_naics:
+                return refine_goods_category(payload, hash_value)
+            else:
+                # No goods NAICS - keep as broad "Goods/Supplies" to avoid catch-all
+                return 'Goods/Supplies'
+        # If it's already Construction, only refine if NAICS indicates construction sector
         if original_category == 'Construction':
-            return refine_construction_category(payload, hash_value)
+            if is_construction_naics:
+                return refine_construction_category(payload, hash_value)
+            else:
+                # No construction NAICS - keep as broad "Construction" to avoid catch-all
+                return 'Construction'
         return original_category
     
     # Try NAICS-to-category mapping for broad category
-    naics_raw = payload.get('naics_code') or ''
-    codes = parse_naics_codes(naics_raw)
-    
     for code in codes:
         if code in NAICS_TO_CATEGORY:
             broad_category = NAICS_TO_CATEGORY[code]
-            # If it maps to Goods/Supplies, refine it
+            # If it maps to Goods/Supplies, only refine if NAICS indicates goods sector
             if broad_category == 'Goods/Supplies':
-                return refine_goods_category(payload, hash_value)
-            # If it maps to Construction, refine it
+                if is_goods_naics:
+                    return refine_goods_category(payload, hash_value)
+                else:
+                    return 'Goods/Supplies'
+            # If it maps to Construction, only refine if NAICS indicates construction sector
             if broad_category == 'Construction':
-                return refine_construction_category(payload, hash_value)
+                if is_construction_naics:
+                    return refine_construction_category(payload, hash_value)
+                else:
+                    return 'Construction'
             return broad_category
     
     # Try AI prediction for broad category (with caching)
     predicted = predict_category_with_ai(payload, hash_value)
     if predicted:
-        # If AI predicts Goods/Supplies, refine it
+        # If AI predicts Goods/Supplies, only refine if NAICS indicates goods sector
         if predicted == 'Goods/Supplies':
-            return refine_goods_category(payload, hash_value)
-        # If AI predicts Construction, refine it
+            if is_goods_naics:
+                return refine_goods_category(payload, hash_value)
+            else:
+                # AI predicted goods but no goods NAICS - keep broad category
+                return 'Goods/Supplies'
+        # If AI predicts Construction, only refine if NAICS indicates construction sector
         if predicted == 'Construction':
-            return refine_construction_category(payload, hash_value)
+            if is_construction_naics:
+                return refine_construction_category(payload, hash_value)
+            else:
+                # AI predicted construction but no construction NAICS - keep broad category
+                return 'Construction'
         return predicted
     
     # Last resort
