@@ -231,7 +231,8 @@
             document.getElementById('errorMessage').style.display = 'block';
             document.getElementById('errorMessage').textContent = 'No PDF file specified. Please provide a file parameter.';
         } else {
-            pdfUrl = decodeURIComponent(pdfUrl);
+            // URLSearchParams.get() already decodes the value once, so we don't need to decode again
+            // This preserves %2F in the Firebase Storage URL path which is required
             
             let pdfDoc = null;
             let currentPage = 1;

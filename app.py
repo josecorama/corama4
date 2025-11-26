@@ -3204,9 +3204,11 @@ def proposal_start():
     except Exception as e:
         logging.error(f"Error fetching credits for proposal start: {e}")
     
-    # Get contract details from CSV
+    # Get contract name from query param first (passed from AI assistant)
+    contract_name = request.args.get('name')
+    
+    # Get contract details from CSV (fallback for contract_name if not in query param)
     contract_data = None
-    contract_name = None
     try:
         df = pd.read_csv('Scraping_demo_results.csv')
         # Try to find by hash_value column first (if it exists), otherwise try bid_number
@@ -3217,7 +3219,9 @@ def proposal_start():
         
         if not contract_row.empty:
             contract_data = contract_row.iloc[0].to_dict()
-            contract_name = contract_data.get('bid_name') or contract_data.get('Bid Name') or contract_data.get('Bid_Name')
+            # Only use CSV name if not already provided via query param
+            if not contract_name:
+                contract_name = contract_data.get('bid_name') or contract_data.get('Bid Name') or contract_data.get('Bid_Name')
     except Exception as e:
         logging.error(f"Error loading contract data: {e}")
     

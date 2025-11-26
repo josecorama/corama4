@@ -344,7 +344,7 @@
     <script>
         const contractHash = '{{ contract_hash }}';
         const contractData = {{ contract_data|tojson if contract_data else 'null' }};
-        const contractName = '{{ contract_name|default("", true)|e }}' || null;
+        const contractName = '{{ contract_name|default("")|e }}' || null;
         const userId = '{{ user_id }}';
         let draftId = '{{ draft_id }}' || null;
         

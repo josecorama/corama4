@@ -1418,9 +1418,14 @@
         function startProposalWorkflow() {
             const contractId = '{{ contract_id }}';
             const contractHash = contractId; // Using contract_id as hash for now
+            const contractName = '{{ contract_name|default("")|e }}';
             
             // Navigate to Screen 1: Contract Analysis & PDF Annotations
-            window.location.href = `/proposal/start?hash=${contractHash}`;
+            let url = `/proposal/start?hash=${encodeURIComponent(contractHash)}`;
+            if (contractName) {
+                url += `&name=${encodeURIComponent(contractName)}`;
+            }
+            window.location.href = url;
         }
     </script>
     
