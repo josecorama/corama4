@@ -496,6 +496,74 @@ ALLOWED_CATEGORIES = [
     'Special Notice',
 ]
 
+# More specific goods subcategories for detailed classification
+GOODS_SUBCATEGORIES = [
+    "Industrial & Structural Materials",
+    "Vehicles & Transportation Equipment",
+    "Electronics & Communications Equipment",
+    "Machinery & Heavy Equipment",
+    "Electrical & Lighting Supplies",
+    "Medical & Laboratory Supplies",
+    "Chemical & Hazardous Materials",
+    "Food & Food Service",
+    "Office & Administrative Supplies",
+    "Other Goods/Supplies",
+]
+
+# NAICS 3-digit prefix to goods subcategory mapping
+# Based on actual distribution: 332(158), 336(138), 334(115), 333(89), 335(56), 339(34), 311(15), 325(14)
+GOODS_PREFIX_TO_SUBCATEGORY = {
+    # Industrial & Structural Materials (NAICS 331, 332 - metals, fabricated products)
+    "331": "Industrial & Structural Materials",
+    "332": "Industrial & Structural Materials",
+    "327": "Industrial & Structural Materials",  # Nonmetallic mineral products
+    
+    # Vehicles & Transportation Equipment (NAICS 336 - motor vehicles, aerospace)
+    "336": "Vehicles & Transportation Equipment",
+    
+    # Electronics & Communications Equipment (NAICS 334 - computers, radios, instrumentation)
+    "334": "Electronics & Communications Equipment",
+    
+    # Machinery & Heavy Equipment (NAICS 333 - industrial machinery, pumps)
+    "333": "Machinery & Heavy Equipment",
+    
+    # Electrical & Lighting Supplies (NAICS 335 - electrical equipment, lighting)
+    "335": "Electrical & Lighting Supplies",
+    
+    # Medical & Laboratory Supplies (NAICS 339 - medical equipment, misc manufacturing)
+    "339": "Medical & Laboratory Supplies",
+    
+    # Chemical & Hazardous Materials (NAICS 325 - chemicals, explosives, reagents)
+    "325": "Chemical & Hazardous Materials",
+    "326": "Chemical & Hazardous Materials",  # Plastics and rubber products
+    
+    # Food & Food Service (NAICS 311 - food manufacturing)
+    "311": "Food & Food Service",
+    "312": "Food & Food Service",  # Beverage and tobacco
+    
+    # Office & Administrative Supplies (NAICS 322, 323 - paper, printing)
+    "322": "Office & Administrative Supplies",
+    "323": "Office & Administrative Supplies",
+    "337": "Office & Administrative Supplies",  # Furniture
+    
+    # Wholesale trade mappings (42x)
+    "423": "Industrial & Structural Materials",  # Durable goods wholesalers
+    "424": "Chemical & Hazardous Materials",  # Nondurable goods wholesalers
+    
+    # Textiles and apparel
+    "313": "Other Goods/Supplies",
+    "314": "Other Goods/Supplies",
+    "315": "Other Goods/Supplies",
+    
+    # Retail trade
+    "444": "Industrial & Structural Materials",  # Building materials
+    "451": "Office & Administrative Supplies",  # Sporting goods, hobby, book stores
+    "457": "Other Goods/Supplies",
+}
+
+# In-memory cache for AI-predicted goods subcategories (keyed by hash_value)
+AI_GOODS_SUBCATEGORY_CACHE = {}
+
 def parse_naics_codes(naics_raw):
     """
     Parse NAICS codes from various formats (e.g., "238220.0", "332312, 423720", "nan").
@@ -617,40 +685,187 @@ Respond with exactly one category from the list above."""
         app.logger.error(f"[AI_CATEGORY] Error predicting category: {e}")
         return None
 
+def refine_goods_category_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to predict a specific goods subcategory based on contract name, description, and NAICS codes.
+    This provides more detailed classification than just "Goods/Supplies".
+    
+    Args:
+        payload: Contract data dict with bid_name, bid_description, naics_code, etc.
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Specific goods subcategory string or "Other Goods/Supplies" on failure
+    """
+    global AI_GOODS_SUBCATEGORY_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_GOODS_SUBCATEGORY_CACHE:
+        return AI_GOODS_SUBCATEGORY_CACHE[hash_value]
+    
+    try:
+        # Extract contract info for the prompt
+        title = payload.get("bid_name") or payload.get("title") or ""
+        description = payload.get("bid_description") or payload.get("summary") or ""
+        organization = payload.get("organization") or payload.get("agency") or ""
+        naics_code = payload.get("naics_code") or ""
+        naics_description = payload.get("naics_description") or ""
+        
+        # Check if we have enough data to classify
+        if not title and not description and not naics_code:
+            return "Other Goods/Supplies"
+        
+        # Build the prompt for specific goods classification
+        system_prompt = """You are a classifier for government procurement contracts that purchase physical goods.
+
+Your job is to assign each contract to exactly one category from this fixed list:
+- Industrial & Structural Materials
+- Vehicles & Transportation Equipment
+- Electronics & Communications Equipment
+- Machinery & Heavy Equipment
+- Electrical & Lighting Supplies
+- Medical & Laboratory Supplies
+- Chemical & Hazardous Materials
+- Food & Food Service
+- Office & Administrative Supplies
+- Other Goods/Supplies
+
+Use NAICS code(s) and NAICS description(s) as the primary signal when available.
+Also use the contract title, contract description, and organization to refine the choice.
+
+Always choose the category that best describes the main type of goods being procured.
+Output only the category name, exactly as written in the list above. Do not output explanations or JSON."""
+
+        user_prompt = f"""Please choose the best goods category for this contract.
+
+Contract title: {title or "N/A"}
+Contract description: {description[:500] if description else "N/A"}
+Organization: {organization or "N/A"}
+
+NAICS code(s): {naics_code or "N/A"}
+NAICS description(s): {naics_description or "N/A"}
+
+Allowed categories:
+- Industrial & Structural Materials
+- Vehicles & Transportation Equipment
+- Electronics & Communications Equipment
+- Machinery & Heavy Equipment
+- Electrical & Lighting Supplies
+- Medical & Laboratory Supplies
+- Chemical & Hazardous Materials
+- Food & Food Service
+- Office & Administrative Supplies
+- Other Goods/Supplies
+
+Respond with exactly one category from the list above."""
+
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=50,
+            temperature=0.1
+        )
+        
+        predicted = response.choices[0].message.content.strip()
+        
+        # Validate the prediction is in our allowed list
+        if predicted not in GOODS_SUBCATEGORIES:
+            # Try to match partial
+            for cat in GOODS_SUBCATEGORIES:
+                if cat.lower() in predicted.lower():
+                    predicted = cat
+                    break
+            else:
+                predicted = "Other Goods/Supplies"
+        
+        # Cache the result
+        if hash_value:
+            AI_GOODS_SUBCATEGORY_CACHE[hash_value] = predicted
+            app.logger.info(f"[AI_GOODS_CATEGORY] Predicted '{predicted}' for '{title[:50]}...'")
+        
+        return predicted
+        
+    except Exception as e:
+        app.logger.error(f"[AI_GOODS_CATEGORY] Error predicting goods subcategory: {e}")
+        return "Other Goods/Supplies"
+
+
+def refine_goods_category(payload, hash_value=None):
+    """
+    Refine a "Goods/Supplies" category into a more specific subcategory.
+    First tries NAICS prefix mapping, then falls back to AI prediction.
+    
+    Args:
+        payload: Contract data dict with naics_code, bid_name, bid_description, etc.
+        hash_value: Unique identifier for caching AI predictions
+    
+    Returns:
+        Specific goods subcategory string
+    """
+    # Try NAICS prefix mapping first (deterministic, no API calls)
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    for code in codes:
+        # Try 3-digit prefix mapping
+        prefix_3 = code[:3]
+        if prefix_3 in GOODS_PREFIX_TO_SUBCATEGORY:
+            return GOODS_PREFIX_TO_SUBCATEGORY[prefix_3]
+    
+    # Fall back to AI prediction using contract name, description, and NAICS
+    return refine_goods_category_with_ai(payload, hash_value)
+
+
 def get_effective_category(payload, hash_value=None):
     """
     Get the effective category for a contract, using multiple fallback strategies:
     1. Return original category if it's not 'Other' or 'Unknown'
-    2. Look up NAICS code in the NAICS_TO_CATEGORY mapping
-    3. Use OpenAI to predict the category (with caching)
-    4. Return 'Unknown' as last resort
+    2. Look up NAICS code in the NAICS_TO_CATEGORY mapping for non-goods categories
+    3. For goods categories, refine into specific subcategories using NAICS prefix + AI
+    4. Use OpenAI to predict the broad category (with caching)
+    5. Return 'Unknown' as last resort
     
     Args:
         payload: Contract data dict with category, naics_code, bid_name, etc.
         hash_value: Unique identifier for caching AI predictions
     
     Returns:
-        Effective category string
+        Effective category string (may be a specific goods subcategory)
     """
     # Get the original category
     original_category = payload.get('category') or 'Unknown'
     
-    # If it's a good category, return it
+    # If it's a good non-generic category, check if it's Goods/Supplies that needs refinement
     generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
+    
     if original_category not in generic_labels:
+        # If it's already Goods/Supplies, refine it
+        if original_category == 'Goods/Supplies':
+            return refine_goods_category(payload, hash_value)
         return original_category
     
-    # Try NAICS-to-category mapping
+    # Try NAICS-to-category mapping for broad category
     naics_raw = payload.get('naics_code') or ''
     codes = parse_naics_codes(naics_raw)
     
     for code in codes:
         if code in NAICS_TO_CATEGORY:
-            return NAICS_TO_CATEGORY[code]
+            broad_category = NAICS_TO_CATEGORY[code]
+            # If it maps to Goods/Supplies, refine it
+            if broad_category == 'Goods/Supplies':
+                return refine_goods_category(payload, hash_value)
+            return broad_category
     
-    # Try AI prediction (with caching)
+    # Try AI prediction for broad category (with caching)
     predicted = predict_category_with_ai(payload, hash_value)
     if predicted:
+        # If AI predicts Goods/Supplies, refine it
+        if predicted == 'Goods/Supplies':
+            return refine_goods_category(payload, hash_value)
         return predicted
     
     # Last resort
