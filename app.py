@@ -1273,6 +1273,42 @@ NAICS_CODE_TO_DESCRIPTION = {
     '54133': 'Engineering Services',  # 5-digit
     '22112': 'Electric Power Distribution',  # 5-digit
     '457': 'Gasoline Stations and Fuel Dealers',  # 3-digit
+    
+    # Additional 6-digit NAICS codes found in Unclassified contracts
+    '115310': 'Support Activities for Forestry',
+    '212312': 'Crushed and Broken Limestone Mining and Quarrying',
+    '221210': 'Natural Gas Distribution',
+    '311119': 'Other Animal Food Manufacturing',
+    '311612': 'Meat Processed from Carcasses',
+    '311710': 'Seafood Product Preparation and Packaging',
+    '311812': 'Commercial Bakeries',
+    '312111': 'Soft Drink Manufacturing',
+    '313210': 'Broadwoven Fabric Mills',
+    '314910': 'Textile Bag and Canvas Mills',
+    '325180': 'Other Basic Inorganic Chemical Manufacturing',
+    '331221': 'Rolled Steel Shape Manufacturing',
+    '331420': 'Copper Rolling, Drawing, Extruding, and Alloying',
+    '332111': 'Iron and Steel Forging',
+    '332112': 'Nonferrous Forging',
+    '332215': 'Metal Kitchen Cookware, Utensil, Cutlery, and Flatware Manufacturing',
+    '332993': 'Ammunition (except Small Arms) Manufacturing',
+    '333923': 'Overhead Traveling Crane, Hoist, and Monorail System Manufacturing',
+    '336211': 'Motor Vehicle Body Manufacturing',
+    '336414': 'Guided Missile and Space Vehicle Manufacturing',
+    '337127': 'Institutional Furniture Manufacturing',
+    '513130': 'Book Publishers',
+    '517121': 'Telecommunications Resellers',
+    '532284': 'Recreational Goods Rental',
+    '532411': 'Commercial Air, Rail, and Water Transportation Equipment Rental and Leasing',
+    '532490': 'Other Commercial and Industrial Machinery and Equipment Rental and Leasing',
+    '541713': 'Research and Development in Nanotechnology',
+    '562111': 'Solid Waste Collection',
+    '562910': 'Remediation Services',
+    '624221': 'Temporary Shelters',
+    '812210': 'Funeral Homes and Funeral Services',
+    '812332': 'Industrial Launderers',
+    '813110': 'Religious Organizations',
+    '813920': 'Professional Organizations',
 }
 
 def get_naics_description(naics_code, qdrant_description=None):
