@@ -345,6 +345,317 @@ client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
 # In-memory cache for AI-generated NAICS codes (keyed by hash_value)
 AI_NAICS_CACHE = {}
 
+# In-memory cache for AI-predicted categories (keyed by hash_value)
+AI_CATEGORY_CACHE = {}
+
+# NAICS-to-category mapping built from existing Qdrant data
+# This mapping was derived from contracts that have good categories (not Other/Unknown)
+NAICS_TO_CATEGORY = {
+    '238220': 'Construction',
+    '325992': 'Goods/Supplies',
+    '424690': 'Goods/Supplies',
+    '423610': 'Goods/Supplies',
+    '518210': 'IT Services',
+    '811310': 'Maintenance/Operations',
+    '561621': 'IT Services',
+    '237310': 'Construction',
+    '112519': 'Goods/Supplies',
+    '451211': 'Goods/Supplies',
+    '511210': 'IT Services',
+    '811219': 'Maintenance/Operations',
+    '237990': 'Construction',
+    '541110': 'Professional Services',
+    '238160': 'Construction',
+    '541613': 'Professional Services',
+    '562998': 'Maintenance/Operations',
+    '238290': 'Maintenance/Operations',
+    '541360': 'Professional Services',
+    '238210': 'Maintenance/Operations',
+    '332312': 'Goods/Supplies',
+    '444190': 'Goods/Supplies',
+    '331511': 'Goods/Supplies',
+    '212399': 'Construction',
+    '531210': 'Professional Services',
+    '236220': 'Construction',
+    '238910': 'Construction',
+    '541512': 'IT Services',
+    '541519': 'IT Services',
+    '541611': 'Professional Services',
+    '541618': 'Professional Services',
+    '541690': 'Professional Services',
+    '541990': 'Professional Services',
+    '561210': 'Professional Services',
+    '561320': 'Professional Services',
+    '561720': 'Maintenance/Operations',
+    '561730': 'Maintenance/Operations',
+    '561790': 'Maintenance/Operations',
+    '562111': 'Maintenance/Operations',
+    '562119': 'Maintenance/Operations',
+    '611430': 'Professional Services',
+    '621999': 'Professional Services',
+    '811111': 'Maintenance/Operations',
+    '811118': 'Maintenance/Operations',
+    '811121': 'Maintenance/Operations',
+    '811122': 'Maintenance/Operations',
+    '811191': 'Maintenance/Operations',
+    '811192': 'Maintenance/Operations',
+    '811198': 'Maintenance/Operations',
+    '811212': 'Maintenance/Operations',
+    '811213': 'Maintenance/Operations',
+    '236210': 'Construction',
+    '237110': 'Construction',
+    '237120': 'Construction',
+    '237130': 'Construction',
+    '238110': 'Construction',
+    '238120': 'Construction',
+    '238130': 'Construction',
+    '238140': 'Construction',
+    '238150': 'Construction',
+    '238170': 'Construction',
+    '238190': 'Construction',
+    '238310': 'Construction',
+    '238320': 'Construction',
+    '238330': 'Construction',
+    '238340': 'Construction',
+    '238350': 'Construction',
+    '238390': 'Construction',
+    '238990': 'Construction',
+    '423310': 'Goods/Supplies',
+    '423320': 'Goods/Supplies',
+    '423390': 'Goods/Supplies',
+    '423410': 'Goods/Supplies',
+    '423420': 'Goods/Supplies',
+    '423430': 'Goods/Supplies',
+    '423440': 'Goods/Supplies',
+    '423450': 'Goods/Supplies',
+    '423460': 'Goods/Supplies',
+    '423490': 'Goods/Supplies',
+    '423510': 'Goods/Supplies',
+    '423520': 'Goods/Supplies',
+    '423620': 'Goods/Supplies',
+    '423690': 'Goods/Supplies',
+    '423710': 'Goods/Supplies',
+    '423720': 'Goods/Supplies',
+    '423730': 'Goods/Supplies',
+    '423740': 'Goods/Supplies',
+    '423810': 'Goods/Supplies',
+    '423820': 'Goods/Supplies',
+    '423830': 'Goods/Supplies',
+    '423840': 'Goods/Supplies',
+    '423850': 'Goods/Supplies',
+    '423860': 'Goods/Supplies',
+    '423910': 'Goods/Supplies',
+    '423920': 'Goods/Supplies',
+    '423930': 'Goods/Supplies',
+    '423940': 'Goods/Supplies',
+    '423990': 'Goods/Supplies',
+    '424110': 'Goods/Supplies',
+    '424120': 'Goods/Supplies',
+    '424130': 'Goods/Supplies',
+    '424210': 'Goods/Supplies',
+    '424310': 'Goods/Supplies',
+    '424320': 'Goods/Supplies',
+    '424330': 'Goods/Supplies',
+    '424340': 'Goods/Supplies',
+    '424410': 'Goods/Supplies',
+    '424420': 'Goods/Supplies',
+    '424430': 'Goods/Supplies',
+    '424440': 'Goods/Supplies',
+    '424450': 'Goods/Supplies',
+    '424460': 'Goods/Supplies',
+    '424470': 'Goods/Supplies',
+    '424480': 'Goods/Supplies',
+    '424490': 'Goods/Supplies',
+    '424510': 'Goods/Supplies',
+    '424520': 'Goods/Supplies',
+    '424590': 'Goods/Supplies',
+    '424610': 'Goods/Supplies',
+    '424710': 'Goods/Supplies',
+    '424720': 'Goods/Supplies',
+    '424810': 'Goods/Supplies',
+    '424820': 'Goods/Supplies',
+    '424910': 'Goods/Supplies',
+    '424920': 'Goods/Supplies',
+    '424930': 'Goods/Supplies',
+    '424940': 'Goods/Supplies',
+    '424950': 'Goods/Supplies',
+    '424990': 'Goods/Supplies',
+}
+
+# Allowed categories for classification
+ALLOWED_CATEGORIES = [
+    'Goods/Supplies',
+    'Construction',
+    'Maintenance/Operations',
+    'IT Services',
+    'Professional Services',
+    'Award Notice',
+    'Combined Synopsis/Solicitation',
+    'Presolicitation',
+    'Sources Sought',
+    'Special Notice',
+]
+
+def parse_naics_codes(naics_raw):
+    """
+    Parse NAICS codes from various formats (e.g., "238220.0", "332312, 423720", "nan").
+    Returns a list of clean 6-digit NAICS code strings.
+    """
+    if not naics_raw or str(naics_raw).lower() in ('nan', 'none', ''):
+        return []
+    
+    naics_str = str(naics_raw).strip()
+    codes = []
+    
+    for part in naics_str.replace(';', ',').split(','):
+        part = part.strip()
+        if not part:
+            continue
+        # Remove decimal part (e.g., "238220.0" -> "238220")
+        if '.' in part:
+            part = part.split('.')[0]
+        # Only keep valid 6-digit codes
+        if part.isdigit() and len(part) == 6:
+            codes.append(part)
+    
+    return codes
+
+def predict_category_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to predict the category for a contract based on its data.
+    Uses OPENAI_MARIO key and caches results to avoid repeated API calls.
+    
+    Args:
+        payload: Contract data dict with bid_name, bid_description, naics_code, etc.
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Predicted category string or None on failure
+    """
+    global AI_CATEGORY_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_CATEGORY_CACHE:
+        return AI_CATEGORY_CACHE[hash_value]
+    
+    try:
+        # Extract contract info for the prompt
+        title = payload.get("bid_name") or payload.get("title") or ""
+        description = payload.get("bid_description") or payload.get("summary") or ""
+        organization = payload.get("organization") or payload.get("agency") or ""
+        naics_code = payload.get("naics_code") or ""
+        naics_description = payload.get("naics_description") or ""
+        
+        # Check if we have enough data to classify
+        if not title and not description and not naics_code:
+            return None
+        
+        # Build the prompt
+        system_prompt = """You are a classifier for government procurement contracts.
+Your job is to assign each contract to exactly one category from this fixed list:
+- Goods/Supplies
+- Construction
+- Maintenance/Operations
+- IT Services
+- Professional Services
+
+Use NAICS code and NAICS description as the primary signal when available.
+Use the contract title, description, and organization as secondary signals.
+
+Output only the category name, exactly as written in the list. Do not output explanations or JSON."""
+
+        user_prompt = f"""Please choose the best category for this contract.
+
+Contract title: {title or "N/A"}
+Contract description: {description[:500] if description else "N/A"}
+Organization: {organization or "N/A"}
+
+NAICS code(s): {naics_code or "N/A"}
+NAICS description(s): {naics_description or "N/A"}
+
+Allowed categories:
+- Goods/Supplies
+- Construction
+- Maintenance/Operations
+- IT Services
+- Professional Services
+
+Respond with exactly one category from the list above."""
+
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=50,
+            temperature=0.1
+        )
+        
+        predicted = response.choices[0].message.content.strip()
+        
+        # Validate the prediction is in our allowed list
+        main_categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+        if predicted not in main_categories:
+            # Try to match partial
+            for cat in main_categories:
+                if cat.lower() in predicted.lower():
+                    predicted = cat
+                    break
+            else:
+                predicted = None
+        
+        # Cache the result
+        if hash_value and predicted:
+            AI_CATEGORY_CACHE[hash_value] = predicted
+            app.logger.info(f"[AI_CATEGORY] Predicted '{predicted}' for '{title[:50]}...'")
+        
+        return predicted
+        
+    except Exception as e:
+        app.logger.error(f"[AI_CATEGORY] Error predicting category: {e}")
+        return None
+
+def get_effective_category(payload, hash_value=None):
+    """
+    Get the effective category for a contract, using multiple fallback strategies:
+    1. Return original category if it's not 'Other' or 'Unknown'
+    2. Look up NAICS code in the NAICS_TO_CATEGORY mapping
+    3. Use OpenAI to predict the category (with caching)
+    4. Return 'Unknown' as last resort
+    
+    Args:
+        payload: Contract data dict with category, naics_code, bid_name, etc.
+        hash_value: Unique identifier for caching AI predictions
+    
+    Returns:
+        Effective category string
+    """
+    # Get the original category
+    original_category = payload.get('category') or 'Unknown'
+    
+    # If it's a good category, return it
+    generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
+    if original_category not in generic_labels:
+        return original_category
+    
+    # Try NAICS-to-category mapping
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    for code in codes:
+        if code in NAICS_TO_CATEGORY:
+            return NAICS_TO_CATEGORY[code]
+    
+    # Try AI prediction (with caching)
+    predicted = predict_category_with_ai(payload, hash_value)
+    if predicted:
+        return predicted
+    
+    # Last resort
+    return 'Unknown'
+
 def generate_naics_codes_with_ai(payload, hash_value=None):
     """
     Use OpenAI to generate NAICS codes for contracts that don't have them.
@@ -2311,12 +2622,18 @@ def get_qdrant_analytics():
         
         total_contracts = len(all_contracts)
         
-        # Category distribution from Qdrant data - sorted by count in descending order
-        category_counts = Counter(c.get('category', 'Unknown') for c in all_contracts)
+        # Category distribution using effective categories (with NAICS mapping and AI prediction)
+        # This reduces "Other" and "Unknown" by using NAICS codes and AI to predict better categories
+        effective_categories = []
+        for c in all_contracts:
+            hash_value = c.get('hash_value') or c.get('bid_number')
+            effective_cat = get_effective_category(c, hash_value)
+            effective_categories.append(effective_cat)
         
-        # Separate "Other"/"Others"/"Unknown" from real categories
-        # These should appear at the end, not at the top
-        generic_labels = {"Other", "Others", "OTHER", "other", "others", "Unknown", "UNKNOWN", "unknown"}
+        category_counts = Counter(effective_categories)
+        
+        # Separate "Unknown" from real categories (most "Other" should now be reclassified)
+        generic_labels = {"Unknown", "UNKNOWN", "unknown", ""}
         non_generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat not in generic_labels]
         generic = [(cat, cnt) for cat, cnt in category_counts.items() if cat in generic_labels]
         
@@ -6762,7 +7079,18 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     bid_name_value = payload.get("title") or payload.get("bid_name") or "Unknown Bid"
     bid_description_value = payload.get("summary") or payload.get("bid_description") or "No description available"
     organization_value = payload.get("agency") or payload.get("organization") or "Unknown"
-    category_value = (payload.get("notice_type") or payload.get("NAICS_TITLE") or payload.get("category") or "Unknown")
+    
+    # Use effective category (with NAICS mapping and AI prediction for Other/Unknown)
+    # Build a payload dict with all fields needed for category prediction
+    category_payload = {
+        'category': payload.get("notice_type") or payload.get("NAICS_TITLE") or payload.get("category") or "Unknown",
+        'naics_code': naics_code_str,
+        'naics_description': payload.get("NAICS_TITLE") or "",
+        'bid_name': bid_name_value,
+        'bid_description': bid_description_value,
+        'organization': organization_value,
+    }
+    category_value = get_effective_category(category_payload, hash_value)
     if isinstance(category_value, str):
         category_value = category_value.strip()
     
