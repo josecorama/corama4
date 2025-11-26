@@ -3774,17 +3774,10 @@ def dashboard_search():
         end = start + items_per_page
         paginated_contracts = filtered_results[start:end]
         
-        # Enrich paginated results with AI-generated NAICS codes (only for contracts missing them)
-        app.logger.info(f"[AI_NAICS_DEBUG] page={page}, contracts={len(paginated_contracts)}")
-        for res in paginated_contracts:
-            app.logger.info(f"[AI_NAICS_DEBUG] bid_name={res.get('bid_name')[:30] if res.get('bid_name') else '?'} | naics={repr(res.get('naics_code'))}")
-            if not res.get("naics_code"):
-                hash_value = res.get("hash_value")
-                app.logger.info(f"[AI_NAICS_DEBUG] Calling AI for {res.get('bid_name')[:30] if res.get('bid_name') else '?'}")
-                ai_naics = generate_naics_codes_with_ai(res, hash_value=hash_value)
-                app.logger.info(f"[AI_NAICS_DEBUG] AI result: {repr(ai_naics)}")
-                if ai_naics:
-                    res["naics_code"] = ai_naics
+        # NOTE: Do NOT call generate_naics_codes_with_ai() here during dashboard search
+        # This was causing slow search times as it made OpenAI API calls for contracts missing NAICS
+        # AI NAICS generation should only happen on-demand in contract detail views
+        # Contracts without NAICS codes will show empty NAICS in the dashboard
 
         import pandas as pd
         filtered_df = pd.DataFrame(filtered_results)
@@ -7727,9 +7720,9 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     
     naics_code_str = ", ".join(naics_codes) if naics_codes else ""
     
-    # If no NAICS codes found, use AI to generate them
-    if not naics_code_str:
-        naics_code_str = generate_naics_codes_with_ai(payload, hash_value=hash_value)
+    # NOTE: Do NOT call generate_naics_codes_with_ai() here during dashboard loading
+    # This was causing 10+ minute login times as it made OpenAI API calls for every contract
+    # AI NAICS generation should only happen on-demand in contract detail views
     
     # Due date - only use due_date field, fallback to "No due date" (not posted_date)
     raw_due_date = payload.get("due_date")
