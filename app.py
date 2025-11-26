@@ -7780,28 +7780,48 @@ def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
     Returns:
         Dict with legacy field names for template compatibility (Title Case)
     """
+    import re
+    
+    # Helper to get first truthy value (handles None values in payload)
+    def get_first_truthy(*values):
+        for v in values[:-1]:
+            if v and str(v).lower() not in ('none', 'nan', 'null', ''):
+                return v
+        return values[-1]
+    
+    # Extract NAICS code from payload (handles float format like "238220.0")
+    raw_naics = payload.get("naics_code") or payload.get("NAICS_CODE", "")
+    naics_code = ""
+    if raw_naics and str(raw_naics).lower() != 'nan':
+        matches = re.findall(r'(\d{2,})(?:\.\d+)?', str(raw_naics))
+        if matches:
+            naics_code = matches[0]
+    
+    # Get NAICS description
+    naics_desc = get_first_truthy(payload.get("naics_description"), payload.get("NAICS_TITLE"), "")
+    
     return {
         # Primary identifier (replaces hash_value)
         "contract_id": str(point_id) if point_id is not None else None,
         "hash_value": str(point_id) if point_id is not None else None,  # For backward compatibility
         
-        # Core contract fields (Qdrant → CSV mapping)
-        "Bid_Name": payload.get("title", "Unknown Bid"),
-        "Detail_Link": payload.get("source_url", "#"),
-        "Bid_Number": payload.get("contract_number", "N/A"),
-        "Bid_Description": payload.get("summary", "No description available"),
-        "Organization": payload.get("agency", "Unknown"),
-        "Due_Date": payload.get("due_date") or payload.get("posted_date", "Not Specified"),
-        "Category": payload.get("category", "Unknown"),
+        # Core contract fields - check new field names first, then old ones
+        "Bid_Name": get_first_truthy(payload.get("bid_name"), payload.get("title"), "Unknown Bid"),
+        "Detail_Link": get_first_truthy(payload.get("detail_link"), payload.get("source_url"), "#"),
+        "Bid_Number": get_first_truthy(payload.get("bid_number"), payload.get("contract_number"), "N/A"),
+        "Bid_Description": get_first_truthy(payload.get("bid_description"), payload.get("summary"), "No description available"),
+        "Organization": get_first_truthy(payload.get("organization"), payload.get("agency"), "Unknown"),
+        "Due_Date": get_first_truthy(payload.get("due_date"), "No due date"),
+        "Category": get_first_truthy(payload.get("category"), payload.get("notice_type"), "Unknown"),
         "Status": "Open",  # Qdrant doesn't have status field, default to Open
         
         # Fields that may not exist in Qdrant
-        "State": payload.get("state") or "Unknown",
-        "Budget": payload.get("budget") or "Not Specified",
+        "State": get_first_truthy(payload.get("state"), "Unknown"),
+        "Budget": get_first_truthy(payload.get("budget"), payload.get("budget_estimate"), "Not Specified"),
         
         # NAICS information
-        "NAICS_CODE": payload.get("NAICS_CODE", ""),
-        "NAICS_TITLE": payload.get("NAICS_TITLE", ""),
+        "NAICS_CODE": naics_code,
+        "NAICS_TITLE": naics_desc,
         
         # Search metadata
         "Similarity_Score": f"{score * 100:.2f}%" if score is not None else None,
@@ -7904,11 +7924,19 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         status = payload.get("status") or "active"
     
     # Handle both old and new Qdrant field names
-    # Old format: title, summary, agency, notice_type
-    # New format: bid_name, bid_description, organization, category
-    bid_name_value = payload.get("title") or payload.get("bid_name") or "Unknown Bid"
-    bid_description_value = payload.get("summary") or payload.get("bid_description") or "No description available"
-    organization_value = payload.get("agency") or payload.get("organization") or "Unknown"
+    # Old format: title, summary, agency, notice_type, source_url, contract_number
+    # New format: bid_name, bid_description, organization, category, detail_link, bid_number
+    # IMPORTANT: Check for truthy values, not just key existence (some keys exist with None value)
+    def get_first_truthy(*values):
+        """Return the first truthy value from the list, or the last value (fallback)."""
+        for v in values[:-1]:
+            if v and str(v).lower() not in ('none', 'nan', 'null', ''):
+                return v
+        return values[-1]
+    
+    bid_name_value = get_first_truthy(payload.get("bid_name"), payload.get("title"), "Unknown Bid")
+    bid_description_value = get_first_truthy(payload.get("bid_description"), payload.get("summary"), "No description available")
+    organization_value = get_first_truthy(payload.get("organization"), payload.get("agency"), "Unknown")
     
     # Get NAICS description from Qdrant (naics_description field - lowercase)
     # Also check uppercase NAICS_TITLE for backward compatibility
@@ -9505,12 +9533,28 @@ def analyze_contract():
         if not contract_hash or not user_id:
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
-        # Check if PDF exists
+        # Check if PDF exists locally, if not try to download from Firebase
         contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
         
         if not os.path.exists(pdf_path):
-            return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
+            # Try to download from Firebase Storage
+            try:
+                from firebase_admin import storage
+                bucket = storage.bucket()
+                blob_name = f"contracts/{contract_hash}.pdf"
+                blob = bucket.blob(blob_name)
+                
+                if not blob.exists():
+                    logging.warning(f"[analyze_contract] PDF not found in Firebase: {blob_name}")
+                    return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
+                
+                blob.download_to_filename(pdf_path)
+                logging.info(f"[analyze_contract] Downloaded PDF from Firebase to {pdf_path}")
+            except Exception as e:
+                logging.error(f"[analyze_contract] Failed to download PDF from Firebase: {e}", exc_info=True)
+                return jsonify({'success': False, 'error': 'Failed to retrieve PDF from storage.'}), 500
         
         # Extract text from PDF using PyMuPDF
         import fitz
