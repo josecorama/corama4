@@ -7763,28 +7763,33 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     hash_input = f"{detail_link}{bid_number}"
     hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
     
-    # Extract NAICS codes from NAICS_CODES_ALL (semicolon-separated) or fallback to NAICS_CODE
-    # NAICS_CODES_ALL contains all codes like "238220;423720"
-    raw_naics_all = payload.get("NAICS_CODES_ALL", "")
-    raw_naics = payload.get("NAICS_CODE", "")
+    # Extract NAICS codes from Qdrant
+    # IMPORTANT: Qdrant uses LOWERCASE field names: naics_code, naics_description
+    # NAICS codes may be stored as floats like "238220.0" - we need to extract just the integer part
+    # Also check uppercase variants for backward compatibility
+    raw_naics = payload.get("naics_code") or payload.get("NAICS_CODE", "")
+    raw_naics_all = payload.get("naics_codes_all") or payload.get("NAICS_CODES_ALL", "")
+    
     naics_codes = []
     
-    # First try NAICS_CODES_ALL which contains all codes
+    # First try naics_codes_all which may contain multiple codes (semicolon-separated)
     if raw_naics_all:
         # Split by semicolon and extract numeric codes
         for part in str(raw_naics_all).split(";"):
-            for code in re.findall(r'\d{2,}', part.strip()):
+            # Extract just the integer part (handles "238220.0" -> "238220")
+            for code in re.findall(r'(\d{2,})(?:\.\d+)?', part.strip()):
                 if code not in naics_codes:
                     naics_codes.append(code)
     
-    # Fallback to NAICS_CODE if NAICS_CODES_ALL is empty
+    # Fallback to naics_code if naics_codes_all is empty
     if not naics_codes and raw_naics:
         if isinstance(raw_naics, list):
             items = raw_naics
         else:
             items = [raw_naics]
         for item in items:
-            for code in re.findall(r'\d{2,}', str(item)):
+            # Extract just the integer part (handles "238220.0" -> "238220")
+            for code in re.findall(r'(\d{2,})(?:\.\d+)?', str(item)):
                 if code not in naics_codes:
                     naics_codes.append(code)
     
@@ -7831,8 +7836,13 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     bid_description_value = payload.get("summary") or payload.get("bid_description") or "No description available"
     organization_value = payload.get("agency") or payload.get("organization") or "Unknown"
     
-    # Get NAICS description from Qdrant (NAICS_TITLE field)
-    naics_description = payload.get("NAICS_TITLE") or ""
+    # Get NAICS description from Qdrant (naics_description field - lowercase)
+    # Also check uppercase NAICS_TITLE for backward compatibility
+    naics_description = payload.get("naics_description") or payload.get("NAICS_TITLE") or ""
+    
+    # Handle "nan" string values as empty (some Qdrant records have this)
+    if naics_description and str(naics_description).lower() == "nan":
+        naics_description = ""
     
     # Use NAICS description as category when available, otherwise fall back to effective category
     if naics_description and naics_description.strip():
