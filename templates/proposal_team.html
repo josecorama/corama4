@@ -954,7 +954,7 @@
         // AI suggestions
         async function suggestSubcontractors() {
             if (!draftId) {
-                alert('❌ No draft found. Please start from the contract analysis page.');
+                showSiteAlert('No draft found. Please start from the contract analysis page.', 'Error');
                 return;
             }
             
@@ -990,11 +990,11 @@
                     displayAISuggestions(data.suggestions);
                 } else {
                     const errorMsg = data.error || 'Failed to generate team suggestions';
-                    alert('❌ ' + errorMsg);
+                    showSiteAlert(errorMsg, 'Error');
                 }
             } catch (error) {
                 console.error('Error getting AI suggestions:', error);
-                alert('❌ Network error: Could not connect to the server. Please check your connection and try again.');
+                showSiteAlert('Network error: Could not connect to the server. Please check your connection and try again.', 'Error');
             } finally {
                 if (suggestBtn) {
                     suggestBtn.style.opacity = '1';

@@ -350,12 +350,36 @@
         
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', function() {
+            // First check if PDF already exists in Firebase Storage (from previous upload)
+            checkExistingPDF();
+        });
+        
+        // Check if PDF already exists in Firebase Storage
+        async function checkExistingPDF() {
+            try {
+                // Try to load from the proxy endpoint (which serves from Firebase Storage)
+                const proxyUrl = `/api/contract_pdf/${contractHash}`;
+                const response = await fetch(proxyUrl, {
+                    method: 'HEAD',
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    // PDF exists in Firebase Storage, load it
+                    loadPDFViewer(proxyUrl);
+                    return;
+                }
+            } catch (error) {
+                console.log('No existing PDF in Firebase, checking detail link...');
+            }
+            
+            // If no existing PDF, try to fetch from detail link
             if (contractData) {
                 fetchContractPDF();
             } else {
-                showError('Contract data not found');
+                showPDFUploadOption();
             }
-        });
+        }
         
         // Fetch contract PDF from detail link
         async function fetchContractPDF() {
