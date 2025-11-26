@@ -343,7 +343,32 @@ smart_search_api_key = os.getenv('OPENAI_MARIO') or os.getenv('SMART_SEARCH_OPEN
 client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
 
 # In-memory cache for AI-generated NAICS codes (keyed by hash_value)
+# This cache is persisted to disk to avoid regenerating on every restart
 AI_NAICS_CACHE = {}
+AI_NAICS_CACHE_FILE = os.path.join(os.path.dirname(__file__), 'ai_naics_cache.json')
+
+def load_ai_naics_cache():
+    """Load AI NAICS cache from disk on app startup."""
+    global AI_NAICS_CACHE
+    try:
+        if os.path.exists(AI_NAICS_CACHE_FILE):
+            with open(AI_NAICS_CACHE_FILE, 'r') as f:
+                AI_NAICS_CACHE = json.load(f)
+            logging.info(f"[AI_NAICS] Loaded {len(AI_NAICS_CACHE)} cached NAICS codes from disk")
+    except Exception as e:
+        logging.warning(f"[AI_NAICS] Failed to load cache from disk: {e}")
+        AI_NAICS_CACHE = {}
+
+def save_ai_naics_cache():
+    """Save AI NAICS cache to disk."""
+    try:
+        with open(AI_NAICS_CACHE_FILE, 'w') as f:
+            json.dump(AI_NAICS_CACHE, f)
+    except Exception as e:
+        logging.warning(f"[AI_NAICS] Failed to save cache to disk: {e}")
+
+# Load cache on module import
+load_ai_naics_cache()
 
 # In-memory cache for AI-predicted categories (keyed by hash_value)
 AI_CATEGORY_CACHE = {}
@@ -1414,9 +1439,10 @@ Requirements:
         cleaned_codes = [c for c in codes if isinstance(c, str) and c.isdigit() and len(c) == 6]
         naics_code_str = ", ".join(cleaned_codes)
         
-        # Cache the result
+        # Cache the result and persist to disk
         if hash_value:
             AI_NAICS_CACHE[hash_value] = naics_code_str
+            save_ai_naics_cache()  # Persist to disk
             app.logger.info(f"[AI_NAICS] Generated codes for '{title[:50]}...': {naics_code_str}")
         
         return naics_code_str
@@ -1426,6 +1452,7 @@ Requirements:
         # Cache empty result to avoid repeated failures
         if hash_value:
             AI_NAICS_CACHE[hash_value] = ""
+            save_ai_naics_cache()  # Persist to disk
         return ""
 if os.getenv('OPENAI_MARIO'):
     app.logger.info("✅ Smart search embeddings using OPENAI_MARIO key")
@@ -3479,6 +3506,49 @@ def get_contracts_api():
             "total_pages": 1,
             "error": "Failed to load contracts from database"
         })
+
+@app.route('/api/generate_naics', methods=['POST'])
+def generate_naics_api():
+    """API endpoint to generate NAICS codes for a specific contract on-demand.
+    
+    This endpoint is called when viewing a contract that doesn't have NAICS codes.
+    The generated codes are cached to disk so they appear in the dashboard on subsequent loads.
+    """
+    try:
+        data = request.get_json()
+        hash_value = data.get('hash_value')
+        title = data.get('title', '')
+        description = data.get('description', '')
+        
+        if not hash_value:
+            return jsonify({"success": False, "error": "hash_value is required"}), 400
+        
+        # Check if we already have cached NAICS codes for this contract
+        if hash_value in AI_NAICS_CACHE and AI_NAICS_CACHE[hash_value]:
+            return jsonify({
+                "success": True,
+                "naics_codes": AI_NAICS_CACHE[hash_value],
+                "cached": True
+            })
+        
+        # Generate NAICS codes using AI
+        # Build a minimal payload for the generate function
+        payload = {
+            'bid_name': title,
+            'bid_description': description,
+        }
+        
+        naics_codes = generate_naics_codes_with_ai(payload, hash_value)
+        
+        return jsonify({
+            "success": True,
+            "naics_codes": naics_codes,
+            "cached": False
+        })
+    except Exception as e:
+        logging.error(f"Error generating NAICS codes: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route('/dashboard_search', methods=['POST'])
 def dashboard_search():
@@ -7720,9 +7790,11 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     
     naics_code_str = ", ".join(naics_codes) if naics_codes else ""
     
-    # NOTE: Do NOT call generate_naics_codes_with_ai() here during dashboard loading
-    # This was causing 10+ minute login times as it made OpenAI API calls for every contract
-    # AI NAICS generation should only happen on-demand in contract detail views
+    # If no NAICS codes from Qdrant, check the persistent AI NAICS cache
+    # NOTE: Do NOT call generate_naics_codes_with_ai() here - that would cause slow login
+    # The cache is populated when users view individual contracts in detail views
+    if not naics_code_str and hash_value and hash_value in AI_NAICS_CACHE:
+        naics_code_str = AI_NAICS_CACHE[hash_value]
     
     # Due date - only use due_date field, fallback to "No due date" (not posted_date)
     raw_due_date = payload.get("due_date")
@@ -7759,19 +7831,27 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     bid_description_value = payload.get("summary") or payload.get("bid_description") or "No description available"
     organization_value = payload.get("agency") or payload.get("organization") or "Unknown"
     
-    # Use effective category (with NAICS mapping and AI prediction for Other/Unknown)
-    # Build a payload dict with all fields needed for category prediction
-    category_payload = {
-        'category': payload.get("notice_type") or payload.get("NAICS_TITLE") or payload.get("category") or "Unknown",
-        'naics_code': naics_code_str,
-        'naics_description': payload.get("NAICS_TITLE") or "",
-        'bid_name': bid_name_value,
-        'bid_description': bid_description_value,
-        'organization': organization_value,
-    }
-    category_value = get_effective_category(category_payload, hash_value)
-    if isinstance(category_value, str):
-        category_value = category_value.strip()
+    # Get NAICS description from Qdrant (NAICS_TITLE field)
+    naics_description = payload.get("NAICS_TITLE") or ""
+    
+    # Use NAICS description as category when available, otherwise fall back to effective category
+    if naics_description and naics_description.strip():
+        # Use NAICS description directly as the category
+        category_value = naics_description.strip()
+    else:
+        # Fall back to effective category (with NAICS mapping and AI prediction for Other/Unknown)
+        # Build a payload dict with all fields needed for category prediction
+        category_payload = {
+            'category': payload.get("notice_type") or payload.get("category") or "Unknown",
+            'naics_code': naics_code_str,
+            'naics_description': naics_description,
+            'bid_name': bid_name_value,
+            'bid_description': bid_description_value,
+            'organization': organization_value,
+        }
+        category_value = get_effective_category(category_payload, hash_value)
+        if isinstance(category_value, str):
+            category_value = category_value.strip()
     
     return {
         # Identifiers
