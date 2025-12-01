@@ -103,7 +103,11 @@ proposal_jobs = {}
 job_lock = threading.Lock()
 
 
-
+# Health Check Path
+@app.route("/healthz")
+def health_check():
+    return {"status": "ok"}, 200
+    
 
 # ALLOWED EXTENTIONS
 ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'png', 'jpeg'}
