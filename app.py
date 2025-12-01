@@ -222,7 +222,7 @@ admin_db = None
 
 try:
     import firebase_admin
-    from firebase_admin import credentials, db as admin_database
+    from firebase_admin import credentials, db as admin_database, storage as admin_storage
     import json
     
     firebase_creds_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
@@ -232,12 +232,15 @@ try:
             # Parse JSON string from environment variable
             service_account_dict = json.loads(firebase_creds_json)
             cred = credentials.Certificate(service_account_dict)
+            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
             firebase_admin.initialize_app(cred, {
-                'databaseURL': database_url
+                'databaseURL': database_url,
+                'storageBucket': storage_bucket
             })
             admin_db = admin_database
             admin_initialized = True
             logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
+            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
         except json.JSONDecodeError as e:
             logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
             logging.warning("Credit purchase via webhook will use fallback method.")
@@ -246,12 +249,15 @@ try:
         
         if os.path.exists(service_account_path):
             cred = credentials.Certificate(service_account_path)
+            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
             firebase_admin.initialize_app(cred, {
-                'databaseURL': database_url
+                'databaseURL': database_url,
+                'storageBucket': storage_bucket
             })
             admin_db = admin_database
             admin_initialized = True
             logging.info("✅ Firebase Admin SDK initialized successfully from file")
+            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
         else:
             logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
             logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
@@ -270,6 +276,7 @@ except Exception as e:
 def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type: str = None) -> str:
     """
     Upload a file to Firebase Storage and return the public URL.
+    Uses Firebase Admin SDK (preferred) or falls back to Pyrebase.
     
     Args:
         file_data: The file content as bytes
@@ -279,9 +286,27 @@ def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type
     Returns:
         The public URL of the uploaded file, or None if upload fails
     """
+    # Try Firebase Admin SDK first (more reliable, uses service account)
+    if admin_initialized:
+        try:
+            bucket = admin_storage.bucket()
+            blob = bucket.blob(storage_path)
+            blob.upload_from_string(file_data, content_type=content_type or 'application/octet-stream')
+            
+            # Make the blob publicly readable
+            blob.make_public()
+            public_url = blob.public_url
+            
+            logging.info(f"✅ Uploaded file to Firebase Storage via Admin SDK: {storage_path}")
+            logging.info(f"✅ Firebase Storage URL: {public_url}")
+            return public_url
+        except Exception as admin_error:
+            logging.warning(f"⚠️ Firebase Admin SDK upload failed: {admin_error}, trying Pyrebase fallback")
+    
+    # Fallback to Pyrebase storage
     try:
         if not storage:
-            logging.error("Firebase Storage not initialized")
+            logging.error("Firebase Storage not initialized (neither Admin SDK nor Pyrebase)")
             return None
         
         # Create a temporary file to upload
@@ -297,7 +322,7 @@ def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type
             # Get the download URL from Pyrebase (includes proper encoding and auth token)
             download_url = storage.child(storage_path).get_url(None)
             
-            logging.info(f"✅ Uploaded file to Firebase Storage: {storage_path}")
+            logging.info(f"✅ Uploaded file to Firebase Storage via Pyrebase: {storage_path}")
             logging.info(f"✅ Firebase Storage URL: {download_url}")
             return download_url
         finally:
@@ -4550,6 +4575,159 @@ def generate_naics_api():
         })
     except Exception as e:
         logging.error(f"Error generating NAICS codes: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/backfill_naics', methods=['POST'])
+def backfill_naics_api():
+    """Admin endpoint to backfill NAICS codes for all contracts that don't have them.
+    
+    This endpoint fetches all contracts from Qdrant, identifies those without NAICS codes,
+    and generates NAICS codes using AI for each one. Results are cached to disk.
+    
+    This is a one-time operation that should be run to populate NAICS codes for existing contracts.
+    """
+    import hashlib
+    import re
+    
+    try:
+        # Get optional limit parameter (for testing)
+        data = request.get_json() or {}
+        limit = data.get('limit', None)  # None means process all
+        
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            return jsonify({"success": False, "error": "Qdrant credentials not configured"}), 500
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Fetch all contracts from Qdrant
+        app.logger.info("🔄 Fetching all contracts from Qdrant for NAICS backfill...")
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=3000,
+            with_vectors=False,
+            with_payload=True
+        )
+        
+        points = scroll_result[0]
+        app.logger.info(f"📊 Found {len(points)} total contracts in Qdrant")
+        
+        # Identify contracts without NAICS codes
+        contracts_without_naics = []
+        for point in points:
+            payload = point.payload
+            
+            # Check for NAICS codes in all possible field formats
+            raw_naics = payload.get("naics_code") or payload.get("NAICS Code") or payload.get("NAICS_CODE", "")
+            raw_naics_all = payload.get("naics_codes_all") or payload.get("NAICS_CODES_ALL", "")
+            
+            has_naics = False
+            
+            # Check naics_codes_all
+            if raw_naics_all:
+                for part in str(raw_naics_all).split(";"):
+                    codes = re.findall(r'(\d{2,})(?:\.\d+)?', part.strip())
+                    if codes:
+                        has_naics = True
+                        break
+            
+            # Check naics_code
+            if not has_naics and raw_naics:
+                if isinstance(raw_naics, list):
+                    items = raw_naics
+                else:
+                    items = [raw_naics]
+                for item in items:
+                    codes = re.findall(r'(\d{2,})(?:\.\d+)?', str(item))
+                    if codes:
+                        has_naics = True
+                        break
+            
+            # Compute hash_value for this contract
+            detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url", "#")
+            bid_number = payload.get("bid_number") or payload.get("Bid Number") or payload.get("contract_number", "N/A")
+            hash_input = f"{detail_link}{bid_number}"
+            hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            
+            # Check if already in AI cache
+            if hash_value in AI_NAICS_CACHE and AI_NAICS_CACHE[hash_value]:
+                has_naics = True
+            
+            if not has_naics:
+                contracts_without_naics.append({
+                    'payload': payload,
+                    'hash_value': hash_value,
+                    'point_id': point.id
+                })
+        
+        app.logger.info(f"📊 Found {len(contracts_without_naics)} contracts without NAICS codes")
+        
+        # Apply limit if specified
+        if limit and limit > 0:
+            contracts_without_naics = contracts_without_naics[:limit]
+            app.logger.info(f"📊 Processing {len(contracts_without_naics)} contracts (limited)")
+        
+        # Generate NAICS codes for each contract
+        generated_count = 0
+        failed_count = 0
+        results = []
+        
+        for i, contract in enumerate(contracts_without_naics):
+            payload = contract['payload']
+            hash_value = contract['hash_value']
+            
+            # Extract contract info for AI generation
+            title = payload.get("bid_name") or payload.get("Bid Name") or payload.get("title") or "Unknown"
+            description = payload.get("bid_description") or payload.get("Bid Description") or payload.get("summary") or ""
+            agency = payload.get("organization") or payload.get("Organization") or payload.get("agency") or ""
+            notice_type = payload.get("category") or payload.get("Category") or payload.get("notice_type") or ""
+            
+            # Build payload for AI generation
+            ai_payload = {
+                'title': title,
+                'summary': description,
+                'agency': agency,
+                'notice_type': notice_type
+            }
+            
+            # Generate NAICS codes
+            naics_codes = generate_naics_codes_with_ai(ai_payload, hash_value)
+            
+            if naics_codes:
+                generated_count += 1
+                results.append({
+                    'title': title[:50],
+                    'naics_codes': naics_codes,
+                    'success': True
+                })
+            else:
+                failed_count += 1
+                results.append({
+                    'title': title[:50],
+                    'naics_codes': '',
+                    'success': False
+                })
+            
+            # Log progress every 10 contracts
+            if (i + 1) % 10 == 0:
+                app.logger.info(f"📊 Processed {i + 1}/{len(contracts_without_naics)} contracts...")
+        
+        app.logger.info(f"✅ NAICS backfill complete: {generated_count} generated, {failed_count} failed")
+        
+        return jsonify({
+            "success": True,
+            "total_contracts": len(points),
+            "contracts_without_naics": len(contracts_without_naics),
+            "generated_count": generated_count,
+            "failed_count": failed_count,
+            "results": results[:20]  # Return first 20 results for review
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in NAICS backfill: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 
