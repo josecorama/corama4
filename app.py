@@ -10900,6 +10900,10 @@ Provide your analysis as a JSON array with objects containing 'category' and 'te
                 'draft_id': draft_id,
                 'user_id': user_id,
                 'contract_hash': contract_hash,
+                'contract_name': contract_name,
+                'contract_description': contract_description,
+                'organization': organization,
+                'naics_code': naics_code,
                 'annotations': annotations,
                 'page_count': len(page_texts),
                 'created_at': datetime.now().isoformat(),
@@ -12820,24 +12824,27 @@ def download_proposal_docx():
         user_data = user_ref.get() or {}
         company_name = user_data.get('company', 'Our Company')
         
-        # Extract bid name from annotations or draft data
-        annotations = draft_data.get('annotations', [])
-        bid_name = draft_data.get('bid_name', '')
+        # Extract bid name from draft data - prioritize stored contract_name
+        bid_name = draft_data.get('contract_name', '') or draft_data.get('bid_name', '')
         solicitation_number = ''
-        agency = ''
+        agency = draft_data.get('organization', '')
         
-        for ann in annotations:
-            category = ann.get('category', '').lower()
-            text = ann.get('text', '')
-            if ('title' in category or 'subject' in category) and not bid_name:
-                bid_name = text
-            elif 'solicitation' in category or 'rfp' in category or 'rfq' in category:
-                solicitation_number = text
-            elif 'agency' in category:
-                agency = text
-        
+        # If no bid_name stored, try to extract from annotations
         if not bid_name:
-            bid_name = f"Proposal {draft_id[:8]}"
+            annotations = draft_data.get('annotations', [])
+            for ann in annotations:
+                category = ann.get('category', '').lower()
+                text = ann.get('text', '')
+                if ('title' in category or 'subject' in category or 'name' in category) and not bid_name:
+                    bid_name = text
+                elif ('solicitation' in category or 'rfp' in category or 'rfq' in category) and not solicitation_number:
+                    solicitation_number = text
+                elif 'agency' in category and not agency:
+                    agency = text
+        
+        # Final fallback - use a cleaner format without "Proposal" prefix
+        if not bid_name:
+            bid_name = f"Contract_{draft_id[:8]}"
         
         # Create DOCX document
         doc = Document()
