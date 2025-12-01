@@ -11836,21 +11836,647 @@ Return only an HTML snippet suitable for direct insertion into a div. Use h4 or 
 
 @app.route('/api/generate_final_proposal', methods=['GET'])
 def generate_final_proposal():
-    """Generate final proposal document with disclaimer"""
+    """Generate final 8-section DRAFT proposal document using parallel AI prompts"""
     try:
         draft_id = request.args.get('draft_id')
         
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        return jsonify({
-            'success': True,
-            'message': 'Proposal generation not yet fully implemented. This will integrate with the existing full proposal generation system.'
-        })
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user["localId"]
+        
+        # Get draft data
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        # Get user data for company info
+        user_ref = admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+        
+        # Get capability statement if available
+        capability_statement = ""
+        try:
+            cs_ref = admin_db.reference(f'capability_statements/{user_id}')
+            cs_data = cs_ref.get()
+            if cs_data:
+                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
+        except Exception as cs_error:
+            logging.warning(f"Could not fetch capability statement: {cs_error}")
+        
+        # Extract contract info from annotations
+        annotations = draft_data.get('annotations', [])
+        pricing = draft_data.get('pricing', {})
+        team_members = draft_data.get('team_members', [])
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        # Build contract context from annotations
+        contract_context = {
+            'title': '',
+            'agency': '',
+            'solicitation_number': '',
+            'naics': '',
+            'due_date': '',
+            'requirements': [],
+            'scope': '',
+            'deliverables': []
+        }
+        
+        for ann in annotations:
+            category = ann.get('category', '').lower()
+            text = ann.get('text', '')
+            if 'requirement' in category:
+                contract_context['requirements'].append(text)
+            elif 'scope' in category:
+                contract_context['scope'] += text + ' '
+            elif 'deliverable' in category:
+                contract_context['deliverables'].append(text)
+            elif 'title' in category or 'subject' in category:
+                contract_context['title'] = text
+            elif 'agency' in category:
+                contract_context['agency'] = text
+            elif 'naics' in category:
+                contract_context['naics'] = text
+            elif 'due' in category or 'deadline' in category:
+                contract_context['due_date'] = text
+            elif 'solicitation' in category or 'rfp' in category or 'rfq' in category:
+                contract_context['solicitation_number'] = text
+        
+        company_name = user_data.get('company', 'Our Company')
+        
+        # Redirect to the proposal generation page which will handle the async generation
+        return redirect(url_for('proposal_result_page', draft_id=draft_id))
         
     except Exception as e:
         logging.error(f"Error generating final proposal: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/proposal/result')
+def proposal_result_page():
+    """Page to display proposal generation progress and results"""
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect(url_for('Welcome'))
+    
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    return render_template('proposal_result.html', draft_id=draft_id, user_id=user["localId"])
+
+@app.route('/api/generate_proposal_sections', methods=['POST'])
+def generate_proposal_sections():
+    """Generate all 8 proposal sections using parallel AI prompts"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import json
+    
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user["localId"]
+        
+        # Get draft data
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        # Get user data for company info
+        user_ref = admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+        
+        # Get capability statement if available
+        capability_statement = ""
+        try:
+            cs_ref = admin_db.reference(f'capability_statements/{user_id}')
+            cs_data = cs_ref.get()
+            if cs_data:
+                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
+        except Exception as cs_error:
+            logging.warning(f"Could not fetch capability statement: {cs_error}")
+        
+        # Extract data from draft
+        annotations = draft_data.get('annotations', [])
+        pricing = draft_data.get('pricing', {})
+        team_members = draft_data.get('team_members', [])
+        
+        # Build contract context
+        requirements_text = '\n'.join([f"- {ann.get('text', '')}" for ann in annotations if 'requirement' in ann.get('category', '').lower()])
+        scope_text = ' '.join([ann.get('text', '') for ann in annotations if 'scope' in ann.get('category', '').lower()])
+        all_annotations_text = '\n'.join([f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
+        
+        company_name = user_data.get('company', 'Our Company')
+        company_address = user_data.get('address', '[Company Address]')
+        company_email = user_data.get('email', user.get('email', '[Email]'))
+        
+        # Build pricing summary
+        labor_total = sum(item.get('cost', 0) for item in pricing.get('labor', []))
+        material_total = sum(item.get('cost', 0) for item in pricing.get('materials', []))
+        subtotal = labor_total + material_total
+        margin_pct = pricing.get('margin_pct', 15)
+        risk_pct = pricing.get('risk_pct', 5)
+        margin_amount = subtotal * (margin_pct / 100)
+        risk_amount = subtotal * (risk_pct / 100)
+        total_bid = subtotal + margin_amount + risk_amount
+        
+        pricing_summary = f"""
+Labor Costs: ${labor_total:,.2f}
+Material Costs: ${material_total:,.2f}
+Subtotal: ${subtotal:,.2f}
+Margin ({margin_pct}%): ${margin_amount:,.2f}
+Risk Reserve ({risk_pct}%): ${risk_amount:,.2f}
+Total Bid Amount: ${total_bid:,.2f}
+
+Labor Breakdown:
+""" + '\n'.join([f"- {item.get('role', 'Role')}: {item.get('hours', 0)} hours @ ${item.get('rate', 0)}/hr = ${item.get('cost', 0):,.2f}" for item in pricing.get('labor', [])])
+        
+        # Build team summary
+        team_summary = '\n'.join([f"- {member.get('name', 'Team Member')}: {member.get('role', 'Role')} - {member.get('experience', 'Experience')}" for member in team_members]) or "Team to be determined based on contract requirements."
+        
+        # Define the 8 section prompts
+        def generate_section(section_num, section_name, prompt):
+            """Generate a single section using OpenAI"""
+            try:
+                response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": f"""You are an expert government contract proposal writer. Generate Section {section_num}: {section_name} for a DRAFT public procurement proposal.
+
+CRITICAL FORMATTING RULES:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in professional paragraph form
+- This is a DRAFT document - include appropriate placeholders where specific data is missing
+- Write in formal government contracting language
+
+Company Name: {company_name}
+Company Address: {company_address}
+Company Email: {company_email}
+
+Capability Statement Summary:
+{capability_statement[:2000] if capability_statement else 'Company capabilities to be detailed based on specific contract requirements.'}
+
+Contract Requirements/Annotations:
+{all_annotations_text[:3000]}
+
+Team Members:
+{team_summary}
+
+Pricing Summary:
+{pricing_summary}
+"""},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.3,
+                    max_tokens=3000
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                logging.error(f"Error generating section {section_num}: {e}")
+                return f"[Error generating {section_name}: {str(e)}. Please regenerate this section.]"
+        
+        # Define the 8 prompts based on PromptBidding.md structure
+        section_prompts = [
+            (1, "Cover Letter & Executive Summary", f"""Generate a comprehensive Cover Letter and Executive Summary section that includes:
+
+1. COVER PAGE with:
+   - Solicitation reference (use placeholders if not available)
+   - Company name: {company_name}
+   - Date: [Current Date]
+   - "DRAFT - FOR INTERNAL REVIEW ONLY" watermark notice
+
+2. COVER LETTER/TRANSMITTAL LETTER:
+   - Formal address to the contracting agency
+   - Expression of interest in the solicitation
+   - Brief company introduction
+   - Commitment statement
+   - Signature block for "[Authorized Representative]"
+
+3. EXECUTIVE SUMMARY (2-3 pages):
+   - Understanding of the requirements
+   - Solution overview
+   - Main differentiators and competitive advantages
+   - High-level value proposition
+   - Key personnel highlights
+   - Why {company_name} is the ideal contractor
+
+Write professionally and comprehensively."""),
+
+            (2, "Administrative & Compliance Information", f"""Generate the Administrative & Compliance Information section that includes:
+
+1. OFFEROR INFORMATION:
+   - Legal entity name: {company_name}
+   - Address: {company_address}
+   - UEI: [To be provided]
+   - NAICS codes: [Relevant codes]
+   - Small business status: [To be confirmed]
+
+2. REGISTRATIONS:
+   - SAM.gov registration status
+   - Other relevant registrations
+
+3. REPRESENTATIONS AND CERTIFICATIONS:
+   - Summary of key certifications (not full legal texts)
+   - Compliance statements
+
+4. COMPLIANCE CONFIRMATIONS:
+   - Equal Employment Opportunity (EEO)
+   - Anti-kickback compliance
+   - Non-debarment statement
+   - Other standard compliance statements
+
+Mark all items requiring verification with [TO BE VERIFIED] placeholders."""),
+
+            (3, "Technical Approach", f"""Generate a comprehensive Technical Approach section (8-10 pages) that includes:
+
+1. UNDERSTANDING OF REQUIREMENTS:
+   - Detailed interpretation of the contract scope
+   - Key technical challenges identified
+   - Compliance with specifications
+
+2. PROPOSED TECHNICAL SOLUTION:
+   - Methodology and approach
+   - Innovative solutions
+   - Technology and tools to be used
+
+3. WORK PLAN AND DELIVERABLES:
+   - Phase-by-phase breakdown
+   - Key milestones
+   - Deliverables list with descriptions
+
+4. COMPLIANCE MATRIX SUMMARY:
+   - How each requirement will be met
+   - Technical standards compliance
+
+Based on the contract requirements provided, create a detailed and professional technical approach."""),
+
+            (4, "Management & Staffing Plan", f"""Generate a comprehensive Management & Staffing Plan section (6-8 pages) that includes:
+
+1. PROJECT MANAGEMENT APPROACH:
+   - Management methodology (Agile/Waterfall/Hybrid as appropriate)
+   - Communication protocols
+   - Reporting structure
+
+2. ORGANIZATIONAL STRUCTURE:
+   - Project organization chart description
+   - Roles and responsibilities
+   - Reporting relationships
+
+3. KEY PERSONNEL:
+   Based on the team members provided, describe:
+{team_summary}
+   - Include placeholders for additional key personnel as needed
+
+4. STAFFING PLAN:
+   - Resource allocation over project timeline
+   - Skill requirements
+   - Contingency staffing plans
+
+Write in detail with professional government contracting language."""),
+
+            (5, "Corporate Experience & Past Performance", f"""Generate a Corporate Experience & Past Performance section (4-6 pages) that includes:
+
+1. COMPANY OVERVIEW:
+   - Brief history of {company_name}
+   - Core competencies
+   - Relevant industry experience
+
+2. PAST PERFORMANCE EXAMPLES:
+   - Create 3-4 structured past performance entries with:
+     - Contract name/description
+     - Client/Agency
+     - Contract value
+     - Period of performance
+     - Key accomplishments
+     - Relevance to current solicitation
+   - Use placeholders where specific data is not available: [CONTRACT DETAILS TO BE PROVIDED]
+
+3. RELEVANCE MAPPING:
+   - How past experience directly relates to this contract
+   - Lessons learned and how they apply
+
+Base this on the capability statement provided and create professional placeholders for specific contract details."""),
+
+            (6, "Quality Assurance, Risk Management & Small Business Participation", f"""Generate a comprehensive section covering Quality Assurance, Risk Management, and Small Business Participation (4-6 pages):
+
+1. QUALITY ASSURANCE/QUALITY CONTROL:
+   - QA/QC methodology
+   - Quality standards and certifications
+   - Inspection and testing procedures
+   - Continuous improvement processes
+
+2. RISK MANAGEMENT:
+   - Risk identification methodology
+   - Key risks identified for this contract
+   - Mitigation strategies for each risk
+   - Contingency plans
+
+3. SMALL BUSINESS PARTICIPATION (if applicable):
+   - Small business subcontracting plan
+   - Partner participation narrative
+   - Mentor-protégé relationships (if any)
+   - Goals and commitments
+
+Write professionally with specific strategies and approaches."""),
+
+            (7, "Price/Cost Proposal (High-Level Draft)", f"""Generate a HIGH-LEVEL DRAFT Price/Cost Proposal section that includes:
+
+IMPORTANT DISCLAIMER AT THE TOP:
+"ALL PRICES IN THIS SECTION ARE ESTIMATED DRAFT VALUES AND SUBJECT TO ADJUSTMENT AND VALIDATION. THIS IS NOT A FINAL PRICING COMMITMENT."
+
+1. PRICING SUMMARY:
+{pricing_summary}
+
+2. COST BREAKDOWN STRUCTURE:
+   - Labor costs by category
+   - Materials and equipment
+   - Other direct costs
+   - Indirect costs and overhead
+   - Profit/fee
+
+3. PRICING ASSUMPTIONS:
+   - Key assumptions underlying the pricing
+   - Factors that could affect final pricing
+   - Validity period of pricing
+
+4. VALUE PROPOSITION:
+   - Cost-effectiveness explanation
+   - Value for money justification
+
+Present all numbers clearly marked as DRAFT/ESTIMATED."""),
+
+            (8, "Attachments & Supporting Documentation Index", f"""Generate an Attachments & Supporting Documentation Index section that includes:
+
+1. ATTACHMENT INDEX:
+   List recommended attachments with status:
+   - Attachment A: Capability Statement - [TO BE ATTACHED]
+   - Attachment B: Key Personnel Resumes - [TO BE ATTACHED]
+   - Attachment C: Past Performance Questionnaires - [TO BE ATTACHED]
+   - Attachment D: Certifications and Licenses - [TO BE ATTACHED]
+   - Attachment E: Technical Diagrams/Charts - [TO BE ATTACHED]
+   - Attachment F: Letters of Commitment (Subcontractors) - [TO BE ATTACHED]
+   - Attachment G: Financial Statements - [TO BE ATTACHED]
+   - Attachment H: Insurance Certificates - [TO BE ATTACHED]
+
+2. DOCUMENT CHECKLIST:
+   - Required documents per solicitation
+   - Status of each document
+   - Responsible party for each
+
+3. NOTES ON ATTACHMENTS:
+   - Instructions for completing the attachment package
+   - Format requirements
+   - Submission guidelines
+
+This is an index/placeholder section - actual documents to be attached before final submission.""")
+        ]
+        
+        # Generate all 8 sections in parallel
+        sections = {}
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_section = {
+                executor.submit(generate_section, num, name, prompt): (num, name)
+                for num, name, prompt in section_prompts
+            }
+            
+            for future in as_completed(future_to_section):
+                section_num, section_name = future_to_section[future]
+                try:
+                    content = future.result()
+                    sections[section_num] = {
+                        'name': section_name,
+                        'content': content
+                    }
+                    logging.info(f"✓ Generated Section {section_num}: {section_name}")
+                except Exception as e:
+                    logging.error(f"Error in section {section_num}: {e}")
+                    sections[section_num] = {
+                        'name': section_name,
+                        'content': f"[Error generating this section: {str(e)}]"
+                    }
+        
+        # Order sections 1-8
+        ordered_sections = [sections.get(i, {'name': f'Section {i}', 'content': '[Not generated]'}) for i in range(1, 9)]
+        
+        # Build the full proposal document
+        disclaimer = """
+================================================================================
+                    DRAFT - FOR INTERNAL REVIEW ONLY
+================================================================================
+
+DISCLAIMER - DRAFT DOCUMENT
+
+This document is an automatically generated draft proposal produced by an 
+AI-assisted tool. It is NOT a final, complete, or legally binding offer. 
+The content may be incomplete, inaccurate, or inconsistent. It MUST be 
+thoroughly reviewed, edited, and approved by qualified human personnel 
+before being used for any official submission or external communication.
+
+================================================================================
+"""
+        
+        full_proposal = disclaimer + "\n\n"
+        for i, section in enumerate(ordered_sections, 1):
+            full_proposal += f"\n\n{'='*80}\nSECTION {i}: {section['name'].upper()}\n{'='*80}\n\n"
+            full_proposal += section['content']
+        
+        # Add instructions at the end
+        instructions = """
+
+================================================================================
+                    INSTRUCTIONS FOR USING THIS DRAFT
+================================================================================
+
+This AI-generated draft proposal requires careful review and refinement before 
+any official use. Please follow these steps:
+
+1. READ EACH SECTION CAREFULLY
+   - Review all 8 sections for accuracy and completeness
+   - Verify all facts, figures, and claims
+
+2. CORRECT AND REFINE
+   - Replace all placeholders marked with [brackets]
+   - Insert missing details and specific data
+   - Validate all pricing and compliance statements
+   - Adjust language to match your company's voice
+
+3. VERIFY COMPLIANCE
+   - Check alignment with actual solicitation instructions
+   - Ensure all evaluation criteria are addressed
+   - Verify format requirements are met
+
+4. INTERNAL APPROVAL
+   - Obtain necessary legal/compliance approvals
+   - Get management sign-off on pricing
+   - Verify technical accuracy with subject matter experts
+
+5. FINALIZE FOR SUBMISSION
+   - Download and edit in your word processor
+   - Apply your company's proposal template
+   - Perform final compliance check
+   - Submit before the deadline
+
+================================================================================
+"""
+        full_proposal += instructions
+        
+        # Save the generated proposal to the draft
+        draft_ref.update({
+            'generated_proposal': {
+                'sections': ordered_sections,
+                'full_text': full_proposal,
+                'generated_at': datetime.now().isoformat(),
+                'status': 'draft'
+            }
+        })
+        
+        return jsonify({
+            'success': True,
+            'sections': ordered_sections,
+            'full_proposal': full_proposal,
+            'total_sections': len(ordered_sections)
+        })
+        
+    except Exception as e:
+        logging.error(f"Error generating proposal sections: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/download_proposal_pdf', methods=['GET'])
+def download_proposal_pdf():
+    """Generate and download the proposal as a PDF"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+    from reportlab.lib.units import inch
+    import io
+    
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user["localId"]
+        
+        # Get the generated proposal from Firebase
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data or 'generated_proposal' not in draft_data:
+            return jsonify({'success': False, 'error': 'No generated proposal found. Please generate the proposal first.'}), 404
+        
+        proposal_data = draft_data['generated_proposal']
+        full_text = proposal_data.get('full_text', '')
+        
+        # Create PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, 
+                               rightMargin=72, leftMargin=72,
+                               topMargin=72, bottomMargin=72)
+        
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=20,
+            alignment=1  # Center
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            spaceBefore=20,
+            spaceAfter=10
+        )
+        
+        body_style = ParagraphStyle(
+            'CustomBody',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=14,
+            spaceAfter=10
+        )
+        
+        disclaimer_style = ParagraphStyle(
+            'Disclaimer',
+            parent=styles['Normal'],
+            fontSize=10,
+            leading=12,
+            backColor='#fff3cd',
+            borderPadding=10
+        )
+        
+        story = []
+        
+        # Add title
+        story.append(Paragraph("DRAFT PUBLIC BID PROPOSAL", title_style))
+        story.append(Paragraph("FOR INTERNAL REVIEW ONLY", title_style))
+        story.append(Spacer(1, 0.5*inch))
+        
+        # Add disclaimer
+        disclaimer_text = """<b>DISCLAIMER:</b> This document is an automatically generated draft proposal produced by an AI-assisted tool. 
+        It is NOT a final, complete, or legally binding offer. The content may be incomplete, inaccurate, or inconsistent. 
+        It MUST be thoroughly reviewed, edited, and approved by qualified human personnel before being used for any official submission."""
+        story.append(Paragraph(disclaimer_text, disclaimer_style))
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Process the full text into paragraphs
+        lines = full_text.split('\n')
+        for line in lines:
+            line = line.strip()
+            if not line:
+                story.append(Spacer(1, 0.1*inch))
+            elif line.startswith('===') or line.startswith('---'):
+                continue  # Skip separator lines
+            elif line.startswith('SECTION') or line.isupper() and len(line) > 10:
+                story.append(Paragraph(line, heading_style))
+            else:
+                # Escape special characters for ReportLab
+                line = line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+                story.append(Paragraph(line, body_style))
+        
+        doc.build(story)
+        
+        buffer.seek(0)
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'DRAFT_Proposal_{draft_id[:8]}.pdf'
+        )
+        
+    except Exception as e:
+        logging.error(f"Error generating PDF: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 def ensure_session_from_auth():
