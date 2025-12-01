@@ -10173,42 +10173,55 @@ def create_credit_checkout():
                 )
                 logging.info(f"Updated Firebase with stripe_customer_id for user {user['localId']}")
                 
+            except stripe.error.AuthenticationError as stripe_error:
+                logging.error(f"Stripe authentication error for {user_email}: {stripe_error}", exc_info=True)
+                return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
+            except stripe.error.StripeError as stripe_error:
+                logging.error(f"Stripe error for {user_email}: {stripe_error}", exc_info=True)
+                return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
             except Exception as stripe_error:
-                logging.error(f"Error handling Stripe customer for {user_email}: {stripe_error}")
+                logging.error(f"Error handling Stripe customer for {user_email}: {stripe_error}", exc_info=True)
                 return jsonify({"error": "Failed to set up payment account. Please try again."}), 500
             
         credits = int(request.json.get('credits'))
         price = int(request.json.get('price'))
         
-        checkout_session = stripe.checkout.Session.create(
-            customer=stripe_customer_id,
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {
-                        'name': f'{credits} CORAMA Credits',
-                        'description': f'AI-powered contract analysis and proposal generation credits'
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                customer=stripe_customer_id,
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'usd',
+                        'product_data': {
+                            'name': f'{credits} CORAMA Credits',
+                            'description': f'AI-powered contract analysis and proposal generation credits'
+                        },
+                        'unit_amount': price,
                     },
-                    'unit_amount': price,
-                },
-                'quantity': 1,
-            }],
-            mode='payment',
-            success_url=url_for('credit_purchase_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url=url_for('purchase_credits', _external=True),
-            metadata={
-                'user_id': user['localId'],
-                'credits': credits,
-                'purchase_type': 'credits'
-            }
-        )
-        
-        return jsonify({"checkout_url": checkout_session.url})
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url=url_for('credit_purchase_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=url_for('purchase_credits', _external=True),
+                metadata={
+                    'user_id': user['localId'],
+                    'credits': credits,
+                    'purchase_type': 'credits'
+                }
+            )
+            
+            return jsonify({"checkout_url": checkout_session.url})
+        except stripe.error.AuthenticationError as stripe_error:
+            logging.error(f"Stripe authentication error creating checkout session: {stripe_error}", exc_info=True)
+            return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
+        except stripe.error.StripeError as stripe_error:
+            logging.error(f"Stripe error creating checkout session: {stripe_error}", exc_info=True)
+            return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
         
     except Exception as e:
-        logging.error(f"Error creating credit checkout: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error creating credit checkout: {e}", exc_info=True)
+        return jsonify({"error": "An unexpected error occurred. Please try again."}), 500
 
 @app.route('/credit_purchase_success')
 def credit_purchase_success():
