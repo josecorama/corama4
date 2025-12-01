@@ -11,8 +11,8 @@ def test_qdrant_connection():
     try:
         print("Testing Qdrant connection...")
         
-        qdrant_url = os.getenv('QDRANT_URL', 'https://4c5ec4c4-c2c9-4142-9f7b-8b8b8b8b8b8b.us-east4-0.gcp.cloud.qdrant.io:6333')
-        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        qdrant_url = os.getenv('Qdrant_EP', 'https://4c5ec4c4-c2c9-4142-9f7b-8b8b8b8b8b8b.us-east4-0.gcp.cloud.qdrant.io:6333')
+        qdrant_api_key = os.getenv('Qdrant_AK')
         
         print(f"Qdrant URL: {qdrant_url}")
         print(f"API Key present: {'Yes' if qdrant_api_key else 'No'}")
@@ -30,7 +30,7 @@ def test_qdrant_connection():
         for collection in collections.collections:
             print(f"  - {collection.name}")
         
-        collection_name = "Top_5_contracts_Vector_DB"
+        collection_name = "government_contracts"
         try:
             collection_info = client.get_collection(collection_name)
             print(f"\nCollection '{collection_name}' info:")

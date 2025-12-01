@@ -20,7 +20,7 @@ class CSQueryHandler:
             api_key=qdrant_api_key,
             timeout=10            # 只保留支持的参数
         )
-        self.collection_name = "Top_5_contracts_Vector_DB"
+        self.collection_name = "government_contracts"
         self.user_upload_dir = user_upload_dir
         
         try:
@@ -73,6 +73,108 @@ class CSQueryHandler:
         vector = np.random.normal(0, 1, dimension)
         vector = vector / np.linalg.norm(vector)
         return vector.tolist()
+
+    def _is_past_due(self, due_date_str):
+        """Check if a due date has passed (contract is closed)"""
+        if not due_date_str:
+            return False
+        try:
+            from datetime import date, datetime
+            # Parse date, stripping time/offset if present (e.g., "2025-12-05T14:00:00-05:00" -> "2025-12-05")
+            date_part = due_date_str.split("T")[0]
+            parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+            return parsed_date < date.today()
+        except Exception:
+            return False
+
+    def enrich_with_ai(self, contracts):
+        """Use OpenAI to extract Industry Sector and Geographic Area for contracts"""
+        if not contracts:
+            return contracts
+        
+        try:
+            # Build compact representation of contracts for AI analysis
+            contracts_data = []
+            for i, contract in enumerate(contracts):
+                contracts_data.append({
+                    "id": str(i),
+                    "title": contract.get('Bid_Name', ''),
+                    "summary": contract.get('Bid_Description', '')[:300],
+                    "naics_code": contract.get('NAICS_CODE', ''),
+                    "naics_title": contract.get('NAICS_TITLE', ''),
+                    "agency": contract.get('Organization', ''),
+                    "source": contract.get('source', ''),
+                    "state": contract.get('State', '')
+                })
+            
+            import json
+            prompt = f"""You are a classifier for US government contracts.
+For each contract, analyze its data and return:
+1. industry_sector: a short phrase like "Construction", "IT Services", "Defense Logistics", "Healthcare Equipment", "Plumbing & HVAC", etc.
+2. geographic_area: a short description of where the work is located, like "Chicago, IL", "Columbus, OH", "Nationwide (USA)", or "Unknown" if not clear.
+
+Contracts (JSON list):
+{json.dumps(contracts_data, indent=2)}
+
+Respond with ONLY valid JSON array, no other text:
+[{{"id": "0", "industry_sector": "...", "geographic_area": "..."}}, ...]"""
+
+            response = self.openai_client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "You are a contract classifier. Respond with valid JSON only."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=500
+            )
+            
+            result_text = response.choices[0].message.content.strip()
+            # Clean up response - remove markdown code blocks if present
+            if result_text.startswith("```"):
+                result_text = result_text.split("```")[1]
+                if result_text.startswith("json"):
+                    result_text = result_text[4:]
+            result_text = result_text.strip()
+            
+            enrichments = json.loads(result_text)
+            
+            # Apply enrichments to contracts
+            enrichment_map = {e["id"]: e for e in enrichments}
+            for i, contract in enumerate(contracts):
+                enrichment = enrichment_map.get(str(i), {})
+                contract['Industry_Sector'] = enrichment.get('industry_sector', contract.get('Category', 'Unknown'))
+                contract['Geographic_Area'] = enrichment.get('geographic_area', contract.get('State', 'Unknown'))
+            
+            print(f"✅ AI enrichment successful for {len(contracts)} contracts")
+            return contracts
+            
+        except Exception as e:
+            print(f"⚠️ AI enrichment failed: {str(e)}, using fallback values")
+            # Fallback: use existing fields
+            for contract in contracts:
+                # Use NAICS_TITLE as fallback for Industry Sector (handle "nan" values)
+                naics_title = contract.get('NAICS_TITLE', '')
+                if naics_title and str(naics_title).lower() not in ('nan', 'none', 'null', ''):
+                    contract['Industry_Sector'] = naics_title
+                else:
+                    category = contract.get('Category', 'Unknown')
+                    if category and str(category).lower() not in ('nan', 'none', 'null', ''):
+                        contract['Industry_Sector'] = category.capitalize()
+                    else:
+                        contract['Industry_Sector'] = 'Unknown'
+                
+                # Use source/agency hints for Geographic Area
+                agency = contract.get('Organization', '')
+                source = contract.get('source', '')
+                if 'chicago' in source.lower() or 'chicago' in agency.lower():
+                    contract['Geographic_Area'] = 'Chicago, IL'
+                elif contract.get('State') and contract.get('State') not in ('Unknown', 'nan', 'none', 'null', ''):
+                    contract['Geographic_Area'] = contract.get('State')
+                else:
+                    contract['Geographic_Area'] = 'Unknown'
+            
+            return contracts
 
     def inspect_data(self):
         """检查数据库中的实际内容"""
@@ -257,7 +359,8 @@ class CSQueryHandler:
 
             print(f"\n(1) 初步搜索结果: 共 {len(results)} 条 (limit={limit})")
             for idx, res in enumerate(results, 1):
-                name = res.payload.get('Bid Name', 'Unknown Bid')
+                # Use correct Qdrant field name: 'title' instead of 'Bid Name'
+                name = res.payload.get('title', 'Unknown Bid')
                 score_str = f"{res.score*100:.2f}%"
                 print(f"  {idx:2d}. {name} => {score_str}")
             
@@ -283,32 +386,36 @@ class CSQueryHandler:
             replaced_logs = []
 
             for res in results:
-                url = res.payload.get("Detail Link", "")
-                name = res.payload.get("Bid Name", "Unknown Bid")
+                # Use correct Qdrant field names: 'source_url' instead of 'Detail Link', 'title' instead of 'Bid Name'
+                url = res.payload.get("source_url", "")
+                name = res.payload.get("title", "Unknown Bid")
                 score = res.score
                 score_str = f"{score*100:.2f}%"
 
-                if url in seen_urls:
+                # Skip empty URLs for deduplication (don't treat all empty URLs as duplicates)
+                if url and url in seen_urls:
                     duplicate_logs.append(f"丢弃重复URL: {name} ({score_str}), URL={url}")
                     continue
                 else:
                     if name not in best_by_name:
                         best_by_name[name] = res
-                        seen_urls.add(url)
+                        if url:
+                            seen_urls.add(url)
 
                     else:
                         existing_res = best_by_name[name]
                         if score > existing_res.score:
                             old_score_str = f"{existing_res.score*100:.2f}%"
-                            old_url = existing_res.payload.get("Detail Link", "")
+                            old_url = existing_res.payload.get("source_url", "")
                             replaced_logs.append(
                                 f"替换: {name}, 原分数={old_score_str} URL={old_url}, 新分数={score_str} URL={url}"
                             )
-                            if old_url in seen_urls:
+                            if old_url and old_url in seen_urls:
                                 seen_urls.remove(old_url)
 
                             best_by_name[name] = res
-                            seen_urls.add(url)
+                            if url:
+                                seen_urls.add(url)
                         else:
                             duplicate_logs.append(
                                 f"丢弃相同名称: {name} ({score_str}), 存在更高分({existing_res.score*100:.2f}%)"
@@ -318,7 +425,21 @@ class CSQueryHandler:
 
             unique_results.sort(key=lambda x: x.score, reverse=True)
 
-            final_results = unique_results[:5]
+            # Filter out closed contracts (past due dates) before selecting top 5
+            open_results = []
+            closed_count = 0
+            for res in unique_results:
+                due_date = res.payload.get("due_date", "")
+                if self._is_past_due(due_date):
+                    closed_count += 1
+                    print(f"   - 跳过已关闭合同: {res.payload.get('title', 'Unknown')} (截止日期: {due_date})")
+                else:
+                    open_results.append(res)
+            
+            if closed_count > 0:
+                print(f"\n(2.5) 过滤掉 {closed_count} 个已关闭合同 (截止日期已过)")
+            
+            final_results = open_results[:5]
 
             print("\n(2) 去重过程记录：")
             for line in duplicate_logs:
@@ -328,36 +449,64 @@ class CSQueryHandler:
 
             print("\n(3) 最终保留的 5 条：")
             for i, fr in enumerate(final_results, 1):
-                final_name = fr.payload.get("Bid Name", "Unknown Bid")
+                # Use correct Qdrant field name: 'title' instead of 'Bid Name'
+                final_name = fr.payload.get("title", "Unknown Bid")
                 final_score_str = f"{fr.score*100:.2f}%"
                 print(f"  {i}. {final_name} => {final_score_str}")
 
             print(f"About to create formatted results with company: '{user_company}'")
 
-            # 6. 格式化结果
+            # 6. 格式化结果 (使用新的 Qdrant 字段名称)
             formatted_results = []
             for res in final_results:
-                detail_link = res.payload.get('Detail Link', '#')
-                bid_number = res.payload.get('Bid Number', '')
-
-                hash_input = f"{detail_link}{bid_number}"
-                hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                # Helper function to clean values - treat None, empty, "nan", "none", "null" as missing
+                def clean_value(value, fallback):
+                    if value is None:
+                        return fallback
+                    s = str(value).strip()
+                    if not s or s.lower() in ("nan", "none", "null", "n/a", ""):
+                        return fallback
+                    return s
+                
+                # Extract NAICS code from lowercase field (handles "238220.0" format)
+                raw_naics = res.payload.get('naics_code') or res.payload.get('NAICS_CODE', '')
+                naics_code = ''
+                if raw_naics and str(raw_naics).lower() != 'nan':
+                    # Extract integer part from float format like "238220.0"
+                    import re
+                    matches = re.findall(r'(\d{2,})(?:\.\d+)?', str(raw_naics))
+                    if matches:
+                        naics_code = matches[0]
+                
+                # Extract NAICS description from lowercase field
+                naics_description = res.payload.get('naics_description') or res.payload.get('NAICS_TITLE', '')
+                if naics_description and str(naics_description).lower() == 'nan':
+                    naics_description = ''
+                
+                # Use actual Qdrant field names (lowercase)
                 entry = {
                     'Company': user_company,
-                    'Bid_Number': res.payload.get('Bid Number', 'N/A'),
-                    'Bid_Name': res.payload.get('Bid Name', 'Unknown Bid'),
-                    'Bid_Description': res.payload.get('Bid Description', 'No description available'),
-                    'Status': res.payload.get('Status', 'Unknown'),
-                    'Category': res.payload.get('Category', 'Unknown'),
-                    'Due_Date': res.payload.get('Due Date', 'Not Specified'),
-                    'Detail_Link': res.payload.get('Detail Link', '#'),
-                    'State': res.payload.get('State', 'Unknown'),
-                    'Organization': res.payload.get('Organization', 'Unknown'),
-                    'Budget': res.payload.get('Budget Estimate', 'Not Specified'),
+                    'contract_id': str(res.id),  # Qdrant point ID (replaces hash_value)
+                    'hash_value': str(res.id),  # For backward compatibility
+                    'Bid_Number': clean_value(res.payload.get('contract_number') or res.payload.get('bid_number'), 'N/A'),
+                    'Bid_Name': clean_value(res.payload.get('title') or res.payload.get('bid_name'), 'Unknown Bid'),
+                    'Bid_Description': clean_value(res.payload.get('summary') or res.payload.get('bid_description'), 'No description available'),
+                    'Status': 'Open',  # Qdrant doesn't have status field
+                    'Category': clean_value(res.payload.get('category'), 'Unknown'),
+                    'Due_Date': clean_value(res.payload.get('due_date'), 'Not Specified'),
+                    'Detail_Link': clean_value(res.payload.get('source_url') or res.payload.get('detail_link'), '#'),
+                    'State': clean_value(res.payload.get('state'), 'Unknown'),
+                    'Organization': clean_value(res.payload.get('agency') or res.payload.get('organization'), 'Unknown'),
+                    'Budget': clean_value(res.payload.get('budget'), 'Not Specified'),
                     'Similarity_Score': f"{res.score * 100:.2f}%",
-                    'hash_value': hash_value
+                    'NAICS_CODE': naics_code,
+                    'NAICS_TITLE': naics_description,
+                    'source': res.payload.get('source', ''),  # For AI enrichment
                 }
                 formatted_results.append(entry)
+            
+            # 7. Enrich with AI-derived Industry Sector and Geographic Area
+            formatted_results = self.enrich_with_ai(formatted_results)
             
             print(f"First result company: {formatted_results[0]['Company']}")
             
@@ -381,8 +530,8 @@ def main():
     load_dotenv()
     
     OPENAI_API_KEY = os.getenv('CS_BUILDER_OPENAI_API_KEY')
-    QDRANT_URL = os.getenv('QDRANT_URL')
-    QDRANT_API_KEY = os.getenv('QDRANT_API_KEY')
+    QDRANT_URL = os.getenv('Qdrant_EP')
+    QDRANT_API_KEY = os.getenv('Qdrant_AK')
     
     user_upload_dir = "uploads"
     file_path = "example_capability_statement.pdf"

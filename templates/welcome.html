@@ -143,6 +143,7 @@
                 <div class="table-header">
                     <div class="header-cell">Contract Name</div>
                     <div class="header-cell">Category</div>
+                    <div class="header-cell">NAICS Code(s)</div>
                     <div class="header-cell">Due Date</div>
                     <div class="header-cell">Status</div>
                     <div class="header-cell">AI Assistant</div>
@@ -643,18 +644,43 @@
                 const row = document.createElement('div');
                 row.className = 'contract-row';
                 
-                const dueDate = new Date(contract.due_date).toLocaleDateString();
-                const statusClass = contract.status === 'active' ? 'status-active' : 'status-open';
+                // Handle Invalid Date gracefully - show raw string if date parsing fails
+                let dueDate = contract.due_date || 'No due date';
+                const hasNoDueDate = dueDate === 'No due date';
+                if (!hasNoDueDate) {
+                    const parsedDate = new Date(dueDate);
+                    if (!isNaN(parsedDate.getTime())) {
+                        dueDate = parsedDate.toLocaleDateString();
+                    }
+                    // If parsing fails, keep the raw string (e.g., "2025-11-20")
+                }
+                // Determine status class and display text based on contract status
+                // closed = past due date (#FF6961), no due date = "Pending" (#abc5fe), active = has future due date (#CEE3BE)
+                let statusClass;
+                let displayStatus;
+                if (contract.status === 'closed') {
+                    statusClass = 'status-closed';
+                    displayStatus = 'Closed';
+                } else if (hasNoDueDate) {
+                    statusClass = 'status-no-due-date';
+                    displayStatus = 'Pending';  // Changed from "open" to "Pending" for no due date
+                } else {
+                    // Has due date that hasn't expired - use #CEE3BE color
+                    statusClass = 'status-active';
+                    displayStatus = 'Open';
+                }
+                const naicsCode = contract.naics_code || '';
                 
                 row.innerHTML = `
                     <div class="contract-cell contract-name">${contract.bid_name}</div>
                     <div class="contract-cell contract-category">${contract.category}</div>
+                    <div class="contract-cell contract-naics">${naicsCode}</div>
                     <div class="contract-cell contract-due-date">${dueDate}</div>
                     <div class="contract-cell">
-                        <span class="contract-status ${statusClass}">${contract.status}</span>
+                        <span class="contract-status ${statusClass}">${displayStatus}</span>
                     </div>
                     <div class="contract-cell">
-                        <button class="select-contract-btn" onclick="selectContract('${contract.bid_number}', '${contract.bid_name}')">
+                        <button class="select-contract-btn" onclick="selectContract('${contract.hash_value}', '${contract.bid_name}')">
                             Start AI Assistant
                         </button>
                     </div>
@@ -669,9 +695,26 @@
             });
         }
         
-        function selectContract(bidNumber, bidName) {
-            // Navigate to AI assistant room with selected contract
-            window.location.href = `/ai-assistant?contract=${encodeURIComponent(bidNumber)}&name=${encodeURIComponent(bidName)}`;
+        function selectContract(hashValue, bidName) {
+            // Generate NAICS codes on-demand before navigating to AI assistant
+            // This ensures NAICS codes are cached and will appear in the dashboard on subsequent loads
+            fetch('/api/generate_naics', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hash_value: hashValue,
+                    title: bidName,
+                    description: ''
+                })
+            }).then(response => response.json())
+              .then(data => {
+                  console.log('NAICS generation result:', data);
+              }).catch(err => {
+                  console.error('NAICS generation error:', err);
+              });
+            
+            // Navigate to AI assistant room with selected contract using hash_value
+            window.location.href = `/ai-assistant?hash_value=${encodeURIComponent(hashValue)}&name=${encodeURIComponent(bidName)}`;
         }
 
         // Dashboard search functionality
@@ -717,7 +760,7 @@
                         if (data.success) {
                             populateContractTable(data.contracts);
                             updatePagination(data.current_page, data.total_pages, data.total_contracts);
-                            updateCategoryDisplay(data.analytics);
+                            // Top Contract Categories stay fixed - don't update on search
                         } else {
                             console.error('Search failed:', data.message);
                         }

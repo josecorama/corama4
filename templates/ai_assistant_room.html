@@ -325,11 +325,13 @@
                         <div>
                             <div style="font-size: 0.7rem; color: #666; font-weight: 500;">Capability Statement</div>
                             <div style="font-weight: 700; color: #27ae60; font-size: 0.95rem;">
+                                <span id="capabilityStatusName">
                                 {% if company_name %}
                                     {{ company_name }}
                                 {% else %}
                                     Loaded
                                 {% endif %}
+                                </span>
                             </div>
                             {% if capability_statement_count > 1 %}
                             <select id="capabilitySelect" style="margin-top: 0.25rem; font-size: 0.8rem; padding: 0.25rem; border-radius: 4px; border: 1px solid #27ae60;" onchange="updateSelectedCapability()">
@@ -346,6 +348,9 @@
                 <div style="display: flex; gap: 0.5rem;">
                     <button onclick="document.getElementById('fileUpload').click()" style="background: #f8f9fa; border: 2px solid #dee2e6; color: #495057; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'; this.style.borderColor='#adb5bd'" onmouseout="this.style.background='#f8f9fa'; this.style.borderColor='#dee2e6'">
                         <span>📁</span> Upload More
+                    </button>
+                    <button onclick="confirmRemoveCapability()" style="background: #fff5f5; border: 2px solid #feb2b2; color: #c53030; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; transition: all 0.2s;" onmouseover="this.style.background='#fed7d7'; this.style.borderColor='#fc8181'" onmouseout="this.style.background='#fff5f5'; this.style.borderColor='#feb2b2'">
+                        <span>🗑️</span> Remove file
                     </button>
                 </div>
             </div>
@@ -1095,16 +1100,30 @@
             }
         });
         
+        // Sync the green status label with the dropdown selection
+        function syncCapabilityStatusLabelFromDropdown() {
+            const select = document.getElementById('capabilitySelect');
+            const statusName = document.getElementById('capabilityStatusName');
+            
+            if (select && statusName) {
+                // Extract company name from selected option text (format: "Company Name (YYYY-MM-DD)")
+                const selectedText = select.options[select.selectedIndex].text;
+                const companyName = selectedText.replace(/\s*\(.*\)$/, ''); // Remove date portion
+                statusName.textContent = companyName;
+            }
+        }
+        
         function updateSelectedCapability() {
             const select = document.getElementById('capabilitySelect');
             const selectedFilename = select.value;
             
             // Update session to use selected capability statement (important-comment)
-            fetch('/update_selected_capability', {
+            fetch(window.location.origin + '/update_selected_capability', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({
                     filename: selectedFilename
                 })
@@ -1112,20 +1131,245 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Reload page to refresh with new capability context (important-comment)
-                    window.location.reload();
+                    // Update UI dynamically without reload
+                    syncCapabilityStatusLabelFromDropdown();
                 } else {
-                    alert('Failed to update capability statement selection');
+                    showAiUploadError('Failed to update capability statement selection');
                 }
             })
             .catch(error => {
                 console.error('Error updating capability:', error);
+                showAiUploadError('Failed to update capability statement selection');
             });
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            syncCapabilityStatusLabelFromDropdown();
+        });
+        
+        // Upload overlay constants and helper functions
+        const AI_UPLOAD_SUCCESS_MS = 1000;
+        const AI_UPLOAD_ERROR_MS = 1500;
+        
+        function showAiUploadLoading(message, subtitle = '') {
+            const overlay = document.getElementById('aiUploadOverlay');
+            const spinner = document.getElementById('aiUploadSpinner');
+            const successIcon = document.getElementById('aiUploadSuccessIcon');
+            const errorIcon = document.getElementById('aiUploadErrorIcon');
+            const messageEl = document.getElementById('aiUploadMessage');
+            const subtitleEl = document.getElementById('aiUploadSubtitle');
+            
+            spinner.style.display = 'block';
+            successIcon.style.display = 'none';
+            errorIcon.style.display = 'none';
+            messageEl.textContent = message;
+            subtitleEl.textContent = subtitle;
+            overlay.style.display = 'flex';
+        }
+        
+        function showAiUploadSuccess(message, options = {}) {
+            const overlay = document.getElementById('aiUploadOverlay');
+            const spinner = document.getElementById('aiUploadSpinner');
+            const successIcon = document.getElementById('aiUploadSuccessIcon');
+            const errorIcon = document.getElementById('aiUploadErrorIcon');
+            const messageEl = document.getElementById('aiUploadMessage');
+            const subtitleEl = document.getElementById('aiUploadSubtitle');
+            
+            spinner.style.display = 'none';
+            successIcon.style.display = 'flex';
+            errorIcon.style.display = 'none';
+            messageEl.textContent = message;
+            subtitleEl.textContent = options.subtitle || '';
+            overlay.style.display = 'flex';
+            
+            if (options.reload) {
+                setTimeout(() => {
+                    window.location.reload();
+                }, AI_UPLOAD_SUCCESS_MS);
+            }
+        }
+        
+        function showAiUploadError(message) {
+            const overlay = document.getElementById('aiUploadOverlay');
+            const spinner = document.getElementById('aiUploadSpinner');
+            const successIcon = document.getElementById('aiUploadSuccessIcon');
+            const errorIcon = document.getElementById('aiUploadErrorIcon');
+            const messageEl = document.getElementById('aiUploadMessage');
+            const subtitleEl = document.getElementById('aiUploadSubtitle');
+            
+            spinner.style.display = 'none';
+            successIcon.style.display = 'none';
+            errorIcon.style.display = 'flex';
+            messageEl.textContent = message;
+            subtitleEl.textContent = '';
+            overlay.style.display = 'flex';
+            
+            setTimeout(() => {
+                hideAiUploadOverlay();
+            }, AI_UPLOAD_ERROR_MS);
+        }
+        
+        function hideAiUploadOverlay() {
+            const overlay = document.getElementById('aiUploadOverlay');
+            overlay.style.display = 'none';
+        }
+        
+        // Delete confirmation overlay functions
+        let pendingDeleteFilename = null;
+        
+        function confirmRemoveCapability() {
+            // Determine which capability statement to delete
+            const capabilitySelect = document.getElementById('capabilitySelect');
+            let filename = '';
+            
+            if (capabilitySelect) {
+                // Multiple capability statements - get selected one
+                filename = capabilitySelect.value;
+            } else {
+                // Single capability statement - get from template variable
+                filename = '{{ capability_statement_filename }}';
+            }
+            
+            if (!filename) {
+                showAiUploadError('No capability statement selected');
+                return;
+            }
+            
+            pendingDeleteFilename = filename;
+            showAiDeleteConfirm(filename);
+        }
+        
+        function showAiDeleteConfirm(filename) {
+            const overlay = document.getElementById('aiDeleteConfirmOverlay');
+            const messageEl = document.getElementById('aiDeleteConfirmMessage');
+            
+            messageEl.textContent = `Are you sure you want to remove the Capability Statement ${filename}?`;
+            overlay.style.display = 'flex';
+        }
+        
+        function hideAiDeleteConfirm() {
+            const overlay = document.getElementById('aiDeleteConfirmOverlay');
+            overlay.style.display = 'none';
+            pendingDeleteFilename = null;
+        }
+        
+        function executeDeleteCapability() {
+            if (!pendingDeleteFilename) {
+                showAiUploadError('No file selected for deletion');
+                return;
+            }
+            
+            // Save filename before hiding overlay (which resets pendingDeleteFilename)
+            const filenameToDelete = pendingDeleteFilename;
+            
+            // Hide confirmation overlay and show loading
+            hideAiDeleteConfirm();
+            showAiUploadLoading('Removing capability statement...', 'Please wait');
+            
+            // Make DELETE request to backend
+            fetch(window.location.origin + '/delete_capability_statement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    filename: filenameToDelete
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAiUploadSuccess('Capability statement removed successfully!', {
+                        subtitle: 'Refreshing page...',
+                        reload: true
+                    });
+                } else {
+                    showAiUploadError(data.error || 'Failed to remove capability statement');
+                }
+            })
+            .catch(error => {
+                console.error('Error removing capability statement:', error);
+                showAiUploadError('Failed to remove capability statement. Please try again.');
+            });
+        }
+        
+        // Refresh capability banner with new data from upload response
+        function refreshCapabilityBanner(capabilityState) {
+            const statusBanner = document.querySelector('.status-banner');
+            const assistantLayout = document.querySelector('.assistant-layout');
+            
+            if (!capabilityState.has_capability_statement) {
+                // Transitioning to empty state - reload to show "Capability Statement Required" banner
+                window.location.reload();
+                return;
+            }
+            
+            // Check if we're transitioning from empty to loaded (first upload)
+            const wasEmpty = !statusBanner;
+            if (wasEmpty) {
+                // First upload - reload to show full UI with capability banner
+                window.location.reload();
+                return;
+            }
+            
+            // Already have capability statements - update UI dynamically without reload
+            const statusName = document.getElementById('capabilityStatusName');
+            if (statusName && capabilityState.company_name) {
+                statusName.textContent = capabilityState.company_name;
+            }
+            
+            // Update or create dropdown if we now have multiple capability statements
+            const existingSelect = document.getElementById('capabilitySelect');
+            const count = capabilityState.capability_statement_count;
+            
+            if (count > 1) {
+                if (existingSelect) {
+                    // Update existing dropdown
+                    existingSelect.innerHTML = '';
+                    capabilityState.capability_statements.forEach(cap => {
+                        const option = document.createElement('option');
+                        option.value = cap.filename;
+                        option.text = `${cap.company} (${cap.upload_date.substring(0, 10)})`;
+                        if (cap.is_primary) {
+                            option.selected = true;
+                        }
+                        existingSelect.appendChild(option);
+                    });
+                } else {
+                    // Create new dropdown (transition from 1 to 2 capability statements)
+                    const selectContainer = statusName.parentElement;
+                    const select = document.createElement('select');
+                    select.id = 'capabilitySelect';
+                    select.style.cssText = 'margin-top: 0.25rem; font-size: 0.8rem; padding: 0.25rem; border-radius: 4px; border: 1px solid #27ae60;';
+                    select.onchange = updateSelectedCapability;
+                    
+                    capabilityState.capability_statements.forEach(cap => {
+                        const option = document.createElement('option');
+                        option.value = cap.filename;
+                        option.text = `${cap.company} (${cap.upload_date.substring(0, 10)})`;
+                        if (cap.is_primary) {
+                            option.selected = true;
+                        }
+                        select.appendChild(option);
+                    });
+                    
+                    selectContainer.appendChild(select);
+                }
+                
+                syncCapabilityStatusLabelFromDropdown();
+            }
         }
         
         // Handle file uploads (important-comment)
         document.getElementById('fileUpload').addEventListener('change', function(e) {
             const files = e.target.files;
+            
+            if (files.length === 0) return;
+            
+            // Show loading overlay before upload starts
+            showAiUploadLoading('Uploading capability statement...', 'This may take a few moments.');
             
             for (let file of files) {
                 // Upload file to user's profile (important-comment)
@@ -1139,17 +1383,30 @@
                         if (xhr3.status === 200) {
                             const data = JSON.parse(xhr3.responseText);
                             if (data.success) {
-                                // Show success confirmation and reload page to display company name (important-comment)
-                                alert('✅ Capability statement uploaded and processed successfully!\n\nThe page will refresh to display your company information.');
-                                window.location.reload();
+                                // Show success confirmation
+                                showAiUploadSuccess('Capability statement uploaded and processed successfully!', {
+                                    subtitle: 'Updating UI...',
+                                    reload: false
+                                });
+                                
+                                // Update UI dynamically with capability state from response
+                                setTimeout(() => {
+                                    hideAiUploadOverlay();
+                                    if (data.capability_state) {
+                                        refreshCapabilityBanner(data.capability_state);
+                                    } else {
+                                        // Fallback to reload if no capability state returned
+                                        window.location.reload();
+                                    }
+                                }, AI_UPLOAD_SUCCESS_MS);
                             } else if (data.error && data.credits_required) {
-                                alert(`❌ Insufficient credits. ${data.credits_required} credits needed to upload this file.`);
+                                showAiUploadError(`Insufficient credits. ${data.credits_required} credits are needed to upload this file.`);
                             } else {
-                                alert('❌ Upload failed. Please try again.');
+                                showAiUploadError('Upload failed. Please try again.');
                             }
                         } else {
                             console.error('Upload error:', xhr3.statusText);
-                            alert('❌ Upload failed. Please try again.');
+                            showAiUploadError('Upload failed. Please try again.');
                         }
                     }
                 };
@@ -1161,11 +1418,52 @@
         function startProposalWorkflow() {
             const contractId = '{{ contract_id }}';
             const contractHash = contractId; // Using contract_id as hash for now
+            const contractName = {{ (contract_name or "")|tojson }};
             
             // Navigate to Screen 1: Contract Analysis & PDF Annotations
-            window.location.href = `/proposal/start?hash=${contractHash}`;
+            let url = `/proposal/start?hash=${encodeURIComponent(contractHash)}`;
+            if (contractName) {
+                url += `&name=${encodeURIComponent(contractName)}`;
+            }
+            window.location.href = url;
         }
     </script>
+    
+    <!-- Upload Overlay -->
+    <div id="aiUploadOverlay" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.85); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid #667eea; min-width: 300px;">
+            <div id="aiUploadSpinner" class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem; margin-bottom: 1rem; color: #667eea;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div id="aiUploadSuccessIcon" style="display: none; width: 3rem; height: 3rem; border-radius: 50%; background: #22c55e; color: white; align-items: center; justify-content: center; margin: 0 auto 1rem auto; font-size: 1.5rem;">
+                <i class="fas fa-check"></i>
+            </div>
+            <div id="aiUploadErrorIcon" style="display: none; width: 3rem; height: 3rem; border-radius: 50%; background: #ef4444; color: white; align-items: center; justify-content: center; margin: 0 auto 1rem auto; font-size: 1.5rem;">
+                <i class="fas fa-times"></i>
+            </div>
+            <h5 id="aiUploadMessage" style="margin: 0; color: #333;">Processing...</h5>
+            <p id="aiUploadSubtitle" style="margin-top: 0.5rem; color: #666; font-size: 0.9rem;"></p>
+        </div>
+    </div>
+    
+    <!-- Delete Confirmation Overlay -->
+    <div id="aiDeleteConfirmOverlay" style="display: none; position: fixed; inset: 0; background: rgba(15,23,42,0.85); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); border: 2px solid #ef4444; min-width: 400px; max-width: 500px;">
+            <div style="width: 3rem; height: 3rem; border-radius: 50%; background: #fff5f5; color: #c53030; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem auto; font-size: 1.5rem;">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h5 style="margin: 0 0 1rem 0; color: #333; font-size: 1.1rem;">Confirm Deletion</h5>
+            <p id="aiDeleteConfirmMessage" style="margin: 0 0 1.5rem 0; color: #666; font-size: 0.95rem; line-height: 1.5;"></p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <button onclick="hideAiDeleteConfirm()" style="background: #f8f9fa; border: 2px solid #dee2e6; color: #495057; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">
+                    No, Cancel
+                </button>
+                <button onclick="executeDeleteCapability()" style="background: #c53030; border: 2px solid #c53030; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#9b2c2c'" onmouseout="this.style.background='#c53030'">
+                    Yes, Remove
+                </button>
+            </div>
+        </div>
+    </div>
     
     {% include 'scripts.html' %}
 </body>

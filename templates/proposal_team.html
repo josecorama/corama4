@@ -486,10 +486,73 @@
         </div>
     </div>
     
+    <!-- Site Alert Modal -->
+    <div class="modal" id="siteAlertModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header" id="siteAlertTitle">Notification</div>
+            <p id="siteAlertMessage" style="margin-bottom: 1.5rem; color: #2c3e50;"></p>
+            <div class="action-buttons">
+                <button class="btn btn-primary" onclick="closeSiteAlert()">OK</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Site Confirm Modal -->
+    <div class="modal" id="siteConfirmModal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header" id="siteConfirmTitle">Confirm Action</div>
+            <p id="siteConfirmMessage" style="margin-bottom: 1.5rem; color: #2c3e50;"></p>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="handleSiteConfirm(false)">No</button>
+                <button class="btn btn-primary" onclick="handleSiteConfirm(true)">Yes</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
         const draftId = '{{ draft_id }}';
         const userId = '{{ user_id }}';
         let teamMembers = [];
+        
+        // Site Alert/Confirm Modal Helpers
+        let siteAlertResolve = null;
+        let siteConfirmResolve = null;
+        
+        function showSiteAlert(message, title = 'Notification') {
+            return new Promise(resolve => {
+                siteAlertResolve = resolve;
+                document.getElementById('siteAlertTitle').textContent = title;
+                document.getElementById('siteAlertMessage').textContent = message;
+                document.getElementById('siteAlertModal').classList.add('active');
+            });
+        }
+        
+        function closeSiteAlert() {
+            document.getElementById('siteAlertModal').classList.remove('active');
+            if (siteAlertResolve) {
+                const resolve = siteAlertResolve;
+                siteAlertResolve = null;
+                resolve();
+            }
+        }
+        
+        function showSiteConfirm(message, title = 'Confirm Action') {
+            return new Promise(resolve => {
+                siteConfirmResolve = resolve;
+                document.getElementById('siteConfirmTitle').textContent = title;
+                document.getElementById('siteConfirmMessage').textContent = message;
+                document.getElementById('siteConfirmModal').classList.add('active');
+            });
+        }
+        
+        function handleSiteConfirm(result) {
+            document.getElementById('siteConfirmModal').classList.remove('active');
+            if (siteConfirmResolve) {
+                const resolve = siteConfirmResolve;
+                siteConfirmResolve = null;
+                resolve(result);
+            }
+        }
         
         // Load existing team members on page load
         window.addEventListener('DOMContentLoaded', function() {
@@ -499,7 +562,9 @@
         // Load team members from draft
         async function loadTeamMembers() {
             try {
-                const response = await fetch(`/api/get_draft_team?draft_id=${draftId}`);
+                const response = await fetch(`${window.location.origin}/api/get_draft_team?draft_id=${draftId}`, {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 if (data.success && data.team_members) {
@@ -593,7 +658,9 @@
         
         async function loadDirectoryCompanies() {
             try {
-                const response = await fetch('/api/get_directory_companies');
+                const response = await fetch(`${window.location.origin}/api/get_directory_companies`, {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 if (data.success) {
@@ -720,11 +787,12 @@
             };
             
             try {
-                const response = await fetch('/api/add_team_member', {
+                const response = await fetch(`${window.location.origin}/api/add_team_member`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         member: member
@@ -737,7 +805,7 @@
                     teamMembers.push(member);
                     renderTeamMembers();
                     closeModal('directoryModal');
-                    alert(`${company.company} has been added to your team!`);
+                    await showSiteAlert(`${company.company} has been added to your team!`, 'Team Member Added');
                 } else {
                     alert('Failed to add team member');
                 }
@@ -764,11 +832,12 @@
                 extractBtn.disabled = true;
                 extractBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Extracting...';
                 
-                const response = await fetch('/api/extract_subcontractor_info', {
+                const response = await fetch(`${window.location.origin}/api/extract_subcontractor_info`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         url: url,
                         draft_id: draftId
@@ -819,11 +888,12 @@
             }
             
             try {
-                const response = await fetch('/api/add_team_member', {
+                const response = await fetch(`${window.location.origin}/api/add_team_member`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         member: member
@@ -855,7 +925,8 @@
         
         // Remove member
         async function removeMember(index) {
-            if (!confirm('Are you sure you want to remove this team member?')) {
+            const confirmed = await showSiteConfirm('Are you sure you want to remove this team member?', 'Remove Team Member');
+            if (!confirmed) {
                 return;
             }
             
@@ -864,11 +935,12 @@
             
             // Save to backend
             try {
-                await fetch('/api/update_draft_team', {
+                await fetch(`${window.location.origin}/api/update_draft_team`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         team_members: teamMembers
@@ -882,7 +954,7 @@
         // AI suggestions
         async function suggestSubcontractors() {
             if (!draftId) {
-                alert('❌ No draft found. Please start from the contract analysis page.');
+                showSiteAlert('No draft found. Please start from the contract analysis page.', 'Error');
                 return;
             }
             
@@ -900,11 +972,12 @@
                     `;
                 }
                 
-                const response = await fetch('/api/suggest_team', {
+                const response = await fetch(`${window.location.origin}/api/suggest_team`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
+                    credentials: 'same-origin',
                     body: JSON.stringify({
                         draft_id: draftId,
                         team_members: teamMembers
@@ -917,11 +990,11 @@
                     displayAISuggestions(data.suggestions);
                 } else {
                     const errorMsg = data.error || 'Failed to generate team suggestions';
-                    alert('❌ ' + errorMsg);
+                    showSiteAlert(errorMsg, 'Error');
                 }
             } catch (error) {
                 console.error('Error getting AI suggestions:', error);
-                alert('❌ Network error: Could not connect to the server. Please check your connection and try again.');
+                showSiteAlert('Network error: Could not connect to the server. Please check your connection and try again.', 'Error');
             } finally {
                 if (suggestBtn) {
                     suggestBtn.style.opacity = '1';
