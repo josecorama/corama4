@@ -410,8 +410,8 @@
                     <div class="preview-content" id="previewContent"></div>
                     
                     <div class="action-buttons" style="margin-top: 1.5rem;">
-                        <button class="btn btn-success" onclick="downloadPDF()">
-                            Download DRAFT PDF
+                        <button class="btn btn-success" onclick="downloadDOCX()">
+                            Download DRAFT DOCX
                         </button>
                         <button class="btn btn-primary" onclick="regenerateProposal()">
                             Regenerate Proposal
@@ -427,7 +427,7 @@
                         <li><strong>Edit:</strong> Replace placeholders marked with [brackets] and refine the language.</li>
                         <li><strong>Validate:</strong> Verify all pricing, compliance statements, and technical claims.</li>
                         <li><strong>Approve:</strong> Obtain necessary internal legal/compliance approvals.</li>
-                        <li><strong>Finalize:</strong> Download the PDF, edit in your word processor, and prepare for submission.</li>
+                        <li><strong>Finalize:</strong> Download the DOCX file, edit in your word processor, and prepare for submission.</li>
                     </ol>
                 </div>
             </div>
@@ -559,8 +559,8 @@
             generateProposal();
         }
         
-        // Download PDF
-        function downloadPDF() {
+        // Download DOCX
+        function downloadDOCX() {
             window.location.href = `${window.location.origin}/api/download_proposal_pdf?draft_id=${draftId}`;
         }
         

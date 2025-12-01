@@ -12021,235 +12021,484 @@ Labor Breakdown:
                 response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
                     model="gpt-4",
                     messages=[
-                        {"role": "system", "content": f"""You are an expert government contract proposal writer. Generate Section {section_num}: {section_name} for a DRAFT public procurement proposal.
+                        {"role": "system", "content": f"""You are an expert government contract proposal writer with 20+ years of experience winning federal, state, and local government contracts. Generate Section {section_num}: {section_name} for a comprehensive public procurement proposal.
 
-CRITICAL FORMATTING RULES:
+CRITICAL REQUIREMENTS FOR SUBSTANTIVE CONTENT:
+1. Write THOROUGH, DETAILED content that is ready for professional use
+2. Each section should be comprehensive and substantive - aim for the word count specified in the prompt
+3. Use specific, concrete language rather than generic statements
+4. Include detailed explanations, methodologies, and approaches
+5. Reference the specific contract requirements and tailor content accordingly
+6. Write in formal government contracting language with professional tone
+
+FORMATTING RULES:
 - Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
 - Use clear section headings in UPPERCASE
-- Write in professional paragraph form
-- This is a DRAFT document - include appropriate placeholders where specific data is missing
-- Write in formal government contracting language
+- Use numbered lists where appropriate (1., 2., 3.)
+- Write in professional paragraph form with detailed explanations
+- Include appropriate placeholders [IN BRACKETS] only where specific company data is truly missing
+- Structure content with clear subheadings for easy navigation
 
+COMPANY INFORMATION:
 Company Name: {company_name}
 Company Address: {company_address}
 Company Email: {company_email}
 
-Capability Statement Summary:
-{capability_statement[:2000] if capability_statement else 'Company capabilities to be detailed based on specific contract requirements.'}
+CAPABILITY STATEMENT (Use this to inform technical capabilities and past performance):
+{capability_statement[:4000] if capability_statement else 'Company capabilities to be detailed based on specific contract requirements.'}
 
-Contract Requirements/Annotations:
-{all_annotations_text[:3000]}
+CONTRACT REQUIREMENTS AND ANNOTATIONS (Reference these specifically in your response):
+{all_annotations_text[:5000]}
 
-Team Members:
+TEAM MEMBERS (Include these in staffing and management sections):
 {team_summary}
 
-Pricing Summary:
+PRICING INFORMATION (Use for cost proposal section):
 {pricing_summary}
-"""},
+
+Remember: Generate SUBSTANTIVE, READY-TO-USE content. The goal is a proposal that requires minimal editing before submission."""},
                         {"role": "user", "content": prompt}
                     ],
-                    temperature=0.3,
-                    max_tokens=3000
+                    temperature=0.4,
+                    max_tokens=4000
                 )
                 return response.choices[0].message.content
             except Exception as e:
                 logging.error(f"Error generating section {section_num}: {e}")
                 return f"[Error generating {section_name}: {str(e)}. Please regenerate this section.]"
         
-        # Define the 8 prompts based on PromptBidding.md structure
+        # Define the 8 prompts based on PromptBidding.md structure - Enhanced for substantive content
         section_prompts = [
-            (1, "Cover Letter & Executive Summary", f"""Generate a comprehensive Cover Letter and Executive Summary section that includes:
+            (1, "Cover Letter & Executive Summary", f"""Generate a comprehensive, ready-to-use Cover Letter and Executive Summary section. TARGET LENGTH: 1,200-1,500 words.
 
-1. COVER PAGE with:
-   - Solicitation reference (use placeholders if not available)
-   - Company name: {company_name}
-   - Date: [Current Date]
-   - "DRAFT - FOR INTERNAL REVIEW ONLY" watermark notice
+COVER PAGE INFORMATION:
+Include a formal cover page with: Solicitation reference, Title of the opportunity, Contracting Agency, Company name ({company_name}), Submission date, and "DRAFT - FOR INTERNAL REVIEW ONLY" notice.
 
-2. COVER LETTER/TRANSMITTAL LETTER:
-   - Formal address to the contracting agency
-   - Expression of interest in the solicitation
-   - Brief company introduction
-   - Commitment statement
-   - Signature block for "[Authorized Representative]"
+COVER LETTER/TRANSMITTAL LETTER (300-400 words):
+Write a compelling, formal transmittal letter that:
+1. Opens with a strong statement of interest and commitment to the solicitation
+2. Introduces {company_name} with specific credentials and relevant experience
+3. Highlights 2-3 key differentiators that make the company uniquely qualified
+4. Expresses understanding of the agency's mission and how this contract supports it
+5. Includes commitment to performance, schedule, and budget
+6. Closes with contact information and signature block for "[Authorized Representative, Title]"
 
-3. EXECUTIVE SUMMARY (2-3 pages):
-   - Understanding of the requirements
-   - Solution overview
-   - Main differentiators and competitive advantages
-   - High-level value proposition
-   - Key personnel highlights
-   - Why {company_name} is the ideal contractor
+EXECUTIVE SUMMARY (800-1,100 words):
+Write a compelling executive summary that:
 
-Write professionally and comprehensively."""),
+1. UNDERSTANDING OF REQUIREMENTS
+   - Demonstrate deep understanding of the solicitation's objectives
+   - Reference specific requirements from the contract annotations
+   - Show awareness of the agency's challenges and priorities
 
-            (2, "Administrative & Compliance Information", f"""Generate the Administrative & Compliance Information section that includes:
+2. PROPOSED SOLUTION OVERVIEW
+   - Provide a clear, compelling description of the proposed approach
+   - Explain how the solution addresses each major requirement
+   - Highlight innovative aspects and value-added features
 
-1. OFFEROR INFORMATION:
-   - Legal entity name: {company_name}
-   - Address: {company_address}
-   - UEI: [To be provided]
-   - NAICS codes: [Relevant codes]
-   - Small business status: [To be confirmed]
+3. KEY DIFFERENTIATORS AND COMPETITIVE ADVANTAGES
+   - Identify 4-5 specific reasons why {company_name} is the best choice
+   - Reference relevant past performance and capabilities
+   - Emphasize unique qualifications, certifications, or methodologies
 
-2. REGISTRATIONS:
-   - SAM.gov registration status
-   - Other relevant registrations
+4. VALUE PROPOSITION
+   - Articulate the tangible benefits to the agency
+   - Explain cost-effectiveness and return on investment
+   - Describe risk mitigation and quality assurance approaches
 
-3. REPRESENTATIONS AND CERTIFICATIONS:
-   - Summary of key certifications (not full legal texts)
-   - Compliance statements
+5. KEY PERSONNEL HIGHLIGHTS
+   - Briefly introduce the project leadership team
+   - Highlight relevant experience and qualifications
 
-4. COMPLIANCE CONFIRMATIONS:
-   - Equal Employment Opportunity (EEO)
-   - Anti-kickback compliance
-   - Non-debarment statement
-   - Other standard compliance statements
+Write with confidence and specificity. This should read as a polished, professional proposal."""),
 
-Mark all items requiring verification with [TO BE VERIFIED] placeholders."""),
+            (2, "Administrative & Compliance Information", f"""Generate a thorough Administrative & Compliance Information section. TARGET LENGTH: 800-1,000 words.
 
-            (3, "Technical Approach", f"""Generate a comprehensive Technical Approach section (8-10 pages) that includes:
+1. OFFEROR IDENTIFICATION AND CONTACT INFORMATION
+   - Legal Entity Name: {company_name}
+   - Business Address: {company_address}
+   - Primary Contact: [Name, Title, Phone, Email]
+   - Authorized Representative: [Name, Title]
+   - DUNS/UEI Number: [TO BE PROVIDED]
+   - CAGE Code: [TO BE PROVIDED]
+   - Tax Identification Number: [TO BE PROVIDED]
 
-1. UNDERSTANDING OF REQUIREMENTS:
-   - Detailed interpretation of the contract scope
-   - Key technical challenges identified
-   - Compliance with specifications
+2. BUSINESS CLASSIFICATION AND STATUS
+   - Business Type: [Corporation/LLC/Partnership/Sole Proprietorship]
+   - State of Incorporation: [State]
+   - Year Established: [Year]
+   - Small Business Status: [Indicate applicable categories: Small Business, Woman-Owned, Veteran-Owned, HUBZone, 8(a), etc.]
+   - NAICS Codes: [List primary and secondary codes relevant to this solicitation]
+   - Size Standard Compliance: [Confirm compliance with applicable size standards]
 
-2. PROPOSED TECHNICAL SOLUTION:
-   - Methodology and approach
-   - Innovative solutions
-   - Technology and tools to be used
+3. REGISTRATIONS AND CERTIFICATIONS
+   - SAM.gov Registration: [Active/Registration Number/Expiration Date]
+   - State Business Licenses: [List applicable state registrations]
+   - Professional Certifications: [List relevant certifications - ISO, CMMI, etc.]
+   - Security Clearances: [If applicable, describe facility and personnel clearances]
 
-3. WORK PLAN AND DELIVERABLES:
-   - Phase-by-phase breakdown
-   - Key milestones
-   - Deliverables list with descriptions
+4. REPRESENTATIONS AND CERTIFICATIONS SUMMARY
+   Provide affirmative statements for:
+   - FAR 52.204-8 Annual Representations and Certifications
+   - Organizational Conflict of Interest: No conflicts exist
+   - Debarment and Suspension: Not debarred or suspended
+   - Tax Compliance: Current on all federal tax obligations
+   - Equal Employment Opportunity: Full compliance with EEO requirements
+   - Drug-Free Workplace: Maintains drug-free workplace policy
+   - Anti-Kickback Act: Full compliance
+   - Lobbying Restrictions: No federal funds used for lobbying
 
-4. COMPLIANCE MATRIX SUMMARY:
-   - How each requirement will be met
-   - Technical standards compliance
+5. INSURANCE AND BONDING
+   - General Liability Insurance: [Coverage amount]
+   - Professional Liability Insurance: [Coverage amount]
+   - Workers' Compensation: [Compliant with state requirements]
+   - Bonding Capacity: [If applicable]
 
-Based on the contract requirements provided, create a detailed and professional technical approach."""),
+Mark items requiring verification with [TO BE VERIFIED] but provide complete structure."""),
 
-            (4, "Management & Staffing Plan", f"""Generate a comprehensive Management & Staffing Plan section (6-8 pages) that includes:
+            (3, "Technical Approach", f"""Generate a comprehensive, detailed Technical Approach section. TARGET LENGTH: 2,000-2,500 words. This is the most critical section - make it thorough and specific.
 
-1. PROJECT MANAGEMENT APPROACH:
-   - Management methodology (Agile/Waterfall/Hybrid as appropriate)
-   - Communication protocols
-   - Reporting structure
+1. UNDERSTANDING OF REQUIREMENTS (400-500 words)
+   Begin by demonstrating thorough understanding of the solicitation:
+   - Summarize the agency's objectives and desired outcomes
+   - Identify and discuss key technical requirements from the annotations
+   - Acknowledge challenges and constraints
+   - Show understanding of performance standards and success criteria
+   - Reference specific sections or requirements from the solicitation
 
-2. ORGANIZATIONAL STRUCTURE:
-   - Project organization chart description
-   - Roles and responsibilities
-   - Reporting relationships
+2. TECHNICAL SOLUTION AND METHODOLOGY (600-800 words)
+   Describe the proposed technical approach in detail:
+   - Overall solution architecture and design philosophy
+   - Specific methodologies, frameworks, and best practices to be employed
+   - Technology stack, tools, and systems to be used
+   - How the solution addresses each major requirement
+   - Innovation and value-added features
+   - Integration with existing agency systems (if applicable)
+   - Scalability and flexibility of the proposed solution
 
-3. KEY PERSONNEL:
-   Based on the team members provided, describe:
+3. WORK PLAN AND IMPLEMENTATION APPROACH (500-600 words)
+   Provide a detailed implementation plan:
+   - Project phases with clear objectives for each phase
+   - Key activities and tasks within each phase
+   - Timeline and schedule (use realistic estimates)
+   - Dependencies and critical path items
+   - Transition and knowledge transfer approach
+   - Change management methodology
+
+4. DELIVERABLES AND ACCEPTANCE CRITERIA (300-400 words)
+   List and describe all deliverables:
+   - For each deliverable: description, format, delivery schedule
+   - Quality standards for deliverables
+   - Review and acceptance process
+   - Documentation requirements
+
+5. COMPLIANCE MATRIX SUMMARY (200-300 words)
+   Demonstrate compliance with key requirements:
+   - Map major solicitation requirements to proposed solution elements
+   - Identify any exceptions or deviations (if none, state full compliance)
+   - Reference applicable standards and regulations
+
+Write with technical depth and specificity. Reference the contract requirements provided and tailor the approach accordingly."""),
+
+            (4, "Management & Staffing Plan", f"""Generate a comprehensive Management & Staffing Plan section. TARGET LENGTH: 1,500-1,800 words.
+
+1. PROJECT MANAGEMENT APPROACH (400-500 words)
+   Describe the management methodology in detail:
+   - Project management framework (Agile, Waterfall, Hybrid - justify the choice)
+   - Governance structure and decision-making processes
+   - Communication plan: frequency, methods, stakeholders, escalation procedures
+   - Status reporting: format, frequency, distribution
+   - Issue and risk management processes
+   - Change control procedures
+   - Quality management integration
+   - Tools and systems for project management
+
+2. ORGANIZATIONAL STRUCTURE (300-400 words)
+   Describe the project organization:
+   - Organizational chart description (describe hierarchy and relationships)
+   - Reporting relationships and lines of authority
+   - Interface with agency personnel
+   - Subcontractor management structure (if applicable)
+   - Corporate support and oversight
+
+3. KEY PERSONNEL (500-600 words)
+   Provide detailed descriptions of key team members:
 {team_summary}
-   - Include placeholders for additional key personnel as needed
 
-4. STAFFING PLAN:
-   - Resource allocation over project timeline
-   - Skill requirements
+   For each key person, include:
+   - Name and proposed role
+   - Relevant qualifications and certifications
+   - Years of experience in similar roles
+   - Specific relevant project experience
+   - Percentage of time dedicated to this contract
+   - Backup/succession plan
+
+   If team members are not yet identified, provide detailed position descriptions with required qualifications.
+
+4. STAFFING PLAN AND RESOURCE ALLOCATION (300-400 words)
+   - Total staffing levels by phase and labor category
+   - Full-time equivalent (FTE) breakdown
+   - Skill mix and expertise areas
+   - Recruitment and retention strategies
+   - Training and professional development
    - Contingency staffing plans
+   - Ramp-up and ramp-down approach
 
-Write in detail with professional government contracting language."""),
+Write with specificity about roles, responsibilities, and management processes."""),
 
-            (5, "Corporate Experience & Past Performance", f"""Generate a Corporate Experience & Past Performance section (4-6 pages) that includes:
+            (5, "Corporate Experience & Past Performance", f"""Generate a comprehensive Corporate Experience & Past Performance section. TARGET LENGTH: 1,500-1,800 words.
 
-1. COMPANY OVERVIEW:
-   - Brief history of {company_name}
-   - Core competencies
-   - Relevant industry experience
+1. CORPORATE OVERVIEW (300-400 words)
+   Provide a compelling company profile:
+   - Company history and founding
+   - Mission and core values
+   - Areas of expertise and specialization
+   - Geographic presence and capabilities
+   - Key differentiators in the market
+   - Awards, recognitions, and achievements
+   - Growth trajectory and stability indicators
 
-2. PAST PERFORMANCE EXAMPLES:
-   - Create 3-4 structured past performance entries with:
-     - Contract name/description
-     - Client/Agency
-     - Contract value
-     - Period of performance
-     - Key accomplishments
-     - Relevance to current solicitation
-   - Use placeholders where specific data is not available: [CONTRACT DETAILS TO BE PROVIDED]
+2. CORE COMPETENCIES (200-300 words)
+   Detail the company's core capabilities:
+   - Technical competencies relevant to this contract
+   - Management and operational capabilities
+   - Quality assurance expertise
+   - Innovation and continuous improvement track record
 
-3. RELEVANCE MAPPING:
-   - How past experience directly relates to this contract
-   - Lessons learned and how they apply
+3. PAST PERFORMANCE EXAMPLES (800-1,000 words)
+   Provide 3-4 detailed past performance references. For each, include:
 
-Base this on the capability statement provided and create professional placeholders for specific contract details."""),
+   PAST PERFORMANCE EXAMPLE 1:
+   - Contract Name/Title: [Name or description]
+   - Contracting Agency/Client: [Agency name]
+   - Contract Number: [TO BE PROVIDED]
+   - Contract Type: [FFP/T&M/Cost-Plus]
+   - Contract Value: $[Amount]
+   - Period of Performance: [Start Date] to [End Date]
+   - Point of Contact: [Name, Title, Phone, Email - TO BE PROVIDED]
+   - Scope of Work: [Detailed description of work performed]
+   - Key Accomplishments: [Specific achievements, metrics, outcomes]
+   - Relevance to Current Solicitation: [Explain how this experience applies]
 
-            (6, "Quality Assurance, Risk Management & Small Business Participation", f"""Generate a comprehensive section covering Quality Assurance, Risk Management, and Small Business Participation (4-6 pages):
+   [Repeat structure for Examples 2, 3, and 4]
 
-1. QUALITY ASSURANCE/QUALITY CONTROL:
-   - QA/QC methodology
-   - Quality standards and certifications
-   - Inspection and testing procedures
-   - Continuous improvement processes
+   Base these on the capability statement provided. Use realistic placeholders where specific data is not available.
 
-2. RISK MANAGEMENT:
-   - Risk identification methodology
-   - Key risks identified for this contract
-   - Mitigation strategies for each risk
-   - Contingency plans
+4. RELEVANCE MAPPING (200-300 words)
+   - Summarize how past experience directly qualifies the company for this contract
+   - Identify lessons learned and how they will be applied
+   - Demonstrate pattern of successful performance
 
-3. SMALL BUSINESS PARTICIPATION (if applicable):
-   - Small business subcontracting plan
-   - Partner participation narrative
-   - Mentor-protégé relationships (if any)
-   - Goals and commitments
+Write with confidence and specificity. Make the past performance compelling and relevant."""),
 
-Write professionally with specific strategies and approaches."""),
+            (6, "Quality Assurance, Risk Management & Small Business Participation", f"""Generate a comprehensive section covering Quality Assurance, Risk Management, and Small Business Participation. TARGET LENGTH: 1,400-1,700 words.
 
-            (7, "Price/Cost Proposal (High-Level Draft)", f"""Generate a HIGH-LEVEL DRAFT Price/Cost Proposal section that includes:
+1. QUALITY ASSURANCE AND QUALITY CONTROL (500-600 words)
+   Describe a robust QA/QC program:
+   
+   QA/QC PHILOSOPHY AND APPROACH:
+   - Quality management philosophy and commitment
+   - Quality management system description (ISO 9001 or equivalent)
+   - Continuous improvement methodology
+   
+   QUALITY CONTROL PROCEDURES:
+   - Inspection and testing protocols
+   - Documentation and record-keeping requirements
+   - Non-conformance identification and correction
+   - Root cause analysis procedures
+   
+   QUALITY ASSURANCE ACTIVITIES:
+   - Quality audits and reviews (internal and external)
+   - Performance metrics and KPIs
+   - Customer satisfaction measurement
+   - Corrective and preventive action processes
+   
+   QUALITY PERSONNEL:
+   - Quality manager role and responsibilities
+   - Quality team structure
+   - Training and certification requirements
 
-IMPORTANT DISCLAIMER AT THE TOP:
-"ALL PRICES IN THIS SECTION ARE ESTIMATED DRAFT VALUES AND SUBJECT TO ADJUSTMENT AND VALIDATION. THIS IS NOT A FINAL PRICING COMMITMENT."
+2. RISK MANAGEMENT (500-600 words)
+   Present a comprehensive risk management approach:
+   
+   RISK MANAGEMENT METHODOLOGY:
+   - Risk identification process
+   - Risk assessment and prioritization criteria
+   - Risk monitoring and reporting procedures
+   
+   KEY RISKS AND MITIGATION STRATEGIES:
+   Identify 5-7 specific risks relevant to this contract:
+   
+   Risk 1: [Technical/Schedule/Cost/Performance Risk]
+   - Description: [Detailed description]
+   - Likelihood: [High/Medium/Low]
+   - Impact: [High/Medium/Low]
+   - Mitigation Strategy: [Specific actions to reduce risk]
+   - Contingency Plan: [Actions if risk materializes]
+   
+   [Continue for additional risks]
+   
+   RISK REGISTER AND TRACKING:
+   - Risk register maintenance
+   - Regular risk reviews
+   - Escalation procedures
 
-1. PRICING SUMMARY:
+3. SMALL BUSINESS PARTICIPATION PLAN (400-500 words)
+   If applicable, describe small business participation:
+   
+   SMALL BUSINESS SUBCONTRACTING GOALS:
+   - Overall small business goal: [Percentage]
+   - Small Disadvantaged Business: [Percentage]
+   - Woman-Owned Small Business: [Percentage]
+   - HUBZone Small Business: [Percentage]
+   - Veteran-Owned Small Business: [Percentage]
+   - Service-Disabled Veteran-Owned: [Percentage]
+   
+   SUBCONTRACTING APPROACH:
+   - Identification of subcontracting opportunities
+   - Outreach and recruitment of small business partners
+   - Mentor-protégé relationships (if applicable)
+   - Small business development and capacity building
+   
+   MONITORING AND REPORTING:
+   - Tracking mechanisms for small business participation
+   - Reporting requirements and frequency
+   - Good faith effort documentation
+
+Write with specificity and demonstrate commitment to quality and risk management."""),
+
+            (7, "Price/Cost Proposal (High-Level Draft)", f"""Generate a comprehensive Price/Cost Proposal section. TARGET LENGTH: 1,000-1,200 words.
+
+IMPORTANT DISCLAIMER (Include at the top):
+"DRAFT PRICING NOTICE: All prices, rates, and cost estimates in this section are preliminary draft values for internal review purposes only. These figures are subject to adjustment, validation, and formal approval before any official submission. This is NOT a final pricing commitment or binding offer."
+
+1. PRICING SUMMARY AND TOTAL PRICE (200-250 words)
+   Present the overall pricing structure:
+   
 {pricing_summary}
 
-2. COST BREAKDOWN STRUCTURE:
-   - Labor costs by category
-   - Materials and equipment
-   - Other direct costs
-   - Indirect costs and overhead
-   - Profit/fee
+   TOTAL PROPOSED PRICE: $[Total Amount] (DRAFT ESTIMATE)
+   
+   Provide a brief narrative explaining the pricing approach and how it represents best value to the government.
 
-3. PRICING ASSUMPTIONS:
-   - Key assumptions underlying the pricing
-   - Factors that could affect final pricing
-   - Validity period of pricing
+2. DETAILED COST BREAKDOWN (300-400 words)
+   
+   DIRECT LABOR COSTS:
+   - Labor categories, hours, and rates
+   - Basis for labor estimates
+   - Labor escalation factors (if multi-year)
+   
+   MATERIALS AND EQUIPMENT:
+   - Direct materials costs
+   - Equipment purchases or rentals
+   - Software licenses
+   
+   OTHER DIRECT COSTS (ODCs):
+   - Travel costs (trips, per diem, transportation)
+   - Subcontractor costs
+   - Other allowable direct costs
+   
+   INDIRECT COSTS:
+   - Fringe benefits rate and basis
+   - Overhead rate and basis
+   - General & Administrative (G&A) rate and basis
+   
+   PROFIT/FEE:
+   - Proposed profit percentage
+   - Basis for profit determination
 
-4. VALUE PROPOSITION:
-   - Cost-effectiveness explanation
-   - Value for money justification
+3. PRICING ASSUMPTIONS AND BASIS OF ESTIMATE (250-300 words)
+   Document key assumptions:
+   - Scope assumptions
+   - Schedule assumptions
+   - Labor productivity assumptions
+   - Material pricing assumptions
+   - Inflation/escalation assumptions
+   - Government-furnished property/information assumptions
+   
+   BASIS OF ESTIMATE:
+   - Historical data used
+   - Vendor quotes obtained
+   - Engineering estimates
+   - Analogous pricing references
 
-Present all numbers clearly marked as DRAFT/ESTIMATED."""),
+4. VALUE PROPOSITION AND COST REALISM (200-250 words)
+   Explain why this pricing represents best value:
+   - Cost-effectiveness compared to alternatives
+   - Efficiency measures incorporated
+   - Value-added services included
+   - Total cost of ownership considerations
+   - Return on investment for the agency
 
-            (8, "Attachments & Supporting Documentation Index", f"""Generate an Attachments & Supporting Documentation Index section that includes:
+Mark all figures as DRAFT/ESTIMATED. Present pricing professionally and transparently."""),
 
-1. ATTACHMENT INDEX:
-   List recommended attachments with status:
-   - Attachment A: Capability Statement - [TO BE ATTACHED]
-   - Attachment B: Key Personnel Resumes - [TO BE ATTACHED]
-   - Attachment C: Past Performance Questionnaires - [TO BE ATTACHED]
-   - Attachment D: Certifications and Licenses - [TO BE ATTACHED]
-   - Attachment E: Technical Diagrams/Charts - [TO BE ATTACHED]
-   - Attachment F: Letters of Commitment (Subcontractors) - [TO BE ATTACHED]
-   - Attachment G: Financial Statements - [TO BE ATTACHED]
-   - Attachment H: Insurance Certificates - [TO BE ATTACHED]
+            (8, "Attachments & Supporting Documentation Index", f"""Generate a comprehensive Attachments & Supporting Documentation Index section. TARGET LENGTH: 600-800 words.
 
-2. DOCUMENT CHECKLIST:
-   - Required documents per solicitation
-   - Status of each document
-   - Responsible party for each
+1. ATTACHMENT INDEX AND DESCRIPTIONS
+   List all attachments with detailed descriptions:
 
-3. NOTES ON ATTACHMENTS:
-   - Instructions for completing the attachment package
-   - Format requirements
-   - Submission guidelines
+   ATTACHMENT A: CAPABILITY STATEMENT
+   - Description: Comprehensive overview of company capabilities, past performance, and qualifications
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT B: KEY PERSONNEL RESUMES
+   - Description: Detailed resumes for all key personnel identified in the Management Plan
+   - Contents: [List names and positions]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT C: PAST PERFORMANCE QUESTIONNAIRES (PPQs)
+   - Description: Completed PPQs from references for contracts cited in Past Performance section
+   - Number of PPQs: [Number]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT D: CERTIFICATIONS AND LICENSES
+   - Description: Copies of relevant professional certifications, business licenses, and registrations
+   - Contents: [List specific certifications]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT E: TECHNICAL DIAGRAMS AND CHARTS
+   - Description: Visual representations of technical approach, organizational structure, and project schedule
+   - Contents: [List specific diagrams]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT F: SUBCONTRACTOR LETTERS OF COMMITMENT
+   - Description: Letters from subcontractors confirming participation and commitment
+   - Number of Letters: [Number]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT G: FINANCIAL STATEMENTS
+   - Description: Audited financial statements demonstrating financial capability
+   - Years Covered: [Years]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT H: INSURANCE CERTIFICATES
+   - Description: Certificates of insurance for required coverage types
+   - Coverage Types: [List types]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
 
-This is an index/placeholder section - actual documents to be attached before final submission.""")
+2. DOCUMENT PREPARATION CHECKLIST
+   - List of all required documents per solicitation instructions
+   - Format requirements (page limits, font, margins)
+   - Electronic submission requirements
+   - Hard copy requirements (if applicable)
+   - Binding and packaging instructions
+
+3. SUBMISSION INSTRUCTIONS AND NOTES
+   - Submission deadline and time zone
+   - Submission method (electronic portal, email, physical delivery)
+   - Required number of copies
+   - Marking and labeling requirements
+   - Points of contact for submission questions
+
+This section serves as a roadmap for completing the proposal package.""")
         ]
         
         # Generate all 8 sections in parallel
@@ -12363,13 +12612,186 @@ any official use. Please follow these steps:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/download_proposal_pdf', methods=['GET'])
-def download_proposal_pdf():
-    """Generate and download the proposal as a PDF"""
-    from reportlab.lib.pagesizes import letter
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
-    from reportlab.lib.units import inch
+def download_proposal_docx():
+    """Generate and download the proposal as a professionally styled DOCX file"""
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.style import WD_STYLE_TYPE
+    from docx.enum.section import WD_ORIENT
     import io
+    import re
+    
+    def slugify_bid_name(bid_name):
+        """Convert bid name to safe filename"""
+        clean = re.sub(r'[^A-Za-z0-9 _-]', '', bid_name)
+        clean = re.sub(r'\s+', '_', clean)
+        return clean[:50] if clean else 'Proposal'
+    
+    def configure_styles(doc):
+        """Configure document styles for professional appearance"""
+        styles = doc.styles
+        
+        # Normal style
+        normal = styles['Normal']
+        normal.font.name = 'Calibri'
+        normal.font.size = Pt(11)
+        
+        # Heading 1 style
+        h1 = styles['Heading 1']
+        h1.font.name = 'Calibri'
+        h1.font.size = Pt(16)
+        h1.font.bold = True
+        h1.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
+        
+        # Heading 2 style
+        h2 = styles['Heading 2']
+        h2.font.name = 'Calibri'
+        h2.font.size = Pt(14)
+        h2.font.bold = True
+        h2.font.color.rgb = RGBColor(0x00, 0x52, 0x8B)
+        
+        # Heading 3 style
+        h3 = styles['Heading 3']
+        h3.font.name = 'Calibri'
+        h3.font.size = Pt(12)
+        h3.font.bold = True
+    
+    def add_header_footer(doc, bid_name, company_name):
+        """Add headers and footers to all sections"""
+        for section in doc.sections:
+            # Header
+            header = section.header
+            header_para = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
+            header_para.text = f"{bid_name} | {company_name} | DRAFT PROPOSAL"
+            header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            header_para.style = doc.styles['Normal']
+            for run in header_para.runs:
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+            
+            # Footer
+            footer = section.footer
+            footer_para = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+            footer_para.text = "DRAFT - NOT FOR OFFICIAL SUBMISSION | This document requires human review before use"
+            footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in footer_para.runs:
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(0xAA, 0x00, 0x00)
+    
+    def add_cover_page(doc, bid_name, company_name, solicitation_number, agency):
+        """Add a professional cover page"""
+        # Large DRAFT label
+        draft_para = doc.add_paragraph()
+        draft_run = draft_para.add_run("DRAFT PROPOSAL")
+        draft_run.bold = True
+        draft_run.font.size = Pt(28)
+        draft_run.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
+        draft_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        
+        # For Internal Review Only
+        review_para = doc.add_paragraph()
+        review_run = review_para.add_run("FOR INTERNAL REVIEW ONLY")
+        review_run.bold = True
+        review_run.font.size = Pt(14)
+        review_run.font.color.rgb = RGBColor(0xAA, 0x00, 0x00)
+        review_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        doc.add_paragraph()
+        
+        # Bid Name/Title
+        title_para = doc.add_paragraph()
+        title_run = title_para.add_run(bid_name)
+        title_run.bold = True
+        title_run.font.size = Pt(20)
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        
+        # Solicitation info
+        if solicitation_number:
+            sol_para = doc.add_paragraph()
+            sol_para.add_run(f"Solicitation Number: {solicitation_number}")
+            sol_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        if agency:
+            agency_para = doc.add_paragraph()
+            agency_para.add_run(f"Agency: {agency}")
+            agency_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        
+        # Company info
+        company_para = doc.add_paragraph()
+        company_run = company_para.add_run(f"Submitted by: {company_name}")
+        company_run.bold = True
+        company_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Date
+        from datetime import datetime
+        date_para = doc.add_paragraph()
+        date_para.add_run(f"Date: {datetime.now().strftime('%B %d, %Y')}")
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        doc.add_paragraph()
+        
+        # Disclaimer box
+        disclaimer_para = doc.add_paragraph()
+        disclaimer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        disclaimer_run = disclaimer_para.add_run(
+            "DISCLAIMER: This document is an automatically generated draft proposal produced by an "
+            "AI-assisted tool. It is NOT a final, complete, or legally binding offer. The content may "
+            "be incomplete, inaccurate, or inconsistent. It MUST be thoroughly reviewed, edited, and "
+            "approved by qualified human personnel before being used for any official submission or "
+            "external communication."
+        )
+        disclaimer_run.font.size = Pt(10)
+        disclaimer_run.italic = True
+        
+        # Page break after cover
+        doc.add_page_break()
+    
+    def add_section_content(doc, section_num, section_name, content):
+        """Add a section with proper formatting"""
+        # Section heading
+        heading = doc.add_heading(f"Section {section_num}: {section_name}", level=1)
+        
+        # Process content into paragraphs
+        paragraphs = content.split('\n\n')
+        for para_text in paragraphs:
+            para_text = para_text.strip()
+            if not para_text:
+                continue
+            
+            # Check if it's a subheading (all caps or numbered)
+            lines = para_text.split('\n')
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Skip separator lines
+                if line.startswith('===') or line.startswith('---'):
+                    continue
+                
+                # Check for subheadings
+                if line.isupper() and len(line) > 5 and len(line) < 100:
+                    doc.add_heading(line.title(), level=2)
+                elif line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')) and line[2:3] == ' ':
+                    # Numbered item - could be a subheading
+                    if len(line) < 80 and ':' in line:
+                        doc.add_heading(line, level=3)
+                    else:
+                        doc.add_paragraph(line)
+                else:
+                    doc.add_paragraph(line)
+        
+        # Page break after each section
+        doc.add_page_break()
     
     try:
         draft_id = request.args.get('draft_id')
@@ -12391,92 +12813,96 @@ def download_proposal_pdf():
             return jsonify({'success': False, 'error': 'No generated proposal found. Please generate the proposal first.'}), 404
         
         proposal_data = draft_data['generated_proposal']
-        full_text = proposal_data.get('full_text', '')
+        sections = proposal_data.get('sections', [])
         
-        # Create PDF
+        # Get user data for company info
+        user_ref = admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+        company_name = user_data.get('company', 'Our Company')
+        
+        # Extract bid name from annotations or draft data
+        annotations = draft_data.get('annotations', [])
+        bid_name = draft_data.get('bid_name', '')
+        solicitation_number = ''
+        agency = ''
+        
+        for ann in annotations:
+            category = ann.get('category', '').lower()
+            text = ann.get('text', '')
+            if ('title' in category or 'subject' in category) and not bid_name:
+                bid_name = text
+            elif 'solicitation' in category or 'rfp' in category or 'rfq' in category:
+                solicitation_number = text
+            elif 'agency' in category:
+                agency = text
+        
+        if not bid_name:
+            bid_name = f"Proposal {draft_id[:8]}"
+        
+        # Create DOCX document
+        doc = Document()
+        
+        # Configure styles
+        configure_styles(doc)
+        
+        # Add cover page
+        add_cover_page(doc, bid_name, company_name, solicitation_number, agency)
+        
+        # Add headers and footers
+        add_header_footer(doc, bid_name, company_name)
+        
+        # Add each section
+        for i, section in enumerate(sections, 1):
+            section_name = section.get('name', f'Section {i}')
+            content = section.get('content', '[Content not generated]')
+            add_section_content(doc, i, section_name, content)
+        
+        # Add instructions section at the end
+        doc.add_heading("Instructions for Using This Draft", level=1)
+        
+        instructions = [
+            "This AI-generated draft proposal requires careful review and refinement before any official use.",
+            "",
+            "1. READ EACH SECTION CAREFULLY",
+            "   Review all 8 sections for accuracy and completeness. Verify all facts, figures, and claims.",
+            "",
+            "2. CORRECT AND REFINE",
+            "   Replace all placeholders marked with [brackets]. Insert missing details and specific data. "
+            "Validate all pricing and compliance statements. Adjust language to match your company's voice.",
+            "",
+            "3. VERIFY COMPLIANCE",
+            "   Check alignment with actual solicitation instructions. Ensure all evaluation criteria are addressed. "
+            "Verify format requirements are met.",
+            "",
+            "4. INTERNAL APPROVAL",
+            "   Obtain necessary legal/compliance approvals. Get management sign-off on pricing. "
+            "Verify technical accuracy with subject matter experts.",
+            "",
+            "5. FINALIZE FOR SUBMISSION",
+            "   Apply your company's proposal template. Perform final compliance check. Submit before the deadline."
+        ]
+        
+        for instruction in instructions:
+            doc.add_paragraph(instruction)
+        
+        # Save to buffer
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=letter, 
-                               rightMargin=72, leftMargin=72,
-                               topMargin=72, bottomMargin=72)
-        
-        styles = getSampleStyleSheet()
-        
-        # Custom styles
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=16,
-            spaceAfter=20,
-            alignment=1  # Center
-        )
-        
-        heading_style = ParagraphStyle(
-            'CustomHeading',
-            parent=styles['Heading2'],
-            fontSize=14,
-            spaceBefore=20,
-            spaceAfter=10
-        )
-        
-        body_style = ParagraphStyle(
-            'CustomBody',
-            parent=styles['Normal'],
-            fontSize=11,
-            leading=14,
-            spaceAfter=10
-        )
-        
-        disclaimer_style = ParagraphStyle(
-            'Disclaimer',
-            parent=styles['Normal'],
-            fontSize=10,
-            leading=12,
-            backColor='#fff3cd',
-            borderPadding=10
-        )
-        
-        story = []
-        
-        # Add title
-        story.append(Paragraph("DRAFT PUBLIC BID PROPOSAL", title_style))
-        story.append(Paragraph("FOR INTERNAL REVIEW ONLY", title_style))
-        story.append(Spacer(1, 0.5*inch))
-        
-        # Add disclaimer
-        disclaimer_text = """<b>DISCLAIMER:</b> This document is an automatically generated draft proposal produced by an AI-assisted tool. 
-        It is NOT a final, complete, or legally binding offer. The content may be incomplete, inaccurate, or inconsistent. 
-        It MUST be thoroughly reviewed, edited, and approved by qualified human personnel before being used for any official submission."""
-        story.append(Paragraph(disclaimer_text, disclaimer_style))
-        story.append(Spacer(1, 0.3*inch))
-        
-        # Process the full text into paragraphs
-        lines = full_text.split('\n')
-        for line in lines:
-            line = line.strip()
-            if not line:
-                story.append(Spacer(1, 0.1*inch))
-            elif line.startswith('===') or line.startswith('---'):
-                continue  # Skip separator lines
-            elif line.startswith('SECTION') or line.isupper() and len(line) > 10:
-                story.append(Paragraph(line, heading_style))
-            else:
-                # Escape special characters for ReportLab
-                line = line.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
-                story.append(Paragraph(line, body_style))
-        
-        doc.build(story)
-        
+        doc.save(buffer)
         buffer.seek(0)
+        
+        # Generate filename with bid name
+        safe_bid_name = slugify_bid_name(bid_name)
+        filename = f"DRAFT_Proposal_{safe_bid_name}.docx"
         
         return send_file(
             buffer,
-            mimetype='application/pdf',
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             as_attachment=True,
-            download_name=f'DRAFT_Proposal_{draft_id[:8]}.pdf'
+            download_name=filename
         )
         
     except Exception as e:
-        logging.error(f"Error generating PDF: {e}", exc_info=True)
+        logging.error(f"Error generating DOCX: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 def ensure_session_from_auth():
