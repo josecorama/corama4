@@ -2266,6 +2266,152 @@ Requirements:
             AI_NAICS_PREDICTION_CACHE[hash_value] = {'code': None, 'description': None}
             save_ai_naics_prediction_cache()
         return None, None
+
+
+def fallback_category_from_text(bid_name, bid_description, organization):
+    """
+    Determine a category based on keywords in bid name, description, and organization.
+    This is used as a fallback when AI prediction fails, to avoid "Unclassified" category.
+    
+    Returns a category string that matches existing top categories in the system.
+    """
+    # Combine all text for keyword matching
+    text = f"{bid_name} {bid_description} {organization}".lower()
+    
+    # Category keyword mappings - ordered by specificity (most specific first)
+    # These categories align with the existing top categories in the dashboard
+    category_keywords = [
+        # Construction and related
+        ("Other Aircraft Parts and Auxiliary Equipment Manufacturing", [
+            "aircraft", "aviation", "aerospace", "airplane", "helicopter", "rotor", "propeller",
+            "landing gear", "fuselage", "wing", "airframe"
+        ]),
+        ("Industrial Valve Manufacturing", [
+            "valve", "industrial valve", "gate valve", "ball valve", "check valve", 
+            "control valve", "pressure valve", "hydraulic valve"
+        ]),
+        ("Gasket, Packing, and Sealing Device Manufacturing", [
+            "gasket", "packing", "seal", "sealing", "o-ring", "washer", "rubber seal"
+        ]),
+        ("Bolt, Nut, Screw, Rivet, and Washer Manufacturing", [
+            "bolt", "nut", "screw", "rivet", "washer", "fastener", "hardware",
+            "threaded", "cap screw", "machine screw"
+        ]),
+        ("Plumbing, Heating, and Air-Conditioning Contractors", [
+            "plumbing", "hvac", "heating", "air conditioning", "air-conditioning",
+            "ventilation", "ductwork", "pipe fitting", "boiler"
+        ]),
+        ("Commercial and Institutional Building Construction", [
+            "building construction", "commercial construction", "institutional",
+            "office building", "school construction", "hospital construction"
+        ]),
+        ("Highway, Street, and Bridge Construction", [
+            "highway", "road", "street", "bridge", "pavement", "asphalt", "concrete road"
+        ]),
+        ("Water and Sewer Line and Related Structures Construction", [
+            "water line", "sewer", "pipeline", "water main", "drainage", "storm drain"
+        ]),
+        ("Electrical Contractors and Other Wiring Installation Contractors", [
+            "electrical", "wiring", "electrician", "power distribution", "lighting installation"
+        ]),
+        # IT and Technology
+        ("Custom Computer Programming Services", [
+            "software", "programming", "development", "application", "web development",
+            "mobile app", "database", "coding"
+        ]),
+        ("Computer Systems Design Services", [
+            "system design", "it services", "network", "infrastructure", "cloud",
+            "cybersecurity", "cyber security", "data center"
+        ]),
+        ("Data Processing, Hosting, and Related Services", [
+            "data processing", "hosting", "server", "data storage", "backup"
+        ]),
+        # Professional Services
+        ("Engineering Services", [
+            "engineering", "engineer", "civil engineering", "mechanical engineering",
+            "structural", "design engineering"
+        ]),
+        ("Architectural Services", [
+            "architectural", "architect", "building design", "space planning"
+        ]),
+        ("Management Consulting Services", [
+            "consulting", "management", "advisory", "strategy", "business consulting"
+        ]),
+        ("Administrative Management and General Management Consulting Services", [
+            "administrative", "general management", "organizational", "operations consulting"
+        ]),
+        ("Environmental Consulting Services", [
+            "environmental", "environmental consulting", "remediation", "pollution",
+            "hazardous waste", "environmental assessment"
+        ]),
+        # Healthcare
+        ("Medical Equipment and Supplies Manufacturing", [
+            "medical equipment", "medical supplies", "healthcare equipment", "surgical",
+            "diagnostic", "medical device"
+        ]),
+        ("Pharmaceutical Preparation Manufacturing", [
+            "pharmaceutical", "drug", "medication", "medicine"
+        ]),
+        # Supplies and Equipment
+        ("Office Supplies (except Paper) Manufacturing", [
+            "office supplies", "stationery", "office equipment"
+        ]),
+        ("Motor Vehicle Parts Manufacturing", [
+            "automotive", "vehicle parts", "car parts", "truck parts", "motor vehicle"
+        ]),
+        ("All Other Miscellaneous Manufacturing", [
+            "manufacturing", "fabrication", "production", "assembly"
+        ]),
+        # Services
+        ("Janitorial Services", [
+            "janitorial", "cleaning", "custodial", "housekeeping", "sanitation"
+        ]),
+        ("Security Guards and Patrol Services", [
+            "security", "guard", "patrol", "protection", "surveillance"
+        ]),
+        ("Facilities Support Services", [
+            "facilities", "facility management", "building maintenance", "property management"
+        ]),
+        ("Investigation and Personal Background Check Services", [
+            "investigation", "background check", "screening", "vetting"
+        ]),
+        # Training and Education
+        ("Professional and Management Development Training", [
+            "training", "education", "professional development", "workshop", "seminar"
+        ]),
+        # Research
+        ("Research and Development in the Physical, Engineering, and Life Sciences", [
+            "research", "r&d", "laboratory", "scientific", "study", "analysis"
+        ]),
+        # Transportation
+        ("General Freight Trucking, Long-Distance", [
+            "trucking", "freight", "shipping", "transportation", "logistics", "delivery"
+        ]),
+        # Default fallback - General Services (never return Unclassified)
+        ("General Services", [
+            "service", "support", "assistance", "contract", "agreement"
+        ]),
+    ]
+    
+    # Check each category's keywords
+    for category, keywords in category_keywords:
+        for keyword in keywords:
+            if keyword in text:
+                return category
+    
+    # Final fallback - use organization type hints
+    org_lower = organization.lower() if organization else ""
+    if "army" in org_lower or "navy" in org_lower or "air force" in org_lower or "defense" in org_lower:
+        return "All Other Miscellaneous Manufacturing"
+    if "health" in org_lower or "hospital" in org_lower or "medical" in org_lower:
+        return "Medical Equipment and Supplies Manufacturing"
+    if "transportation" in org_lower or "transit" in org_lower:
+        return "General Freight Trucking, Long-Distance"
+    
+    # Absolute fallback - never return "Unclassified"
+    return "General Services"
+
+
 if os.getenv('OPENAI_MARIO'):
     app.logger.info("✅ Smart search embeddings using OPENAI_MARIO key")
 else:
@@ -8502,7 +8648,8 @@ class QdrantStore:
             search_result = self.client.search(
                 collection_name=self.collection_name,
                 query_vector=query_vector,
-                limit=top_k
+                limit=top_k,
+                with_vectors=False  # Don't return vectors to improve performance
             )
             logging.info(f"Search returned {len(search_result)} results")
             return [(hit.payload, hit.score) for hit in search_result]
@@ -8788,7 +8935,8 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
                 category_value = ai_description
                 naics_code_str = ai_code
             else:
-                category_value = "Unclassified"
+                # Use keyword-based fallback to avoid "Unclassified" category
+                category_value = fallback_category_from_text(bid_name_value, bid_description_value, organization_value)
         else:
             category_value = fallback
     
@@ -8914,6 +9062,7 @@ def get_contracts_from_qdrant_by_ids(point_ids):
 # For larger or frequently-updated collections, implement proper pagination with scroll tokens
 _dashboard_contracts_cache = None
 _dashboard_contracts_total = 0
+_dashboard_contracts_hash_index = None  # Hash -> contract lookup for fast search matching
 
 
 def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
@@ -8928,7 +9077,7 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
     Returns:
         Tuple of (contracts_list, total_contracts, total_pages)
     """
-    global _dashboard_contracts_cache, _dashboard_contracts_total
+    global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
     
     # Initialize cache on first call
     if _dashboard_contracts_cache is None:
@@ -8965,12 +9114,21 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
                 _dashboard_contracts_cache.append(contract)
             
             _dashboard_contracts_total = len(_dashboard_contracts_cache)
-            logging.info(f"✅ Cached {_dashboard_contracts_total} contracts from Qdrant for dashboard")
+            
+            # Build hash index for fast lookups during search
+            _dashboard_contracts_hash_index = {}
+            for contract in _dashboard_contracts_cache:
+                h = contract.get('hash_value')
+                if h:
+                    _dashboard_contracts_hash_index[h] = contract
+            
+            logging.info(f"✅ Cached {_dashboard_contracts_total} contracts from Qdrant for dashboard (hash index: {len(_dashboard_contracts_hash_index)} entries)")
             
         except Exception as e:
             logging.error(f"Error fetching dashboard contracts from Qdrant: {e}", exc_info=True)
             _dashboard_contracts_cache = []
             _dashboard_contracts_total = 0
+            _dashboard_contracts_hash_index = {}
             return [], 0, 0
     
     # Paginate the cached contracts
@@ -9044,23 +9202,23 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
     
     Uses the dashboard contracts cache to ensure consistent data (NAICS descriptions,
     proper due dates, etc.) between search results and the main dashboard.
+    
+    Performance optimizations:
+    - Uses pre-built hash index instead of rebuilding on every search
+    - Reduced top_k to 1000 for faster Qdrant queries (still covers most relevant results)
     """
-    global _dashboard_contracts_cache
+    global _dashboard_contracts_cache, _dashboard_contracts_hash_index
     
     matches = []
-    # Reduce top_k from 10000 to 2500 for better performance (we only have ~2320 contracts)
-    search_result = bid_store.search(query_embedding, top_k=2500)
+    # Reduce top_k to 1000 for better performance (we only need top results, not all 2320)
+    search_result = bid_store.search(query_embedding, top_k=1000)
     logging.info(f"Raw search results count: {len(search_result)}")
     
-    # Build a hash lookup from the dashboard cache for fast lookups
-    # This ensures search results use the same normalized data as the dashboard
-    hash_to_contract = {}
-    if _dashboard_contracts_cache:
-        for contract in _dashboard_contracts_cache:
-            h = contract.get('hash_value')
-            if h:
-                hash_to_contract[h] = contract
-        logging.info(f"Built hash lookup with {len(hash_to_contract)} cached contracts")
+    # Use pre-built hash index for fast lookups (built once when cache is initialized)
+    # This avoids rebuilding the hash lookup on every search request
+    hash_to_contract = _dashboard_contracts_hash_index or {}
+    if hash_to_contract:
+        logging.info(f"Using pre-built hash index with {len(hash_to_contract)} cached contracts")
     
     for bid, sim in search_result:
         try:
