@@ -10208,7 +10208,8 @@ def create_credit_checkout():
                     'user_id': user['localId'],
                     'credits': credits,
                     'purchase_type': 'credits'
-                }
+                },
+                allow_promotion_codes=True
             )
             
             return jsonify({"checkout_url": checkout_session.url})
