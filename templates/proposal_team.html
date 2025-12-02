@@ -340,6 +340,116 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .proposal-wizard {
+                padding-top: 80px;
+            }
+            
+            .proposal-wizard .container {
+                padding: 1rem;
+            }
+            
+            .proposal-wizard .stepper {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            
+            .proposal-wizard .step {
+                flex-direction: row;
+                gap: 1rem;
+                width: 100%;
+            }
+            
+            .proposal-wizard .step:not(:last-child)::after {
+                display: none;
+            }
+            
+            .proposal-wizard .step-circle {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .proposal-wizard .step-label {
+                margin-top: 0;
+                text-align: left;
+            }
+            
+            .proposal-wizard .main-content {
+                padding: 1.5rem;
+            }
+            
+            .proposal-wizard .section-title {
+                font-size: 1.25rem;
+            }
+            
+            .proposal-wizard .add-member-options {
+                grid-template-columns: 1fr;
+            }
+            
+            .proposal-wizard .option-card {
+                padding: 1.25rem;
+            }
+            
+            .proposal-wizard .team-member {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .proposal-wizard .member-info {
+                grid-template-columns: 1fr;
+            }
+            
+            .proposal-wizard .member-actions {
+                justify-content: flex-start;
+            }
+            
+            .proposal-wizard .action-buttons {
+                flex-direction: column;
+            }
+            
+            .proposal-wizard .action-buttons .btn {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .proposal-wizard .modal-content {
+                padding: 1.5rem;
+                width: 95%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .proposal-wizard .container {
+                padding: 0.5rem;
+            }
+            
+            .proposal-wizard .main-content {
+                padding: 1rem;
+                border-radius: 12px;
+            }
+            
+            .proposal-wizard .stepper {
+                padding: 0.75rem;
+                border-radius: 12px;
+            }
+            
+            .proposal-wizard .option-card {
+                padding: 1rem;
+            }
+            
+            .proposal-wizard .option-icon {
+                font-size: 1.5rem;
+            }
+            
+            .proposal-wizard .option-title {
+                font-size: 1rem;
+            }
+        }
     </style>
 </head>
 <body>

@@ -166,3 +166,98 @@ body {
     box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
     transform: translateY(1px);
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 992px) {
+    .contract-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+    
+    .contract-details {
+        max-width: 100%;
+    }
+    
+    .scrollable-table-container {
+        max-height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .capability-statement {
+        font-size: 1.5rem;
+    }
+    
+    .section-title {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .contract-item {
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .contract-number {
+        font-size: 1.5rem;
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+    
+    .bid-name {
+        font-size: 1.1rem;
+    }
+    
+    .relevance-score {
+        font-size: 0.9rem;
+    }
+    
+    .find-opportunities-section {
+        padding: 20px 15px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 10px 8px;
+        font-size: 0.85rem;
+    }
+    
+    .btnSelectCustom {
+        padding: 8px 16px;
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .capability-statement {
+        font-size: 1.25rem;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+    }
+    
+    .contract-item {
+        padding: 12px;
+    }
+    
+    .contract-number {
+        font-size: 1.25rem;
+    }
+    
+    .bid-name {
+        font-size: 1rem;
+    }
+    
+    .table th,
+    .table td {
+        padding: 8px 6px;
+        font-size: 0.8rem;
+    }
+    
+    .btn-clementine {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+}

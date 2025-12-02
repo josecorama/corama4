@@ -319,6 +319,136 @@
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(39, 174, 96, 0.5);
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 992px) {
+            .proposal-wizard .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .proposal-wizard .summary-panel {
+                position: static;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .proposal-wizard {
+                padding-top: 80px;
+            }
+            
+            .proposal-wizard .container {
+                padding: 1rem;
+            }
+            
+            .proposal-wizard .stepper {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            
+            .proposal-wizard .step {
+                flex-direction: row;
+                gap: 1rem;
+                width: 100%;
+            }
+            
+            .proposal-wizard .step:not(:last-child)::after {
+                display: none;
+            }
+            
+            .proposal-wizard .step-circle {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .proposal-wizard .step-label {
+                margin-top: 0;
+                text-align: left;
+            }
+            
+            .proposal-wizard .pricing-section,
+            .proposal-wizard .summary-panel {
+                padding: 1.5rem;
+                border-radius: 12px;
+            }
+            
+            .proposal-wizard .section-title {
+                font-size: 1.25rem;
+            }
+            
+            .proposal-wizard .table-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.75rem;
+            }
+            
+            .proposal-wizard .add-row-btn {
+                width: 100%;
+            }
+            
+            /* Make tables scroll horizontally on mobile */
+            .proposal-wizard table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            .proposal-wizard .pricing-table > div:last-child {
+                grid-template-columns: 1fr;
+            }
+            
+            .proposal-wizard .action-buttons {
+                flex-direction: column;
+            }
+            
+            .proposal-wizard .action-buttons .btn {
+                width: 100%;
+                text-align: center;
+            }
+            
+            .proposal-wizard .summary-item {
+                flex-direction: column;
+                gap: 0.25rem;
+                align-items: flex-start;
+            }
+            
+            .proposal-wizard .summary-item:last-child {
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .proposal-wizard .container {
+                padding: 0.5rem;
+            }
+            
+            .proposal-wizard .pricing-section,
+            .proposal-wizard .summary-panel {
+                padding: 1rem;
+            }
+            
+            .proposal-wizard .stepper {
+                padding: 0.75rem;
+                border-radius: 12px;
+            }
+            
+            .proposal-wizard .strategy-section {
+                padding: 1rem;
+            }
+            
+            th, td {
+                padding: 0.5rem;
+                font-size: 0.85rem;
+            }
+            
+            .proposal-wizard .table-input {
+                padding: 0.4rem;
+                font-size: 0.85rem;
+            }
+        }
     </style>
 </head>
 <body>

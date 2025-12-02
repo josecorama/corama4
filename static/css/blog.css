@@ -43,4 +43,38 @@
   .page-title-section a:hover {
     color: #ff5722; /* Optional: Add a hover effect for links, adjust color as needed */
   }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .blog-posts-container {
+        padding: 15px;
+        gap: 15px;
+    }
+    
+    .blog-post {
+        padding: 15px;
+        max-width: 100%;
+    }
+    
+    .centered-container {
+        padding: 15px;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .blog-posts-container {
+        padding: 10px;
+        gap: 12px;
+    }
+    
+    .blog-post {
+        padding: 12px;
+        border-radius: 6px;
+    }
+    
+    .centered-container {
+        padding: 12px;
+    }
+}
   
