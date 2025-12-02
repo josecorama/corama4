@@ -3,8 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>AI Bid Assistant - Contract Radar Maximizer</title>
     {% include 'head.html' %}
+    <!-- Cache buster: 2025-10-28-18:50 -->
     <style>
         .ai-assistant-container {
             max-width: 1200px;
@@ -362,9 +366,12 @@
                         <button class="tool-btn" onclick="triggerAnalysis('outline')" style="background: #9b59b6; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
                             📝 Outline (2 credits)
                         </button>
-                        <button class="tool-btn" onclick="triggerAnalysis('full_proposal')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
+                        <button class="tool-btn" onclick="triggerAnalysis('full_proposal')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;" title="Generates a comprehensive 30-50 page proposal with 8 sections">
                             📄 Full Proposal (15 credits)
                         </button>
+                    </div>
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f5e9; border-radius: 6px; font-size: 0.75rem; color: #2e7d32;">
+                        ℹ️ <strong>Full Proposal:</strong> Generates up to 50 pages with 8 comprehensive sections. For longer proposals, you can request additional sections separately.
                     </div>
                 </div>
                 
@@ -385,6 +392,131 @@
             }
         }
         
+        // Helper function to format markdown text for display (important-comment)
+        function formatMarkdownText(text) {
+            if (!text) return '';
+            
+            let formatted = text;
+            
+            formatted = formatted.replace(/###\s+(.+?)(\n|$)/g, '<h3 style="margin-top: 1.5rem; margin-bottom: 0.75rem; font-size: 1.25rem; font-weight: 600; color: #2c3e50;">$1</h3>');
+            formatted = formatted.replace(/##\s+(.+?)(\n|$)/g, '<h2 style="margin-top: 1.75rem; margin-bottom: 0.75rem; font-size: 1.5rem; font-weight: 600; color: #2c3e50;">$1</h2>');
+            formatted = formatted.replace(/#\s+(.+?)(\n|$)/g, '<h1 style="margin-top: 2rem; margin-bottom: 1rem; font-size: 1.75rem; font-weight: 700; color: #2c3e50;">$1</h1>');
+            
+            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            formatted = formatted.replace(/^\s*[-*]\s+(.+?)$/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.5rem;">$1</li>');
+            formatted = formatted.replace(/(<li[^>]*>.*<\/li>)/s, '<ul style="margin-top: 0.5rem; margin-bottom: 1rem; padding-left: 0;">$1</ul>');
+            
+            formatted = formatted.replace(/^\s*\d+\.\s+(.+?)$/gm, '<li style="margin-left: 1.5rem; margin-bottom: 0.5rem;">$1</li>');
+            
+            formatted = formatted.replace(/\n\n+/g, '</p><p style="margin-bottom: 1rem;">');
+            formatted = '<p style="margin-bottom: 1rem;">' + formatted + '</p>';
+            
+            return formatted;
+        }
+        
+        // Poll job status for async proposal generation (important-comment)
+        function pollJobStatus(jobId, loadingMessage, progressInterval, actionType) {
+            const messages = document.getElementById('chatMessages');
+            let pollCount = 0;
+            const maxPolls = 120; // 2 minutes max (120 * 1 second)
+            
+            const pollInterval = setInterval(() => {
+                pollCount++;
+                console.log(`Polling job ${jobId}, attempt ${pollCount}`);
+                
+                if (pollCount > maxPolls) {
+                    clearInterval(pollInterval);
+                    if (progressInterval) clearInterval(progressInterval);
+                    messages.removeChild(loadingMessage);
+                    
+                    const timeoutMessage = document.createElement('div');
+                    timeoutMessage.className = 'message assistant error';
+                    timeoutMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ Request timed out after 2 minutes. The proposal may still be generating. Please try again in a moment.`;
+                    messages.appendChild(timeoutMessage);
+                    messages.scrollTop = messages.scrollHeight;
+                    return;
+                }
+                
+                const pollXhr = new XMLHttpRequest();
+                pollXhr.open('GET', `/proposal_job_status/${jobId}`, true);
+                pollXhr.onreadystatechange = function() {
+                    if (pollXhr.readyState === 4 && pollXhr.status === 200) {
+                        try {
+                            const data = JSON.parse(pollXhr.responseText);
+                            console.log(`Job status:`, data);
+                            
+                            if (data.status === 'completed') {
+                                clearInterval(pollInterval);
+                                if (progressInterval) clearInterval(progressInterval);
+                                messages.removeChild(loadingMessage);
+                                
+                                displayProposalResponse(data, actionType);
+                            } else if (data.status === 'failed') {
+                                clearInterval(pollInterval);
+                                if (progressInterval) clearInterval(progressInterval);
+                                messages.removeChild(loadingMessage);
+                                
+                                const errorMessage = document.createElement('div');
+                                errorMessage.className = 'message assistant error';
+                                errorMessage.innerHTML = `<strong>AI Assistant:</strong> ❌ Failed to generate proposal: ${data.error || 'Unknown error'}`;
+                                messages.appendChild(errorMessage);
+                                messages.scrollTop = messages.scrollHeight;
+                            }
+                        } catch (error) {
+                            console.error('Error parsing job status:', error);
+                        }
+                    }
+                };
+                pollXhr.send();
+            }, 1000); // Poll every second
+        }
+        
+        // Display proposal response (important-comment)
+        function displayProposalResponse(data, actionType) {
+            const messages = document.getElementById('chatMessages');
+            
+            const aiMessage = document.createElement('div');
+            aiMessage.className = 'message assistant enhanced';
+            
+            let responseHTML = `<strong>AI Assistant:</strong> ${formatMarkdownText(data.response)}`;
+            
+            if (data.credits_used) {
+                responseHTML += `
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f5e8; border-radius: 6px; font-size: 0.8rem;">
+                        💎 Credits used: ${data.credits_used} | Remaining: ${data.remaining_credits}
+                    </div>
+                `;
+                updateCreditDisplay(data.remaining_credits);
+            }
+            
+            if (actionType === 'full_proposal' && data.proposal) {
+                window.lastProposalData = data.proposal;
+                responseHTML += createFullProposalDisplay(data.proposal);
+            }
+            
+            aiMessage.innerHTML = responseHTML;
+            
+            const copyBtn = document.createElement('button');
+            copyBtn.innerHTML = '📋 Copy Response';
+            copyBtn.style.cssText = 'margin-top: 0.5rem; padding: 0.5rem 1rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;';
+            copyBtn.onclick = function() {
+                const textContent = aiMessage.innerText.replace('AI Assistant:', '').replace('📋 Copy Response', '').trim();
+                navigator.clipboard.writeText(textContent).then(() => {
+                    copyBtn.innerHTML = '✅ Copied!';
+                    setTimeout(() => { copyBtn.innerHTML = '📋 Copy Response'; }, 2000);
+                }).catch(err => {
+                    console.error('Copy failed:', err);
+                    alert('Failed to copy. Please select and copy manually.');
+                });
+            };
+            aiMessage.appendChild(copyBtn);
+            
+            messages.appendChild(aiMessage);
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
         // Enhanced AI Analysis Functions (important-comment)
         function triggerAnalysis(actionType) {
             const messages = document.getElementById('chatMessages');
@@ -403,12 +535,57 @@
             userMessage.innerHTML = `<strong>You:</strong> ${actionMessages[actionType]}`;
             messages.appendChild(userMessage);
             
-            // Show loading indicator
+            // Show loading indicator with progress bar for full_proposal
             const loadingMessage = document.createElement('div');
             loadingMessage.className = 'message assistant loading';
-            loadingMessage.innerHTML = `<strong>AI Assistant:</strong> <div class="loading-spinner">🔄 Analyzing contract data...</div>`;
+            
+            if (actionType === 'full_proposal') {
+                loadingMessage.innerHTML = `
+                    <strong>AI Assistant:</strong>
+                    <div style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                        <div style="font-size: 1rem; margin-bottom: 0.5rem; font-weight: bold;">📝 Generating Your Comprehensive Proposal</div>
+                        <div style="margin-bottom: 1rem; color: #666;">This will take approximately 30-60 seconds. Please wait...</div>
+                        <div style="background: #e0e0e0; border-radius: 10px; height: 20px; overflow: hidden; margin-bottom: 0.5rem;">
+                            <div id="progressBar" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); height: 100%; width: 0%; transition: width 0.5s;"></div>
+                        </div>
+                        <div id="progressText" style="font-size: 0.85rem; color: #666;">Analyzing contract requirements...</div>
+                    </div>
+                `;
+            } else {
+                loadingMessage.innerHTML = `<strong>AI Assistant:</strong> <div class="loading-spinner">🔄 Analyzing contract data...</div>`;
+            }
+            
             messages.appendChild(loadingMessage);
             messages.scrollTop = messages.scrollHeight;
+            
+            // Simulate progress for full_proposal
+            let progress = 0;
+            let progressInterval;
+            if (actionType === 'full_proposal') {
+                const progressStages = [
+                    { percent: 15, text: 'Analyzing contract requirements...' },
+                    { percent: 30, text: 'Generating Cover Letter...' },
+                    { percent: 45, text: 'Creating Executive Summary...' },
+                    { percent: 60, text: 'Developing Technical Approach...' },
+                    { percent: 75, text: 'Writing Management Plan...' },
+                    { percent: 90, text: 'Finalizing all sections...' },
+                    { percent: 95, text: 'Compiling proposal document...' }
+                ];
+                
+                let stageIndex = 0;
+                progressInterval = setInterval(() => {
+                    if (stageIndex < progressStages.length) {
+                        const stage = progressStages[stageIndex];
+                        const progressBar = document.getElementById('progressBar');
+                        const progressText = document.getElementById('progressText');
+                        if (progressBar && progressText) {
+                            progressBar.style.width = stage.percent + '%';
+                            progressText.textContent = stage.text;
+                        }
+                        stageIndex++;
+                    }
+                }, 8000); // Update every 8 seconds
+            }
             
             // Call the enhanced AI assistant API with specific action type
             const formData = new FormData();
@@ -418,10 +595,27 @@
             
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/ai_assistant_enhanced', true);
+            xhr.timeout = 30000; // 30 second timeout for initial request
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4) {
+                    console.log(`XHR completed with status: ${xhr.status}, actionType: ${actionType}`);
+                    console.log(`Response length: ${xhr.responseText ? xhr.responseText.length : 0} characters`);
+                    
                     if (xhr.status === 200) {
                         const data = JSON.parse(xhr.responseText);
+                        console.log('Parsed response data:', data);
+                        
+                        // Check if this is an async job response
+                        if (data.job_id && data.status === 'processing') {
+                            console.log(`Started async job: ${data.job_id}`);
+                            pollJobStatus(data.job_id, loadingMessage, progressInterval, actionType);
+                            return;
+                        }
+                        
+                        // Clear progress interval if it exists
+                        if (progressInterval) {
+                            clearInterval(progressInterval);
+                        }
                         // Remove loading message
                         messages.removeChild(loadingMessage);
                 
@@ -446,7 +640,7 @@
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant enhanced';
                 
-                let responseHTML = `<strong>AI Assistant:</strong> ${data.response}`;
+                let responseHTML = `<strong>AI Assistant:</strong> ${formatMarkdownText(data.response)}`;
                 
                 // Add credit usage info
                 if (data.credits_used) {
@@ -474,6 +668,23 @@
                 }
                 
                 aiMessage.innerHTML = responseHTML;
+                
+                // Add copy button to AI response (important-comment)
+                const copyBtn = document.createElement('button');
+                copyBtn.innerHTML = '📋 Copy Response';
+                copyBtn.style.cssText = 'margin-top: 0.5rem; padding: 0.5rem 1rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;';
+                copyBtn.onclick = function() {
+                    const textContent = aiMessage.innerText.replace('AI Assistant:', '').replace('📋 Copy Response', '').trim();
+                    navigator.clipboard.writeText(textContent).then(() => {
+                        copyBtn.innerHTML = '✅ Copied!';
+                        setTimeout(() => { copyBtn.innerHTML = '📋 Copy Response'; }, 2000);
+                    }).catch(err => {
+                        console.error('Copy failed:', err);
+                        alert('Failed to copy. Please select and copy manually.');
+                    });
+                };
+                aiMessage.appendChild(copyBtn);
+                
                         messages.appendChild(aiMessage);
                         messages.scrollTop = messages.scrollHeight;
                     } else {
@@ -553,19 +764,13 @@
                                 messages.scrollTop = messages.scrollHeight;
                             }
                         }
-                        // For timeout errors, wait and retry once
+                        // For timeout errors, show error message (don't retry for full_proposal)
                         else if (xhr.status === 504 || xhr.status === 0) {
-                            const retryMessage = document.createElement('div');
-                            retryMessage.className = 'message assistant';
-                            retryMessage.innerHTML = `<strong>AI Assistant:</strong> ⏳ Generation taking longer than expected. Retrying...`;
-                            messages.appendChild(retryMessage);
+                            const aiMessage = document.createElement('div');
+                            aiMessage.className = 'message assistant error';
+                            aiMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ The request timed out. This can happen with large proposals. The proposal may still be generating in the background. Please wait a moment and try refreshing the page, or try again with a shorter proposal.`;
+                            messages.appendChild(aiMessage);
                             messages.scrollTop = messages.scrollHeight;
-                            
-                            // Retry after 3 seconds
-                            setTimeout(() => {
-                                messages.removeChild(retryMessage);
-                                triggerAnalysis(actionType);
-                            }, 3000);
                         } else {
                             const aiMessage = document.createElement('div');
                             aiMessage.className = 'message assistant error';
@@ -576,6 +781,20 @@
                     }
                 }
             };
+            
+            // Add timeout handler
+            xhr.ontimeout = function() {
+                if (progressInterval) {
+                    clearInterval(progressInterval);
+                }
+                messages.removeChild(loadingMessage);
+                const timeoutMessage = document.createElement('div');
+                timeoutMessage.className = 'message assistant error';
+                timeoutMessage.innerHTML = `<strong>AI Assistant:</strong> ⏱️ Request timed out. The proposal generation is taking longer than expected. Please try again or contact support if the issue persists.`;
+                messages.appendChild(timeoutMessage);
+                messages.scrollTop = messages.scrollHeight;
+            };
+            
             xhr.send(formData);
         }
         
@@ -652,8 +871,11 @@
                 return;
             }
             
+            console.log('Proposal data:', proposalData);
+            
             // Send to download endpoint (important-comment)
-            fetch('/download_proposal', {
+            const downloadUrl = window.location.origin + '/download_proposal';
+            fetch(downloadUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -664,7 +886,15 @@
                     company_name: proposalData.company_name || '{{ company_name }}'
                 })
             })
-            .then(response => response.blob())
+            .then(response => {
+                console.log('Download response status:', response.status);
+                if (!response.ok) {
+                    return response.json().then(err => {
+                        throw new Error(err.error || 'Download failed');
+                    });
+                }
+                return response.blob();
+            })
             .then(blob => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -677,7 +907,7 @@
             })
             .catch(error => {
                 console.error('Download error:', error);
-                alert('Failed to download proposal. Please try again.');
+                alert('Failed to download proposal: ' + error.message);
             });
         }
 
@@ -724,7 +954,24 @@
                 
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant';
-                aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${data.response || 'Based on your capability statement and this specific contract, I can provide tailored guidance that goes beyond general AI assistance. I have access to your company profile, contract requirements, and government contracting best practices.'}`;
+                aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${formatMarkdownText(data.response || 'Based on your capability statement and this specific contract, I can provide tailored guidance that goes beyond general AI assistance. I have access to your company profile, contract requirements, and government contracting best practices.')}`;
+                
+                // Add copy button to AI response (important-comment)
+                const copyBtn = document.createElement('button');
+                copyBtn.innerHTML = '📋 Copy Response';
+                copyBtn.style.cssText = 'margin-top: 0.5rem; padding: 0.5rem 1rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;';
+                copyBtn.onclick = function() {
+                    const textContent = aiMessage.innerText.replace('AI Assistant:', '').replace('📋 Copy Response', '').trim();
+                    navigator.clipboard.writeText(textContent).then(() => {
+                        copyBtn.innerHTML = '✅ Copied!';
+                        setTimeout(() => { copyBtn.innerHTML = '📋 Copy Response'; }, 2000);
+                    }).catch(err => {
+                        console.error('Copy failed:', err);
+                        alert('Failed to copy. Please select and copy manually.');
+                    });
+                };
+                aiMessage.appendChild(copyBtn);
+                
                 messages.appendChild(aiMessage);
                 
                 // Update credit display if credits were used (important-comment)
