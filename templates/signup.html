@@ -1,390 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
 {% include 'head.html' %}
 <body>
     {% include 'navbar.html' %}
     <style>
-        .grecaptcha-badge {
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        /* Light Theme for Signup Page */
-        body {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-            color: #2c3e50 !important;
-            min-height: 100vh;
-        }
-        
-        .signup-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            padding: 50px 40px;
-            margin-top: 120px;
-            margin-bottom: 60px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .login-signup-title {
-            color: #446dcd !important;
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 2.2rem;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .form-section {
-            margin-bottom: 30px;
-        }
-        
-        .form-section-title {
-            color: #2c3e50;
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 20px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e9ecef;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .form-row .form-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-control {
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 16px 20px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-            height: auto;
-        }
-        
-        .form-control:focus {
-            border-color: #446dcd;
-            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
-            background: white;
-            outline: none;
-        }
-        
-        .form-control::placeholder {
-            color: #6c757d;
-            font-weight: 400;
-        }
-        
-        .form-select {
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 16px 20px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-            height: auto;
-        }
-        
-        .form-select:focus {
-            border-color: #446dcd;
-            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
-            background: white;
-            outline: none;
-        }
-        
-        .password-toggle {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #6c757d;
-            transition: color 0.3s ease;
-            z-index: 10;
-        }
-        
-        .password-toggle:hover {
-            color: #446dcd;
-        }
-        
-        .billing-section {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 25px;
-            border-radius: 15px;
-            border: 2px solid #e9ecef;
-            margin: 25px 0;
-        }
-        
-        .billing-title {
-            color: #2c3e50;
-            font-weight: 700;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .billing-option {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .billing-option:hover {
-            border-color: #446dcd;
-            box-shadow: 0 4px 12px rgba(68, 109, 205, 0.1);
-        }
-        
-        .billing-option.selected {
-            border-color: #446dcd;
-            background: linear-gradient(135deg, rgba(68, 109, 205, 0.05) 0%, rgba(75, 182, 211, 0.05) 100%);
-        }
-        
-        .billing-radio {
-            width: 20px;
-            height: 20px;
-            margin-right: 15px;
-            accent-color: #446dcd;
-        }
-        
-        .billing-label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            margin: 0;
-        }
-        
-        .billing-text {
-            color: #2c3e50;
-            font-size: 1rem;
-            font-weight: 500;
-        }
-        
-        .billing-price {
-            font-weight: 700;
-            color: #27AE60;
-            font-size: 1.1rem;
-        }
-        
-        .btn-signup {
-            background: linear-gradient(135deg, #446dcd 0%, #4bb6d3 100%);
-            border: none;
-            padding: 18px 30px;
-            font-weight: 700;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            color: white;
-            font-size: 1.2rem;
-            width: 100%;
-            margin-top: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .btn-signup:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(68, 109, 205, 0.3);
-            color: white;
-        }
-        
-        .btn-signup:active {
-            transform: translateY(0);
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-            border-radius: 12px;
-            padding: 15px 20px;
-            margin-bottom: 25px;
-            font-weight: 500;
-        }
-        
-        .signup-links {
-            text-align: center;
-            margin-top: 30px;
-        }
-        
-        .signup-links p {
-            margin-bottom: 0;
-            color: #6c757d;
-        }
-        
-        .signup-links a {
-            color: #446dcd;
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.3s ease;
-        }
-        
-        .signup-links a:hover {
-            color: #4bb6d3;
-            text-decoration: none;
-        }
-        
-        .trial-badge {
-            background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-        
-        /* Loading state */
-        .btn-signup:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .signup-container {
-                margin: 80px 20px 40px;
-                padding: 40px 25px;
-            }
-            
-            .form-row {
-                flex-direction: column;
-                gap: 0;
-            }
-            
-            .form-row .form-group {
-                margin-bottom: 20px;
-            }
-            
-            .login-signup-title {
-                font-size: 1.8rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .billing-section {
-                padding: 20px 15px;
-            }
-            
-            .billing-option {
-                padding: 15px;
-            }
-        }
+        .grecaptcha-badge { visibility: visible !important; opacity: 1 !important; }
+        body { background: #0f172a; color: #e2e8f0; min-height: 100vh; font-family: 'Inter', sans-serif; padding-top: 72px; }
+        .auth-wrapper { min-height: calc(100vh - 72px); display: flex; align-items: center; justify-content: center; padding: 2rem; position: relative; }
+        .auth-bg { position: fixed; inset: 0; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); z-index: -1; }
+        .auth-bg::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(30, 58, 138, 0.15) 0%, transparent 50%); }
+        .signup-container { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.5rem; padding: 2.5rem; max-width: 520px; width: 100%; animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .trial-badge { display: inline-flex; align-items: center; gap: 0.5rem; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.3); color: #4ade80; padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 600; margin-bottom: 1.5rem; }
+        .login-signup-title { color: #e2e8f0; font-weight: 700; font-size: 1.75rem; margin-bottom: 0.5rem; text-align: center; }
+        .signup-subtitle { color: #94a3b8; font-size: 0.95rem; text-align: center; margin-bottom: 2rem; }
+        .form-section { margin-bottom: 1.5rem; }
+        .form-section-title { color: #94a3b8; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+        .form-section-title i { color: #60a5fa; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; color: #94a3b8; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .form-control { width: 100%; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 0.75rem 1rem; font-size: 0.95rem; color: #e2e8f0; transition: all 0.3s ease; }
+        .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); background: rgba(15, 23, 42, 0.8); outline: none; }
+        .form-control::placeholder { color: #64748b; }
+        .password-wrapper { position: relative; }
+        .password-toggle { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); cursor: pointer; color: #64748b; transition: color 0.3s ease; background: none; border: none; padding: 0; }
+        .password-toggle:hover { color: #3b82f6; }
+        .btn-signup { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); border: none; padding: 0.875rem 1.5rem; font-weight: 600; border-radius: 0.75rem; transition: all 0.3s ease; color: white; font-size: 1rem; margin-top: 1.5rem; cursor: pointer; }
+        .btn-signup:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3); }
+        .btn-signup:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        .alert-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+        .signup-links { text-align: center; margin-top: 1.5rem; }
+        .signup-links p { margin-bottom: 0; color: #94a3b8; font-size: 0.9rem; }
+        .signup-links a { color: #60a5fa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; }
+        .signup-links a:hover { color: #93c5fd; }
+        @media (max-width: 576px) { body { padding-top: 64px; } .auth-wrapper { padding: 1rem; } .signup-container { padding: 1.5rem; } .login-signup-title { font-size: 1.5rem; } .form-row { grid-template-columns: 1fr; } }
     </style>
-        
 
-    <div class="container">
+    <div class="auth-bg"></div>
+    <div class="auth-wrapper">
         <div class="signup-container">
             <div class="trial-badge">
-                <i class="fas fa-star me-2"></i>Always Free
+                <i class="fas fa-gift"></i>
+                <span>Always Free to Start</span>
             </div>
             
             <h1 class="login-signup-title">Create Your Account</h1>
+            <p class="signup-subtitle">Start winning government contracts with AI</p>
             
             {% if error %}
                 <div class="alert alert-danger" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Error:</strong> {{ error }}
+                    <i class="fas fa-exclamation-triangle"></i>
+                    {{ error }}
                 </div>
             {% endif %}
             
             <form method="POST" id="signup-form" action="{{ url_for('Signup') }}">
-                <!-- Personal Information Section -->
                 <div class="form-section">
                     <div class="form-section-title">
-                        <i class="fas fa-user me-2"></i>Personal Information
+                        <i class="fas fa-user"></i> Personal Information
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <input type="text" 
-                                   class="form-control" 
-                                   name="first_name" 
-                                   placeholder="First Name" 
-                                   required 
-                                   autofocus
-                                   autocomplete="given-name">
+                            <label class="form-label">First Name</label>
+                            <input type="text" class="form-control" name="first_name" placeholder="John" required autofocus autocomplete="given-name">
                         </div>
                         <div class="form-group">
-                            <input type="text" 
-                                   class="form-control" 
-                                   name="last_name" 
-                                   placeholder="Last Name" 
-                                   required
-                                   autocomplete="family-name">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" class="form-control" name="last_name" placeholder="Doe" required autocomplete="family-name">
                         </div>
                     </div>
                     
                     <div class="form-group">
-                        <input type="text" 
-                               class="form-control" 
-                               name="company" 
-                               placeholder="Company Name" 
-                               required
-                               autocomplete="organization">
+                        <label class="form-label">Company Name</label>
+                        <input type="text" class="form-control" name="company" placeholder="Your Company Inc." required autocomplete="organization">
                     </div>
                 </div>
 
-                <!-- Account Details Section -->
                 <div class="form-section">
                     <div class="form-section-title">
-                        <i class="fas fa-key me-2"></i>Account Details
+                        <i class="fas fa-key"></i> Account Details
                     </div>
                     
                     <div class="form-group">
-                        <input type="email" 
-                               class="form-control" 
-                               name="email" 
-                               placeholder="Email Address" 
-                               required
-                               autocomplete="email">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-control" name="email" placeholder="you@company.com" required autocomplete="email">
                     </div>
                     
                     <div class="form-group">
-                        <input type="text" 
-                               class="form-control" 
-                               name="username" 
-                               placeholder="Username" 
-                               required
-                               autocomplete="username">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" name="username" placeholder="johndoe" required autocomplete="username">
                     </div>
                     
-                    <div class="form-group position-relative">
-                        <input type="password" 
-                               class="form-control" 
-                               name="password" 
-                               id="signupPassword" 
-                               placeholder="Create a strong password" 
-                               required
-                               autocomplete="new-password">
-                        <span class="password-toggle" onclick="toggleSignupPasswordVisibility()">
-                            <i id="signupTogglePasswordIcon" class="fas fa-eye"></i>
-                        </span>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <div class="password-wrapper">
+                            <input type="password" class="form-control" name="password" id="signupPassword" placeholder="Create a strong password" required autocomplete="new-password">
+                            <button type="button" class="password-toggle" onclick="toggleSignupPasswordVisibility()">
+                                <i id="signupTogglePasswordIcon" class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-
-                <!-- reCAPTCHA temporarily disabled for free access -->
                 <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response" value="disabled">
                 
                 <button class="btn-signup" type="submit" id="signup-btn">
                     <span class="btn-text">Get Started Free</span>
                     <span class="btn-loading d-none">
-                        <i class="fas fa-spinner fa-spin me-2"></i>Creating Account...
+                        <i class="fas fa-spinner fa-spin"></i> Creating Account...
                     </span>
                 </button>
             </form>
