@@ -332,11 +332,11 @@
                 font-size: 0.85rem !important;
             }
             
-            /* Chat section - reduce height on mobile */
+            /* Chat section - let it auto-size on mobile (no max-height to prevent overflow) */
             .chat-section {
                 height: auto !important;
-                min-height: 350px !important;
-                max-height: 500px !important;
+                min-height: 0 !important;
+                max-height: none !important;
             }
             
             /* Chat messages area */
