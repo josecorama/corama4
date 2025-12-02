@@ -1,222 +1,76 @@
-<!-- login.html -->
+<!DOCTYPE html>
+<html lang="en">
 {% include 'head.html' %}
 <body>
     {% include 'navbar.html' %}
     
     <style>
-        .grecaptcha-badge {
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        /* Light Theme for Login Page */
-        body {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-            color: #2c3e50 !important;
-            min-height: 100vh;
-        }
-        
-        .login-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            padding: 50px 40px;
-            margin-top: 120px;
-            margin-bottom: 60px;
-            max-width: 450px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .login-signup-title {
-            color: #446dcd !important;
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 2.2rem;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .form-group {
-            margin-bottom: 25px;
-        }
-        
-        .form-control {
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 16px 20px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-            height: auto;
-        }
-        
-        .form-control:focus {
-            border-color: #446dcd;
-            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
-            background: white;
-            outline: none;
-        }
-        
-        .form-control::placeholder {
-            color: #6c757d;
-            font-weight: 400;
-        }
-        
-        .password-toggle {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #6c757d;
-            transition: color 0.3s ease;
-            z-index: 10;
-        }
-        
-        .password-toggle:hover {
-            color: #446dcd;
-        }
-        
-        .btn-login {
-            background: linear-gradient(135deg, #446dcd 0%, #4bb6d3 100%);
-            border: none;
-            padding: 16px 24px;
-            font-weight: 600;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            color: white;
-            font-size: 1.1rem;
-            width: 100%;
-            margin-top: 10px;
-        }
-        
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(68, 109, 205, 0.3);
-            color: white;
-        }
-        
-        .btn-login:active {
-            transform: translateY(0);
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-            border-radius: 12px;
-            padding: 15px 20px;
-            margin-bottom: 25px;
-            font-weight: 500;
-        }
-        
-        .login-links {
-            text-align: center;
-            margin-top: 30px;
-        }
-        
-        .login-links p {
-            margin-bottom: 15px;
-            color: #6c757d;
-        }
-        
-        .login-links a {
-            color: #446dcd;
-            text-decoration: none;
-            font-weight: 500;
-            transition: color 0.3s ease;
-        }
-        
-        .login-links a:hover {
-            color: #4bb6d3;
-            text-decoration: none;
-        }
-        
-        .divider {
-            margin: 25px 0;
-            text-align: center;
-            position: relative;
-        }
-        
-        .divider::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: #e9ecef;
-        }
-        
-        .divider span {
-            background: white;
-            padding: 0 20px;
-            color: #6c757d;
-            font-size: 0.9rem;
-        }
-        
-        /* Loading state */
-        .btn-login:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* Responsive design */
-        @media (max-width: 576px) {
-            .login-container {
-                margin: 80px 20px 40px;
-                padding: 40px 30px;
-            }
-            
-            .login-signup-title {
-                font-size: 1.8rem;
-            }
-        }
+        .grecaptcha-badge { visibility: visible !important; opacity: 1 !important; }
+        body { background: #0f172a; color: #e2e8f0; min-height: 100vh; font-family: 'Inter', sans-serif; padding-top: 72px; }
+        .auth-wrapper { min-height: calc(100vh - 72px); display: flex; align-items: center; justify-content: center; padding: 2rem; position: relative; }
+        .auth-bg { position: fixed; inset: 0; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%); z-index: -1; }
+        .auth-bg::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 20%, rgba(59, 130, 246, 0.1) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(30, 58, 138, 0.15) 0%, transparent 50%); }
+        .login-container { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1.5rem; padding: 3rem; max-width: 420px; width: 100%; animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .login-signup-title { color: #e2e8f0; font-weight: 700; font-size: 1.75rem; margin-bottom: 0.5rem; text-align: center; }
+        .login-subtitle { color: #94a3b8; font-size: 0.95rem; text-align: center; margin-bottom: 2rem; }
+        .form-group { margin-bottom: 1.25rem; }
+        .form-label { display: block; color: #94a3b8; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; }
+        .form-control { width: 100%; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 0.75rem; padding: 0.875rem 1rem; font-size: 1rem; color: #e2e8f0; transition: all 0.3s ease; }
+        .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15); background: rgba(15, 23, 42, 0.8); outline: none; }
+        .form-control::placeholder { color: #64748b; }
+        .password-wrapper { position: relative; }
+        .password-toggle { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); cursor: pointer; color: #64748b; transition: color 0.3s ease; background: none; border: none; padding: 0; }
+        .password-toggle:hover { color: #3b82f6; }
+        .btn-login { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); border: none; padding: 0.875rem 1.5rem; font-weight: 600; border-radius: 0.75rem; transition: all 0.3s ease; color: white; font-size: 1rem; margin-top: 1.5rem; cursor: pointer; }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(59, 130, 246, 0.3); }
+        .btn-login:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        .alert-danger { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1.5rem; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem; }
+        .login-links { text-align: center; margin-top: 1.5rem; }
+        .login-links p { margin-bottom: 0.75rem; color: #94a3b8; font-size: 0.9rem; }
+        .login-links a { color: #60a5fa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; }
+        .login-links a:hover { color: #93c5fd; }
+        .divider { margin: 1.5rem 0; text-align: center; position: relative; }
+        .divider::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(255, 255, 255, 0.1); }
+        .divider span { background: rgba(30, 41, 59, 0.8); padding: 0 1rem; color: #64748b; font-size: 0.85rem; position: relative; }
+        @media (max-width: 576px) { body { padding-top: 64px; } .auth-wrapper { padding: 1rem; } .login-container { padding: 2rem 1.5rem; } .login-signup-title { font-size: 1.5rem; } }
     </style>
 
-    <div class="container">
+    <div class="auth-bg"></div>
+    <div class="auth-wrapper">
         <div class="login-container">
             <h1 class="login-signup-title">Welcome Back</h1>
+            <p class="login-subtitle">Sign in to continue to CORAMA</p>
             
             {% if error %}
                 <div class="alert alert-danger" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <i class="fas fa-exclamation-triangle"></i>
                     {{ error }}
                 </div>
             {% endif %}
             
             <form method="POST" action="{{ url_for('Login') }}" id="login-form">
                 <div class="form-group">
-                    <input type="email" 
-                           class="form-control" 
-                           name="email" 
-                           placeholder="Enter your email address" 
-                           required 
-                           autofocus
-                           autocomplete="email">
+                    <label class="form-label">Email Address</label>
+                    <input type="email" class="form-control" name="email" placeholder="you@example.com" required autofocus autocomplete="email">
                 </div>
                 
-                <div class="form-group position-relative">
-                    <input type="password" 
-                           class="form-control" 
-                           name="password" 
-                           id="password" 
-                           placeholder="Enter your password" 
-                           required
-                           autocomplete="current-password">
-                    <span class="password-toggle" onclick="togglePasswordVisibility()">
-                        <i id="togglePasswordIcon" class="fas fa-eye"></i>
-                    </span>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="password-wrapper">
+                        <input type="password" class="form-control" name="password" id="password" placeholder="Enter your password" required autocomplete="current-password">
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility()">
+                            <i id="togglePasswordIcon" class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
                 
-                <button class="btn btn-login" type="submit" id="login-btn">
+                <button class="btn-login" type="submit" id="login-btn">
                     <span class="btn-text">Sign In</span>
                     <span class="btn-loading d-none">
-                        <i class="fas fa-spinner fa-spin me-2"></i>Signing in...
+                        <i class="fas fa-spinner fa-spin"></i> Signing in...
                     </span>
                 </button>
             </form>
@@ -228,7 +82,7 @@
                     <span>Don't have an account?</span>
                 </div>
                 
-                <p><a href="/signup" class="fw-bold">Create your account</a></p>
+                <p><a href="/signup">Create your account</a></p>
             </div>
         </div>
     </div>
