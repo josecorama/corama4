@@ -370,6 +370,46 @@
                 padding: 0.4rem 0.75rem !important;
                 font-size: 0.8rem !important;
             }
+            
+            /* Primary CTA button - constrain width */
+            .chat-section > div[style*="margin-bottom: 1.5rem"] {
+                max-width: 100% !important;
+                overflow: hidden !important;
+            }
+            
+            /* Primary CTA button - make it fit */
+            .chat-section > div[style*="margin-bottom: 1.5rem"] > button {
+                padding: 1rem !important;
+                font-size: 0.95rem !important;
+            }
+            
+            /* "Let's Start Creating Your Proposal" text - wrap properly */
+            .chat-section > div[style*="margin-bottom: 1.5rem"] > button > span:nth-child(2) {
+                white-space: normal !important;
+                word-break: break-word !important;
+            }
+            
+            /* "Guided Process" badge - smaller on mobile */
+            .chat-section > div[style*="margin-bottom: 1.5rem"] > button > span:last-child {
+                font-size: 0.7rem !important;
+                padding: 0.2rem 0.5rem !important;
+            }
+            
+            /* "New Guided Proposal Process" info box - constrain and wrap */
+            .chat-section > div[style*="margin-bottom: 1.5rem"] > div[style*="margin-top: 0.75rem"] {
+                max-width: 100% !important;
+                overflow: hidden !important;
+                word-break: break-word !important;
+                overflow-wrap: anywhere !important;
+                font-size: 0.8rem !important;
+                padding: 0.6rem !important;
+                box-sizing: border-box !important;
+            }
+            
+            /* Quick Analysis Tools grid - single column on mobile */
+            .tools-grid {
+                grid-template-columns: 1fr 1fr !important;
+            }
         }
         
         @media (max-width: 480px) {

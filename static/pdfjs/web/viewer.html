@@ -152,6 +152,87 @@
             border-radius: 8px;
             display: none;
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            #toolbar {
+                flex-wrap: wrap;
+                height: auto;
+                min-height: 40px;
+                padding: 6px 8px;
+                gap: 4px;
+            }
+            
+            #toolbar-left {
+                order: 1;
+            }
+            
+            #toolbar-center {
+                position: static;
+                transform: none;
+                order: 3;
+            }
+            
+            #toolbar-right {
+                order: 2;
+                margin-left: auto;
+            }
+            
+            #pageInfo {
+                font-size: 12px;
+                margin-right: 6px;
+            }
+            
+            #zoomInput {
+                width: 35px;
+                font-size: 12px;
+            }
+            
+            #toolbar button {
+                padding: 4px 6px;
+            }
+            
+            #toolbar button svg {
+                width: 16px;
+                height: 16px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #toolbar {
+                justify-content: center;
+            }
+            
+            #toolbar-left {
+                order: 1;
+                flex: 0 0 auto;
+            }
+            
+            #toolbar-right {
+                order: 2;
+                flex: 1 1 auto;
+                justify-content: flex-start;
+            }
+            
+            #toolbar-center {
+                order: 3;
+                flex: 0 0 auto;
+            }
+            
+            #pageInfo {
+                font-size: 11px;
+            }
+            
+            #zoomInput {
+                width: 30px;
+                font-size: 11px;
+            }
+            
+            #toolbar button svg {
+                width: 14px;
+                height: 14px;
+            }
+        }
     </style>
 </head>
 <body>
