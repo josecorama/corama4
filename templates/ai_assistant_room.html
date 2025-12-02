@@ -293,10 +293,23 @@
                 display: none !important;
             }
             
-            /* Contract title - smaller font on mobile */
+            /* Contract title - smaller font on mobile and wrap text */
             .ai-assistant-container > div:first-child h1 {
                 font-size: 1rem !important;
                 line-height: 1.3;
+                white-space: normal !important;
+                word-break: break-word !important;
+                overflow-wrap: anywhere !important;
+                max-width: 100% !important;
+            }
+            
+            /* Contract ID - wrap long hash */
+            .ai-assistant-container > div:first-child > div:first-child > div:last-child > div:last-child {
+                white-space: normal !important;
+                word-break: break-all !important;
+                overflow-wrap: anywhere !important;
+                max-width: 100% !important;
+                font-size: 0.7rem !important;
             }
             
             /* Right group (credits + buy more) - full width */
