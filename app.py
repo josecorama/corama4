@@ -3740,13 +3740,6 @@ def Viewcontractdetails():
 
 
 
-#Contracts all PAGE  ROUTE FUNCTION
-@app.route('/home2', methods=['GET'])
-def Hom():
-    return render_template('home2.html')
-
-
-
 #login
  
 # UPDATED 2/25 
@@ -5536,54 +5529,6 @@ def proposal_pricing():
                          current_credits=current_credits,
                          user_id=user_id)
 
-#2/25 updated
-@app.route('/welcome2', methods=['GET'])  
-def Welcome2():
-    try:
-        user = auth.current_user
-        if not user:
-            logging.info("User not authenticated, redirecting...")
-            return redirect(url_for('Login'))
-
-        user_id = user['localId']
-
-        # Ensure a fresh Firebase token before querying data
-        try:
-            user_logged_in = auth.refresh(user['refreshToken'])
-            logging.info(f"✅ Token refreshed for user {user_id}")
-        except Exception as token_error:
-            logging.error(f"❌ Token refresh failed for {user_id}: {token_error}", exc_info=True)
-            return render_template('error.html', error="Session expired. Please log in again.")
-
-        # Retrieve user data from Firebase with proper validation
-        try:
-            user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-            if not user_data:
-                logging.error(f"❌ No user data found for {user_id}")
-                return render_template('error.html', error="User data missing. Contact support.")
-            logging.info(f"Fetched User Data: {user_data}")
-        except Exception as data_error:
-            logging.error(f"❌ Firebase data fetch failed for {user_id}: {data_error}", exc_info=True)
-            return render_template('error.html', error="Error retrieving user data. Contact support.")
-
-        if user_data:
-            company_name = user_data.get('company', 'No Company')
-            first_name = user_data.get('first_name', 'User')
-
-            logging.info(f"Company Name: {company_name}")
-
-            return render_template('welcome2.html', company_name=company_name, first_name=first_name)
-
-        logging.info("User not authenticated, redirecting...")
-        return redirect(url_for('Login'))
-
-    except Exception as e:
-        logging.error(f"Error: {str(e)}", exc_info=True)
-        return render_template('error.html', error=str(e))
-
-
-
-
 
 
 
@@ -5660,165 +5605,6 @@ def Businesspartnerdetail():
 
 
 
-# ---------------------------------------------------------------------
-# [START OF TEAM DETAIL] 3/5/2025 UPDATED]
-# ---------------------------------------------------------------------
-
-
-
-#TEAM PAGE ROUTE FUNCTION 
-@app.route('/team', methods=['GET']) 
-def Team():
-    if 'user' not in session:
-        return render_template('team.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('team.html')
-
-
-#SANTI G TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/teamdetailpage', methods=['GET']) 
-def TeamDetailPage():
-    if 'user' not in session:
-        return render_template('teamdetailpage.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('teamdetailpage.html')
-
-
-#JAIME P TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/jpDetail', methods=['GET']) 
-def jpDetailPage():
-    if 'user' not in session:
-        return render_template('jp.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('jp.html')
-
-
-
-#MELISSA S TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/msDetail', methods=['GET']) 
-def msDetailPage():
-    if 'user' not in session:
-        return render_template('ms.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('ms.html')
-
-
-    
-#ZIRONG L TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/zlDetail', methods=['GET']) 
-def zlDetailPage():
-    if 'user' not in session:
-        return render_template('zl.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('zl.html')
-
-
-    
-#ADRIAN R TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/arDetail', methods=['GET']) 
-def arDetailPage():
-    if 'user' not in session:
-        return render_template('ar.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('ar.html')
-
-
-
-    
-#ADRIAN R TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/blDetail', methods=['GET']) 
-def blDetailPage():
-    if 'user' not in session:
-        return render_template('bl.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('bl.html')
-
-
-    
-#Victoria D TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/vdDetail', methods=['GET']) 
-def vdDetailPage():
-    if 'user' not in session:
-        return render_template('vd.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('vd.html')
-
-
-#Victoria D TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/mmDetail', methods=['GET']) 
-def mmDetailPage():
-    if 'user' not in session:
-        return render_template('mm.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('mm.html')
-
-
-
-#Rodrigo M TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/rmDetail', methods=['GET']) 
-def rmDetailPage():
-    if 'user' not in session:
-        return render_template('rm.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('rm.html')
-
-
-#daniel intern TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/dtDetail', methods=['GET']) 
-def dtDetailPage():
-    if 'user' not in session:
-        return render_template('dt.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('rm.html')
-
-
-# ---------------------------------------------------------------------
-# [END OF TEAM DETAIL] 3/5/2025 UPDATED]
-# ---------------------------------------------------------------------
 
 
 
@@ -8663,11 +8449,6 @@ def reset_password():
             return render_template('reset_password.html', error=error_message)
     return render_template('reset_password.html')
 
-# Route for the PDF page
-@app.route('/onepager')
-def corama_pdf():
-    return render_template('corama_pdf.html')
-
 # Static route to serve the PDF file
 @app.route('/static/uploads/<filename>')
 def serve_pdf(filename):
@@ -8740,62 +8521,14 @@ def process_contract():
         process_pdfs([file_path], 'capability_statements_processed.csv')
         generate_capability_embeddings('capability_statements_processed.csv', 'capability_statements_embedded.csv')
 
-    return redirect(url_for('index2'))
+    return redirect(url_for('Welcome'))
 
 
 
 
 
-@app.route('/index2', methods=['GET'])
-def index2():
-    # Load contract data from CSV
-    contract_data = {}
-    contract_csv_path = os.path.join(app.config['UPLOAD_FOLDER'], 'contract_data.csv')
-    if os.path.exists(contract_csv_path):
-        with open(contract_csv_path, 'r') as csvfile:
-            reader = csv.DictReader(csvfile)
-            contract_data = next(reader, {})
-
-    # Load capability statement data
-    capability_statement = 'capability_statements_embedded.csv'  # Assuming this is the processed file
-
-    return render_template('index2.html', contract=contract_data, capability_statement=capability_statement)
 
 
-
-#blog ROUTE FUNCTION 
-@app.route('/blog', methods=['GET']) 
-def Blog():
-    return render_template('blog.html')
-
-
-
-
-
-@app.route('/blogdetail', methods=['GET']) 
-def Blogdetail():
-    return render_template('blogdetail.html')
-
-
-
-@app.route('/blogdetail_Changing_the_Bidding_Landscape', methods=['GET']) 
-def Blogdetail_Changing_the_Bidding_Landscapel():
-    return render_template('blogdetail_Changing_the_Bidding_Landscape.html')
-
-
-@app.route('/blogdetail_Traditional_Bidding_Processes', methods=['GET']) 
-def Blogdetail_Traditional_Bidding_Processes():
-    return render_template('blogdetail_Traditional_Bidding_Processes.html')
-
-
-@app.route('/blogdetail_Supports_Minority_Women', methods=['GET']) 
-def Blogdetail_Supports_Minority_Women():
-    return render_template('blogdetail_Supports_Minority_Women.html')
-
-
-@app.route('/blogdetailBetween_RFP_and_RFQ', methods=['GET']) 
-def BlogdetailBetween_RFP_and_RFQ():
-    return render_template('blogdetailBetween_RFP_and_RFQ.html')
 
 
 
