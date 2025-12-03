@@ -66,6 +66,63 @@
     text-transform: uppercase !important; /* Texto en mayúsculas */
 }
 
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .page-title-section {
+        height: 150px;
+        padding: 20px 0;
+        margin-bottom: 30px;
+    }
+    
+    .page-title-section h1 {
+        font-size: 1.75rem;
+    }
+    
+    .page-title-section h2 {
+        font-size: 1.1rem;
+    }
+    
+    .team-member-title {
+        font-size: 2rem !important;
+    }
+    
+    .team-member-subtitle {
+        font-size: 1.1rem !important;
+    }
+    
+    .login-signup-title {
+        font-size: 2.5rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-title-section {
+        height: 120px;
+        padding: 15px 0;
+        margin-bottom: 20px;
+    }
+    
+    .page-title-section h1 {
+        font-size: 1.5rem;
+    }
+    
+    .page-title-section h2 {
+        font-size: 1rem;
+    }
+    
+    .team-member-title {
+        font-size: 1.5rem !important;
+    }
+    
+    .team-member-subtitle {
+        font-size: 1rem !important;
+    }
+    
+    .login-signup-title {
+        font-size: 2rem !important;
+    }
+}
+
 
 
 

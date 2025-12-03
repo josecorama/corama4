@@ -255,6 +255,108 @@
             color: #666;
             font-size: 1rem;
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 992px) {
+            .proposal-wizard .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .proposal-wizard .annotations-panel {
+                max-height: 400px;
+            }
+            
+            .proposal-wizard .pdf-viewer {
+                height: 500px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .proposal-wizard {
+                padding-top: 80px;
+            }
+            
+            .proposal-wizard .container {
+                padding: 1rem;
+            }
+            
+            .proposal-wizard .stepper {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            
+            .proposal-wizard .step {
+                flex-direction: row;
+                gap: 1rem;
+                width: 100%;
+            }
+            
+            .proposal-wizard .step:not(:last-child)::after {
+                display: none;
+            }
+            
+            .proposal-wizard .step-circle {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .proposal-wizard .step-label {
+                margin-top: 0;
+                text-align: left;
+            }
+            
+            .proposal-wizard .pdf-viewer-section,
+            .proposal-wizard .annotations-panel {
+                padding: 1rem;
+                border-radius: 12px;
+            }
+            
+            .proposal-wizard .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .proposal-wizard .section-header > div {
+                width: 100%;
+            }
+            
+            .proposal-wizard .section-header .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .proposal-wizard .pdf-viewer {
+                height: 400px;
+            }
+            
+            .proposal-wizard .action-buttons {
+                flex-direction: column;
+            }
+            
+            .proposal-wizard .action-buttons .btn {
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .proposal-wizard .container {
+                padding: 0.5rem;
+            }
+            
+            .proposal-wizard .section-title {
+                font-size: 1.1rem;
+            }
+            
+            .proposal-wizard .pdf-viewer {
+                height: 300px;
+            }
+        }
     </style>
 </head>
 <body>

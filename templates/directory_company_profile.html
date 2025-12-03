@@ -314,6 +314,96 @@
             padding-top: 2rem;
             border-top: 2px solid #f8f9fa;
         }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .profile-container {
+                padding: 1rem;
+            }
+            
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+                padding: 2rem 1.5rem;
+                gap: 1.5rem;
+            }
+            
+            .profile-logo {
+                width: 80px;
+                height: 80px;
+            }
+            
+            .profile-company-name {
+                font-size: 1.5rem;
+            }
+            
+            .profile-contact-name {
+                font-size: 1rem;
+            }
+            
+            .profile-quick-links {
+                justify-content: center;
+            }
+            
+            .quick-link {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.8rem;
+            }
+            
+            .profile-body {
+                padding: 1.5rem;
+            }
+            
+            .section-title {
+                font-size: 1.1rem;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .contact-actions {
+                flex-direction: column;
+            }
+            
+            .btn-contact {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn-add-partner {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .profile-container {
+                padding: 0.5rem;
+            }
+            
+            .profile-header {
+                padding: 1.5rem 1rem;
+            }
+            
+            .profile-body {
+                padding: 1rem;
+            }
+            
+            .services-tags {
+                gap: 0.5rem;
+            }
+            
+            .service-tag {
+                padding: 0.4rem 0.75rem;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 
     <div class="profile-container">
