@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing & Review - CORAMA</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
+    <style>
+        .proposal-wizard {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 0;
+            padding-top: 100px;
+            min-height: 100vh;
+        }
+        
+        .proposal-wizard .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* Stepper Navigation */
+        .proposal-wizard .stepper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .step {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .proposal-wizard .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .proposal-wizard .step.completed:not(:last-child)::after,
+        .proposal-wizard .step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .proposal-wizard .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #999;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-wizard .step.active .step-circle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .proposal-wizard .step.completed .step-circle {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .proposal-wizard .step-label {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            text-align: center;
+        }
+        
+        .proposal-wizard .step.active .step-label {
+            color: #667eea;
+        }
+        
+        .proposal-wizard .step.completed .step-label {
+            color: #27ae60;
+        }
+        
+        /* Main Content */
+        .proposal-wizard .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .pricing-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+        }
+        
+        .proposal-wizard .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Pricing Tables */
+        .proposal-wizard .pricing-table {
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .table-header {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .proposal-wizard .add-row-btn {
+            padding: 0.5rem 1rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .proposal-wizard .add-row-btn:hover {
+            background: #5568d3;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+        }
+        
+        th {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            text-align: left;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .proposal-wizard .table-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .proposal-wizard .table-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .proposal-wizard .delete-row-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        
+        .proposal-wizard .delete-row-btn:hover {
+            background: #c0392b;
+        }
+        
+        /* Summary Panel */
+        .proposal-wizard .summary-panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+            position: sticky;
+            top: 2rem;
+        }
+        
+        .proposal-wizard .summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .proposal-wizard .summary-item:last-child {
+            border-bottom: none;
+            padding-top: 1rem;
+            margin-top: 1rem;
+            border-top: 2px solid #2c3e50;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        
+        .proposal-wizard .summary-label {
+            color: #666;
+        }
+        
+        .proposal-wizard .summary-value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        /* Strategy Section */
+        .proposal-wizard .strategy-section {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .strategy-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        
+        .proposal-wizard .strategy-content {
+            font-size: 0.95rem;
+            color: #666;
+            line-height: 1.6;
+        }
+        
+        /* Action Buttons */
+        .proposal-wizard .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+        
+        .proposal-wizard .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-wizard .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .proposal-wizard .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .proposal-wizard .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .proposal-wizard .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+        
+        .proposal-wizard .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+        }
+        
+        .proposal-wizard .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.5);
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="proposal-wizard">
+    <div class="container">
+        <!-- Stepper Navigation -->
+        <div class="stepper">
+            <div class="step completed">
+                <div class="step-circle">✓</div>
+                <div class="step-label">Contract Analysis</div>
+            </div>
+            <div class="step completed">
+                <div class="step-circle">✓</div>
+                <div class="step-label">Build Team</div>
+            </div>
+            <div class="step active">
+                <div class="step-circle">3</div>
+                <div class="step-label">Pricing & Review</div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Pricing Section -->
+            <div class="pricing-section">
+                <div class="section-title">💰 Pricing Strategy</div>
+                
+                <!-- AI Strategy -->
+                <div class="strategy-section">
+                    <div class="strategy-title">🤖 AI-Recommended Strategy</div>
+                    <div class="strategy-content" id="aiStrategy">
+                        <p>Click "Generate AI Strategy" to get pricing recommendations based on the contract requirements and your team composition.</p>
+                    </div>
+                    <button class="btn btn-secondary" onclick="generateAIStrategy()" id="strategyBtn" style="margin-top: 1rem;">
+                        Generate AI Strategy
+                    </button>
+                </div>
+                
+                <!-- Labor Costs -->
+                <div class="pricing-table">
+                    <div class="table-header">
+                        <span>👷 Labor Costs</span>
+                        <button class="add-row-btn" onclick="addLaborRow()">+ Add Role</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Role</th>
+                                <th>Hours</th>
+                                <th>Rate ($/hr)</th>
+                                <th>Cost</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="laborTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #999;">No labor costs added yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Materials/Equipment -->
+                <div class="pricing-table">
+                    <div class="table-header">
+                        <span>🔧 Materials & Equipment</span>
+                        <button class="add-row-btn" onclick="addMaterialRow()">+ Add Item</button>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                                <th>Unit Cost</th>
+                                <th>Cost</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="materialTableBody">
+                            <tr>
+                                <td colspan="5" style="text-align: center; color: #999;">No materials added yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Margin & Risk -->
+                <div class="pricing-table">
+                    <div class="table-header">
+                        <span>📊 Margin & Risk Adjustments</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div>
+                            <label style="display: block; font-size: 0.9rem; font-weight: 600; color: #666; margin-bottom: 0.5rem;">
+                                Profit Margin (%)
+                            </label>
+                            <input type="number" class="table-input" id="marginPercent" value="15" min="0" max="100" onchange="calculateTotal()">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.9rem; font-weight: 600; color: #666; margin-bottom: 0.5rem;">
+                                Risk Reserve (%)
+                            </label>
+                            <input type="number" class="table-input" id="riskPercent" value="5" min="0" max="100" onchange="calculateTotal()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Summary Panel -->
+            <div class="summary-panel">
+                <div class="section-title">📋 Proposal Summary</div>
+                
+                <div class="summary-item">
+                    <span class="summary-label">Labor Costs</span>
+                    <span class="summary-value" id="laborTotal">$0.00</span>
+                </div>
+                
+                <div class="summary-item">
+                    <span class="summary-label">Materials & Equipment</span>
+                    <span class="summary-value" id="materialTotal">$0.00</span>
+                </div>
+                
+                <div class="summary-item">
+                    <span class="summary-label">Subtotal</span>
+                    <span class="summary-value" id="subtotal">$0.00</span>
+                </div>
+                
+                <div class="summary-item">
+                    <span class="summary-label">Profit Margin</span>
+                    <span class="summary-value" id="marginAmount">$0.00</span>
+                </div>
+                
+                <div class="summary-item">
+                    <span class="summary-label">Risk Reserve</span>
+                    <span class="summary-value" id="riskAmount">$0.00</span>
+                </div>
+                
+                <div class="summary-item">
+                    <span class="summary-label">Total Bid Amount</span>
+                    <span class="summary-value" id="totalAmount">$0.00</span>
+                </div>
+                
+                <button class="btn btn-success" onclick="generateProposal()" style="width: 100%; margin-top: 1.5rem;">
+                    🚀 Generate Final Proposal
+                </button>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="previousStep()">
+                ← Back to Team Building
+            </button>
+            <button class="btn btn-primary" onclick="saveAndContinue()">
+                Save & Continue →
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        const draftId = '{{ draft_id }}';
+        const userId = '{{ user_id }}';
+        let laborRows = [];
+        let materialRows = [];
+        
+        // Load existing pricing data on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            loadPricingData();
+        });
+        
+        // Load pricing data from draft
+        async function loadPricingData() {
+            try {
+                const response = await fetch(`/api/get_draft_pricing?draft_id=${draftId}`);
+                const data = await response.json();
+                
+                if (data.success && data.pricing) {
+                    laborRows = data.pricing.labor || [];
+                    materialRows = data.pricing.materials || [];
+                    document.getElementById('marginPercent').value = data.pricing.margin_pct || 15;
+                    document.getElementById('riskPercent').value = data.pricing.risk_pct || 5;
+                    
+                    renderLaborTable();
+                    renderMaterialTable();
+                    calculateTotal();
+                }
+            } catch (error) {
+                console.error('Error loading pricing data:', error);
+            }
+        }
+        
+        // Add labor row
+        function addLaborRow() {
+            laborRows.push({ role: '', hours: 0, rate: 0, cost: 0 });
+            renderLaborTable();
+        }
+        
+        // Add material row
+        function addMaterialRow() {
+            materialRows.push({ item: '', quantity: 0, unit_cost: 0, cost: 0 });
+            renderMaterialTable();
+        }
+        
+        // Render labor table
+        function renderLaborTable() {
+            const tbody = document.getElementById('laborTableBody');
+            
+            if (laborRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">No labor costs added yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = laborRows.map((row, index) => `
+                <tr>
+                    <td><input type="text" class="table-input" value="${row.role}" onchange="updateLaborRow(${index}, 'role', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${row.hours}" onchange="updateLaborRow(${index}, 'hours', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${row.rate}" onchange="updateLaborRow(${index}, 'rate', this.value)"></td>
+                    <td>$${row.cost.toFixed(2)}</td>
+                    <td><button class="delete-row-btn" onclick="deleteLaborRow(${index})">Delete</button></td>
+                </tr>
+            `).join('');
+        }
+        
+        // Render material table
+        function renderMaterialTable() {
+            const tbody = document.getElementById('materialTableBody');
+            
+            if (materialRows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #999;">No materials added yet</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = materialRows.map((row, index) => `
+                <tr>
+                    <td><input type="text" class="table-input" value="${row.item}" onchange="updateMaterialRow(${index}, 'item', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${row.quantity}" onchange="updateMaterialRow(${index}, 'quantity', this.value)"></td>
+                    <td><input type="number" class="table-input" value="${row.unit_cost}" onchange="updateMaterialRow(${index}, 'unit_cost', this.value)"></td>
+                    <td>$${row.cost.toFixed(2)}</td>
+                    <td><button class="delete-row-btn" onclick="deleteMaterialRow(${index})">Delete</button></td>
+                </tr>
+            `).join('');
+        }
+        
+        // Update labor row
+        function updateLaborRow(index, field, value) {
+            laborRows[index][field] = field === 'role' ? value : parseFloat(value) || 0;
+            if (field === 'hours' || field === 'rate') {
+                laborRows[index].cost = laborRows[index].hours * laborRows[index].rate;
+            }
+            renderLaborTable();
+            calculateTotal();
+        }
+        
+        // Update material row
+        function updateMaterialRow(index, field, value) {
+            materialRows[index][field] = field === 'item' ? value : parseFloat(value) || 0;
+            if (field === 'quantity' || field === 'unit_cost') {
+                materialRows[index].cost = materialRows[index].quantity * materialRows[index].unit_cost;
+            }
+            renderMaterialTable();
+            calculateTotal();
+        }
+        
+        // Delete rows
+        function deleteLaborRow(index) {
+            laborRows.splice(index, 1);
+            renderLaborTable();
+            calculateTotal();
+        }
+        
+        function deleteMaterialRow(index) {
+            materialRows.splice(index, 1);
+            renderMaterialTable();
+            calculateTotal();
+        }
+        
+        // Calculate total
+        function calculateTotal() {
+            const laborTotal = laborRows.reduce((sum, row) => sum + row.cost, 0);
+            const materialTotal = materialRows.reduce((sum, row) => sum + row.cost, 0);
+            const subtotal = laborTotal + materialTotal;
+            
+            const marginPercent = parseFloat(document.getElementById('marginPercent').value) || 0;
+            const riskPercent = parseFloat(document.getElementById('riskPercent').value) || 0;
+            
+            const marginAmount = subtotal * (marginPercent / 100);
+            const riskAmount = subtotal * (riskPercent / 100);
+            const total = subtotal + marginAmount + riskAmount;
+            
+            document.getElementById('laborTotal').textContent = `$${laborTotal.toFixed(2)}`;
+            document.getElementById('materialTotal').textContent = `$${materialTotal.toFixed(2)}`;
+            document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
+            document.getElementById('marginAmount').textContent = `$${marginAmount.toFixed(2)}`;
+            document.getElementById('riskAmount').textContent = `$${riskAmount.toFixed(2)}`;
+            document.getElementById('totalAmount').textContent = `$${total.toFixed(2)}`;
+        }
+        
+        // Generate AI strategy
+        async function generateAIStrategy() {
+            const btn = document.getElementById('strategyBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            
+            try {
+                const response = await fetch('/api/generate_pricing_strategy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.strategy) {
+                    document.getElementById('aiStrategy').innerHTML = data.strategy;
+                } else {
+                    alert('Failed to generate AI strategy');
+                }
+            } catch (error) {
+                console.error('Error generating strategy:', error);
+                alert('Failed to generate AI strategy');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate AI Strategy';
+            }
+        }
+        
+        // Save and continue
+        async function saveAndContinue() {
+            await savePricingData();
+            alert('Pricing data saved successfully!');
+        }
+        
+        // Save pricing data
+        async function savePricingData() {
+            try {
+                await fetch('/api/update_draft_pricing', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        pricing: {
+                            labor: laborRows,
+                            materials: materialRows,
+                            margin_pct: parseFloat(document.getElementById('marginPercent').value),
+                            risk_pct: parseFloat(document.getElementById('riskPercent').value)
+                        }
+                    })
+                });
+            } catch (error) {
+                console.error('Error saving pricing data:', error);
+            }
+        }
+        
+        // Generate final proposal
+        async function generateProposal() {
+            if (!confirm('Generate the final proposal document? This will use 15 credits.')) {
+                return;
+            }
+            
+            await savePricingData();
+            
+            // Redirect to proposal generation
+            window.location.href = `/api/generate_final_proposal?draft_id=${draftId}`;
+        }
+        
+        // Navigation
+        function previousStep() {
+            window.location.href = `/proposal/team?draft_id=${draftId}`;
+        }
+    </script>
+    </div>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>

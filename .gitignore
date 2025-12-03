@@ -2,3 +2,4 @@
 __pycache__/
 *.pyc
 capability_statements_processed.csv
+static/*.zip

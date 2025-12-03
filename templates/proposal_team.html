@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Team - CORAMA</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
+    <style>
+        .proposal-wizard {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 0;
+            padding-top: 100px;
+            min-height: 100vh;
+        }
+        
+        .proposal-wizard .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* Stepper Navigation */
+        .proposal-wizard .stepper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .step {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .proposal-wizard .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .proposal-wizard .step.completed:not(:last-child)::after,
+        .proposal-wizard .step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .proposal-wizard .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #999;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-wizard .step.active .step-circle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .proposal-wizard .step.completed .step-circle {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .proposal-wizard .step-label {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            text-align: center;
+        }
+        
+        .proposal-wizard .step.active .step-label {
+            color: #667eea;
+        }
+        
+        .proposal-wizard .step.completed .step-label {
+            color: #27ae60;
+        }
+        
+        /* Main Content */
+        .proposal-wizard .main-content {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        
+        /* Team Builder */
+        .proposal-wizard .team-section {
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .add-member-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .option-card {
+            padding: 1.5rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-wizard .option-card:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-2px);
+        }
+        
+        .proposal-wizard .option-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposal-wizard .option-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposal-wizard .option-description {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        
+        /* Team Members List */
+        .proposal-wizard .team-members {
+            display: grid;
+            gap: 1rem;
+        }
+        
+        .proposal-wizard .team-member {
+            padding: 1.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .proposal-wizard .member-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        
+        .proposal-wizard .member-field {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .proposal-wizard .member-label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+        }
+        
+        .proposal-wizard .member-value {
+            font-size: 0.95rem;
+            color: #2c3e50;
+        }
+        
+        .proposal-wizard .member-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .proposal-wizard .btn-icon {
+            width: 36px;
+            height: 36px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        
+        .proposal-wizard .btn-edit {
+            background: #3498db;
+            color: white;
+        }
+        
+        .proposal-wizard .btn-delete {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .proposal-wizard .btn-icon:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Modal */
+        .proposal-wizard .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .proposal-wizard .modal.active {
+            display: flex;
+        }
+        
+        .proposal-wizard .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .proposal-wizard .modal-header {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 1.5rem;
+        }
+        
+        .proposal-wizard .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .proposal-wizard .form-label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposal-wizard .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+        }
+        
+        .proposal-wizard .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .proposal-wizard .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        
+        /* Action Buttons */
+        .proposal-wizard .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+        
+        .proposal-wizard .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-wizard .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .proposal-wizard .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .proposal-wizard .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .proposal-wizard .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="proposal-wizard">
+    <div class="container">
+        <!-- Stepper Navigation -->
+        <div class="stepper">
+            <div class="step completed">
+                <div class="step-circle">✓</div>
+                <div class="step-label">Contract Analysis</div>
+            </div>
+            <div class="step active">
+                <div class="step-circle">2</div>
+                <div class="step-label">Build Team</div>
+            </div>
+            <div class="step">
+                <div class="step-circle">3</div>
+                <div class="step-label">Pricing & Review</div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="section-title">👥 Build Your Team</div>
+            
+            <!-- Add Member Options -->
+            <div class="add-member-options">
+                <div class="option-card" onclick="showDirectoryModal()">
+                    <div class="option-icon">👥</div>
+                    <div class="option-title">From CORAMA Directory</div>
+                    <div class="option-description">Find partners from the CORAMA network</div>
+                </div>
+                
+                <div class="option-card" onclick="showWebsiteModal()">
+                    <div class="option-icon">🌐</div>
+                    <div class="option-title">From Website</div>
+                    <div class="option-description">Extract company info from their website</div>
+                </div>
+                
+                <div class="option-card" onclick="showManualModal()">
+                    <div class="option-icon">✍️</div>
+                    <div class="option-title">Manual Entry</div>
+                    <div class="option-description">Enter subcontractor details manually</div>
+                </div>
+                
+                <div class="option-card" onclick="suggestSubcontractors()">
+                    <div class="option-icon">🤖</div>
+                    <div class="option-title">AI Suggestions</div>
+                    <div class="option-description">Get AI-recommended subcontractors</div>
+                </div>
+            </div>
+            
+            <!-- Team Members List -->
+            <div class="team-section">
+                <h3 style="font-size: 1.2rem; font-weight: 600; color: #2c3e50; margin-bottom: 1rem;">Team Members</h3>
+                <div class="team-members" id="teamMembersList">
+                    <div style="text-align: center; color: #999; padding: 3rem;">
+                        <p>No team members added yet</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Click one of the options above to add team members</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="previousStep()">
+                ← Back to Contract Analysis
+            </button>
+            <button class="btn btn-primary" onclick="nextStep()">
+                Continue to Pricing →
+            </button>
+        </div>
+    </div>
+    
+    <!-- Website Modal -->
+    <div class="modal" id="websiteModal">
+        <div class="modal-content">
+            <div class="modal-header">🌐 Add from Website</div>
+            <div class="form-group">
+                <label class="form-label">Company Website URL</label>
+                <input type="url" class="form-input" id="websiteUrl" placeholder="https://example.com">
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('websiteModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="extractFromWebsite()">Extract Info</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Manual Entry Modal -->
+    <div class="modal" id="manualModal">
+        <div class="modal-content">
+            <div class="modal-header">✍️ Add Team Member</div>
+            <div class="form-group">
+                <label class="form-label">Company Name</label>
+                <input type="text" class="form-input" id="companyName" placeholder="ABC Construction">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Contact Name</label>
+                <input type="text" class="form-input" id="contactName" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Role/Title</label>
+                <input type="text" class="form-input" id="contactRole" placeholder="CEO, Project Manager, etc.">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-input" id="contactEmail" placeholder="contact@example.com">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phone</label>
+                <input type="tel" class="form-input" id="contactPhone" placeholder="+1 (555) 123-4567">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Services Provided</label>
+                <textarea class="form-input form-textarea" id="services" placeholder="Describe the services this subcontractor will provide..."></textarea>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('manualModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="addManualMember()">Add Member</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- CORAMA Directory Modal -->
+    <div class="modal" id="directoryModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">👥 CORAMA Partner Directory</div>
+            <div class="form-group">
+                <label class="form-label">Search Companies</label>
+                <input type="text" class="form-input" id="directorySearch" placeholder="Search by company name, services, or description..." oninput="searchDirectory()">
+            </div>
+            <div id="directoryList" style="max-height: 400px; overflow-y: auto; margin-top: 1rem;">
+                <div style="text-align: center; padding: 2rem; color: #999;">
+                    <p>Loading directory...</p>
+                </div>
+            </div>
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="closeModal('directoryModal')">Close</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const draftId = '{{ draft_id }}';
+        const userId = '{{ user_id }}';
+        let teamMembers = [];
+        
+        // Load existing team members on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            loadTeamMembers();
+        });
+        
+        // Load team members from draft
+        async function loadTeamMembers() {
+            try {
+                const response = await fetch(`/api/get_draft_team?draft_id=${draftId}`);
+                const data = await response.json();
+                
+                if (data.success && data.team_members) {
+                    teamMembers = data.team_members;
+                    renderTeamMembers();
+                }
+            } catch (error) {
+                console.error('Error loading team members:', error);
+            }
+        }
+        
+        // Render team members list
+        function renderTeamMembers() {
+            const list = document.getElementById('teamMembersList');
+            
+            if (teamMembers.length === 0) {
+                list.innerHTML = `
+                    <div style="text-align: center; color: #999; padding: 3rem;">
+                        <p>No team members added yet</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Click one of the options above to add team members</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = teamMembers.map((member, index) => `
+                <div class="team-member">
+                    <div class="member-info">
+                        <div class="member-field">
+                            <div class="member-label">Company</div>
+                            <div class="member-value">${member.company}</div>
+                        </div>
+                        <div class="member-field">
+                            <div class="member-label">Contact</div>
+                            <div class="member-value">${member.contact_name} (${member.contact_role})</div>
+                        </div>
+                        <div class="member-field">
+                            <div class="member-label">Email</div>
+                            <div class="member-value">${member.email}</div>
+                        </div>
+                        <div class="member-field">
+                            <div class="member-label">Services</div>
+                            <div class="member-value">${member.services}</div>
+                        </div>
+                    </div>
+                    <div class="member-actions">
+                        <button class="btn-icon btn-delete" onclick="removeMember(${index})" title="Remove">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Show modals
+        function showWebsiteModal() {
+            document.getElementById('websiteModal').classList.add('active');
+        }
+        
+        function showManualModal() {
+            document.getElementById('manualModal').classList.add('active');
+        }
+        
+        function showDirectoryModal() {
+            document.getElementById('directoryModal').classList.add('active');
+            loadDirectoryCompanies();
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+            
+            // Reset modal inputs when closing
+            if (modalId === 'websiteModal') {
+                document.getElementById('websiteUrl').value = '';
+            } else if (modalId === 'manualModal') {
+                document.getElementById('companyName').value = '';
+                document.getElementById('contactName').value = '';
+                document.getElementById('contactRole').value = '';
+                document.getElementById('contactEmail').value = '';
+                document.getElementById('contactPhone').value = '';
+                document.getElementById('services').value = '';
+            } else if (modalId === 'directoryModal') {
+                document.getElementById('directorySearch').value = '';
+                // Reset directory list to show all companies
+                if (typeof allDirectoryCompanies !== 'undefined') {
+                    renderDirectoryCompanies(allDirectoryCompanies);
+                }
+            }
+        }
+        
+        // Load directory companies
+        let allDirectoryCompanies = [];
+        
+        async function loadDirectoryCompanies() {
+            try {
+                const response = await fetch('/api/get_directory_companies');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allDirectoryCompanies = data.companies;
+                    renderDirectoryCompanies(allDirectoryCompanies);
+                } else {
+                    document.getElementById('directoryList').innerHTML = `
+                        <div style="text-align: center; padding: 2rem; color: #999;">
+                            <p>Failed to load directory companies</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading directory:', error);
+                document.getElementById('directoryList').innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #999;">
+                        <p>Error loading directory</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Search directory
+        function searchDirectory() {
+            const searchTerm = document.getElementById('directorySearch').value.toLowerCase();
+            
+            if (!searchTerm) {
+                renderDirectoryCompanies(allDirectoryCompanies);
+                return;
+            }
+            
+            const filtered = allDirectoryCompanies.filter(company => {
+                const searchableText = `${company.company} ${company.services} ${company.description}`.toLowerCase();
+                return searchableText.includes(searchTerm);
+            });
+            
+            renderDirectoryCompanies(filtered);
+        }
+        
+        // Render directory companies
+        function renderDirectoryCompanies(companies) {
+            const list = document.getElementById('directoryList');
+            
+            if (companies.length === 0) {
+                list.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: #999;">
+                        <p>No companies found</p>
+                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Try a different search term or ask companies to join the directory</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            list.innerHTML = companies.map(company => `
+                <div style="border: 2px solid #e9ecef; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; cursor: pointer; transition: all 0.3s ease;" 
+                     onmouseover="this.style.borderColor='#667eea'; this.style.background='#f8f9ff';" 
+                     onmouseout="this.style.borderColor='#e9ecef'; this.style.background='white';"
+                     onclick="addDirectoryMember('${company.user_id}')">
+                    <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+                        <div style="width: 60px; height: 60px; border-radius: 8px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0;">
+                            ${company.logo_url ? 
+                                `<img src="${company.logo_url}" alt="${company.company}" style="width: 100%; height: 100%; object-fit: contain;">` : 
+                                `<span style="font-size: 1.5rem; color: #999;">🏢</span>`
+                            }
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">
+                                <div style="flex: 1; min-width: 0;">
+                                    <h4 style="margin: 0; color: #2c3e50; font-size: 1.1rem; font-weight: 600;">${company.company}</h4>
+                                    <p style="margin: 0.25rem 0 0 0; color: #6c757d; font-size: 0.9rem;">${company.contact_name}</p>
+                                </div>
+                                <button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem; white-space: nowrap;" onclick="event.stopPropagation(); addDirectoryMember('${company.user_id}')">
+                                    Add to Team
+                                </button>
+                            </div>
+                            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.5rem; font-size: 0.85rem; color: #6c757d;">
+                                ${company.team_size ? `<span>👥 ${company.team_size}</span>` : ''}
+                                ${company.years_in_business ? `<span>📅 ${company.years_in_business} years</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong style="color: #495057; font-size: 0.9rem;">Services:</strong>
+                        <span style="color: #6c757d; font-size: 0.9rem;">${company.services || 'Not specified'}</span>
+                    </div>
+                    ${company.certifications ? `
+                        <div style="margin-bottom: 0.5rem;">
+                            <strong style="color: #495057; font-size: 0.9rem;">Certifications:</strong>
+                            <span style="color: #6c757d; font-size: 0.9rem;">${company.certifications.substring(0, 100)}${company.certifications.length > 100 ? '...' : ''}</span>
+                        </div>
+                    ` : ''}
+                    ${company.description ? `
+                        <div style="margin-bottom: 0.5rem;">
+                            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">${company.description.substring(0, 150)}${company.description.length > 150 ? '...' : ''}</p>
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: #6c757d; flex-wrap: wrap;">
+                        ${company.email ? `<span>📧 ${company.email}</span>` : ''}
+                        ${company.phone ? `<span>📞 ${company.phone}</span>` : ''}
+                        ${company.website ? `<span>🌐 <a href="${company.website}" target="_blank" onclick="event.stopPropagation();" style="color: #667eea;">${company.website}</a></span>` : ''}
+                        ${company.linkedin_url ? `<span>💼 <a href="${company.linkedin_url}" target="_blank" onclick="event.stopPropagation();" style="color: #667eea;">LinkedIn</a></span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Add directory member to team
+        async function addDirectoryMember(userId) {
+            const company = allDirectoryCompanies.find(c => c.user_id === userId);
+            
+            if (!company) {
+                alert('Company not found');
+                return;
+            }
+            
+            const member = {
+                company: company.company,
+                contact_name: company.contact_name,
+                contact_role: 'Partner',
+                email: company.email,
+                phone: company.phone,
+                services: company.services,
+                source: 'corama_directory'
+            };
+            
+            try {
+                const response = await fetch('/api/add_team_member', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        member: member
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    teamMembers.push(member);
+                    renderTeamMembers();
+                    closeModal('directoryModal');
+                    alert(`${company.company} has been added to your team!`);
+                } else {
+                    alert('Failed to add team member');
+                }
+            } catch (error) {
+                console.error('Error adding directory member:', error);
+                alert('Failed to add team member');
+            }
+        }
+        
+        // Extract from website
+        async function extractFromWebsite() {
+            const urlInput = document.getElementById('websiteUrl');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                alert('Please enter a website URL');
+                return;
+            }
+            
+            const extractBtn = document.querySelector('#websiteModal .btn-primary');
+            const originalBtnText = extractBtn.textContent;
+            
+            try {
+                extractBtn.disabled = true;
+                extractBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Extracting...';
+                
+                const response = await fetch('/api/extract_subcontractor_info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        draft_id: draftId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.member) {
+                    teamMembers.push(data.member);
+                    renderTeamMembers();
+                    closeModal('websiteModal');
+                    urlInput.value = '';
+                    
+                    if (data.warning) {
+                        setTimeout(() => {
+                            alert('⚠️ ' + data.warning);
+                        }, 300);
+                    }
+                } else {
+                    const errorMsg = data.error || 'Failed to extract info from website';
+                    alert('❌ ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('Error extracting from website:', error);
+                alert('❌ Network error: Could not connect to the server. Please check your connection and try again.');
+            } finally {
+                extractBtn.disabled = false;
+                extractBtn.innerHTML = originalBtnText;
+            }
+        }
+        
+        // Add manual member
+        async function addManualMember() {
+            const member = {
+                company: document.getElementById('companyName').value,
+                contact_name: document.getElementById('contactName').value,
+                contact_role: document.getElementById('contactRole').value,
+                email: document.getElementById('contactEmail').value,
+                phone: document.getElementById('contactPhone').value,
+                services: document.getElementById('services').value,
+                source: 'manual'
+            };
+            
+            if (!member.company || !member.contact_name || !member.services) {
+                alert('Please fill in required fields: Company Name, Contact Name, and Services');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/add_team_member', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        member: member
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    teamMembers.push(member);
+                    renderTeamMembers();
+                    closeModal('manualModal');
+                    
+                    // Clear form
+                    document.getElementById('companyName').value = '';
+                    document.getElementById('contactName').value = '';
+                    document.getElementById('contactRole').value = '';
+                    document.getElementById('contactEmail').value = '';
+                    document.getElementById('contactPhone').value = '';
+                    document.getElementById('services').value = '';
+                } else {
+                    alert('Failed to add team member');
+                }
+            } catch (error) {
+                console.error('Error adding team member:', error);
+                alert('Failed to add team member');
+            }
+        }
+        
+        // Remove member
+        async function removeMember(index) {
+            if (!confirm('Are you sure you want to remove this team member?')) {
+                return;
+            }
+            
+            teamMembers.splice(index, 1);
+            renderTeamMembers();
+            
+            // Save to backend
+            try {
+                await fetch('/api/update_draft_team', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        team_members: teamMembers
+                    })
+                });
+            } catch (error) {
+                console.error('Error updating team:', error);
+            }
+        }
+        
+        // AI suggestions
+        async function suggestSubcontractors() {
+            if (!draftId) {
+                alert('❌ No draft found. Please start from the contract analysis page.');
+                return;
+            }
+            
+            const suggestBtn = document.querySelector('.option-card[onclick="suggestSubcontractors()"]');
+            const originalContent = suggestBtn ? suggestBtn.innerHTML : '';
+            
+            try {
+                if (suggestBtn) {
+                    suggestBtn.style.opacity = '0.6';
+                    suggestBtn.style.pointerEvents = 'none';
+                    suggestBtn.innerHTML = `
+                        <div class="option-icon">🤖</div>
+                        <div class="option-title">Analyzing...</div>
+                        <div class="option-description">AI is analyzing contract requirements</div>
+                    `;
+                }
+                
+                const response = await fetch('/api/suggest_team', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        draft_id: draftId,
+                        team_members: teamMembers
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.suggestions) {
+                    displayAISuggestions(data.suggestions);
+                } else {
+                    const errorMsg = data.error || 'Failed to generate team suggestions';
+                    alert('❌ ' + errorMsg);
+                }
+            } catch (error) {
+                console.error('Error getting AI suggestions:', error);
+                alert('❌ Network error: Could not connect to the server. Please check your connection and try again.');
+            } finally {
+                if (suggestBtn) {
+                    suggestBtn.style.opacity = '1';
+                    suggestBtn.style.pointerEvents = 'auto';
+                    suggestBtn.innerHTML = originalContent;
+                }
+            }
+        }
+        
+        // Display AI suggestions in a modal
+        function displayAISuggestions(suggestions) {
+            const modalHtml = `
+                <div class="modal fade" id="aiSuggestionsModal" tabindex="-1">
+                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">🤖 AI Team Composition Suggestions</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <strong>Team Structure:</strong> ${suggestions.team_structure || 'Not specified'}
+                                </div>
+                                
+                                <h6 class="mt-4 mb-3"><strong>Recommended Roles:</strong></h6>
+                                ${(suggestions.recommended_roles || []).map((role, index) => `
+                                    <div class="card mb-3">
+                                        <div class="card-body">
+                                            <h6 class="card-title">${index + 1}. ${role.role || 'Role'}</h6>
+                                            <p class="mb-2"><strong>Responsibilities:</strong> ${role.responsibilities || 'N/A'}</p>
+                                            <p class="mb-2"><strong>Why Needed:</strong> ${role.why_needed || 'N/A'}</p>
+                                            <p class="mb-2"><strong>Preferred Qualifications:</strong> ${role.preferred_qualifications || 'N/A'}</p>
+                                            <p class="mb-0"><strong>Partner Profile:</strong> ${role.partner_profile || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                
+                                ${suggestions.key_considerations && suggestions.key_considerations.length > 0 ? `
+                                    <h6 class="mt-4 mb-3"><strong>Key Considerations:</strong></h6>
+                                    <ul class="list-group mb-3">
+                                        ${suggestions.key_considerations.map(consideration => `
+                                            <li class="list-group-item">${consideration}</li>
+                                        `).join('')}
+                                    </ul>
+                                ` : ''}
+                                
+                                ${suggestions.compliance_notes ? `
+                                    <div class="alert alert-warning mt-3">
+                                        <strong>Compliance Notes:</strong> ${suggestions.compliance_notes}
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Remove existing modal if present
+            const existingModal = document.getElementById('aiSuggestionsModal');
+            if (existingModal) {
+                existingModal.remove();
+            }
+            
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHtml);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('aiSuggestionsModal'));
+            modal.show();
+            
+            // Clean up modal after it's hidden
+            document.getElementById('aiSuggestionsModal').addEventListener('hidden.bs.modal', function() {
+                this.remove();
+            });
+        }
+        
+        // Navigation
+        function previousStep() {
+            window.location.href = `/proposal/start?hash=${draftId}`;
+        }
+        
+        function nextStep() {
+            window.location.href = `/proposal/pricing?draft_id=${draftId}`;
+        }
+    </script>
+    </div>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>

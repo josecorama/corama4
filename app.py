@@ -146,10 +146,15 @@ if service_account_json_path:
 else:
     service_account_json = None
 # FIREBASE 
+database_url = os.getenv('DATABASE_URL', '').rstrip('/')
+if database_url.endswith('/users'):
+    database_url = database_url[:-6]  # Remove trailing /users
+logging.info(f"🔧 Normalized DATABASE_URL: {database_url}")
+
 config = {
     "apiKey": os.getenv('FIREBASE_API_KEY'),
     "authDomain": os.getenv('AUTH_DOMAIN'),
-    "databaseURL": os.getenv('DATABASE_URL'),
+    "databaseURL": database_url,
     "projectId": os.getenv('PROJECT_ID'),
     "storageBucket": os.getenv('STORAGE_BUCKET'),
     "messagingSenderId": os.getenv('MESSAGING_SENDER_ID'),
@@ -228,7 +233,7 @@ try:
             service_account_dict = json.loads(firebase_creds_json)
             cred = credentials.Certificate(service_account_dict)
             firebase_admin.initialize_app(cred, {
-                'databaseURL': os.getenv('DATABASE_URL')
+                'databaseURL': database_url
             })
             admin_db = admin_database
             admin_initialized = True
@@ -242,7 +247,7 @@ try:
         if os.path.exists(service_account_path):
             cred = credentials.Certificate(service_account_path)
             firebase_admin.initialize_app(cred, {
-                'databaseURL': os.getenv('DATABASE_URL')
+                'databaseURL': database_url
             })
             admin_db = admin_database
             admin_initialized = True
@@ -877,19 +882,45 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
     
     final_content = []
     
-    # ----- Step 1: 处理 matches.csv 中的选定合同 -----
+    # ----- Step 1: Search for contract in multiple CSV sources -----
+    selected_rows = None
+    df = None
+    
     matches_file = os.path.join(user_uploads_dir, "matches.csv")
-    if not os.path.exists(matches_file):
-        return "matches.csv not found."
+    if os.path.exists(matches_file):
+        try:
+            df = pd.read_csv(matches_file, dtype=str)
+            selected_rows = df[df["hash_value"] == hash_value]
+            if not selected_rows.empty:
+                app.logger.info(f"Contract found in matches.csv")
+        except Exception as e:
+            app.logger.error(f"Error reading matches.csv: {str(e)}")
     
-    try:
-        df = pd.read_csv(matches_file, dtype=str)
-    except Exception as e:
-        return f"Error reading matches.csv: {str(e)}"
+    if selected_rows is None or selected_rows.empty:
+        smart_search_file = os.path.join(user_uploads_dir, "matches_SMART_SEARCH.csv")
+        if os.path.exists(smart_search_file):
+            try:
+                df = pd.read_csv(smart_search_file, dtype=str)
+                selected_rows = df[df["hash_value"] == hash_value]
+                if not selected_rows.empty:
+                    app.logger.info(f"Contract found in matches_SMART_SEARCH.csv")
+            except Exception as e:
+                app.logger.error(f"Error reading matches_SMART_SEARCH.csv: {str(e)}")
     
-    selected_rows = df[df["hash_value"] == hash_value]
-    if selected_rows.empty:
-        return "No matching contract found for the provided hash_value."
+    # Try Scraping_demo_results.csv as fallback
+    if selected_rows is None or selected_rows.empty:
+        demo_file = os.path.join(os.path.dirname(__file__), "Scraping_demo_results.csv")
+        if os.path.exists(demo_file):
+            try:
+                df = pd.read_csv(demo_file, dtype=str)
+                selected_rows = df[df["hash_value"] == hash_value]
+                if not selected_rows.empty:
+                    app.logger.info(f"Contract found in Scraping_demo_results.csv")
+            except Exception as e:
+                app.logger.error(f"Error reading Scraping_demo_results.csv: {str(e)}")
+    
+    if selected_rows is None or selected_rows.empty:
+        return "No matching contract found for the provided hash_value in any data source."
     
     # 假设 hash_value 唯一，取第一行
     row_dict = selected_rows.iloc[0].to_dict()
@@ -1681,10 +1712,30 @@ prices = {
 
 
 def send_welcome_email(email, display_name):
-    app.logger.info(f"📤 Attempting to send welcome email to {email}...")
+    """Send welcome email with timeout protection and granular logging.
+    
+    This function is designed to be called in a background thread to avoid
+    blocking the signup process. It will log errors but not raise exceptions.
+    """
+    import time
+    import socket
+    
+    start_time = time.time()
+    app.logger.info(f"📤 [t=0.0s] Starting welcome email send to {email}...")
 
     sender_email = os.getenv('EMAIL_GOOGLE_USER')
     sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    
+    # Check if email sending is enabled
+    send_email_enabled = os.getenv('SEND_WELCOME_EMAIL', 'true').lower() == 'true'
+    if not send_email_enabled:
+        app.logger.info(f"📧 Welcome email disabled by SEND_WELCOME_EMAIL env var")
+        return
+    
+    if not sender_email or not sender_password:
+        app.logger.error(f"❌ Email credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+        return
+    
     subject = "🎉 Welcome To Contract Radar Maximizer!"
 
     # HTML Email Body
@@ -1717,17 +1768,40 @@ def send_welcome_email(email, display_name):
         mime_text = MIMEText(html_body, "html")
         msg.attach(mime_text)
 
-        app.logger.debug("📧 Styled HTML email composed successfully.")
+        elapsed = time.time() - start_time
+        app.logger.info(f"📧 [t={elapsed:.1f}s] Email message composed")
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            app.logger.debug("🔐 Connecting to SMTP server...")
-            server.login(sender_email, sender_password)
-            app.logger.debug("🔐 SMTP login successful.")
-            server.sendmail(sender_email, email, msg.as_string())
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(10)
+        
+        try:
+            app.logger.info(f"🔐 [t={elapsed:.1f}s] Connecting to smtp.gmail.com:465...")
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10) as server:
+                elapsed = time.time() - start_time
+                app.logger.info(f"🔐 [t={elapsed:.1f}s] Connected, attempting login...")
+                
+                server.login(sender_email, sender_password)
+                elapsed = time.time() - start_time
+                app.logger.info(f"🔐 [t={elapsed:.1f}s] Login successful, sending email...")
+                
+                server.sendmail(sender_email, email, msg.as_string())
+                elapsed = time.time() - start_time
+                app.logger.info(f"✅ [t={elapsed:.1f}s] Welcome email sent successfully to {email}")
+        finally:
+            socket.setdefaulttimeout(old_timeout)
 
-        app.logger.info(f"✅ Professional welcome email sent to {email}")
+    except socket.timeout as e:
+        elapsed = time.time() - start_time
+        app.logger.error(f"⏱️ [t={elapsed:.1f}s] SMTP timeout sending welcome email to {email}: {e}")
+    except smtplib.SMTPAuthenticationError as e:
+        elapsed = time.time() - start_time
+        app.logger.error(f"🔐 [t={elapsed:.1f}s] SMTP authentication failed for {email}: {e}")
     except Exception as e:
-        app.logger.exception(f"❌ ERROR sending welcome email to {email}: {e}")
+        elapsed = time.time() - start_time
+        app.logger.error(f"❌ [t={elapsed:.1f}s] Error sending welcome email to {email}: {type(e).__name__}: {e}")
+        # Log full traceback for debugging
+        import traceback
+        app.logger.debug(traceback.format_exc())
 #SIGNUP FIX 3/25 
 
  
@@ -1761,6 +1835,7 @@ def Signup():
         account_type = request.form.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
         billing_period = request.form.get('billing_period', 'free')
         subscription_end_date = '9999-12-31'  # Permanent free access
+        join_directory = request.form.get('join_directory') == 'on'  # Checkbox value
 
         app.logger.debug(f"📌 User Info: {first_name} {last_name} | {email} | {company}")
 
@@ -1777,12 +1852,15 @@ def Signup():
 
             app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
 
-            # ✅ Send Welcome Email
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
+            # ✅ Send Welcome Email (non-blocking)
+            app.logger.info("📨 Starting welcome email in background thread...")
+            import threading
+            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+            email_thread.daemon = True
+            email_thread.start()
+            app.logger.info("📨 Welcome email thread started, continuing with signup...")
 
-            # ✅ Store User Data in Session
+            # ✅ Store User Data in Session (including user_id for confirm_terms)
             session['user_data'] = {
                 "first_name": first_name,
                 "last_name": last_name,
@@ -1791,10 +1869,20 @@ def Signup():
                 "username": username,
                 "account_type": account_type,
                 "billing_period": billing_period,
-                "subscription_end_date": subscription_end_date
+                "subscription_end_date": subscription_end_date,
+                "user_id": user_id
+            }
+            
+            # ✅ Store User Authentication in Session (for confirm_terms idToken)
+            session['user'] = {
+                'localId': user_id,
+                'idToken': user_logged_in['idToken'],
+                'email': email,
+                'refreshToken': user_logged_in['refreshToken']
             }
 
             app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
+            app.logger.debug(f"💾 User Auth Stored: localId={user_id}, email={email}")
 
             # ✅ Store User Data in Firebase Database
             db.child("users").child(user_id).set({
@@ -1807,8 +1895,26 @@ def Signup():
                 "subscription_end_date": subscription_end_date,
                 "uploads_dir": create_user_directory(user_id),
                 "credits_balance": 100,
-                "credits_used": 0
+                "credits_used": 0,
+                "directory_listed": join_directory
             }, user_logged_in['idToken'])
+            
+            if join_directory:
+                try:
+                    db.child("corama_directory").child(user_id).set({
+                        "company": company,
+                        "contact_name": f"{first_name} {last_name}",
+                        "email": email,
+                        "services": "",  # To be filled in directory profile
+                        "description": "",  # To be filled in directory profile
+                        "phone": "",  # To be filled in directory profile
+                        "website": "",  # To be filled in directory profile
+                        "listed": True,
+                        "created_at": datetime.now().isoformat()
+                    }, user_logged_in['idToken'])
+                    app.logger.info(f"✅ User {user_id} added to CORAMA Directory")
+                except Exception as e:
+                    app.logger.error(f"❌ Failed to add user to directory: {e}")
 
             app.logger.info("✅ User successfully added to Firebase Database!")
 
@@ -1853,29 +1959,46 @@ def Signup():
 @app.route('/confirm_terms', methods=['GET', 'POST'])
 def confirm_terms():
     if request.method == 'POST':
+        if not request.form.get('confirm_terms'):
+            app.logger.warning("⚠️ User attempted to proceed without agreeing to terms")
+            return render_template('confirm_terms.html', error="You must agree to the Automatic Renewal Terms and Conditions to proceed.")
+        
         # Retrieve user data from session
         user_data = session.get('user_data')
+        user_auth = session.get('user')
 
         if not user_data:
-            return redirect(url_for('signup'))
+            app.logger.error("❌ No user_data in session, redirecting to signup")
+            return redirect(url_for('Signup'))
+        
+        if not user_auth:
+            app.logger.error("❌ No user auth in session, redirecting to signup")
+            return redirect(url_for('Signup'))
 
         try:
-            user_id = user_data['user_id']
+            user_id = user_data.get('user_id')
+            if not user_id:
+                app.logger.error("❌ No user_id in session data")
+                return render_template('confirm_terms.html', error="Session expired. Please sign up again.")
             
             db.child("users").child(user_id).update({
                 "account_type": user_data['account_type'],
                 "subscription_end_date": "9999-12-31",
-                "uploads_dir": create_user_directory(user_id),
-            }, session['user']['idToken'])
+                "terms_accepted": True,
+                "terms_accepted_date": datetime.now().isoformat()
+            }, user_auth['idToken'])
             
-            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Account created successfully!")
+            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Terms accepted, redirecting to Welcome")
             return redirect(url_for('Welcome'))
 
+        except KeyError as e:
+            app.logger.error(f"❌ Missing session key in confirm_terms: {e}")
+            return render_template('confirm_terms.html', error=f"Session error: {e}. Please sign up again.")
         except Exception as e:
-            return render_template('confirm_terms.html', error=str(e))
+            app.logger.exception(f"❌ Error in confirm_terms for user: {e}")
+            return render_template('confirm_terms.html', error="An error occurred. Please try again.")
 
     # Render the terms confirmation page on GET
-
     return render_template('confirm_terms.html')
 
 
@@ -1923,10 +2046,13 @@ def signupCSBuilder():
                 description=f"{first_name} {last_name} from {company}"
             )
 
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
-
+            # ✅ Send Welcome Email (non-blocking)
+            app.logger.info("📨 Starting welcome email in background thread...")
+            import threading
+            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+            email_thread.daemon = True
+            email_thread.start()
+            app.logger.info("📨 Welcome email thread started, continuing with signup...")
 
             db.child("users").child(user_id).update(
                 {"stripe_customer_id": stripe_customer['id']},
@@ -2090,7 +2216,8 @@ def get_contracts_api():
 def dashboard_search():
     """Search contracts for dashboard with real-time filtering and analytics update"""
     try:
-        if 'user' not in session:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
             return jsonify({"success": False, "message": "User not logged in."}), 401
 
         data = request.get_json(force=True) or {}
@@ -2130,10 +2257,41 @@ def dashboard_search():
             df = pd.read_csv(csv_path)
             
             if user_query:
-                mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
-                        df['category'].str.contains(user_query, case=False, na=False) |
-                        df['bid_description'].str.contains(user_query, case=False, na=False))
+                df['bid_number'] = df['bid_number'].fillna('').astype(str)
+                df['bid_name'] = df['bid_name'].fillna('').astype(str)
+                df['bid_description'] = df['bid_description'].fillna('').astype(str)
+                df['category'] = df['category'].fillna('').astype(str)
+                
+                # Create a combined search field from all relevant columns
+                df['search_blob'] = (
+                    df['bid_number'] + ' ' +
+                    df['bid_name'] + ' ' +
+                    df['bid_description'] + ' ' +
+                    df['category']
+                ).str.lower()
+                
+                query_lower = user_query.lower()
+                tokens = query_lower.split()
+                
+                mask = pd.Series([True] * len(df))
+                for token in tokens:
+                    mask = mask & df['search_blob'].str.contains(token, case=False, na=False, regex=False)
+                
                 df = df[mask]
+                
+                if len(df) > 0:
+                    df['rank_score'] = 0
+                    df.loc[df['bid_number'].str.lower() == query_lower, 'rank_score'] += 100
+                    df.loc[df['bid_name'].str.lower() == query_lower, 'rank_score'] += 50
+                    df.loc[df['bid_name'].str.lower().str.startswith(query_lower), 'rank_score'] += 25
+                    # Count token matches in bid_name (more relevant than description)
+                    for token in tokens:
+                        df.loc[df['bid_name'].str.lower().str.contains(token, regex=False), 'rank_score'] += 5
+                    
+                    df = df.sort_values(by=['rank_score', 'due_date'], ascending=[False, True])
+                    df = df.drop(columns=['search_blob', 'rank_score'])
+                else:
+                    df = df.drop(columns=['search_blob'])
             
             total_contracts = len(df)
             total_pages = (total_contracts + items_per_page - 1) // items_per_page
@@ -2260,8 +2418,107 @@ def ai_assistant_room():
     if not user:
         return redirect(url_for('Login'))
     
-    contract_id = request.args.get('contract')
+    contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
     contract_name = request.args.get('name')
+    
+    if not contract_param:
+        return redirect('/welcome')
+    
+    # Determine if we have a hash_value or need to look up by bid_number
+    contract_id = None  # This will be the hash_value
+    bid_number = None
+    
+    # Check if the parameter looks like a hash (64 hex characters)
+    if len(contract_param) == 64 and all(c in '0123456789abcdef' for c in contract_param.lower()):
+        # It's already a hash_value
+        contract_id = contract_param
+    else:
+        # It's a bid_number, we need to look up the contract and compute hash_value
+        bid_number = contract_param
+        user_id = user['localId']
+        
+        try:
+            # Get user data to find uploads directory
+            user_data = None
+            if admin_initialized and admin_db:
+                user_ref = admin_db.reference(f'users/{user_id}')
+                user_data = user_ref.get()
+            else:
+                user_data = db.child("users").child(user_id).get(user['idToken']).val()
+            
+            if user_data:
+                user_uploads_dir = user_data.get('uploads_dir', '')
+                if user_uploads_dir and os.path.exists(user_uploads_dir):
+                    matches_file = os.path.join(user_uploads_dir, 'matches.csv')
+                    contract_found = False
+                    
+                    if os.path.exists(matches_file):
+                        try:
+                            with open(matches_file, 'r', encoding='utf-8') as file:
+                                reader = csv.DictReader(file)
+                                for row in reader:
+                                    row = {k.strip(): v for k, v in row.items()}
+                                    row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                    if row_bid_number == bid_number:
+                                        # Found the contract, compute hash_value
+                                        detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                        hash_input = f"{detail_link}{row_bid_number}"
+                                        contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                        if not contract_name:
+                                            contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                        contract_found = True
+                                        break
+                        except Exception as e:
+                            logging.error(f"Error reading matches.csv: {e}")
+                    
+                    # If not found in matches.csv, try matches_SMART_SEARCH.csv
+                    if not contract_found:
+                        smart_search_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
+                        if os.path.exists(smart_search_file):
+                            try:
+                                with open(smart_search_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        if row_bid_number == bid_number:
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if not contract_name:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                            contract_found = True
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading matches_SMART_SEARCH.csv: {e}")
+                    
+                    # If still not found, try demo dataset as fallback
+                    if not contract_found:
+                        demo_file = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+                        if os.path.exists(demo_file):
+                            try:
+                                with open(demo_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        if row_bid_number == bid_number:
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if not contract_name:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                            contract_found = True
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading demo dataset: {e}")
+                    
+                    if not contract_found:
+                        logging.error(f"Contract with bid_number {bid_number} not found in any dataset")
+                        contract_id = bid_number
+        except Exception as e:
+            logging.error(f"Error looking up contract by bid_number: {e}")
+            contract_id = bid_number
     
     if not contract_id:
         return redirect('/welcome')
@@ -2370,6 +2627,104 @@ def ai_assistant_room():
                          capability_statements=capability_statements if 'capability_statements' in locals() else [],
                          capability_statement_count=capability_statement_count if 'capability_statement_count' in locals() else 0)
 
+@app.route('/proposal/start')
+def proposal_start():
+    """Screen 1: Contract Analysis & PDF Annotations"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    contract_hash = request.args.get('hash_value') or request.args.get('hash')
+    draft_id = request.args.get('draft_id')
+    
+    if not contract_hash:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal start: {e}")
+    
+    # Get contract details from CSV
+    contract_data = None
+    try:
+        df = pd.read_csv('Scraping_demo_results.csv')
+        contract_row = df[df['hash_value'] == contract_hash]
+        if not contract_row.empty:
+            contract_data = contract_row.iloc[0].to_dict()
+    except Exception as e:
+        logging.error(f"Error loading contract data: {e}")
+    
+    return render_template('proposal_start.html',
+                         contract_hash=contract_hash,
+                         contract_data=contract_data,
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
+@app.route('/proposal/team')
+def proposal_team():
+    """Screen 2: Team & Subcontractor Builder"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal team: {e}")
+    
+    return render_template('proposal_team.html',
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
+@app.route('/proposal/pricing')
+def proposal_pricing():
+    """Screen 3: Pricing Strategy & Review"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal pricing: {e}")
+    
+    return render_template('proposal_pricing.html',
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
 def Welcome2():
@@ -2463,7 +2818,19 @@ def Faq():
     return render_template('faq.html')
 
 
-    #TEAM DETAIL PAGE ROUTE FUNCTION 
+#TERMS OF USE ROUTE FUNCTION
+@app.route('/terms_of_use', methods=['GET'])
+def terms_of_use():
+    return redirect(url_for('static', filename='docs/TermsofUse.pdf'))
+
+
+#PRIVACY NOTICE ROUTE FUNCTION
+@app.route('/privacy_notice', methods=['GET'])
+def privacy_notice():
+    return redirect(url_for('static', filename='docs/PrivacyNotice.pdf'))
+
+
+    #TEAM DETAIL PAGE ROUTE FUNCTION
 @app.route('/businesspartner', methods=['GET']) 
 def Businesspartner():
     return render_template('businesspartner.html')
@@ -2653,10 +3020,12 @@ ALLOWED_PERSISTENT_FILES = ['matches.csv', 'capability_statements_processed.csv'
 #BID SEARCH FUNCTION TO CLEAR USER UPLOADS EXCEPT 'embedded_bids.csv'
 @app.route('/clear_uploads', methods=['POST'])
 def clear_uploads():
-    user = session.get('user')
-    if not user:
+    # Ensure session is populated from auth.current_user if needed
+    if not ensure_session_from_auth():
         app.logger.error('User not logged in')
         return jsonify({'success': False, 'message': 'User not logged in'}), 400
+    
+    user = session.get('user')
     user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
     user_uploads_dir = user_data.get('uploads_dir')
     # Verify if the uploads directory path is retrieved correctly
@@ -3174,6 +3543,8 @@ def enhanced_ai_assistant():
     """Enhanced AI assistant endpoint with credit-based billing"""
     global enhanced_ai
     
+    ensure_session_from_auth()
+    
     user_query = request.form.get('query')
     hash_value = request.form.get('hash_value')
     action_type = request.form.get('action_type', 'general')
@@ -3183,6 +3554,9 @@ def enhanced_ai_assistant():
     try:
         if not user_query:
             return jsonify({"error": "Query is required"}), 400
+        
+        if 'user' not in session:
+            return jsonify({"error": "User not authenticated"}), 401
             
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
@@ -3850,8 +4224,28 @@ def process_capability_statement():
         logging.info(f"AI parsing completed, fields found: {list(parsed_data.keys()) if parsed_data else 'none'}")
         
         if not parsed_data:
-            logging.error("AI parsing returned empty result")
-            return jsonify({'error': 'Could not parse capability statement content. Please try a different document.'}), 400
+            logging.warning("AI parsing returned empty result, using fallback parser")
+            # Fallback: Create a basic parsed result from raw text
+            import re
+            parsed_data = {
+                'companyDescription': capability_text[:500] if len(capability_text) > 500 else capability_text,
+                'parse_method': 'fallback_raw',
+                'notice': 'AI parsing temporarily unavailable. Content imported as raw text.'
+            }
+            
+            email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
+            if email_match:
+                parsed_data['email'] = email_match.group()
+            
+            phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
+            if phone_match:
+                parsed_data['phone'] = phone_match.group()
+            
+            url_match = re.search(r'https?://[^\s]+', capability_text)
+            if url_match:
+                parsed_data['website'] = url_match.group()
+            
+            logging.info(f"Fallback parser extracted fields: {list(parsed_data.keys())}")
         
         return jsonify({'success': True, 'data': parsed_data})
         
@@ -6106,6 +6500,1360 @@ def credit_history():
     except Exception as e:
         logging.error(f"Error fetching credit history: {e}")
         return redirect(url_for('Welcome'))
+
+@app.route('/uploads/contracts/<path:filename>')
+def serve_contract_pdf(filename):
+    """Serve contract PDF files"""
+    try:
+        ensure_session_from_auth()
+        
+        if 'user' not in session:
+            abort(401)
+        
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        
+        if not os.path.exists(os.path.join(contracts_dir, filename)):
+            abort(404)
+        
+        return send_from_directory(contracts_dir, filename, mimetype='application/pdf')
+    except Exception as e:
+        logging.error(f"Error serving contract PDF {filename}: {e}")
+        abort(500)
+
+@app.route('/api/fetch_contract_pdf', methods=['POST'])
+def fetch_contract_pdf():
+    """Fetch contract PDF from detail link"""
+    try:
+        data = request.json
+        contract_hash = data.get('contract_hash')
+        detail_link = data.get('detail_link')
+        
+        if not contract_hash or not detail_link:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        contracts_dir = os.path.join('uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        if os.path.exists(pdf_path):
+            return jsonify({
+                'success': True,
+                'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                'cached': True
+            })
+        
+        import requests
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            response = requests.head(detail_link, headers=headers, timeout=10, allow_redirects=True)
+            content_type = response.headers.get('Content-Type', '').lower()
+            
+            if 'application/pdf' in content_type or detail_link.lower().endswith('.pdf'):
+                pdf_response = requests.get(detail_link, headers=headers, timeout=30)
+                pdf_response.raise_for_status()
+                
+                with open(pdf_path, 'wb') as f:
+                    f.write(pdf_response.content)
+                
+                return jsonify({
+                    'success': True,
+                    'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                    'method': 'direct_download'
+                })
+            
+            page_response = requests.get(detail_link, headers=headers, timeout=30)
+            page_response.raise_for_status()
+            soup = BeautifulSoup(page_response.content, 'html.parser')
+            
+            pdf_links = []
+            
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                full_url = urljoin(detail_link, href)
+                
+                if (href.lower().endswith('.pdf') or 
+                    'pdf' in href.lower() or 
+                    'attachment' in href.lower() or
+                    'download' in href.lower() or
+                    'file' in href.lower()):
+                    pdf_links.append(full_url)
+            
+            for iframe in soup.find_all('iframe', src=True):
+                src = iframe['src']
+                if src.lower().endswith('.pdf') or 'pdf' in src.lower():
+                    pdf_links.append(urljoin(detail_link, src))
+            
+            for embed in soup.find_all('embed', src=True):
+                src = embed['src']
+                if src.lower().endswith('.pdf') or 'pdf' in src.lower():
+                    pdf_links.append(urljoin(detail_link, src))
+            
+            if pdf_links:
+                pdf_url = pdf_links[0]
+                pdf_response = requests.get(pdf_url, headers=headers, timeout=30)
+                pdf_response.raise_for_status()
+                
+                with open(pdf_path, 'wb') as f:
+                    f.write(pdf_response.content)
+                
+                return jsonify({
+                    'success': True,
+                    'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                    'method': 'extracted_from_page'
+                })
+            
+            return jsonify({
+                'success': False,
+                'error': 'No PDF found on the page',
+                'message': 'Could not find a PDF link on the contract detail page. Please upload the PDF manually.'
+            })
+            
+        except requests.RequestException as e:
+            logging.error(f"Error fetching PDF from {detail_link}: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch PDF: {str(e)}',
+                'message': 'Please upload the contract PDF manually'
+            })
+        
+    except Exception as e:
+        logging.error(f"Error fetching contract PDF: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/upload_contract_pdf', methods=['POST'])
+def upload_contract_pdf():
+    """Upload contract PDF manually"""
+    try:
+        if 'pdf' not in request.files:
+            return jsonify({'success': False, 'error': 'No PDF file provided'}), 400
+        
+        pdf_file = request.files['pdf']
+        contract_hash = request.form.get('contract_hash')
+        
+        if not contract_hash:
+            return jsonify({'success': False, 'error': 'Missing contract hash'}), 400
+        
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        pdf_file.save(pdf_path)
+        
+        return jsonify({
+            'success': True,
+            'pdf_url': f'/uploads/contracts/{contract_hash}.pdf'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error uploading contract PDF: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/analyze_contract', methods=['POST'])
+def analyze_contract():
+    """Analyze contract with AI and generate annotations"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.json
+        contract_hash = data.get('contract_hash')
+        user_id = data.get('user_id')
+        
+        if not contract_hash or not user_id:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        # Check if PDF exists
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        if not os.path.exists(pdf_path):
+            return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
+        
+        # Extract text from PDF using PyMuPDF
+        import fitz
+        pdf_text = ""
+        page_texts = []
+        
+        try:
+            doc = fitz.open(pdf_path)
+            for page_num, page in enumerate(doc, 1):
+                page_text = page.get_text()
+                page_texts.append({'page': page_num, 'text': page_text})
+                pdf_text += f"\n--- Page {page_num} ---\n{page_text}"
+            doc.close()
+        except Exception as e:
+            logging.error(f"Error extracting PDF text: {e}")
+            return jsonify({'success': False, 'error': f'Failed to read PDF: {str(e)}'}), 500
+        
+        if not pdf_text.strip():
+            return jsonify({'success': False, 'error': 'PDF appears to be empty or contains only images'}), 400
+        
+        max_chars = 50000
+        if len(pdf_text) > max_chars:
+            pdf_text = pdf_text[:max_chars] + "\n\n[Document truncated for analysis...]"
+        
+        # Generate AI annotations using OpenAI
+        try:
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=60.0)
+            
+            prompt = f"""You are an expert contract analyst helping a business understand a government contract opportunity. Analyze the following contract document and provide strategic annotations in these categories:
+
+1. Key Requirements & Deliverables - What must be delivered, when, and to what standards
+2. Small Print & Critical Clauses - Important details that are easy to miss but critical to understand
+3. Compliance Requirements - Certifications, regulations, and legal requirements that must be met
+4. Risk Factors & Challenges - Potential issues, tight timelines, or difficult requirements
+5. Win Strategy Recommendations - How to position the proposal to maximize chances of winning
+
+For each category, provide 1-3 specific, actionable insights based on the actual contract text. Be concise but specific. Focus on what matters most for a business deciding whether and how to bid.
+
+Contract Document:
+{pdf_text}
+
+Provide your analysis as a JSON array with objects containing 'category' and 'text' fields."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert contract analyst. Provide strategic insights in JSON format."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000,
+                timeout=60
+            )
+            
+            # Parse AI response
+            ai_response = response.choices[0].message.content.strip()
+            
+            import json
+            import re
+            
+            json_match = re.search(r'\[.*\]', ai_response, re.DOTALL)
+            if json_match:
+                annotations = json.loads(json_match.group(0))
+            else:
+                annotations = [
+                    {
+                        'category': 'AI Analysis',
+                        'text': ai_response
+                    }
+                ]
+        
+        except Exception as e:
+            logging.error(f"Error generating AI annotations: {e}")
+            annotations = [
+                {
+                    'category': 'Document Loaded',
+                    'text': f'Successfully extracted {len(page_texts)} pages from the contract PDF. AI analysis is temporarily unavailable. Please review the document manually.'
+                }
+            ]
+        
+        # Generate draft ID
+        import uuid
+        draft_id = str(uuid.uuid4())
+        
+        # Save to Firebase
+        if admin_initialized and admin_db:
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+            draft_ref.set({
+                'draft_id': draft_id,
+                'user_id': user_id,
+                'contract_hash': contract_hash,
+                'annotations': annotations,
+                'page_count': len(page_texts),
+                'created_at': datetime.now().isoformat(),
+                'status': 'analysis_complete'
+            })
+        
+        return jsonify({
+            'success': True,
+            'draft_id': draft_id,
+            'annotations': annotations,
+            'page_count': len(page_texts)
+        })
+        
+    except Exception as e:
+        logging.error(f"Error analyzing contract: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_draft_team', methods=['GET'])
+def get_draft_team():
+    """Get team members from draft"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if draft_data and 'team_members' in draft_data:
+                return jsonify({
+                    'success': True,
+                    'team_members': draft_data['team_members']
+                })
+        
+        return jsonify({
+            'success': True,
+            'team_members': []
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting draft team: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/add_team_member', methods=['POST'])
+def add_team_member():
+    """Add team member to draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        member = data.get('member')
+        
+        if not draft_id or not member:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if not draft_data:
+                draft_data = {'team_members': []}
+            
+            if 'team_members' not in draft_data:
+                draft_data['team_members'] = []
+            
+            draft_data['team_members'].append(member)
+            draft_ref.update({'team_members': draft_data['team_members']})
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error adding team member: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/extract_subcontractor_info', methods=['POST'])
+def extract_subcontractor_info():
+    """Extract subcontractor info from website with robust error handling"""
+    try:
+        data = request.json
+        url = data.get('url')
+        draft_id = data.get('draft_id')
+        
+        if not url or not draft_id:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        from bs4 import BeautifulSoup
+        import re
+        import json as json_lib
+        from urllib.parse import urlparse, urljoin
+        
+        normalized_url = url.strip()
+        if not normalized_url.startswith(('http://', 'https://')):
+            normalized_url = 'https://' + normalized_url
+        
+        try:
+            parsed = urlparse(normalized_url)
+            if not parsed.netloc:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid URL format. Please enter a valid website URL (e.g., example.com or https://example.com)'
+                }), 400
+        except Exception:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid URL format. Please check the URL and try again.'
+            }), 400
+        
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET"]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+        
+        ssl_error_occurred = False
+        response = None
+        
+        try:
+            app.logger.info(f"Fetching website: {normalized_url}")
+            response = session.get(
+                normalized_url,
+                headers=headers,
+                timeout=(5, 15),  # (connect timeout, read timeout)
+                allow_redirects=True,
+                verify=True
+            )
+            response.raise_for_status()
+            
+        except requests.exceptions.SSLError as ssl_err:
+            app.logger.warning(f"SSL error for {normalized_url}, retrying without verification: {ssl_err}")
+            ssl_error_occurred = True
+            try:
+                response = session.get(
+                    normalized_url,
+                    headers=headers,
+                    timeout=(5, 15),
+                    allow_redirects=True,
+                    verify=False
+                )
+                response.raise_for_status()
+            except Exception as retry_err:
+                app.logger.error(f"Retry failed for {normalized_url}: {retry_err}")
+                return jsonify({
+                    'success': False,
+                    'error': f'SSL certificate error. The website may have security issues. Error: {str(retry_err)}'
+                }), 500
+                
+        except requests.exceptions.Timeout:
+            app.logger.error(f"Timeout fetching {normalized_url}")
+            return jsonify({
+                'success': False,
+                'error': 'Request timed out. The website took too long to respond. Please try again or try a different page.'
+            }), 500
+            
+        except requests.exceptions.ConnectionError as conn_err:
+            app.logger.error(f"Connection error for {normalized_url}: {conn_err}")
+            return jsonify({
+                'success': False,
+                'error': 'Could not connect to the website. Please check the URL and try again.'
+            }), 500
+            
+        except requests.exceptions.HTTPError as http_err:
+            status_code = http_err.response.status_code if http_err.response else 0
+            app.logger.error(f"HTTP error {status_code} for {normalized_url}: {http_err}")
+            
+            if status_code == 403:
+                return jsonify({
+                    'success': False,
+                    'error': 'Access denied (403). The website is blocking automated access. Please try a different page or add the company manually.'
+                }), 500
+            elif status_code == 429:
+                return jsonify({
+                    'success': False,
+                    'error': 'Rate limited (429). Too many requests to this website. Please wait a moment and try again.'
+                }), 500
+            elif status_code == 404:
+                return jsonify({
+                    'success': False,
+                    'error': 'Page not found (404). Please check the URL and try again.'
+                }), 500
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Website returned error {status_code}. Please try a different page or add the company manually.'
+                }), 500
+                
+        except requests.RequestException as req_err:
+            app.logger.error(f"Request error for {normalized_url}: {req_err}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch website: {str(req_err)}'
+            }), 500
+        
+        content_type = response.headers.get('Content-Type', '').lower()
+        if 'text/html' not in content_type:
+            app.logger.warning(f"Non-HTML content type for {normalized_url}: {content_type}")
+            return jsonify({
+                'success': False,
+                'error': f'Website returned non-HTML content ({content_type}). Please try the company\'s main page or About page.'
+            }), 500
+        
+        content_length = len(response.content)
+        app.logger.info(f"Fetched {normalized_url}: status={response.status_code}, content-type={content_type}, length={content_length}")
+        
+        # Check for minimal content
+        if content_length < 500:
+            app.logger.warning(f"Suspiciously small content for {normalized_url}: {content_length} bytes")
+            return jsonify({
+                'success': False,
+                'error': 'Website returned very little content. It may require JavaScript or be blocking automated access.'
+            }), 500
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        page_text = soup.get_text().lower()
+        
+        anti_bot_indicators = [
+            'cloudflare', 'access denied', 'captcha', 'please verify you are human',
+            'enable javascript', 'bot detection', 'security check'
+        ]
+        if any(indicator in page_text[:1000] for indicator in anti_bot_indicators):
+            app.logger.warning(f"Anti-bot page detected for {normalized_url}")
+            return jsonify({
+                'success': False,
+                'error': 'Website is using bot protection (Cloudflare, CAPTCHA, etc.). Please add the company manually.'
+            }), 500
+        
+        # Extract structured data (JSON-LD)
+        company_name = ''
+        email = ''
+        phone = ''
+        services = ''
+        address = ''
+        linkedin_url = ''
+        
+        json_ld_scripts = soup.find_all('script', type='application/ld+json')
+        for script in json_ld_scripts:
+            try:
+                data = json_lib.loads(script.string)
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    item_type = item.get('@type', '')
+                    if item_type in ['Organization', 'LocalBusiness', 'Corporation', 'Company']:
+                        if not company_name and item.get('name'):
+                            company_name = item['name']
+                        if not email and item.get('email'):
+                            email = item['email']
+                        if not phone and item.get('telephone'):
+                            phone = item['telephone']
+                        if not address and item.get('address'):
+                            addr = item['address']
+                            if isinstance(addr, dict):
+                                address = ', '.join(filter(None, [
+                                    addr.get('streetAddress', ''),
+                                    addr.get('addressLocality', ''),
+                                    addr.get('addressRegion', ''),
+                                    addr.get('postalCode', '')
+                                ]))
+                            elif isinstance(addr, str):
+                                address = addr
+                        if not linkedin_url and item.get('sameAs'):
+                            same_as = item['sameAs'] if isinstance(item['sameAs'], list) else [item['sameAs']]
+                            for link in same_as:
+                                if 'linkedin.com' in link.lower():
+                                    linkedin_url = link
+                                    break
+                        if not services and item.get('description'):
+                            services = item['description'][:300]
+            except (json_lib.JSONDecodeError, AttributeError, KeyError) as e:
+                app.logger.debug(f"Error parsing JSON-LD: {e}")
+                continue
+        
+        # Extract from OpenGraph / Twitter meta tags
+        if not company_name:
+            og_title = soup.find('meta', property='og:title')
+            if og_title and og_title.get('content'):
+                company_name = og_title['content'].strip()
+        
+        if not services:
+            og_desc = soup.find('meta', property='og:description')
+            if og_desc and og_desc.get('content'):
+                services = og_desc['content'][:300]
+            else:
+                twitter_desc = soup.find('meta', attrs={'name': 'twitter:description'})
+                if twitter_desc and twitter_desc.get('content'):
+                    services = twitter_desc['content'][:300]
+        
+        if not company_name:
+            title_tag = soup.find('title')
+            if title_tag and title_tag.text:
+                title_text = title_tag.text.strip()
+                for separator in [' | ', ' - ', ' – ', ' — ']:
+                    if separator in title_text:
+                        company_name = title_text.split(separator)[0].strip()
+                        break
+                if not company_name:
+                    company_name = title_text
+        
+        if not company_name or len(company_name) > 100:
+            h1_tag = soup.find('h1')
+            if h1_tag and h1_tag.text and len(h1_tag.text.strip()) < 100:
+                company_name = h1_tag.text.strip()
+        
+        # Extract email with regex if not found
+        if not email:
+            email_pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+            emails = re.findall(email_pattern, soup.get_text())
+            filtered_emails = [e for e in emails if not any(x in e.lower() for x in ['example', 'test', 'noreply', 'no-reply'])]
+            if filtered_emails:
+                email = filtered_emails[0]
+        
+        # Extract phone with regex if not found
+        if not phone:
+            phone_pattern = r'(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})'
+            phone_matches = re.findall(phone_pattern, soup.get_text())
+            if phone_matches:
+                match = phone_matches[0]
+                phone = f"({match[0]}) {match[1]}-{match[2]}"
+        
+        # Extract LinkedIn URL if not found
+        if not linkedin_url:
+            linkedin_links = soup.find_all('a', href=re.compile(r'linkedin\.com', re.I))
+            if linkedin_links:
+                linkedin_url = linkedin_links[0].get('href', '')
+        
+        # Extract services from meta description if not found
+        if not services:
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc and meta_desc.get('content'):
+                services = meta_desc['content'][:300]
+        
+        # Fallback to first substantial paragraph
+        if not services:
+            paragraphs = soup.find_all('p')
+            for p in paragraphs[:5]:
+                text = p.get_text().strip()
+                if len(text) > 80:  # Substantial paragraph
+                    services = text[:300]
+                    break
+        
+        if not company_name:
+            company_name = parsed.netloc.replace('www.', '').split('.')[0].title()
+        
+        if not services:
+            services = 'Services information not found. Please edit manually.'
+        
+        member = {
+            'company': company_name,
+            'contact_name': '',
+            'contact_role': '',
+            'email': email,
+            'phone': phone,
+            'services': services,
+            'website': normalized_url,
+            'linkedin_url': linkedin_url,
+            'address': address,
+            'source': 'website'
+        }
+        
+        app.logger.info(f"Successfully extracted info from {normalized_url}: company={company_name}")
+        
+        response_data = {
+            'success': True,
+            'member': member
+        }
+        
+        if ssl_error_occurred:
+            response_data['warning'] = 'SSL certificate could not be verified. Data was extracted but the connection may not be secure.'
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        app.logger.error(f"Error extracting subcontractor info: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
+
+@app.route('/api/update_draft_team', methods=['POST'])
+def update_draft_team():
+    """Update team members in draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        team_members = data.get('team_members')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref.update({'team_members': team_members})
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating draft team: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/suggest_team', methods=['POST'])
+def suggest_team():
+    """Generate AI-powered team composition suggestions based on contract analysis"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        current_team = data.get('team_members', [])
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user['localId']
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found. Please analyze the contract first.'}), 404
+        
+        if 'annotations' not in draft_data or not draft_data['annotations']:
+            return jsonify({'success': False, 'error': 'No contract analysis found. Please run "Analyze with AI" first.'}), 400
+        
+        annotations = draft_data['annotations']
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        annotations_text = "\n".join([f"{ann.get('category', 'Note')}: {ann.get('text', '')}" for ann in annotations])
+        
+        capability_statement = ""
+        try:
+            user_uploads_dir = os.path.join('uploads', f'bid_uploads_{user_id}')
+            cs_file = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+            
+            if os.path.exists(cs_file):
+                import pandas as pd
+                cs_df = pd.read_csv(cs_file)
+                primary_cs = cs_df[cs_df['is_primary'] == True]
+                if not primary_cs.empty:
+                    capability_statement = primary_cs.iloc[0]['Capability_Statement']
+                elif not cs_df.empty:
+                    capability_statement = cs_df.iloc[0]['Capability_Statement']
+        except Exception as e:
+            app.logger.warning(f"Could not load capability statement: {e}")
+        
+        current_team_text = ""
+        if current_team:
+            current_team_text = "\n\nCurrent Team Members:\n" + "\n".join([
+                f"- {member.get('company', 'Unknown')}: {member.get('services', 'N/A')}"
+                for member in current_team
+            ])
+        
+        try:
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=45.0)
+            
+            prompt = f"""You are an expert government contracting team composition advisor. Based on the contract analysis and company capabilities, recommend a strategic team composition.
+
+CONTRACT ANALYSIS:
+{annotations_text[:3000]}
+
+COMPANY CAPABILITIES:
+{capability_statement[:2000] if capability_statement else "No capability statement available"}
+{current_team_text}
+
+Provide strategic team recommendations in JSON format with this structure:
+{{
+  "team_structure": "Brief description of recommended prime/sub structure",
+  "recommended_roles": [
+    {{
+      "role": "Role title",
+      "responsibilities": "Key responsibilities",
+      "why_needed": "Why this role is critical for this contract",
+      "preferred_qualifications": "Certifications, experience, or qualifications",
+      "partner_profile": "Type of partner to seek (e.g., SDVOSB, 8(a), specific NAICS)"
+    }}
+  ],
+  "key_considerations": [
+    "Important consideration 1",
+    "Important consideration 2"
+  ],
+  "compliance_notes": "Any compliance or certification requirements for team members"
+}}
+
+Focus on roles that fill gaps, meet compliance requirements, and strengthen the proposal. Be specific and actionable."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contracting team composition advisor. Provide strategic, actionable recommendations in JSON format."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000,
+                timeout=45
+            )
+            
+            ai_response = response.choices[0].message.content.strip()
+            
+            import json as json_lib
+            import re
+            
+            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+            if json_match:
+                suggestions_data = json_lib.loads(json_match.group(0))
+            else:
+                suggestions_data = {
+                    'team_structure': 'AI analysis completed',
+                    'recommended_roles': [{
+                        'role': 'Team Composition',
+                        'responsibilities': ai_response[:500],
+                        'why_needed': 'Based on contract analysis',
+                        'preferred_qualifications': 'See contract requirements',
+                        'partner_profile': 'Relevant to contract scope'
+                    }],
+                    'key_considerations': ['Review full analysis above'],
+                    'compliance_notes': 'Refer to contract compliance requirements'
+                }
+            
+            app.logger.info(f"Successfully generated team suggestions for draft {draft_id}")
+            
+            return jsonify({
+                'success': True,
+                'suggestions': suggestions_data
+            })
+            
+        except Exception as ai_error:
+            app.logger.error(f"Error generating team suggestions: {ai_error}")
+            return jsonify({
+                'success': False,
+                'error': f'AI analysis failed: {str(ai_error)}'
+            }), 500
+        
+    except Exception as e:
+        app.logger.error(f"Error in suggest_team: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_draft_pricing', methods=['GET'])
+def get_draft_pricing():
+    """Get pricing data from draft"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if draft_data and 'pricing' in draft_data:
+                return jsonify({
+                    'success': True,
+                    'pricing': draft_data['pricing']
+                })
+        
+        return jsonify({
+            'success': True,
+            'pricing': {
+                'labor': [],
+                'materials': [],
+                'margin_pct': 15,
+                'risk_pct': 5
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting draft pricing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update_draft_pricing', methods=['POST'])
+def update_draft_pricing():
+    """Update pricing data in draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        pricing = data.get('pricing')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref.update({'pricing': pricing})
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating draft pricing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generate_pricing_strategy', methods=['POST'])
+def generate_pricing_strategy():
+    """Generate AI-powered pricing strategy"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        annotations = draft_data.get('annotations', [])
+        team_members = draft_data.get('team_members', [])
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        annotations_text = '\n'.join([f"- {ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
+        team_text = '\n'.join([f"- {member.get('company', '')}: {member.get('services', '')}" for member in team_members])
+        
+        try:
+            from openai import OpenAI
+            client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+            
+            prompt = f"""You are an expert pricing strategist for government contracts. Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
+
+Contract Analysis:
+{annotations_text if annotations_text else 'No contract analysis available'}
+
+Team Composition:
+{team_text if team_text else 'No team members added yet'}
+
+Provide a detailed pricing strategy that includes:
+1. Recommended delivery model (fixed-price, time & materials, cost-plus, etc.)
+2. Competitive positioning and estimated price range
+3. Key cost drivers breakdown (labor, materials, overhead, risk)
+4. Risk mitigation strategies
+5. Win strategy recommendations
+
+Format your response in HTML with clear headings and bullet points."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert pricing strategist for government contracts. Provide detailed, actionable pricing recommendations."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500
+            )
+            
+            strategy = response.choices[0].message.content.strip()
+            
+            draft_ref.update({'pricing_strategy': strategy})
+            
+            return jsonify({
+                'success': True,
+                'strategy': strategy
+            })
+            
+        except Exception as e:
+            logging.error(f"Error generating AI pricing strategy: {e}")
+            
+            fallback_strategy = """
+            <h4>Recommended Pricing Strategy</h4>
+            <p><strong>Delivery Model:</strong> Fixed-price contract with milestone-based payments</p>
+            <p><strong>Competitive Positioning:</strong> Based on market analysis, similar contracts typically range from $150K-$250K. 
+            Recommend positioning competitively while maintaining healthy margins.</p>
+            <p><strong>Key Cost Drivers:</strong></p>
+            <ul>
+                <li>Labor: 60% of total cost (estimated hours at blended rate)</li>
+                <li>Materials & Equipment: 25% of total cost</li>
+                <li>Overhead & Risk: 15% of total cost</li>
+            </ul>
+            <p><strong>Risk Mitigation:</strong> Include 5-10% contingency for unforeseen circumstances and material price fluctuations.</p>
+            <p><em>Note: AI analysis temporarily unavailable. Please review and adjust based on your specific contract requirements.</em></p>
+            """
+            
+            return jsonify({
+                'success': True,
+                'strategy': fallback_strategy
+            })
+        
+    except Exception as e:
+        logging.error(f"Error generating pricing strategy: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generate_final_proposal', methods=['GET'])
+def generate_final_proposal():
+    """Generate final proposal document with disclaimer"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        
+        return jsonify({
+            'success': True,
+            'message': 'Proposal generation not yet fully implemented. This will integrate with the existing full proposal generation system.'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error generating final proposal: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def ensure_session_from_auth():
+    """Helper function to populate session from auth.current_user if session is missing"""
+    if 'user_data' not in session:
+        user = auth.current_user
+        if user:
+            # Repopulate session from auth.current_user
+            session['user_data'] = {
+                'user_id': user.get('localId'),
+                'idToken': user.get('idToken'),
+                'refreshToken': user.get('refreshToken'),
+                'email': user.get('email', ''),
+                'first_name': user.get('first_name', ''),
+                'last_name': user.get('last_name', ''),
+                'company': user.get('company', '')
+            }
+            session.permanent = True
+            app.logger.info(f"✅ Repopulated session from auth.current_user for user {user.get('localId')}")
+            return True
+        return False
+    return True
+
+@app.route('/directory-profile')
+def directory_profile():
+    """Directory profile management page"""
+    if not ensure_session_from_auth():
+        return redirect(url_for('Login'))
+    
+    return render_template('directory_profile.html')
+
+@app.route('/api/get_directory_profile', methods=['GET'])
+def get_directory_profile():
+    """Get user's directory profile"""
+    try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
+        
+        user_data = None
+        try:
+            user_data = db.child("users").child(user_id).get(id_token).val()
+        except Exception as user_error:
+            app.logger.warning(f"Could not read user data with token for user {user_id}: {user_error}")
+            if admin_initialized and admin_db:
+                try:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_data = user_ref.get()
+                    app.logger.info(f"✅ Successfully read user data using Admin SDK for user {user_id}")
+                except Exception as admin_error:
+                    app.logger.error(f"❌ Admin SDK read also failed for user {user_id}: {repr(admin_error)}")
+        
+        if not user_data:
+            user_data = {
+                'company': session['user_data'].get('company', ''),
+                'first_name': session['user_data'].get('first_name', ''),
+                'last_name': session['user_data'].get('last_name', ''),
+                'email': session['user_data'].get('email', ''),
+                'directory_listed': False
+            }
+            app.logger.warning(f"Using session data as fallback for user {user_id}")
+        
+        directory_data = None
+        try:
+            directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
+        except Exception as dir_error:
+            app.logger.warning(f"Could not read directory data with token for user {user_id}: {dir_error}")
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                    directory_data = directory_ref.get()
+                    app.logger.info(f"✅ Successfully read directory data using Admin SDK for user {user_id}")
+                except Exception as admin_error:
+                    app.logger.warning(f"⚠️ Admin SDK read also failed for directory data {user_id}: {repr(admin_error)}")
+        
+        if not directory_data:
+            directory_data = {
+                'company': user_data.get('company', ''),
+                'contact_name': f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip(),
+                'email': user_data.get('email', ''),
+                'services': '',
+                'description': '',
+                'phone': '',
+                'website': '',
+                'linkedin_url': '',
+                'certifications': '',
+                'past_projects': '',
+                'team_size': '',
+                'years_in_business': '',
+                'logo_url': '',
+                'listed': user_data.get('directory_listed', False)
+            }
+        
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'profile': directory_data
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting directory profile: {e}")
+        return jsonify({'success': False, 'error': 'Failed to load profile. Please try again.'}), 500
+
+@app.route('/api/update_directory_profile', methods=['POST'])
+def update_directory_profile():
+    """Update user's directory profile"""
+    try:
+        # Use session-based authentication instead of auth.current_user
+        if 'user_data' not in session:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
+        data = request.json
+        
+        # Get user data to include company name
+        user_data = db.child("users").child(user_id).get(id_token).val()
+        
+        if not user_data:
+            return jsonify({'success': False, 'error': 'User data not found'}), 404
+        
+        profile_data = {
+            'company': user_data.get('company', ''),
+            'contact_name': data.get('contact_name', '').strip(),
+            'email': data.get('email', '').strip(),
+            'phone': data.get('phone', '').strip(),
+            'website': data.get('website', '').strip(),
+            'linkedin_url': data.get('linkedin_url', '').strip(),
+            'services': data.get('services', '').strip(),
+            'description': data.get('description', '').strip(),
+            'certifications': data.get('certifications', '').strip(),
+            'past_projects': data.get('past_projects', '').strip(),
+            'team_size': data.get('team_size', '').strip(),
+            'years_in_business': data.get('years_in_business', '').strip(),
+            'logo_url': data.get('logo_url', ''),
+            'listed': data.get('listed', False),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        app.logger.info(f"Attempting to update directory profile for user {user_id}")
+        
+        directory_write_success = False
+        
+        try:
+            db.child("corama_directory").child(user_id).set(profile_data, id_token)
+            directory_write_success = True
+            app.logger.info(f"✅ Successfully wrote directory entry for user {user_id} using user token")
+        except Exception as dir_error:
+            error_str = str(dir_error).upper()
+            app.logger.warning(f"⚠️ User token write failed for user {user_id}: {repr(dir_error)}")
+            
+            if 'PERMISSION' in error_str or 'UNAUTHORIZED' in error_str or '401' in error_str:
+                if admin_initialized and admin_db:
+                    try:
+                        directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                        directory_ref.set(profile_data)
+                        directory_write_success = True
+                        app.logger.info(f"✅ Successfully wrote directory entry for user {user_id} using Admin SDK fallback")
+                    except Exception as admin_error:
+                        app.logger.error(f"❌ Admin SDK write also failed for user {user_id}: {repr(admin_error)}")
+                        return jsonify({
+                            'success': False, 
+                            'error': 'Unable to update directory profile. Please contact support.',
+                            'permission_error': True
+                        }), 403
+                else:
+                    app.logger.error(f"❌ Admin SDK not available and user token failed for user {user_id}")
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Permission denied. Please contact support to enable directory access.',
+                        'permission_error': True
+                    }), 403
+            else:
+                raise
+        
+        if not directory_write_success:
+            app.logger.error(f"❌ Directory write failed for user {user_id}")
+            return jsonify({'success': False, 'error': 'Failed to update directory profile'}), 500
+        
+        try:
+            db.child("users").child(user_id).update({
+                'directory_listed': data.get('listed', False)
+            }, id_token)
+            app.logger.info(f"✅ Successfully updated directory_listed flag for user {user_id}")
+        except Exception as user_update_error:
+            app.logger.warning(f"⚠️ Failed to update directory_listed flag for user {user_id}: {repr(user_update_error)}")
+            if admin_initialized and admin_db:
+                try:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_ref.update({'directory_listed': data.get('listed', False)})
+                    app.logger.info(f"✅ Successfully updated directory_listed flag using Admin SDK for user {user_id}")
+                except Exception as admin_user_error:
+                    app.logger.error(f"❌ Admin SDK user update also failed for user {user_id}: {repr(admin_user_error)}")
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        app.logger.error(f"Error updating directory profile: {e}")
+        return jsonify({'success': False, 'error': 'Failed to update profile. Please try again.'}), 500
+
+@app.route('/api/upload_directory_logo', methods=['POST'])
+def upload_directory_logo():
+    """Upload company logo for directory profile"""
+    try:
+        if 'user_data' not in session:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_data']['user_id']
+        
+        if 'logo' not in request.files:
+            return jsonify({'success': False, 'error': 'No logo file provided'}), 400
+        
+        logo_file = request.files['logo']
+        
+        if logo_file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = logo_file.filename.rsplit('.', 1)[1].lower() if '.' in logo_file.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            return jsonify({'success': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+        
+        logo_file.seek(0, os.SEEK_END)
+        file_size = logo_file.tell()
+        logo_file.seek(0)
+        
+        if file_size > 5 * 1024 * 1024:
+            return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB'}), 400
+        
+        # Create directory logos folder if it doesn't exist
+        logos_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'directory_logos')
+        os.makedirs(logos_dir, exist_ok=True)
+        
+        # Generate unique filename
+        filename = f"{user_id}_{int(time.time())}.{file_ext}"
+        filepath = os.path.join(logos_dir, filename)
+        
+        logo_file.save(filepath)
+        
+        # Generate URL for the logo
+        logo_url = f"/static/uploads/directory_logos/{filename}"
+        
+        static_logos_dir = os.path.join(base_dir, 'static', 'uploads', 'directory_logos')
+        os.makedirs(static_logos_dir, exist_ok=True)
+        static_filepath = os.path.join(static_logos_dir, filename)
+        shutil.copy2(filepath, static_filepath)
+        
+        return jsonify({
+            'success': True,
+            'logo_url': logo_url
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error uploading directory logo: {e}")
+        return jsonify({'success': False, 'error': 'Failed to upload logo. Please try again.'}), 500
+
+@app.route('/api/get_directory_companies', methods=['GET'])
+def get_directory_companies():
+    """Get all companies listed in the directory - PUBLIC endpoint (no login required)"""
+    try:
+        search_query = request.args.get('search', '').lower()
+        
+        directory_data = None
+        
+        if 'user_data' in session:
+            try:
+                id_token = session['user_data']['idToken']
+                directory_data = db.child("corama_directory").get(id_token).val()
+            except Exception as token_error:
+                app.logger.warning(f"Could not read directory with user token: {token_error}")
+        
+        if not directory_data and admin_initialized and admin_db:
+            try:
+                directory_ref = admin_db.reference('corama_directory')
+                directory_data = directory_ref.get()
+                app.logger.info("✅ Successfully read directory using Admin SDK")
+            except Exception as admin_error:
+                app.logger.error(f"❌ Admin SDK read also failed for directory: {repr(admin_error)}")
+        
+        if not directory_data:
+            app.logger.info("📋 Firebase directory is empty, loading seed data")
+            try:
+                import json
+                seed_file_path = os.path.join(os.path.dirname(__file__), 'static', 'data', 'directory_seed.json')
+                if os.path.exists(seed_file_path):
+                    with open(seed_file_path, 'r') as f:
+                        seed_data = json.load(f)
+                        directory_data = seed_data
+                        app.logger.info(f"✅ Loaded {len(seed_data)} seed companies")
+                else:
+                    app.logger.warning("⚠️ Seed data file not found")
+                    return jsonify({'success': True, 'companies': []})
+            except Exception as seed_error:
+                app.logger.error(f"❌ Error loading seed data: {seed_error}")
+                return jsonify({'success': True, 'companies': []})
+        
+        companies = []
+        for user_id, profile in directory_data.items():
+            if profile.get('listed', False):
+                if search_query:
+                    searchable_text = f"{profile.get('company', '')} {profile.get('services', '')} {profile.get('description', '')}".lower()
+                    if search_query not in searchable_text:
+                        continue
+                
+                companies.append({
+                    'user_id': user_id,
+                    'company': profile.get('company', ''),
+                    'contact_name': profile.get('contact_name', ''),
+                    'email': profile.get('email', ''),
+                    'phone': profile.get('phone', ''),
+                    'website': profile.get('website', ''),
+                    'linkedin_url': profile.get('linkedin_url', ''),
+                    'team_size': profile.get('team_size', ''),
+                    'years_in_business': profile.get('years_in_business', ''),
+                    'services': profile.get('services', ''),
+                    'description': profile.get('description', ''),
+                    'certifications': profile.get('certifications', ''),
+                    'past_projects': profile.get('past_projects', ''),
+                    'logo_url': profile.get('logo_url', '')
+                })
+        
+        companies.sort(key=lambda x: x['company'])
+        
+        return jsonify({'success': True, 'companies': companies})
+        
+    except Exception as e:
+        app.logger.error(f"Error getting directory companies: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/directory')
+def directory_browse():
+    """Public directory browse page - no login required"""
+    return render_template('directory_browse.html')
+
+@app.route('/directory/company/<user_id>')
+def directory_company_profile(user_id):
+    """Individual company profile page - no login required"""
+    return render_template('directory_company_profile.html', company_user_id=user_id)
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
