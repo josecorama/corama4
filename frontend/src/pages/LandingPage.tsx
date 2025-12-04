@@ -18,10 +18,10 @@ const LandingPage = () => {
             <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">About Us</a>
           </nav>
           
-          <div className="flex items-center gap-2 sm:gap-4">
-            <Link to="/dashboard" className="text-white font-poppins text-xs sm:text-sm hover:text-corama-teal transition-colors">Log In</Link>
-            <Link to="/dashboard" className="bg-corama-teal text-corama-dark font-poppins text-xs sm:text-sm font-semibold px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-corama-teal-light transition-colors">Sign up</Link>
-          </div>
+                    <div className="flex items-center gap-2 sm:gap-4">
+                      <a href="/login" className="text-white font-poppins text-xs sm:text-sm hover:text-corama-teal transition-colors">Log In</a>
+                      <a href="/signup" className="bg-corama-teal text-corama-dark font-poppins text-xs sm:text-sm font-semibold px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-corama-teal-light transition-colors">Sign up</a>
+                    </div>
         </div>
       </header>
 

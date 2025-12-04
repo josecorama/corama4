@@ -3189,13 +3189,11 @@ def process_files_cs_feedback(user_uploads_dir, max_rows=300):
 
 #2/25 update
 #LANDING PAGE ROUTE FUNCTION 
-# UPDATED: Now redirects to React app instead of rendering old Jinja2 landing page
+# UPDATED: Now redirects to React landing page for all users
 @app.route('/', methods=['GET'])
 def Landingpage():
-    """Redirect to React app - old Jinja2 landing page is deprecated"""
-    if 'user' in session:
-        return redirect('/app/dashboard')
-    return redirect(url_for('Login'))
+    """Redirect to React landing page - old Jinja2 landing page is deprecated"""
+    return redirect('/app')
 
 
 #ABOUT US PAGE  ROUTE FUNCTION
@@ -12560,18 +12558,23 @@ def directory_company_profile(user_id):
 # =============================================================================
 
 # Serve React app - SPA routing
+# Public paths that don't require authentication (landing page)
+REACT_PUBLIC_PATHS = {'', 'landing'}
+
 @app.route('/app/')
 @app.route('/app/<path:path>')
 def serve_react_app(path=''):
     """Serve the React frontend application"""
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-    
     app_dir = os.path.join(app.static_folder, 'app')
     
-    # Serve static assets (js, css, images)
+    # Serve static assets (js, css, images) without auth check
     if path and os.path.exists(os.path.join(app_dir, path)):
         return send_from_directory(app_dir, path)
+    
+    # Allow public paths (landing page) without authentication
+    # All other React routes require authentication
+    if path not in REACT_PUBLIC_PATHS and 'user' not in session:
+        return redirect(url_for('Login'))
     
     # Serve index.html for all React routes (SPA)
     return send_from_directory(app_dir, 'index.html')
