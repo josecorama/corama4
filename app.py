@@ -3803,7 +3803,7 @@ def Login():
             session['is_subscriber'] = True  # Grant full access to all users
             session['is_logged_in'] = True
             app.logger.info(f"✅ User logged in successfully - FREE ACCESS granted to {email}")
-            return redirect(url_for('Welcome'))
+            return redirect('/app/dashboard')
         
         except Exception as e:
             app.logger.error(f"❌ Login error for {email}: {e}")
@@ -4172,8 +4172,8 @@ def confirm_terms():
                 "terms_accepted_date": datetime.now().isoformat()
             }, user_auth['idToken'])
             
-            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Terms accepted, redirecting to Welcome")
-            return redirect(url_for('Welcome'))
+            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Terms accepted, redirecting to React app")
+            return redirect('/app/dashboard')
 
         except KeyError as e:
             app.logger.error(f"❌ Missing session key in confirm_terms: {e}")
@@ -13037,6 +13037,203 @@ def directory_browse():
 def directory_company_profile(user_id):
     """Individual company profile page - no login required"""
     return render_template('directory_company_profile.html', company_user_id=user_id)
+
+
+# =============================================================================
+# REACT FRONTEND ROUTES AND API ENDPOINTS
+# =============================================================================
+
+# Serve React app - SPA routing
+@app.route('/app/')
+@app.route('/app/<path:path>')
+def serve_react_app(path=''):
+    """Serve the React frontend application"""
+    if 'user' not in session:
+        return redirect(url_for('Login'))
+    
+    app_dir = os.path.join(app.static_folder, 'app')
+    
+    # Serve static assets (js, css, images)
+    if path and os.path.exists(os.path.join(app_dir, path)):
+        return send_from_directory(app_dir, path)
+    
+    # Serve index.html for all React routes (SPA)
+    return send_from_directory(app_dir, 'index.html')
+
+
+# API: Get current user info
+@app.route('/api/me', methods=['GET'])
+def api_get_user():
+    """Get current user profile and credits"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+        else:
+            user_data = db.child("users").child(user_id).get(user['idToken']).val()
+        
+        if not user_data:
+            return jsonify({"success": False, "error": "User not found"}), 404
+        
+        # Check for capability statement
+        user_upload_dir = f"uploads/bid_uploads_{user_id}"
+        cs_file = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+        has_cs = os.path.exists(cs_file)
+        
+        return jsonify({
+            "success": True,
+            "user": {
+                "id": user_id,
+                "email": user_data.get('email', ''),
+                "first_name": user_data.get('first_name', ''),
+                "last_name": user_data.get('last_name', ''),
+                "company": user_data.get('company', ''),
+                "credits_balance": user_data.get('credits_balance', 0),
+                "has_capability_statement": has_cs
+            }
+        })
+    except Exception as e:
+        logging.error(f"Error in /api/me: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Get top five contract matches
+@app.route('/api/top-five-contracts', methods=['GET'])
+def api_top_five_contracts():
+    """Get user's top 5 matched contracts as JSON"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    user_upload_dir = f"uploads/bid_uploads_{user_id}"
+    matches_file = os.path.join(user_upload_dir, 'matches.csv')
+    
+    matches = []
+    if os.path.exists(matches_file):
+        try:
+            df = pd.read_csv(matches_file)
+            df['rank'] = range(1, len(df) + 1)
+            matches = df.to_dict('records')
+        except Exception as e:
+            logging.error(f"Error loading matches: {e}")
+    
+    return jsonify({
+        "success": True,
+        "matches": matches[:5],
+        "has_matches": len(matches) > 0
+    })
+
+
+# API: Get credits info and packages
+@app.route('/api/credits', methods=['GET'])
+def api_get_credits():
+    """Get user's credit balance and available packages"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+        else:
+            user_data = db.child("users").child(user_id).get(user['idToken']).val()
+        
+        current_balance = user_data.get('credits_balance', 0) if user_data else 0
+        credits_used = user_data.get('credits_used', 0) if user_data else 0
+        
+        packages = [
+            {"credits": 100, "price": 1000, "price_display": "$10", "description": "Starter Pack - Perfect for small projects"},
+            {"credits": 300, "price": 2500, "price_display": "$25", "description": "Professional Pack - Great for multiple proposals"},
+            {"credits": 750, "price": 5000, "price_display": "$50", "description": "Enterprise Pack - Best value for frequent users"},
+            {"credits": 2000, "price": 10000, "price_display": "$100", "description": "Agency Pack - For consulting firms and agencies"}
+        ]
+        
+        return jsonify({
+            "success": True,
+            "current_balance": current_balance,
+            "credits_used": credits_used,
+            "packages": packages
+        })
+    except Exception as e:
+        logging.error(f"Error in /api/credits: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Directory listing
+@app.route('/api/directory', methods=['GET'])
+def api_directory():
+    """Get business partner directory"""
+    page = request.args.get('page', 1, type=int)
+    search = request.args.get('search', '')
+    items_per_page = 10
+    
+    try:
+        # Get directory data from Firebase
+        if admin_initialized and admin_db:
+            directory_ref = admin_db.reference('corama_directory')
+            directory_data = directory_ref.get() or {}
+        else:
+            if 'user' in session:
+                directory_data = db.child("corama_directory").get(session['user']['idToken']).val() or {}
+            else:
+                directory_data = {}
+        
+        all_companies = []
+        for user_id, profile in directory_data.items():
+            if isinstance(profile, dict) and profile.get('listed', False):
+                company_data = {
+                    "id": user_id,
+                    "name": profile.get('company', ''),
+                    "contactName": profile.get('contact_name', ''),
+                    "description": profile.get('description', ''),
+                    "phone": profile.get('phone', ''),
+                    "email": profile.get('email', ''),
+                    "website": profile.get('website', ''),
+                    "employees": profile.get('team_size', ''),
+                    "yearsInBusiness": profile.get('years_in_business', 0),
+                    "logo": profile.get('logo_url', '/static/images/ICONS/pixel.png'),
+                    "services": profile.get('services', ''),
+                    "certifications": profile.get('certifications', '')
+                }
+                
+                # Filter by search
+                if search:
+                    searchable_text = f"{company_data['name']} {company_data['description']} {company_data['services']}".lower()
+                    if search.lower() not in searchable_text:
+                        continue
+                
+                all_companies.append(company_data)
+        
+        # Sort by company name
+        all_companies.sort(key=lambda x: x['name'])
+        
+        # Paginate
+        total = len(all_companies)
+        total_pages = max(1, (total + items_per_page - 1) // items_per_page)
+        start = (page - 1) * items_per_page
+        end = start + items_per_page
+        
+        return jsonify({
+            "success": True,
+            "companies": all_companies[start:end],
+            "total": total,
+            "page": page,
+            "total_pages": total_pages
+        })
+    except Exception as e:
+        logging.error(f"Error in /api/directory: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
