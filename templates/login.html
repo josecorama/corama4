@@ -1,12 +1,120 @@
 <!-- login.html -->
 {% include 'head.html' %}
 <body>
-    {% include 'navbar.html' %}
+    <!-- Custom dark header for login page -->
+    <header class="login-header">
+        <div class="login-header-container">
+            <a href="/app" class="login-header-logo">CORAMA</a>
+            
+            <nav class="login-header-nav">
+                <a href="#" class="login-header-link">IHCC</a>
+                <a href="#" class="login-header-link">Support</a>
+                <a href="#" class="login-header-link">FAQ</a>
+                <a href="#" class="login-header-link">About Us</a>
+            </nav>
+            
+            <div class="login-header-actions">
+                <a href="/signup" class="login-header-signup">Sign up</a>
+            </div>
+        </div>
+    </header>
     
     <style>
         .grecaptcha-badge {
             visibility: visible !important;
             opacity: 1 !important;
+        }
+        
+        /* Hide old navbar */
+        .navbar-professional {
+            display: none !important;
+        }
+        
+        /* Dark Theme Header for Login Page */
+        .login-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 50;
+            background: rgba(11, 11, 15, 0.9);
+            backdrop-filter: blur(8px);
+        }
+        
+        .login-header-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .login-header-logo {
+            color: #6bb4b5;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 1.25rem;
+            text-decoration: none;
+        }
+        
+        .login-header-logo:hover {
+            color: #6bb4b5;
+            text-decoration: none;
+        }
+        
+        .login-header-nav {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        
+        .login-header-link {
+            color: #d1d5db;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.875rem;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .login-header-link:hover {
+            color: #ffffff;
+            text-decoration: none;
+        }
+        
+        .login-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .login-header-signup {
+            background: #6bb4b5;
+            color: #0B0B0F;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 10px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+        
+        .login-header-signup:hover {
+            background: #99c8ca;
+            color: #0B0B0F;
+            text-decoration: none;
+        }
+        
+        @media (max-width: 768px) {
+            .login-header-nav {
+                display: none;
+            }
+            
+            .login-header-container {
+                height: 64px;
+            }
         }
         
         /* Dark Theme for Login Page */
