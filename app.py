@@ -13038,6 +13038,327 @@ def directory_company_profile(user_id):
     """Individual company profile page - no login required"""
     return render_template('directory_company_profile.html', company_user_id=user_id)
 
+
+# ============================================================================
+# REACT FRONTEND INTEGRATION - Serve React app at /app/*
+# ============================================================================
+
+@app.route('/app/', defaults={'path': ''})
+@app.route('/app/<path:path>')
+def serve_react_app(path):
+    """Serve the React frontend application.
+    
+    This route serves the React app at /app/* while keeping existing Jinja routes working.
+    All React routes are handled by the React Router on the client side.
+    """
+    react_app_folder = os.path.join(app.static_folder, 'react-app')
+    
+    # If the path exists as a file (e.g., JS, CSS, images), serve it directly
+    if path and os.path.exists(os.path.join(react_app_folder, path)):
+        return send_from_directory(react_app_folder, path)
+    
+    # For all other paths, serve index.html (React Router handles client-side routing)
+    return send_from_directory(react_app_folder, 'index.html')
+
+
+# ============================================================================
+# JSON API ENDPOINTS FOR REACT FRONTEND
+# ============================================================================
+
+@app.route('/api/me', methods=['GET'])
+def api_get_current_user():
+    """Get current user info and credits for React frontend."""
+    id_token = session.get('idToken')
+    if not id_token:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = session.get('localId')
+        if not user_id:
+            return jsonify({'error': 'User ID not found in session'}), 401
+        
+        user_data = db.child('users').child(user_id).get(token=id_token).val()
+        
+        if not user_data:
+            return jsonify({'error': 'User data not found'}), 404
+        
+        return jsonify({
+            'user_id': user_id,
+            'email': user_data.get('email', ''),
+            'credits_balance': user_data.get('credits_balance', 0),
+            'account_type': user_data.get('account_type', 'free')
+        })
+    except Exception as e:
+        logging.error(f"Error getting current user: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/react/contracts', methods=['GET'])
+def api_react_get_contracts():
+    """Get paginated contracts for React dashboard.
+    
+    This endpoint is specifically for the React frontend and returns data
+    in the format expected by the React components.
+    """
+    id_token = session.get('idToken')
+    if not id_token:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        # Fetch contracts from Qdrant
+        contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, per_page)
+        
+        # Transform contracts to match React frontend expectations
+        items = []
+        for contract in contracts:
+            items.append({
+                'hash_value': contract.get('hash_value', ''),
+                'Bid_Name': contract.get('bid_name', contract.get('Bid_Name', '')),
+                'Category': contract.get('category', contract.get('Category', '')),
+                'State': contract.get('state', contract.get('State', '')),
+                'Budget': contract.get('budget', contract.get('Budget', '')),
+                'Due_Date': contract.get('due_date', contract.get('Due_Date', '')),
+                'Description': contract.get('description', contract.get('Description', '')),
+                'Detail_Link': contract.get('detail_link', contract.get('Detail_Link', ''))
+            })
+        
+        return jsonify({
+            'items': items,
+            'total': total_contracts,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': total_pages
+        })
+    except Exception as e:
+        logging.error(f"Error getting contracts for React: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/react/contracts/search', methods=['GET'])
+def api_react_search_contracts():
+    """Search contracts for React dashboard."""
+    id_token = session.get('idToken')
+    if not id_token:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        query = request.args.get('q', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        
+        if not query:
+            return api_react_get_contracts()
+        
+        # Use existing search functionality
+        contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, per_page)
+        
+        # Filter contracts by search query
+        query_lower = query.lower()
+        filtered = []
+        for contract in contracts:
+            searchable = f"{contract.get('bid_name', '')} {contract.get('category', '')} {contract.get('description', '')}".lower()
+            if query_lower in searchable:
+                filtered.append({
+                    'hash_value': contract.get('hash_value', ''),
+                    'Bid_Name': contract.get('bid_name', contract.get('Bid_Name', '')),
+                    'Category': contract.get('category', contract.get('Category', '')),
+                    'State': contract.get('state', contract.get('State', '')),
+                    'Budget': contract.get('budget', contract.get('Budget', '')),
+                    'Due_Date': contract.get('due_date', contract.get('Due_Date', '')),
+                    'Description': contract.get('description', contract.get('Description', '')),
+                    'Detail_Link': contract.get('detail_link', contract.get('Detail_Link', ''))
+                })
+        
+        return jsonify({
+            'items': filtered,
+            'total': len(filtered),
+            'page': 1,
+            'per_page': per_page,
+            'total_pages': 1
+        })
+    except Exception as e:
+        logging.error(f"Error searching contracts for React: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/top-five-contracts', methods=['POST'])
+def api_top_five_contracts():
+    """Process capability statement and return top 5 matching contracts for React frontend."""
+    id_token = session.get('idToken')
+    if not id_token:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file uploaded'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    try:
+        contract_types = request.form.getlist('contract_types') or ['federal', 'state']
+        states = request.form.getlist('states') or []
+        
+        # Use existing CSQueryHandler
+        handler = CSQueryHandler()
+        results = handler.process_query(file, contract_types, states, limit=5)
+        
+        # Transform results to match React frontend expectations
+        formatted_results = []
+        for result in results:
+            formatted_results.append({
+                'hash_value': result.get('hash_value', ''),
+                'Bid_Name': result.get('bid_name', result.get('Bid_Name', '')),
+                'Category': result.get('category', result.get('Category', '')),
+                'State': result.get('state', result.get('State', '')),
+                'Budget': result.get('budget', result.get('Budget', '')),
+                'Due_Date': result.get('due_date', result.get('Due_Date', '')),
+                'Description': result.get('description', result.get('Description', '')),
+                'Detail_Link': result.get('detail_link', result.get('Detail_Link', '')),
+                'score': result.get('score', 0)
+            })
+        
+        return jsonify({
+            'results': formatted_results,
+            'count': len(formatted_results)
+        })
+    except Exception as e:
+        logging.error(f"Error processing top 5 contracts: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/ai-assistant', methods=['POST'])
+def api_ai_assistant():
+    """Handle AI assistant chat messages for React frontend."""
+    id_token = session.get('idToken')
+    if not id_token:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    message = data.get('message')
+    contract_hash = data.get('contract_hash')
+    
+    if not message:
+        return jsonify({'error': 'No message provided'}), 400
+    
+    try:
+        user_id = session.get('localId')
+        
+        # Check credits using CreditManager
+        credit_manager = CreditManager(db)
+        credits = credit_manager.get_user_credits(user_id, id_token)
+        
+        if credits < 1:
+            return jsonify({'error': 'Insufficient credits'}), 402
+        
+        # Get AI response using EnhancedAIAssistant
+        if enhanced_ai:
+            response = enhanced_ai.get_response(
+                user_id=user_id,
+                message=message,
+                contract_hash=contract_hash,
+                id_token=id_token
+            )
+        else:
+            response = "AI Assistant is not available. Please try again later."
+        
+        # Deduct credits
+        credit_manager.deduct_credits(user_id, 1, 'ai_chat', 'AI Assistant chat message', id_token)
+        
+        return jsonify({
+            'response': response,
+            'credits_remaining': credits - 1
+        })
+    except Exception as e:
+        logging.error(f"Error in AI assistant: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/credits', methods=['GET'])
+def api_get_credits():
+    """Get user's credit balance and history for React frontend."""
+    id_token = session.get('idToken')
+    if not id_token:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user_id = session.get('localId')
+        credit_manager = CreditManager(db)
+        
+        balance = credit_manager.get_user_credits(user_id, id_token)
+        history = credit_manager.get_credit_history(user_id, id_token)
+        
+        return jsonify({
+            'balance': balance,
+            'history': history or []
+        })
+    except Exception as e:
+        logging.error(f"Error getting credits: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/credits/checkout', methods=['POST'])
+def api_create_checkout():
+    """Create Stripe checkout session for credit purchase from React frontend."""
+    id_token = session.get('idToken')
+    if not id_token:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    package_id = data.get('package_id')
+    
+    # Credit packages with prices in cents
+    packages = {
+        'starter': {'price': 1000, 'credits': 50, 'name': 'Starter Pack'},
+        'professional': {'price': 2500, 'credits': 150, 'name': 'Professional Pack'},
+        'enterprise': {'price': 7500, 'credits': 500, 'name': 'Enterprise Pack'},
+        'agency': {'price': 20000, 'credits': 1500, 'name': 'Agency Pack'}
+    }
+    
+    if package_id not in packages:
+        return jsonify({'error': 'Invalid package'}), 400
+    
+    try:
+        package = packages[package_id]
+        
+        # Create Stripe checkout session
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'unit_amount': package['price'],
+                    'product_data': {
+                        'name': f"CORAMA Credits - {package['name']}",
+                        'description': f"{package['credits']} credits"
+                    }
+                },
+                'quantity': 1
+            }],
+            mode='payment',
+            success_url=request.host_url + 'app/get-more-credits?success=true',
+            cancel_url=request.host_url + 'app/get-more-credits?canceled=true',
+            metadata={
+                'user_id': session.get('localId'),
+                'credits': package['credits']
+            }
+        )
+        
+        return jsonify({'checkout_url': checkout_session.url})
+    except Exception as e:
+        logging.error(f"Error creating checkout: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('ENV') != 'production'
