@@ -12,6 +12,7 @@ interface Contract {
   dueDate: string
   status: string
   detailLink?: string
+  hashValue?: string
 }
 
 const Dashboard = () => {
@@ -61,7 +62,8 @@ const Dashboard = () => {
         naicsCode: c.naics_code || 'N/A',
         dueDate: c.due_date,
         status: c.status || 'Open',
-        detailLink: c.detail_link
+        detailLink: c.detail_link,
+        hashValue: c.hash_value
       }))
       
       setContracts(transformedContracts)
@@ -214,12 +216,20 @@ const Dashboard = () => {
                                   <span className="text-green-400 font-poppins text-sm">{contract.status}</span>
                                 </td>
                                 <td className="py-4">
-                                  <button className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors">
+                                  <button 
+                                    onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
+                                    className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                                    title="Open AI Assistant for this contract"
+                                  >
                                     <MessageSquare size={18} className="text-corama-teal" />
                                   </button>
                                 </td>
                                 <td className="py-4">
-                                  <button className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors">
+                                  <button 
+                                    onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
+                                    className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                                    title="Visit contract website"
+                                  >
                                     <Globe size={18} className="text-corama-teal" />
                                   </button>
                                 </td>
@@ -248,11 +258,17 @@ const Dashboard = () => {
                               </div>
                             </div>
                             <div className="flex gap-2">
-                              <button className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors">
+                              <button 
+                                onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
+                                className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                              >
                                 <MessageSquare size={16} className="text-corama-teal" />
                                 <span className="text-corama-teal text-xs sm:text-sm">AI Assistant</span>
                               </button>
-                              <button className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors">
+                              <button 
+                                onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
+                                className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                              >
                                 <Globe size={16} className="text-corama-teal" />
                                 <span className="text-corama-teal text-xs sm:text-sm">Visit Site</span>
                               </button>

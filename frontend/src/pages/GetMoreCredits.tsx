@@ -40,12 +40,12 @@ const GetMoreCredits = () => {
         const packs: CreditPack[] = data.packages.map((pkg: CreditPackage, index: number) => ({
           credits: pkg.credits,
           name: pkg.description || `${pkg.credits} Credits`,
-          price: pkg.price,
+          price: pkg.price / 100, // Convert from cents to dollars
           description: pkg.description || 'Credit package',
           highlighted: index === 2 // Highlight the third package
         }))
         setCreditPacks(packs)
-      } else {
+      }else {
         // Default packages if API doesn't return any
         setCreditPacks([
           { credits: 50, name: 'Starter Pack', price: 10.00, description: 'Perfect for small projects' },
