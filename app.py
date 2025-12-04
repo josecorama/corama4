@@ -3189,12 +3189,13 @@ def process_files_cs_feedback(user_uploads_dir, max_rows=300):
 
 #2/25 update
 #LANDING PAGE ROUTE FUNCTION 
+# UPDATED: Now redirects to React app instead of rendering old Jinja2 landing page
 @app.route('/', methods=['GET'])
 def Landingpage():
-
-    session.clear() 
-    
-    return render_template('landingpage.html')
+    """Redirect to React app - old Jinja2 landing page is deprecated"""
+    if 'user' in session:
+        return redirect('/app/dashboard')
+    return redirect(url_for('Login'))
 
 
 #ABOUT US PAGE  ROUTE FUNCTION
