@@ -3218,51 +3218,10 @@ def Aboutus():
 
 @app.route('/top_five_results')
 def top_five_results():
-    """Display the top 5 contract matches from the uploaded capability statement.
-    
-    NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
-    Uses session storage for search results or falls back to CSV if needed.
-    """
+    """Redirect to React top five contracts page - old Jinja2 UI is deprecated"""
     if 'user' not in session:
         return redirect(url_for('Login'))
-    
-    user = session['user']
-    user_id = user['localId']
-    user_upload_dir = f"uploads/bid_uploads_{user_id}"
-    
-    matches = []
-    
-    # Try to get matches from session first (new approach)
-    if 'top5_results' in session:
-        matches = session['top5_results']
-        app.logger.info(f"✅ Loaded {len(matches)} matches from session")
-    else:
-        # Fallback: try CSV if session doesn't have results
-        matches_file = os.path.join(user_upload_dir, 'matches.csv')
-        if os.path.exists(matches_file):
-            try:
-                import pandas as pd
-                df = pd.read_csv(matches_file)
-                csv_matches = df.to_dict('records')
-                
-                # Fetch full contract data from Qdrant using point IDs
-                if csv_matches:
-                    point_ids = [m.get('hash_value') or m.get('contract_id') for m in csv_matches if m.get('hash_value') or m.get('contract_id')]
-                    if point_ids:
-                        matches = get_contracts_from_qdrant_by_ids(point_ids)
-                        app.logger.info(f"✅ Loaded {len(matches)} matches from Qdrant (via CSV point IDs)")
-                    else:
-                        # CSV doesn't have point IDs, use CSV data as fallback
-                        matches = csv_matches
-                        app.logger.warning(f"⚠️ Using CSV data as fallback (no point IDs found)")
-            except Exception as e:
-                app.logger.error(f"Error loading matches: {str(e)}")
-                flash(f"Error loading contract matches: {str(e)}", 'error')
-        else:
-            app.logger.warning(f"No matches found in session or CSV")
-            flash("No contract matches found. Please upload a capability statement first.", 'warning')
-    
-    return render_template('top_five_results.html', matches=matches)
+    return redirect('/app/top-five-contracts')
 
 @app.route('/contracts', methods=['GET'])
 def Contracts():
@@ -4411,63 +4370,13 @@ def get_qdrant_analytics():
 
 
 # updated 3/17/25 - Permanent Stripe Validation Fix
+# UPDATED: Now redirects to React app instead of rendering old Jinja2 template
 @app.route('/welcome', methods=['GET'])
 def Welcome():
-    try:
-        # Ensure Firebase authentication is fully established
-        user = auth.current_user
-        if not user:
-            logging.warning("No authenticated user found. Redirecting to login.")
-            return redirect(url_for('Login'))
-
-        user_id = user['localId']
-        email = user.get('email', '').strip().lower()
-        logging.info(f"Authenticated user ID: {user_id}, Email: {email}")
-
-        # 🔄 Ensure a fresh Firebase token before querying data
-        try:
-            user_logged_in = auth.refresh(user['refreshToken'])
-            logging.info(f"✅ Token refreshed for user {user_id}")
-        except Exception as token_error:
-            logging.error(f"❌ Token refresh failed for {user_id}: {token_error}")
-            return render_template('error.html', error="Session expired. Please log in again.")
-
-        # 🔍 Retrieve user data from Firebase
-        try:
-            user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-            if not user_data:
-                logging.error(f"❌ No user data found for {user_id}")
-                return render_template('error.html', error="User data missing. Contact support.")
-            logging.info(f"✅ Retrieved user data for {user_id}")
-
-        except Exception as data_error:
-            logging.error(f"❌ Firebase data fetch failed for {user_id}: {data_error}")
-            return render_template('error.html', error="Error retrieving user data. Contact support.")
-
-        # Extract necessary user details
-        company_name = user_data.get('company', 'No Company')
-        first_name = user_data.get('first_name', 'User')
-        
-        # Get analytics from Qdrant (all 1,160+ contracts) for Top Contract Categories
-        analytics_data = get_qdrant_analytics()
-        logging.info(f"📊 Qdrant analytics loaded: {analytics_data.get('total_contracts', 0)} contracts")
-        
-        page = request.args.get('page', 1, type=int)
-        items_per_page = 10  # Dashboard shows fewer items than smartsearch for better UX
-        
-        # Contract Radar Maximizer is now completely FREE - no Stripe validation needed
-        logging.info(f"✅ FREE ACCESS granted to {user_id} - Contract Radar Maximizer is completely free!")
-        return render_template('welcome.html', 
-                             company_name=company_name, 
-                             first_name=first_name,
-                             user_data=user_data,
-                             analytics=analytics_data,
-                             current_page=page,
-                             items_per_page=items_per_page)
-
-    except Exception as e:
-        logging.exception(f"❌ Unexpected error in /welcome: {e}")
-        return render_template('error.html', error="Unexpected error occurred. Contact support.")
+    """Redirect to React dashboard - old Jinja2 UI is deprecated"""
+    if 'user' not in session:
+        return redirect(url_for('Login'))
+    return redirect('/app/dashboard')
 
 
 
@@ -5067,357 +4976,21 @@ def dashboard_search():
 
 @app.route('/ai-assistant')
 def ai_assistant_room():
-    """AI Assistant room for bid response creation"""
+    """Redirect to React AI assistant page - old Jinja2 UI is deprecated"""
     user = auth.current_user
     if not user:
         return redirect(url_for('Login'))
     
-    user_id = user['localId']
-    user_email = user.get('email', 'unknown')
-    logging.info(f"🤖 /ai-assistant: user_id={user_id}, email={user_email}")
-    logging.info(f"🔍 /ai-assistant route hit with request.args: {dict(request.args)}")
-    
     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
     contract_name = request.args.get('name')
     
-    logging.info(f"🔍 contract_param: {contract_param}, contract_name: {contract_name}")
-    
     if not contract_param:
-        logging.warning(f"⚠️ No contract_param found, redirecting to /welcome")
-        return redirect('/welcome')
+        return redirect('/app/dashboard')
     
-    # Determine if we have a hash_value or need to look up by bid_number
-    contract_id = None  # This will be the hash_value
-    bid_number = None
-    
-    # Check if the parameter looks like a hash (64 hex characters)
-    if len(contract_param) == 64 and all(c in '0123456789abcdef' for c in contract_param.lower()):
-        # It's already a hash_value
-        contract_id = contract_param
-        
-        # If contract_name is not provided, look it up by hash_value
-        if not contract_name:
-            user_id = user['localId']
-            logging.info(f"🔍 contract_name not provided, looking up by hash_value: {contract_id}")
-            
-            try:
-                # Get user data to find uploads directory
-                user_data = None
-                if admin_initialized and admin_db:
-                    user_ref = admin_db.reference(f'users/{user_id}')
-                    user_data = user_ref.get()
-                else:
-                    user_data = db.child("users").child(user_id).get(user['idToken']).val()
-                
-                if user_data:
-                    user_uploads_dir = user_data.get('uploads_dir', '')
-                    if user_uploads_dir and os.path.exists(user_uploads_dir):
-                        # Try matches.csv
-                        matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-                        if os.path.exists(matches_file):
-                            try:
-                                with open(matches_file, 'r', encoding='utf-8') as file:
-                                    reader = csv.DictReader(file)
-                                    for row in reader:
-                                        row = {k.strip(): v for k, v in row.items()}
-                                        detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                                        hash_input = f"{detail_link}{row_bid_number}"
-                                        row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                                        if row_hash == contract_id:
-                                            contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
-                                            logging.info(f"✅ Found contract_name in matches.csv: {contract_name}")
-                                            break
-                            except Exception as e:
-                                logging.error(f"Error reading matches.csv for hash lookup: {e}")
-                        
-                        # If not found, try matches_SMART_SEARCH.csv
-                        if not contract_name:
-                            smart_search_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-                            if os.path.exists(smart_search_file):
-                                try:
-                                    with open(smart_search_file, 'r', encoding='utf-8') as file:
-                                        reader = csv.DictReader(file)
-                                        for row in reader:
-                                            row = {k.strip(): v for k, v in row.items()}
-                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                                            row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                                            hash_input = f"{detail_link}{row_bid_number}"
-                                            row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                                            if row_hash == contract_id:
-                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
-                                                logging.info(f"✅ Found contract_name in matches_SMART_SEARCH.csv: {contract_name}")
-                                                break
-                                except Exception as e:
-                                    logging.error(f"Error reading matches_SMART_SEARCH.csv for hash lookup: {e}")
-                        
-                        # If still not found, try demo dataset as fallback
-                        if not contract_name:
-                            demo_file = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-                            if os.path.exists(demo_file):
-                                try:
-                                    with open(demo_file, 'r', encoding='utf-8') as file:
-                                        reader = csv.DictReader(file)
-                                        for row in reader:
-                                            row = {k.strip(): v for k, v in row.items()}
-                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                                            row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                                            hash_input = f"{detail_link}{row_bid_number}"
-                                            row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                                            if row_hash == contract_id:
-                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
-                                                logging.info(f"✅ Found contract_name in demo dataset: {contract_name}")
-                                                break
-                                except Exception as e:
-                                    logging.error(f"Error reading demo dataset for hash lookup: {e}")
-            except Exception as e:
-                logging.error(f"Error looking up contract_name by hash_value: {e}")
-    else:
-        # It's a bid_number, set it as contract_id by default
-        bid_number = contract_param
-        contract_id = bid_number
-        user_id = user['localId']
-        
-        logging.info(f"🔍 Treating as bid_number: {bid_number}, will attempt to compute hash_value from CSVs")
-        
-        try:
-            # Get user data to find uploads directory
-            user_data = None
-            if admin_initialized and admin_db:
-                user_ref = admin_db.reference(f'users/{user_id}')
-                user_data = user_ref.get()
-            else:
-                user_data = db.child("users").child(user_id).get(user['idToken']).val()
-            
-            if user_data:
-                user_uploads_dir = user_data.get('uploads_dir', '')
-                if user_uploads_dir and os.path.exists(user_uploads_dir):
-                    matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-                    contract_found = False
-                    
-                    if os.path.exists(matches_file):
-                        try:
-                            with open(matches_file, 'r', encoding='utf-8') as file:
-                                reader = csv.DictReader(file)
-                                for row in reader:
-                                    row = {k.strip(): v for k, v in row.items()}
-                                    row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                                    if row_bid_number == bid_number:
-                                        # Found the contract, compute hash_value
-                                        detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                                        hash_input = f"{detail_link}{row_bid_number}"
-                                        contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                                        if not contract_name:
-                                            contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
-                                        contract_found = True
-                                        break
-                        except Exception as e:
-                            logging.error(f"Error reading matches.csv: {e}")
-                    
-                    # If not found in matches.csv, try matches_SMART_SEARCH.csv
-                    if not contract_found:
-                        smart_search_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-                        if os.path.exists(smart_search_file):
-                            try:
-                                with open(smart_search_file, 'r', encoding='utf-8') as file:
-                                    reader = csv.DictReader(file)
-                                    for row in reader:
-                                        row = {k.strip(): v for k, v in row.items()}
-                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                                        if row_bid_number == bid_number:
-                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                                            hash_input = f"{detail_link}{row_bid_number}"
-                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                                            if not contract_name:
-                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
-                                            contract_found = True
-                                            break
-                            except Exception as e:
-                                logging.error(f"Error reading matches_SMART_SEARCH.csv: {e}")
-                    
-                    # If still not found, try demo dataset as fallback
-                    if not contract_found:
-                        demo_file = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-                        if os.path.exists(demo_file):
-                            try:
-                                with open(demo_file, 'r', encoding='utf-8') as file:
-                                    reader = csv.DictReader(file)
-                                    for row in reader:
-                                        row = {k.strip(): v for k, v in row.items()}
-                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                                        if row_bid_number == bid_number:
-                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                                            hash_input = f"{detail_link}{row_bid_number}"
-                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                                            if not contract_name:
-                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
-                                            contract_found = True
-                                            break
-                            except Exception as e:
-                                logging.error(f"Error reading demo dataset: {e}")
-                    
-                    if not contract_found:
-                        logging.error(f"Contract with bid_number {bid_number} not found in any dataset")
-                        contract_id = bid_number
-        except Exception as e:
-            logging.error(f"Error looking up contract by bid_number: {e}")
-            contract_id = bid_number
-    
-    if not contract_id:
-        return redirect('/welcome')
-    
-    user_id = user['localId']
-    current_credits = 0
-    has_capability_statement = False
-    capability_statement_filename = None
-    company_name = None
-    
-    try:
-        if admin_initialized and admin_db:
-            user_ref = admin_db.reference(f'users/{user_id}')
-            user_data = user_ref.get()
-            
-            if user_data:
-                current_credits = user_data.get('credits_balance', 0)
-                logging.info(f"✅ Admin SDK: Fetched credit balance for AI Assistant: {current_credits} credits")
-                
-                user_uploads_dir = user_data.get('uploads_dir', '')
-                if user_uploads_dir and os.path.exists(user_uploads_dir):
-                    try:
-                        # First check if CSV exists and has data rows
-                        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
-                        capability_statements = []
-                        capability_statement_count = 0
-                        
-                        if os.path.exists(csv_path):
-                            try:
-                                df = pd.read_csv(csv_path)
-                                # Check if DataFrame has actual data rows (not just headers)
-                                if not df.empty and len(df) > 0 and 'Company' in df.columns:
-                                    has_capability_statement = True
-                                    capability_statement_count = len(df)
-                                    
-                                    # Get primary company name from is_primary flag if available
-                                    if 'is_primary' in df.columns:
-                                        primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
-                                        if not primary_row.empty:
-                                            company_name = primary_row.iloc[0]['Company']
-                                        else:
-                                            company_name = df['Company'].iloc[0]  # Fallback to first row
-                                    else:
-                                        company_name = df['Company'].iloc[0]  # Fallback if column doesn't exist
-                                    
-                                    # Build list of all capabilities for selection
-                                    for idx, row in df.iterrows():
-                                        # Use is_primary from CSV if available, otherwise fallback to first row
-                                        if 'is_primary' in df.columns:
-                                            is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
-                                        else:
-                                            is_primary_val = (idx == 0)  # Fallback: first row is primary
-                                        
-                                        capability_statements.append({
-                                            'company': row.get('Company', 'Unknown'),
-                                            'filename': row.get('filename', ''),
-                                            'upload_date': row.get('upload_date', ''),
-                                            'is_primary': is_primary_val
-                                        })
-                                    
-                                    logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
-                                    
-                                    # Find a capability statement file
-                                    for fname in os.listdir(user_uploads_dir):
-                                        if fname.lower().endswith(('.pdf', '.doc', '.docx')):
-                                            capability_statement_filename = fname
-                                            break
-                                else:
-                                    logging.warning(f"⚠️ User {user_id} has empty capability statements CSV")
-                                    has_capability_statement = False
-                            except Exception as e:
-                                logging.error(f"Error reading capability statements CSV: {e}")
-                                has_capability_statement = False
-                        else:
-                            logging.warning(f"⚠️ User {user_id} has no capability statements CSV")
-                            has_capability_statement = False
-                    except Exception as e:
-                        logging.error(f"Error checking capability statement: {e}")
-        else:
-            logging.warning("⚠️ Using fallback method to fetch credit balance for AI Assistant")
-            user_data = db.child("users").child(user_id).get(user['idToken']).val()
-            if user_data:
-                current_credits = user_data.get('credits_balance', 0)
-                
-                user_uploads_dir = user_data.get('uploads_dir', '')
-                if user_uploads_dir and os.path.exists(user_uploads_dir):
-                    try:
-                        # First check if CSV exists and has data rows
-                        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
-                        capability_statements = []
-                        capability_statement_count = 0
-                        
-                        if os.path.exists(csv_path):
-                            try:
-                                df = pd.read_csv(csv_path)
-                                # Check if DataFrame has actual data rows (not just headers)
-                                if not df.empty and len(df) > 0 and 'Company' in df.columns:
-                                    has_capability_statement = True
-                                    capability_statement_count = len(df)
-                                    
-                                    # Get primary company name from is_primary flag if available
-                                    if 'is_primary' in df.columns:
-                                        primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
-                                        if not primary_row.empty:
-                                            company_name = primary_row.iloc[0]['Company']
-                                        else:
-                                            company_name = df['Company'].iloc[0]  # Fallback to first row
-                                    else:
-                                        company_name = df['Company'].iloc[0]  # Fallback if column doesn't exist
-                                    
-                                    # Build list of all capabilities for selection
-                                    for idx, row in df.iterrows():
-                                        # Use is_primary from CSV if available, otherwise fallback to first row
-                                        if 'is_primary' in df.columns:
-                                            is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
-                                        else:
-                                            is_primary_val = (idx == 0)  # Fallback: first row is primary
-                                        
-                                        capability_statements.append({
-                                            'company': row.get('Company', 'Unknown'),
-                                            'filename': row.get('filename', ''),
-                                            'upload_date': row.get('upload_date', ''),
-                                            'is_primary': is_primary_val
-                                        })
-                                    
-                                    logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
-                                    
-                                    # Find a capability statement file
-                                    for fname in os.listdir(user_uploads_dir):
-                                        if fname.lower().endswith(('.pdf', '.doc', '.docx')):
-                                            capability_statement_filename = fname
-                                            break
-                                else:
-                                    logging.warning(f"⚠️ User {user_id} has empty capability statements CSV")
-                                    has_capability_statement = False
-                            except Exception as e:
-                                logging.error(f"Error reading capability statements CSV: {e}")
-                                has_capability_statement = False
-                        else:
-                            logging.warning(f"⚠️ User {user_id} has no capability statements CSV")
-                            has_capability_statement = False
-                    except Exception as e:
-                        logging.error(f"Error checking capability statement: {e}")
-    except Exception as e:
-        logging.error(f"Error fetching credit balance for AI Assistant: {e}")
-        current_credits = 0
-    
-    return render_template('ai_assistant_room.html', 
-                         contract_id=contract_id,
-                         contract_name=contract_name,
-                         current_credits=current_credits,
-                         has_capability_statement=has_capability_statement,
-                         capability_statement_filename=capability_statement_filename,
-                         company_name=company_name,
-                         capability_statements=capability_statements if 'capability_statements' in locals() else [],
-                         capability_statement_count=capability_statement_count if 'capability_statement_count' in locals() else 0)
+    redirect_url = f'/app/ai-assistant?hash_value={contract_param}'
+    if contract_name:
+        redirect_url += f'&name={contract_name}'
+    return redirect(redirect_url)
 
 @app.route('/proposal/start')
 def proposal_start():
@@ -5430,7 +5003,7 @@ def proposal_start():
     draft_id = request.args.get('draft_id')
     
     if not contract_hash:
-        return redirect('/welcome')
+        return redirect('/app/dashboard')
     
     user_id = user['localId']
     current_credits = 0
@@ -5482,7 +5055,7 @@ def proposal_team():
     
     draft_id = request.args.get('draft_id')
     if not draft_id:
-        return redirect('/welcome')
+        return redirect('/app/dashboard')
     
     user_id = user['localId']
     current_credits = 0
@@ -5510,7 +5083,7 @@ def proposal_pricing():
     
     draft_id = request.args.get('draft_id')
     if not draft_id:
-        return redirect('/welcome')
+        return redirect('/app/dashboard')
     
     user_id = user['localId']
     current_credits = 0
@@ -8521,7 +8094,7 @@ def process_contract():
         process_pdfs([file_path], 'capability_statements_processed.csv')
         generate_capability_embeddings('capability_statements_processed.csv', 'capability_statements_embedded.csv')
 
-    return redirect(url_for('Welcome'))
+    return redirect('/app/dashboard')
 
 
 
@@ -9719,7 +9292,7 @@ def membershipstatus():
                     )
                 else:
                     logging.warning(f"Unauthorized access attempt by user ID: {user_id} with account type: {account_type}")
-                    return redirect(url_for('Welcome2'))
+                    return redirect('/app/dashboard')
 
         logging.warning("No authenticated user found. Redirecting to login.")
         return redirect(url_for('Login'))
@@ -9760,7 +9333,7 @@ def upgrade_membership():
 
         # Contract Radar Maximizer is now FREE - no payment required
         logging.info(f"✅ FREE ACCESS - No payment required for user {user_id}")
-        return redirect(url_for('Welcome'))
+        return redirect('/app/dashboard')
 
     except Exception as e:
         logging.error(f"Error creating Stripe checkout session: {e}")
@@ -9792,7 +9365,7 @@ def upgrade_success():
             "uploads_dir": uploads_dir
         }, user['idToken'])
 
-        return redirect(url_for('Welcome'))
+        return redirect('/app/dashboard')
 
     except Exception as e:
         logging.error(f"Error in upgrade success: {e}")
@@ -10029,24 +9602,10 @@ def internal_error(error):
 
 @app.route('/purchase_credits', methods=['GET'])
 def purchase_credits():
-    """Display credit purchase options"""
+    """Redirect to React get more credits page - old Jinja2 UI is deprecated"""
     if 'user' not in session:
         return redirect(url_for('Login'))
-        
-    user = session['user']
-    user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
-    current_credits = user_data.get('credits_balance', 0)
-    
-    credit_packages = [
-        {"credits": 100, "price": 1000, "description": "Starter Pack - Perfect for small projects"},
-        {"credits": 300, "price": 2500, "description": "Professional Pack - Great for multiple proposals"},
-        {"credits": 750, "price": 5000, "description": "Enterprise Pack - Best value for frequent users"},
-        {"credits": 2000, "price": 10000, "description": "Agency Pack - For consulting firms and agencies"}
-    ]
-    
-    return render_template('purchase_credits.html', 
-                         current_credits=current_credits,
-                         credit_packages=credit_packages)
+    return redirect('/app/get-more-credits')
 
 @app.route('/create_credit_checkout', methods=['POST'])
 def create_credit_checkout():
@@ -10174,54 +9733,10 @@ def credit_purchase_success():
 
 @app.route('/credit_history', methods=['GET'])
 def credit_history():
-    """Display credit transaction history and usage analytics"""
+    """Redirect to React get more credits page - old Jinja2 UI is deprecated"""
     if 'user' not in session:
         return redirect(url_for('Login'))
-    
-    user = session['user']
-    user_id = user['localId']
-    
-    try:
-        if admin_initialized and admin_db:
-            user_ref = admin_db.reference(f'users/{user_id}')
-            user_data = user_ref.get()
-            
-            if not user_data:
-                logging.error(f"User {user_id} not found in database")
-                return redirect(url_for('Welcome'))
-            
-            current_credits = user_data.get('credits_balance', 0)
-            credits_used = user_data.get('credits_used', 0)
-            
-            transactions_ref = admin_db.reference(f'credit_transactions/{user_id}')
-            transactions = transactions_ref.get()
-            transaction_list = []
-            if transactions:
-                for key, transaction in transactions.items():
-                    transaction_list.append(transaction)
-                transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-            
-            logging.info(f"✅ Admin SDK: Fetched credit history for user {user_id}")
-        else:
-            logging.warning("⚠️ Using fallback method to fetch credit history")
-            user_data = db.child("users").child(user_id).get(user['idToken']).val()
-            current_credits = user_data.get('credits_balance', 0)
-            credits_used = user_data.get('credits_used', 0)
-            
-            transactions = db.child("credit_transactions").child(user_id).get(user['idToken']).val()
-            transaction_list = []
-            if transactions:
-                for key, transaction in transactions.items():
-                    transaction_list.append(transaction)
-                transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
-        return render_template('credit_history.html',
-                             current_credits=current_credits,
-                             credits_used=credits_used,
-                             transactions=transaction_list)
-    except Exception as e:
-        logging.error(f"Error fetching credit history: {e}")
-        return redirect(url_for('Welcome'))
+    return redirect('/app/get-more-credits')
 
 @app.route('/uploads/contracts/<path:filename>')
 def serve_contract_pdf(filename):
@@ -11665,7 +11180,7 @@ def proposal_result_page():
     """Page to display proposal generation progress and results"""
     draft_id = request.args.get('draft_id')
     if not draft_id:
-        return redirect(url_for('Welcome'))
+        return redirect('/app/dashboard')
     
     user = auth.current_user
     if not user:
