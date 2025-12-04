@@ -9,17 +9,19 @@
             opacity: 1 !important;
         }
         
-        /* Light Theme for Login Page */
+        /* Dark Theme for Login Page */
         body {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-            color: #2c3e50 !important;
+            background: #0B0B0F !important;
+            color: #d9d9d9 !important;
             min-height: 100vh;
+            font-family: 'Poppins', sans-serif;
         }
         
         .login-container {
-            background: white;
+            background: linear-gradient(135deg, #1c4262 0%, #0f1419 100%);
+            border: 1px solid rgba(107, 180, 181, 0.2);
             border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             padding: 50px 40px;
             margin-top: 120px;
             margin-bottom: 60px;
@@ -28,34 +30,62 @@
             margin-right: auto;
         }
         
+        .login-logo {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .login-logo img {
+            width: 60px;
+            height: 60px;
+        }
+        
+        .login-logo-text {
+            color: #6bb4b5;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 8px;
+        }
+        
         .login-signup-title {
-            color: #446dcd !important;
+            color: #ffffff !important;
             font-family: 'Inter', sans-serif;
             font-weight: 700;
-            font-size: 2.2rem;
+            font-size: 2rem;
             margin-bottom: 30px;
             text-align: center;
         }
         
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
+        }
+        
+        .form-label {
+            color: #d9d9d9;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            display: block;
         }
         
         .form-control {
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 16px 20px;
-            font-size: 1rem;
+            border: 1px solid rgba(107, 180, 181, 0.3);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 0.95rem;
             transition: all 0.3s ease;
-            background: #f8f9fa;
+            background: rgba(15, 20, 25, 0.6);
+            color: #d9d9d9;
             height: auto;
         }
         
         .form-control:focus {
-            border-color: #446dcd;
-            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
-            background: white;
+            border-color: #6bb4b5;
+            box-shadow: 0 0 0 0.2rem rgba(107, 180, 181, 0.15);
+            background: rgba(15, 20, 25, 0.8);
             outline: none;
+            color: #ffffff;
         }
         
         .form-control::placeholder {
@@ -75,26 +105,28 @@
         }
         
         .password-toggle:hover {
-            color: #446dcd;
+            color: #6bb4b5;
         }
         
         .btn-login {
-            background: linear-gradient(135deg, #446dcd 0%, #4bb6d3 100%);
+            background: linear-gradient(180deg, #6bb4b5 9%, #9cd6d7 88%, #85c4c7 100%);
             border: none;
-            padding: 16px 24px;
+            padding: 14px 24px;
             font-weight: 600;
-            border-radius: 12px;
+            border-radius: 8px;
             transition: all 0.3s ease;
-            color: white;
-            font-size: 1.1rem;
+            color: #0B0B0F;
+            font-size: 1rem;
             width: 100%;
             margin-top: 10px;
+            font-family: 'Poppins', sans-serif;
         }
         
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(68, 109, 205, 0.3);
-            color: white;
+            box-shadow: 0 8px 25px rgba(107, 180, 181, 0.3);
+            color: #0B0B0F;
+            background: linear-gradient(180deg, #7bc4c5 9%, #aee6e7 88%, #95d4d7 100%);
         }
         
         .btn-login:active {
@@ -102,10 +134,10 @@
         }
         
         .alert-danger {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-            border-radius: 12px;
+            background: rgba(220, 53, 69, 0.2);
+            border: 1px solid rgba(220, 53, 69, 0.5);
+            color: #ff6b6b;
+            border-radius: 8px;
             padding: 15px 20px;
             margin-bottom: 25px;
             font-weight: 500;
@@ -113,23 +145,23 @@
         
         .login-links {
             text-align: center;
-            margin-top: 30px;
+            margin-top: 25px;
         }
         
         .login-links p {
             margin-bottom: 15px;
-            color: #6c757d;
+            color: #9ca3af;
         }
         
         .login-links a {
-            color: #446dcd;
+            color: #6bb4b5;
             text-decoration: none;
             font-weight: 500;
             transition: color 0.3s ease;
         }
         
         .login-links a:hover {
-            color: #4bb6d3;
+            color: #9cd6d7;
             text-decoration: none;
         }
         
@@ -146,13 +178,13 @@
             left: 0;
             right: 0;
             height: 1px;
-            background: #e9ecef;
+            background: rgba(107, 180, 181, 0.2);
         }
         
         .divider span {
-            background: white;
+            background: transparent;
             padding: 0 20px;
-            color: #6c757d;
+            color: #9ca3af;
             font-size: 0.9rem;
         }
         
@@ -171,13 +203,19 @@
             }
             
             .login-signup-title {
-                font-size: 1.8rem;
+                font-size: 1.6rem;
             }
         }
     </style>
 
     <div class="container">
         <div class="login-container">
+            <!-- Logo -->
+            <div class="login-logo">
+                <img src="{{ url_for('static', filename='images/corama-logo.png') }}" alt="CORAMA" onerror="this.style.display='none'">
+                <div class="login-logo-text">CORAMA</div>
+            </div>
+            
             <h1 class="login-signup-title">Welcome Back</h1>
             
             {% if error %}
@@ -189,9 +227,11 @@
             
             <form method="POST" action="{{ url_for('Login') }}" id="login-form">
                 <div class="form-group">
+                    <label class="form-label" for="email">Email</label>
                     <input type="email" 
                            class="form-control" 
                            name="email" 
+                           id="email"
                            placeholder="Enter your email address" 
                            required 
                            autofocus
@@ -199,6 +239,7 @@
                 </div>
                 
                 <div class="form-group position-relative">
+                    <label class="form-label" for="password">Password</label>
                     <input type="password" 
                            class="form-control" 
                            name="password" 
@@ -214,7 +255,7 @@
                 <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response">
                 
                 <button class="btn btn-login" type="submit" id="login-btn">
-                    <span class="btn-text">Sign In</span>
+                    <span class="btn-text">Sign in</span>
                     <span class="btn-loading d-none">
                         <i class="fas fa-spinner fa-spin me-2"></i>Signing in...
                     </span>
@@ -223,12 +264,6 @@
 
             <div class="login-links">
                 <p><a href="{{ url_for('reset_password') }}">Forgot your password?</a></p>
-                
-                <div class="divider">
-                    <span>Don't have an account?</span>
-                </div>
-                
-                <p><a href="/signup" class="fw-bold">Create your account</a></p>
             </div>
         </div>
     </div>
