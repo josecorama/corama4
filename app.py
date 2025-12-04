@@ -5226,9 +5226,9 @@ def clear_uploads():
 
 @app.route('/logout', methods=['GET'] )
 def logout():
-    """Clear the session and redirect to login page."""
+    """Clear the session and redirect to landing page."""
     session.clear()
-    return redirect(url_for('Login'))
+    return redirect('/app')
 
 
 def check_qdrant_config():

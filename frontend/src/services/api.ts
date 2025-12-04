@@ -18,6 +18,10 @@ export interface Contract {
   category: string;
   due_date: string;
   detail_link: string;
+  naics_code: string;
+  hash_value?: string;
+  contract_id?: string;
+  organization?: string;
 }
 
 export interface ContractMatch {

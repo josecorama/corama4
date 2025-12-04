@@ -58,7 +58,7 @@ const Dashboard = () => {
         id: index + 1,
         name: c.bid_name,
         category: c.category,
-        naicsCode: '000000',
+        naicsCode: c.naics_code || 'N/A',
         dueDate: c.due_date,
         status: c.status || 'Open',
         detailLink: c.detail_link
