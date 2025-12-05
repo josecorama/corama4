@@ -331,6 +331,47 @@ const LandingPage = () => {
         </div>
       </section>
 
+      {/* Capturing Major State Procurement Wins Section */}
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-b from-corama-teal/10 to-transparent"></div>
+        </div>
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+            Capturing Major State<br />Procurement Wins
+          </h2>
+          <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+            "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
+          </p>
+          
+          {/* Learn More button */}
+          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base hover:gap-3 transition-all mb-12">
+            Learn More <ArrowRight size={18} />
+          </button>
+          
+          {/* Hexagon images - left and right */}
+          <div className="flex justify-between items-center max-w-5xl mx-auto">
+            {/* Left hexagons */}
+            <img 
+              src="/static/app/landing/hexagons.png" 
+              alt="" 
+              aria-hidden="true"
+              className="w-48 sm:w-64 lg:w-80 h-auto"
+            />
+            
+            {/* Right hexagons - mirrored */}
+            <img 
+              src="/static/app/landing/hexagons.png" 
+              alt="" 
+              aria-hidden="true"
+              className="w-48 sm:w-64 lg:w-80 h-auto scale-x-[-1]"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 sm:py-20 px-4 sm:px-6 bg-[#0B0B0F] relative">
         {/* Footer glow */}
@@ -339,20 +380,6 @@ const LandingPage = () => {
         </div>
         
         <div className="max-w-6xl mx-auto relative z-10">
-          {/* Decorative diamonds */}
-          <div className="flex justify-center gap-3 sm:gap-4 mb-10 sm:mb-14">
-            {[1,2,3,4,5,6].map((i) => (
-              <div 
-                key={i} 
-                className={`w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-lg transform rotate-45 transition-all ${
-                  i % 2 === 0 
-                    ? 'bg-corama-teal shadow-[0_0_20px_rgba(107,180,181,0.4)]' 
-                    : 'bg-corama-teal/50 shadow-[0_0_15px_rgba(107,180,181,0.2)]'
-                }`}
-              ></div>
-            ))}
-          </div>
-          
           <div className="text-center mb-8">
             <p className="text-gray-400 font-poppins text-sm sm:text-base leading-relaxed">
               222 W. Merchandise Mart Plaza<br />
@@ -370,12 +397,17 @@ const LandingPage = () => {
           
           <div className="text-center mb-8">
             <a href="mailto:info@corama.ai" className="text-gray-400 hover:text-corama-teal font-poppins text-sm transition-colors">
-              info@corama.ai
+              Info@corama.ai
             </a>
           </div>
           
-          <div className="text-center">
-            <span className="text-corama-teal font-poppins font-bold text-xl sm:text-2xl">CORAMA</span>
+          {/* CORAMA Logo */}
+          <div className="flex justify-center">
+            <img 
+              src="/static/app/landing/corama-logo.png" 
+              alt="CORAMA" 
+              className="h-16 sm:h-20 w-auto"
+            />
           </div>
         </div>
       </footer>
