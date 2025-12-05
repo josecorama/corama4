@@ -341,12 +341,12 @@ const LandingPage = () => {
             "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
           </p>
           
-          {/* Learn More BETWEEN IMAGES - hexagons centered inside pill-shaped glows */}
+          {/* Learn More BETWEEN IMAGES - hexagons centered inside pill-shaped glows (2x size) */}
           <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'flex-start', gap: '16px', marginTop: '24px' }}>
-            {/* Left hexagon group - pill wrapper with centered image */}
+            {/* Left hexagon group - pill wrapper with centered image (doubled size) */}
             <div
               className="relative flex items-center justify-center"
-              style={{ width: '300px', height: '140px', flexShrink: 1, marginTop: '32px' }}
+              style={{ width: '600px', height: '280px', flexShrink: 1, marginTop: '32px' }}
             >
               {/* Glow fills the pill-shaped wrapper */}
               <div className="pointer-events-none absolute inset-0 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
@@ -354,7 +354,7 @@ const LandingPage = () => {
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-20 max-w-[85%] h-auto translate-y-[37px]"
+                className="relative z-20 max-w-[85%] h-auto translate-y-[74px]"
               />
             </div>
 
@@ -367,10 +367,10 @@ const LandingPage = () => {
               Learn More <ArrowRight size={18} />
             </button>
 
-            {/* Right hexagon group (mirrored) - pill wrapper with centered image */}
+            {/* Right hexagon group (mirrored) - pill wrapper with centered image (doubled size) */}
             <div
               className="relative flex items-center justify-center"
-              style={{ width: '300px', height: '140px', flexShrink: 1, marginTop: '32px' }}
+              style={{ width: '600px', height: '280px', flexShrink: 1, marginTop: '32px' }}
             >
               {/* Glow fills the pill-shaped wrapper */}
               <div className="pointer-events-none absolute inset-0 rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
@@ -378,7 +378,7 @@ const LandingPage = () => {
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-20 max-w-[85%] h-auto translate-y-[37px] scale-x-[-1]"
+                className="relative z-20 max-w-[85%] h-auto translate-y-[74px] scale-x-[-1]"
               />
             </div>
           </div>
