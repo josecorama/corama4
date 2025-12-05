@@ -1,4 +1,4 @@
-import { Search, FileText, CheckCircle, Target, TrendingUp, Clock, ArrowRight } from 'lucide-react'
+import { ArrowRight, CheckCircle } from 'lucide-react'
 
 const LandingPage = () => {
   const scrollToFeatures = () => {
@@ -107,9 +107,8 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {/* Feature 1 - Smart Contract Matching */}
             <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
-                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
-                <Search className="text-corama-teal relative z-10" size={28} />
+              <div className="flex justify-center mb-5 sm:mb-6">
+                <img src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
@@ -122,9 +121,8 @@ const LandingPage = () => {
 
             {/* Feature 2 - Automated Proposal Generation */}
             <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
-                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
-                <FileText className="text-corama-teal relative z-10" size={28} />
+              <div className="flex justify-center mb-5 sm:mb-6">
+                <img src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
@@ -137,9 +135,8 @@ const LandingPage = () => {
 
             {/* Feature 3 - Compliance Intelligence */}
             <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
-                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
-                <CheckCircle className="text-corama-teal relative z-10" size={28} />
+              <div className="flex justify-center mb-5 sm:mb-6">
+                <img src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
@@ -152,9 +149,8 @@ const LandingPage = () => {
 
             {/* Feature 4 - Win Probability Scoring */}
             <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
-                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
-                <Target className="text-corama-teal relative z-10" size={28} />
+              <div className="flex justify-center mb-5 sm:mb-6">
+                <img src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
@@ -167,9 +163,8 @@ const LandingPage = () => {
 
             {/* Feature 5 - Intelligent Market Research */}
             <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
-                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
-                <TrendingUp className="text-corama-teal relative z-10" size={28} />
+              <div className="flex justify-center mb-5 sm:mb-6">
+                <img src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
@@ -182,9 +177,8 @@ const LandingPage = () => {
 
             {/* Feature 6 - Smart Deadline Management */}
             <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
-                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
-                <Clock className="text-corama-teal relative z-10" size={28} />
+              <div className="flex justify-center mb-5 sm:mb-6">
+                <img src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
