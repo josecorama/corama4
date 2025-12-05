@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { MessageSquare, Search, Shuffle, FileText } from 'lucide-react'
 import { api, CreditPackage } from '../services/api'
 
 interface CreditPack {
@@ -13,7 +12,7 @@ interface CreditPack {
 }
 
 interface CreditFeature {
-  icon: React.ReactNode
+  icon: string
   title: string
   description: string
   credits: number
@@ -85,32 +84,32 @@ const GetMoreCredits = () => {
 
   const creditFeatures: CreditFeature[] = [
     {
-      icon: <MessageSquare size={24} />,
+      icon: '/static/app/dashboard/BasicAIChat.svg',
       title: 'Basic AI Chat',
       description: 'Get instant answers to your questions about government contracting, procurement processes, and general guidance.',
       credits: 1,
-      bgColor: 'bg-corama-teal/80',
+      bgColor: 'bg-[#5A7A8A]',
     },
     {
-      icon: <Search size={24} />,
+      icon: '/static/app/dashboard/ComplianceCheck.svg',
       title: 'Compliance Check',
       description: 'Deep analysis of contract opportunities to identify key requirements, evaluation criteria, and match them against your capabilities.',
       credits: 2,
-      bgColor: 'bg-corama-teal/70',
+      bgColor: 'bg-[#4A7A7C]',
     },
     {
-      icon: <Shuffle size={24} />,
+      icon: '/static/app/dashboard/ContractAnalysis.svg',
       title: 'Contract Analysis',
       description: 'Verify that your capability statement or proposal meets all necessary compliance requirements for government contracting.',
       credits: 3,
-      bgColor: 'bg-corama-teal/60',
+      bgColor: 'bg-[#7AACAD]',
     },
     {
-      icon: <FileText size={24} />,
+      icon: '/static/app/dashboard/FullProposal.svg',
       title: 'Full Proposal',
       description: 'Generate a comprehensive, professionally formatted proposal document tailored to a specific contract opportunity.',
       credits: 15,
-      bgColor: 'bg-corama-teal/50',
+      bgColor: 'bg-[#4A8A8C]',
     },
   ]
 
@@ -176,12 +175,12 @@ const GetMoreCredits = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {creditFeatures.map((feature, index) => (
                 <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6`}>
-                  <div className="text-white mb-3 sm:mb-4">
-                    {feature.icon}
+                  <div className="mb-3 sm:mb-4">
+                    <img src={feature.icon} alt="" className="w-10 h-10" aria-hidden="true" />
                   </div>
-                  <h3 className="text-white font-poppins font-bold text-base sm:text-lg mb-2 sm:mb-3">{feature.title}</h3>
-                  <p className="text-white/80 font-poppins text-xs sm:text-sm mb-3 sm:mb-4">{feature.description}</p>
-                  <p className="text-white font-poppins font-bold text-sm sm:text-base">{feature.credits} Credit{feature.credits > 1 ? 's' : ''}.</p>
+                  <h3 className="text-[#1C4262] font-poppins font-bold text-base sm:text-lg mb-2 sm:mb-3">{feature.title}</h3>
+                  <p className="text-[#1C4262]/80 font-poppins text-xs sm:text-sm mb-3 sm:mb-4">{feature.description}</p>
+                  <p className="text-[#1C4262] font-poppins font-bold text-sm sm:text-base">{feature.credits} Credit{feature.credits > 1 ? 's' : ''}.</p>
                 </div>
               ))}
             </div>
