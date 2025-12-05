@@ -15,7 +15,7 @@ const LandingPage = () => {
           </div>
           
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
-            <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
             <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">Support</a>
             <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">FAQ</a>
             <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">About Us</a>
@@ -414,7 +414,7 @@ const LandingPage = () => {
           </div>
           
           <div className="flex flex-wrap justify-center gap-4 sm:gap-8 mb-8 text-sm">
-            <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
             <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
             <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
             <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Frequently Asked Questions</a>
