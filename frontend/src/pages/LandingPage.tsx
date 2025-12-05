@@ -6,7 +6,7 @@ const LandingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F]">
+    <div className="min-h-screen bg-[#0B0B0F] overflow-hidden">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
@@ -29,22 +29,39 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 pb-12 sm:pb-20 px-4 sm:px-6 relative overflow-hidden">
-        {/* Decorative dots */}
-        <div className="absolute top-20 left-10 w-2 h-2 bg-corama-teal rounded-full opacity-60 hidden sm:block"></div>
+      <section className="pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
+        {/* Background glow effects - more prominent */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[700px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(107,180,181,0.08)_40%,transparent_70%)]"></div>
+          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(26,58,74,0.6)_0%,transparent_70%)]"></div>
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.5)_0%,transparent_70%)]"></div>
+          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)]"></div>
+        </div>
+        
+        {/* Orbital lines decoration */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-corama-teal/15 rounded-full"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-corama-teal/8 rounded-full"></div>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] border border-corama-teal/5 rounded-full"></div>
+        </div>
+        
+        {/* Decorative dots/stars */}
+        <div className="absolute top-20 left-10 w-2 h-2 bg-corama-teal rounded-full opacity-60 hidden sm:block animate-pulse"></div>
         <div className="absolute top-40 right-20 w-3 h-3 bg-corama-teal/50 rounded-full hidden sm:block"></div>
         <div className="absolute bottom-20 left-1/4 w-2 h-2 bg-corama-teal/30 rounded-full hidden sm:block"></div>
+        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/40 rounded-full hidden sm:block"></div>
+        <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-corama-teal/60 rounded-full hidden sm:block"></div>
         
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-          <h1 className="font-inter font-black text-3xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight">
+          <h1 className="font-inter font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             With AI Find<br />Contracts
           </h1>
-          <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-6 sm:mb-10 px-2">
+          <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
           </p>
           <a 
             href="/login" 
-            className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
+            className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
           >
             Get Started
           </a>
@@ -52,89 +69,124 @@ const LandingPage = () => {
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="py-12 sm:py-20 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative">
+        {/* Section background glow - more prominent */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.12)_0%,rgba(107,180,181,0.04)_50%,transparent_70%)]"></div>
+          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.5)_0%,transparent_70%)]"></div>
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.4)_0%,transparent_70%)]"></div>
+        </div>
+        
+        {/* Decorative stars - more visible */}
+        <div className="absolute top-16 left-16 text-corama-teal hidden lg:block">
+          <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor" className="opacity-50">
+            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
+          </svg>
+        </div>
+        <div className="absolute top-32 right-24 text-corama-teal hidden lg:block">
+          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" className="opacity-40">
+            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
+          </svg>
+        </div>
+        <div className="absolute bottom-32 right-16 text-corama-teal hidden lg:block">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="opacity-35">
+            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
+          </svg>
+        </div>
+        <div className="absolute bottom-48 left-24 text-corama-teal hidden lg:block">
+          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" className="opacity-30">
+            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
+          </svg>
+        </div>
+        
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {/* Feature 1 - Smart Contract Matching */}
-            <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:border-corama-teal/40 transition-all group">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg sm:rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-corama-teal/30 transition-colors">
-                <Search className="text-corama-teal" size={24} />
+            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
+                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
+                <Search className="text-corama-teal relative z-10" size={28} />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-4 sm:mb-6">
+              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
               </p>
-              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-xs sm:text-sm hover:gap-3 transition-all">
+              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                 Get Started <ArrowRight size={14} />
               </a>
             </div>
 
             {/* Feature 2 - Automated Proposal Generation */}
-            <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:border-corama-teal/40 transition-all group">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg sm:rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-corama-teal/30 transition-colors">
-                <FileText className="text-corama-teal" size={24} />
+            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
+                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
+                <FileText className="text-corama-teal relative z-10" size={28} />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-4 sm:mb-6">
+              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-xs sm:text-sm hover:gap-3 transition-all">
+              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                 Learn More <ArrowRight size={14} />
               </button>
             </div>
 
             {/* Feature 3 - Compliance Intelligence */}
-            <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:border-corama-teal/40 transition-all group">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg sm:rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-corama-teal/30 transition-colors">
-                <CheckCircle className="text-corama-teal" size={24} />
+            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
+                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
+                <CheckCircle className="text-corama-teal relative z-10" size={28} />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-4 sm:mb-6">
+              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-xs sm:text-sm hover:gap-3 transition-all">
+              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                 Learn More <ArrowRight size={14} />
               </button>
             </div>
 
             {/* Feature 4 - Win Probability Scoring */}
-            <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:border-corama-teal/40 transition-all group">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg sm:rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-corama-teal/30 transition-colors">
-                <Target className="text-corama-teal" size={24} />
+            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
+                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
+                <Target className="text-corama-teal relative z-10" size={28} />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-4 sm:mb-6">
+              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
               </p>
-              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-xs sm:text-sm hover:gap-3 transition-all">
+              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                 Get Started <ArrowRight size={14} />
               </a>
             </div>
 
             {/* Feature 5 - Intelligent Market Research */}
-            <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:border-corama-teal/40 transition-all group">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg sm:rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-corama-teal/30 transition-colors">
-                <TrendingUp className="text-corama-teal" size={24} />
+            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
+                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
+                <TrendingUp className="text-corama-teal relative z-10" size={28} />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-4 sm:mb-6">
+              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-xs sm:text-sm hover:gap-3 transition-all">
+              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                 Learn More <ArrowRight size={14} />
               </button>
             </div>
 
             {/* Feature 6 - Smart Deadline Management */}
-            <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl p-5 sm:p-8 hover:border-corama-teal/40 transition-all group">
-              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg sm:rounded-xl flex items-center justify-center mb-4 sm:mb-6 group-hover:bg-corama-teal/30 transition-colors">
-                <Clock className="text-corama-teal" size={24} />
+            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+              <div className="w-16 h-16 sm:w-18 sm:h-18 bg-corama-teal/20 rounded-full flex items-center justify-center mb-5 sm:mb-6 group-hover:bg-corama-teal/30 transition-all shadow-[0_0_30px_rgba(107,180,181,0.4)] relative">
+                <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(107,180,181,0.3)_0%,transparent_70%)]"></div>
+                <Clock className="text-corama-teal relative z-10" size={28} />
               </div>
               <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-4 sm:mb-6">
+              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-xs sm:text-sm hover:gap-3 transition-all">
+              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                 Learn More <ArrowRight size={14} />
               </button>
             </div>
@@ -143,25 +195,30 @@ const LandingPage = () => {
       </section>
 
       {/* Scope of Work Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center">
-            <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl overflow-hidden">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
+        {/* Section background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full -translate-y-1/2"></div>
+        </div>
+        
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
+            <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
               <img 
                 src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=800" 
                 alt="Work Station" 
-                className="w-full h-48 sm:h-64 lg:h-80 object-cover"
+                className="w-full h-56 sm:h-72 lg:h-80 object-cover"
                 onError={(e) => { e.currentTarget.src = 'https://placehold.co/800x400/0b2c48/6bb4b5?text=Work+Station' }}
               />
             </div>
             <div className="text-center md:text-left">
-              <h2 className="font-inter font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-sm sm:text-base mb-6 sm:mb-8">
+              <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
+              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
+                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
               >
                 Get Started
               </a>
@@ -171,42 +228,59 @@ const LandingPage = () => {
       </section>
 
       {/* Revolution Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="font-inter font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-6">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
+        {/* Section background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full"></div>
+        </div>
+        
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
-          <p className="text-gray-400 font-poppins text-sm sm:text-base mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
+          <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
-          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm sm:text-base hover:gap-3 transition-all">
-            Learn More <ArrowRight size={14} />
+          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base hover:gap-3 transition-all">
+            Learn More <ArrowRight size={18} />
           </button>
         </div>
       </section>
 
       {/* Mission Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
+        {/* Section background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full -translate-y-1/2"></div>
+        </div>
+        
+        {/* Decorative star */}
+        <div className="absolute top-20 left-10 text-corama-teal/30 hidden lg:block">
+          <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
+          </svg>
+        </div>
+        
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="order-2 md:order-1">
-              <div className="bg-gradient-to-br from-[#0f1419] to-[#0B0B0F] border border-corama-teal/20 rounded-xl sm:rounded-2xl p-5 sm:p-8">
+              <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-[0_0_60px_rgba(107,180,181,0.1)]">
                 <div className="text-center">
-                  <div className="text-2xl sm:text-3xl lg:text-4xl text-gray-500 mb-3 sm:mb-4 font-poppins">CONTRACT</div>
-                  <div className="w-14 h-14 sm:w-20 sm:h-20 mx-auto bg-corama-teal/20 rounded-full flex items-center justify-center">
-                    <CheckCircle className="text-corama-teal" size={28} />
+                  <div className="text-3xl sm:text-4xl text-gray-500 mb-4 font-poppins tracking-wider">CONTRACT</div>
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto bg-gradient-to-br from-corama-teal/30 to-corama-teal/10 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(107,180,181,0.3)]">
+                    <CheckCircle className="text-corama-teal" size={36} />
                   </div>
                 </div>
               </div>
             </div>
             <div className="order-1 md:order-2 text-center md:text-left">
-              <h2 className="font-inter font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-6">Mission</h2>
-              <p className="text-gray-400 font-poppins text-sm sm:text-base mb-6 sm:mb-8">
+              <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
+              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-[#0B0B0F] font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-sm sm:text-base"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-[#0B0B0F] font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
               >
                 Get Started
               </a>
@@ -216,26 +290,37 @@ const LandingPage = () => {
       </section>
 
       {/* Vision Section */}
-      <section className="py-12 sm:py-20 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 lg:gap-12 items-center">
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
+        {/* Section background glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/2 right-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full -translate-y-1/2"></div>
+        </div>
+        
+        <div className="max-w-6xl mx-auto relative z-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="text-center md:text-left">
-              <h2 className="font-inter font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-6">Vision</h2>
-              <p className="text-gray-400 font-poppins text-sm sm:text-base mb-6 sm:mb-8">
+              <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
+              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-[#0B0B0F] font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-sm sm:text-base"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-[#0B0B0F] font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
               >
                 Get Started
               </a>
             </div>
             <div className="flex justify-center order-first md:order-last">
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                {[1,2,3,4,5,6].map((i) => (
-                  <div key={i} className={`w-10 h-10 sm:w-14 sm:h-14 lg:w-16 lg:h-16 rounded-lg ${i % 2 === 0 ? 'bg-corama-teal/30' : 'bg-corama-teal/10'} transform rotate-45`}></div>
-                ))}
+              {/* Hexagon grid pattern */}
+              <div className="relative w-64 h-64 sm:w-80 sm:h-80">
+                <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 bg-corama-teal/40 rounded-lg transform rotate-45 shadow-[0_0_20px_rgba(107,180,181,0.3)]"></div>
+                <div className="absolute top-12 right-16 w-14 h-14 sm:w-18 sm:h-18 bg-corama-teal/30 rounded-lg transform rotate-45"></div>
+                <div className="absolute top-24 right-0 w-16 h-16 sm:w-20 sm:h-20 bg-corama-teal/25 rounded-lg transform rotate-45"></div>
+                <div className="absolute top-12 right-32 w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg transform rotate-45"></div>
+                <div className="absolute top-24 right-16 w-14 h-14 sm:w-18 sm:h-18 bg-corama-teal/35 rounded-lg transform rotate-45 shadow-[0_0_15px_rgba(107,180,181,0.2)]"></div>
+                <div className="absolute top-36 right-0 w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/15 rounded-lg transform rotate-45"></div>
+                <div className="absolute top-36 right-32 w-14 h-14 sm:w-18 sm:h-18 bg-corama-teal/25 rounded-lg transform rotate-45"></div>
+                <div className="absolute top-48 right-16 w-16 h-16 sm:w-20 sm:h-20 bg-corama-teal/30 rounded-lg transform rotate-45 shadow-[0_0_20px_rgba(107,180,181,0.25)]"></div>
               </div>
             </div>
           </div>
@@ -243,23 +328,35 @@ const LandingPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-10 sm:py-16 px-4 sm:px-6 bg-[#0B0B0F] border-t border-gray-800">
-        <div className="max-w-6xl mx-auto">
-          {/* Decorative hexagons */}
-          <div className="flex justify-center gap-2 sm:gap-4 mb-8 sm:mb-12">
+      <footer className="py-12 sm:py-20 px-4 sm:px-6 bg-[#0B0B0F] relative">
+        {/* Footer glow */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-t from-corama-teal/5 to-transparent"></div>
+        </div>
+        
+        <div className="max-w-6xl mx-auto relative z-10">
+          {/* Decorative diamonds */}
+          <div className="flex justify-center gap-3 sm:gap-4 mb-10 sm:mb-14">
             {[1,2,3,4,5,6].map((i) => (
-              <div key={i} className={`w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-lg ${i % 2 === 0 ? 'bg-corama-teal' : 'bg-corama-teal/50'} transform rotate-45`}></div>
+              <div 
+                key={i} 
+                className={`w-10 h-10 sm:w-12 sm:h-12 lg:w-14 lg:h-14 rounded-lg transform rotate-45 transition-all ${
+                  i % 2 === 0 
+                    ? 'bg-corama-teal shadow-[0_0_20px_rgba(107,180,181,0.4)]' 
+                    : 'bg-corama-teal/50 shadow-[0_0_15px_rgba(107,180,181,0.2)]'
+                }`}
+              ></div>
             ))}
           </div>
           
-          <div className="text-center mb-6 sm:mb-8">
-            <p className="text-gray-400 font-poppins text-xs sm:text-sm">
+          <div className="text-center mb-8">
+            <p className="text-gray-400 font-poppins text-sm sm:text-base leading-relaxed">
               222 W. Merchandise Mart Plaza<br />
               Suite 1212 c/o 1871 Chicago, IL 60654
             </p>
           </div>
           
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mb-6 sm:mb-8 text-xs sm:text-sm">
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-8 mb-8 text-sm">
             <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
             <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
             <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
@@ -267,14 +364,14 @@ const LandingPage = () => {
             <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Contact</a>
           </div>
           
-          <div className="text-center mb-6 sm:mb-8">
-            <a href="mailto:info@corama.ai" className="text-gray-400 hover:text-corama-teal font-poppins text-xs sm:text-sm transition-colors">
+          <div className="text-center mb-8">
+            <a href="mailto:info@corama.ai" className="text-gray-400 hover:text-corama-teal font-poppins text-sm transition-colors">
               info@corama.ai
             </a>
           </div>
           
           <div className="text-center">
-            <span className="text-corama-teal font-poppins font-bold text-lg sm:text-xl">CORAMA</span>
+            <span className="text-corama-teal font-poppins font-bold text-xl sm:text-2xl">CORAMA</span>
           </div>
         </div>
       </footer>
