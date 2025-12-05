@@ -332,33 +332,36 @@ const LandingPage = () => {
       </section>
 
       {/* Capturing Major State Procurement Wins Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
-        {/* Background glow */}
+      <section className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative overflow-hidden bg-[#0B0B0F]">
+        {/* Background glow - large soft radial gradient centered around hexagon area - strong intensity */}
         <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-b from-corama-teal/10 to-transparent"></div>
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] h-[120%] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.5)_0%,rgba(107,180,181,0.25)_25%,rgba(107,180,181,0.1)_50%,rgba(11,11,15,0)_75%)]"></div>
         </div>
         
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="max-w-none mx-auto text-center relative z-10 px-4">
           <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Capturing Major State<br />Procurement Wins
           </h2>
-          <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+          <p className="text-gray-400 font-poppins text-base sm:text-lg mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
             "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
           </p>
           
-          {/* Learn More button */}
-          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base hover:gap-3 transition-all mb-12">
+          {/* Learn More button above hexagons */}
+          <button 
+            onClick={scrollToFeatures} 
+            className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap mb-4"
+          >
             Learn More <ArrowRight size={18} />
           </button>
           
-          {/* Hexagon images - left and right */}
-          <div className="flex justify-between items-center max-w-5xl mx-auto">
+          {/* Hexagon images - left and right - maximum width */}
+          <div className="w-full flex justify-between items-center">
             {/* Left hexagons */}
             <img 
               src="/static/app/landing/hexagons.png" 
               alt="" 
               aria-hidden="true"
-              className="w-48 sm:w-64 lg:w-80 h-auto"
+              className="h-auto w-[48%] max-w-[600px]"
             />
             
             {/* Right hexagons - mirrored */}
@@ -366,14 +369,14 @@ const LandingPage = () => {
               src="/static/app/landing/hexagons.png" 
               alt="" 
               aria-hidden="true"
-              className="w-48 sm:w-64 lg:w-80 h-auto scale-x-[-1]"
+              className="h-auto w-[48%] max-w-[600px] scale-x-[-1]"
             />
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 sm:py-20 px-4 sm:px-6 bg-[#0B0B0F] relative">
+      <footer className="pt-4 sm:pt-6 pb-12 sm:pb-16 px-4 sm:px-6 bg-[#0B0B0F] relative">
         {/* Footer glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-t from-corama-teal/5 to-transparent"></div>
