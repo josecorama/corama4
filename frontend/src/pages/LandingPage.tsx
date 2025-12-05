@@ -354,7 +354,7 @@ const LandingPage = () => {
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-20 max-w-[85%] h-auto translate-y-[12px]"
+                className="relative z-20 max-w-[85%] h-auto translate-y-[37px]"
               />
             </div>
 
@@ -378,7 +378,7 @@ const LandingPage = () => {
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-20 max-w-[85%] h-auto translate-y-[12px] scale-x-[-1]"
+                className="relative z-20 max-w-[85%] h-auto translate-y-[37px] scale-x-[-1]"
               />
             </div>
           </div>
