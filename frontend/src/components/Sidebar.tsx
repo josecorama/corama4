@@ -63,8 +63,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
         ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
             <div className="p-4 pt-16 lg:pt-4">
-                <Link to="/" className="flex items-center gap-2" onClick={closeMobile}>
-                  <span className="text-white font-poppins font-bold text-lg">CORAMA</span>
+                <Link to="/app" className="flex items-center gap-2" onClick={closeMobile}>
+                  <img 
+                    src="/static/app/dashboard/CoramaLogo.svg" 
+                    alt="CORAMA" 
+                    className="h-8 w-auto"
+                  />
                 </Link>
               </div>
         
@@ -92,47 +96,49 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 })}
               </nav>
         
-      {/* IHCC and Social Media Section */}
-      <div className="mt-auto p-4 border-t border-corama-darker">
-        <p className="text-gray-400 text-xs mb-2">Learn More About IHCC</p>
-        <a 
-          href="https://ihccbusiness.net/" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="block mb-4"
-        >
-          <img 
-            src="/static/app/dashboard/IHCC.svg" 
-            alt="IHCC - Illinois Hispanic Chamber of Commerce" 
-            className="h-12 w-auto"
-          />
-        </a>
-        <p className="text-gray-400 text-xs mb-3">Follow Contract Radar Maximizer</p>
-        <div className="flex gap-3">
+      {/* IHCC and Social Media Section - centered and left-aligned */}
+      <div className="mt-auto p-4 border-t border-corama-darker flex flex-col items-center">
+        <div className="w-full max-w-[200px]">
+          <p className="text-gray-400 text-xs mb-2 text-left">Learn More About IHCC</p>
           <a 
-            href="https://www.instagram.com/corama.ai/" 
+            href="https://ihccbusiness.net/" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="hover:opacity-80 transition-opacity"
+            className="block mb-4"
           >
-            <img src="/static/app/dashboard/InstagramLogo.svg" alt="Instagram" className="w-5 h-5" />
+            <img 
+              src="/static/app/dashboard/IHCC.svg" 
+              alt="IHCC - Illinois Hispanic Chamber of Commerce" 
+              className="h-12 w-auto"
+            />
           </a>
-          <a 
-            href="https://www.facebook.com/people/Corama/61568626109717/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="hover:opacity-80 transition-opacity"
-          >
-            <img src="/static/app/dashboard/Facebook.svg" alt="Facebook" className="w-5 h-5" />
-          </a>
-          <a 
-            href="https://www.linkedin.com/company/corama-ai" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="hover:opacity-80 transition-opacity"
-          >
-            <img src="/static/app/dashboard/LinkedIn.svg" alt="LinkedIn" className="w-5 h-5" />
-          </a>
+          <p className="text-gray-400 text-xs mb-3 text-left">Follow Contract Radar Maximizer</p>
+          <div className="flex gap-3">
+            <a 
+              href="https://www.instagram.com/corama.ai/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:opacity-80 transition-opacity"
+            >
+              <img src="/static/app/dashboard/InstagramLogo.svg" alt="Instagram" className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://www.facebook.com/people/Corama/61568626109717/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:opacity-80 transition-opacity"
+            >
+              <img src="/static/app/dashboard/Facebook.svg" alt="Facebook" className="w-5 h-5" />
+            </a>
+            <a 
+              href="https://www.linkedin.com/company/corama-ai" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:opacity-80 transition-opacity"
+            >
+              <img src="/static/app/dashboard/LinkedIn.svg" alt="LinkedIn" className="w-5 h-5" />
+            </a>
+          </div>
         </div>
       </div>
     </aside>

@@ -217,19 +217,19 @@ const Dashboard = () => {
                                 <td className="py-4">
                                   <button 
                                     onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
-                                    className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                                    className="p-1 hover:opacity-80 transition-opacity"
                                     title="Open AI Assistant for this contract"
                                   >
-                                    <img src="/static/app/dashboard/AIAssistant.svg" alt="AI Assistant" className="w-5 h-5" />
+                                    <img src="/static/app/dashboard/AIAssistant.svg" alt="AI Assistant" className="w-6 h-6" />
                                   </button>
                                 </td>
                                 <td className="py-4">
                                   <button 
                                     onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
-                                    className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                                    className="p-1 hover:opacity-80 transition-opacity"
                                     title="Visit contract website"
                                   >
-                                    <img src="/static/app/dashboard/VisitSite.svg" alt="Visit Site" className="w-5 h-5" />
+                                    <img src="/static/app/dashboard/VisitSite.svg" alt="Visit Site" className="w-6 h-6" />
                                   </button>
                                 </td>
                               </tr>
@@ -256,19 +256,19 @@ const Dashboard = () => {
                                 <p className="text-gray-300">{contract.dueDate}</p>
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-4">
                               <button 
                                 onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
-                                className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
-                                <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-4 h-4" aria-hidden="true" />
+                                <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
                                 <span className="text-corama-teal text-xs sm:text-sm">AI Assistant</span>
                               </button>
                               <button 
                                 onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
-                                className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
+                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
-                                <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-4 h-4" aria-hidden="true" />
+                                <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
                                 <span className="text-corama-teal text-xs sm:text-sm">Visit Site</span>
                               </button>
                             </div>
