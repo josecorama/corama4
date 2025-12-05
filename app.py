@@ -12568,7 +12568,9 @@ def serve_react_app(path=''):
     app_dir = os.path.join(app.static_folder, 'app')
     
     # Serve static assets (js, css, images) without auth check
-    if path and os.path.exists(os.path.join(app_dir, path)):
+    # Use isfile() instead of exists() to avoid matching directories
+    file_path = os.path.join(app_dir, path) if path else None
+    if path and file_path and os.path.isfile(file_path):
         return send_from_directory(app_dir, path)
     
     # Allow public paths (landing page) without authentication
