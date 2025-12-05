@@ -341,12 +341,12 @@ const LandingPage = () => {
             "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
           </p>
           
-          {/* Learn More BETWEEN glows - three column flex layout with 50% bigger images */}
-          <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center sm:gap-6">
-            {/* Left hexagon group with rectangular glow overlay - 50% bigger (420 -> 630) */}
-            <div className="relative w-full max-w-[630px] sm:w-[42%]">
-              {/* Rectangular glow overlay - centered on image, wider than tall for pill/rectangle shape */}
-              <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[160%] h-[70%] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
+          {/* Learn More BETWEEN IMAGES - hexagons moved down so button is at top */}
+          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'flex-start', gap: '16px', marginTop: '24px' }}>
+            {/* Left hexagon group - moved down */}
+            <div className="relative" style={{ width: '300px', flexShrink: 1, marginTop: '32px' }}>
+              {/* Rectangular glow - centered on image */}
+              <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[60%] rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
               <img
                 src="/static/app/landing/hexagons.png"
                 alt=""
@@ -355,18 +355,19 @@ const LandingPage = () => {
               />
             </div>
 
-            {/* Learn More button centered between the glows */}
+            {/* Learn More button - stays at top */}
             <button
               onClick={scrollToFeatures}
-              className="relative z-30 inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap shrink-0"
+              style={{ flexShrink: 0 }}
+              className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap px-2"
             >
               Learn More <ArrowRight size={18} />
             </button>
 
-            {/* Right hexagon group with rectangular glow overlay (mirrored) - 50% bigger */}
-            <div className="relative w-full max-w-[630px] sm:w-[42%]">
-              {/* Rectangular glow overlay - centered on image, wider than tall for pill/rectangle shape */}
-              <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[160%] h-[70%] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
+            {/* Right hexagon group (mirrored) - moved down */}
+            <div className="relative" style={{ width: '300px', flexShrink: 1, marginTop: '32px' }}>
+              {/* Rectangular glow - centered on image */}
+              <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[60%] rounded-[999px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
               <img
                 src="/static/app/landing/hexagons.png"
                 alt=""
