@@ -348,23 +348,23 @@ const LandingPage = () => {
               className="relative flex items-center justify-center"
               style={{ width: '600px', height: '160px', flexShrink: 1 }}
             >
-              {/* Full-width horizontal glow beneath hexagons */}
+              {/* Soft oval glow that covers/encompasses the hexagons */}
               <div
                 className="pointer-events-none absolute left-1/2 -translate-x-1/2"
                 style={{
                   bottom: '25%',
                   width: '100%',
-                  height: '16px',
-                  background: 'linear-gradient(to right, rgba(107,180,181,0), rgba(107,180,181,0.6), rgba(107,180,181,0))',
-                  filter: 'blur(10px)',
-                  opacity: 0.8,
+                  height: '100px',
+                  background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
+                  filter: 'blur(8px)',
+                  opacity: 0.75,
                 }}
               />
               <img
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-10 max-w-[85%] h-auto translate-y-[20px]"
+                className="relative z-10 max-w-[85%] h-auto translate-y-[75px]"
               />
             </div>
 
@@ -377,28 +377,28 @@ const LandingPage = () => {
               Learn More <ArrowRight size={18} />
             </button>
 
-            {/* Right hexagon group (mirrored) - with full-width horizontal glow beneath */}
+            {/* Right hexagon group (mirrored) - with soft oval glow that covers hexagons */}
             <div
               className="relative flex items-center justify-center"
               style={{ width: '600px', height: '160px', flexShrink: 1 }}
             >
-              {/* Full-width horizontal glow beneath hexagons */}
+              {/* Soft oval glow that covers/encompasses the hexagons */}
               <div
                 className="pointer-events-none absolute left-1/2 -translate-x-1/2"
                 style={{
                   bottom: '25%',
                   width: '100%',
-                  height: '16px',
-                  background: 'linear-gradient(to right, rgba(107,180,181,0), rgba(107,180,181,0.6), rgba(107,180,181,0))',
-                  filter: 'blur(10px)',
-                  opacity: 0.8,
+                  height: '100px',
+                  background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
+                  filter: 'blur(8px)',
+                  opacity: 0.75,
                 }}
               />
               <img
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-10 max-w-[85%] h-auto translate-y-[20px] scale-x-[-1]"
+                className="relative z-10 max-w-[85%] h-auto translate-y-[75px] scale-x-[-1]"
               />
             </div>
           </div>
