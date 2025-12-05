@@ -55,14 +55,14 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - sticky on desktop so IHCC section stays visible */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-40
-        w-64 min-h-screen bg-corama-dark flex flex-col
+        fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40
+        w-64 h-screen bg-corama-dark flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-            <div className="p-4 pt-16 lg:pt-4 flex justify-center">
+            <div className="p-4 pt-16 lg:pt-4 flex justify-center shrink-0">
                 <Link to="/app" className="inline-flex items-center" onClick={closeMobile}>
                   <img 
                     src="/static/app/dashboard/CoramaLogo.svg" 
@@ -96,8 +96,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 })}
               </nav>
         
-      {/* IHCC and Social Media Section - centered, no border */}
-      <div className="mt-auto p-4 text-center">
+      {/* IHCC and Social Media Section - fixed at bottom, centered */}
+      <div className="p-4 text-center shrink-0">
         <p className="text-gray-400 text-xs mb-2">Learn More About IHCC</p>
         <a 
           href="https://ihccbusiness.net/" 
