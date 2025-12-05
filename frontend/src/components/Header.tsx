@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Search, Coins, LogOut, Settings } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../services/api'
 
@@ -9,7 +9,6 @@ interface HeaderProps {
 
 const Header = ({ credits: propCredits }: HeaderProps) => {
   const [credits, setCredits] = useState(propCredits ?? 0)
-  const [userName, setUserName] = useState('')
 
   useEffect(() => {
     loadUserData()
@@ -19,7 +18,6 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
     try {
       const user = await api.getUser()
       setCredits(user.credits_balance)
-      setUserName(user.first_name || user.email.split('@')[0])
     } catch (error) {
       console.error('Failed to load user data:', error)
     }
@@ -31,11 +29,17 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
 
   return (
     <header className="h-14 lg:h-16 bg-corama-dark border-b border-corama-darker flex items-center justify-between px-4 lg:px-6 ml-0 lg:ml-0">
-      {/* Spacer for mobile menu button */}
-      <div className="w-10 lg:hidden"></div>
+      {/* CORAMA Logo - links to landing page */}
+      <Link to="/app" className="flex items-center">
+        <img 
+          src="/static/app/dashboard/CoramaLogo.svg" 
+          alt="CORAMA" 
+          className="h-8 lg:h-10 w-auto"
+        />
+      </Link>
       
       {/* Search - hidden on mobile, visible on tablet+ */}
-      <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl">
+      <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl mx-4">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
@@ -52,13 +56,8 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
       </button>
       
       <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
-        {userName && (
-          <span className="hidden sm:inline text-gray-400 font-poppins text-xs sm:text-sm">
-            Hi, {userName}
-          </span>
-        )}
         <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-          <Coins size={18} className="text-corama-teal" />
+          <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
           <span className="font-poppins text-xs sm:text-sm">{credits}</span>
           <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Credits</span>
         </Link>
@@ -67,12 +66,12 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           onClick={handleLogout}
           className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors"
         >
-          <LogOut size={18} />
+          <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-5 w-5" aria-hidden="true" />
           <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Log Out</span>
         </button>
         
         <button className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-          <Settings size={18} />
+          <img src="/static/app/dashboard/settings.svg" alt="" className="h-5 w-5" aria-hidden="true" />
           <span className="hidden lg:inline font-poppins text-sm">Settings</span>
         </button>
       </div>

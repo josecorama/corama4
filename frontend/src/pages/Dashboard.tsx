@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { MessageSquare, Globe, ChevronLeft, ChevronRight, Filter } from 'lucide-react'
 import { api, Contract as ApiContract } from '../services/api'
 
 interface Contract {
@@ -170,22 +169,22 @@ const Dashboard = () => {
                             </svg>
                           </form>
                           <button className="text-gray-400 hover:text-white p-2">
-                            <Filter size={18} />
+                            <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
                           </button>
                           <div className="flex items-center gap-1 sm:gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                             <span className="hidden sm:inline">{startItem}-{endItem} of {totalContracts}</span>
                             <span className="sm:hidden">{currentPage}/{Math.ceil(totalContracts/contractsPerPage)}</span>
                             <button 
                               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                              className="p-1 hover:text-white"
+                              className="p-1 hover:opacity-80"
                             >
-                              <ChevronLeft size={16} />
+                              <img src="/static/app/dashboard/LeftArrow.svg" alt="Previous" className="w-4 h-4" />
                             </button>
                             <button 
                               onClick={() => setCurrentPage(p => p + 1)}
-                              className="p-1 hover:text-white"
+                              className="p-1 hover:opacity-80"
                             >
-                              <ChevronRight size={16} />
+                              <img src="/static/app/dashboard/RightArrow.svg" alt="Next" className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -221,7 +220,7 @@ const Dashboard = () => {
                                     className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
                                     title="Open AI Assistant for this contract"
                                   >
-                                    <MessageSquare size={18} className="text-corama-teal" />
+                                    <img src="/static/app/dashboard/AIAssistant.svg" alt="AI Assistant" className="w-5 h-5" />
                                   </button>
                                 </td>
                                 <td className="py-4">
@@ -230,7 +229,7 @@ const Dashboard = () => {
                                     className="p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
                                     title="Visit contract website"
                                   >
-                                    <Globe size={18} className="text-corama-teal" />
+                                    <img src="/static/app/dashboard/VisitSite.svg" alt="Visit Site" className="w-5 h-5" />
                                   </button>
                                 </td>
                               </tr>
@@ -262,14 +261,14 @@ const Dashboard = () => {
                                 onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
                                 className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
                               >
-                                <MessageSquare size={16} className="text-corama-teal" />
+                                <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-4 h-4" aria-hidden="true" />
                                 <span className="text-corama-teal text-xs sm:text-sm">AI Assistant</span>
                               </button>
                               <button 
                                 onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
                                 className="flex-1 flex items-center justify-center gap-2 p-2 bg-corama-teal/20 rounded-lg hover:bg-corama-teal/30 transition-colors"
                               >
-                                <Globe size={16} className="text-corama-teal" />
+                                <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-4 h-4" aria-hidden="true" />
                                 <span className="text-corama-teal text-xs sm:text-sm">Visit Site</span>
                               </button>
                             </div>
