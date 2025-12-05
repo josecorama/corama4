@@ -341,37 +341,37 @@ const LandingPage = () => {
             "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
           </p>
           
-          {/* Learn More BETWEEN hexagons - three column flex layout */}
-          <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
-            {/* Left hexagon group with glow overlay */}
-            <div className="relative w-full max-w-[420px] sm:w-[36%]">
-              {/* Glow overlay IN FRONT of image - appears to emanate from hexagons */}
-              <div className="pointer-events-none absolute -inset-6 bg-[radial-gradient(circle_at_center,rgba(107,180,181,0.6)_0%,rgba(107,180,181,0.25)_35%,rgba(11,11,15,0)_75%)] mix-blend-screen opacity-80 z-20"></div>
+          {/* Learn More BETWEEN glows - three column flex layout with 50% bigger images */}
+          <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center sm:gap-6">
+            {/* Left hexagon group with rectangular glow overlay - 50% bigger (420 -> 630) */}
+            <div className="relative w-full max-w-[630px] sm:w-[42%]">
+              {/* Rectangular glow overlay - centered on image, wider than tall for pill/rectangle shape */}
+              <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[160%] h-[70%] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
               <img
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-10 w-full h-auto"
+                className="relative z-20 w-full h-auto"
               />
             </div>
 
-            {/* Learn More button centered between hexagons */}
+            {/* Learn More button centered between the glows */}
             <button
               onClick={scrollToFeatures}
-              className="relative z-20 inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap shrink-0"
+              className="relative z-30 inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap shrink-0"
             >
               Learn More <ArrowRight size={18} />
             </button>
 
-            {/* Right hexagon group with glow overlay (mirrored) */}
-            <div className="relative w-full max-w-[420px] sm:w-[36%]">
-              {/* Glow overlay IN FRONT of image - appears to emanate from hexagons */}
-              <div className="pointer-events-none absolute -inset-6 bg-[radial-gradient(circle_at_center,rgba(107,180,181,0.6)_0%,rgba(107,180,181,0.25)_35%,rgba(11,11,15,0)_75%)] mix-blend-screen opacity-80 z-20"></div>
+            {/* Right hexagon group with rectangular glow overlay (mirrored) - 50% bigger */}
+            <div className="relative w-full max-w-[630px] sm:w-[42%]">
+              {/* Rectangular glow overlay - centered on image, wider than tall for pill/rectangle shape */}
+              <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[160%] h-[70%] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.55)_0%,rgba(107,180,181,0.25)_40%,rgba(11,11,15,0)_80%)] mix-blend-screen opacity-80 z-10"></div>
               <img
                 src="/static/app/landing/hexagons.png"
                 alt=""
                 aria-hidden="true"
-                className="relative z-10 w-full h-auto scale-x-[-1]"
+                className="relative z-20 w-full h-auto scale-x-[-1]"
               />
             </div>
           </div>
