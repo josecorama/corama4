@@ -6,7 +6,7 @@ const LandingPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] overflow-hidden">
+    <div className="min-h-screen bg-[#0B0B0F]">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
@@ -30,28 +30,31 @@ const LandingPage = () => {
 
       {/* Hero Section */}
       <section className="pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
-        {/* Background glow effects - more prominent */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[700px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(107,180,181,0.08)_40%,transparent_70%)]"></div>
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(26,58,74,0.6)_0%,transparent_70%)]"></div>
-          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.5)_0%,transparent_70%)]"></div>
-          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)]"></div>
+        {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          {/* Main teal glow - top left, tilted ellipse effect */}
+          <div className="absolute top-[10%] left-[20%] w-[800px] h-[500px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.3)_0%,rgba(26,58,74,0.2)_40%,transparent_70%)] -rotate-6"></div>
+          {/* Secondary teal glow - center */}
+          <div className="absolute top-[30%] left-[30%] w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,transparent_60%)]"></div>
+          {/* Subtle dark blue glow */}
+          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.25)_0%,transparent_70%)]"></div>
         </div>
         
-        {/* Orbital lines decoration */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Layer 1: Orbital lines decoration */}
+        <div className="absolute inset-0 pointer-events-none z-[1]">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-corama-teal/15 rounded-full"></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-corama-teal/8 rounded-full"></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] border border-corama-teal/5 rounded-full"></div>
         </div>
         
-        {/* Decorative dots/stars */}
-        <div className="absolute top-20 left-10 w-2 h-2 bg-corama-teal rounded-full opacity-60 hidden sm:block animate-pulse"></div>
-        <div className="absolute top-40 right-20 w-3 h-3 bg-corama-teal/50 rounded-full hidden sm:block"></div>
-        <div className="absolute bottom-20 left-1/4 w-2 h-2 bg-corama-teal/30 rounded-full hidden sm:block"></div>
-        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/40 rounded-full hidden sm:block"></div>
-        <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-corama-teal/60 rounded-full hidden sm:block"></div>
+        {/* Layer 2: Decorative dots/stars */}
+        <div className="absolute top-20 left-10 w-2 h-2 bg-corama-teal rounded-full opacity-60 hidden sm:block animate-pulse z-[2]"></div>
+        <div className="absolute top-40 right-20 w-3 h-3 bg-corama-teal/50 rounded-full hidden sm:block z-[2]"></div>
+        <div className="absolute bottom-20 left-1/4 w-2 h-2 bg-corama-teal/30 rounded-full hidden sm:block z-[2]"></div>
+        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/40 rounded-full hidden sm:block z-[2]"></div>
+        <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-corama-teal/60 rounded-full hidden sm:block z-[2]"></div>
         
+        {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
           <h1 className="font-inter font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             With AI Find<br />Contracts
@@ -69,12 +72,13 @@ const LandingPage = () => {
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative">
-        {/* Section background glow - more prominent */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.12)_0%,rgba(107,180,181,0.04)_50%,transparent_70%)]"></div>
-          <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.5)_0%,transparent_70%)]"></div>
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.4)_0%,transparent_70%)]"></div>
+      <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+        {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          {/* Top-left teal glow */}
+          <div className="absolute top-0 -left-32 w-[700px] h-[450px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
+          {/* Bottom-right teal glow */}
+          <div className="absolute bottom-0 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(26,58,74,0.12)_40%,transparent_70%)] -rotate-6"></div>
         </div>
         
         {/* Decorative stars - more visible */}
@@ -195,10 +199,10 @@ const LandingPage = () => {
       </section>
 
       {/* Scope of Work Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
-        {/* Section background glow */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-0 w-[500px] h-[500px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full -translate-y-1/2"></div>
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+        {/* Soft teal glow background */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
         </div>
         
         <div className="max-w-6xl mx-auto relative z-10">
@@ -248,10 +252,10 @@ const LandingPage = () => {
       </section>
 
       {/* Mission Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
-        {/* Section background glow */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full -translate-y-1/2"></div>
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+        {/* Soft teal glow background */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
         </div>
         
         {/* Decorative star */}
@@ -290,10 +294,10 @@ const LandingPage = () => {
       </section>
 
       {/* Vision Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
-        {/* Section background glow */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 right-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full -translate-y-1/2"></div>
+      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+        {/* Soft teal glow background */}
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <div className="absolute top-1/2 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
         </div>
         
         <div className="max-w-6xl mx-auto relative z-10">
