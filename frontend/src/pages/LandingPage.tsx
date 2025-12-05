@@ -332,13 +332,8 @@ const LandingPage = () => {
       </section>
 
       {/* Capturing Major State Procurement Wins Section */}
-      <section className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative overflow-hidden bg-[#0B0B0F]">
-        {/* Background glow - large soft radial gradient centered around hexagon area - strong intensity */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] h-[120%] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.5)_0%,rgba(107,180,181,0.25)_25%,rgba(107,180,181,0.1)_50%,rgba(11,11,15,0)_75%)]"></div>
-        </div>
-        
-        <div className="max-w-none mx-auto text-center relative z-10 px-4">
+      <section className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative bg-[#0B0B0F]">
+        <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
           <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Capturing Major State<br />Procurement Wins
           </h2>
@@ -346,42 +341,45 @@ const LandingPage = () => {
             "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
           </p>
           
-          {/* Learn More button above hexagons */}
-          <button 
-            onClick={scrollToFeatures} 
-            className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap mb-4"
-          >
-            Learn More <ArrowRight size={18} />
-          </button>
-          
-          {/* Hexagon images - left and right - maximum width */}
-          <div className="w-full flex justify-between items-center">
-            {/* Left hexagons */}
-            <img 
-              src="/static/app/landing/hexagons.png" 
-              alt="" 
-              aria-hidden="true"
-              className="h-auto w-[48%] max-w-[600px]"
-            />
-            
-            {/* Right hexagons - mirrored */}
-            <img 
-              src="/static/app/landing/hexagons.png" 
-              alt="" 
-              aria-hidden="true"
-              className="h-auto w-[48%] max-w-[600px] scale-x-[-1]"
-            />
+          {/* Learn More BETWEEN hexagons - three column flex layout */}
+          <div className="mt-6 flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
+            {/* Left hexagon group with glow overlay */}
+            <div className="relative w-full max-w-[420px] sm:w-[36%]">
+              {/* Glow overlay IN FRONT of image - appears to emanate from hexagons */}
+              <div className="pointer-events-none absolute -inset-6 bg-[radial-gradient(circle_at_center,rgba(107,180,181,0.6)_0%,rgba(107,180,181,0.25)_35%,rgba(11,11,15,0)_75%)] mix-blend-screen opacity-80 z-20"></div>
+              <img
+                src="/static/app/landing/hexagons.png"
+                alt=""
+                aria-hidden="true"
+                className="relative z-10 w-full h-auto"
+              />
+            </div>
+
+            {/* Learn More button centered between hexagons */}
+            <button
+              onClick={scrollToFeatures}
+              className="relative z-20 inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap shrink-0"
+            >
+              Learn More <ArrowRight size={18} />
+            </button>
+
+            {/* Right hexagon group with glow overlay (mirrored) */}
+            <div className="relative w-full max-w-[420px] sm:w-[36%]">
+              {/* Glow overlay IN FRONT of image - appears to emanate from hexagons */}
+              <div className="pointer-events-none absolute -inset-6 bg-[radial-gradient(circle_at_center,rgba(107,180,181,0.6)_0%,rgba(107,180,181,0.25)_35%,rgba(11,11,15,0)_75%)] mix-blend-screen opacity-80 z-20"></div>
+              <img
+                src="/static/app/landing/hexagons.png"
+                alt=""
+                aria-hidden="true"
+                className="relative z-10 w-full h-auto scale-x-[-1]"
+              />
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
       <footer className="pt-4 sm:pt-6 pb-12 sm:pb-16 px-4 sm:px-6 bg-[#0B0B0F] relative">
-        {/* Footer glow */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-1/2 bg-gradient-to-t from-corama-teal/5 to-transparent"></div>
-        </div>
-        
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="text-center mb-8">
             <p className="text-gray-400 font-poppins text-sm sm:text-base leading-relaxed">
