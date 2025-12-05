@@ -90,20 +90,16 @@
         }
         
         .login-header-signup {
-            background: #6bb4b5;
-            color: #0B0B0F;
+            color: #6bb4b5;
             font-family: 'Poppins', sans-serif;
             font-size: 0.875rem;
-            font-weight: 600;
-            padding: 10px 24px;
-            border-radius: 8px;
+            font-weight: 500;
             text-decoration: none;
-            transition: background 0.2s ease;
+            transition: color 0.2s ease;
         }
         
         .login-header-signup:hover {
-            background: #99c8ca;
-            color: #0B0B0F;
+            color: #99c8ca;
             text-decoration: none;
         }
         
@@ -140,27 +136,21 @@
         
         .login-logo {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
         }
         
         .login-logo img {
-            width: 60px;
-            height: 60px;
-        }
-        
-        .login-logo-text {
-            color: #6bb4b5;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 1rem;
-            margin-top: 8px;
+            height: 80px;
+            width: auto;
         }
         
         .login-signup-title {
             color: #ffffff !important;
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 2rem;
+            font-family: 'Georgia', 'Times New Roman', serif !important;
+            font-weight: 400 !important;
+            font-style: italic !important;
+            font-size: 1.75rem !important;
+            text-transform: none !important;
             margin-bottom: 30px;
             text-align: center;
         }
@@ -178,26 +168,26 @@
         }
         
         .form-control {
-            border: 1px solid rgba(107, 180, 181, 0.3);
+            border: 1px solid rgba(209, 213, 219, 0.3);
             border-radius: 8px;
             padding: 14px 16px;
             font-size: 0.95rem;
             transition: all 0.3s ease;
-            background: rgba(15, 20, 25, 0.6);
-            color: #d9d9d9;
+            background: #ffffff;
+            color: #1f2937;
             height: auto;
         }
         
         .form-control:focus {
             border-color: #6bb4b5;
             box-shadow: 0 0 0 0.2rem rgba(107, 180, 181, 0.15);
-            background: rgba(15, 20, 25, 0.8);
+            background: #ffffff;
             outline: none;
-            color: #ffffff;
+            color: #1f2937;
         }
         
         .form-control::placeholder {
-            color: #6c757d;
+            color: #9ca3af;
             font-weight: 400;
         }
         
@@ -314,14 +304,84 @@
                 font-size: 1.6rem;
             }
         }
+        
+        /* Dark Footer for Login Page */
+        .login-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, rgba(11, 11, 15, 0) 0%, rgba(11, 11, 15, 0.95) 30%);
+            padding: 20px 0;
+            z-index: 40;
+        }
+        
+        .login-footer-container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .login-footer-address {
+            color: #9ca3af;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.75rem;
+            line-height: 1.5;
+        }
+        
+        .login-footer-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .login-footer-link {
+            color: #9ca3af;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.75rem;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+        
+        .login-footer-link:hover {
+            color: #ffffff;
+            text-decoration: none;
+        }
+        
+        .login-footer-email {
+            color: #9ca3af;
+            font-family: 'Poppins', sans-serif;
+            font-size: 0.75rem;
+        }
+        
+        /* Hide old footer */
+        .footer-professional {
+            display: none !important;
+        }
+        
+        @media (max-width: 768px) {
+            .login-footer-container {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .login-footer-links {
+                justify-content: center;
+            }
+        }
     </style>
 
     <div class="container">
         <div class="login-container">
             <!-- Logo -->
             <div class="login-logo">
-                <img src="{{ url_for('static', filename='images/corama-logo.png') }}" alt="CORAMA" onerror="this.style.display='none'">
-                <div class="login-logo-text">CORAMA</div>
+                <img src="{{ url_for('static', filename='app/landing/corama-logo.png') }}" alt="CORAMA">
             </div>
             
             <h1 class="login-signup-title">Welcome Back</h1>
@@ -376,6 +436,26 @@
         </div>
     </div>
   
+
+    <!-- Dark Footer for Login Page -->
+    <footer class="login-footer">
+        <div class="login-footer-container">
+            <div class="login-footer-address">
+                222 W. Merchandise Mart Plaza<br>
+                Suite 1212 c/o 1871 Chicago, IL 60654
+            </div>
+            <div class="login-footer-links">
+                <a href="https://ihccbusiness.net/" target="_blank" class="login-footer-link">Learn More About IHCC</a>
+                <a href="{{ url_for('terms_of_use') }}" target="_blank" class="login-footer-link">Terms of Use</a>
+                <a href="/static/docs/policy.pdf" target="_blank" class="login-footer-link">Policy Notice</a>
+                <a href="{{ url_for('Faq') }}" class="login-footer-link">Frequently Asked Questions</a>
+                <a href="mailto:Info@corama.ai" class="login-footer-link">Contact</a>
+            </div>
+            <div class="login-footer-email">
+                Info@corama.ai
+            </div>
+        </div>
+    </footer>
 
     {% include 'footer.html' %}
     {% include 'scripts.html' %}
