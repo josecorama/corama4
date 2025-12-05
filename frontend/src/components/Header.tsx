@@ -3,6 +3,8 @@ import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../services/api'
 
+// Note: Link is still used for credits link below
+
 interface HeaderProps {
   credits?: number
 }
@@ -29,17 +31,8 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
 
   return (
     <header className="h-14 lg:h-16 bg-corama-dark border-b border-corama-darker flex items-center justify-between px-4 lg:px-6 ml-0 lg:ml-0">
-      {/* CORAMA Logo - links to landing page */}
-      <Link to="/app" className="flex items-center">
-        <img 
-          src="/static/app/dashboard/CoramaLogo.svg" 
-          alt="CORAMA" 
-          className="h-8 lg:h-10 w-auto"
-        />
-      </Link>
-      
       {/* Search - hidden on mobile, visible on tablet+ */}
-      <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl mx-4">
+      <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input

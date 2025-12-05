@@ -62,12 +62,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
         transform transition-transform duration-300 ease-in-out
         ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
-            <div className="p-4 pt-16 lg:pt-4">
-                <Link to="/app" className="flex items-center gap-2" onClick={closeMobile}>
+            <div className="p-4 pt-16 lg:pt-4 flex justify-center">
+                <Link to="/app" className="inline-flex items-center" onClick={closeMobile}>
                   <img 
                     src="/static/app/dashboard/CoramaLogo.svg" 
                     alt="CORAMA" 
-                    className="h-8 w-auto"
+                    className="h-8 lg:h-10 w-auto"
                   />
                 </Link>
               </div>
@@ -96,9 +96,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 })}
               </nav>
         
-      {/* IHCC and Social Media Section - centered and left-aligned */}
+      {/* IHCC and Social Media Section - centered horizontally */}
       <div className="mt-auto p-4 border-t border-corama-darker flex flex-col items-center">
-        <div className="w-full max-w-[200px]">
+        <div className="max-w-[200px] w-full mx-auto text-left">
           <p className="text-gray-400 text-xs mb-2 text-left">Learn More About IHCC</p>
           <a 
             href="https://ihccbusiness.net/" 
