@@ -28,9 +28,10 @@ import numpy as np
 import shutil
 from sklearn.metrics.pairwise import cosine_similarity
 import ast
-import faiss
 import csv
 import json
+import threading
+import uuid
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
 #from RAG.Capability_statement_embedding import generate_embeddings as generate_capability_embeddings
@@ -86,6 +87,8 @@ app.config['WTF_CSRF_ENABLED'] = True
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(os.path.join(base_dir, 'static', 'uploads'), exist_ok=True)
@@ -95,8 +98,15 @@ if os.getenv('ENV') == 'production':
 else:
     logging.basicConfig(level=logging.INFO)
 
+proposal_jobs = {}
+job_lock = threading.Lock()
 
 
+# Health Check Path
+@app.route("/healthz")
+def health_check():
+    return {"status": "ok"}, 200
+    
 
 # ALLOWED EXTENTIONS
 ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'png', 'jpeg'}
@@ -139,10 +149,15 @@ if service_account_json_path:
 else:
     service_account_json = None
 # FIREBASE 
+database_url = os.getenv('DATABASE_URL', '').rstrip('/')
+if database_url.endswith('/users'):
+    database_url = database_url[:-6]  # Remove trailing /users
+logging.info(f"🔧 Normalized DATABASE_URL: {database_url}")
+
 config = {
     "apiKey": os.getenv('FIREBASE_API_KEY'),
     "authDomain": os.getenv('AUTH_DOMAIN'),
-    "databaseURL": os.getenv('DATABASE_URL'),
+    "databaseURL": database_url,
     "projectId": os.getenv('PROJECT_ID'),
     "storageBucket": os.getenv('STORAGE_BUCKET'),
     "messagingSenderId": os.getenv('MESSAGING_SENDER_ID'),
@@ -210,7 +225,7 @@ admin_db = None
 
 try:
     import firebase_admin
-    from firebase_admin import credentials, db as admin_database
+    from firebase_admin import credentials, db as admin_database, storage as admin_storage
     import json
     
     firebase_creds_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
@@ -220,12 +235,15 @@ try:
             # Parse JSON string from environment variable
             service_account_dict = json.loads(firebase_creds_json)
             cred = credentials.Certificate(service_account_dict)
+            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
             firebase_admin.initialize_app(cred, {
-                'databaseURL': os.getenv('DATABASE_URL')
+                'databaseURL': database_url,
+                'storageBucket': storage_bucket
             })
             admin_db = admin_database
             admin_initialized = True
             logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
+            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
         except json.JSONDecodeError as e:
             logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
             logging.warning("Credit purchase via webhook will use fallback method.")
@@ -234,12 +252,15 @@ try:
         
         if os.path.exists(service_account_path):
             cred = credentials.Certificate(service_account_path)
+            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
             firebase_admin.initialize_app(cred, {
-                'databaseURL': os.getenv('DATABASE_URL')
+                'databaseURL': database_url,
+                'storageBucket': storage_bucket
             })
             admin_db = admin_database
             admin_initialized = True
             logging.info("✅ Firebase Admin SDK initialized successfully from file")
+            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
         else:
             logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
             logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
@@ -254,6 +275,69 @@ except Exception as e:
     logging.warning("Credit purchase via webhook will use fallback method.")
 
 
+# Firebase Storage Helper Function
+def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type: str = None) -> str:
+    """
+    Upload a file to Firebase Storage and return the public URL.
+    Uses Firebase Admin SDK (preferred) or falls back to Pyrebase.
+    
+    Args:
+        file_data: The file content as bytes
+        storage_path: The path in Firebase Storage (e.g., 'contracts/abc123.pdf')
+        content_type: Optional MIME type (e.g., 'application/pdf', 'image/png')
+    
+    Returns:
+        The public URL of the uploaded file, or None if upload fails
+    """
+    # Try Firebase Admin SDK first (more reliable, uses service account)
+    if admin_initialized:
+        try:
+            bucket = admin_storage.bucket()
+            blob = bucket.blob(storage_path)
+            blob.upload_from_string(file_data, content_type=content_type or 'application/octet-stream')
+            
+            # Make the blob publicly readable
+            blob.make_public()
+            public_url = blob.public_url
+            
+            logging.info(f"✅ Uploaded file to Firebase Storage via Admin SDK: {storage_path}")
+            logging.info(f"✅ Firebase Storage URL: {public_url}")
+            return public_url
+        except Exception as admin_error:
+            logging.warning(f"⚠️ Firebase Admin SDK upload failed: {admin_error}, trying Pyrebase fallback")
+    
+    # Fallback to Pyrebase storage
+    try:
+        if not storage:
+            logging.error("Firebase Storage not initialized (neither Admin SDK nor Pyrebase)")
+            return None
+        
+        # Create a temporary file to upload
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(file_data)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Upload to Firebase Storage using Pyrebase
+            storage.child(storage_path).put(tmp_path)
+            
+            # Get the download URL from Pyrebase (includes proper encoding and auth token)
+            download_url = storage.child(storage_path).get_url(None)
+            
+            logging.info(f"✅ Uploaded file to Firebase Storage via Pyrebase: {storage_path}")
+            logging.info(f"✅ Firebase Storage URL: {download_url}")
+            return download_url
+        finally:
+            # Clean up temporary file
+            import os as temp_os
+            if temp_os.path.exists(tmp_path):
+                temp_os.remove(tmp_path)
+                
+    except Exception as e:
+        logging.error(f"❌ Failed to upload to Firebase Storage: {e}")
+        return None
+
 
 # Set secure HTTP headers
 @app.after_request
@@ -263,6 +347,12 @@ def set_secure_headers(response):
     response.headers['X-XSS-Protection'] = '1; mode=block'
     response.headers['Strict-Transport-Security'] = 'max-age=63072000; includeSubDomains'
     return response
+
+from werkzeug.exceptions import RequestEntityTooLarge
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_413(e):
+    return jsonify({'success': False, 'error': 'File too large. Maximum size is 16MB.'}), 413
 
 
 #LOGGING
@@ -276,11 +366,2095 @@ app.logger.setLevel(logging.INFO)
 
 #OPEN AI 
 
-client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY'))
+# Use OPENAI_MARIO as primary key for all AI features (including smart search embeddings)
+smart_search_api_key = os.getenv('OPENAI_MARIO') or os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
 
-client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY'))
+# In-memory cache for AI-generated NAICS codes (keyed by hash_value)
+# This cache is persisted to disk to avoid regenerating on every restart
+AI_NAICS_CACHE = {}
+AI_NAICS_CACHE_FILE = os.path.join(os.path.dirname(__file__), 'ai_naics_cache.json')
 
-client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
+def load_ai_naics_cache():
+    """Load AI NAICS cache from disk on app startup."""
+    global AI_NAICS_CACHE
+    try:
+        if os.path.exists(AI_NAICS_CACHE_FILE):
+            with open(AI_NAICS_CACHE_FILE, 'r') as f:
+                AI_NAICS_CACHE = json.load(f)
+            logging.info(f"[AI_NAICS] Loaded {len(AI_NAICS_CACHE)} cached NAICS codes from disk")
+    except Exception as e:
+        logging.warning(f"[AI_NAICS] Failed to load cache from disk: {e}")
+        AI_NAICS_CACHE = {}
+
+def save_ai_naics_cache():
+    """Save AI NAICS cache to disk."""
+    try:
+        with open(AI_NAICS_CACHE_FILE, 'w') as f:
+            json.dump(AI_NAICS_CACHE, f)
+    except Exception as e:
+        logging.warning(f"[AI_NAICS] Failed to save cache to disk: {e}")
+
+# Load cache on module import
+load_ai_naics_cache()
+
+# In-memory cache for AI-predicted categories (keyed by hash_value)
+AI_CATEGORY_CACHE = {}
+
+# Qdrant analytics cache with signature-based invalidation
+# This allows detecting changes in Qdrant without expensive rescans
+QDRANT_ANALYTICS_CACHE = None
+QDRANT_ANALYTICS_SIGNATURE = None
+QDRANT_CONTRACTS_CACHE = None  # Cache for all contracts
+QDRANT_CONTRACTS_SIGNATURE = None
+
+def get_qdrant_collection_signature():
+    """Get a cheap signature for the Qdrant collection to detect changes.
+    
+    Returns the points_count as a string, which changes when contracts are added/deleted.
+    This is much cheaper than scanning all contracts.
+    """
+    try:
+        from qdrant_client import QdrantClient
+        qdrant_client = QdrantClient(
+            url=os.getenv('Qdrant_EP'),
+            api_key=os.getenv('Qdrant_AK'),
+            timeout=5
+        )
+        collection_info = qdrant_client.get_collection("government_contracts")
+        return str(collection_info.points_count)
+    except Exception as e:
+        logging.warning(f"[Qdrant] Failed to get collection signature: {e}")
+        return None
+
+# NAICS-to-category mapping built from existing Qdrant data
+# This mapping was derived from contracts that have good categories (not Other/Unknown)
+NAICS_TO_CATEGORY = {
+    '238220': 'Construction',
+    '325992': 'Goods/Supplies',
+    '424690': 'Goods/Supplies',
+    '423610': 'Goods/Supplies',
+    '518210': 'IT Services',
+    '811310': 'Maintenance/Operations',
+    '561621': 'IT Services',
+    '237310': 'Construction',
+    '112519': 'Goods/Supplies',
+    '451211': 'Goods/Supplies',
+    '511210': 'IT Services',
+    '811219': 'Maintenance/Operations',
+    '237990': 'Construction',
+    '541110': 'Professional Services',
+    '238160': 'Construction',
+    '541613': 'Professional Services',
+    '562998': 'Maintenance/Operations',
+    '238290': 'Maintenance/Operations',
+    '541360': 'Professional Services',
+    '238210': 'Maintenance/Operations',
+    '332312': 'Goods/Supplies',
+    '444190': 'Goods/Supplies',
+    '331511': 'Goods/Supplies',
+    '212399': 'Construction',
+    '531210': 'Professional Services',
+    '236220': 'Construction',
+    '238910': 'Construction',
+    '541512': 'IT Services',
+    '541519': 'IT Services',
+    '541611': 'Professional Services',
+    '541618': 'Professional Services',
+    '541690': 'Professional Services',
+    '541990': 'Professional Services',
+    '561210': 'Professional Services',
+    '561320': 'Professional Services',
+    '561720': 'Maintenance/Operations',
+    '561730': 'Maintenance/Operations',
+    '561790': 'Maintenance/Operations',
+    '562111': 'Maintenance/Operations',
+    '562119': 'Maintenance/Operations',
+    '611430': 'Professional Services',
+    '621999': 'Professional Services',
+    '811111': 'Maintenance/Operations',
+    '811118': 'Maintenance/Operations',
+    '811121': 'Maintenance/Operations',
+    '811122': 'Maintenance/Operations',
+    '811191': 'Maintenance/Operations',
+    '811192': 'Maintenance/Operations',
+    '811198': 'Maintenance/Operations',
+    '811212': 'Maintenance/Operations',
+    '811213': 'Maintenance/Operations',
+    '236210': 'Construction',
+    '237110': 'Construction',
+    '237120': 'Construction',
+    '237130': 'Construction',
+    '238110': 'Construction',
+    '238120': 'Construction',
+    '238130': 'Construction',
+    '238140': 'Construction',
+    '238150': 'Construction',
+    '238170': 'Construction',
+    '238190': 'Construction',
+    '238310': 'Construction',
+    '238320': 'Construction',
+    '238330': 'Construction',
+    '238340': 'Construction',
+    '238350': 'Construction',
+    '238390': 'Construction',
+    '238990': 'Construction',
+    '423310': 'Goods/Supplies',
+    '423320': 'Goods/Supplies',
+    '423390': 'Goods/Supplies',
+    '423410': 'Goods/Supplies',
+    '423420': 'Goods/Supplies',
+    '423430': 'Goods/Supplies',
+    '423440': 'Goods/Supplies',
+    '423450': 'Goods/Supplies',
+    '423460': 'Goods/Supplies',
+    '423490': 'Goods/Supplies',
+    '423510': 'Goods/Supplies',
+    '423520': 'Goods/Supplies',
+    '423620': 'Goods/Supplies',
+    '423690': 'Goods/Supplies',
+    '423710': 'Goods/Supplies',
+    '423720': 'Goods/Supplies',
+    '423730': 'Goods/Supplies',
+    '423740': 'Goods/Supplies',
+    '423810': 'Goods/Supplies',
+    '423820': 'Goods/Supplies',
+    '423830': 'Goods/Supplies',
+    '423840': 'Goods/Supplies',
+    '423850': 'Goods/Supplies',
+    '423860': 'Goods/Supplies',
+    '423910': 'Goods/Supplies',
+    '423920': 'Goods/Supplies',
+    '423930': 'Goods/Supplies',
+    '423940': 'Goods/Supplies',
+    '423990': 'Goods/Supplies',
+    '424110': 'Goods/Supplies',
+    '424120': 'Goods/Supplies',
+    '424130': 'Goods/Supplies',
+    '424210': 'Goods/Supplies',
+    '424310': 'Goods/Supplies',
+    '424320': 'Goods/Supplies',
+    '424330': 'Goods/Supplies',
+    '424340': 'Goods/Supplies',
+    '424410': 'Goods/Supplies',
+    '424420': 'Goods/Supplies',
+    '424430': 'Goods/Supplies',
+    '424440': 'Goods/Supplies',
+    '424450': 'Goods/Supplies',
+    '424460': 'Goods/Supplies',
+    '424470': 'Goods/Supplies',
+    '424480': 'Goods/Supplies',
+    '424490': 'Goods/Supplies',
+    '424510': 'Goods/Supplies',
+    '424520': 'Goods/Supplies',
+    '424590': 'Goods/Supplies',
+    '424610': 'Goods/Supplies',
+    '424710': 'Goods/Supplies',
+    '424720': 'Goods/Supplies',
+    '424810': 'Goods/Supplies',
+    '424820': 'Goods/Supplies',
+    '424910': 'Goods/Supplies',
+    '424920': 'Goods/Supplies',
+    '424930': 'Goods/Supplies',
+    '424940': 'Goods/Supplies',
+    '424950': 'Goods/Supplies',
+    '424990': 'Goods/Supplies',
+}
+
+# Allowed categories for classification
+ALLOWED_CATEGORIES = [
+    'Goods/Supplies',
+    'Construction',
+    'Maintenance/Operations',
+    'IT Services',
+    'Professional Services',
+    'Award Notice',
+    'Combined Synopsis/Solicitation',
+    'Presolicitation',
+    'Sources Sought',
+    'Special Notice',
+]
+
+# More specific goods subcategories for detailed classification
+GOODS_SUBCATEGORIES = [
+    "Industrial & Structural Materials",
+    "Vehicles & Transportation Equipment",
+    "Electronics & Communications Equipment",
+    "Machinery & Heavy Equipment",
+    "Electrical & Lighting Supplies",
+    "Medical & Laboratory Supplies",
+    "Chemical & Hazardous Materials",
+    "Food & Food Service",
+    "Office & Administrative Supplies",
+    "Other Goods/Supplies",
+]
+
+# NAICS 3-digit prefix to goods subcategory mapping
+# Based on actual distribution: 332(158), 336(138), 334(115), 333(89), 335(56), 339(34), 311(15), 325(14)
+GOODS_PREFIX_TO_SUBCATEGORY = {
+    # Industrial & Structural Materials (NAICS 331, 332 - metals, fabricated products)
+    "331": "Industrial & Structural Materials",
+    "332": "Industrial & Structural Materials",
+    "327": "Industrial & Structural Materials",  # Nonmetallic mineral products
+    
+    # Vehicles & Transportation Equipment (NAICS 336 - motor vehicles, aerospace)
+    "336": "Vehicles & Transportation Equipment",
+    
+    # Electronics & Communications Equipment (NAICS 334 - computers, radios, instrumentation)
+    "334": "Electronics & Communications Equipment",
+    
+    # Machinery & Heavy Equipment (NAICS 333 - industrial machinery, pumps)
+    "333": "Machinery & Heavy Equipment",
+    
+    # Electrical & Lighting Supplies (NAICS 335 - electrical equipment, lighting)
+    "335": "Electrical & Lighting Supplies",
+    
+    # Medical & Laboratory Supplies (NAICS 339 - medical equipment, misc manufacturing)
+    "339": "Medical & Laboratory Supplies",
+    
+    # Chemical & Hazardous Materials (NAICS 325 - chemicals, explosives, reagents)
+    "325": "Chemical & Hazardous Materials",
+    "326": "Chemical & Hazardous Materials",  # Plastics and rubber products
+    
+    # Food & Food Service (NAICS 311 - food manufacturing)
+    "311": "Food & Food Service",
+    "312": "Food & Food Service",  # Beverage and tobacco
+    
+    # Office & Administrative Supplies (NAICS 322, 323 - paper, printing)
+    "322": "Office & Administrative Supplies",
+    "323": "Office & Administrative Supplies",
+    "337": "Office & Administrative Supplies",  # Furniture
+    
+    # Wholesale trade mappings (42x)
+    "423": "Industrial & Structural Materials",  # Durable goods wholesalers
+    "424": "Chemical & Hazardous Materials",  # Nondurable goods wholesalers
+    
+    # Textiles and apparel
+    "313": "Other Goods/Supplies",
+    "314": "Other Goods/Supplies",
+    "315": "Other Goods/Supplies",
+    
+    # Retail trade
+    "444": "Industrial & Structural Materials",  # Building materials
+    "451": "Office & Administrative Supplies",  # Sporting goods, hobby, book stores
+    "457": "Other Goods/Supplies",
+}
+
+# In-memory cache for AI-predicted goods subcategories (keyed by hash_value)
+AI_GOODS_SUBCATEGORY_CACHE = {}
+
+# More specific construction subcategories for detailed classification
+CONSTRUCTION_SUBCATEGORIES = [
+    "Building Construction",
+    "Highway & Bridge Construction",
+    "Utility & Infrastructure Construction",
+    "Plumbing & HVAC",
+    "Electrical & Communications Installation",
+    "Roofing & Exterior Work",
+    "Site Preparation & Excavation",
+    "Renovation & Remodeling",
+    "Other Construction",
+]
+
+# NAICS 4-digit prefix to construction subcategory mapping
+# Based on NAICS sector 23 (Construction)
+CONSTRUCTION_PREFIX_TO_SUBCATEGORY = {
+    # Building Construction (236 - Construction of Buildings)
+    "2361": "Building Construction",  # Residential Building Construction
+    "2362": "Building Construction",  # Nonresidential Building Construction
+    
+    # Highway & Bridge Construction (2373)
+    "2373": "Highway & Bridge Construction",  # Highway, Street, and Bridge Construction
+    
+    # Utility & Infrastructure Construction (237 - Heavy and Civil Engineering)
+    "2371": "Utility & Infrastructure Construction",  # Utility System Construction
+    "2372": "Utility & Infrastructure Construction",  # Land Subdivision
+    "2379": "Utility & Infrastructure Construction",  # Other Heavy and Civil Engineering
+    
+    # Plumbing & HVAC (2382)
+    "2382": "Plumbing & HVAC",  # Plumbing, Heating, and Air-Conditioning Contractors
+    
+    # Electrical & Communications Installation (2381)
+    "2381": "Electrical & Communications Installation",  # Foundation, Structure, and Building Exterior
+    
+    # Roofing & Exterior Work (2383)
+    "2383": "Roofing & Exterior Work",  # Building Finishing Contractors
+    
+    # Site Preparation & Excavation (2389)
+    "2389": "Site Preparation & Excavation",  # Other Specialty Trade Contractors
+    
+    # Renovation & Remodeling - mapped from specific codes
+    "2384": "Renovation & Remodeling",  # Masonry Contractors
+    "2385": "Renovation & Remodeling",  # Carpentry Contractors
+    "2386": "Renovation & Remodeling",  # Flooring Contractors
+    "2387": "Renovation & Remodeling",  # Painting and Wall Covering Contractors
+}
+
+# In-memory cache for AI-predicted construction subcategories (keyed by hash_value)
+AI_CONSTRUCTION_SUBCATEGORY_CACHE = {}
+
+# NAICS code to official description lookup table
+# Used to fill in missing NAICS descriptions from Qdrant
+# Based on the most common NAICS codes in the government contracts database
+NAICS_CODE_TO_DESCRIPTION = {
+    # Manufacturing - Aerospace (336xxx)
+    '336413': 'Other Aircraft Parts and Auxiliary Equipment Manufacturing',
+    '336412': 'Aircraft Engine and Engine Parts Manufacturing',
+    '336411': 'Aircraft Manufacturing',
+    '336390': 'Other Motor Vehicle Parts Manufacturing',
+    '336611': 'Ship Building and Repairing',
+    '336350': 'Motor Vehicle Transmission and Power Train Parts Manufacturing',
+    '336340': 'Motor Vehicle Brake System Manufacturing',
+    '336320': 'Motor Vehicle Electrical and Electronic Equipment Manufacturing',
+    '336310': 'Motor Vehicle Gasoline Engine and Engine Parts Manufacturing',
+    '336212': 'Truck Trailer Manufacturing',
+    '336120': 'Heavy Duty Truck Manufacturing',
+    '336992': 'Military Armored Vehicle, Tank, and Tank Component Manufacturing',
+    
+    # Manufacturing - Metal Products (332xxx)
+    '332911': 'Industrial Valve Manufacturing',
+    '332722': 'Bolt, Nut, Screw, Rivet, and Washer Manufacturing',
+    '332991': 'Ball and Roller Bearing Manufacturing',
+    '332996': 'Fabricated Pipe and Pipe Fitting Manufacturing',
+    '332994': 'Small Arms, Ordnance, and Ordnance Accessories Manufacturing',
+    '332510': 'Hardware Manufacturing',
+    '332999': 'All Other Miscellaneous Fabricated Metal Product Manufacturing',
+    '332312': 'Fabricated Structural Metal Manufacturing',
+    '332313': 'Plate Work Manufacturing',
+    '332321': 'Metal Window and Door Manufacturing',
+    '332410': 'Power Boiler and Heat Exchanger Manufacturing',
+    '332420': 'Metal Tank (Heavy Gauge) Manufacturing',
+    '332710': 'Machine Shops',
+    '332721': 'Precision Turned Product Manufacturing',
+    '332912': 'Fluid Power Valve and Hose Fitting Manufacturing',
+    '332913': 'Plumbing Fixture Fitting and Trim Manufacturing',
+    '332919': 'Other Metal Valve and Pipe Fitting Manufacturing',
+    
+    # Manufacturing - Electronics (334xxx)
+    '334419': 'Other Electronic Component Manufacturing',
+    '334511': 'Search, Detection, Navigation, Guidance, Aeronautical Systems',
+    '334417': 'Electronic Connector Manufacturing',
+    '334220': 'Radio and Television Broadcasting and Wireless Communications Equipment Manufacturing',
+    '334516': 'Analytical Laboratory Instrument Manufacturing',
+    '334416': 'Capacitor, Resistor, Coil, Transformer, and Other Inductor Manufacturing',
+    '334290': 'Other Communications Equipment Manufacturing',
+    '334310': 'Audio and Video Equipment Manufacturing',
+    '334412': 'Bare Printed Circuit Board Manufacturing',
+    '334413': 'Semiconductor and Related Device Manufacturing',
+    '334418': 'Printed Circuit Assembly (Electronic Assembly) Manufacturing',
+    '334510': 'Electromedical and Electrotherapeutic Apparatus Manufacturing',
+    '334512': 'Automatic Environmental Control Manufacturing',
+    '334513': 'Instruments and Related Products Manufacturing',
+    '334514': 'Totalizing Fluid Meter and Counting Device Manufacturing',
+    '334515': 'Instrument Manufacturing for Measuring and Testing Electricity',
+    '334517': 'Irradiation Apparatus Manufacturing',
+    '334519': 'Other Measuring and Controlling Device Manufacturing',
+    '334111': 'Electronic Computer Manufacturing',
+    '334112': 'Computer Storage Device Manufacturing',
+    '334118': 'Computer Terminal and Other Computer Peripheral Equipment Manufacturing',
+    
+    # Manufacturing - Electrical Equipment (335xxx)
+    '335312': 'Motor and Generator Manufacturing',
+    '335999': 'All Other Miscellaneous Electrical Equipment and Component Manufacturing',
+    '335931': 'Current-Carrying Wiring Device Manufacturing',
+    '335311': 'Power, Distribution, and Specialty Transformer Manufacturing',
+    '335313': 'Switchgear and Switchboard Apparatus Manufacturing',
+    '335314': 'Relay and Industrial Control Manufacturing',
+    '335911': 'Storage Battery Manufacturing',
+    '335912': 'Primary Battery Manufacturing',
+    '335921': 'Fiber Optic Cable Manufacturing',
+    '335929': 'Other Communication and Energy Wire Manufacturing',
+    '335932': 'Noncurrent-Carrying Wiring Device Manufacturing',
+    
+    # Manufacturing - Machinery (333xxx)
+    '333998': 'All Other Miscellaneous General Purpose Machinery Manufacturing',
+    '333613': 'Mechanical Power Transmission Equipment Manufacturing',
+    '333618': 'Other Engine Equipment Manufacturing',
+    '333996': 'Fluid Power Pump and Motor Manufacturing',
+    '333914': 'Measuring, Dispensing, and Other Pumping Equipment Manufacturing',
+    '333611': 'Turbine and Turbine Generator Set Units Manufacturing',
+    '333612': 'Speed Changer, Industrial High-Speed Drive, and Gear Manufacturing',
+    '333911': 'Pump and Pumping Equipment Manufacturing',
+    '333912': 'Air and Gas Compressor Manufacturing',
+    '333913': 'Measuring and Dispensing Pump Manufacturing',
+    '333991': 'Power-Driven Handtool Manufacturing',
+    '333992': 'Welding and Soldering Equipment Manufacturing',
+    '333993': 'Packaging Machinery Manufacturing',
+    '333994': 'Industrial Process Furnace and Oven Manufacturing',
+    '333995': 'Fluid Power Cylinder and Actuator Manufacturing',
+    '333997': 'Scale and Balance Manufacturing',
+    '333111': 'Farm Machinery and Equipment Manufacturing',
+    '333120': 'Construction Machinery Manufacturing',
+    '333131': 'Mining Machinery and Equipment Manufacturing',
+    '333132': 'Oil and Gas Field Machinery and Equipment Manufacturing',
+    '333241': 'Food Product Machinery Manufacturing',
+    '333242': 'Semiconductor Machinery Manufacturing',
+    '333243': 'Sawmill, Woodworking, and Paper Machinery Manufacturing',
+    '333244': 'Printing Machinery and Equipment Manufacturing',
+    '333249': 'Other Industrial Machinery Manufacturing',
+    '333314': 'Optical Instrument and Lens Manufacturing',
+    '333316': 'Photographic and Photocopying Equipment Manufacturing',
+    '333318': 'Other Commercial and Service Industry Machinery Manufacturing',
+    '333413': 'Industrial and Commercial Fan and Blower Manufacturing',
+    '333414': 'Heating Equipment (except Warm Air Furnaces) Manufacturing',
+    '333415': 'Air-Conditioning and Warm Air Heating Equipment Manufacturing',
+    '333511': 'Industrial Mold Manufacturing',
+    '333514': 'Special Die and Tool, Die Set, Jig, and Fixture Manufacturing',
+    '333515': 'Cutting Tool and Machine Tool Accessory Manufacturing',
+    '333517': 'Machine Tool Manufacturing',
+    '333519': 'Other Metalworking Machinery Manufacturing',
+    
+    # Manufacturing - Miscellaneous (339xxx)
+    '339991': 'Gasket, Packing, and Sealing Device Manufacturing',
+    '339112': 'Surgical and Medical Instrument Manufacturing',
+    '339113': 'Surgical Appliance and Supplies Manufacturing',
+    '339114': 'Dental Equipment and Supplies Manufacturing',
+    '339115': 'Ophthalmic Goods Manufacturing',
+    '339116': 'Dental Laboratories',
+    '339920': 'Sporting and Athletic Goods Manufacturing',
+    '339930': 'Doll, Toy, and Game Manufacturing',
+    '339940': 'Office Supplies (except Paper) Manufacturing',
+    '339950': 'Sign Manufacturing',
+    '339992': 'Musical Instrument Manufacturing',
+    '339993': 'Fastener, Button, Needle, and Pin Manufacturing',
+    '339994': 'Broom, Brush, and Mop Manufacturing',
+    '339995': 'Burial Casket Manufacturing',
+    '339999': 'All Other Miscellaneous Manufacturing',
+    
+    # Manufacturing - Chemicals (325xxx)
+    '325199': 'All Other Basic Organic Chemical Manufacturing',
+    '325211': 'Plastics Material and Resin Manufacturing',
+    '325220': 'Artificial and Synthetic Fibers and Filaments Manufacturing',
+    '325311': 'Nitrogenous Fertilizer Manufacturing',
+    '325312': 'Phosphatic Fertilizer Manufacturing',
+    '325314': 'Fertilizer (Mixing Only) Manufacturing',
+    '325320': 'Pesticide and Other Agricultural Chemical Manufacturing',
+    '325411': 'Medicinal and Botanical Manufacturing',
+    '325412': 'Pharmaceutical Preparation Manufacturing',
+    '325413': 'In-Vitro Diagnostic Substance Manufacturing',
+    '325414': 'Biological Product (except Diagnostic) Manufacturing',
+    '325510': 'Paint and Coating Manufacturing',
+    '325520': 'Adhesive Manufacturing',
+    '325611': 'Soap and Other Detergent Manufacturing',
+    '325612': 'Polish and Other Sanitation Good Manufacturing',
+    '325613': 'Surface Active Agent Manufacturing',
+    '325620': 'Toilet Preparation Manufacturing',
+    '325910': 'Printing Ink Manufacturing',
+    '325920': 'Explosives Manufacturing',
+    '325991': 'Custom Compounding of Purchased Resins',
+    '325992': 'Photographic Film, Paper, Plate, and Chemical Manufacturing',
+    '325998': 'All Other Miscellaneous Chemical Product and Preparation Manufacturing',
+    
+    # Manufacturing - Plastics and Rubber (326xxx)
+    '326111': 'Plastics Bag and Pouch Manufacturing',
+    '326112': 'Plastics Packaging Film and Sheet Manufacturing',
+    '326113': 'Unlaminated Plastics Film and Sheet Manufacturing',
+    '326121': 'Unlaminated Plastics Profile Shape Manufacturing',
+    '326122': 'Plastics Pipe and Pipe Fitting Manufacturing',
+    '326130': 'Laminated Plastics Plate, Sheet, and Shape Manufacturing',
+    '326140': 'Polystyrene Foam Product Manufacturing',
+    '326150': 'Urethane and Other Foam Product Manufacturing',
+    '326160': 'Plastics Bottle Manufacturing',
+    '326191': 'Plastics Plumbing Fixture Manufacturing',
+    '326199': 'All Other Plastics Product Manufacturing',
+    '326211': 'Tire Manufacturing (except Retreading)',
+    '326212': 'Tire Retreading',
+    '326220': 'Rubber and Plastics Hoses and Belting Manufacturing',
+    '326291': 'Rubber Product Manufacturing for Mechanical Use',
+    '326299': 'All Other Rubber Product Manufacturing',
+    
+    # Construction (236xxx, 237xxx, 238xxx)
+    '236220': 'Commercial and Institutional Building Construction',
+    '236210': 'Industrial Building Construction',
+    '236115': 'New Single-Family Housing Construction',
+    '236116': 'New Multifamily Housing Construction',
+    '236117': 'New Housing For-Sale Builders',
+    '236118': 'Residential Remodelers',
+    '237110': 'Water and Sewer Line and Related Structures Construction',
+    '237120': 'Oil and Gas Pipeline and Related Structures Construction',
+    '237130': 'Power and Communication Line and Related Structures Construction',
+    '237210': 'Land Subdivision',
+    '237310': 'Highway, Street, and Bridge Construction',
+    '237990': 'Other Heavy and Civil Engineering Construction',
+    '238110': 'Poured Concrete Foundation and Structure Contractors',
+    '238120': 'Structural Steel and Precast Concrete Contractors',
+    '238130': 'Framing Contractors',
+    '238140': 'Masonry Contractors',
+    '238150': 'Glass and Glazing Contractors',
+    '238160': 'Roofing Contractors',
+    '238170': 'Siding Contractors',
+    '238190': 'Other Foundation, Structure, and Building Exterior Contractors',
+    '238210': 'Electrical Contractors and Other Wiring Installation Contractors',
+    '238220': 'Plumbing, Heating, and Air-Conditioning Contractors',
+    '238290': 'Other Building Equipment Contractors',
+    '238310': 'Drywall and Insulation Contractors',
+    '238320': 'Painting and Wall Covering Contractors',
+    '238330': 'Flooring Contractors',
+    '238340': 'Tile and Terrazzo Contractors',
+    '238350': 'Finish Carpentry Contractors',
+    '238390': 'Other Building Finishing Contractors',
+    '238910': 'Site Preparation Contractors',
+    '238990': 'All Other Specialty Trade Contractors',
+    
+    # Professional Services (541xxx)
+    '541110': 'Offices of Lawyers',
+    '541191': 'Title Abstract and Settlement Offices',
+    '541199': 'All Other Legal Services',
+    '541211': 'Offices of Certified Public Accountants',
+    '541213': 'Tax Preparation Services',
+    '541214': 'Payroll Services',
+    '541219': 'Other Accounting Services',
+    '541310': 'Architectural Services',
+    '541320': 'Landscape Architectural Services',
+    '541330': 'Engineering Services',
+    '541340': 'Drafting Services',
+    '541350': 'Building Inspection Services',
+    '541360': 'Geophysical Surveying and Mapping Services',
+    '541370': 'Surveying and Mapping (except Geophysical) Services',
+    '541380': 'Testing Laboratories',
+    '541410': 'Interior Design Services',
+    '541420': 'Industrial Design Services',
+    '541430': 'Graphic Design Services',
+    '541490': 'Other Specialized Design Services',
+    '541511': 'Custom Computer Programming Services',
+    '541512': 'Computer Systems Design Services',
+    '541513': 'Computer Facilities Management Services',
+    '541519': 'Other Computer Related Services',
+    '541611': 'Administrative Management and General Management Consulting Services',
+    '541612': 'Human Resources Consulting Services',
+    '541613': 'Marketing Consulting Services',
+    '541614': 'Process, Physical Distribution, and Logistics Consulting Services',
+    '541618': 'Other Management Consulting Services',
+    '541620': 'Environmental Consulting Services',
+    '541690': 'Other Scientific and Technical Consulting Services',
+    '541710': 'Research and Development in the Physical, Engineering, and Life Sciences',
+    '541715': 'Research and Development in the Physical, Engineering, and Life Sciences',
+    '541720': 'Research and Development in the Social Sciences and Humanities',
+    '541810': 'Advertising Agencies',
+    '541820': 'Public Relations Agencies',
+    '541830': 'Media Buying Agencies',
+    '541840': 'Media Representatives',
+    '541850': 'Outdoor Advertising',
+    '541860': 'Direct Mail Advertising',
+    '541870': 'Advertising Material Distribution Services',
+    '541890': 'Other Services Related to Advertising',
+    '541910': 'Marketing Research and Public Opinion Polling',
+    '541921': 'Photography Studios, Portrait',
+    '541922': 'Commercial Photography',
+    '541930': 'Translation and Interpretation Services',
+    '541940': 'Veterinary Services',
+    '541990': 'All Other Professional, Scientific, and Technical Services',
+    
+    # Administrative and Support Services (561xxx)
+    '561110': 'Office Administrative Services',
+    '561210': 'Facilities Support Services',
+    '561311': 'Employment Placement Agencies',
+    '561312': 'Executive Search Services',
+    '561320': 'Temporary Help Services',
+    '561330': 'Professional Employer Organizations',
+    '561410': 'Document Preparation Services',
+    '561421': 'Telephone Answering Services',
+    '561422': 'Telemarketing Bureaus and Other Contact Centers',
+    '561431': 'Private Mail Centers',
+    '561439': 'Other Business Service Centers',
+    '561440': 'Collection Agencies',
+    '561450': 'Credit Bureaus',
+    '561491': 'Repossession Services',
+    '561492': 'Court Reporting and Stenotype Services',
+    '561499': 'All Other Business Support Services',
+    '561510': 'Travel Agencies',
+    '561520': 'Tour Operators',
+    '561591': 'Convention and Visitors Bureaus',
+    '561599': 'All Other Travel Arrangement and Reservation Services',
+    '561611': 'Investigation Services',
+    '561612': 'Security Guards and Patrol Services',
+    '561613': 'Armored Car Services',
+    '561621': 'Security Systems Services (except Locksmiths)',
+    '561622': 'Locksmiths',
+    '561710': 'Exterminating and Pest Control Services',
+    '561720': 'Janitorial Services',
+    '561730': 'Landscaping Services',
+    '561740': 'Carpet and Upholstery Cleaning Services',
+    '561790': 'Other Services to Buildings and Dwellings',
+    '561910': 'Packaging and Labeling Services',
+    '561920': 'Convention and Trade Show Organizers',
+    '561990': 'All Other Support Services',
+    
+    # Wholesale Trade (423xxx, 424xxx)
+    '423110': 'Automobile and Other Motor Vehicle Merchant Wholesalers',
+    '423120': 'Motor Vehicle Supplies and New Parts Merchant Wholesalers',
+    '423130': 'Tire and Tube Merchant Wholesalers',
+    '423140': 'Motor Vehicle Parts (Used) Merchant Wholesalers',
+    '423210': 'Furniture Merchant Wholesalers',
+    '423220': 'Home Furnishing Merchant Wholesalers',
+    '423310': 'Lumber, Plywood, Millwork, and Wood Panel Merchant Wholesalers',
+    '423320': 'Brick, Stone, and Related Construction Material Merchant Wholesalers',
+    '423330': 'Roofing, Siding, and Insulation Material Merchant Wholesalers',
+    '423390': 'Other Construction Material Merchant Wholesalers',
+    '423410': 'Photographic Equipment and Supplies Merchant Wholesalers',
+    '423420': 'Office Equipment Merchant Wholesalers',
+    '423430': 'Computer and Computer Peripheral Equipment and Software Merchant Wholesalers',
+    '423440': 'Other Commercial Equipment Merchant Wholesalers',
+    '423450': 'Medical, Dental, and Hospital Equipment and Supplies Merchant Wholesalers',
+    '423460': 'Ophthalmic Goods Merchant Wholesalers',
+    '423490': 'Other Professional Equipment and Supplies Merchant Wholesalers',
+    '423510': 'Metal Service Centers and Other Metal Merchant Wholesalers',
+    '423520': 'Coal and Other Mineral and Ore Merchant Wholesalers',
+    '423610': 'Electrical Apparatus and Equipment, Wiring Supplies Merchant Wholesalers',
+    '423620': 'Household Appliances, Electric Housewares Merchant Wholesalers',
+    '423690': 'Other Electronic Parts and Equipment Merchant Wholesalers',
+    '423710': 'Hardware Merchant Wholesalers',
+    '423720': 'Plumbing and Heating Equipment and Supplies Merchant Wholesalers',
+    '423730': 'Warm Air Heating and Air-Conditioning Equipment Merchant Wholesalers',
+    '423740': 'Refrigeration Equipment and Supplies Merchant Wholesalers',
+    '423810': 'Construction and Mining Machinery and Equipment Merchant Wholesalers',
+    '423820': 'Farm and Garden Machinery and Equipment Merchant Wholesalers',
+    '423830': 'Industrial Machinery and Equipment Merchant Wholesalers',
+    '423840': 'Industrial Supplies Merchant Wholesalers',
+    '423850': 'Service Establishment Equipment and Supplies Merchant Wholesalers',
+    '423860': 'Transportation Equipment and Supplies Merchant Wholesalers',
+    '423910': 'Sporting and Recreational Goods and Supplies Merchant Wholesalers',
+    '423920': 'Toy and Hobby Goods and Supplies Merchant Wholesalers',
+    '423930': 'Recyclable Material Merchant Wholesalers',
+    '423940': 'Jewelry, Watch, Precious Stone Merchant Wholesalers',
+    '423990': 'Other Miscellaneous Durable Goods Merchant Wholesalers',
+    '424110': 'Printing and Writing Paper Merchant Wholesalers',
+    '424120': 'Stationery and Office Supplies Merchant Wholesalers',
+    '424130': 'Industrial and Personal Service Paper Merchant Wholesalers',
+    '424210': 'Drugs and Druggists Sundries Merchant Wholesalers',
+    '424310': 'Piece Goods, Notions, and Other Dry Goods Merchant Wholesalers',
+    '424320': 'Mens and Boys Clothing and Furnishings Merchant Wholesalers',
+    '424330': 'Womens, Childrens, and Infants Clothing Merchant Wholesalers',
+    '424340': 'Footwear Merchant Wholesalers',
+    '424410': 'General Line Grocery Merchant Wholesalers',
+    '424420': 'Packaged Frozen Food Merchant Wholesalers',
+    '424430': 'Dairy Product Merchant Wholesalers',
+    '424440': 'Poultry and Poultry Product Merchant Wholesalers',
+    '424450': 'Confectionery Merchant Wholesalers',
+    '424460': 'Fish and Seafood Merchant Wholesalers',
+    '424470': 'Meat and Meat Product Merchant Wholesalers',
+    '424480': 'Fresh Fruit and Vegetable Merchant Wholesalers',
+    '424490': 'Other Grocery and Related Products Merchant Wholesalers',
+    '424510': 'Grain and Field Bean Merchant Wholesalers',
+    '424520': 'Livestock Merchant Wholesalers',
+    '424590': 'Other Farm Product Raw Material Merchant Wholesalers',
+    '424610': 'Plastics Materials and Basic Forms and Shapes Merchant Wholesalers',
+    '424690': 'Other Chemical and Allied Products Merchant Wholesalers',
+    '424710': 'Petroleum Bulk Stations and Terminals',
+    '424720': 'Petroleum and Petroleum Products Merchant Wholesalers',
+    '424810': 'Beer and Ale Merchant Wholesalers',
+    '424820': 'Wine and Distilled Alcoholic Beverage Merchant Wholesalers',
+    '424910': 'Farm Supplies Merchant Wholesalers',
+    '424920': 'Book, Periodical, and Newspaper Merchant Wholesalers',
+    '424930': 'Flower, Nursery Stock, and Florists Supplies Merchant Wholesalers',
+    '424940': 'Tobacco and Tobacco Product Merchant Wholesalers',
+    '424950': 'Paint, Varnish, and Supplies Merchant Wholesalers',
+    '424990': 'Other Miscellaneous Nondurable Goods Merchant Wholesalers',
+    
+    # Information (511xxx, 517xxx, 518xxx, 519xxx)
+    '511110': 'Newspaper Publishers',
+    '511120': 'Periodical Publishers',
+    '511130': 'Book Publishers',
+    '511140': 'Directory and Mailing List Publishers',
+    '511191': 'Greeting Card Publishers',
+    '511199': 'All Other Publishers',
+    '511210': 'Software Publishers',
+    '517110': 'Wired Telecommunications Carriers',
+    '517210': 'Wireless Telecommunications Carriers (except Satellite)',
+    '517410': 'Satellite Telecommunications',
+    '517911': 'Telecommunications Resellers',
+    '517919': 'All Other Telecommunications',
+    '518210': 'Data Processing, Hosting, and Related Services',
+    '519110': 'News Syndicates',
+    '519120': 'Libraries and Archives',
+    '519130': 'Internet Publishing and Broadcasting and Web Search Portals',
+    '519190': 'All Other Information Services',
+    
+    # Real Estate (531xxx)
+    '531110': 'Lessors of Residential Buildings and Dwellings',
+    '531120': 'Lessors of Nonresidential Buildings (except Miniwarehouses)',
+    '531130': 'Lessors of Miniwarehouses and Self-Storage Units',
+    '531190': 'Lessors of Other Real Estate Property',
+    '531210': 'Offices of Real Estate Agents and Brokers',
+    '531311': 'Residential Property Managers',
+    '531312': 'Nonresidential Property Managers',
+    '531320': 'Offices of Real Estate Appraisers',
+    '531390': 'Other Activities Related to Real Estate',
+    
+    # Repair and Maintenance (811xxx)
+    '811111': 'General Automotive Repair',
+    '811112': 'Automotive Exhaust System Repair',
+    '811113': 'Automotive Transmission Repair',
+    '811118': 'Other Automotive Mechanical and Electrical Repair',
+    '811121': 'Automotive Body, Paint, and Interior Repair',
+    '811122': 'Automotive Glass Replacement Shops',
+    '811191': 'Automotive Oil Change and Lubrication Shops',
+    '811192': 'Car Washes',
+    '811198': 'All Other Automotive Repair and Maintenance',
+    '811210': 'Electronic and Precision Equipment Repair and Maintenance',
+    '811310': 'Commercial and Industrial Machinery and Equipment Repair and Maintenance',
+    '811411': 'Home and Garden Equipment Repair and Maintenance',
+    '811412': 'Appliance Repair and Maintenance',
+    '811420': 'Reupholstery and Furniture Repair',
+    '811430': 'Footwear and Leather Goods Repair',
+    '811490': 'Other Personal and Household Goods Repair and Maintenance',
+    
+    # Food Services (722xxx)
+    '722310': 'Food Service Contractors',
+    '722320': 'Caterers',
+    '722330': 'Mobile Food Services',
+    '722410': 'Drinking Places (Alcoholic Beverages)',
+    '722511': 'Full-Service Restaurants',
+    '722513': 'Limited-Service Restaurants',
+    '722514': 'Cafeterias, Grill Buffets, and Buffets',
+    '722515': 'Snack and Nonalcoholic Beverage Bars',
+    
+    # Healthcare (621xxx, 622xxx, 623xxx)
+    '621111': 'Offices of Physicians (except Mental Health Specialists)',
+    '621112': 'Offices of Physicians, Mental Health Specialists',
+    '621210': 'Offices of Dentists',
+    '621310': 'Offices of Chiropractors',
+    '621320': 'Offices of Optometrists',
+    '621330': 'Offices of Mental Health Practitioners (except Physicians)',
+    '621340': 'Offices of Physical, Occupational and Speech Therapists',
+    '621391': 'Offices of Podiatrists',
+    '621399': 'Offices of All Other Miscellaneous Health Practitioners',
+    '621410': 'Family Planning Centers',
+    '621420': 'Outpatient Mental Health and Substance Abuse Centers',
+    '621491': 'HMO Medical Centers',
+    '621492': 'Kidney Dialysis Centers',
+    '621493': 'Freestanding Ambulatory Surgical and Emergency Centers',
+    '621498': 'All Other Outpatient Care Centers',
+    '621511': 'Medical Laboratories',
+    '621512': 'Diagnostic Imaging Centers',
+    '621610': 'Home Health Care Services',
+    '621910': 'Ambulance Services',
+    '621991': 'Blood and Organ Banks',
+    '621999': 'All Other Miscellaneous Ambulatory Health Care Services',
+    '622110': 'General Medical and Surgical Hospitals',
+    '622210': 'Psychiatric and Substance Abuse Hospitals',
+    '622310': 'Specialty (except Psychiatric and Substance Abuse) Hospitals',
+    '623110': 'Nursing Care Facilities (Skilled Nursing Facilities)',
+    '623210': 'Residential Intellectual and Developmental Disability Facilities',
+    '623220': 'Residential Mental Health and Substance Abuse Facilities',
+    '623311': 'Continuing Care Retirement Communities',
+    '623312': 'Assisted Living Facilities for the Elderly',
+    '623990': 'Other Residential Care Facilities',
+    
+    # Educational Services (611xxx)
+    '611110': 'Elementary and Secondary Schools',
+    '611210': 'Junior Colleges',
+    '611310': 'Colleges, Universities, and Professional Schools',
+    '611410': 'Business and Secretarial Schools',
+    '611420': 'Computer Training',
+    '611430': 'Professional and Management Development Training',
+    '611511': 'Cosmetology and Barber Schools',
+    '611512': 'Flight Training',
+    '611513': 'Apprenticeship Training',
+    '611519': 'Other Technical and Trade Schools',
+    '611610': 'Fine Arts Schools',
+    '611620': 'Sports and Recreation Instruction',
+    '611630': 'Language Schools',
+    '611691': 'Exam Preparation and Tutoring',
+    '611692': 'Automobile Driving Schools',
+    '611699': 'All Other Miscellaneous Schools and Instruction',
+    '611710': 'Educational Support Services',
+    
+    # Transportation (481xxx, 482xxx, 483xxx, 484xxx, 485xxx, 486xxx, 487xxx, 488xxx, 492xxx, 493xxx)
+    '481111': 'Scheduled Passenger Air Transportation',
+    '481112': 'Scheduled Freight Air Transportation',
+    '481211': 'Nonscheduled Chartered Passenger Air Transportation',
+    '481212': 'Nonscheduled Chartered Freight Air Transportation',
+    '481219': 'Other Nonscheduled Air Transportation',
+    '482111': 'Line-Haul Railroads',
+    '482112': 'Short Line Railroads',
+    '483111': 'Deep Sea Freight Transportation',
+    '483112': 'Deep Sea Passenger Transportation',
+    '483113': 'Coastal and Great Lakes Freight Transportation',
+    '483114': 'Coastal and Great Lakes Passenger Transportation',
+    '483211': 'Inland Water Freight Transportation',
+    '483212': 'Inland Water Passenger Transportation',
+    '484110': 'General Freight Trucking, Local',
+    '484121': 'General Freight Trucking, Long-Distance, Truckload',
+    '484122': 'General Freight Trucking, Long-Distance, Less Than Truckload',
+    '484210': 'Used Household and Office Goods Moving',
+    '484220': 'Specialized Freight (except Used Goods) Trucking, Local',
+    '484230': 'Specialized Freight (except Used Goods) Trucking, Long-Distance',
+    '485111': 'Mixed Mode Transit Systems',
+    '485112': 'Commuter Rail Systems',
+    '485113': 'Bus and Other Motor Vehicle Transit Systems',
+    '485119': 'Other Urban Transit Systems',
+    '485210': 'Interurban and Rural Bus Transportation',
+    '485310': 'Taxi Service',
+    '485320': 'Limousine Service',
+    '485410': 'School and Employee Bus Transportation',
+    '485510': 'Charter Bus Industry',
+    '485991': 'Special Needs Transportation',
+    '485999': 'All Other Transit and Ground Passenger Transportation',
+    '486110': 'Pipeline Transportation of Crude Oil',
+    '486210': 'Pipeline Transportation of Natural Gas',
+    '486910': 'Pipeline Transportation of Refined Petroleum Products',
+    '486990': 'All Other Pipeline Transportation',
+    '487110': 'Scenic and Sightseeing Transportation, Land',
+    '487210': 'Scenic and Sightseeing Transportation, Water',
+    '487990': 'Scenic and Sightseeing Transportation, Other',
+    '488111': 'Air Traffic Control',
+    '488119': 'Other Airport Operations',
+    '488190': 'Other Support Activities for Air Transportation',
+    '488210': 'Support Activities for Rail Transportation',
+    '488310': 'Port and Harbor Operations',
+    '488320': 'Marine Cargo Handling',
+    '488330': 'Navigational Services to Shipping',
+    '488390': 'Other Support Activities for Water Transportation',
+    '488410': 'Motor Vehicle Towing',
+    '488490': 'Other Support Activities for Road Transportation',
+    '488510': 'Freight Transportation Arrangement',
+    '488991': 'Packing and Crating',
+    '488999': 'All Other Support Activities for Transportation',
+    '492110': 'Couriers and Express Delivery Services',
+    '492210': 'Local Messengers and Local Delivery',
+    '493110': 'General Warehousing and Storage',
+    '493120': 'Refrigerated Warehousing and Storage',
+    '493130': 'Farm Product Warehousing and Storage',
+    '493190': 'Other Warehousing and Storage',
+    
+    # Insurance (524xxx)
+    '524113': 'Direct Life Insurance Carriers',
+    '524114': 'Direct Health and Medical Insurance Carriers',
+    '524126': 'Direct Property and Casualty Insurance Carriers',
+    '524127': 'Direct Title Insurance Carriers',
+    '524128': 'Other Direct Insurance (except Life, Health, and Medical) Carriers',
+    '524130': 'Reinsurance Carriers',
+    '524210': 'Insurance Agencies and Brokerages',
+    '524291': 'Claims Adjusting',
+    '524292': 'Third Party Administration of Insurance and Pension Funds',
+    '524298': 'All Other Insurance Related Activities',
+    
+    # Additional NAICS codes found in "Other" contracts (added to reduce "Other" category)
+    # Food Manufacturing (311xxx)
+    '311999': 'All Other Miscellaneous Food Manufacturing',
+    '311991': 'Perishable Prepared Food Manufacturing',
+    
+    # Commercial and Service Industry Machinery (333xxx)
+    '333310': 'Commercial and Service Industry Machinery Manufacturing',
+    '333924': 'Industrial Truck, Tractor, Trailer, and Stacker Machinery Manufacturing',
+    
+    # Software Publishers (513xxx)
+    '513210': 'Software Publishers',
+    '513199': 'All Other Publishers',
+    
+    # Metal Container Manufacturing (332xxx)
+    '332439': 'Other Metal Container Manufacturing',
+    '332618': 'Other Fabricated Wire Product Manufacturing',
+    '332613': 'Spring Manufacturing',
+    '332323': 'Ornamental and Architectural Metal Work Manufacturing',
+    '332216': 'Saw Blade and Handtool Manufacturing',
+    
+    # Motor Vehicle Parts (336xxx)
+    '336370': 'Motor Vehicle Metal Stamping',
+    '336214': 'Travel Trailer and Camper Manufacturing',
+    '336330': 'Motor Vehicle Steering and Suspension Components Manufacturing',
+    '336612': 'Boat Building',
+    '336360': 'Motor Vehicle Seating and Interior Trim Manufacturing',
+    '336415': 'Guided Missile and Space Vehicle Propulsion Unit Manufacturing',
+    '336110': 'Automobile and Light Duty Motor Vehicle Manufacturing',
+    
+    # Battery Manufacturing (335xxx)
+    '335910': 'Battery Manufacturing',
+    
+    # Telecommunications (517xxx)
+    '517111': 'Wired Telecommunications Carriers',
+    
+    # Nonmetallic Mineral Products (327xxx)
+    '327999': 'All Other Miscellaneous Nonmetallic Mineral Product Manufacturing',
+    
+    # Hunting and Trapping (114xxx)
+    '114119': 'Other Animal Production',
+    
+    # Nonferrous Metal Production (331xxx)
+    '331491': 'Nonferrous Metal (except Copper and Aluminum) Rolling, Drawing, and Extruding',
+    
+    # Waste Management (562xxx)
+    '562991': 'Septic Tank and Related Services',
+    
+    # Apparel Manufacturing (315xxx)
+    '315990': 'Apparel Accessories and Other Apparel Manufacturing',
+    
+    # Accommodation (721xxx)
+    '721110': 'Hotels (except Casino Hotels) and Motels',
+    
+    # Jewelry and Silverware (339xxx)
+    '339910': 'Jewelry and Silverware Manufacturing',
+    
+    # Textile Product Mills (313xxx)
+    '313230': 'Nonwoven Fabric Mills',
+    
+    # Industrial Gas Manufacturing (325xxx)
+    '325120': 'Industrial Gas Manufacturing',
+    
+    # Support Activities for Agriculture (115xxx)
+    '115112': 'Soil Preparation, Planting, and Cultivating',
+    
+    # Non-6-digit NAICS codes (3-5 digit industry groups)
+    # These are less specific but still valid NAICS classifications
+    '33641': 'Aerospace Product and Parts Manufacturing',  # 5-digit
+    '54133': 'Engineering Services',  # 5-digit
+    '22112': 'Electric Power Distribution',  # 5-digit
+    '457': 'Gasoline Stations and Fuel Dealers',  # 3-digit
+    
+    # Additional 6-digit NAICS codes found in Unclassified contracts
+    '115310': 'Support Activities for Forestry',
+    '212312': 'Crushed and Broken Limestone Mining and Quarrying',
+    '221210': 'Natural Gas Distribution',
+    '311119': 'Other Animal Food Manufacturing',
+    '311612': 'Meat Processed from Carcasses',
+    '311710': 'Seafood Product Preparation and Packaging',
+    '311812': 'Commercial Bakeries',
+    '312111': 'Soft Drink Manufacturing',
+    '313210': 'Broadwoven Fabric Mills',
+    '314910': 'Textile Bag and Canvas Mills',
+    '325180': 'Other Basic Inorganic Chemical Manufacturing',
+    '331221': 'Rolled Steel Shape Manufacturing',
+    '331420': 'Copper Rolling, Drawing, Extruding, and Alloying',
+    '332111': 'Iron and Steel Forging',
+    '332112': 'Nonferrous Forging',
+    '332215': 'Metal Kitchen Cookware, Utensil, Cutlery, and Flatware Manufacturing',
+    '332993': 'Ammunition (except Small Arms) Manufacturing',
+    '333923': 'Overhead Traveling Crane, Hoist, and Monorail System Manufacturing',
+    '336211': 'Motor Vehicle Body Manufacturing',
+    '336414': 'Guided Missile and Space Vehicle Manufacturing',
+    '337127': 'Institutional Furniture Manufacturing',
+    '513130': 'Book Publishers',
+    '517121': 'Telecommunications Resellers',
+    '532284': 'Recreational Goods Rental',
+    '532411': 'Commercial Air, Rail, and Water Transportation Equipment Rental and Leasing',
+    '532490': 'Other Commercial and Industrial Machinery and Equipment Rental and Leasing',
+    '541713': 'Research and Development in Nanotechnology',
+    '562111': 'Solid Waste Collection',
+    '562910': 'Remediation Services',
+    '624221': 'Temporary Shelters',
+    '812210': 'Funeral Homes and Funeral Services',
+    '812332': 'Industrial Launderers',
+    '813110': 'Religious Organizations',
+    '813920': 'Professional Organizations',
+}
+
+def get_naics_description(naics_code, qdrant_description=None):
+    """
+    Get NAICS description from code, using Qdrant description if available,
+    otherwise falling back to the lookup table.
+    
+    Args:
+        naics_code: 6-digit NAICS code string
+        qdrant_description: Optional description from Qdrant payload
+        
+    Returns:
+        NAICS description string or None if not found
+    """
+    # First check if Qdrant has a valid description
+    if qdrant_description:
+        desc_str = str(qdrant_description).strip()
+        lower = desc_str.lower()
+        # Skip invalid descriptions: nan, none, empty, "other", "unknown", or just NAICS code
+        if lower not in ('nan', 'none', '', 'other', 'unknown') and not desc_str.startswith('NAICS '):
+            return desc_str
+    
+    # Fall back to lookup table
+    if naics_code and naics_code in NAICS_CODE_TO_DESCRIPTION:
+        return NAICS_CODE_TO_DESCRIPTION[naics_code]
+    
+    return None
+
+def parse_naics_codes(naics_raw):
+    """
+    Parse NAICS codes from various formats (e.g., "238220.0", "332312, 423720", "nan").
+    Returns a list of clean NAICS code strings (3-6 digits).
+    NAICS codes can be 2-6 digits representing different levels of specificity.
+    """
+    if not naics_raw or str(naics_raw).lower() in ('nan', 'none', ''):
+        return []
+    
+    naics_str = str(naics_raw).strip()
+    codes = []
+    
+    for part in naics_str.replace(';', ',').split(','):
+        part = part.strip()
+        if not part:
+            continue
+        # Remove decimal part (e.g., "238220.0" -> "238220")
+        if '.' in part:
+            part = part.split('.')[0]
+        # Keep valid 3-6 digit codes (NAICS hierarchy: 2-digit sector to 6-digit industry)
+        if part.isdigit() and 3 <= len(part) <= 6:
+            codes.append(part)
+    
+    return codes
+
+
+def has_goods_sector_naics(naics_codes):
+    """
+    Check if any of the NAICS codes are in goods sectors (manufacturing, wholesale, retail).
+    Goods sectors: 31-33 (Manufacturing), 42 (Wholesale Trade), 44-45 (Retail Trade)
+    
+    Args:
+        naics_codes: List of 6-digit NAICS code strings
+    
+    Returns:
+        True if at least one code is in a goods sector
+    """
+    goods_sectors = {'31', '32', '33', '42', '44', '45'}
+    for code in naics_codes:
+        if code and len(code) >= 2:
+            sector = code[:2]
+            if sector in goods_sectors:
+                return True
+    return False
+
+
+def has_construction_sector_naics(naics_codes):
+    """
+    Check if any of the NAICS codes are in the construction sector (23).
+    
+    Args:
+        naics_codes: List of 6-digit NAICS code strings
+    
+    Returns:
+        True if at least one code is in the construction sector
+    """
+    for code in naics_codes:
+        if code and len(code) >= 2:
+            sector = code[:2]
+            if sector == '23':
+                return True
+    return False
+
+def predict_category_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to predict the category for a contract based on its data.
+    Uses OPENAI_MARIO key and caches results to avoid repeated API calls.
+    
+    Args:
+        payload: Contract data dict with bid_name, bid_description, naics_code, etc.
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Predicted category string or None on failure
+    """
+    global AI_CATEGORY_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_CATEGORY_CACHE:
+        return AI_CATEGORY_CACHE[hash_value]
+    
+    try:
+        # Extract contract info for the prompt
+        title = payload.get("bid_name") or payload.get("title") or ""
+        description = payload.get("bid_description") or payload.get("summary") or ""
+        organization = payload.get("organization") or payload.get("agency") or ""
+        naics_code = payload.get("naics_code") or ""
+        naics_description = payload.get("naics_description") or ""
+        
+        # Check if we have enough data to classify
+        if not title and not description and not naics_code:
+            return None
+        
+        # Build the prompt
+        system_prompt = """You are a classifier for government procurement contracts.
+Your job is to assign each contract to exactly one category from this fixed list:
+- Goods/Supplies
+- Construction
+- Maintenance/Operations
+- IT Services
+- Professional Services
+
+Use NAICS code and NAICS description as the primary signal when available.
+Use the contract title, description, and organization as secondary signals.
+
+Output only the category name, exactly as written in the list. Do not output explanations or JSON."""
+
+        user_prompt = f"""Please choose the best category for this contract.
+
+Contract title: {title or "N/A"}
+Contract description: {description[:500] if description else "N/A"}
+Organization: {organization or "N/A"}
+
+NAICS code(s): {naics_code or "N/A"}
+NAICS description(s): {naics_description or "N/A"}
+
+Allowed categories:
+- Goods/Supplies
+- Construction
+- Maintenance/Operations
+- IT Services
+- Professional Services
+
+Respond with exactly one category from the list above."""
+
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=50,
+            temperature=0.1
+        )
+        
+        predicted = response.choices[0].message.content.strip()
+        
+        # Validate the prediction is in our allowed list
+        main_categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+        if predicted not in main_categories:
+            # Try to match partial
+            for cat in main_categories:
+                if cat.lower() in predicted.lower():
+                    predicted = cat
+                    break
+            else:
+                predicted = None
+        
+        # Cache the result
+        if hash_value and predicted:
+            AI_CATEGORY_CACHE[hash_value] = predicted
+            app.logger.info(f"[AI_CATEGORY] Predicted '{predicted}' for '{title[:50]}...'")
+        
+        return predicted
+        
+    except Exception as e:
+        app.logger.error(f"[AI_CATEGORY] Error predicting category: {e}")
+        return None
+
+def refine_goods_category_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to predict a specific goods subcategory based on contract name, description, and NAICS codes.
+    This provides more detailed classification than just "Goods/Supplies".
+    
+    Args:
+        payload: Contract data dict with bid_name, bid_description, naics_code, etc.
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Specific goods subcategory string or "Other Goods/Supplies" on failure
+    """
+    global AI_GOODS_SUBCATEGORY_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_GOODS_SUBCATEGORY_CACHE:
+        return AI_GOODS_SUBCATEGORY_CACHE[hash_value]
+    
+    try:
+        # Extract contract info for the prompt
+        title = payload.get("bid_name") or payload.get("title") or ""
+        description = payload.get("bid_description") or payload.get("summary") or ""
+        organization = payload.get("organization") or payload.get("agency") or ""
+        naics_code = payload.get("naics_code") or ""
+        naics_description = payload.get("naics_description") or ""
+        
+        # Check if we have enough data to classify
+        if not title and not description and not naics_code:
+            return "Other Goods/Supplies"
+        
+        # Build the prompt for specific goods classification
+        system_prompt = """You are a classifier for government procurement contracts that purchase physical goods.
+
+Your job is to assign each contract to exactly one category from this fixed list:
+- Industrial & Structural Materials (ONLY for raw metals, steel, concrete, lumber, building materials)
+- Vehicles & Transportation Equipment (cars, trucks, aircraft, boats, vehicle parts)
+- Electronics & Communications Equipment (computers, radios, phones, networking equipment)
+- Machinery & Heavy Equipment (industrial machines, construction equipment, engines)
+- Electrical & Lighting Supplies (wiring, lighting fixtures, electrical components)
+- Medical & Laboratory Supplies (medical devices, lab equipment, healthcare supplies)
+- Chemical & Hazardous Materials (chemicals, fuels, hazardous substances)
+- Food & Food Service (food products, catering, food service equipment)
+- Office & Administrative Supplies (paper, furniture, office equipment)
+- Other Goods/Supplies (use this when the goods don't clearly fit any specific category above)
+
+IMPORTANT RULES:
+1. Use NAICS code(s) as the PRIMARY signal - match the NAICS sector to the category
+2. "Industrial & Structural Materials" is ONLY for raw materials like steel, metals, concrete, lumber
+3. If the contract is vague, ambiguous, or doesn't clearly match a specific category, choose "Other Goods/Supplies"
+4. Do NOT default to "Industrial & Structural Materials" when uncertain - use "Other Goods/Supplies" instead
+
+Output only the category name, exactly as written in the list above. Do not output explanations or JSON."""
+
+        user_prompt = f"""Please choose the best goods category for this contract.
+
+Contract title: {title or "N/A"}
+Contract description: {description[:500] if description else "N/A"}
+Organization: {organization or "N/A"}
+
+NAICS code(s): {naics_code or "N/A"}
+NAICS description(s): {naics_description or "N/A"}
+
+Allowed categories:
+- Industrial & Structural Materials
+- Vehicles & Transportation Equipment
+- Electronics & Communications Equipment
+- Machinery & Heavy Equipment
+- Electrical & Lighting Supplies
+- Medical & Laboratory Supplies
+- Chemical & Hazardous Materials
+- Food & Food Service
+- Office & Administrative Supplies
+- Other Goods/Supplies
+
+Respond with exactly one category from the list above."""
+
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=50,
+            temperature=0.1
+        )
+        
+        predicted = response.choices[0].message.content.strip()
+        
+        # Validate the prediction is in our allowed list
+        if predicted not in GOODS_SUBCATEGORIES:
+            # Try to match partial
+            for cat in GOODS_SUBCATEGORIES:
+                if cat.lower() in predicted.lower():
+                    predicted = cat
+                    break
+            else:
+                predicted = "Other Goods/Supplies"
+        
+        # Cache the result
+        if hash_value:
+            AI_GOODS_SUBCATEGORY_CACHE[hash_value] = predicted
+            app.logger.info(f"[AI_GOODS_CATEGORY] Predicted '{predicted}' for '{title[:50]}...'")
+        
+        return predicted
+        
+    except Exception as e:
+        app.logger.error(f"[AI_GOODS_CATEGORY] Error predicting goods subcategory: {e}")
+        return "Other Goods/Supplies"
+
+
+def refine_goods_category(payload, hash_value=None):
+    """
+    Refine a "Goods/Supplies" category into a more specific subcategory.
+    First tries NAICS prefix mapping, then falls back to AI prediction.
+    
+    Args:
+        payload: Contract data dict with naics_code, bid_name, bid_description, etc.
+        hash_value: Unique identifier for caching AI predictions
+    
+    Returns:
+        Specific goods subcategory string
+    """
+    # Try NAICS prefix mapping first (deterministic, no API calls)
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    for code in codes:
+        # Try 3-digit prefix mapping
+        prefix_3 = code[:3]
+        if prefix_3 in GOODS_PREFIX_TO_SUBCATEGORY:
+            return GOODS_PREFIX_TO_SUBCATEGORY[prefix_3]
+    
+    # Fall back to AI prediction using contract name, description, and NAICS
+    return refine_goods_category_with_ai(payload, hash_value)
+
+
+def refine_construction_category_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to predict a specific construction subcategory based on contract name, description, and NAICS codes.
+    This provides more detailed classification than just "Construction".
+    
+    Args:
+        payload: Contract data dict with bid_name, bid_description, naics_code, etc.
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Specific construction subcategory string or "Other Construction" on failure
+    """
+    global AI_CONSTRUCTION_SUBCATEGORY_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_CONSTRUCTION_SUBCATEGORY_CACHE:
+        return AI_CONSTRUCTION_SUBCATEGORY_CACHE[hash_value]
+    
+    try:
+        # Extract contract info for the prompt
+        title = payload.get("bid_name") or payload.get("title") or ""
+        description = payload.get("bid_description") or payload.get("summary") or ""
+        organization = payload.get("organization") or payload.get("agency") or ""
+        naics_code = payload.get("naics_code") or ""
+        naics_description = payload.get("naics_description") or ""
+        
+        # Check if we have enough data to classify
+        if not title and not description and not naics_code:
+            return "Other Construction"
+        
+        # Build the prompt for specific construction classification
+        system_prompt = """You are a classifier for government procurement contracts related to construction.
+
+Your job is to assign each contract to exactly one category from this fixed list:
+- Building Construction (new buildings, commercial/residential structures)
+- Highway & Bridge Construction (roads, highways, bridges, overpasses)
+- Utility & Infrastructure Construction (water, sewer, power lines, pipelines)
+- Plumbing & HVAC (plumbing systems, heating, ventilation, air conditioning)
+- Electrical & Communications Installation (electrical wiring, telecom, networking)
+- Roofing & Exterior Work (roofing, siding, windows, exterior finishing)
+- Site Preparation & Excavation (grading, excavation, demolition, land clearing)
+- Renovation & Remodeling (interior renovations, remodeling, repairs)
+- Other Construction (use this when the work doesn't clearly fit any specific category above)
+
+IMPORTANT RULES:
+1. Use NAICS code(s) as the PRIMARY signal - match the NAICS code to the category
+2. If the contract is vague, ambiguous, or doesn't clearly match a specific category, choose "Other Construction"
+3. Do NOT guess when uncertain - use "Other Construction" instead
+
+Output only the category name, exactly as written in the list above. Do not output explanations or JSON."""
+
+        user_prompt = f"""Please choose the best construction category for this contract.
+
+Contract title: {title or "N/A"}
+Contract description: {description[:500] if description else "N/A"}
+Organization: {organization or "N/A"}
+
+NAICS code(s): {naics_code or "N/A"}
+NAICS description(s): {naics_description or "N/A"}
+
+Allowed categories:
+- Building Construction
+- Highway & Bridge Construction
+- Utility & Infrastructure Construction
+- Plumbing & HVAC
+- Electrical & Communications Installation
+- Roofing & Exterior Work
+- Site Preparation & Excavation
+- Renovation & Remodeling
+- Other Construction
+
+Respond with exactly one category from the list above."""
+
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=50,
+            temperature=0.1
+        )
+        
+        predicted = response.choices[0].message.content.strip()
+        
+        # Validate the prediction is in our allowed list
+        if predicted not in CONSTRUCTION_SUBCATEGORIES:
+            # Try to match partial
+            for cat in CONSTRUCTION_SUBCATEGORIES:
+                if cat.lower() in predicted.lower():
+                    predicted = cat
+                    break
+            else:
+                predicted = "Other Construction"
+        
+        # Cache the result
+        if hash_value:
+            AI_CONSTRUCTION_SUBCATEGORY_CACHE[hash_value] = predicted
+            app.logger.info(f"[AI_CONSTRUCTION_CATEGORY] Predicted '{predicted}' for '{title[:50]}...'")
+        
+        return predicted
+        
+    except Exception as e:
+        app.logger.error(f"[AI_CONSTRUCTION_CATEGORY] Error predicting construction subcategory: {e}")
+        return "Other Construction"
+
+
+def refine_construction_category(payload, hash_value=None):
+    """
+    Refine a "Construction" category into a more specific subcategory.
+    First tries NAICS prefix mapping, then falls back to AI prediction.
+    
+    Args:
+        payload: Contract data dict with naics_code, bid_name, bid_description, etc.
+        hash_value: Unique identifier for caching AI predictions
+    
+    Returns:
+        Specific construction subcategory string
+    """
+    # Try NAICS prefix mapping first (deterministic, no API calls)
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    for code in codes:
+        # Try 4-digit prefix mapping for construction
+        prefix_4 = code[:4]
+        if prefix_4 in CONSTRUCTION_PREFIX_TO_SUBCATEGORY:
+            return CONSTRUCTION_PREFIX_TO_SUBCATEGORY[prefix_4]
+    
+    # Fall back to AI prediction using contract name, description, and NAICS
+    return refine_construction_category_with_ai(payload, hash_value)
+
+
+# Global cache for balanced category assignments
+# This is computed once at startup and used by get_effective_category
+BALANCED_CATEGORY_BY_HASH = {}
+BALANCED_CATEGORIES_INITIALIZED = False
+
+# Keyword dictionaries for category scoring
+CATEGORY_KEYWORDS = {
+    'Goods/Supplies': [
+        'supply', 'supplies', 'equipment', 'vehicle', 'hardware', 'materials', 'parts', 'kit', 
+        'tool', 'inventory', 'warehouse', 'spare', 'component', 'item', 'commodity', 'furniture',
+        'clothing', 'textile', 'food', 'medical', 'pharmaceutical', 'chemical', 'fuel', 'oil',
+        'gas', 'battery', 'cable', 'wire', 'pipe', 'valve', 'pump', 'motor', 'engine', 'generator',
+        'compressor', 'filter', 'bearing', 'seal', 'gasket', 'bolt', 'nut', 'screw', 'fastener',
+        'rod', 'piston', 'cylinder', 'hose', 'tube', 'fitting', 'connector', 'adapter', 'bracket',
+        'mount', 'clamp', 'spring', 'gear', 'shaft', 'wheel', 'tire', 'brake', 'clutch', 'transmission'
+    ],
+    'Construction': [
+        'construction', 'renovation', 'build', 'repair', 'replacement', 'demolition', 'facility',
+        'structural', 'roofing', 'paving', 'site work', 'excavation', 'foundation', 'concrete',
+        'masonry', 'steel', 'framing', 'drywall', 'painting', 'flooring', 'ceiling', 'window',
+        'door', 'hvac', 'plumbing', 'electrical', 'mechanical', 'landscaping', 'fencing', 'paving',
+        'asphalt', 'bridge', 'road', 'highway', 'tunnel', 'dam', 'water treatment', 'sewer'
+    ],
+    'Maintenance/Operations': [
+        'maintenance', 'janitorial', 'cleaning', 'custodial', 'operations', 'support services',
+        'facility management', 'groundskeeping', 'repair services', 'preventive', 'corrective',
+        'inspection', 'testing', 'calibration', 'lubrication', 'overhaul', 'refurbishment',
+        'restoration', 'service', 'upkeep', 'care', 'preservation', 'sanitation', 'waste',
+        'recycling', 'pest control', 'lawn', 'snow removal', 'security', 'guard', 'patrol'
+    ],
+    'IT Services': [
+        'software', 'system integration', 'it support', 'cybersecurity', 'data center', 'cloud',
+        'networking', 'help desk', 'application development', 'database', 'server', 'storage',
+        'backup', 'recovery', 'virtualization', 'automation', 'analytics', 'artificial intelligence',
+        'machine learning', 'web', 'mobile', 'app', 'programming', 'coding', 'development',
+        'testing', 'qa', 'devops', 'infrastructure', 'telecommunications', 'voip', 'video'
+    ],
+    'Professional Services': [
+        'consulting', 'training', 'advisory', 'legal', 'financial', 'audit', 'management support',
+        'staffing', 'professional services', 'engineering', 'architecture', 'design', 'planning',
+        'research', 'analysis', 'study', 'assessment', 'evaluation', 'review', 'survey',
+        'investigation', 'inspection', 'certification', 'accreditation', 'licensing', 'permit',
+        'compliance', 'regulatory', 'environmental', 'health', 'safety', 'quality', 'assurance'
+    ]
+}
+
+def compute_category_score(payload, category):
+    """
+    Compute a score for how well a contract matches a category.
+    Uses NAICS codes and keyword matching in name/description.
+    
+    Returns:
+        Integer score (higher = better match)
+    """
+    score = 0
+    
+    # Get contract text fields
+    name = (payload.get('bid_name') or payload.get('title') or '').lower()
+    description = (payload.get('bid_description') or payload.get('summary') or '').lower()
+    combined_text = name + ' ' + description
+    
+    # Parse NAICS codes
+    naics_raw = payload.get('naics_code') or ''
+    codes = parse_naics_codes(naics_raw)
+    
+    # Check for exact NAICS match (big score boost)
+    for code in codes:
+        if code in NAICS_TO_CATEGORY and NAICS_TO_CATEGORY[code] == category:
+            score += 10  # Strong signal from NAICS
+    
+    # Check for keyword matches
+    keywords = CATEGORY_KEYWORDS.get(category, [])
+    for keyword in keywords:
+        if keyword in name:
+            score += 3  # Keyword in name is strong
+        if keyword in combined_text:
+            score += 1  # Keyword in description is weaker
+    
+    return score
+
+def build_balanced_category_mapping():
+    """
+    Build a balanced category mapping for all contracts with generic categories.
+    Uses keyword scoring and capacity limits to prevent any category from becoming dominant.
+    
+    IMPORTANT: This reads DIRECTLY from Qdrant to get the ORIGINAL categories,
+    not from the cached contracts which may have been processed by previous runs.
+    
+    This function should be called once at startup.
+    """
+    global BALANCED_CATEGORY_BY_HASH, BALANCED_CATEGORIES_INITIALIZED
+    
+    if BALANCED_CATEGORIES_INITIALIZED:
+        return
+    
+    logging.info("Building balanced category mapping (reading directly from Qdrant)...")
+    
+    try:
+        import hashlib
+        import re
+        
+        # Read directly from Qdrant to get ORIGINAL categories
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured for balanced category mapping")
+            BALANCED_CATEGORIES_INITIALIZED = True
+            return
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Fetch all contracts from Qdrant using scroll
+        all_points = []
+        offset = None
+        while True:
+            result = client.scroll(
+                collection_name="government_contracts",
+                limit=100,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False
+            )
+            points, next_offset = result
+            all_points.extend(points)
+            if next_offset is None:
+                break
+            offset = next_offset
+        
+        if not all_points:
+            logging.warning("No contracts found in Qdrant for balanced category mapping")
+            BALANCED_CATEGORIES_INITIALIZED = True
+            return
+        
+        logging.info(f"Loaded {len(all_points)} contracts directly from Qdrant")
+        
+        # Define categories and generic labels
+        categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+        generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
+        
+        # Count existing non-generic contracts per category
+        existing_counts = {cat: 0 for cat in categories}
+        generic_contracts = []
+        
+        for point in all_points:
+            payload = point.payload
+            # Get the ORIGINAL category from Qdrant (not processed)
+            original_category = payload.get('category') or 'Unknown'
+            
+            # Generate hash_value for this contract
+            # IMPORTANT: Use the actual Qdrant field names (detail_link, bid_number)
+            # NOT the mapped names (source_url, contract_number)
+            detail_link = payload.get("detail_link") or payload.get("source_url", "#")
+            bid_number = payload.get("bid_number") or payload.get("contract_number", "N/A")
+            hash_input = f"{detail_link}{bid_number}"
+            hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            
+            # Create a simplified contract dict for scoring
+            # Use actual Qdrant field names (bid_name, bid_description)
+            contract_data = {
+                'bid_name': payload.get('bid_name') or payload.get('title', ''),
+                'bid_description': payload.get('bid_description') or payload.get('summary', ''),
+                'naics_code': payload.get('NAICS_CODE', '') or payload.get('NAICS_CODES_ALL', ''),
+                'category': original_category,
+                'hash_value': hash_value
+            }
+            
+            if original_category not in generic_labels:
+                # Non-generic contract - count it
+                if original_category in existing_counts:
+                    existing_counts[original_category] += 1
+            else:
+                # Generic contract - needs assignment
+                generic_contracts.append((hash_value, contract_data))
+        
+        total = len(all_points)
+        max_share = 0.25  # 25% max per category
+        max_per_cat = int(max_share * total)
+        
+        logging.info(f"Total contracts: {total}, Generic contracts: {len(generic_contracts)}, Max per category: {max_per_cat}")
+        logging.info(f"Existing counts: {existing_counts}")
+        
+        # Compute capacity per category (max - existing)
+        capacity = {cat: max(0, max_per_cat - existing_counts[cat]) for cat in categories}
+        logging.info(f"Capacity per category: {capacity}")
+        
+        # Compute scores for each generic contract
+        scored_contracts = []
+        for hash_value, c in generic_contracts:
+            scores = {cat: compute_category_score(c, cat) for cat in categories}
+            best_cat = max(scores, key=scores.get)
+            best_score = scores[best_cat]
+            sorted_cats = sorted(categories, key=lambda x: scores[x], reverse=True)
+            margin = scores[sorted_cats[0]] - scores[sorted_cats[1]] if len(sorted_cats) > 1 else 0
+            scored_contracts.append({
+                'hash': hash_value,
+                'payload': c,
+                'scores': scores,
+                'best_cat': best_cat,
+                'best_score': best_score,
+                'sorted_cats': sorted_cats,
+                'margin': margin
+            })
+        
+        # Sort by confidence (margin) descending - assign high-confidence contracts first
+        scored_contracts.sort(key=lambda x: (x['margin'], x['best_score']), reverse=True)
+        
+        # Assign contracts to categories with capacity limits
+        assigned_counts = existing_counts.copy()
+        
+        for sc in scored_contracts:
+            hash_value = sc['hash']
+            sorted_cats = sc['sorted_cats']
+            
+            # Try to assign to best category first, then fallback
+            assigned = False
+            for cat in sorted_cats:
+                if assigned_counts[cat] < max_per_cat:
+                    BALANCED_CATEGORY_BY_HASH[hash_value] = cat
+                    assigned_counts[cat] += 1
+                    assigned = True
+                    break
+            
+            # If all preferred categories are full, assign to least full category
+            if not assigned:
+                least_full_cat = min(categories, key=lambda x: assigned_counts[x])
+                BALANCED_CATEGORY_BY_HASH[hash_value] = least_full_cat
+                assigned_counts[least_full_cat] += 1
+        
+        logging.info(f"Balanced category mapping complete. Final counts: {assigned_counts}")
+        BALANCED_CATEGORIES_INITIALIZED = True
+        
+    except Exception as e:
+        logging.error(f"Error building balanced category mapping: {e}")
+        BALANCED_CATEGORIES_INITIALIZED = True  # Mark as initialized to avoid repeated failures
+
+def get_effective_category(payload, hash_value=None):
+    """
+    Get the effective category for a contract.
+    
+    IMPORTANT: Per user request, we ONLY modify contracts that originally had 
+    'Other' or 'Unknown' categories. All other categories are returned unchanged.
+    
+    For generic categories (Other/Unknown), we use a balanced assignment approach:
+    1. Compute keyword scores for each category
+    2. Assign to best-matching category with capacity limits (max 25% per category)
+    3. This ensures no category becomes dominant while eliminating Other/Unknown
+    
+    Args:
+        payload: Contract data dict with category, naics_code, bid_name, etc.
+        hash_value: Unique identifier for looking up balanced category assignment
+    
+    Returns:
+        Effective category string (never Other or Unknown)
+    """
+    # Get the original category
+    original_category = payload.get('category') or 'Unknown'
+    
+    # Define generic labels that need to be replaced
+    generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
+    
+    # CRITICAL: Only modify contracts with generic categories
+    # Per user request: "only change the values of the ones that originally had values of other or unknown"
+    if original_category not in generic_labels:
+        # Return the original category unchanged - do NOT refine or modify it
+        return original_category
+    
+    # For generic categories, look up the balanced assignment
+    # Compute hash if not provided
+    if not hash_value:
+        hash_value = payload.get('hash_value') or payload.get('bid_number') or payload.get('detail_link', '')
+    
+    # Check the balanced category mapping
+    if hash_value in BALANCED_CATEGORY_BY_HASH:
+        return BALANCED_CATEGORY_BY_HASH[hash_value]
+    
+    # Hash not found - this means the hash was computed differently
+    # Try to recompute the hash using the same method as build_balanced_category_mapping
+    import hashlib
+    detail_link = payload.get('detail_link') or payload.get('source_url', '#')
+    bid_number = payload.get('bid_number') or payload.get('contract_number', 'N/A')
+    recomputed_hash = hashlib.sha256(f"{detail_link}{bid_number}".encode('utf-8')).hexdigest()
+    
+    if recomputed_hash in BALANCED_CATEGORY_BY_HASH:
+        return BALANCED_CATEGORY_BY_HASH[recomputed_hash]
+    
+    # Fallback: compute score on-the-fly for contracts not in the mapping
+    # This handles new contracts added after startup
+    categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+    scores = {cat: compute_category_score(payload, cat) for cat in categories}
+    best_cat = max(scores, key=scores.get)
+    
+    # Cache the result using the recomputed hash
+    BALANCED_CATEGORY_BY_HASH[recomputed_hash] = best_cat
+    
+    return best_cat
+
+def generate_naics_codes_with_ai(payload, hash_value=None):
+    """
+    Use OpenAI to generate NAICS codes for contracts that don't have them.
+    Uses OPENAI_MARIO key and caches results to avoid repeated API calls.
+    
+    Args:
+        payload: Qdrant point payload dict OR search match dict with contract info
+                 Supports both Qdrant fields (title, summary, agency, notice_type)
+                 and search match fields (bid_name, bid_description, organization, category)
+        hash_value: Unique identifier for caching (computed from detail_link + bid_number)
+    
+    Returns:
+        String of comma-separated NAICS codes (e.g., "332999, 336413") or empty string on failure
+    """
+    global AI_NAICS_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_NAICS_CACHE:
+        return AI_NAICS_CACHE[hash_value]
+    
+    try:
+        import json
+        
+        # Extract contract info for the prompt (support both Qdrant payload and search match dict)
+        title = payload.get("title") or payload.get("bid_name") or "Unknown"
+        summary = payload.get("summary") or payload.get("bid_description") or ""
+        agency = payload.get("agency") or payload.get("organization") or ""
+        notice_type = payload.get("notice_type") or payload.get("category") or ""
+        
+        # Build the prompt
+        system_prompt = (
+            "You are an expert in US federal procurement classification. "
+            "Given a government contract title, description, and related metadata, "
+            "determine the most likely NAICS (North American Industry Classification System) code or codes. "
+            "Use official US NAICS 2022 codes. "
+            "Return ONLY a JSON object, no extra text."
+        )
+        
+        user_prompt = f"""Contract information:
+Title: {title}
+Description: {summary or "N/A"}
+Agency: {agency or "N/A"}
+Notice type: {notice_type or "N/A"}
+
+Requirements:
+- Output a JSON object with exactly these keys:
+  - "codes": an array of 6-digit NAICS code strings (e.g. ["332999", "336413"])
+- Include at most 3 codes.
+- ALWAYS provide at least one code based on your best guess from the title, even if the title is cryptic or abbreviated.
+- For titles like "30--ROD,PISTON" or similar part numbers, infer the industry from the component name (e.g., piston = machinery/automotive parts).
+- Do NOT include any explanation or text outside of the JSON."""
+        
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=100,
+            temperature=0.3
+        )
+        
+        content = response.choices[0].message.content.strip()
+        
+        # Parse JSON response
+        data = json.loads(content)
+        codes = data.get("codes", [])
+        
+        # Sanitize: ensure they look like 6-digit numbers
+        cleaned_codes = [c for c in codes if isinstance(c, str) and c.isdigit() and len(c) == 6]
+        naics_code_str = ", ".join(cleaned_codes)
+        
+        # Cache the result and persist to disk
+        if hash_value:
+            AI_NAICS_CACHE[hash_value] = naics_code_str
+            save_ai_naics_cache()  # Persist to disk
+            app.logger.info(f"[AI_NAICS] Generated codes for '{title[:50]}...': {naics_code_str}")
+        
+        return naics_code_str
+        
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS] Error generating NAICS codes: {e}")
+        # Cache empty result to avoid repeated failures
+        if hash_value:
+            AI_NAICS_CACHE[hash_value] = ""
+            save_ai_naics_cache()  # Persist to disk
+        return ""
+
+
+# Cache for AI-predicted NAICS with descriptions (separate from code-only cache)
+AI_NAICS_PREDICTION_CACHE = {}
+AI_NAICS_PREDICTION_CACHE_FILE = os.path.join(os.path.dirname(__file__), 'ai_naics_prediction_cache.json')
+
+def load_ai_naics_prediction_cache():
+    """Load AI NAICS prediction cache from disk."""
+    global AI_NAICS_PREDICTION_CACHE
+    try:
+        if os.path.exists(AI_NAICS_PREDICTION_CACHE_FILE):
+            with open(AI_NAICS_PREDICTION_CACHE_FILE, 'r') as f:
+                AI_NAICS_PREDICTION_CACHE = json.load(f)
+                app.logger.info(f"[AI_NAICS_PRED] Loaded {len(AI_NAICS_PREDICTION_CACHE)} cached predictions from disk")
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS_PRED] Error loading cache: {e}")
+        AI_NAICS_PREDICTION_CACHE = {}
+
+def save_ai_naics_prediction_cache():
+    """Save AI NAICS prediction cache to disk."""
+    try:
+        with open(AI_NAICS_PREDICTION_CACHE_FILE, 'w') as f:
+            json.dump(AI_NAICS_PREDICTION_CACHE, f)
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS_PRED] Error saving cache: {e}")
+
+# Load prediction cache on startup
+load_ai_naics_prediction_cache()
+
+
+def predict_naics_with_description(bid_name, organization, hash_value=None):
+    """
+    Use OpenAI to predict NAICS code AND description for Unclassified contracts.
+    Uses bid name and organization to make the prediction.
+    
+    Args:
+        bid_name: Contract/bid name
+        organization: Organization/agency name
+        hash_value: Unique identifier for caching
+    
+    Returns:
+        Tuple of (naics_code, naics_description) or (None, None) on failure
+    """
+    global AI_NAICS_PREDICTION_CACHE
+    
+    # Check cache first
+    if hash_value and hash_value in AI_NAICS_PREDICTION_CACHE:
+        cached = AI_NAICS_PREDICTION_CACHE[hash_value]
+        return cached.get('code'), cached.get('description')
+    
+    try:
+        import json
+        
+        # Build the prompt
+        system_prompt = (
+            "You are an expert in US federal procurement classification. "
+            "Given a government contract bid name and organization, "
+            "determine the most likely NAICS code and its official description. "
+            "Use official US NAICS 2022 codes and descriptions. "
+            "Return ONLY a JSON object, no extra text."
+        )
+        
+        user_prompt = f"""Contract information:
+Bid Name: {bid_name}
+Organization: {organization}
+
+Requirements:
+- Output a JSON object with exactly these keys:
+  - "code": a single 6-digit NAICS code string (e.g. "332999")
+  - "description": the official NAICS description for that code (e.g. "All Other Miscellaneous Fabricated Metal Product Manufacturing")
+- ALWAYS provide a code and description based on your best guess from the bid name.
+- For cryptic titles like "30--ROD,PISTON" or part numbers, infer the industry from component names.
+- Use the OFFICIAL NAICS description, not a made-up one.
+- Do NOT include any explanation or text outside of the JSON."""
+        
+        # Call OpenAI with OPENAI_MARIO key
+        response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=150,
+            temperature=0.3
+        )
+        
+        content = response.choices[0].message.content.strip()
+        
+        # Parse JSON response
+        data = json.loads(content)
+        code = data.get("code", "")
+        description = data.get("description", "")
+        
+        # Validate code is 6 digits
+        if not (isinstance(code, str) and code.isdigit() and len(code) == 6):
+            code = None
+            description = None
+        
+        # Cache the result and persist to disk
+        if hash_value and code and description:
+            AI_NAICS_PREDICTION_CACHE[hash_value] = {'code': code, 'description': description}
+            save_ai_naics_prediction_cache()
+            app.logger.info(f"[AI_NAICS_PRED] Predicted for '{bid_name[:50]}...': {code} - {description}")
+        
+        return code, description
+        
+    except Exception as e:
+        app.logger.error(f"[AI_NAICS_PRED] Error predicting NAICS: {e}")
+        # Cache empty result to avoid repeated failures
+        if hash_value:
+            AI_NAICS_PREDICTION_CACHE[hash_value] = {'code': None, 'description': None}
+            save_ai_naics_prediction_cache()
+        return None, None
+
+
+def fallback_category_from_text(bid_name, bid_description, organization):
+    """
+    Determine a category based on keywords in bid name, description, and organization.
+    This is used as a fallback when AI prediction fails, to avoid "Unclassified" category.
+    
+    Returns a category string that matches existing top categories in the system.
+    """
+    # Combine all text for keyword matching
+    text = f"{bid_name} {bid_description} {organization}".lower()
+    
+    # Category keyword mappings - ordered by specificity (most specific first)
+    # These categories align with the existing top categories in the dashboard
+    category_keywords = [
+        # Construction and related
+        ("Other Aircraft Parts and Auxiliary Equipment Manufacturing", [
+            "aircraft", "aviation", "aerospace", "airplane", "helicopter", "rotor", "propeller",
+            "landing gear", "fuselage", "wing", "airframe"
+        ]),
+        ("Industrial Valve Manufacturing", [
+            "valve", "industrial valve", "gate valve", "ball valve", "check valve", 
+            "control valve", "pressure valve", "hydraulic valve"
+        ]),
+        ("Gasket, Packing, and Sealing Device Manufacturing", [
+            "gasket", "packing", "seal", "sealing", "o-ring", "washer", "rubber seal"
+        ]),
+        ("Bolt, Nut, Screw, Rivet, and Washer Manufacturing", [
+            "bolt", "nut", "screw", "rivet", "washer", "fastener", "hardware",
+            "threaded", "cap screw", "machine screw"
+        ]),
+        ("Plumbing, Heating, and Air-Conditioning Contractors", [
+            "plumbing", "hvac", "heating", "air conditioning", "air-conditioning",
+            "ventilation", "ductwork", "pipe fitting", "boiler"
+        ]),
+        ("Commercial and Institutional Building Construction", [
+            "building construction", "commercial construction", "institutional",
+            "office building", "school construction", "hospital construction"
+        ]),
+        ("Highway, Street, and Bridge Construction", [
+            "highway", "road", "street", "bridge", "pavement", "asphalt", "concrete road"
+        ]),
+        ("Water and Sewer Line and Related Structures Construction", [
+            "water line", "sewer", "pipeline", "water main", "drainage", "storm drain"
+        ]),
+        ("Electrical Contractors and Other Wiring Installation Contractors", [
+            "electrical", "wiring", "electrician", "power distribution", "lighting installation"
+        ]),
+        # IT and Technology
+        ("Custom Computer Programming Services", [
+            "software", "programming", "development", "application", "web development",
+            "mobile app", "database", "coding"
+        ]),
+        ("Computer Systems Design Services", [
+            "system design", "it services", "network", "infrastructure", "cloud",
+            "cybersecurity", "cyber security", "data center"
+        ]),
+        ("Data Processing, Hosting, and Related Services", [
+            "data processing", "hosting", "server", "data storage", "backup"
+        ]),
+        # Professional Services
+        ("Engineering Services", [
+            "engineering", "engineer", "civil engineering", "mechanical engineering",
+            "structural", "design engineering"
+        ]),
+        ("Architectural Services", [
+            "architectural", "architect", "building design", "space planning"
+        ]),
+        ("Management Consulting Services", [
+            "consulting", "management", "advisory", "strategy", "business consulting"
+        ]),
+        ("Administrative Management and General Management Consulting Services", [
+            "administrative", "general management", "organizational", "operations consulting"
+        ]),
+        ("Environmental Consulting Services", [
+            "environmental", "environmental consulting", "remediation", "pollution",
+            "hazardous waste", "environmental assessment"
+        ]),
+        # Healthcare
+        ("Medical Equipment and Supplies Manufacturing", [
+            "medical equipment", "medical supplies", "healthcare equipment", "surgical",
+            "diagnostic", "medical device"
+        ]),
+        ("Pharmaceutical Preparation Manufacturing", [
+            "pharmaceutical", "drug", "medication", "medicine"
+        ]),
+        # Supplies and Equipment
+        ("Office Supplies (except Paper) Manufacturing", [
+            "office supplies", "stationery", "office equipment"
+        ]),
+        ("Motor Vehicle Parts Manufacturing", [
+            "automotive", "vehicle parts", "car parts", "truck parts", "motor vehicle"
+        ]),
+        ("All Other Miscellaneous Manufacturing", [
+            "manufacturing", "fabrication", "production", "assembly"
+        ]),
+        # Services
+        ("Janitorial Services", [
+            "janitorial", "cleaning", "custodial", "housekeeping", "sanitation"
+        ]),
+        ("Security Guards and Patrol Services", [
+            "security", "guard", "patrol", "protection", "surveillance"
+        ]),
+        ("Facilities Support Services", [
+            "facilities", "facility management", "building maintenance", "property management"
+        ]),
+        ("Investigation and Personal Background Check Services", [
+            "investigation", "background check", "screening", "vetting"
+        ]),
+        # Training and Education
+        ("Professional and Management Development Training", [
+            "training", "education", "professional development", "workshop", "seminar"
+        ]),
+        # Research
+        ("Research and Development in the Physical, Engineering, and Life Sciences", [
+            "research", "r&d", "laboratory", "scientific", "study", "analysis"
+        ]),
+        # Transportation
+        ("General Freight Trucking, Long-Distance", [
+            "trucking", "freight", "shipping", "transportation", "logistics", "delivery"
+        ]),
+        # Default fallback - General Services (never return Unclassified)
+        ("General Services", [
+            "service", "support", "assistance", "contract", "agreement"
+        ]),
+    ]
+    
+    # Check each category's keywords
+    for category, keywords in category_keywords:
+        for keyword in keywords:
+            if keyword in text:
+                return category
+    
+    # Final fallback - use organization type hints
+    org_lower = organization.lower() if organization else ""
+    if "army" in org_lower or "navy" in org_lower or "air force" in org_lower or "defense" in org_lower:
+        return "All Other Miscellaneous Manufacturing"
+    if "health" in org_lower or "hospital" in org_lower or "medical" in org_lower:
+        return "Medical Equipment and Supplies Manufacturing"
+    if "transportation" in org_lower or "transit" in org_lower:
+        return "General Freight Trucking, Long-Distance"
+    
+    # Absolute fallback - never return "Unclassified"
+    return "General Services"
+
+
+if os.getenv('OPENAI_MARIO'):
+    app.logger.info("✅ Smart search embeddings using OPENAI_MARIO key")
+else:
+    app.logger.warning("⚠️ Smart search using fallback key (OPENAI_MARIO not found)")
+
+cs_api_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+if os.getenv('OPENAI_MARIO'):
+    app.logger.info("CS parser using key: OPENAI_MARIO")
+elif os.getenv('CS_BUILDER_OPENAI_API_KEY'):
+    app.logger.info("CS parser using key: CS_BUILDER_OPENAI_API_KEY")
+else:
+    app.logger.info("CS parser using key: OPENAI_API_KEY")
+client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=cs_api_key)
+
+client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
 
 
@@ -855,14 +3029,15 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
     """
         Process only selected contract data and capability statements from the user upload catalog.
         
-        1. read matches.csv and filter out the corresponding contract rows using hash_value.
-        Merge all the columns of the row into a single paragraph of text as "Key: Value". 2.
-        2. read the capability statements from capability_statements_processed.csv. 3. calculate the token for each of the two parts.
-        3. count the number of tokens in each of the two sections, or summarize them if a section is too long.
-        4. Merge the contract information and capability statement content to form the final contextual text to be returned.
+        NOW FETCHES CONTRACT DATA DIRECTLY FROM QDRANT (CSV data is obsolete).
+        
+        1. Fetch contract from Qdrant using point ID (hash_value is now the Qdrant point ID)
+        2. Read capability statements from capability_statements_processed.csv
+        3. Calculate tokens for each section and summarize if needed
+        4. Merge contract information and capability statement content
         
         :param user_uploads_dir: The directory where the user uploaded the file.
-        :param hash_value: the hash_value used to uniquely locate the contract
+        :param hash_value: the Qdrant point ID used to uniquely locate the contract
         :param model: name of the OpenAI model used, default "gpt-3.5-turbo"
         :param total_token_threshold: total token limit, need to summarize if exceeding this value
         :return: final merged text string
@@ -870,26 +3045,47 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
     
     final_content = []
     
-    # ----- Step 1: 处理 matches.csv 中的选定合同 -----
-    matches_file = os.path.join(user_uploads_dir, "matches.csv")
-    if not os.path.exists(matches_file):
-        return "matches.csv not found."
+    # ----- Step 1: Fetch contract from Qdrant by point ID -----
+    app.logger.info(f"🔍 Fetching contract from Qdrant with point ID: {hash_value}")
+    contract = get_contract_from_qdrant_by_id(hash_value)
     
-    try:
-        df = pd.read_csv(matches_file, dtype=str)
-    except Exception as e:
-        return f"Error reading matches.csv: {str(e)}"
+    if contract is None:
+        # Fallback to demo data if Qdrant lookup fails
+        app.logger.warning(f"⚠️ Contract not found in Qdrant, trying Scraping_demo_results.csv fallback")
+        demo_file = os.path.join(os.path.dirname(__file__), "Scraping_demo_results.csv")
+        if os.path.exists(demo_file):
+            try:
+                df = pd.read_csv(demo_file, dtype=str)
+                selected_rows = df[df["hash_value"] == hash_value]
+                if not selected_rows.empty:
+                    app.logger.info(f"Contract found in Scraping_demo_results.csv fallback")
+                    row_dict = selected_rows.iloc[0].to_dict()
+                    contract_text = "\n".join([f"{key}: {value}" for key, value in row_dict.items()])
+                else:
+                    return f"No matching contract found for point ID {hash_value} in Qdrant or fallback sources."
+            except Exception as e:
+                app.logger.error(f"Error reading Scraping_demo_results.csv: {str(e)}")
+                return f"No matching contract found for point ID {hash_value} in Qdrant or fallback sources."
+        else:
+            return f"No matching contract found for point ID {hash_value} in Qdrant."
+    else:
+        # Build contract text from Qdrant payload
+        contract_text = "\n".join([
+            f"Bid Name: {contract['Bid_Name']}",
+            f"Bid Number: {contract['Bid_Number']}",
+            f"Organization: {contract['Organization']}",
+            f"Description: {contract['Bid_Description']}",
+            f"Due Date: {contract['Due_Date']}",
+            f"Category: {contract['Category']}",
+            f"State: {contract['State']}",
+            f"Budget: {contract['Budget']}",
+            f"Detail Link: {contract['Detail_Link']}",
+            f"NAICS Code: {contract.get('NAICS_CODE', 'N/A')}",
+            f"NAICS Title: {contract.get('NAICS_TITLE', 'N/A')}",
+        ])
+        app.logger.info(f"✅ Using contract from Qdrant: {contract['Bid_Name']}")
     
-    selected_rows = df[df["hash_value"] == hash_value]
-    if selected_rows.empty:
-        return "No matching contract found for the provided hash_value."
-    
-    # 假设 hash_value 唯一，取第一行
-    row_dict = selected_rows.iloc[0].to_dict()
-    # 将每个键值对格式化为 "Key: Value" 并合并为一段文本
-    contract_text = "\n".join([f"{key}: {value}" for key, value in row_dict.items()])
-    
-    # 如果合同信息太长，进行摘要
+    # Summarize contract text if too long
     contract_tokens = count_tokens(contract_text, model=model)
     if contract_tokens > total_token_threshold / 2:
         contract_text = summarize_text(contract_text, model=model, max_tokens=500)
@@ -904,7 +3100,19 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
         try:
             cs_df = pd.read_csv(cs_file, dtype=str)
             if not cs_df.empty and 'Capability_Statement' in cs_df.columns:
-                cs_text = cs_df["Capability_Statement"].iloc[0]
+                # Use primary capability statement if is_primary column exists
+                if 'is_primary' in cs_df.columns:
+                    primary_cs = cs_df[cs_df['is_primary'].astype(str).str.lower() == 'true']
+                    if not primary_cs.empty:
+                        cs_text = primary_cs.iloc[0]["Capability_Statement"]
+                        app.logger.info(f"✅ Using primary capability statement: {primary_cs.iloc[0].get('filename', 'unknown')}")
+                    else:
+                        # Fallback to first row if no primary found
+                        cs_text = cs_df["Capability_Statement"].iloc[0]
+                        app.logger.warning(f"⚠️ No primary capability statement found, using first row")
+                else:
+                    # Fallback to first row if is_primary column doesn't exist
+                    cs_text = cs_df["Capability_Statement"].iloc[0]
             else:
                 cs_text = "[No capability statement text found]"
         except Exception as e:
@@ -1010,28 +3218,49 @@ def Aboutus():
 
 @app.route('/top_five_results')
 def top_five_results():
-    """Display the top 5 contract matches from the uploaded capability statement."""
+    """Display the top 5 contract matches from the uploaded capability statement.
+    
+    NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
+    Uses session storage for search results or falls back to CSV if needed.
+    """
     if 'user' not in session:
         return redirect(url_for('Login'))
     
     user = session['user']
     user_id = user['localId']
     user_upload_dir = f"uploads/bid_uploads_{user_id}"
-    matches_file = os.path.join(user_upload_dir, 'matches.csv')
     
     matches = []
-    if os.path.exists(matches_file):
-        try:
-            import pandas as pd
-            df = pd.read_csv(matches_file)
-            matches = df.to_dict('records')
-            app.logger.info(f"Loaded {len(matches)} matches from {matches_file}")
-        except Exception as e:
-            app.logger.error(f"Error loading matches: {str(e)}")
-            flash(f"Error loading contract matches: {str(e)}", 'error')
+    
+    # Try to get matches from session first (new approach)
+    if 'top5_results' in session:
+        matches = session['top5_results']
+        app.logger.info(f"✅ Loaded {len(matches)} matches from session")
     else:
-        app.logger.warning(f"Matches file not found: {matches_file}")
-        flash("No contract matches found. Please upload a capability statement first.", 'warning')
+        # Fallback: try CSV if session doesn't have results
+        matches_file = os.path.join(user_upload_dir, 'matches.csv')
+        if os.path.exists(matches_file):
+            try:
+                import pandas as pd
+                df = pd.read_csv(matches_file)
+                csv_matches = df.to_dict('records')
+                
+                # Fetch full contract data from Qdrant using point IDs
+                if csv_matches:
+                    point_ids = [m.get('hash_value') or m.get('contract_id') for m in csv_matches if m.get('hash_value') or m.get('contract_id')]
+                    if point_ids:
+                        matches = get_contracts_from_qdrant_by_ids(point_ids)
+                        app.logger.info(f"✅ Loaded {len(matches)} matches from Qdrant (via CSV point IDs)")
+                    else:
+                        # CSV doesn't have point IDs, use CSV data as fallback
+                        matches = csv_matches
+                        app.logger.warning(f"⚠️ Using CSV data as fallback (no point IDs found)")
+            except Exception as e:
+                app.logger.error(f"Error loading matches: {str(e)}")
+                flash(f"Error loading contract matches: {str(e)}", 'error')
+        else:
+            app.logger.warning(f"No matches found in session or CSV")
+            flash("No contract matches found. Please upload a capability statement first.", 'warning')
     
     return render_template('top_five_results.html', matches=matches)
 
@@ -1674,10 +3903,30 @@ prices = {
 
 
 def send_welcome_email(email, display_name):
-    app.logger.info(f"📤 Attempting to send welcome email to {email}...")
+    """Send welcome email with timeout protection and granular logging.
+    
+    This function is designed to be called in a background thread to avoid
+    blocking the signup process. It will log errors but not raise exceptions.
+    """
+    import time
+    import socket
+    
+    start_time = time.time()
+    app.logger.info(f"📤 [t=0.0s] Starting welcome email send to {email}...")
 
     sender_email = os.getenv('EMAIL_GOOGLE_USER')
     sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    
+    # Check if email sending is enabled
+    send_email_enabled = os.getenv('SEND_WELCOME_EMAIL', 'true').lower() == 'true'
+    if not send_email_enabled:
+        app.logger.info(f"📧 Welcome email disabled by SEND_WELCOME_EMAIL env var")
+        return
+    
+    if not sender_email or not sender_password:
+        app.logger.error(f"❌ Email credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+        return
+    
     subject = "🎉 Welcome To Contract Radar Maximizer!"
 
     # HTML Email Body
@@ -1710,17 +3959,40 @@ def send_welcome_email(email, display_name):
         mime_text = MIMEText(html_body, "html")
         msg.attach(mime_text)
 
-        app.logger.debug("📧 Styled HTML email composed successfully.")
+        elapsed = time.time() - start_time
+        app.logger.info(f"📧 [t={elapsed:.1f}s] Email message composed")
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            app.logger.debug("🔐 Connecting to SMTP server...")
-            server.login(sender_email, sender_password)
-            app.logger.debug("🔐 SMTP login successful.")
-            server.sendmail(sender_email, email, msg.as_string())
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(10)
+        
+        try:
+            app.logger.info(f"🔐 [t={elapsed:.1f}s] Connecting to smtp.gmail.com:465...")
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10) as server:
+                elapsed = time.time() - start_time
+                app.logger.info(f"🔐 [t={elapsed:.1f}s] Connected, attempting login...")
+                
+                server.login(sender_email, sender_password)
+                elapsed = time.time() - start_time
+                app.logger.info(f"🔐 [t={elapsed:.1f}s] Login successful, sending email...")
+                
+                server.sendmail(sender_email, email, msg.as_string())
+                elapsed = time.time() - start_time
+                app.logger.info(f"✅ [t={elapsed:.1f}s] Welcome email sent successfully to {email}")
+        finally:
+            socket.setdefaulttimeout(old_timeout)
 
-        app.logger.info(f"✅ Professional welcome email sent to {email}")
+    except socket.timeout as e:
+        elapsed = time.time() - start_time
+        app.logger.error(f"⏱️ [t={elapsed:.1f}s] SMTP timeout sending welcome email to {email}: {e}")
+    except smtplib.SMTPAuthenticationError as e:
+        elapsed = time.time() - start_time
+        app.logger.error(f"🔐 [t={elapsed:.1f}s] SMTP authentication failed for {email}: {e}")
     except Exception as e:
-        app.logger.exception(f"❌ ERROR sending welcome email to {email}: {e}")
+        elapsed = time.time() - start_time
+        app.logger.error(f"❌ [t={elapsed:.1f}s] Error sending welcome email to {email}: {type(e).__name__}: {e}")
+        # Log full traceback for debugging
+        import traceback
+        app.logger.debug(traceback.format_exc())
 #SIGNUP FIX 3/25 
 
  
@@ -1754,6 +4026,7 @@ def Signup():
         account_type = request.form.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
         billing_period = request.form.get('billing_period', 'free')
         subscription_end_date = '9999-12-31'  # Permanent free access
+        join_directory = request.form.get('join_directory') == 'on'  # Checkbox value
 
         app.logger.debug(f"📌 User Info: {first_name} {last_name} | {email} | {company}")
 
@@ -1770,12 +4043,15 @@ def Signup():
 
             app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
 
-            # ✅ Send Welcome Email
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
+            # ✅ Send Welcome Email (non-blocking)
+            app.logger.info("📨 Starting welcome email in background thread...")
+            import threading
+            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+            email_thread.daemon = True
+            email_thread.start()
+            app.logger.info("📨 Welcome email thread started, continuing with signup...")
 
-            # ✅ Store User Data in Session
+            # ✅ Store User Data in Session (including user_id for confirm_terms)
             session['user_data'] = {
                 "first_name": first_name,
                 "last_name": last_name,
@@ -1784,10 +4060,20 @@ def Signup():
                 "username": username,
                 "account_type": account_type,
                 "billing_period": billing_period,
-                "subscription_end_date": subscription_end_date
+                "subscription_end_date": subscription_end_date,
+                "user_id": user_id
+            }
+            
+            # ✅ Store User Authentication in Session (for confirm_terms idToken)
+            session['user'] = {
+                'localId': user_id,
+                'idToken': user_logged_in['idToken'],
+                'email': email,
+                'refreshToken': user_logged_in['refreshToken']
             }
 
             app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
+            app.logger.debug(f"💾 User Auth Stored: localId={user_id}, email={email}")
 
             # ✅ Store User Data in Firebase Database
             db.child("users").child(user_id).set({
@@ -1800,8 +4086,26 @@ def Signup():
                 "subscription_end_date": subscription_end_date,
                 "uploads_dir": create_user_directory(user_id),
                 "credits_balance": 100,
-                "credits_used": 0
+                "credits_used": 0,
+                "directory_listed": join_directory
             }, user_logged_in['idToken'])
+            
+            if join_directory:
+                try:
+                    db.child("corama_directory").child(user_id).set({
+                        "company": company,
+                        "contact_name": f"{first_name} {last_name}",
+                        "email": email,
+                        "services": "",  # To be filled in directory profile
+                        "description": "",  # To be filled in directory profile
+                        "phone": "",  # To be filled in directory profile
+                        "website": "",  # To be filled in directory profile
+                        "listed": True,
+                        "created_at": datetime.now().isoformat()
+                    }, user_logged_in['idToken'])
+                    app.logger.info(f"✅ User {user_id} added to CORAMA Directory")
+                except Exception as e:
+                    app.logger.error(f"❌ Failed to add user to directory: {e}")
 
             app.logger.info("✅ User successfully added to Firebase Database!")
 
@@ -1846,29 +4150,46 @@ def Signup():
 @app.route('/confirm_terms', methods=['GET', 'POST'])
 def confirm_terms():
     if request.method == 'POST':
+        if not request.form.get('confirm_terms'):
+            app.logger.warning("⚠️ User attempted to proceed without agreeing to terms")
+            return render_template('confirm_terms.html', error="You must agree to the Automatic Renewal Terms and Conditions to proceed.")
+        
         # Retrieve user data from session
         user_data = session.get('user_data')
+        user_auth = session.get('user')
 
         if not user_data:
-            return redirect(url_for('signup'))
+            app.logger.error("❌ No user_data in session, redirecting to signup")
+            return redirect(url_for('Signup'))
+        
+        if not user_auth:
+            app.logger.error("❌ No user auth in session, redirecting to signup")
+            return redirect(url_for('Signup'))
 
         try:
-            user_id = user_data['user_id']
+            user_id = user_data.get('user_id')
+            if not user_id:
+                app.logger.error("❌ No user_id in session data")
+                return render_template('confirm_terms.html', error="Session expired. Please sign up again.")
             
             db.child("users").child(user_id).update({
                 "account_type": user_data['account_type'],
                 "subscription_end_date": "9999-12-31",
-                "uploads_dir": create_user_directory(user_id),
-            }, session['user']['idToken'])
+                "terms_accepted": True,
+                "terms_accepted_date": datetime.now().isoformat()
+            }, user_auth['idToken'])
             
-            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Account created successfully!")
+            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Terms accepted, redirecting to Welcome")
             return redirect(url_for('Welcome'))
 
+        except KeyError as e:
+            app.logger.error(f"❌ Missing session key in confirm_terms: {e}")
+            return render_template('confirm_terms.html', error=f"Session error: {e}. Please sign up again.")
         except Exception as e:
-            return render_template('confirm_terms.html', error=str(e))
+            app.logger.exception(f"❌ Error in confirm_terms for user: {e}")
+            return render_template('confirm_terms.html', error="An error occurred. Please try again.")
 
     # Render the terms confirmation page on GET
-
     return render_template('confirm_terms.html')
 
 
@@ -1916,10 +4237,13 @@ def signupCSBuilder():
                 description=f"{first_name} {last_name} from {company}"
             )
 
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
-
+            # ✅ Send Welcome Email (non-blocking)
+            app.logger.info("📨 Starting welcome email in background thread...")
+            import threading
+            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+            email_thread.daemon = True
+            email_thread.start()
+            app.logger.info("📨 Welcome email thread started, continuing with signup...")
 
             db.child("users").child(user_id).update(
                 {"stripe_customer_id": stripe_customer['id']},
@@ -1967,6 +4291,132 @@ def signupCSBuilder():
 
 
 
+def get_qdrant_analytics():
+    """
+    Compute analytics from ALL contracts in Qdrant for the dashboard.
+    This ensures Top Contract Categories shows totals from all 1,160+ contracts.
+    
+    Uses balanced category assignment to ensure:
+    1. No "Other" or "Unknown" categories appear
+    2. No single category becomes too dominant (max 25% per category)
+    
+    Uses signature-based cache invalidation to detect Qdrant changes:
+    - Only recomputes analytics when the collection signature changes
+    - This allows detecting new/deleted contracts without expensive rescans
+    """
+    global QDRANT_ANALYTICS_CACHE, QDRANT_ANALYTICS_SIGNATURE
+    
+    from datetime import datetime
+    from collections import Counter
+    
+    try:
+        # Check if we can use cached analytics
+        current_signature = get_qdrant_collection_signature()
+        
+        if (QDRANT_ANALYTICS_CACHE is not None and 
+            QDRANT_ANALYTICS_SIGNATURE is not None and
+            current_signature is not None and
+            QDRANT_ANALYTICS_SIGNATURE == current_signature):
+            logging.info(f"[Qdrant] Using cached analytics (signature: {current_signature})")
+            return QDRANT_ANALYTICS_CACHE
+        
+        logging.info(f"[Qdrant] Recomputing analytics (signature changed: {QDRANT_ANALYTICS_SIGNATURE} -> {current_signature})")
+        
+        # Get ALL contracts from Qdrant
+        all_contracts, total_contracts, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+        
+        if not all_contracts:
+            logging.warning("No contracts found in Qdrant, using fallback values")
+            return {
+                'total_contracts': 0,
+                'win_probability': 0,
+                'open_contracts': 0,
+                'upcoming_deadlines': 0,
+                'high_score_opportunities': 0,
+                'top_categories': [],
+                'category_distribution': {},
+                'status_distribution': {},
+                'top_agencies': {},
+                'analysis_date': datetime.now().strftime('%Y-%m-%d')
+            }
+        
+        total_contracts = len(all_contracts)
+        
+        # Category distribution using NAICS descriptions from contracts
+        # The category field now contains NAICS descriptions (from Qdrant or lookup table)
+        # This provides better distribution than the old "Goods/Supplies" catch-all
+        naics_categories = []
+        for c in all_contracts:
+            cat = c.get('category', '')
+            # Skip empty, "Unknown", or generic categories
+            if cat and cat.strip() and cat.lower() not in ('unknown', 'other', 'nan', 'none'):
+                naics_categories.append(cat.strip())
+        
+        category_counts = Counter(naics_categories)
+        
+        # Sort all categories by count (highest first)
+        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+        
+        # Take top 5 categories
+        max_categories = 5
+        top_categories_with_counts = sorted_categories[:max_categories]
+        
+        top_categories = [cat for cat, _ in top_categories_with_counts]
+        # Create ordered dict for category_distribution (descending order)
+        category_distribution_ordered = {cat: count for cat, count in top_categories_with_counts}
+        
+        # Status distribution
+        status_counts = Counter(c.get('status', 'active') for c in all_contracts)
+        open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+        
+        # Calculate win probability based on category diversity
+        category_diversity = len(category_counts)
+        win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+        
+        # High score opportunities
+        high_score_categories = ['Construction', 'Information Technology', 'Professional Services', 'Solicitation', 'Award Notice']
+        high_score_count = sum(1 for c in all_contracts if any(cat.lower() in c.get('category', '').lower() for cat in high_score_categories))
+        
+        logging.info(f"Qdrant analytics: {total_contracts} total contracts, {len(category_counts)} categories")
+        logging.info(f"Top categories (with 'Other' moved to end): {top_categories}")
+        
+        # Cache the results with the current signature
+        analytics_result = {
+            'total_contracts': total_contracts,
+            'win_probability': round(win_probability, 1),
+            'open_contracts': open_contracts,
+            'upcoming_deadlines': 0,
+            'high_score_opportunities': high_score_count,
+            'top_categories': top_categories,
+            'category_distribution': category_distribution_ordered,  # Sorted by count descending (left-to-right)
+            'status_distribution': dict(status_counts),
+            'top_agencies': {},
+            'analysis_date': datetime.now().strftime('%Y-%m-%d')
+        }
+        
+        # Update the cache
+        QDRANT_ANALYTICS_CACHE = analytics_result
+        QDRANT_ANALYTICS_SIGNATURE = current_signature
+        logging.info(f"[Qdrant] Cached analytics with signature: {current_signature}")
+        
+        return analytics_result
+        
+    except Exception as e:
+        logging.error(f"Error computing Qdrant analytics: {e}")
+        return {
+            'total_contracts': 0,
+            'win_probability': 0,
+            'open_contracts': 0,
+            'upcoming_deadlines': 0,
+            'high_score_opportunities': 0,
+            'top_categories': [],
+            'category_distribution': {},
+            'status_distribution': {},
+            'top_agencies': {},
+            'analysis_date': datetime.now().strftime('%Y-%m-%d')
+        }
+
+
 # updated 3/17/25 - Permanent Stripe Validation Fix
 @app.route('/welcome', methods=['GET'])
 def Welcome():
@@ -2005,9 +4455,9 @@ def Welcome():
         company_name = user_data.get('company', 'No Company')
         first_name = user_data.get('first_name', 'User')
         
-        from csv_analytics import get_dashboard_metrics
-        analytics_data = get_dashboard_metrics()
-        logging.info(f"📊 Analytics data loaded: {analytics_data}")
+        # Get analytics from Qdrant (all 1,160+ contracts) for Top Contract Categories
+        analytics_data = get_qdrant_analytics()
+        logging.info(f"📊 Qdrant analytics loaded: {analytics_data.get('total_contracts', 0)} contracts")
         
         page = request.args.get('page', 1, type=int)
         items_per_page = 10  # Dashboard shows fewer items than smartsearch for better UX
@@ -2036,24 +4486,19 @@ def Welcome():
 
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
-    """API endpoint to get contract data for the dashboard with pagination"""
+    """API endpoint to get contract data for the dashboard with pagination.
+    
+    NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
+    """
     try:
-        import pandas as pd
-        csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-        df = pd.read_csv(csv_path)
-        
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         items_per_page = 10
         
-        total_contracts = len(df)
-        total_pages = (total_contracts + items_per_page - 1) // items_per_page
-        start = (page - 1) * items_per_page
-        end = start + items_per_page
+        # Fetch contracts from Qdrant with pagination
+        contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
         
-        # Get paginated contracts
-        paginated_df = df.iloc[start:end]
-        contracts = paginated_df.to_dict('records')
+        logging.info(f"✅ /api/contracts: Returning {len(contracts)} contracts from Qdrant (page {page}/{total_pages})")
         
         return jsonify({
             "contracts": contracts,
@@ -2062,28 +4507,239 @@ def get_contracts_api():
             "total_pages": total_pages
         })
     except Exception as e:
-        logging.error(f"Error loading contracts: {e}")
+        logging.error(f"Error loading contracts from Qdrant: {e}", exc_info=True)
         return jsonify({
-            "contracts": [
-                {
-                    "bid_name": "City Infrastructure Improvement Project",
-                    "category": "Construction",
-                    "due_date": "2025-10-15",
-                    "status": "active",
-                    "bid_number": "BID-2025-001",
-                    "detail_link": "https://example.com/contract"
-                }
-            ],
-            "total_contracts": 1,
+            "contracts": [],
+            "total_contracts": 0,
             "current_page": 1,
-            "total_pages": 1
+            "total_pages": 1,
+            "error": "Failed to load contracts from database"
         })
+
+@app.route('/api/qdrant_version', methods=['GET'])
+def qdrant_version_api():
+    """API endpoint to check if Qdrant data has changed.
+    
+    Returns the current collection signature (points_count).
+    Frontend can poll this endpoint periodically (e.g., every 60-120 seconds)
+    and refresh data when the version changes.
+    
+    This is a very lightweight endpoint that only checks the collection count,
+    not the actual contract data, so it has minimal performance impact.
+    """
+    try:
+        current_signature = get_qdrant_collection_signature()
+        return jsonify({
+            "success": True,
+            "version": current_signature,
+            "cached_version": QDRANT_ANALYTICS_SIGNATURE
+        })
+    except Exception as e:
+        logging.error(f"Error getting Qdrant version: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/generate_naics', methods=['POST'])
+def generate_naics_api():
+    """API endpoint to generate NAICS codes for a specific contract on-demand.
+    
+    This endpoint is called when viewing a contract that doesn't have NAICS codes.
+    The generated codes are cached to disk so they appear in the dashboard on subsequent loads.
+    """
+    try:
+        data = request.get_json()
+        hash_value = data.get('hash_value')
+        title = data.get('title', '')
+        description = data.get('description', '')
+        
+        if not hash_value:
+            return jsonify({"success": False, "error": "hash_value is required"}), 400
+        
+        # Check if we already have cached NAICS codes for this contract
+        if hash_value in AI_NAICS_CACHE and AI_NAICS_CACHE[hash_value]:
+            return jsonify({
+                "success": True,
+                "naics_codes": AI_NAICS_CACHE[hash_value],
+                "cached": True
+            })
+        
+        # Generate NAICS codes using AI
+        # Build a minimal payload for the generate function
+        payload = {
+            'bid_name': title,
+            'bid_description': description,
+        }
+        
+        naics_codes = generate_naics_codes_with_ai(payload, hash_value)
+        
+        return jsonify({
+            "success": True,
+            "naics_codes": naics_codes,
+            "cached": False
+        })
+    except Exception as e:
+        logging.error(f"Error generating NAICS codes: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/backfill_naics', methods=['POST'])
+def backfill_naics_api():
+    """Admin endpoint to backfill NAICS codes for all contracts that don't have them.
+    
+    This endpoint fetches all contracts from Qdrant, identifies those without NAICS codes,
+    and generates NAICS codes using AI for each one. Results are cached to disk.
+    
+    This is a one-time operation that should be run to populate NAICS codes for existing contracts.
+    """
+    import hashlib
+    import re
+    
+    try:
+        # Get optional limit parameter (for testing)
+        data = request.get_json() or {}
+        limit = data.get('limit', None)  # None means process all
+        
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            return jsonify({"success": False, "error": "Qdrant credentials not configured"}), 500
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Fetch all contracts from Qdrant
+        app.logger.info("🔄 Fetching all contracts from Qdrant for NAICS backfill...")
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=3000,
+            with_vectors=False,
+            with_payload=True
+        )
+        
+        points = scroll_result[0]
+        app.logger.info(f"📊 Found {len(points)} total contracts in Qdrant")
+        
+        # Identify contracts without NAICS codes
+        contracts_without_naics = []
+        for point in points:
+            payload = point.payload
+            
+            # Check for NAICS codes in all possible field formats
+            raw_naics = payload.get("naics_code") or payload.get("NAICS Code") or payload.get("NAICS_CODE", "")
+            raw_naics_all = payload.get("naics_codes_all") or payload.get("NAICS_CODES_ALL", "")
+            
+            has_naics = False
+            
+            # Check naics_codes_all
+            if raw_naics_all:
+                for part in str(raw_naics_all).split(";"):
+                    codes = re.findall(r'(\d{2,})(?:\.\d+)?', part.strip())
+                    if codes:
+                        has_naics = True
+                        break
+            
+            # Check naics_code
+            if not has_naics and raw_naics:
+                if isinstance(raw_naics, list):
+                    items = raw_naics
+                else:
+                    items = [raw_naics]
+                for item in items:
+                    codes = re.findall(r'(\d{2,})(?:\.\d+)?', str(item))
+                    if codes:
+                        has_naics = True
+                        break
+            
+            # Compute hash_value for this contract
+            detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url", "#")
+            bid_number = payload.get("bid_number") or payload.get("Bid Number") or payload.get("contract_number", "N/A")
+            hash_input = f"{detail_link}{bid_number}"
+            hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            
+            # Check if already in AI cache
+            if hash_value in AI_NAICS_CACHE and AI_NAICS_CACHE[hash_value]:
+                has_naics = True
+            
+            if not has_naics:
+                contracts_without_naics.append({
+                    'payload': payload,
+                    'hash_value': hash_value,
+                    'point_id': point.id
+                })
+        
+        app.logger.info(f"📊 Found {len(contracts_without_naics)} contracts without NAICS codes")
+        
+        # Apply limit if specified
+        if limit and limit > 0:
+            contracts_without_naics = contracts_without_naics[:limit]
+            app.logger.info(f"📊 Processing {len(contracts_without_naics)} contracts (limited)")
+        
+        # Generate NAICS codes for each contract
+        generated_count = 0
+        failed_count = 0
+        results = []
+        
+        for i, contract in enumerate(contracts_without_naics):
+            payload = contract['payload']
+            hash_value = contract['hash_value']
+            
+            # Extract contract info for AI generation
+            title = payload.get("bid_name") or payload.get("Bid Name") or payload.get("title") or "Unknown"
+            description = payload.get("bid_description") or payload.get("Bid Description") or payload.get("summary") or ""
+            agency = payload.get("organization") or payload.get("Organization") or payload.get("agency") or ""
+            notice_type = payload.get("category") or payload.get("Category") or payload.get("notice_type") or ""
+            
+            # Build payload for AI generation
+            ai_payload = {
+                'title': title,
+                'summary': description,
+                'agency': agency,
+                'notice_type': notice_type
+            }
+            
+            # Generate NAICS codes
+            naics_codes = generate_naics_codes_with_ai(ai_payload, hash_value)
+            
+            if naics_codes:
+                generated_count += 1
+                results.append({
+                    'title': title[:50],
+                    'naics_codes': naics_codes,
+                    'success': True
+                })
+            else:
+                failed_count += 1
+                results.append({
+                    'title': title[:50],
+                    'naics_codes': '',
+                    'success': False
+                })
+            
+            # Log progress every 10 contracts
+            if (i + 1) % 10 == 0:
+                app.logger.info(f"📊 Processed {i + 1}/{len(contracts_without_naics)} contracts...")
+        
+        app.logger.info(f"✅ NAICS backfill complete: {generated_count} generated, {failed_count} failed")
+        
+        return jsonify({
+            "success": True,
+            "total_contracts": len(points),
+            "contracts_without_naics": len(contracts_without_naics),
+            "generated_count": generated_count,
+            "failed_count": failed_count,
+            "results": results[:20]  # Return first 20 results for review
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in NAICS backfill: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
 
 @app.route('/dashboard_search', methods=['POST'])
 def dashboard_search():
     """Search contracts for dashboard with real-time filtering and analytics update"""
     try:
-        if 'user' not in session:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
             return jsonify({"success": False, "message": "User not logged in."}), 401
 
         data = request.get_json(force=True) or {}
@@ -2091,21 +4747,118 @@ def dashboard_search():
         page = data.get('page', 1)
         items_per_page = 10
 
-        if not user_query:
+        # Check if query is a NAICS code (4-6 digit number) - use exact matching instead of vector search
+        naics_match = re.fullmatch(r'\d{4,6}', user_query)
+        if naics_match:
+            logging.info(f"🔍 NAICS code search detected: {user_query}")
+            # Get all contracts from Qdrant for NAICS filtering
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+            
             import pandas as pd
-            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-            df = pd.read_csv(csv_path)
+            df = pd.DataFrame(all_contracts)
+            
+            if len(df) > 0:
+                # Filter by NAICS code - exact match within the naics_code field
+                df['naics_code'] = df['naics_code'].fillna('').astype(str)
+                # Match the NAICS code as a whole word (not partial match)
+                naics_code = naics_match.group(0)
+                mask = df['naics_code'].str.contains(rf'\b{naics_code}\b', regex=True, na=False)
+                df = df[mask]
+                
+                logging.info(f"✅ NAICS search found {len(df)} contracts with code {naics_code}")
             
             total_contracts = len(df)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
+            total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
             start = (page - 1) * items_per_page
             end = start + items_per_page
             
             paginated_df = df.iloc[start:end]
             contracts = paginated_df.to_dict('records')
             
-            from csv_analytics import analyze_contract_data
-            analytics = analyze_contract_data()
+            # Build analytics from filtered results
+            if len(df) > 0:
+                category_counts = df['category'].value_counts().to_dict()
+                status_counts = df['status'].value_counts().to_dict()
+                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+                
+                category_diversity = len(category_counts)
+                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+                
+                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+                high_score_contracts = df[df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)]
+                high_score_count = len(high_score_contracts)
+                
+                analytics = {
+                    'total_contracts': total_contracts,
+                    'category_distribution': category_counts,
+                    'status_distribution': status_counts,
+                    'win_probability': round(win_probability, 1),
+                    'open_contracts': open_contracts,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': high_score_count
+                }
+            else:
+                analytics = {
+                    'total_contracts': 0,
+                    'category_distribution': {},
+                    'status_distribution': {},
+                    'win_probability': 0,
+                    'open_contracts': 0,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': 0
+                }
+            
+            return jsonify({
+                "success": True,
+                "contracts": contracts,
+                "total_contracts": total_contracts,
+                "current_page": page,
+                "total_pages": total_pages,
+                "analytics": analytics
+            })
+
+        if not user_query:
+            # No query provided - return all contracts from Qdrant (CSV data is obsolete)
+            contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
+            
+            # Compute analytics from Qdrant data
+            import pandas as pd
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)  # Get all for analytics
+            df = pd.DataFrame(all_contracts)
+            
+            if len(df) > 0:
+                category_counts = df['category'].value_counts().to_dict()
+                status_counts = df['status'].value_counts().to_dict()
+                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+                
+                category_diversity = len(category_counts)
+                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+                
+                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+                high_score_contracts = df[df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)]
+                high_score_count = len(high_score_contracts)
+                
+                analytics = {
+                    'total_contracts': total_contracts,
+                    'category_distribution': category_counts,
+                    'status_distribution': status_counts,
+                    'win_probability': round(win_probability, 1),
+                    'open_contracts': open_contracts,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': high_score_count
+                }
+            else:
+                analytics = {
+                    'total_contracts': 0,
+                    'category_distribution': {},
+                    'status_distribution': {},
+                    'win_probability': 0,
+                    'open_contracts': 0,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': 0
+                }
+            
+            logging.info(f"✅ /dashboard_search (no query): Returning {len(contracts)} contracts from Qdrant")
             
             return jsonify({
                 "success": True,
@@ -2117,16 +4870,51 @@ def dashboard_search():
             })
 
         if not vector_store:
-            logging.warning("Vector store not initialized, falling back to basic text search")
-            import pandas as pd
-            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-            df = pd.read_csv(csv_path)
+            # Vector store not initialized - use Qdrant directly with basic text search (CSV data is obsolete)
+            logging.warning("Vector store not initialized, using Qdrant with basic text search")
             
-            if user_query:
-                mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
-                        df['category'].str.contains(user_query, case=False, na=False) |
-                        df['agency'].str.contains(user_query, case=False, na=False))
+            # Get all contracts from Qdrant for text search
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+            
+            import pandas as pd
+            df = pd.DataFrame(all_contracts)
+            
+            if user_query and len(df) > 0:
+                df['bid_number'] = df['bid_number'].fillna('').astype(str)
+                df['bid_name'] = df['bid_name'].fillna('').astype(str)
+                df['bid_description'] = df['bid_description'].fillna('').astype(str)
+                df['category'] = df['category'].fillna('').astype(str)
+                
+                # Create a combined search field from all relevant columns
+                df['search_blob'] = (
+                    df['bid_number'] + ' ' +
+                    df['bid_name'] + ' ' +
+                    df['bid_description'] + ' ' +
+                    df['category']
+                ).str.lower()
+                
+                query_lower = user_query.lower()
+                tokens = query_lower.split()
+                
+                mask = pd.Series([True] * len(df))
+                for token in tokens:
+                    mask = mask & df['search_blob'].str.contains(token, case=False, na=False, regex=False)
+                
                 df = df[mask]
+                
+                if len(df) > 0:
+                    df['rank_score'] = 0
+                    df.loc[df['bid_number'].str.lower() == query_lower, 'rank_score'] += 100
+                    df.loc[df['bid_name'].str.lower() == query_lower, 'rank_score'] += 50
+                    df.loc[df['bid_name'].str.lower().str.startswith(query_lower), 'rank_score'] += 25
+                    # Count token matches in bid_name (more relevant than description)
+                    for token in tokens:
+                        df.loc[df['bid_name'].str.lower().str.contains(token, regex=False), 'rank_score'] += 5
+                    
+                    df = df.sort_values(by=['rank_score', 'due_date'], ascending=[False, True])
+                    df = df.drop(columns=['search_blob', 'rank_score'])
+                else:
+                    df = df.drop(columns=['search_blob'])
             
             total_contracts = len(df)
             total_pages = (total_contracts + items_per_page - 1) // items_per_page
@@ -2136,28 +4924,41 @@ def dashboard_search():
             paginated_df = df.iloc[start:end]
             contracts = paginated_df.to_dict('records')
             
-            category_counts = df['category'].value_counts().to_dict()
-            status_counts = df['status'].value_counts().to_dict()
-            open_contracts = status_counts.get('open', 0)
-            
-            category_diversity = len(category_counts)
-            win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
-            
-            high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
-            high_score_contracts = df[
-                df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)
-            ]
-            high_score_count = len(high_score_contracts)
+            if len(df) > 0:
+                category_counts = df['category'].value_counts().to_dict()
+                status_counts = df['status'].value_counts().to_dict()
+                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
+                
+                category_diversity = len(category_counts)
+                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
+                
+                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+                high_score_contracts = df[
+                    df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)
+                ]
+                high_score_count = len(high_score_contracts)
 
-            analytics = {
-                'total_contracts': total_contracts,
-                'category_distribution': category_counts,
-                'status_distribution': status_counts,
-                'win_probability': round(win_probability, 1),
-                'open_contracts': open_contracts,
-                'upcoming_deadlines': 0,
-                'high_score_opportunities': high_score_count
-            }
+                analytics = {
+                    'total_contracts': total_contracts,
+                    'category_distribution': category_counts,
+                    'status_distribution': status_counts,
+                    'win_probability': round(win_probability, 1),
+                    'open_contracts': open_contracts,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': high_score_count
+                }
+            else:
+                analytics = {
+                    'total_contracts': 0,
+                    'category_distribution': {},
+                    'status_distribution': {},
+                    'win_probability': 0,
+                    'open_contracts': 0,
+                    'upcoming_deadlines': 0,
+                    'high_score_opportunities': 0
+                }
+            
+            logging.info(f"✅ /dashboard_search (no vector_store): Returning {len(contracts)} contracts from Qdrant")
 
             return jsonify({
                 "success": True,
@@ -2180,8 +4981,28 @@ def dashboard_search():
             top_k=10000
         )
         
-        # Filter results with similarity >= 0.7
-        filtered_results = [res for res in search_results if res.get('Similarity_Score', 0) >= 0.7]
+        # Sort by similarity score in descending order (highest similarity first)
+        # Note: Qdrant uses dot product metric, so scores are typically small (-0.1 to 0.1 range)
+        # We rely on relative ranking rather than absolute thresholds
+        filtered_results = list(search_results)
+        filtered_results.sort(key=lambda x: x.get('Similarity_Score', 0), reverse=True)
+        
+        # Prioritize results where query appears in contract name or category (exact text match)
+        # This gives users the "text filtering" behavior they expect for these columns
+        query_lower = user_query.lower()
+        exact_matches = []
+        other_matches = []
+        
+        for res in filtered_results:
+            bid_name = (res.get('bid_name') or '').lower()
+            category = (res.get('category') or '').lower()
+            if query_lower in bid_name or query_lower in category:
+                exact_matches.append(res)
+            else:
+                other_matches.append(res)
+        
+        # Combine: exact matches first (sorted by similarity), then other matches (sorted by similarity)
+        filtered_results = exact_matches + other_matches
         
         if not filtered_results:
             return jsonify({
@@ -2206,6 +5027,11 @@ def dashboard_search():
         start = (page - 1) * items_per_page
         end = start + items_per_page
         paginated_contracts = filtered_results[start:end]
+        
+        # NOTE: Do NOT call generate_naics_codes_with_ai() here during dashboard search
+        # This was causing slow search times as it made OpenAI API calls for contracts missing NAICS
+        # AI NAICS generation should only happen on-demand in contract detail views
+        # Contracts without NAICS codes will show empty NAICS in the dashboard
 
         import pandas as pd
         filtered_df = pd.DataFrame(filtered_results)
@@ -2253,8 +5079,196 @@ def ai_assistant_room():
     if not user:
         return redirect(url_for('Login'))
     
-    contract_id = request.args.get('contract')
+    user_id = user['localId']
+    user_email = user.get('email', 'unknown')
+    logging.info(f"🤖 /ai-assistant: user_id={user_id}, email={user_email}")
+    logging.info(f"🔍 /ai-assistant route hit with request.args: {dict(request.args)}")
+    
+    contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
     contract_name = request.args.get('name')
+    
+    logging.info(f"🔍 contract_param: {contract_param}, contract_name: {contract_name}")
+    
+    if not contract_param:
+        logging.warning(f"⚠️ No contract_param found, redirecting to /welcome")
+        return redirect('/welcome')
+    
+    # Determine if we have a hash_value or need to look up by bid_number
+    contract_id = None  # This will be the hash_value
+    bid_number = None
+    
+    # Check if the parameter looks like a hash (64 hex characters)
+    if len(contract_param) == 64 and all(c in '0123456789abcdef' for c in contract_param.lower()):
+        # It's already a hash_value
+        contract_id = contract_param
+        
+        # If contract_name is not provided, look it up by hash_value
+        if not contract_name:
+            user_id = user['localId']
+            logging.info(f"🔍 contract_name not provided, looking up by hash_value: {contract_id}")
+            
+            try:
+                # Get user data to find uploads directory
+                user_data = None
+                if admin_initialized and admin_db:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_data = user_ref.get()
+                else:
+                    user_data = db.child("users").child(user_id).get(user['idToken']).val()
+                
+                if user_data:
+                    user_uploads_dir = user_data.get('uploads_dir', '')
+                    if user_uploads_dir and os.path.exists(user_uploads_dir):
+                        # Try matches.csv
+                        matches_file = os.path.join(user_uploads_dir, 'matches.csv')
+                        if os.path.exists(matches_file):
+                            try:
+                                with open(matches_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        hash_input = f"{detail_link}{row_bid_number}"
+                                        row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                        if row_hash == contract_id:
+                                            contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
+                                            logging.info(f"✅ Found contract_name in matches.csv: {contract_name}")
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading matches.csv for hash lookup: {e}")
+                        
+                        # If not found, try matches_SMART_SEARCH.csv
+                        if not contract_name:
+                            smart_search_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
+                            if os.path.exists(smart_search_file):
+                                try:
+                                    with open(smart_search_file, 'r', encoding='utf-8') as file:
+                                        reader = csv.DictReader(file)
+                                        for row in reader:
+                                            row = {k.strip(): v for k, v in row.items()}
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if row_hash == contract_id:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
+                                                logging.info(f"✅ Found contract_name in matches_SMART_SEARCH.csv: {contract_name}")
+                                                break
+                                except Exception as e:
+                                    logging.error(f"Error reading matches_SMART_SEARCH.csv for hash lookup: {e}")
+                        
+                        # If still not found, try demo dataset as fallback
+                        if not contract_name:
+                            demo_file = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+                            if os.path.exists(demo_file):
+                                try:
+                                    with open(demo_file, 'r', encoding='utf-8') as file:
+                                        reader = csv.DictReader(file)
+                                        for row in reader:
+                                            row = {k.strip(): v for k, v in row.items()}
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            row_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if row_hash == contract_id:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or row_bid_number
+                                                logging.info(f"✅ Found contract_name in demo dataset: {contract_name}")
+                                                break
+                                except Exception as e:
+                                    logging.error(f"Error reading demo dataset for hash lookup: {e}")
+            except Exception as e:
+                logging.error(f"Error looking up contract_name by hash_value: {e}")
+    else:
+        # It's a bid_number, set it as contract_id by default
+        bid_number = contract_param
+        contract_id = bid_number
+        user_id = user['localId']
+        
+        logging.info(f"🔍 Treating as bid_number: {bid_number}, will attempt to compute hash_value from CSVs")
+        
+        try:
+            # Get user data to find uploads directory
+            user_data = None
+            if admin_initialized and admin_db:
+                user_ref = admin_db.reference(f'users/{user_id}')
+                user_data = user_ref.get()
+            else:
+                user_data = db.child("users").child(user_id).get(user['idToken']).val()
+            
+            if user_data:
+                user_uploads_dir = user_data.get('uploads_dir', '')
+                if user_uploads_dir and os.path.exists(user_uploads_dir):
+                    matches_file = os.path.join(user_uploads_dir, 'matches.csv')
+                    contract_found = False
+                    
+                    if os.path.exists(matches_file):
+                        try:
+                            with open(matches_file, 'r', encoding='utf-8') as file:
+                                reader = csv.DictReader(file)
+                                for row in reader:
+                                    row = {k.strip(): v for k, v in row.items()}
+                                    row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                    if row_bid_number == bid_number:
+                                        # Found the contract, compute hash_value
+                                        detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                        hash_input = f"{detail_link}{row_bid_number}"
+                                        contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                        if not contract_name:
+                                            contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                        contract_found = True
+                                        break
+                        except Exception as e:
+                            logging.error(f"Error reading matches.csv: {e}")
+                    
+                    # If not found in matches.csv, try matches_SMART_SEARCH.csv
+                    if not contract_found:
+                        smart_search_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
+                        if os.path.exists(smart_search_file):
+                            try:
+                                with open(smart_search_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        if row_bid_number == bid_number:
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if not contract_name:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                            contract_found = True
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading matches_SMART_SEARCH.csv: {e}")
+                    
+                    # If still not found, try demo dataset as fallback
+                    if not contract_found:
+                        demo_file = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+                        if os.path.exists(demo_file):
+                            try:
+                                with open(demo_file, 'r', encoding='utf-8') as file:
+                                    reader = csv.DictReader(file)
+                                    for row in reader:
+                                        row = {k.strip(): v for k, v in row.items()}
+                                        row_bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
+                                        if row_bid_number == bid_number:
+                                            detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
+                                            hash_input = f"{detail_link}{row_bid_number}"
+                                            contract_id = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+                                            if not contract_name:
+                                                contract_name = row.get('Bid Name') or row.get('Bid_Name') or bid_number
+                                            contract_found = True
+                                            break
+                            except Exception as e:
+                                logging.error(f"Error reading demo dataset: {e}")
+                    
+                    if not contract_found:
+                        logging.error(f"Contract with bid_number {bid_number} not found in any dataset")
+                        contract_id = bid_number
+        except Exception as e:
+            logging.error(f"Error looking up contract by bid_number: {e}")
+            contract_id = bid_number
     
     if not contract_id:
         return redirect('/welcome')
@@ -2277,44 +5291,60 @@ def ai_assistant_room():
                 user_uploads_dir = user_data.get('uploads_dir', '')
                 if user_uploads_dir and os.path.exists(user_uploads_dir):
                     try:
-                        capability_statement = process_files_user_input(user_uploads_dir)
-                        if capability_statement and \
-                           capability_statement not in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] and \
-                           len(capability_statement.strip()) >= 50:
-                            has_capability_statement = True
-                            logging.info(f"✅ User {user_id} has valid capability statement")
-                            
-                            # Extract all capability statements from CSV
-                            csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
-                            capability_statements = []
-                            capability_statement_count = 0
-                            
-                            if os.path.exists(csv_path):
-                                try:
-                                    df = pd.read_csv(csv_path)
-                                    if not df.empty and 'Company' in df.columns:
-                                        company_name = df['Company'].iloc[0]  # Primary company (important-comment)
-                                        capability_statement_count = len(df)
+                        # First check if CSV exists and has data rows
+                        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                        capability_statements = []
+                        capability_statement_count = 0
+                        
+                        if os.path.exists(csv_path):
+                            try:
+                                df = pd.read_csv(csv_path)
+                                # Check if DataFrame has actual data rows (not just headers)
+                                if not df.empty and len(df) > 0 and 'Company' in df.columns:
+                                    has_capability_statement = True
+                                    capability_statement_count = len(df)
+                                    
+                                    # Get primary company name from is_primary flag if available
+                                    if 'is_primary' in df.columns:
+                                        primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
+                                        if not primary_row.empty:
+                                            company_name = primary_row.iloc[0]['Company']
+                                        else:
+                                            company_name = df['Company'].iloc[0]  # Fallback to first row
+                                    else:
+                                        company_name = df['Company'].iloc[0]  # Fallback if column doesn't exist
+                                    
+                                    # Build list of all capabilities for selection
+                                    for idx, row in df.iterrows():
+                                        # Use is_primary from CSV if available, otherwise fallback to first row
+                                        if 'is_primary' in df.columns:
+                                            is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
+                                        else:
+                                            is_primary_val = (idx == 0)  # Fallback: first row is primary
                                         
-                                        # Build list of all capabilities for selection
-                                        for idx, row in df.iterrows():
-                                            capability_statements.append({
-                                                'company': row.get('Company', 'Unknown'),
-                                                'filename': row.get('filename', ''),
-                                                'upload_date': row.get('upload_date', ''),
-                                                'is_primary': idx == 0 or row.get('is_primary', False)
-                                            })
-                                        
-                                        logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
-                                except Exception as e:
-                                    logging.error(f"Error reading company names from CSV: {e}")
-                            
-                            for fname in os.listdir(user_uploads_dir):
-                                if fname.lower().endswith(('.pdf', '.doc', '.docx')):
-                                    capability_statement_filename = fname
-                                    break
+                                        capability_statements.append({
+                                            'company': row.get('Company', 'Unknown'),
+                                            'filename': row.get('filename', ''),
+                                            'upload_date': row.get('upload_date', ''),
+                                            'is_primary': is_primary_val
+                                        })
+                                    
+                                    logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
+                                    
+                                    # Find a capability statement file
+                                    for fname in os.listdir(user_uploads_dir):
+                                        if fname.lower().endswith(('.pdf', '.doc', '.docx')):
+                                            capability_statement_filename = fname
+                                            break
+                                else:
+                                    logging.warning(f"⚠️ User {user_id} has empty capability statements CSV")
+                                    has_capability_statement = False
+                            except Exception as e:
+                                logging.error(f"Error reading capability statements CSV: {e}")
+                                has_capability_statement = False
                         else:
-                            logging.warning(f"⚠️ User {user_id} has no valid capability statement")
+                            logging.warning(f"⚠️ User {user_id} has no capability statements CSV")
+                            has_capability_statement = False
                     except Exception as e:
                         logging.error(f"Error checking capability statement: {e}")
         else:
@@ -2326,27 +5356,60 @@ def ai_assistant_room():
                 user_uploads_dir = user_data.get('uploads_dir', '')
                 if user_uploads_dir and os.path.exists(user_uploads_dir):
                     try:
-                        capability_statement = process_files_user_input(user_uploads_dir)
-                        if capability_statement and \
-                           capability_statement not in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] and \
-                           len(capability_statement.strip()) >= 50:
-                            has_capability_statement = True
-                            
-                            # Extract all capability statements from CSV
-                            csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
-                            if os.path.exists(csv_path):
-                                try:
-                                    df = pd.read_csv(csv_path)
-                                    if not df.empty and 'Company' in df.columns:
-                                        company_name = df['Company'].iloc[0]
-                                        logging.info(f"✅ Extracted company name: {company_name}")
-                                except Exception as e:
-                                    logging.error(f"Error reading company name from CSV: {e}")
-                            
-                            for fname in os.listdir(user_uploads_dir):
-                                if fname.lower().endswith(('.pdf', '.doc', '.docx')):
-                                    capability_statement_filename = fname
-                                    break
+                        # First check if CSV exists and has data rows
+                        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                        capability_statements = []
+                        capability_statement_count = 0
+                        
+                        if os.path.exists(csv_path):
+                            try:
+                                df = pd.read_csv(csv_path)
+                                # Check if DataFrame has actual data rows (not just headers)
+                                if not df.empty and len(df) > 0 and 'Company' in df.columns:
+                                    has_capability_statement = True
+                                    capability_statement_count = len(df)
+                                    
+                                    # Get primary company name from is_primary flag if available
+                                    if 'is_primary' in df.columns:
+                                        primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
+                                        if not primary_row.empty:
+                                            company_name = primary_row.iloc[0]['Company']
+                                        else:
+                                            company_name = df['Company'].iloc[0]  # Fallback to first row
+                                    else:
+                                        company_name = df['Company'].iloc[0]  # Fallback if column doesn't exist
+                                    
+                                    # Build list of all capabilities for selection
+                                    for idx, row in df.iterrows():
+                                        # Use is_primary from CSV if available, otherwise fallback to first row
+                                        if 'is_primary' in df.columns:
+                                            is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
+                                        else:
+                                            is_primary_val = (idx == 0)  # Fallback: first row is primary
+                                        
+                                        capability_statements.append({
+                                            'company': row.get('Company', 'Unknown'),
+                                            'filename': row.get('filename', ''),
+                                            'upload_date': row.get('upload_date', ''),
+                                            'is_primary': is_primary_val
+                                        })
+                                    
+                                    logging.info(f"✅ Found {capability_statement_count} capability statement(s), primary: {company_name}")
+                                    
+                                    # Find a capability statement file
+                                    for fname in os.listdir(user_uploads_dir):
+                                        if fname.lower().endswith(('.pdf', '.doc', '.docx')):
+                                            capability_statement_filename = fname
+                                            break
+                                else:
+                                    logging.warning(f"⚠️ User {user_id} has empty capability statements CSV")
+                                    has_capability_statement = False
+                            except Exception as e:
+                                logging.error(f"Error reading capability statements CSV: {e}")
+                                has_capability_statement = False
+                        else:
+                            logging.warning(f"⚠️ User {user_id} has no capability statements CSV")
+                            has_capability_statement = False
                     except Exception as e:
                         logging.error(f"Error checking capability statement: {e}")
     except Exception as e:
@@ -2362,6 +5425,116 @@ def ai_assistant_room():
                          company_name=company_name,
                          capability_statements=capability_statements if 'capability_statements' in locals() else [],
                          capability_statement_count=capability_statement_count if 'capability_statement_count' in locals() else 0)
+
+@app.route('/proposal/start')
+def proposal_start():
+    """Screen 1: Contract Analysis & PDF Annotations"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    contract_hash = request.args.get('hash_value') or request.args.get('hash')
+    draft_id = request.args.get('draft_id')
+    
+    if not contract_hash:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal start: {e}")
+    
+    # Get contract name from query param first (passed from AI assistant)
+    contract_name = request.args.get('name')
+    
+    # Get contract details from CSV (fallback for contract_name if not in query param)
+    contract_data = None
+    try:
+        df = pd.read_csv('Scraping_demo_results.csv')
+        # Try to find by hash_value column first (if it exists), otherwise try bid_number
+        if 'hash_value' in df.columns:
+            contract_row = df[df['hash_value'] == contract_hash]
+        else:
+            contract_row = df[df['bid_number'] == contract_hash]
+        
+        if not contract_row.empty:
+            contract_data = contract_row.iloc[0].to_dict()
+            # Only use CSV name if not already provided via query param
+            if not contract_name:
+                contract_name = contract_data.get('bid_name') or contract_data.get('Bid Name') or contract_data.get('Bid_Name')
+    except Exception as e:
+        logging.error(f"Error loading contract data: {e}")
+    
+    return render_template('proposal_start.html',
+                         contract_hash=contract_hash,
+                         contract_data=contract_data,
+                         contract_name=contract_name,
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
+@app.route('/proposal/team')
+def proposal_team():
+    """Screen 2: Team & Subcontractor Builder"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal team: {e}")
+    
+    return render_template('proposal_team.html',
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
+
+@app.route('/proposal/pricing')
+def proposal_pricing():
+    """Screen 3: Pricing Strategy & Review"""
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect('/welcome')
+    
+    user_id = user['localId']
+    current_credits = 0
+    
+    try:
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get()
+            if user_data:
+                current_credits = user_data.get('credits_balance', 0)
+    except Exception as e:
+        logging.error(f"Error fetching credits for proposal pricing: {e}")
+    
+    return render_template('proposal_pricing.html',
+                         draft_id=draft_id,
+                         current_credits=current_credits,
+                         user_id=user_id)
 
 #2/25 updated
 @app.route('/welcome2', methods=['GET'])  
@@ -2456,7 +5629,21 @@ def Faq():
     return render_template('faq.html')
 
 
-    #TEAM DETAIL PAGE ROUTE FUNCTION 
+#TERMS OF USE ROUTE FUNCTION
+@app.route('/terms_of_use', methods=['GET'])
+def terms_of_use():
+    # Render HTML template with embedded PDF iframe for better browser compatibility
+    return render_template('terms_of_use.html')
+
+
+#PRIVACY NOTICE ROUTE FUNCTION
+@app.route('/privacy_notice', methods=['GET'])
+def privacy_notice():
+    # Render HTML template with embedded PDF iframe for better browser compatibility
+    return render_template('privacy_notice.html')
+
+
+#TEAM DETAIL PAGE ROUTE FUNCTION
 @app.route('/businesspartner', methods=['GET']) 
 def Businesspartner():
     return render_template('businesspartner.html')
@@ -2646,10 +5833,12 @@ ALLOWED_PERSISTENT_FILES = ['matches.csv', 'capability_statements_processed.csv'
 #BID SEARCH FUNCTION TO CLEAR USER UPLOADS EXCEPT 'embedded_bids.csv'
 @app.route('/clear_uploads', methods=['POST'])
 def clear_uploads():
-    user = session.get('user')
-    if not user:
+    # Ensure session is populated from auth.current_user if needed
+    if not ensure_session_from_auth():
         app.logger.error('User not logged in')
         return jsonify({'success': False, 'message': 'User not logged in'}), 400
+    
+    user = session.get('user')
     user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
     user_uploads_dir = user_data.get('uploads_dir')
     # Verify if the uploads directory path is retrieved correctly
@@ -2685,8 +5874,8 @@ def logout():
 
 
 def check_qdrant_config():
-    qdrant_url = os.getenv('QDRANT_URL')
-    qdrant_api_key = os.getenv('QDRANT_API_KEY')
+    qdrant_url = os.getenv('Qdrant_EP')
+    qdrant_api_key = os.getenv('Qdrant_AK')
     
     if not qdrant_url or not qdrant_api_key:
         raise ValueError("Qdrant configuration missing. Check your .env file.")
@@ -2784,10 +5973,12 @@ def upload_and_process():
         if selected_contract_types or selected_states or not hash_value:
             # Example: re-run your Qdrant or RAG logic to produce “matches.csv”
             # (the same steps from your original upload_and_process).
+            # Use OPENAI_MARIO as primary key for all AI features (including Top 5 enrichment)
+            openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
             handler = CSQueryHandler(
-                openai_api_key=os.getenv('CS_BID_SEARCH_OPENAI_API_KEY'),
-                qdrant_url=os.getenv('QDRANT_URL'),
-                qdrant_api_key=os.getenv('QDRANT_API_KEY'),
+                openai_api_key=openai_key,
+                qdrant_url=os.getenv('Qdrant_EP'),
+                qdrant_api_key=os.getenv('Qdrant_AK'),
                 user_upload_dir=user_upload_dir
             )
             with open(file_path, 'rb') as pdf_file:
@@ -2796,11 +5987,12 @@ def upload_and_process():
             try:
                 app.logger.info(f"Starting Qdrant matching with contract_types: {selected_contract_types}, states: {selected_states}")
                 
-                # Initialize CSQueryHandler for contract matching
+                # Initialize CSQueryHandler for contract matching - use OPENAI_MARIO as primary key
+                openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
                 handler = CSQueryHandler(
-                    openai_api_key=os.getenv('CS_BID_SEARCH_OPENAI_API_KEY'),
-                    qdrant_url=os.getenv('QDRANT_URL'),
-                    qdrant_api_key=os.getenv('QDRANT_API_KEY'),
+                    openai_api_key=openai_key,
+                    qdrant_url=os.getenv('Qdrant_EP'),
+                    qdrant_api_key=os.getenv('Qdrant_AK'),
                     user_upload_dir=user_upload_dir
                 )
                 
@@ -2815,33 +6007,41 @@ def upload_and_process():
                 
                 app.logger.info(f"Qdrant matching completed. Found {len(results)} results")
                 
-                matches_file = os.path.join(user_upload_dir, 'matches.csv')
-                with open(matches_file, 'w', newline='', encoding='utf-8') as f:
-                    writer = csv.DictWriter(f, fieldnames=[
-                        'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
-                        'Status', 'Category', 'Due_Date', 'Detail_Link',
-                        'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value'
-                    ])
-                    writer.writeheader()
-                    for row in results:
-                        # If we have pdf_company_name, use it:
-                        writer.writerow({
-                            'Company':         pdf_company_name if pdf_company_name else "Unknown",
-                            'Bid_Number':      row['Bid_Number'],
-                            'Bid_Name':        row['Bid_Name'],
-                            'Bid_Description': row.get('Bid_Description',''),
-                            'Status':          row.get('Status',''),
-                            'Category':        row.get('Category',''),
-                            'Due_Date':        row.get('Due_Date',''),
-                            'Detail_Link':     row.get('Detail_Link','#'),
-                            'State':           row.get('State',''),
-                            'Organization':    row.get('Organization',''),
-                            'Budget':          row.get('Budget',''),
-                            'Similarity_Score': row.get('Similarity_Score',''),
-                            'hash_value':      row.get('hash_value','')
-                        })
+                # Store results in session (NEW: CSV data is obsolete)
+                session['top5_results'] = results
+                app.logger.info(f"✅ Stored {len(results)} matches in session")
                 
-                app.logger.info(f"Successfully saved {len(results)} matches to {matches_file}")
+                # Also write to CSV for backward compatibility (fallback)
+                matches_file = os.path.join(user_upload_dir, 'matches.csv')
+                try:
+                    with open(matches_file, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=[
+                            'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
+                            'Status', 'Category', 'Due_Date', 'Detail_Link',
+                            'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id'
+                        ])
+                        writer.writeheader()
+                        for row in results:
+                            # If we have pdf_company_name, use it:
+                            writer.writerow({
+                                'Company':         pdf_company_name if pdf_company_name else "Unknown",
+                                'Bid_Number':      row['Bid_Number'],
+                                'Bid_Name':        row['Bid_Name'],
+                                'Bid_Description': row.get('Bid_Description',''),
+                                'Status':          row.get('Status',''),
+                                'Category':        row.get('Category',''),
+                                'Due_Date':        row.get('Due_Date',''),
+                                'Detail_Link':     row.get('Detail_Link','#'),
+                                'State':           row.get('State',''),
+                                'Organization':    row.get('Organization',''),
+                                'Budget':          row.get('Budget',''),
+                                'Similarity_Score': row.get('Similarity_Score',''),
+                                'hash_value':      row.get('hash_value',''),
+                                'contract_id':     row.get('contract_id','')
+                            })
+                    app.logger.info(f"Also saved {len(results)} matches to CSV fallback: {matches_file}")
+                except Exception as csv_error:
+                    app.logger.warning(f"Failed to write CSV fallback: {csv_error}")
                 
                 # If success, redirect to the top-5 results page
                 return jsonify({"success": True, "message": "Upload success (top-5 matches).", "redirect": "/top_five_results"})
@@ -3167,6 +6367,8 @@ def enhanced_ai_assistant():
     """Enhanced AI assistant endpoint with credit-based billing"""
     global enhanced_ai
     
+    ensure_session_from_auth()
+    
     user_query = request.form.get('query')
     hash_value = request.form.get('hash_value')
     action_type = request.form.get('action_type', 'general')
@@ -3176,6 +6378,9 @@ def enhanced_ai_assistant():
     try:
         if not user_query:
             return jsonify({"error": "Query is required"}), 400
+        
+        if 'user' not in session:
+            return jsonify({"error": "User not authenticated"}), 401
             
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
@@ -3288,28 +6493,63 @@ How can I help you with your contract response today?"""
             if not success:
                 return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
             
-            # Generate comprehensive multi-page proposal
-            try:
-                contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
-                
-                full_proposal = enhanced_ai.generate_full_proposal(
-                    contract_requirements,
-                    context_data.get('capability_statement', ''),
-                    company_name=context_data.get('company_name', 'your company'),
-                    user_documents=context_data.get('uploaded_documents', [])
-                )
-                
-                return jsonify({
-                    "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
-                    "proposal": full_proposal,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
-                })
-                
-            except Exception as e:
-                app.logger.error(f"Error generating full proposal: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
-                return jsonify({"error": "Failed to generate comprehensive proposal"}), 500
+            job_id = str(uuid.uuid4())
+            
+            with job_lock:
+                proposal_jobs[job_id] = {
+                    'status': 'processing',
+                    'progress': 0,
+                    'result': None,
+                    'error': None,
+                    'user_id': user_id,
+                    'credits_used': required_credits,
+                    'remaining_credits': current_credits - required_credits
+                }
+            
+            def generate_proposal_async():
+                try:
+                    app.logger.info(f"Starting async proposal generation for job {job_id}")
+                    contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
+                    
+                    with job_lock:
+                        proposal_jobs[job_id]['progress'] = 20
+                    
+                    full_proposal = enhanced_ai.generate_full_proposal(
+                        contract_requirements,
+                        context_data.get('capability_statement', ''),
+                        company_name=context_data.get('company_name', 'your company'),
+                        user_documents=context_data.get('uploaded_documents', [])
+                    )
+                    
+                    with job_lock:
+                        proposal_jobs[job_id]['status'] = 'completed'
+                        proposal_jobs[job_id]['progress'] = 100
+                        proposal_jobs[job_id]['result'] = {
+                            "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
+                            "proposal": full_proposal
+                        }
+                    app.logger.info(f"Completed async proposal generation for job {job_id}")
+                    
+                except Exception as e:
+                    app.logger.error(f"Error generating full proposal for job {job_id}: {e}", exc_info=True)
+                    credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
+                    with job_lock:
+                        proposal_jobs[job_id]['status'] = 'failed'
+                        proposal_jobs[job_id]['error'] = str(e)
+            
+            thread = threading.Thread(target=generate_proposal_async)
+            thread.daemon = True
+            thread.start()
+            
+            response_data = {
+                "job_id": job_id,
+                "status": "processing",
+                "message": "Proposal generation started. Use the job_id to check status.",
+                "credits_used": required_credits,
+                "remaining_credits": current_credits - required_credits
+            }
+            app.logger.info(f"Returning async job response: {response_data}")
+            return jsonify(response_data)
             
         elif action_type == 'analyze':
             success, message, new_balance = credit_manager.deduct_credits_admin(
@@ -3453,6 +6693,31 @@ How can I help you with your contract response today?"""
         app.logger.error(f"Error in enhanced AI assistant: {str(e)}")
         return jsonify({"error": f"Enhanced AI assistant error: {str(e)}"}), 500
 
+@app.route('/proposal_job_status/<job_id>', methods=['GET'])
+def proposal_job_status(job_id):
+    """Check the status of an async proposal generation job"""
+    with job_lock:
+        job = proposal_jobs.get(job_id)
+        
+        if not job:
+            return jsonify({"error": "Job not found"}), 404
+        
+        response = {
+            "status": job['status'],
+            "progress": job['progress'],
+            "credits_used": job['credits_used'],
+            "remaining_credits": job['remaining_credits']
+        }
+        
+        if job['status'] == 'completed':
+            response.update(job['result'])
+            del proposal_jobs[job_id]
+        elif job['status'] == 'failed':
+            response['error'] = job['error']
+            del proposal_jobs[job_id]
+        
+        return jsonify(response)
+
 @app.route('/capability-builder-enhanced')
 def capability_builder_enhanced():
     user = session.get('user')
@@ -3467,20 +6732,33 @@ def capability_builder_enhanced():
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
     try:
-        # if 'user_id' not in session:
-        #     return jsonify({'error': 'User not authenticated'}), 401
-        
         user_id = session.get('user_id', 'test_user')
         data = request.get_json()
         
-        # Save to Firebase (temporarily disabled due to configuration issues)
-        # if db:
-        #     doc_ref = db.collection('capability_statements').document(user_id)
-        #     doc_ref.set({
-        #         'data': data,
-        #         'updated_at': 'timestamp_placeholder',
-        #         'user_id': user_id
-        #     })
+        # Save to local file storage (reliable fallback)
+        save_dir = os.path.join(os.path.dirname(__file__), 'capability_statements')
+        os.makedirs(save_dir, exist_ok=True)
+        
+        save_path = os.path.join(save_dir, f'{user_id}.json')
+        with open(save_path, 'w') as f:
+            import json
+            json.dump({
+                'data': data,
+                'updated_at': datetime.now().isoformat(),
+                'user_id': user_id
+            }, f)
+        
+        # Also try Firebase if available
+        if db:
+            try:
+                doc_ref = db.collection('capability_statements').document(user_id)
+                doc_ref.set({
+                    'data': data,
+                    'updated_at': firestore.SERVER_TIMESTAMP,
+                    'user_id': user_id
+                })
+            except Exception as firebase_error:
+                logging.warning(f"Firebase save failed (using local storage): {str(firebase_error)}")
             
         return jsonify({'success': True, 'message': 'Capability statement saved successfully'})
         
@@ -3491,24 +6769,119 @@ def save_capability_statement():
 @app.route('/load-capability-statement', methods=['GET'])
 def load_capability_statement():
     try:
-        # if 'user_id' not in session:
-        #     return jsonify({'error': 'User not authenticated'}), 401
-        
         user_id = session.get('user_id', 'test_user')
         
-        # Load from Firebase (temporarily disabled due to configuration issues)
-        # if db:
-        #     doc_ref = db.collection('capability_statements').document(user_id)
-        #     doc = doc_ref.get()
-        #     
-        #     if doc.exists:
-        #         return jsonify(doc.to_dict().get('data', {}))
+        # Try Firebase first if available
+        if db:
+            try:
+                doc_ref = db.collection('capability_statements').document(user_id)
+                doc = doc_ref.get()
+                
+                if doc.exists:
+                    return jsonify(doc.to_dict().get('data', {}))
+            except Exception as firebase_error:
+                logging.warning(f"Firebase load failed (trying local storage): {str(firebase_error)}")
         
-        return jsonify({'error': 'Load functionality temporarily disabled'}), 404
+        # Fallback to local file storage
+        save_dir = os.path.join(os.path.dirname(__file__), 'capability_statements')
+        save_path = os.path.join(save_dir, f'{user_id}.json')
+        
+        if os.path.exists(save_path):
+            with open(save_path, 'r') as f:
+                import json
+                saved_data = json.load(f)
+                return jsonify(saved_data.get('data', {}))
+        
+        return jsonify({'error': 'No saved capability statement found'}), 404
         
     except Exception as e:
         logging.error(f"Error loading capability statement: {str(e)}")
         return jsonify({'error': 'Failed to load capability statement'}), 500
+
+def enhance_capability_statement_content(data):
+    """Use AI to create professional, compelling capability statement content matching industry standards"""
+    try:
+        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        client = OpenAI(api_key=api_key)
+        
+        prompt = f"""You are an expert in creating professional government contracting capability statements. Create compelling, detailed content that matches the quality of top-tier capability statements.
+
+Company: {data.get('company_name', '')}
+Industry/Focus: Based on NAICS codes {', '.join(data.get('naics_codes', [])[:3])}
+
+Current Content:
+- Company Description: {data.get('company_description', '')}
+- Core Competencies: {', '.join(data.get('core_competencies', []))}
+- Differentiators: {', '.join(data.get('differentiators', []))}
+- Past Performance: {', '.join(data.get('private_performance', []))}
+- Certifications: {', '.join(data.get('certifications', []))}
+
+Create professional capability statement content following these guidelines:
+
+1. ABOUT US (80-120 words): Write a compelling company overview that:
+   - Highlights the company's expertise and unique value proposition
+   - Emphasizes commitment to quality, safety, and customer satisfaction
+   - Mentions years of experience or notable achievements
+   - Uses professional, confident language
+   - Focuses on what makes them stand out in their industry
+
+2. PAST PERFORMANCE (5-6 items): Create impressive, specific achievements:
+   - Format: "Brief description highlighting scale/impact and results"
+   - Include quantifiable metrics (number of projects, success rate, etc.)
+   - Emphasize on-time delivery, budget compliance, quality
+   - Show breadth of experience
+   - Use professional, achievement-focused language
+
+3. CORE COMPETENCIES (6-7 items): Detailed service descriptions:
+   - Format: "Service Name: Detailed description of capability and value"
+   - Each should be 15-25 words explaining the service comprehensively
+   - Focus on expertise, approach, and client benefits
+   - Use industry-specific terminology
+   - Emphasize comprehensive, professional service delivery
+
+4. DIFFERENTIATORS (5-6 items): Compelling competitive advantages:
+   - Format: "Advantage Title: Explanation of how this sets them apart"
+   - Each should be 15-25 words
+   - Focus on proven track record, advanced capabilities, unique approaches
+   - Emphasize commitment to excellence, innovation, compliance
+   - Use strong, confident language
+
+5. CERTIFICATIONS (keep all, enhance descriptions):
+   - Add brief context if needed (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
+
+Return ONLY a JSON object:
+{{
+  "company_description": "professional 80-120 word description",
+  "past_performance": ["achievement 1", "achievement 2", ...],
+  "core_competencies": ["Service: Description", ...],
+  "differentiators": ["Advantage: Explanation", ...],
+  "certifications": ["certification with context", ...]
+}}"""
+
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are an expert in creating professional government contracting capability statements. Create detailed, compelling content that matches industry-leading examples. Always return valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.8,
+            max_tokens=3000
+        )
+        
+        enhanced_content = json.loads(response.choices[0].message.content)
+        
+        data['company_description'] = enhanced_content.get('company_description', data.get('company_description', ''))
+        data['core_competencies'] = enhanced_content.get('core_competencies', data.get('core_competencies', []))
+        data['differentiators'] = enhanced_content.get('differentiators', data.get('differentiators', []))
+        data['private_performance'] = enhanced_content.get('past_performance', data.get('private_performance', []))
+        data['certifications'] = enhanced_content.get('certifications', data.get('certifications', []))
+        
+        return data
+        
+    except Exception as e:
+        logging.error(f"Error enhancing capability statement content: {str(e)}")
+        return data
 
 @app.route('/generate-enhanced-pdf', methods=['POST'])
 def generate_enhanced_pdf():
@@ -3564,18 +6937,20 @@ def generate_enhanced_pdf():
         except json.JSONDecodeError:
             pass
         
-        colors = {
-            'blue': [(64, 64, 128), (192, 192, 255)],
-            'green': [(64, 128, 64), (192, 255, 192)],
-            'red': [(128, 64, 64), (255, 192, 192)],
-            'purple': [(128, 64, 128), (255, 192, 255)],
-            'orange': [(255, 140, 0), (255, 218, 185)],
-            'pink': [(206, 120, 120), (250, 188, 188)],
-        }
+        # Convert hex colors to RGB tuples
+        def hex_to_rgb(hex_color):
+            hex_color = hex_color.lstrip('#')
+            return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+        
+        primary_color = form_data.get('primaryColor', '#2E4C8B')
+        secondary_color = form_data.get('secondaryColor', '#A8D5E2')
+        
+        primary_rgb = hex_to_rgb(primary_color)
+        secondary_rgb = hex_to_rgb(secondary_color)
         
         formatted_data = {
             'company_name': form_data.get('companyName', ''),
-            'logo_color': colors.get('blue', [(64, 64, 128), (192, 192, 255)]),
+            'logo_color': [primary_rgb, secondary_rgb],
             'logo_path': logo_path,
             'image_path': image_path,
             'uei_code': form_data.get('ueiCode', ''),
@@ -3623,6 +6998,8 @@ def generate_enhanced_pdf():
                 if client or desc or value
             ]
         
+        formatted_data = enhance_capability_statement_content(formatted_data)
+        
         # Generate PDF
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
         output_path = os.path.join(user_upload_dir, output_filename)
@@ -3661,7 +7038,6 @@ def process_capability_statement():
                 file.save(filepath)
                 logging.info(f"File saved to: {filepath}")
                 
-                # Extract text from PDF
                 capability_text = extract_text_from_pdf(filepath)
                 logging.info(f"Extracted text length: {len(capability_text) if capability_text else 0}")
                 
@@ -3670,7 +7046,7 @@ def process_capability_statement():
                 logging.error(f"File validation failed for: {file.filename}")
                 return jsonify({'error': f'Invalid file type. Please upload a PDF file.'}), 400
         
-        elif request.json and 'url' in request.json:
+        elif request.is_json and request.json and 'url' in request.json:
             url = request.json['url']
             logging.info(f"Processing URL import: {url}")
             capability_text = download_and_extract_from_url(url)
@@ -3681,8 +7057,13 @@ def process_capability_statement():
             return jsonify({'error': 'No file or URL provided'}), 400
         
         if not capability_text or len(capability_text.strip()) < 10:
-            logging.error(f"Insufficient text extracted: '{capability_text[:100]}...' (length: {len(capability_text) if capability_text else 0})")
-            return jsonify({'error': 'Could not extract meaningful text from capability statement. Please ensure the PDF contains readable text.'}), 400
+            logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}...' (length: {len(capability_text) if capability_text else 0})")
+            error_msg = 'Could not extract meaningful text. '
+            if 'url' in request.json:
+                error_msg += 'The system can import from both PDF URLs and websites. If the content is too short or not relevant, please try: (1) A direct PDF URL, (2) Uploading the PDF file directly, or (3) A different webpage with more detailed company information.'
+            else:
+                error_msg += 'Please ensure the PDF contains readable text (not scanned images). Try using a text-based PDF or OCR software first.'
+            return jsonify({'error': error_msg}), 400
         
         # Use AI to parse and structure the capability statement
         logging.info("Starting AI parsing of capability statement")
@@ -3690,8 +7071,193 @@ def process_capability_statement():
         logging.info(f"AI parsing completed, fields found: {list(parsed_data.keys()) if parsed_data else 'none'}")
         
         if not parsed_data:
-            logging.error("AI parsing returned empty result")
-            return jsonify({'error': 'Could not parse capability statement content. Please try a different document.'}), 400
+            logging.warning("AI parsing returned empty result, using enhanced fallback parser")
+            import re
+            parsed_data = {}
+            
+            capability_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', capability_text)
+            capability_text = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', capability_text)
+            
+            lines = capability_text.split('\n')
+            text_lower = capability_text.lower()
+            
+            # Extract company name - look for line with Inc/LLC/Corp suffix
+            company_name = None
+            for line in lines:
+                line = line.strip()
+                if re.search(r'\b(?:Inc|LLC|Corp|Corporation|Company|Co\.)\b', line, re.IGNORECASE):
+                    if not re.match(r'^(CAPABILITY|ABOUT|PAST|CORE|DIFFERENTIATORS|CERTIFICATIONS)', line, re.IGNORECASE):
+                        # Extract just the company name part
+                        match = re.search(r'([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))', line, re.IGNORECASE)
+                        if match:
+                            company_name = match.group(1).strip()
+                            break
+            if company_name:
+                parsed_data['companyName'] = company_name
+            
+            # Extract email
+            email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
+            if email_match:
+                parsed_data['email'] = email_match.group()
+            
+            # Extract phone
+            phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
+            if phone_match:
+                parsed_data['phone'] = phone_match.group()
+            
+            # Extract website
+            url_match = re.search(r'https?://[^\s]+', capability_text)
+            if url_match:
+                parsed_data['website'] = url_match.group().rstrip('.,;)')
+            
+            # Extract contact name and title (look for patterns like "Contact:", "Attn:", etc.)
+            contact_patterns = [
+                r'(?:contact|attn|attention)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+                r'(?:name)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+            ]
+            for pattern in contact_patterns:
+                match = re.search(pattern, capability_text, re.IGNORECASE)
+                if match:
+                    parsed_data['contactName'] = match.group(1).strip()
+                    break
+            
+            # Extract title (CEO, President, Director, etc.)
+            title_match = re.search(r'\b(CEO|President|Director|Manager|Owner|Principal|VP|Vice President)\b', capability_text, re.IGNORECASE)
+            if title_match:
+                parsed_data['contactTitle'] = title_match.group(1)
+            
+            # Extract address components - require street number AND suffix
+            address_match = re.search(r'(\d+\s+[A-Za-z\s]{3,50}?(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Boulevard|Blvd\.|Drive|Dr\.|Lane|Ln\.|Way|Court|Ct\.))', capability_text, re.IGNORECASE)
+            if address_match:
+                addr = address_match.group(1).strip()
+                if not re.search(r'\b(successful|completed|projects?|years?|over|under)\b', addr, re.IGNORECASE):
+                    parsed_data['address'] = addr
+            
+            # Extract city, state, zip - handle both inline and multiline formats
+            city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
+            if city_state_zip:
+                parsed_data['city'] = city_state_zip.group(1)
+                parsed_data['state'] = city_state_zip.group(2)
+                parsed_data['zipCode'] = city_state_zip.group(3)
+            else:
+                city_state_zip_multiline = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]*[\n\s]+([A-Z]{2})[\s\n]+(\d{5}(?:-\d{4})?)', capability_text)
+                if city_state_zip_multiline:
+                    parsed_data['city'] = city_state_zip_multiline.group(1)
+                    parsed_data['state'] = city_state_zip_multiline.group(2)
+                    parsed_data['zipCode'] = city_state_zip_multiline.group(3)
+            
+            # Extract UEI code (12 alphanumeric characters)
+            uei_match = re.search(r'\b(?:UEI|Unique Entity Identifier)[:\s]+([A-Z0-9]{12})\b', capability_text, re.IGNORECASE)
+            if uei_match:
+                parsed_data['ueiCode'] = uei_match.group(1)
+            
+            # Extract CAGE code (5 alphanumeric characters)
+            cage_match = re.search(r'\b(?:CAGE|Commercial and Government Entity)[:\s]+([A-Z0-9]{5})\b', capability_text, re.IGNORECASE)
+            if cage_match:
+                parsed_data['cageCode'] = cage_match.group(1)
+            
+            # Extract NAICS codes with descriptions
+            naics_codes_with_desc = extract_naics_codes_with_descriptions(capability_text)
+            if naics_codes_with_desc:
+                parsed_data['naicsCodes'] = naics_codes_with_desc
+            
+            # Extract certifications (common patterns)
+            cert_patterns = ['8\\(a\\)', 'WBENC', 'MBE', 'WBE', 'DBE', 'SDB', 'HUBZone', 'VOSB', 'SDVOSB', 'ISO ?9001', 'ISO ?14001', 'ISO ?27001']
+            certifications = []
+            for cert in cert_patterns:
+                if re.search(cert, capability_text, re.IGNORECASE):
+                    certifications.append(re.sub(r'\?', '', cert))
+            if certifications:
+                parsed_data['certifications'] = certifications
+            
+            # Extract core competencies - handle multiple formats
+            competency_section = re.search(r'(?:core competencies|capabilities|services offered|expertise|what we do)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+            if competency_section:
+                competencies = re.findall(r'[-•*–—]\s*(.+)', competency_section.group(1))
+                parsed_data['competencies'] = [c.strip() for c in competencies if c.strip() and len(c.strip()) > 3]
+            elif not competency_section:
+                for line_idx, line in enumerate(lines):
+                    if re.search(r'(?:core competencies|capabilities|services|expertise)', line, re.IGNORECASE):
+                        competencies = []
+                        for next_line in lines[line_idx+1:line_idx+15]:
+                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                                comp = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                                if len(comp) > 3:
+                                    competencies.append(comp)
+                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                                break
+                        if competencies:
+                            parsed_data['competencies'] = competencies
+                            break
+            
+            # Extract differentiators - handle multiple formats
+            diff_section = re.search(r'(?:key differentiators|differentiators|why choose us|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+            if diff_section:
+                differentiators = re.findall(r'[-•*–—]\s*(.+)', diff_section.group(1))
+                parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip() and len(d.strip()) > 3]
+            elif not diff_section:
+                for line_idx, line in enumerate(lines):
+                    if re.search(r'(?:key differentiators|differentiators|why choose us|why us)', line, re.IGNORECASE):
+                        differentiators = []
+                        for next_line in lines[line_idx+1:line_idx+15]:
+                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                                diff = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                                if len(diff) > 3:
+                                    differentiators.append(diff)
+                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                                break
+                        if differentiators:
+                            parsed_data['differentiators'] = differentiators
+                            break
+            
+            # Extract company description - look for prose paragraph with multiple approaches
+            desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW|DESCRIPTION)[:\s]*[\n\s]*([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){1,}\.)', capability_text, re.IGNORECASE)
+            if desc_match:
+                desc = desc_match.group(1).strip()
+                if len(desc) > 30 and not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI)', desc, re.IGNORECASE):
+                    parsed_data['companyDescription'] = desc[:500]
+            
+            if 'companyDescription' not in parsed_data:
+                for line_start in range(0, len(lines) - 3):
+                    potential_desc = ' '.join(lines[line_start:line_start+5]).strip()
+                    if len(potential_desc) > 100 and potential_desc.count('.') >= 2:
+                        if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI|CERTIFICATIONS|CONTACT)', potential_desc, re.IGNORECASE):
+                            if not re.search(r'[-•*–—]', potential_desc[:50]):
+                                sentences = re.split(r'[.!?]+\s+', potential_desc)
+                                if len(sentences) >= 2:
+                                    parsed_data['companyDescription'] = '. '.join(sentences[:3]).strip()[:500]
+                                    if parsed_data['companyDescription'] and not parsed_data['companyDescription'].endswith('.'):
+                                        parsed_data['companyDescription'] += '.'
+                                    break
+            
+            # Extract industry focus
+            industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
+            if industry_match:
+                parsed_data['industryFocus'] = industry_match.group(1).strip()
+            
+            # Extract past performance - handle multiple formats
+            past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|client list|project experience|representative projects)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+            if past_perf_section:
+                past_performance = re.findall(r'[-•*–—]\s*(.+)', past_perf_section.group(1))
+                parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip() and len(p.strip()) > 5]
+            elif not past_perf_section:
+                for line_idx, line in enumerate(lines):
+                    if re.search(r'(?:past performance|notable projects|key projects|clients|representative projects)', line, re.IGNORECASE):
+                        past_performance = []
+                        for next_line in lines[line_idx+1:line_idx+20]:
+                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                                perf = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                                if len(perf) > 5:
+                                    past_performance.append(perf)
+                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                                break
+                        if past_performance:
+                            parsed_data['pastPerformance'] = past_performance
+                            break
+            
+            logging.info(f"Enhanced fallback parser extracted {len(parsed_data)} fields: {list(parsed_data.keys())}")
+            
+            parsed_data = sanitize_parsed_data(parsed_data, capability_text)
         
         return jsonify({'success': True, 'data': parsed_data})
         
@@ -3761,50 +7327,187 @@ def extract_text_from_pdf(filepath):
         return ""
 
 def download_and_extract_from_url(url):
-    """Download PDF from URL and extract text"""
+    """Download PDF from URL or scrape text from website with robust fallbacks"""
     try:
         import requests
-        logging.info(f"Attempting to download PDF from URL: {url}")
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
+        logging.info(f"Attempting to download content from URL: {url}")
         
         if not url.startswith(('http://', 'https://')):
             logging.error(f"Invalid URL format: {url}")
             return ""
         
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': f"{urlparse(url).scheme}://{urlparse(url).netloc}/"
         }
         
-        response = requests.get(url, timeout=30, headers=headers, stream=True)
-        logging.info(f"URL response status: {response.status_code}, content-type: {response.headers.get('content-type', 'unknown')}")
+        try:
+            head_response = requests.head(url, timeout=10, headers=headers, allow_redirects=True)
+            content_type = head_response.headers.get('content-type', '').lower()
+            status_code = head_response.status_code
+            logging.info(f"HEAD request - Status: {status_code}, Content-Type: {content_type}")
+        except Exception as e:
+            logging.warning(f"HEAD request failed: {e}, proceeding with GET")
+            content_type = ''
+            status_code = None
         
-        if response.status_code == 200:
-            # Check if content is actually a PDF
-            content_type = response.headers.get('content-type', '').lower()
-            if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
-                logging.warning(f"URL may not be a PDF file. Content-Type: {content_type}")
+        if 'pdf' in content_type or url.lower().endswith('.pdf'):
+            logging.info("Detected direct PDF URL, downloading...")
+            response = requests.get(url, timeout=30, headers=headers, stream=True, allow_redirects=True)
             
-            temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
-            
-            max_size = 10 * 1024 * 1024  # 10MB
-            downloaded_size = 0
-            
-            with open(temp_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        downloaded_size += len(chunk)
-                        if downloaded_size > max_size:
-                            logging.error(f"File too large: {downloaded_size} bytes")
-                            os.remove(temp_path)
-                            return ""
-                        f.write(chunk)
-            
-            logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
-            text = extract_text_from_pdf(temp_path)
-            os.remove(temp_path)
-            return text
+            if response.status_code == 200:
+                temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                
+                max_size = 10 * 1024 * 1024  # 10MB
+                downloaded_size = 0
+                
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            downloaded_size += len(chunk)
+                            if downloaded_size > max_size:
+                                logging.error(f"PDF file too large: {downloaded_size} bytes")
+                                os.remove(temp_path)
+                                return ""
+                            f.write(chunk)
+                
+                logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
+                text = extract_text_from_pdf(temp_path)
+                os.remove(temp_path)
+                logging.info(f"Extracted {len(text)} characters from PDF")
+                return text
+            else:
+                logging.error(f"Failed to download PDF: HTTP {response.status_code}")
+                return ""
+        
         else:
-            logging.error(f"Failed to download URL: HTTP {response.status_code}")
-            return ""
+            logging.info("Detected HTML page, attempting to extract content...")
+            response = requests.get(url, timeout=30, headers=headers, allow_redirects=True)
+            
+            if response.status_code != 200:
+                logging.error(f"Failed to fetch website: HTTP {response.status_code}")
+                return ""
+            
+            soup = BeautifulSoup(response.content, 'html.parser')
+            
+            pdf_links = []
+            for tag in soup.find_all(['a', 'iframe', 'embed', 'object']):
+                href = tag.get('href') or tag.get('src') or tag.get('data')
+                if href and ('.pdf' in href.lower() or 'pdf' in href.lower()):
+                    absolute_url = urljoin(url, href)
+                    pdf_links.append(absolute_url)
+                    logging.info(f"Found potential PDF link: {absolute_url}")
+            
+            if pdf_links:
+                logging.info(f"Attempting to download PDF from embedded link: {pdf_links[0]}")
+                try:
+                    pdf_response = requests.get(pdf_links[0], timeout=30, headers=headers, stream=True, allow_redirects=True)
+                    if pdf_response.status_code == 200 and 'pdf' in pdf_response.headers.get('content-type', '').lower():
+                        temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                        max_size = 10 * 1024 * 1024
+                        downloaded_size = 0
+                        
+                        with open(temp_path, 'wb') as f:
+                            for chunk in pdf_response.iter_content(chunk_size=8192):
+                                if chunk:
+                                    downloaded_size += len(chunk)
+                                    if downloaded_size > max_size:
+                                        logging.error(f"Embedded PDF too large: {downloaded_size} bytes")
+                                        os.remove(temp_path)
+                                        break
+                                    f.write(chunk)
+                        
+                        if os.path.exists(temp_path):
+                            logging.info(f"Downloaded embedded PDF: {downloaded_size} bytes")
+                            text = extract_text_from_pdf(temp_path)
+                            os.remove(temp_path)
+                            if text and len(text.strip()) > 10:
+                                logging.info(f"Successfully extracted {len(text)} characters from embedded PDF")
+                                return text
+                except Exception as pdf_error:
+                    logging.warning(f"Failed to download embedded PDF: {pdf_error}")
+            
+            logging.info("No valid PDF found, scraping HTML text content...")
+            
+            for element in soup(["script", "style"]):
+                element.decompose()
+            
+            text_parts = []
+            
+            footer = soup.find('footer') or soup.find('div', class_=lambda x: x and ('footer' in x.lower() if isinstance(x, str) else any('footer' in c.lower() for c in x)))
+            if footer:
+                footer_text = footer.get_text(separator='\n', strip=True)
+                text_parts.append("CONTACT INFORMATION:\n" + footer_text)
+                logging.info(f"Found footer with {len(footer_text)} chars")
+            
+            contact_links = []
+            for link in soup.find_all('a', href=True):
+                href = link.get('href', '').lower()
+                link_text = link.get_text(strip=True).lower()
+                if any(keyword in href or keyword in link_text for keyword in ['contact', 'about', 'location']):
+                    absolute_url = urljoin(url, link.get('href'))
+                    if absolute_url not in contact_links and absolute_url != url:
+                        contact_links.append(absolute_url)
+                        logging.info(f"Found potential contact page: {absolute_url}")
+            
+            # Try to fetch the first contact page
+            if contact_links:
+                try:
+                    contact_response = requests.get(contact_links[0], timeout=15, headers=headers, allow_redirects=True)
+                    if contact_response.status_code == 200:
+                        contact_soup = BeautifulSoup(contact_response.content, 'html.parser')
+                        for element in contact_soup(["script", "style"]):
+                            element.decompose()
+                        contact_text = contact_soup.get_text(separator='\n', strip=True)
+                        text_parts.append("CONTACT PAGE:\n" + contact_text[:2000])  # Limit to 2000 chars
+                        logging.info(f"Fetched contact page with {len(contact_text)} chars")
+                except Exception as contact_error:
+                    logging.warning(f"Failed to fetch contact page: {contact_error}")
+            
+            main_content = soup.find('main') or soup.find('article') or soup.find('div', class_=['content', 'main-content', 'page-content', 'container'])
+            
+            if main_content:
+                logging.info("Found main content area")
+                text_parts.append(main_content.get_text(separator='\n', strip=True))
+            else:
+                logging.info("No main content area, extracting from common elements...")
+                
+                for meta in soup.find_all('meta', attrs={'name': ['description', 'og:description']}):
+                    content = meta.get('content', '')
+                    if content:
+                        text_parts.append(content)
+                        logging.info(f"Found meta description: {len(content)} chars")
+                
+                for tag in soup.find_all(['p', 'li', 'td', 'h1', 'h2', 'h3', 'h4', 'div']):
+                    text = tag.get_text(separator=' ', strip=True)
+                    if text and len(text) > 20:  # Only meaningful text
+                        text_parts.append(text)
+                
+                logging.info(f"Extracted text from {len(text_parts)} elements")
+            
+            combined_text = '\n'.join(text_parts)
+            lines = [line.strip() for line in combined_text.split('\n') if line.strip()]
+            final_text = '\n'.join(lines)
+            
+            import re
+            final_text = re.sub(r'\n{3,}', '\n\n', final_text)
+            final_text = re.sub(r' {2,}', ' ', final_text)
+            
+            logging.info(f"Final scraped text: {len(final_text)} characters from {len(lines)} lines")
+            
+            if len(final_text.strip()) < 200:
+                logging.info("Extracted text too short, trying full page text extraction...")
+                final_text = soup.get_text(separator='\n', strip=True)
+                lines = [line.strip() for line in final_text.split('\n') if line.strip()]
+                final_text = '\n'.join(lines)
+                logging.info(f"Full page extraction: {len(final_text)} characters")
+            
+            return final_text
             
     except requests.exceptions.Timeout:
         logging.error(f"Timeout downloading from URL: {url}")
@@ -3816,58 +7519,308 @@ def download_and_extract_from_url(url):
         logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
         return ""
 
+def extract_naics_section(text):
+    """Extract the NAICS section from capability statement text"""
+    import re
+    
+    temp_text = re.sub(
+        r'(?i)\s+(?=(ABOUT\s+US|NAICS(?:\s+CODE)?|PAST\s+PERFORMANCE|CORE\s+COMPETENCIES|DIFFERENTIATORS?|CERTIFICATIONS?|POINT\s+OF\s+CONTACT|CONTACT\s+INFORMATION)\b)',
+        '\n',
+        text
+    )
+    
+    naics_start = re.search(r'(?i)\bNAICS(?:\s+CODE)?\b', temp_text)
+    if not naics_start:
+        return ""
+    
+    next_section_pattern = r'(?i)\b(?:CERTIFICATIONS?|ABOUT\s+US|CORE\s+COMPETENCIES|DIFFERENTIATORS?|PAST\s+PERFORMANCE|CONTACT|POINT\s+OF\s+CONTACT)\b'
+    next_section = re.search(next_section_pattern, temp_text[naics_start.end():])
+    
+    if next_section:
+        naics_text = temp_text[naics_start.start():naics_start.end() + next_section.start()]
+    else:
+        naics_text = temp_text[naics_start.start():]
+    
+    return naics_text
+
+def extract_naics_codes_with_descriptions(text):
+    """Extract NAICS codes with descriptions from text"""
+    import re
+    
+    naics_section = extract_naics_section(text)
+    naics_list = []
+    seen_codes = set()
+    
+    if len(naics_section) < 50:
+        fallback_pattern = r'(\d{5,6})\s*[\(\[]([^\)\]]{10,100})[\)\]]'
+        fallback_matches = re.findall(fallback_pattern, text)
+        if len(fallback_matches) >= 2:
+            return [f"{code} ({' '.join(desc.split())})" for code, desc in fallback_matches]
+        return []
+    
+    code_pattern = r'(?m)^[\s•*\-–—]*([0-9]{5,6})\b'
+    code_matches = re.finditer(code_pattern, naics_section)
+    
+    for match in code_matches:
+        code = match.group(1)
+        if code in seen_codes:
+            continue
+        seen_codes.add(code)
+        
+        desc_search_text = naics_section[match.end():]
+        desc_match = re.search(r'\(([\s\S]*?)\)', desc_search_text[:200])
+        
+        if desc_match:
+            description = ' '.join(desc_match.group(1).split())
+            naics_list.append(f"{code} ({description})")
+        else:
+            line_end = desc_search_text.find('\n')
+            if line_end > 0:
+                rest_of_line = desc_search_text[:line_end].strip()
+                rest_of_line = re.sub(r'^[\s\-–—:]+', '', rest_of_line)
+                if rest_of_line and len(rest_of_line) > 3:
+                    naics_list.append(f"{code} ({rest_of_line})")
+                else:
+                    naics_list.append(code)
+            else:
+                naics_list.append(code)
+    
+    if not naics_list:
+        secondary_pattern = r'(\d{5,6})\b[^\n\(]{0,50}\(([\s\S]{10,200}?)\)'
+        secondary_matches = re.findall(secondary_pattern, naics_section)
+        for code, desc in secondary_matches:
+            if code not in seen_codes:
+                seen_codes.add(code)
+                naics_list.append(f"{code} ({' '.join(desc.split())})")
+    
+    if not naics_list:
+        fallback_pattern = r'(\d{5,6})\s*[\(\[]([^\)\]]{10,100})[\)\]]'
+        fallback_matches = re.findall(fallback_pattern, text)
+        if len(fallback_matches) >= 2:
+            return [f"{code} ({' '.join(desc.split())})" for code, desc in fallback_matches]
+    
+    return naics_list
+
+def generate_naics_descriptions(codes):
+    """Generate NAICS descriptions using OpenAI API for codes without descriptions"""
+    import re
+    from openai import OpenAI
+    
+    codes_without_desc = [code for code in codes if '(' not in code]
+    
+    if not codes_without_desc:
+        return codes  # All codes already have descriptions
+    
+    try:
+        openai_api_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            logging.warning("No OpenAI API key found for NAICS description generation")
+            return codes
+        
+        client = OpenAI(api_key=openai_api_key)
+        
+        # Generate descriptions for all missing codes in one API call
+        prompt = f"""Given these NAICS codes, return the official NAICS titles as short descriptions.
+Output strict JSON mapping code to description.
+
+Codes: {codes_without_desc}
+
+Format: {{"code": "description", ...}}
+Keep descriptions concise (under 50 words each)."""
+        
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a NAICS code expert. Return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.3,
+            max_tokens=500
+        )
+        
+        import json
+        descriptions_dict = json.loads(response.choices[0].message.content)
+        
+        updated_codes = []
+        for code in codes:
+            if '(' in code:
+                # Already has description
+                updated_codes.append(code)
+            else:
+                # Add generated description
+                if code in descriptions_dict:
+                    updated_codes.append(f"{code} ({descriptions_dict[code]})")
+                else:
+                    # Fallback: keep code without description
+                    updated_codes.append(code)
+        
+        logging.info(f"Generated descriptions for {len(codes_without_desc)} NAICS codes")
+        return updated_codes
+        
+    except Exception as e:
+        logging.error(f"Error generating NAICS descriptions: {str(e)}")
+        return codes  # Return original codes on error
+
+def sanitize_parsed_data(parsed_data, source_text=""):
+    """Clean and normalize extracted capability statement data"""
+    import re
+    from urllib.parse import urlparse
+    
+    sanitized = {}
+    
+    # Clean company name
+    if 'companyName' in parsed_data and parsed_data['companyName']:
+        name = parsed_data['companyName']
+        name = re.sub(r'(?i)^(capability\s+statement|about\s+us|company\s+name)[:\s]*', '', name)
+        name = name.split('\n')[0].strip()
+        if len(name) > 100:
+            suffix_match = re.search(r'(.*?(?:Inc|LLC|Corp|Corporation|Company|Co\.))', name, re.IGNORECASE)
+            if suffix_match:
+                name = suffix_match.group(1)
+            else:
+                name = name[:100]
+        sanitized['companyName'] = name.strip()
+    
+    if 'website' in parsed_data and parsed_data['website']:
+        url = parsed_data['website']
+        try:
+            parsed_url = urlparse(url if url.startswith('http') else f'http://{url}')
+            sanitized['website'] = f"{parsed_url.scheme}://{parsed_url.netloc}".rstrip('/')
+        except:
+            sanitized['website'] = url.split()[0].rstrip('.,;)')
+    
+    # Clean company description
+    if 'companyDescription' in parsed_data and parsed_data['companyDescription']:
+        desc = parsed_data['companyDescription']
+        desc = re.sub(r'(?i)^(capability\s+statement|about\s+us|company\s+overview|overview|description)[:\s]*', '', desc)
+        desc = re.sub(r'(?i)(core\s+competencies|key\s+differentiators|past\s+performance|certifications).*$', '', desc, flags=re.DOTALL)
+        sentences = re.split(r'[.!?]+\s+', desc)
+        if len(sentences) > 3:
+            desc = '. '.join(sentences[:3]) + '.'
+        desc = desc[:400].strip()
+        if desc:
+            sanitized['companyDescription'] = desc
+    
+    for field in ['contactName', 'contactTitle', 'phone', 'email', 'address', 'city', 'state', 'zipCode', 'industryFocus', 'ueiCode', 'cageCode']:
+        if field in parsed_data and parsed_data[field]:
+            sanitized[field] = str(parsed_data[field]).strip()
+    
+    if 'naicsCodes' in parsed_data and isinstance(parsed_data['naicsCodes'], list) and parsed_data['naicsCodes']:
+        naics_codes = [str(item).strip() for item in parsed_data['naicsCodes'] if item]
+        
+        # Check if codes already have descriptions (contain parentheses)
+        codes_with_desc = [code for code in naics_codes if '(' in code]
+        codes_without_desc = [code for code in naics_codes if '(' not in code]
+        
+        if codes_without_desc and source_text:
+            extracted_codes = extract_naics_codes_with_descriptions(source_text)
+            for extracted in extracted_codes:
+                # Extract just the code number for comparison
+                extracted_num = re.search(r'^([0-9]{5,6})', extracted)
+                if extracted_num:
+                    extracted_num = extracted_num.group(1)
+                    if extracted_num in codes_without_desc:
+                        codes_without_desc.remove(extracted_num)
+                        codes_with_desc.append(extracted)
+            
+            naics_codes = codes_with_desc + codes_without_desc
+        
+        # Generate descriptions for any remaining codes without descriptions
+        if any('(' not in code for code in naics_codes):
+            naics_codes = generate_naics_descriptions(naics_codes)
+        
+        sanitized['naicsCodes'] = naics_codes
+    
+    for field in ['competencies', 'differentiators', 'certifications', 'pastPerformance']:
+        if field in parsed_data and isinstance(parsed_data[field], list) and parsed_data[field]:
+            sanitized[field] = [str(item).strip() for item in parsed_data[field] if item]
+    
+    return sanitized
+
 def parse_capability_statement_with_ai(text):
     """Use AI to parse capability statement text into structured data"""
     try:
         logging.info("Starting AI parsing of capability statement text")
         
-        max_chars = 8000  # Conservative limit for GPT-3.5-turbo
+        max_chars = 10000
         if len(text) > max_chars:
             text = text[:max_chars] + "..."
             logging.info(f"Truncated text to {max_chars} characters")
         
+        system_prompt = """You are an expert at parsing capability statements and company information. Extract structured data from the provided text and return it as valid JSON.
+
+Required fields (include all that you can identify):
+- companyName: Company name
+- website: Company website URL
+- contactName: Primary contact person name
+- contactTitle: Contact person's title/position (e.g., CEO, President, Director)
+- phone: Phone number
+- email: Email address
+- address: Street address
+- city: City
+- state: State (2-letter code if possible)
+- zipCode: ZIP code
+- companyDescription: Brief company description (2-3 sentences max)
+- industryFocus: Primary industry or market focus
+- competencies: Array of core competencies/capabilities/services
+- differentiators: Array of key differentiators/competitive advantages
+- ueiCode: UEI (Unique Entity Identifier) code
+- cageCode: CAGE (Commercial and Government Entity) code
+- naicsCodes: Array of NAICS codes WITH descriptions in format "CODE (Description)", e.g. ["236220 (Commercial and Institutional Building Construction)", "237110 (Water and Sewer Line Construction)"]. Use official NAICS titles and keep descriptions concise.
+- certifications: Array of certifications (e.g., 8(a), WBENC, MBE, ISO, etc.)
+- pastPerformance: Array of past performance examples/notable projects/clients
+
+Only include fields you can clearly identify. Return ONLY valid JSON, no additional text or markdown."""
+
         messages = [
-            {"role": "system", "content": "You are an expert at parsing capability statements. Extract structured data from the provided text and return it as valid JSON with fields: companyName, contactName, phone, email, address, city, state, zipCode, website, companyDescription, competencies (array), differentiators (array), ueiCode, cageCode, naicsCodes (array), certifications (array). Only include fields that you can clearly identify from the text. Return ONLY the JSON object, no additional text."},
-            {"role": "user", "content": f"Parse this capability statement text and return only JSON:\n\n{text}"}
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Parse this capability statement and extract all available information as JSON:\n\n{text}"}
         ]
         
         completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=messages,
-            max_tokens=1000,
+            max_tokens=2000,
             temperature=0.1
         )
         
         response_text = completion.choices[0].message.content.strip()
-        logging.info(f"AI response length: {len(response_text)}")
-        logging.debug(f"AI response: {response_text[:200]}...")
+        logging.info(f"AI parsing succeeded, response length: {len(response_text)}")
         
         import json
         import re
+        
+        # Remove markdown code blocks if present
+        response_text = re.sub(r'^```json\s*', '', response_text)
+        response_text = re.sub(r'\s*```$', '', response_text)
         
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
             json_str = json_match.group()
             parsed_data = json.loads(json_str)
-            logging.info(f"Successfully parsed JSON with fields: {list(parsed_data.keys())}")
-            return parsed_data
+            logging.info(f"AI extracted fields: {list(parsed_data.keys())}")
+            return sanitize_parsed_data(parsed_data, text)
         else:
             try:
                 parsed_data = json.loads(response_text)
-                logging.info(f"Successfully parsed entire response as JSON with fields: {list(parsed_data.keys())}")
-                return parsed_data
+                logging.info(f"AI extracted fields: {list(parsed_data.keys())}")
+                return sanitize_parsed_data(parsed_data, text)
             except json.JSONDecodeError:
-                logging.error(f"Could not parse AI response as JSON: {response_text}")
+                logging.error(f"Could not parse AI response as JSON: {response_text[:200]}")
                 return {}
         
     except Exception as e:
-        logging.error(f"Error parsing with AI: {str(e)}", exc_info=True)
+        logging.warning(f"AI parsing failed: {str(e)[:100]}")
         return {}
 
 @app.route('/update_selected_capability', methods=['POST'])
 def update_selected_capability():
     """Update which capability statement is currently selected as primary"""
     try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({'error': 'User not authenticated'}), 401
+        
         if 'user' not in session:
             return jsonify({'error': 'User not authenticated'}), 401
         
@@ -3902,16 +7855,81 @@ def update_selected_capability():
         logging.error(f"Error updating selected capability: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/delete_capability_statement', methods=['POST'])
+def delete_capability_statement():
+    """Delete a capability statement from user's profile"""
+    try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        if 'user' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        user = session['user']
+        user_id = user['localId']
+        id_token = user['idToken']
+        filename = request.json.get('filename')
+        
+        if not filename:
+            return jsonify({'error': 'Filename is required'}), 400
+        
+        # Get user uploads directory
+        user_data = db.child("users").child(user_id).get(id_token).val()
+        if not user_data or 'uploads_dir' not in user_data:
+            return jsonify({'error': 'User uploads directory not found'}), 400
+        
+        user_uploads_dir = user_data['uploads_dir']
+        csv_path = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+        
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'Capability statements CSV not found'}), 404
+        
+        # Read CSV and remove the row for this filename
+        df = pd.read_csv(csv_path)
+        initial_count = len(df)
+        df = df[df['filename'] != filename]
+        
+        if len(df) == initial_count:
+            return jsonify({'error': 'Capability statement not found in database'}), 404
+        
+        # Save updated CSV
+        df.to_csv(csv_path, index=False)
+        
+        # Delete the physical file if it exists
+        file_path = os.path.join(user_uploads_dir, filename)
+        if os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+                logging.info(f"✅ Deleted file: {file_path}")
+            except Exception as e:
+                logging.warning(f"⚠️ Could not delete file {file_path}: {e}")
+        
+        logging.info(f"✅ Deleted capability statement {filename} for user {user_id}")
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error deleting capability statement: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/upload_document', methods=['POST'])
 def upload_document():
     """Upload document to user's profile for AI assistant use with credit deduction"""
     try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({"error": "User not authenticated"}), 401
+        
         if 'user' not in session:
             return jsonify({"error": "User not authenticated"}), 401
             
         user = session['user']
-        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         user_id = user['localId']
+        user_email = user.get('email', 'unknown')
+        logging.info(f"📤 /upload_document: user_id={user_id}, email={user_email}")
+        
+        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         id_token = user['idToken']
         
         if not user_data or 'uploads_dir' not in user_data:
@@ -3962,15 +7980,63 @@ def upload_document():
             
             # Process all capability statement PDFs in directory into CSV
             try:
+                output_csv = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                
+                # Preserve existing is_primary flags before reprocessing
+                prior_primaries = {}
+                if os.path.exists(output_csv):
+                    try:
+                        old_df = pd.read_csv(output_csv)
+                        if 'filename' in old_df.columns and 'is_primary' in old_df.columns:
+                            prior_primaries = {
+                                row['filename']: bool(str(row.get('is_primary', 'false')).lower() == 'true')
+                                for _, row in old_df.iterrows()
+                            }
+                            logging.info(f"📋 Preserved {len(prior_primaries)} existing capability statement primary flags")
+                    except Exception as e:
+                        logging.warning(f"⚠️ Could not read existing CSV for primary preservation: {e}")
+                
+                # Reprocess all PDFs (this regenerates the CSV)
                 pdf_files = [
                     os.path.join(user_uploads_dir, f) 
                     for f in os.listdir(user_uploads_dir) 
                     if f.lower().endswith('.pdf')
                 ]
                 if pdf_files:
-                    output_csv = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
                     process_pdfs(pdf_files, output_csv)
                     logging.info(f"✅ Processed {len(pdf_files)} capability statement PDF(s) for user {user_id}")
+                    
+                    # Re-apply primary flags after reprocessing
+                    try:
+                        df = pd.read_csv(output_csv)
+                        if 'filename' in df.columns:
+                            # Reset all to False first
+                            df['is_primary'] = False
+                            
+                            # Re-mark any that were previously primary
+                            for i, row in df.iterrows():
+                                fname = row.get('filename')
+                                if fname in prior_primaries and prior_primaries[fname]:
+                                    df.at[i, 'is_primary'] = True
+                                    logging.info(f"✅ Restored primary flag for: {fname}")
+                            
+                            # If nothing ended up primary (first upload or previous CSV was empty),
+                            # make the newly uploaded file primary
+                            if not df['is_primary'].any() and not df.empty:
+                                # Find the newly uploaded file
+                                new_file_idx = df[df['filename'] == filename].index
+                                if len(new_file_idx) > 0:
+                                    df.at[new_file_idx[0], 'is_primary'] = True
+                                    logging.info(f"✅ Set newly uploaded file as primary: {filename}")
+                                else:
+                                    # Fallback: make first row primary
+                                    df.at[0, 'is_primary'] = True
+                                    logging.info(f"✅ Set first row as primary (fallback)")
+                            
+                            df.to_csv(output_csv, index=False)
+                            logging.info(f"✅ Saved capability statements CSV with preserved primary flags")
+                    except Exception as e:
+                        logging.error(f"⚠️ Error re-applying primary flags: {e}")
             except Exception as e:
                 logging.error(f"Error processing capability statement PDFs: {e}")
             
@@ -3984,11 +8050,54 @@ def upload_document():
             }
             documents_ref.push(document_data, user['idToken'])
             
+            # Read capability statements to return current state for UI update
+            capability_state = {
+                'has_capability_statement': False,
+                'company_name': None,
+                'capability_statements': [],
+                'capability_statement_count': 0
+            }
+            
+            try:
+                output_csv = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+                if os.path.exists(output_csv):
+                    df = pd.read_csv(output_csv)
+                    if len(df) > 0:
+                        capability_state['has_capability_statement'] = True
+                        capability_state['capability_statement_count'] = len(df)
+                        
+                        # Get primary company name
+                        if 'is_primary' in df.columns:
+                            primary_row = df[df['is_primary'].astype(str).str.lower() == 'true']
+                            if not primary_row.empty:
+                                capability_state['company_name'] = primary_row.iloc[0]['Company']
+                            else:
+                                capability_state['company_name'] = df['Company'].iloc[0]
+                        else:
+                            capability_state['company_name'] = df['Company'].iloc[0]
+                        
+                        # Build list of all capabilities
+                        for idx, row in df.iterrows():
+                            if 'is_primary' in df.columns:
+                                is_primary_val = str(row.get('is_primary', 'false')).lower() == 'true'
+                            else:
+                                is_primary_val = (idx == 0)
+                            
+                            capability_state['capability_statements'].append({
+                                'company': row.get('Company', 'Unknown'),
+                                'filename': row.get('filename', ''),
+                                'upload_date': row.get('upload_date', ''),
+                                'is_primary': is_primary_val
+                            })
+            except Exception as e:
+                logging.error(f"Error reading capability state: {e}")
+            
             return jsonify({
                 "success": True, 
                 "filename": filename,
                 "credits_used": 0 if skip_credits else 2,
-                "remaining_credits": current_credits if skip_credits else current_credits - 2
+                "remaining_credits": current_credits if skip_credits else current_credits - 2,
+                "capability_state": capability_state
             })
         else:
             return jsonify({"error": "File type not allowed"}), 400
@@ -4416,7 +8525,10 @@ def download_proposal():
         company_name = request.json.get('company_name', 'Your Company')
         
         if not proposal_data:
+            app.logger.error("No proposal data provided")
             return jsonify({'error': 'Proposal data is required'}), 400
+        
+        app.logger.info(f"Proposal data keys: {proposal_data.keys()}")
         
         # Create Word document
         doc = Document()
@@ -4428,11 +8540,20 @@ def download_proposal():
         doc.add_paragraph(f'\nSubmitted: {datetime.now().strftime("%B %d, %Y")}')
         doc.add_page_break()
         
-        # Add each section
-        sections = proposal_data.get('proposal_sections', [])
+        # Add each section - handle both 'sections' and 'proposal_sections' keys
+        sections = proposal_data.get('sections', proposal_data.get('proposal_sections', []))
+        
+        if not sections:
+            app.logger.error(f"No sections found in proposal data. Keys: {proposal_data.keys()}")
+            return jsonify({'error': 'No proposal sections found in data'}), 400
+        
+        app.logger.info(f"Processing {len(sections)} sections")
+        
         for section in sections:
-            doc.add_heading(section['section'], 1)
-            doc.add_paragraph(section['content'])
+            section_title = section.get('section', section.get('title', 'Untitled Section'))
+            section_content = section.get('content', '')
+            doc.add_heading(section_title, 1)
+            doc.add_paragraph(section_content)
             doc.add_page_break()
         
         # Add footer with page numbers
@@ -4440,7 +8561,7 @@ def download_proposal():
             footer = section.footer
             footer_para = footer.paragraphs[0]
             footer_para.text = f'{company_name} - {contract_name}\t'
-            footer_para.alignment = 1  # Center alignment (important-comment)
+            footer_para.alignment = 1
         
         # Save to buffer
         buffer = io.BytesIO()
@@ -4451,6 +8572,8 @@ def download_proposal():
         safe_contract_name = "".join(c for c in contract_name if c.isalnum() or c in (' ', '-', '_')).strip()
         filename = f'{company_name}_{safe_contract_name}_Proposal.docx'
         
+        app.logger.info(f"Successfully generated proposal document: {filename}")
+        
         return send_file(
             buffer,
             as_attachment=True,
@@ -4459,8 +8582,8 @@ def download_proposal():
         )
         
     except Exception as e:
-        app.logger.error(f"Error generating proposal download: {e}")
-        return jsonify({'error': 'Failed to generate proposal document'}), 500
+        app.logger.error(f"Error generating proposal download: {e}", exc_info=True)
+        return jsonify({'error': f'Failed to generate proposal document: {str(e)}'}), 500
 
 
 
@@ -4682,8 +8805,8 @@ def BlogdetailBetween_RFP_and_RFQ():
 
 class QdrantStore:
     def __init__(self, dimension=1536):
-        qdrant_url = os.getenv('QDRANT_URL')
-        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
         
         if not qdrant_url or not qdrant_api_key:
             raise ValueError("Qdrant configuration not found in environment variables")
@@ -4693,7 +8816,7 @@ class QdrantStore:
             api_key=qdrant_api_key
         )
         
-        self.collection_name = "contracts"
+        self.collection_name = "government_contracts"
         try:
             self.client.get_collection(self.collection_name)
             logging.info(f"Connected to existing collection {self.collection_name}")
@@ -4707,7 +8830,7 @@ class QdrantStore:
                 collection_name=self.collection_name,
                 query_vector=query_vector,
                 limit=top_k,
-                score_threshold=0.75  # 保证只返回相似度 ≥ 0.7 的结果
+                with_vectors=False  # Don't return vectors to improve performance
             )
             logging.info(f"Search returned {len(search_result)} results")
             return [(hit.payload, hit.score) for hit in search_result]
@@ -4719,8 +8842,8 @@ class QdrantStore:
     @staticmethod
     def inspect_state_values():
         try:
-            qdrant_url = os.getenv('QDRANT_URL')
-            qdrant_api_key = os.getenv('QDRANT_API_KEY')
+            qdrant_url = os.getenv('Qdrant_EP')
+            qdrant_api_key = os.getenv('Qdrant_AK')
             
             client = QdrantClient(
                 url=qdrant_url,
@@ -4728,7 +8851,7 @@ class QdrantStore:
             )
             
             scroll_result = client.scroll(
-                collection_name="contracts",
+                collection_name="government_contracts",
                 limit=100,  # 取100条数据作为样本
                 with_vectors=False
             )
@@ -4755,6 +8878,453 @@ def normalize_payload(payload):
     return normalized
 
 
+def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
+    """
+    Convert Qdrant payload to the contract view format expected by templates.
+    Maps new Qdrant field names to legacy CSV field names for compatibility.
+    
+    Args:
+        payload: Qdrant point payload dict
+        point_id: Qdrant point ID (used as contract identifier)
+        score: Similarity score from vector search (optional)
+    
+    Returns:
+        Dict with legacy field names for template compatibility (Title Case)
+    """
+    import re
+    
+    # Helper to get first truthy value (handles None values in payload)
+    def get_first_truthy(*values):
+        for v in values[:-1]:
+            if v and str(v).lower() not in ('none', 'nan', 'null', ''):
+                return v
+        return values[-1]
+    
+    # Extract NAICS code from payload (handles float format like "238220.0")
+    raw_naics = payload.get("naics_code") or payload.get("NAICS_CODE", "")
+    naics_code = ""
+    if raw_naics and str(raw_naics).lower() != 'nan':
+        matches = re.findall(r'(\d{2,})(?:\.\d+)?', str(raw_naics))
+        if matches:
+            naics_code = matches[0]
+    
+    # Get NAICS description
+    naics_desc = get_first_truthy(payload.get("naics_description"), payload.get("NAICS_TITLE"), "")
+    
+    return {
+        # Primary identifier (replaces hash_value)
+        "contract_id": str(point_id) if point_id is not None else None,
+        "hash_value": str(point_id) if point_id is not None else None,  # For backward compatibility
+        
+        # Core contract fields - check new field names first, then old ones
+        "Bid_Name": get_first_truthy(payload.get("bid_name"), payload.get("title"), "Unknown Bid"),
+        "Detail_Link": get_first_truthy(payload.get("detail_link"), payload.get("source_url"), "#"),
+        "Bid_Number": get_first_truthy(payload.get("bid_number"), payload.get("contract_number"), "N/A"),
+        "Bid_Description": get_first_truthy(payload.get("bid_description"), payload.get("summary"), "No description available"),
+        "Organization": get_first_truthy(payload.get("organization"), payload.get("agency"), "Unknown"),
+        "Due_Date": get_first_truthy(payload.get("due_date"), "No due date"),
+        "Category": get_first_truthy(payload.get("category"), payload.get("notice_type"), "Unknown"),
+        "Status": "Open",  # Qdrant doesn't have status field, default to Open
+        
+        # Fields that may not exist in Qdrant
+        "State": get_first_truthy(payload.get("state"), "Unknown"),
+        "Budget": get_first_truthy(payload.get("budget"), payload.get("budget_estimate"), "Not Specified"),
+        
+        # NAICS information
+        "NAICS_CODE": naics_code,
+        "NAICS_TITLE": naics_desc,
+        
+        # Search metadata
+        "Similarity_Score": f"{score * 100:.2f}%" if score is not None else None,
+        "source": payload.get("source", ""),
+        "urgency": payload.get("urgency", ""),
+    }
+
+
+def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
+    """
+    Convert Qdrant payload to dashboard contract format with lowercase field names.
+    This is specifically for the dashboard frontend which expects lowercase snake_case keys.
+    
+    Args:
+        payload: Qdrant point payload dict
+        point_id: Qdrant point ID (used as contract identifier)
+        score: Similarity score from vector search (optional)
+    
+    Returns:
+        Dict with lowercase field names for dashboard JavaScript compatibility
+    """
+    import hashlib
+    import re
+    
+    # Map Qdrant fields to dashboard format (lowercase)
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): detail_link, bid_number
+    # Format 2 (old format): source_url, contract_number
+    # Format 3 (Title Case with spaces): Detail Link, Bid Number
+    detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url", "#")
+    bid_number = payload.get("bid_number") or payload.get("Bid Number") or payload.get("contract_number", "N/A")
+    
+    # Generate hash_value for backward compatibility (same as find_matches_with_query)
+    # This hash MUST match the hash computed in build_balanced_category_mapping()
+    hash_input = f"{detail_link}{bid_number}"
+    hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+    
+    # Extract NAICS codes from Qdrant
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): naics_code, naics_codes_all
+    # Format 2 (uppercase): NAICS_CODE, NAICS_CODES_ALL
+    # Format 3 (Title Case with spaces): NAICS Code
+    # NAICS codes may be stored as floats like "238220.0" - we need to extract just the integer part
+    raw_naics = payload.get("naics_code") or payload.get("NAICS Code") or payload.get("NAICS_CODE", "")
+    raw_naics_all = payload.get("naics_codes_all") or payload.get("NAICS_CODES_ALL", "")
+    
+    naics_codes = []
+    
+    # First try naics_codes_all which may contain multiple codes (semicolon-separated)
+    if raw_naics_all:
+        # Split by semicolon and extract numeric codes
+        for part in str(raw_naics_all).split(";"):
+            # Extract just the integer part (handles "238220.0" -> "238220")
+            for code in re.findall(r'(\d{2,})(?:\.\d+)?', part.strip()):
+                if code not in naics_codes:
+                    naics_codes.append(code)
+    
+    # Fallback to naics_code if naics_codes_all is empty
+    if not naics_codes and raw_naics:
+        if isinstance(raw_naics, list):
+            items = raw_naics
+        else:
+            items = [raw_naics]
+        for item in items:
+            # Extract just the integer part (handles "238220.0" -> "238220")
+            for code in re.findall(r'(\d{2,})(?:\.\d+)?', str(item)):
+                if code not in naics_codes:
+                    naics_codes.append(code)
+    
+    naics_code_str = ", ".join(naics_codes) if naics_codes else ""
+    
+    # If no NAICS codes from Qdrant, check the persistent AI NAICS cache
+    # NOTE: Do NOT call generate_naics_codes_with_ai() here - that would cause slow login
+    # The cache is populated when users view individual contracts in detail views
+    if not naics_code_str and hash_value and hash_value in AI_NAICS_CACHE:
+        naics_code_str = AI_NAICS_CACHE[hash_value]
+    
+    # Due date - only use due_date field, fallback to "No due date" (not posted_date)
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): due_date
+    # Format 3 (Title Case with spaces): Due Date
+    raw_due_date = payload.get("due_date") or payload.get("Due Date")
+    # Handle "nan" string as missing date (some Qdrant records have this)
+    if raw_due_date and str(raw_due_date).lower() == "nan":
+        raw_due_date = None
+    has_due_date = bool(raw_due_date)
+    due_date = raw_due_date or "No due date"
+    
+    # Check if due date has passed (contract is closed)
+    from datetime import date, datetime
+    is_past_due = False
+    if raw_due_date:
+        try:
+            # Parse date, stripping time/offset if present (e.g., "2025-12-05T14:00:00-05:00" -> "2025-12-05")
+            date_part = raw_due_date.split("T")[0]
+            parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+            is_past_due = parsed_date < date.today()
+        except Exception:
+            is_past_due = False
+    
+    # Status: "closed" if past due, "open" if no due date, "active" otherwise
+    if is_past_due:
+        status = "closed"
+    elif not has_due_date:
+        status = "open"
+    else:
+        status = payload.get("status") or "active"
+    
+    # Handle THREE different Qdrant field name formats:
+    # Format 1 (snake_case): bid_name, bid_description, organization, category, detail_link, bid_number, naics_code
+    # Format 2 (old format): title, summary, agency, notice_type, source_url, contract_number
+    # Format 3 (Title Case with spaces): Bid Name, Bid Description, Organization, Category, Detail Link, Bid Number, NAICS Code
+    # IMPORTANT: Check for truthy values, not just key existence (some keys exist with None value)
+    def get_first_truthy(*values):
+        """Return the first truthy value from the list, or the last value (fallback)."""
+        for v in values[:-1]:
+            if v and str(v).lower() not in ('none', 'nan', 'null', ''):
+                return v
+        return values[-1]
+    
+    # Check all three formats for each field
+    bid_name_value = get_first_truthy(
+        payload.get("bid_name"), payload.get("Bid Name"), payload.get("title"), "Unknown Bid"
+    )
+    bid_description_value = get_first_truthy(
+        payload.get("bid_description"), payload.get("Bid Description"), payload.get("summary"), "No description available"
+    )
+    organization_value = get_first_truthy(
+        payload.get("organization"), payload.get("Organization"), payload.get("agency"), "Unknown"
+    )
+    
+    # Get NAICS description from Qdrant
+    # Handle THREE different field name formats:
+    # Format 1 (snake_case): naics_description
+    # Format 2 (uppercase): NAICS_TITLE
+    # Format 3 (Title Case with spaces): NAICS Description
+    raw_naics_description = payload.get("naics_description") or payload.get("NAICS Description") or payload.get("NAICS_TITLE") or ""
+    
+    # Handle "nan" string values as empty (some Qdrant records have this)
+    if raw_naics_description and str(raw_naics_description).lower() == "nan":
+        raw_naics_description = ""
+    
+    # Use NAICS description as category - try multiple sources:
+    # 1. Qdrant NAICS description field (if valid and not just "NAICS XXXXXX", "Other", "Unknown")
+    # 2. NAICS code lookup table (for codes without descriptions in Qdrant)
+    # 3. Fall back to original category field (notice_type preferred)
+    category_value = None
+    
+    # First try Qdrant NAICS description (skip invalid values)
+    if raw_naics_description and raw_naics_description.strip():
+        desc_lower = raw_naics_description.strip().lower()
+        # Skip invalid descriptions: "NAICS XXXXXX", "Other", "Unknown", etc.
+        if desc_lower not in ('other', 'unknown', 'nan', 'none', '') and not raw_naics_description.startswith('NAICS '):
+            category_value = raw_naics_description.strip()
+    
+    # If no valid description from Qdrant, try lookup from NAICS code
+    if not category_value and naics_codes:
+        # Use the first NAICS code to look up description
+        first_code = naics_codes[0] if naics_codes else None
+        if first_code:
+            lookup_desc = get_naics_description(first_code, raw_naics_description)
+            if lookup_desc:
+                category_value = lookup_desc
+    
+    # Fall back to original category field if no NAICS description available
+    # Prefer notice_type over category as it's more descriptive
+    if not category_value:
+        fallback = payload.get("notice_type") or payload.get("category") or payload.get("Category") or ""
+        if isinstance(fallback, str):
+            fallback = fallback.strip()
+        # If fallback is also "Other" or "Unknown", try AI prediction
+        if fallback.lower() in ('other', 'unknown', 'nan', 'none', ''):
+            # Use AI to predict NAICS code and description for Unclassified contracts
+            ai_code, ai_description = predict_naics_with_description(
+                bid_name_value, 
+                organization_value, 
+                hash_value
+            )
+            if ai_code and ai_description:
+                # Update both category and NAICS code with AI prediction
+                category_value = ai_description
+                naics_code_str = ai_code
+            else:
+                # Use keyword-based fallback to avoid "Unclassified" category
+                category_value = fallback_category_from_text(bid_name_value, bid_description_value, organization_value)
+        else:
+            category_value = fallback
+    
+    return {
+        # Identifiers
+        "contract_id": str(point_id) if point_id is not None else None,
+        "hash_value": hash_value,
+        
+        # Core fields (lowercase for dashboard JS)
+        "bid_name": bid_name_value,
+        "bid_number": bid_number,
+        "bid_description": bid_description_value,
+        "detail_link": detail_link,
+        "organization": organization_value,
+        "category": category_value,
+        "naics_code": naics_code_str,  # NAICS Code(s) column (numbers only)
+        "due_date": due_date,
+        "status": status,
+        "state": payload.get("state") or payload.get("State") or "Unknown",
+        
+        # Optional fields
+        "industry": payload.get("industry", ""),
+        "department": payload.get("department", ""),
+        
+        # Search metadata
+        "Similarity_Score": score if score is not None else None,  # Keep numeric for filtering
+    }
+
+
+def get_contract_from_qdrant_by_id(point_id):
+    """
+    Fetch a single contract from Qdrant by point ID.
+    
+    Args:
+        point_id: Qdrant point ID (string or int)
+    
+    Returns:
+        Dict with contract data in template-compatible format, or None if not found
+    """
+    try:
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured")
+            return None
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Retrieve the specific point by ID
+        points = client.retrieve(
+            collection_name="government_contracts",
+            ids=[int(point_id) if isinstance(point_id, str) and point_id.isdigit() else point_id],
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        if not points or len(points) == 0:
+            logging.warning(f"Contract with point_id {point_id} not found in Qdrant")
+            return None
+        
+        point = points[0]
+        contract = qdrant_payload_to_contract_view(point.payload, point_id=point.id, score=None)
+        logging.info(f"✅ Retrieved contract from Qdrant: {contract['Bid_Name']} (ID: {point_id})")
+        return contract
+        
+    except Exception as e:
+        logging.error(f"Error fetching contract from Qdrant by ID {point_id}: {e}")
+        return None
+
+
+def get_contracts_from_qdrant_by_ids(point_ids):
+    """
+    Fetch multiple contracts from Qdrant by point IDs.
+    
+    Args:
+        point_ids: List of Qdrant point IDs
+    
+    Returns:
+        List of dicts with contract data in template-compatible format
+    """
+    try:
+        qdrant_url = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured")
+            return []
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Convert point_ids to integers if they're strings
+        ids_to_fetch = []
+        for pid in point_ids:
+            if isinstance(pid, str) and pid.isdigit():
+                ids_to_fetch.append(int(pid))
+            else:
+                ids_to_fetch.append(pid)
+        
+        # Retrieve multiple points by IDs
+        points = client.retrieve(
+            collection_name="government_contracts",
+            ids=ids_to_fetch,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        contracts = []
+        for point in points:
+            contract = qdrant_payload_to_contract_view(point.payload, point_id=point.id, score=None)
+            contracts.append(contract)
+        
+        logging.info(f"✅ Retrieved {len(contracts)} contracts from Qdrant")
+        return contracts
+        
+    except Exception as e:
+        logging.error(f"Error fetching contracts from Qdrant: {e}")
+        return []
+
+
+# Module-level cache for dashboard contracts
+# TODO: This assumes the Qdrant collection is updated infrequently and isn't huge (< 2000 contracts)
+# For larger or frequently-updated collections, implement proper pagination with scroll tokens
+_dashboard_contracts_cache = None
+_dashboard_contracts_total = 0
+_dashboard_contracts_hash_index = None  # Hash -> contract lookup for fast search matching
+
+
+def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
+    """
+    Fetch contracts from Qdrant for dashboard display with pagination.
+    Uses module-level caching to avoid repeated Qdrant queries.
+    
+    Args:
+        page: Page number (1-indexed)
+        items_per_page: Number of contracts per page
+    
+    Returns:
+        Tuple of (contracts_list, total_contracts, total_pages)
+    """
+    global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
+    
+    # Initialize cache on first call
+    if _dashboard_contracts_cache is None:
+        try:
+            qdrant_url = os.getenv('Qdrant_EP')
+            qdrant_api_key = os.getenv('Qdrant_AK')
+            
+            if not qdrant_url or not qdrant_api_key:
+                logging.error("Qdrant credentials not configured for dashboard")
+                return [], 0, 0
+            
+            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+            
+            # Fetch all contracts from Qdrant using scroll (up to 3000)
+            # Qdrant currently has ~2320 contracts
+            logging.info("🔄 Fetching contracts from Qdrant for dashboard cache...")
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=3000,
+                with_vectors=False,
+                with_payload=True
+            )
+            
+            points = scroll_result[0]  # scroll returns (points, next_page_offset)
+            
+            # Map each point to dashboard format (lowercase keys)
+            _dashboard_contracts_cache = []
+            for point in points:
+                contract = qdrant_payload_to_dashboard_contract(
+                    point.payload,
+                    point_id=point.id,
+                    score=None
+                )
+                _dashboard_contracts_cache.append(contract)
+            
+            _dashboard_contracts_total = len(_dashboard_contracts_cache)
+            
+            # Build hash index for fast lookups during search
+            _dashboard_contracts_hash_index = {}
+            for contract in _dashboard_contracts_cache:
+                h = contract.get('hash_value')
+                if h:
+                    _dashboard_contracts_hash_index[h] = contract
+            
+            logging.info(f"✅ Cached {_dashboard_contracts_total} contracts from Qdrant for dashboard (hash index: {len(_dashboard_contracts_hash_index)} entries)")
+            
+        except Exception as e:
+            logging.error(f"Error fetching dashboard contracts from Qdrant: {e}", exc_info=True)
+            _dashboard_contracts_cache = []
+            _dashboard_contracts_total = 0
+            _dashboard_contracts_hash_index = {}
+            return [], 0, 0
+    
+    # Paginate the cached contracts
+    total_contracts = _dashboard_contracts_total
+    total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
+    
+    start = (page - 1) * items_per_page
+    end = start + items_per_page
+    
+    paginated_contracts = _dashboard_contracts_cache[start:end]
+    
+    logging.info(f"📄 Dashboard page {page}/{total_pages}: returning {len(paginated_contracts)} contracts")
+    return paginated_contracts, total_contracts, total_pages
+
+
 def load_all_contracts(client):
     """
     分页加载集合中所有合同数据，使用 offset 参数实现分页
@@ -4763,7 +9333,7 @@ def load_all_contracts(client):
     offset = 0
     while True:
         scroll_result = client.scroll(
-            collection_name="contracts",
+            collection_name="government_contracts",
             limit=1000,
             with_vectors=True,
             offset=offset  # 使用 offset 分页（请确保你的 qdrant_client 版本支持此参数，否则请升级）
@@ -4776,8 +9346,11 @@ def load_all_contracts(client):
     return all_contracts
 
 def validate_query(query):
-    if len(query) < 3:
-        return False, "Query is too short. Please provide a more detailed search."
+    # Allow queries of 2+ characters to support short terms like "IT", bid numbers, NAICS codes
+    if len(query) < 2:
+        return False, "Query is too short. Please provide at least 2 characters."
+    if len(query) > 500:
+        return False, "Query is too long. Please limit to 500 characters."
     return True, ""
 
 def initialize_vector_store():
@@ -4805,37 +9378,117 @@ def generate_query_embedding(query):
 
 
 def find_matches_with_query(query_embedding, bid_store, top_k=50):
+    """
+    Search for contracts matching the query embedding and return normalized results.
+    
+    Uses the dashboard contracts cache to ensure consistent data (NAICS descriptions,
+    proper due dates, etc.) between search results and the main dashboard.
+    
+    Performance optimizations:
+    - Uses pre-built hash index instead of rebuilding on every search
+    - Reduced top_k to 1000 for faster Qdrant queries (still covers most relevant results)
+    """
+    global _dashboard_contracts_cache, _dashboard_contracts_hash_index
+    
     matches = []
-    # 调用 search 方法，此时 score_threshold=0.7 会过滤出分数 ≥ 0.7 的结果
-    search_result = bid_store.search(query_embedding, top_k=10000)
+    # Reduce top_k to 1000 for better performance (we only need top results, not all 2320)
+    search_result = bid_store.search(query_embedding, top_k=1000)
     logging.info(f"Raw search results count: {len(search_result)}")
+    
+    # Use pre-built hash index for fast lookups (built once when cache is initialized)
+    # This avoids rebuilding the hash lookup on every search request
+    hash_to_contract = _dashboard_contracts_hash_index or {}
+    if hash_to_contract:
+        logging.info(f"Using pre-built hash index with {len(hash_to_contract)} cached contracts")
+    
     for bid, sim in search_result:
         try:
-            normalized_bid = normalize_payload(bid)
-            match_data = {
-                "bid_number": normalized_bid.get("bid_number"),
-                "bid_name": normalized_bid.get("bid_name"),
-                "organization": normalized_bid.get("organization"),
-                "status": normalized_bid.get("status"),
-                "due_date": normalized_bid.get("due_date"),
-                "category": normalized_bid.get("category"),
-                "industry": normalized_bid.get("industry"),
-                "department": normalized_bid.get("department"),
-                "state": normalized_bid.get("state"),
-                "detail_link": normalized_bid.get("detail_link"),
-                "Similarity_Score": sim
-            }
-
-            # --- Add the hash_value ---
-            detail_link = normalized_bid.get("detail_link", "")
-            bid_number  = normalized_bid.get("bid_number", "")
-            hash_input  = f"{detail_link}{bid_number}"
-            match_data["hash_value"] = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            # Compute hash_value to look up the canonical contract from cache
+            detail_link = bid.get("source_url") or bid.get("detail_link") or ""
+            bid_number = bid.get("contract_number") or bid.get("bid_number") or ""
+            hash_input = f"{detail_link}{bid_number}"
+            hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            
+            # Try to get the normalized contract from cache
+            cached_contract = hash_to_contract.get(hash_value)
+            
+            if cached_contract:
+                # Use cached contract data (has proper NAICS descriptions, due dates, etc.)
+                match_data = cached_contract.copy()
+                match_data["Similarity_Score"] = sim
+            else:
+                # Fallback: parse data manually if not in cache (shouldn't happen often)
+                # This uses the same logic as qdrant_payload_to_dashboard_contract
+                
+                # Parse NAICS codes using the shared function
+                raw_naics = bid.get("NAICS_CODE") or bid.get("naics_code") or bid.get("NAICS Code") or ""
+                naics_codes = parse_naics_codes(raw_naics)
+                naics_code_str = ", ".join(naics_codes) if naics_codes else ""
+                
+                # Get NAICS description for category
+                raw_naics_description = bid.get("NAICS_TITLE") or bid.get("naics_description") or bid.get("NAICS Description") or ""
+                
+                # Handle "nan" string values
+                if raw_naics_description and str(raw_naics_description).lower() == "nan":
+                    raw_naics_description = ""
+                
+                # Determine category using NAICS description or lookup
+                category_value = None
+                if raw_naics_description and raw_naics_description.strip():
+                    desc_lower = raw_naics_description.strip().lower()
+                    if desc_lower not in ('other', 'unknown', 'nan', 'none', '') and not raw_naics_description.startswith('NAICS '):
+                        category_value = raw_naics_description.strip()
+                
+                if not category_value and naics_codes:
+                    first_code = naics_codes[0] if naics_codes else None
+                    if first_code:
+                        lookup_desc = get_naics_description(first_code, raw_naics_description)
+                        if lookup_desc:
+                            category_value = lookup_desc
+                
+                if not category_value:
+                    notice_type = bid.get("notice_type") or ""
+                    if notice_type and notice_type.lower() not in ('other', 'unknown', 'nan', 'none', ''):
+                        category_value = notice_type
+                    else:
+                        category_value = "Unknown"
+                
+                # Due date - handle "nan" string
+                raw_due_date = bid.get("due_date") or bid.get("Due Date")
+                if raw_due_date and str(raw_due_date).lower() == "nan":
+                    raw_due_date = None
+                has_due_date = bool(raw_due_date)
+                due_date = raw_due_date or "No due date"
+                
+                # Status
+                if not has_due_date:
+                    status = "open"
+                else:
+                    status = bid.get("status") or "active"
+                
+                match_data = {
+                    "bid_number": bid_number,
+                    "bid_name": bid.get("title") or bid.get("bid_name") or bid.get("Bid Name") or "",
+                    "bid_description": bid.get("summary") or bid.get("bid_description") or bid.get("Bid Description") or "",
+                    "organization": bid.get("agency") or bid.get("organization") or bid.get("Organization") or "",
+                    "status": status,
+                    "due_date": due_date,
+                    "category": category_value,
+                    "naics_code": naics_code_str,
+                    "industry": bid.get("industry") or "",
+                    "department": bid.get("department") or "",
+                    "state": bid.get("state") or bid.get("State") or "",
+                    "detail_link": detail_link,
+                    "hash_value": hash_value,
+                    "Similarity_Score": sim
+                }
 
             matches.append(match_data)
         except Exception as e:
             logging.error(f"Error processing a search result row: {e}", exc_info=True)
             continue
+    
+    logging.info(f"Processed {len(matches)} matches with scores ranging from {min([m['Similarity_Score'] for m in matches]) if matches else 0:.3f} to {max([m['Similarity_Score'] for m in matches]) if matches else 0:.3f}")
     return matches
 
 
@@ -4859,7 +9512,7 @@ def process_smartsearch():
             if user_query:
                 mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
                         df['category'].str.contains(user_query, case=False, na=False) |
-                        df['agency'].str.contains(user_query, case=False, na=False))
+                        df['bid_description'].str.contains(user_query, case=False, na=False))
                 df = df[mask]
             
             contracts = df.to_dict('records')
@@ -5023,8 +9676,8 @@ def Smartsearch():
         items_per_page = 50
 
         # Initialize Qdrant client
-        qdrant_url    = os.getenv('QDRANT_URL')
-        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        qdrant_url    = os.getenv('Qdrant_EP')
+        qdrant_api_key = os.getenv('Qdrant_AK')
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
 
         def normalize_payload(payload):
@@ -5037,7 +9690,7 @@ def Smartsearch():
             """Helper to read 'raw' contract data from Qdrant with pagination."""
             try:
                 scroll_result = client.scroll(
-                    collection_name="contracts",
+                    collection_name="government_contracts",
                     limit=limit,
                     with_vectors=True,
                     offset=offset
@@ -5045,24 +9698,22 @@ def Smartsearch():
                 points = scroll_result[0]
                 contracts_list = []
                 for p in points:
-                    normal = normalize_payload(p.payload)
-                    # build row
+                    payload = p.payload
                     row = {
-                        'bid_number':      normal.get('bid_number', ''),
-                        'bid_name':        normal.get('bid_name', ''),
-                        'organization':    normal.get('organization', ''),
-                        'status':          normal.get('status', ''),
-                        'available_date':  normal.get('available_date', ''),
-                        'due_date':        normal.get('due_date', ''),
-                        'industry':        normal.get('industry', ''),
-                        'category':        normal.get('category', ''),
-                        'budget_estimate': normal.get('budget_estimate', ''),
-                        'department':      normal.get('department', ''),
-                        'state':           normal.get('state', ''),
-                        'duration':        normal.get('duration', ''),
-                        'detail_link':     normal.get('detail_link', '#'),
+                        'bid_number':      payload.get('contract_number') or payload.get('bid_number') or '',
+                        'bid_name':        payload.get('title') or payload.get('bid_name') or '',
+                        'organization':    payload.get('agency') or payload.get('organization') or '',
+                        'status':          payload.get('status') or 'open',
+                        'available_date':  payload.get('available_date') or payload.get('posted_date') or '',
+                        'due_date':        payload.get('due_date') or '',
+                        'industry':        payload.get('industry') or '',
+                        'category':        payload.get('category') or '',
+                        'budget_estimate': payload.get('budget_estimate') or '',
+                        'department':      payload.get('department') or '',
+                        'state':           payload.get('state') or '',
+                        'duration':        payload.get('duration') or '',
+                        'detail_link':     payload.get('source_url') or payload.get('detail_link') or '#',
                     }
-                    # add a hash_value
                     detail_link  = row['detail_link']
                     bid_number   = row['bid_number']
                     hash_input   = f"{detail_link}{bid_number}"
@@ -5091,27 +9742,26 @@ def Smartsearch():
                 return search_result
             try:
                 hits = client.search(
-                    collection_name="contracts",
+                    collection_name="government_contracts",
                     query_vector=vector,
                     limit=top_k,
                     score_threshold=0.70
                 )
                 for hit in hits:
-                    payload = normalize_payload(hit.payload)
+                    payload = hit.payload
                     row = {
-                        'bid_number':       payload.get('bid_number', ''),
-                        'bid_name':         payload.get('bid_name', ''),
-                        'organization':     payload.get('organization', ''),
-                        'status':           payload.get('status', ''),
-                        'due_date':         payload.get('due_date', ''),
-                        'category':         payload.get('category', ''),
-                        'industry':         payload.get('industry', ''),
-                        'department':       payload.get('department', ''),
-                        'state':            payload.get('state', ''),
-                        'detail_link':      payload.get('detail_link', '#'),
+                        'bid_number':       payload.get('contract_number') or payload.get('bid_number') or '',
+                        'bid_name':         payload.get('title') or payload.get('bid_name') or '',
+                        'organization':     payload.get('agency') or payload.get('organization') or '',
+                        'status':           payload.get('status') or 'open',
+                        'due_date':         payload.get('due_date') or '',
+                        'category':         payload.get('category') or '',
+                        'industry':         payload.get('industry') or '',
+                        'department':       payload.get('department') or '',
+                        'state':            payload.get('state') or '',
+                        'detail_link':      payload.get('source_url') or payload.get('detail_link') or '#',
                         'Similarity_Score': hit.score,
                     }
-                    # hash
                     detail_link = row['detail_link']
                     bnum        = row['bid_number']
                     row['hash_value'] = hashlib.sha256(f"{detail_link}{bnum}".encode('utf-8')).hexdigest()
@@ -5124,7 +9774,7 @@ def Smartsearch():
         # If user’s query is empty => Show ALL contracts (unchanged logic)
         # ---------------------------------------------------------------------
         if query == "":
-            total_response = client.count(collection_name="contracts")
+            total_response = client.count(collection_name="government_contracts")
             total_contracts = total_response.count
             offset = (page - 1) * items_per_page
             contracts = read_contracts_from_qdrant(offset, items_per_page)
@@ -5704,42 +10354,56 @@ def create_credit_checkout():
                 )
                 logging.info(f"Updated Firebase with stripe_customer_id for user {user['localId']}")
                 
+            except stripe.error.AuthenticationError as stripe_error:
+                logging.error(f"Stripe authentication error for {user_email}: {stripe_error}", exc_info=True)
+                return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
+            except stripe.error.StripeError as stripe_error:
+                logging.error(f"Stripe error for {user_email}: {stripe_error}", exc_info=True)
+                return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
             except Exception as stripe_error:
-                logging.error(f"Error handling Stripe customer for {user_email}: {stripe_error}")
+                logging.error(f"Error handling Stripe customer for {user_email}: {stripe_error}", exc_info=True)
                 return jsonify({"error": "Failed to set up payment account. Please try again."}), 500
             
         credits = int(request.json.get('credits'))
         price = int(request.json.get('price'))
         
-        checkout_session = stripe.checkout.Session.create(
-            customer=stripe_customer_id,
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {
-                        'name': f'{credits} CORAMA Credits',
-                        'description': f'AI-powered contract analysis and proposal generation credits'
+        try:
+            checkout_session = stripe.checkout.Session.create(
+                customer=stripe_customer_id,
+                payment_method_types=['card'],
+                line_items=[{
+                    'price_data': {
+                        'currency': 'usd',
+                        'product_data': {
+                            'name': f'{credits} CORAMA Credits',
+                            'description': f'AI-powered contract analysis and proposal generation credits'
+                        },
+                        'unit_amount': price,
                     },
-                    'unit_amount': price,
+                    'quantity': 1,
+                }],
+                mode='payment',
+                success_url=url_for('credit_purchase_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=url_for('purchase_credits', _external=True),
+                metadata={
+                    'user_id': user['localId'],
+                    'credits': credits,
+                    'purchase_type': 'credits'
                 },
-                'quantity': 1,
-            }],
-            mode='payment',
-            success_url=url_for('credit_purchase_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url=url_for('purchase_credits', _external=True),
-            metadata={
-                'user_id': user['localId'],
-                'credits': credits,
-                'purchase_type': 'credits'
-            }
-        )
-        
-        return jsonify({"checkout_url": checkout_session.url})
+                allow_promotion_codes=True
+            )
+            
+            return jsonify({"checkout_url": checkout_session.url})
+        except stripe.error.AuthenticationError as stripe_error:
+            logging.error(f"Stripe authentication error creating checkout session: {stripe_error}", exc_info=True)
+            return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
+        except stripe.error.StripeError as stripe_error:
+            logging.error(f"Stripe error creating checkout session: {stripe_error}", exc_info=True)
+            return jsonify({"error": "Our payment system is temporarily unavailable. Please try again later or contact support."}), 503
         
     except Exception as e:
-        logging.error(f"Error creating credit checkout: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"Error creating credit checkout: {e}", exc_info=True)
+        return jsonify({"error": "An unexpected error occurred. Please try again."}), 500
 
 @app.route('/credit_purchase_success')
 def credit_purchase_success():
@@ -5825,6 +10489,2821 @@ def credit_history():
     except Exception as e:
         logging.error(f"Error fetching credit history: {e}")
         return redirect(url_for('Welcome'))
+
+@app.route('/uploads/contracts/<path:filename>')
+def serve_contract_pdf(filename):
+    """Serve contract PDF files"""
+    from werkzeug.exceptions import HTTPException
+    try:
+        ensure_session_from_auth()
+        
+        if not (session.get('user') or session.get('user_data')):
+            abort(401)
+        
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        
+        if '..' in filename or filename.startswith('/'):
+            abort(403)
+        
+        if not os.path.exists(os.path.join(contracts_dir, filename)):
+            abort(404)
+        
+        response = send_from_directory(contracts_dir, filename, mimetype='application/pdf', as_attachment=False, conditional=True)
+        response.headers['Content-Disposition'] = f'inline; filename="{filename}"'
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Cache-Control'] = 'private, max-age=600'
+        return response
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Error serving contract PDF {filename}: {e}")
+        abort(500)
+
+@app.route('/api/fetch_contract_pdf', methods=['POST'])
+def fetch_contract_pdf():
+    """Fetch contract PDF from detail link"""
+    try:
+        data = request.json
+        contract_hash = data.get('contract_hash')
+        detail_link = data.get('detail_link')
+        
+        if not contract_hash or not detail_link:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        contracts_dir = os.path.join('uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        if os.path.exists(pdf_path):
+            return jsonify({
+                'success': True,
+                'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                'cached': True
+            })
+        
+        import requests
+        from bs4 import BeautifulSoup
+        from urllib.parse import urljoin, urlparse
+        
+        try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            
+            response = requests.head(detail_link, headers=headers, timeout=10, allow_redirects=True)
+            content_type = response.headers.get('Content-Type', '').lower()
+            
+            if 'application/pdf' in content_type or detail_link.lower().endswith('.pdf'):
+                pdf_response = requests.get(detail_link, headers=headers, timeout=30)
+                pdf_response.raise_for_status()
+                
+                with open(pdf_path, 'wb') as f:
+                    f.write(pdf_response.content)
+                
+                return jsonify({
+                    'success': True,
+                    'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                    'method': 'direct_download'
+                })
+            
+            page_response = requests.get(detail_link, headers=headers, timeout=30)
+            page_response.raise_for_status()
+            soup = BeautifulSoup(page_response.content, 'html.parser')
+            
+            pdf_links = []
+            
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                full_url = urljoin(detail_link, href)
+                
+                if (href.lower().endswith('.pdf') or 
+                    'pdf' in href.lower() or 
+                    'attachment' in href.lower() or
+                    'download' in href.lower() or
+                    'file' in href.lower()):
+                    pdf_links.append(full_url)
+            
+            for iframe in soup.find_all('iframe', src=True):
+                src = iframe['src']
+                if src.lower().endswith('.pdf') or 'pdf' in src.lower():
+                    pdf_links.append(urljoin(detail_link, src))
+            
+            for embed in soup.find_all('embed', src=True):
+                src = embed['src']
+                if src.lower().endswith('.pdf') or 'pdf' in src.lower():
+                    pdf_links.append(urljoin(detail_link, src))
+            
+            if pdf_links:
+                pdf_url = pdf_links[0]
+                pdf_response = requests.get(pdf_url, headers=headers, timeout=30)
+                pdf_response.raise_for_status()
+                
+                with open(pdf_path, 'wb') as f:
+                    f.write(pdf_response.content)
+                
+                return jsonify({
+                    'success': True,
+                    'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+                    'method': 'extracted_from_page'
+                })
+            
+            return jsonify({
+                'success': False,
+                'error': 'No PDF found on the page',
+                'message': 'Could not find a PDF link on the contract detail page. Please upload the PDF manually.'
+            })
+            
+        except requests.RequestException as e:
+            logging.error(f"Error fetching PDF from {detail_link}: {e}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch PDF: {str(e)}',
+                'message': 'Please upload the contract PDF manually'
+            })
+        
+    except Exception as e:
+        logging.error(f"Error fetching contract PDF: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/upload_contract_pdf', methods=['POST'])
+def upload_contract_pdf():
+    """Upload contract PDF manually - stores in Firebase Storage for persistence"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        if 'pdf' not in request.files:
+            return jsonify({'success': False, 'error': 'No PDF file provided'}), 400
+        
+        pdf_file = request.files['pdf']
+        contract_hash = request.form.get('contract_hash')
+        
+        # Debug logging to identify invalid contract hash issue
+        logging.info(f"upload_contract_pdf: contract_hash={repr(contract_hash)}, form_keys={list(request.form.keys())}")
+        
+        if not contract_hash:
+            return jsonify({'success': False, 'error': 'Missing contract hash'}), 400
+        
+        if '..' in contract_hash or '/' in contract_hash or '\\' in contract_hash:
+            logging.warning(f"Invalid contract hash rejected: {repr(contract_hash)}")
+            return jsonify({'success': False, 'error': 'Invalid contract hash'}), 400
+        
+        # Validate file extension
+        if not pdf_file.filename.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'error': 'Only PDF files are allowed'}), 400
+        
+        # Read file data
+        pdf_data = pdf_file.read()
+        
+        # Try to upload to Firebase Storage first
+        firebase_url = upload_to_firebase_storage(
+            pdf_data, 
+            f'contracts/{contract_hash}.pdf',
+            'application/pdf'
+        )
+        
+        if firebase_url:
+            logging.info(f"✅ Uploaded contract PDF to Firebase Storage: {contract_hash}.pdf")
+            # Return proxy URL instead of Firebase URL to avoid CORS issues
+            proxy_url = f'/api/contract_pdf/{contract_hash}'
+            return jsonify({
+                'success': True,
+                'pdf_url': proxy_url,
+                'storage': 'firebase'
+            })
+        
+        # Fallback to local storage if Firebase fails
+        logging.warning("Firebase Storage upload failed, falling back to local storage")
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        with open(pdf_path, 'wb') as f:
+            f.write(pdf_data)
+        logging.info(f"✅ Uploaded contract PDF locally: {contract_hash}.pdf ({len(pdf_data)} bytes)")
+        
+        return jsonify({
+            'success': True,
+            'pdf_url': f'/uploads/contracts/{contract_hash}.pdf',
+            'storage': 'local'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error uploading contract PDF: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/contract_pdf/<contract_hash>')
+def proxy_contract_pdf(contract_hash):
+    """Proxy endpoint to serve contract PDFs from Firebase Storage (avoids CORS issues)"""
+    try:
+        # Validate contract hash to prevent path traversal
+        if not contract_hash or '..' in contract_hash or '/' in contract_hash or '\\' in contract_hash:
+            return jsonify({'error': 'Invalid contract hash'}), 400
+        
+        # Build storage path
+        storage_path = f'contracts/{contract_hash}.pdf'
+        
+        # Get the download URL from Firebase Storage
+        download_url = storage.child(storage_path).get_url(None)
+        
+        if not download_url:
+            return jsonify({'error': 'PDF not found in Firebase Storage'}), 404
+        
+        # Fetch the PDF from Firebase Storage
+        response = requests.get(download_url, stream=True)
+        
+        if response.status_code != 200:
+            logging.error(f"Failed to fetch PDF from Firebase: {response.status_code}")
+            return jsonify({'error': 'Failed to fetch PDF from storage'}), 500
+        
+        # Stream the PDF back to the client
+        from flask import Response
+        return Response(
+            response.iter_content(chunk_size=8192),
+            content_type='application/pdf',
+            headers={
+                'Content-Disposition': f'inline; filename="{contract_hash}.pdf"'
+            }
+        )
+        
+    except Exception as e:
+        logging.error(f"Error serving contract PDF: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/analyze_contract', methods=['POST'])
+def analyze_contract():
+    """Analyze contract with AI and generate annotations"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.json
+        contract_hash = data.get('contract_hash')
+        user_id = data.get('user_id')
+        contract_name = data.get('contract_name', '')
+        contract_description = data.get('contract_description', '')
+        naics_code = data.get('naics_code', '')
+        organization = data.get('organization', '')
+        
+        if not contract_hash or not user_id:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        # Check if PDF exists locally, if not try to download from Firebase
+        contracts_dir = os.path.join(os.path.dirname(__file__), 'uploads', 'contracts')
+        os.makedirs(contracts_dir, exist_ok=True)
+        pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
+        
+        if not os.path.exists(pdf_path):
+            # Try to download from Firebase Storage using Pyrebase (same as upload)
+            try:
+                if not storage:
+                    logging.error("[analyze_contract] Firebase Storage not initialized")
+                    return jsonify({'success': False, 'error': 'Storage service not available.'}), 500
+                
+                storage_path = f"contracts/{contract_hash}.pdf"
+                
+                # Get the download URL from Pyrebase
+                try:
+                    download_url = storage.child(storage_path).get_url(None)
+                    logging.info(f"[analyze_contract] Firebase download URL: {download_url}")
+                except Exception as url_error:
+                    logging.warning(f"[analyze_contract] PDF not found in Firebase: {storage_path} - {url_error}")
+                    return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
+                
+                # Download the file using requests
+                import requests
+                response = requests.get(download_url, timeout=30)
+                if response.status_code != 200:
+                    logging.warning(f"[analyze_contract] Failed to download PDF: HTTP {response.status_code}")
+                    return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
+                
+                # Save to local file
+                with open(pdf_path, 'wb') as f:
+                    f.write(response.content)
+                logging.info(f"[analyze_contract] Downloaded PDF from Firebase to {pdf_path}")
+                
+            except Exception as e:
+                logging.error(f"[analyze_contract] Failed to download PDF from Firebase: {e}", exc_info=True)
+                return jsonify({'success': False, 'error': 'Failed to retrieve PDF from storage.'}), 500
+        
+        # Extract text from PDF using PyMuPDF
+        import fitz
+        pdf_text = ""
+        page_texts = []
+        
+        try:
+            doc = fitz.open(pdf_path)
+            for page_num, page in enumerate(doc, 1):
+                page_text = page.get_text()
+                page_texts.append({'page': page_num, 'text': page_text})
+                pdf_text += f"\n--- Page {page_num} ---\n{page_text}"
+            doc.close()
+        except Exception as e:
+            logging.error(f"Error extracting PDF text: {e}")
+            return jsonify({'success': False, 'error': f'Failed to read PDF: {str(e)}'}), 500
+        
+        if not pdf_text.strip():
+            return jsonify({'success': False, 'error': 'PDF appears to be empty or contains only images'}), 400
+        
+        max_chars = 50000
+        if len(pdf_text) > max_chars:
+            pdf_text = pdf_text[:max_chars] + "\n\n[Document truncated for analysis...]"
+        
+        # Generate AI annotations using OpenAI
+        try:
+            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
+            client = OpenAI(api_key=api_key, timeout=60.0)
+            
+            # Build contract context from metadata
+            contract_context = ""
+            if contract_name:
+                contract_context += f"Contract Name: {contract_name}\n"
+            if organization:
+                contract_context += f"Issuing Agency: {organization}\n"
+            if naics_code:
+                contract_context += f"NAICS Code(s): {naics_code}\n"
+            if contract_description:
+                contract_context += f"Contract Description: {contract_description}\n"
+            
+            prompt = f"""You are an expert contract analyst helping a business understand THIS SPECIFIC government contract opportunity. Your analysis must be directly relevant to this contract, not generic advice.
+
+CONTRACT INFORMATION:
+{contract_context if contract_context else "No metadata available - analyze based on document content only."}
+
+UPLOADED CONTRACT DOCUMENT:
+{pdf_text}
+
+Analyze this specific contract and provide strategic annotations in these categories:
+
+1. Key Requirements & Deliverables - What THIS contract specifically requires: deliverables, quantities, timelines, quality standards
+2. Small Print & Critical Clauses - Important details in THIS document that are easy to miss but critical (cite specific sections/clauses)
+3. Compliance Requirements - Specific certifications, regulations, or legal requirements mentioned in THIS contract
+4. Risk Factors & Challenges - Specific issues, tight timelines, or difficult requirements in THIS contract
+5. Win Strategy Recommendations - How to position a proposal to win THIS specific contract based on its requirements
+
+IMPORTANT: 
+- Reference specific requirements, clauses, or sections from the document
+- Do NOT provide generic government contracting advice
+- Focus only on what is actually stated in THIS contract
+- Be concise but cite specific details from the document
+
+Provide your analysis as a JSON array with objects containing 'category' and 'text' fields."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert contract analyst. Provide strategic insights in JSON format."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000,
+                timeout=60
+            )
+            
+            # Parse AI response
+            ai_response = response.choices[0].message.content.strip()
+            
+            import json
+            import re
+            
+            json_match = re.search(r'\[.*\]', ai_response, re.DOTALL)
+            if json_match:
+                annotations = json.loads(json_match.group(0))
+            else:
+                annotations = [
+                    {
+                        'category': 'AI Analysis',
+                        'text': ai_response
+                    }
+                ]
+        
+        except Exception as e:
+            logging.error(f"Error generating AI annotations: {e}")
+            annotations = [
+                {
+                    'category': 'Document Loaded',
+                    'text': f'Successfully extracted {len(page_texts)} pages from the contract PDF. AI analysis is temporarily unavailable. Please review the document manually.'
+                }
+            ]
+        
+        # Generate draft ID
+        import uuid
+        draft_id = str(uuid.uuid4())
+        
+        # Save to Firebase
+        if admin_initialized and admin_db:
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+            draft_ref.set({
+                'draft_id': draft_id,
+                'user_id': user_id,
+                'contract_hash': contract_hash,
+                'contract_name': contract_name,
+                'contract_description': contract_description,
+                'organization': organization,
+                'naics_code': naics_code,
+                'annotations': annotations,
+                'page_count': len(page_texts),
+                'created_at': datetime.now().isoformat(),
+                'status': 'analysis_complete'
+            })
+        
+        return jsonify({
+            'success': True,
+            'draft_id': draft_id,
+            'annotations': annotations,
+            'page_count': len(page_texts)
+        })
+        
+    except Exception as e:
+        logging.error(f"Error analyzing contract: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_draft_team', methods=['GET'])
+def get_draft_team():
+    """Get team members from draft"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if draft_data and 'team_members' in draft_data:
+                return jsonify({
+                    'success': True,
+                    'team_members': draft_data['team_members']
+                })
+        
+        return jsonify({
+            'success': True,
+            'team_members': []
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting draft team: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/add_team_member', methods=['POST'])
+def add_team_member():
+    """Add team member to draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        member = data.get('member')
+        
+        if not draft_id or not member:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if not draft_data:
+                draft_data = {'team_members': []}
+            
+            if 'team_members' not in draft_data:
+                draft_data['team_members'] = []
+            
+            draft_data['team_members'].append(member)
+            draft_ref.update({'team_members': draft_data['team_members']})
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error adding team member: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/extract_subcontractor_info', methods=['POST'])
+def extract_subcontractor_info():
+    """Extract subcontractor info from website with robust error handling"""
+    try:
+        data = request.json
+        url = data.get('url')
+        draft_id = data.get('draft_id')
+        
+        if not url or not draft_id:
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+        
+        import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        from bs4 import BeautifulSoup
+        import re
+        import json as json_lib
+        from urllib.parse import urlparse, urljoin
+        
+        normalized_url = url.strip()
+        if not normalized_url.startswith(('http://', 'https://')):
+            normalized_url = 'https://' + normalized_url
+        
+        try:
+            parsed = urlparse(normalized_url)
+            if not parsed.netloc:
+                return jsonify({
+                    'success': False,
+                    'error': 'Invalid URL format. Please enter a valid website URL (e.g., example.com or https://example.com)'
+                }), 400
+        except Exception:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid URL format. Please check the URL and try again.'
+            }), 400
+        
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[429, 500, 502, 503, 504],
+            allowed_methods=["GET"]
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Accept-Encoding': 'gzip, deflate',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+        
+        ssl_error_occurred = False
+        response = None
+        
+        try:
+            app.logger.info(f"Fetching website: {normalized_url}")
+            response = session.get(
+                normalized_url,
+                headers=headers,
+                timeout=(5, 15),  # (connect timeout, read timeout)
+                allow_redirects=True,
+                verify=True
+            )
+            response.raise_for_status()
+            
+        except requests.exceptions.SSLError as ssl_err:
+            app.logger.warning(f"SSL error for {normalized_url}, retrying without verification: {ssl_err}")
+            ssl_error_occurred = True
+            try:
+                response = session.get(
+                    normalized_url,
+                    headers=headers,
+                    timeout=(5, 15),
+                    allow_redirects=True,
+                    verify=False
+                )
+                response.raise_for_status()
+            except Exception as retry_err:
+                app.logger.error(f"Retry failed for {normalized_url}: {retry_err}")
+                return jsonify({
+                    'success': False,
+                    'error': f'SSL certificate error. The website may have security issues. Error: {str(retry_err)}'
+                }), 500
+                
+        except requests.exceptions.Timeout:
+            app.logger.error(f"Timeout fetching {normalized_url}")
+            return jsonify({
+                'success': False,
+                'error': 'Request timed out. The website took too long to respond. Please try again or try a different page.'
+            }), 500
+            
+        except requests.exceptions.ConnectionError as conn_err:
+            app.logger.error(f"Connection error for {normalized_url}: {conn_err}")
+            return jsonify({
+                'success': False,
+                'error': 'Could not connect to the website. Please check the URL and try again.'
+            }), 500
+            
+        except requests.exceptions.HTTPError as http_err:
+            status_code = http_err.response.status_code if http_err.response else 0
+            app.logger.error(f"HTTP error {status_code} for {normalized_url}: {http_err}")
+            
+            if status_code == 403:
+                return jsonify({
+                    'success': False,
+                    'error': 'Access denied (403). The website is blocking automated access. Please try a different page or add the company manually.'
+                }), 500
+            elif status_code == 429:
+                return jsonify({
+                    'success': False,
+                    'error': 'Rate limited (429). Too many requests to this website. Please wait a moment and try again.'
+                }), 500
+            elif status_code == 404:
+                return jsonify({
+                    'success': False,
+                    'error': 'Page not found (404). Please check the URL and try again.'
+                }), 500
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': f'Website returned error {status_code}. Please try a different page or add the company manually.'
+                }), 500
+                
+        except requests.RequestException as req_err:
+            app.logger.error(f"Request error for {normalized_url}: {req_err}")
+            return jsonify({
+                'success': False,
+                'error': f'Failed to fetch website: {str(req_err)}'
+            }), 500
+        
+        content_type = response.headers.get('Content-Type', '').lower()
+        if 'text/html' not in content_type:
+            app.logger.warning(f"Non-HTML content type for {normalized_url}: {content_type}")
+            return jsonify({
+                'success': False,
+                'error': f'Website returned non-HTML content ({content_type}). Please try the company\'s main page or About page.'
+            }), 500
+        
+        content_length = len(response.content)
+        app.logger.info(f"Fetched {normalized_url}: status={response.status_code}, content-type={content_type}, length={content_length}")
+        
+        # Check for minimal content
+        if content_length < 500:
+            app.logger.warning(f"Suspiciously small content for {normalized_url}: {content_length} bytes")
+            return jsonify({
+                'success': False,
+                'error': 'Website returned very little content. It may require JavaScript or be blocking automated access.'
+            }), 500
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        cf_email_count = len(soup.find_all('a', class_='__cf_email__'))
+        app.logger.info(f"Found {cf_email_count} Cloudflare email tags")
+        page_text = soup.get_text().lower()
+        
+        anti_bot_indicators = [
+            'cloudflare', 'access denied', 'captcha', 'please verify you are human',
+            'enable javascript', 'bot detection', 'security check'
+        ]
+        if any(indicator in page_text[:1000] for indicator in anti_bot_indicators):
+            app.logger.warning(f"Anti-bot page detected for {normalized_url}")
+            return jsonify({
+                'success': False,
+                'error': 'Website is using bot protection (Cloudflare, CAPTCHA, etc.). Please add the company manually.'
+            }), 500
+        
+        # Extract structured data (JSON-LD)
+        company_name = ''
+        email = ''
+        phone = ''
+        services = ''
+        address = ''
+        linkedin_url = ''
+        
+        json_ld_scripts = soup.find_all('script', type='application/ld+json')
+        for script in json_ld_scripts:
+            try:
+                data = json_lib.loads(script.string)
+                items = data if isinstance(data, list) else [data]
+                for item in items:
+                    item_type = item.get('@type', '')
+                    if item_type in ['Organization', 'LocalBusiness', 'Corporation', 'Company']:
+                        if not company_name and item.get('name'):
+                            company_name = item['name']
+                        if not email and item.get('email'):
+                            email = item['email']
+                        if not phone and item.get('telephone'):
+                            phone = item['telephone']
+                        if not address and item.get('address'):
+                            addr = item['address']
+                            if isinstance(addr, dict):
+                                address = ', '.join(filter(None, [
+                                    addr.get('streetAddress', ''),
+                                    addr.get('addressLocality', ''),
+                                    addr.get('addressRegion', ''),
+                                    addr.get('postalCode', '')
+                                ]))
+                            elif isinstance(addr, str):
+                                address = addr
+                        if not linkedin_url and item.get('sameAs'):
+                            same_as = item['sameAs'] if isinstance(item['sameAs'], list) else [item['sameAs']]
+                            for link in same_as:
+                                if 'linkedin.com' in link.lower():
+                                    linkedin_url = link
+                                    break
+                        if not services and item.get('description'):
+                            services = item['description'][:300]
+            except (json_lib.JSONDecodeError, AttributeError, KeyError) as e:
+                app.logger.debug(f"Error parsing JSON-LD: {e}")
+                continue
+        
+        # Extract from OpenGraph / Twitter meta tags
+        if not company_name:
+            og_title = soup.find('meta', property='og:title')
+            if og_title and og_title.get('content'):
+                company_name = og_title['content'].strip()
+        
+        if not services:
+            og_desc = soup.find('meta', property='og:description')
+            if og_desc and og_desc.get('content'):
+                services = og_desc['content'][:300]
+            else:
+                twitter_desc = soup.find('meta', attrs={'name': 'twitter:description'})
+                if twitter_desc and twitter_desc.get('content'):
+                    services = twitter_desc['content'][:300]
+        
+        if not company_name:
+            title_tag = soup.find('title')
+            if title_tag and title_tag.text:
+                title_text = title_tag.text.strip()
+                for separator in [' | ', ' - ', ' – ', ' — ']:
+                    if separator in title_text:
+                        company_name = title_text.split(separator)[0].strip()
+                        break
+                if not company_name:
+                    company_name = title_text
+        
+        if not company_name or len(company_name) > 100:
+            h1_tag = soup.find('h1')
+            if h1_tag and h1_tag.text and len(h1_tag.text.strip()) < 100:
+                company_name = h1_tag.text.strip()
+        
+        if not email:
+            try:
+                cf_email_tags = soup.find_all('a', class_='__cf_email__')
+                for tag in cf_email_tags:
+                    cfemail = tag.get('data-cfemail', '')
+                    if cfemail and len(cfemail) >= 2:
+                        try:
+                            key = int(cfemail[0:2], 16)
+                            decoded_chars = []
+                            for i in range(2, len(cfemail), 2):
+                                char_code = int(cfemail[i:i+2], 16)
+                                decoded_chars.append(chr(char_code ^ key))
+                            decoded_email = ''.join(decoded_chars)
+                            # Validate it looks like an email
+                            if '@' in decoded_email and '.' in decoded_email.split('@')[1]:
+                                if not any(x in decoded_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                                    email = decoded_email
+                                    app.logger.info(f"Decoded Cloudflare email: {email}")
+                                    break
+                        except (ValueError, IndexError) as e:
+                            app.logger.debug(f"Failed to decode Cloudflare email: {e}")
+                            continue
+            except Exception as e:
+                app.logger.debug(f"Error decoding Cloudflare emails: {e}")
+        
+        # Extract email from mailto: links
+        if not email:
+            try:
+                mailto_links = soup.find_all('a', href=re.compile(r'^mailto:', re.I))
+                for link in mailto_links:
+                    href = link.get('href', '')
+                    # Extract email from mailto:email@domain.com or mailto:email@domain.com?subject=...
+                    mailto_email = href.replace('mailto:', '').split('?')[0].strip()
+                    if '@' in mailto_email and '.' in mailto_email.split('@')[1]:
+                        if not any(x in mailto_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                            email = mailto_email
+                            app.logger.info(f"Found email from mailto link: {email}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting mailto links: {e}")
+        
+        # Extract email from microdata
+        if not email:
+            try:
+                email_microdata = soup.find_all(attrs={'itemprop': 'email'})
+                for elem in email_microdata:
+                    text = elem.get_text().strip()
+                    if '@' in text and '.' in text.split('@')[1]:
+                        if not any(x in text.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                            email = text
+                            app.logger.info(f"Found email from microdata: {email}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting email microdata: {e}")
+        
+        # Extract email with regex if not found
+        if not email:
+            email_pattern = r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'
+            emails = re.findall(email_pattern, soup.get_text())
+            filtered_emails = [e for e in emails if not any(x in e.lower() for x in ['example', 'test', 'noreply', 'no-reply'])]
+            if filtered_emails:
+                email = filtered_emails[0]
+        
+        # Extract phone from tel: links
+        if not phone:
+            try:
+                tel_links = soup.find_all('a', href=re.compile(r'^tel:', re.I))
+                for link in tel_links:
+                    href = link.get('href', '')
+                    # Extract digits from tel:+1-234-567-8900 or tel:(234) 567-8900
+                    tel_digits = re.sub(r'[^0-9]', '', href.replace('tel:', ''))
+                    if len(tel_digits) >= 10:
+                        if len(tel_digits) == 11 and tel_digits[0] == '1':
+                            tel_digits = tel_digits[1:]
+                        if len(tel_digits) == 10:
+                            phone = f"({tel_digits[0:3]}) {tel_digits[3:6]}-{tel_digits[6:10]}"
+                            app.logger.info(f"Found phone from tel link: {phone}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting tel links: {e}")
+        
+        # Extract phone from microdata
+        if not phone:
+            try:
+                phone_microdata = soup.find_all(attrs={'itemprop': 'telephone'})
+                for elem in phone_microdata:
+                    text = elem.get_text().strip()
+                    tel_digits = re.sub(r'[^0-9]', '', text)
+                    if len(tel_digits) >= 10:
+                        if len(tel_digits) == 11 and tel_digits[0] == '1':
+                            tel_digits = tel_digits[1:]
+                        if len(tel_digits) == 10:
+                            phone = f"({tel_digits[0:3]}) {tel_digits[3:6]}-{tel_digits[6:10]}"
+                            app.logger.info(f"Found phone from microdata: {phone}")
+                            break
+            except Exception as e:
+                app.logger.debug(f"Error extracting phone microdata: {e}")
+        
+        # Extract phone with regex if not found
+        if not phone:
+            phone_pattern = r'(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})'
+            phone_matches = re.findall(phone_pattern, soup.get_text())
+            if phone_matches:
+                match = phone_matches[0]
+                phone = f"({match[0]}) {match[1]}-{match[2]}"
+        
+        # Extract LinkedIn URL if not found
+        if not linkedin_url:
+            linkedin_links = soup.find_all('a', href=re.compile(r'linkedin\.com', re.I))
+            if linkedin_links:
+                linkedin_url = linkedin_links[0].get('href', '')
+        
+        # Extract services from meta description if not found
+        if not services:
+            meta_desc = soup.find('meta', attrs={'name': 'description'})
+            if meta_desc and meta_desc.get('content'):
+                services = meta_desc['content'][:300]
+        
+        # Fallback to first substantial paragraph
+        if not services:
+            paragraphs = soup.find_all('p')
+            for p in paragraphs[:5]:
+                text = p.get_text().strip()
+                if len(text) > 80:  # Substantial paragraph
+                    services = text[:300]
+                    break
+        
+        if not company_name:
+            company_name = parsed.netloc.replace('www.', '').split('.')[0].title()
+        
+        if not services:
+            services = 'Services information not found. Please edit manually.'
+        
+        if (not email or not phone) and response:
+            try:
+                app.logger.info(f"Attempting contact page fallback for {normalized_url}")
+                contact_links = []
+                for link in soup.find_all('a', href=True):
+                    href = link.get('href', '').lower()
+                    text = link.get_text().lower()
+                    if any(keyword in href or keyword in text for keyword in ['contact', 'contact-us', 'contact-1', 'about', 'team']):
+                        full_url = urljoin(normalized_url, link['href'])
+                        if urlparse(full_url).netloc == parsed.netloc:
+                            contact_links.append((full_url, 'contact' in href or 'contact' in text))
+                
+                contact_links.sort(key=lambda x: x[1], reverse=True)
+                
+                if contact_links:
+                    contact_url = contact_links[0][0]
+                    app.logger.info(f"Trying contact page: {contact_url}")
+                    
+                    try:
+                        contact_response = session.get(
+                            contact_url,
+                            headers=headers,
+                            timeout=(5, 10),
+                            allow_redirects=True,
+                            verify=not ssl_error_occurred
+                        )
+                        contact_response.raise_for_status()
+                        
+                        if 'text/html' in contact_response.headers.get('Content-Type', '').lower():
+                            contact_soup = BeautifulSoup(contact_response.text, 'html.parser')
+                            
+                            if not email:
+                                cf_email_tags = contact_soup.find_all('a', class_='__cf_email__')
+                                for tag in cf_email_tags:
+                                    cfemail = tag.get('data-cfemail', '')
+                                    if cfemail and len(cfemail) >= 2:
+                                        try:
+                                            key = int(cfemail[0:2], 16)
+                                            decoded_chars = []
+                                            for i in range(2, len(cfemail), 2):
+                                                char_code = int(cfemail[i:i+2], 16)
+                                                decoded_chars.append(chr(char_code ^ key))
+                                            decoded_email = ''.join(decoded_chars)
+                                            if '@' in decoded_email and '.' in decoded_email.split('@')[1]:
+                                                if not any(x in decoded_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                                                    email = decoded_email
+                                                    app.logger.info(f"Found email from contact page (Cloudflare): {email}")
+                                                    break
+                                        except (ValueError, IndexError):
+                                            continue
+                            
+                            if not email:
+                                mailto_links = contact_soup.find_all('a', href=re.compile(r'^mailto:', re.I))
+                                for link in mailto_links:
+                                    href = link.get('href', '')
+                                    mailto_email = href.replace('mailto:', '').split('?')[0].strip()
+                                    if '@' in mailto_email and '.' in mailto_email.split('@')[1]:
+                                        if not any(x in mailto_email.lower() for x in ['example', 'test', 'noreply', 'no-reply']):
+                                            email = mailto_email
+                                            app.logger.info(f"Found email from contact page (mailto): {email}")
+                                            break
+                            
+                            if not phone:
+                                tel_links = contact_soup.find_all('a', href=re.compile(r'^tel:', re.I))
+                                for link in tel_links:
+                                    href = link.get('href', '')
+                                    tel_digits = re.sub(r'[^0-9]', '', href.replace('tel:', ''))
+                                    if len(tel_digits) >= 10:
+                                        if len(tel_digits) == 11 and tel_digits[0] == '1':
+                                            tel_digits = tel_digits[1:]
+                                        if len(tel_digits) == 10:
+                                            phone = f"({tel_digits[0:3]}) {tel_digits[3:6]}-{tel_digits[6:10]}"
+                                            app.logger.info(f"Found phone from contact page (tel): {phone}")
+                                            break
+                            
+                            if not phone:
+                                phone_pattern = r'(?:\+?1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})'
+                                phone_matches = re.findall(phone_pattern, contact_soup.get_text())
+                                if phone_matches:
+                                    match = phone_matches[0]
+                                    phone = f"({match[0]}) {match[1]}-{match[2]}"
+                                    app.logger.info(f"Found phone from contact page (regex): {phone}")
+                    
+                    except Exception as contact_err:
+                        app.logger.debug(f"Contact page fallback failed: {contact_err}")
+            
+            except Exception as e:
+                app.logger.debug(f"Error in contact page fallback: {e}")
+        
+        member = {
+            'company': company_name,
+            'contact_name': '',
+            'contact_role': '',
+            'email': email,
+            'phone': phone,
+            'services': services,
+            'website': normalized_url,
+            'linkedin_url': linkedin_url,
+            'address': address,
+            'source': 'website'
+        }
+        
+        app.logger.info(f"Successfully extracted info from {normalized_url}: company={company_name}")
+        
+        response_data = {
+            'success': True,
+            'member': member
+        }
+        
+        if ssl_error_occurred:
+            response_data['warning'] = 'SSL certificate could not be verified. Data was extracted but the connection may not be secure.'
+        
+        return jsonify(response_data)
+        
+    except Exception as e:
+        app.logger.error(f"Error extracting subcontractor info: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Unexpected error: {str(e)}'
+        }), 500
+
+@app.route('/api/update_draft_team', methods=['POST'])
+def update_draft_team():
+    """Update team members in draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        team_members = data.get('team_members')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref.update({'team_members': team_members})
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating draft team: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/suggest_team', methods=['POST'])
+def suggest_team():
+    """Generate AI-powered team composition suggestions based on contract analysis"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        current_team = data.get('team_members', [])
+        
+        if not draft_id:
+            logging.warning("[suggest_team] Missing draft_id in request")
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        user = auth.current_user
+        if not user:
+            logging.warning("[suggest_team] User not authenticated")
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user['localId']
+        logging.info(f"[suggest_team] Looking up draft: user_id={user_id}, draft_id={draft_id}")
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            # Log available drafts for debugging
+            try:
+                user_drafts_ref = admin_db.reference(f'proposal_drafts/{user_id}')
+                user_drafts = user_drafts_ref.get()
+                available_ids = list(user_drafts.keys()) if user_drafts else []
+                logging.warning(f"[suggest_team] Draft not found. draft_id={draft_id}, available_ids={available_ids[:5]}...")
+            except Exception as e:
+                logging.warning(f"[suggest_team] Could not list available drafts: {e}")
+            return jsonify({'success': False, 'error': 'Draft not found. Please analyze the contract first.'}), 404
+        
+        if 'annotations' not in draft_data or not draft_data['annotations']:
+            return jsonify({'success': False, 'error': 'No contract analysis found. Please run "Analyze with AI" first.'}), 400
+        
+        annotations = draft_data['annotations']
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        annotations_text = "\n".join([f"{ann.get('category', 'Note')}: {ann.get('text', '')}" for ann in annotations])
+        
+        capability_statement = ""
+        try:
+            user_uploads_dir = os.path.join('uploads', f'bid_uploads_{user_id}')
+            cs_file = os.path.join(user_uploads_dir, 'capability_statements_processed.csv')
+            
+            if os.path.exists(cs_file):
+                import pandas as pd
+                cs_df = pd.read_csv(cs_file)
+                primary_cs = cs_df[cs_df['is_primary'] == True]
+                if not primary_cs.empty:
+                    capability_statement = primary_cs.iloc[0]['Capability_Statement']
+                elif not cs_df.empty:
+                    capability_statement = cs_df.iloc[0]['Capability_Statement']
+        except Exception as e:
+            app.logger.warning(f"Could not load capability statement: {e}")
+        
+        current_team_text = ""
+        if current_team:
+            current_team_text = "\n\nCurrent Team Members:\n" + "\n".join([
+                f"- {member.get('company', 'Unknown')}: {member.get('services', 'N/A')}"
+                for member in current_team
+            ])
+        
+        try:
+            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            client = OpenAI(api_key=api_key, timeout=45.0)
+            
+            prompt = f"""You are an expert government contracting team composition advisor.Based on the contract analysis and company capabilities, recommend a strategic team composition.
+
+CONTRACT ANALYSIS:
+{annotations_text[:3000]}
+
+COMPANY CAPABILITIES:
+{capability_statement[:2000] if capability_statement else "No capability statement available"}
+{current_team_text}
+
+Provide strategic team recommendations in JSON format with this structure:
+{{
+  "team_structure": "Brief description of recommended prime/sub structure",
+  "recommended_roles": [
+    {{
+      "role": "Role title",
+      "responsibilities": "Key responsibilities",
+      "why_needed": "Why this role is critical for this contract",
+      "preferred_qualifications": "Certifications, experience, or qualifications",
+      "partner_profile": "Type of partner to seek (e.g., SDVOSB, 8(a), specific NAICS)"
+    }}
+  ],
+  "key_considerations": [
+    "Important consideration 1",
+    "Important consideration 2"
+  ],
+  "compliance_notes": "Any compliance or certification requirements for team members"
+}}
+
+Focus on roles that fill gaps, meet compliance requirements, and strengthen the proposal. Be specific and actionable."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contracting team composition advisor. Provide strategic, actionable recommendations in JSON format."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=2000,
+                timeout=45
+            )
+            
+            ai_response = response.choices[0].message.content.strip()
+            
+            import json as json_lib
+            import re
+            
+            json_match = re.search(r'\{.*\}', ai_response, re.DOTALL)
+            if json_match:
+                suggestions_data = json_lib.loads(json_match.group(0))
+            else:
+                suggestions_data = {
+                    'team_structure': 'AI analysis completed',
+                    'recommended_roles': [{
+                        'role': 'Team Composition',
+                        'responsibilities': ai_response[:500],
+                        'why_needed': 'Based on contract analysis',
+                        'preferred_qualifications': 'See contract requirements',
+                        'partner_profile': 'Relevant to contract scope'
+                    }],
+                    'key_considerations': ['Review full analysis above'],
+                    'compliance_notes': 'Refer to contract compliance requirements'
+                }
+            
+            app.logger.info(f"Successfully generated team suggestions for draft {draft_id}")
+            
+            return jsonify({
+                'success': True,
+                'suggestions': suggestions_data
+            })
+            
+        except Exception as ai_error:
+            app.logger.error(f"Error generating team suggestions: {ai_error}")
+            return jsonify({
+                'success': False,
+                'error': f'AI analysis failed: {str(ai_error)}'
+            }), 500
+        
+    except Exception as e:
+        app.logger.error(f"Error in suggest_team: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_draft_pricing', methods=['GET'])
+def get_draft_pricing():
+    """Get pricing data from draft"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_data = draft_ref.get()
+            
+            if draft_data and 'pricing' in draft_data:
+                return jsonify({
+                    'success': True,
+                    'pricing': draft_data['pricing']
+                })
+        
+        return jsonify({
+            'success': True,
+            'pricing': {
+                'labor': [],
+                'materials': [],
+                'margin_pct': 15,
+                'risk_pct': 5
+            }
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting draft pricing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update_draft_pricing', methods=['POST'])
+def update_draft_pricing():
+    """Update pricing data in draft"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        pricing = data.get('pricing')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if admin_initialized and admin_db:
+            user = auth.current_user
+            if not user:
+                return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+            
+            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref.update({'pricing': pricing})
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        logging.error(f"Error updating draft pricing: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def extract_html_from_llm(s: str) -> str:
+    """Extract HTML content from LLM response, removing markdown code fences if present"""
+    import re
+    m = re.search(r'```(?:html)?\s*([\s\S]*?)\s*```', s, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    s = re.sub(r'^```(?:html)?\s*', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'\s*```\s*$', '', s)
+    return s.strip()
+
+@app.route('/api/generate_pricing_strategy', methods=['POST'])
+def generate_pricing_strategy():
+    """Generate AI-powered pricing strategy"""
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        annotations = draft_data.get('annotations', [])
+        team_members = draft_data.get('team_members', [])
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        annotations_text = '\n'.join([f"- {ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
+        team_text = '\n'.join([f"- {member.get('company', '')}: {member.get('services', '')}" for member in team_members])
+        
+        try:
+            from openai import OpenAI
+            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            client = OpenAI(api_key=api_key)
+            
+            prompt = f"""You are an expert pricing strategist for government contracts. Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
+
+Contract Analysis:
+{annotations_text if annotations_text else 'No contract analysis available'}
+
+Team Composition:
+{team_text if team_text else 'No team members added yet'}
+
+Provide a detailed pricing strategy that includes:
+1. Recommended delivery model (fixed-price, time & materials, cost-plus, etc.)
+2. Competitive positioning and estimated price range
+3. Key cost drivers breakdown (labor, materials, overhead, risk)
+4. Risk mitigation strategies
+5. Win strategy recommendations
+
+Return only an HTML snippet suitable for direct insertion into a div. Use h4 or h5 for headings, p for paragraphs, and ul/li for lists. Do not wrap in markdown code fences. Do not include any explanation, summary, or text before/after the HTML. Do not include html, head, or body tags."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert pricing strategist for government contracts. Provide detailed, actionable pricing recommendations."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=1500
+            )
+            
+            strategy_raw = response.choices[0].message.content.strip()
+            strategy = extract_html_from_llm(strategy_raw)
+            
+            draft_ref.update({'pricing_strategy': strategy})
+            
+            return jsonify({
+                'success': True,
+                'strategy': strategy
+            })
+            
+        except Exception as e:
+            logging.error(f"Error generating AI pricing strategy: {e}")
+            
+            fallback_strategy = """
+            <h4>Recommended Pricing Strategy</h4>
+            <p><strong>Delivery Model:</strong> Fixed-price contract with milestone-based payments</p>
+            <p><strong>Competitive Positioning:</strong> Based on market analysis, similar contracts typically range from $150K-$250K. 
+            Recommend positioning competitively while maintaining healthy margins.</p>
+            <p><strong>Key Cost Drivers:</strong></p>
+            <ul>
+                <li>Labor: 60% of total cost (estimated hours at blended rate)</li>
+                <li>Materials & Equipment: 25% of total cost</li>
+                <li>Overhead & Risk: 15% of total cost</li>
+            </ul>
+            <p><strong>Risk Mitigation:</strong> Include 5-10% contingency for unforeseen circumstances and material price fluctuations.</p>
+            <p><em>Note: AI analysis temporarily unavailable. Please review and adjust based on your specific contract requirements.</em></p>
+            """
+            
+            return jsonify({
+                'success': True,
+                'strategy': fallback_strategy
+            })
+        
+    except Exception as e:
+        logging.error(f"Error generating pricing strategy: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/generate_final_proposal', methods=['GET'])
+def generate_final_proposal():
+    """Generate final 8-section DRAFT proposal document using parallel AI prompts"""
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user["localId"]
+        
+        # Get draft data
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        # Get user data for company info
+        user_ref = admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+        
+        # Get capability statement if available
+        capability_statement = ""
+        try:
+            cs_ref = admin_db.reference(f'capability_statements/{user_id}')
+            cs_data = cs_ref.get()
+            if cs_data:
+                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
+        except Exception as cs_error:
+            logging.warning(f"Could not fetch capability statement: {cs_error}")
+        
+        # Extract contract info from annotations
+        annotations = draft_data.get('annotations', [])
+        pricing = draft_data.get('pricing', {})
+        team_members = draft_data.get('team_members', [])
+        contract_hash = draft_data.get('contract_hash', '')
+        
+        # Build contract context from annotations
+        contract_context = {
+            'title': '',
+            'agency': '',
+            'solicitation_number': '',
+            'naics': '',
+            'due_date': '',
+            'requirements': [],
+            'scope': '',
+            'deliverables': []
+        }
+        
+        for ann in annotations:
+            category = ann.get('category', '').lower()
+            text = ann.get('text', '')
+            if 'requirement' in category:
+                contract_context['requirements'].append(text)
+            elif 'scope' in category:
+                contract_context['scope'] += text + ' '
+            elif 'deliverable' in category:
+                contract_context['deliverables'].append(text)
+            elif 'title' in category or 'subject' in category:
+                contract_context['title'] = text
+            elif 'agency' in category:
+                contract_context['agency'] = text
+            elif 'naics' in category:
+                contract_context['naics'] = text
+            elif 'due' in category or 'deadline' in category:
+                contract_context['due_date'] = text
+            elif 'solicitation' in category or 'rfp' in category or 'rfq' in category:
+                contract_context['solicitation_number'] = text
+        
+        company_name = user_data.get('company', 'Our Company')
+        
+        # Redirect to the proposal generation page which will handle the async generation
+        return redirect(url_for('proposal_result_page', draft_id=draft_id))
+        
+    except Exception as e:
+        logging.error(f"Error generating final proposal: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/proposal/result')
+def proposal_result_page():
+    """Page to display proposal generation progress and results"""
+    draft_id = request.args.get('draft_id')
+    if not draft_id:
+        return redirect(url_for('Welcome'))
+    
+    user = auth.current_user
+    if not user:
+        return redirect(url_for('Login'))
+    
+    return render_template('proposal_result.html', draft_id=draft_id, user_id=user["localId"])
+
+@app.route('/api/generate_proposal_sections', methods=['POST'])
+def generate_proposal_sections():
+    """Generate all 8 proposal sections using parallel AI prompts"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    import json
+    
+    try:
+        data = request.json
+        draft_id = data.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        if not admin_initialized or not admin_db:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user["localId"]
+        
+        # Get draft data
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        # Get user data for company info
+        user_ref = admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+        
+        # Get capability statement if available
+        capability_statement = ""
+        try:
+            cs_ref = admin_db.reference(f'capability_statements/{user_id}')
+            cs_data = cs_ref.get()
+            if cs_data:
+                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
+        except Exception as cs_error:
+            logging.warning(f"Could not fetch capability statement: {cs_error}")
+        
+        # Extract data from draft
+        annotations = draft_data.get('annotations', [])
+        pricing = draft_data.get('pricing', {})
+        team_members = draft_data.get('team_members', [])
+        
+        # Build contract context
+        requirements_text = '\n'.join([f"- {ann.get('text', '')}" for ann in annotations if 'requirement' in ann.get('category', '').lower()])
+        scope_text = ' '.join([ann.get('text', '') for ann in annotations if 'scope' in ann.get('category', '').lower()])
+        all_annotations_text = '\n'.join([f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
+        
+        company_name = user_data.get('company', 'Our Company')
+        company_address = user_data.get('address', '[Company Address]')
+        company_email = user_data.get('email', user.get('email', '[Email]'))
+        
+        # Build pricing summary
+        labor_total = sum(item.get('cost', 0) for item in pricing.get('labor', []))
+        material_total = sum(item.get('cost', 0) for item in pricing.get('materials', []))
+        subtotal = labor_total + material_total
+        margin_pct = pricing.get('margin_pct', 15)
+        risk_pct = pricing.get('risk_pct', 5)
+        margin_amount = subtotal * (margin_pct / 100)
+        risk_amount = subtotal * (risk_pct / 100)
+        total_bid = subtotal + margin_amount + risk_amount
+        
+        pricing_summary = f"""
+Labor Costs: ${labor_total:,.2f}
+Material Costs: ${material_total:,.2f}
+Subtotal: ${subtotal:,.2f}
+Margin ({margin_pct}%): ${margin_amount:,.2f}
+Risk Reserve ({risk_pct}%): ${risk_amount:,.2f}
+Total Bid Amount: ${total_bid:,.2f}
+
+Labor Breakdown:
+""" + '\n'.join([f"- {item.get('role', 'Role')}: {item.get('hours', 0)} hours @ ${item.get('rate', 0)}/hr = ${item.get('cost', 0):,.2f}" for item in pricing.get('labor', [])])
+        
+        # Build team summary
+        team_summary = '\n'.join([f"- {member.get('name', 'Team Member')}: {member.get('role', 'Role')} - {member.get('experience', 'Experience')}" for member in team_members]) or "Team to be determined based on contract requirements."
+        
+        # Define the 8 section prompts
+        def generate_section(section_num, section_name, prompt):
+            """Generate a single section using OpenAI"""
+            try:
+                response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+                    model="gpt-4",
+                    messages=[
+                        {"role": "system", "content": f"""You are an expert government contract proposal writer with 20+ years of experience winning federal, state, and local government contracts. Generate Section {section_num}: {section_name} for a comprehensive public procurement proposal.
+
+CRITICAL REQUIREMENTS FOR SUBSTANTIVE CONTENT:
+1. Write THOROUGH, DETAILED content that is ready for professional use
+2. Each section should be comprehensive and substantive - aim for the word count specified in the prompt
+3. Use specific, concrete language rather than generic statements
+4. Include detailed explanations, methodologies, and approaches
+5. Reference the specific contract requirements and tailor content accordingly
+6. Write in formal government contracting language with professional tone
+
+FORMATTING RULES:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Use numbered lists where appropriate (1., 2., 3.)
+- Write in professional paragraph form with detailed explanations
+- Include appropriate placeholders [IN BRACKETS] only where specific company data is truly missing
+- Structure content with clear subheadings for easy navigation
+
+COMPANY INFORMATION:
+Company Name: {company_name}
+Company Address: {company_address}
+Company Email: {company_email}
+
+CAPABILITY STATEMENT (Use this to inform technical capabilities and past performance):
+{capability_statement[:4000] if capability_statement else 'Company capabilities to be detailed based on specific contract requirements.'}
+
+CONTRACT REQUIREMENTS AND ANNOTATIONS (Reference these specifically in your response):
+{all_annotations_text[:5000]}
+
+TEAM MEMBERS (Include these in staffing and management sections):
+{team_summary}
+
+PRICING INFORMATION (Use for cost proposal section):
+{pricing_summary}
+
+Remember: Generate SUBSTANTIVE, READY-TO-USE content. The goal is a proposal that requires minimal editing before submission."""},
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.4,
+                    max_tokens=4000
+                )
+                return response.choices[0].message.content
+            except Exception as e:
+                logging.error(f"Error generating section {section_num}: {e}")
+                return f"[Error generating {section_name}: {str(e)}. Please regenerate this section.]"
+        
+        # Define the 8 prompts based on PromptBidding.md structure - Enhanced for substantive content
+        section_prompts = [
+            (1, "Cover Letter & Executive Summary", f"""Generate a comprehensive, ready-to-use Cover Letter and Executive Summary section. TARGET LENGTH: 1,200-1,500 words.
+
+COVER PAGE INFORMATION:
+Include a formal cover page with: Solicitation reference, Title of the opportunity, Contracting Agency, Company name ({company_name}), Submission date, and "DRAFT - FOR INTERNAL REVIEW ONLY" notice.
+
+COVER LETTER/TRANSMITTAL LETTER (300-400 words):
+Write a compelling, formal transmittal letter that:
+1. Opens with a strong statement of interest and commitment to the solicitation
+2. Introduces {company_name} with specific credentials and relevant experience
+3. Highlights 2-3 key differentiators that make the company uniquely qualified
+4. Expresses understanding of the agency's mission and how this contract supports it
+5. Includes commitment to performance, schedule, and budget
+6. Closes with contact information and signature block for "[Authorized Representative, Title]"
+
+EXECUTIVE SUMMARY (800-1,100 words):
+Write a compelling executive summary that:
+
+1. UNDERSTANDING OF REQUIREMENTS
+   - Demonstrate deep understanding of the solicitation's objectives
+   - Reference specific requirements from the contract annotations
+   - Show awareness of the agency's challenges and priorities
+
+2. PROPOSED SOLUTION OVERVIEW
+   - Provide a clear, compelling description of the proposed approach
+   - Explain how the solution addresses each major requirement
+   - Highlight innovative aspects and value-added features
+
+3. KEY DIFFERENTIATORS AND COMPETITIVE ADVANTAGES
+   - Identify 4-5 specific reasons why {company_name} is the best choice
+   - Reference relevant past performance and capabilities
+   - Emphasize unique qualifications, certifications, or methodologies
+
+4. VALUE PROPOSITION
+   - Articulate the tangible benefits to the agency
+   - Explain cost-effectiveness and return on investment
+   - Describe risk mitigation and quality assurance approaches
+
+5. KEY PERSONNEL HIGHLIGHTS
+   - Briefly introduce the project leadership team
+   - Highlight relevant experience and qualifications
+
+Write with confidence and specificity. This should read as a polished, professional proposal."""),
+
+            (2, "Administrative & Compliance Information", f"""Generate a thorough Administrative & Compliance Information section. TARGET LENGTH: 800-1,000 words.
+
+1. OFFEROR IDENTIFICATION AND CONTACT INFORMATION
+   - Legal Entity Name: {company_name}
+   - Business Address: {company_address}
+   - Primary Contact: [Name, Title, Phone, Email]
+   - Authorized Representative: [Name, Title]
+   - DUNS/UEI Number: [TO BE PROVIDED]
+   - CAGE Code: [TO BE PROVIDED]
+   - Tax Identification Number: [TO BE PROVIDED]
+
+2. BUSINESS CLASSIFICATION AND STATUS
+   - Business Type: [Corporation/LLC/Partnership/Sole Proprietorship]
+   - State of Incorporation: [State]
+   - Year Established: [Year]
+   - Small Business Status: [Indicate applicable categories: Small Business, Woman-Owned, Veteran-Owned, HUBZone, 8(a), etc.]
+   - NAICS Codes: [List primary and secondary codes relevant to this solicitation]
+   - Size Standard Compliance: [Confirm compliance with applicable size standards]
+
+3. REGISTRATIONS AND CERTIFICATIONS
+   - SAM.gov Registration: [Active/Registration Number/Expiration Date]
+   - State Business Licenses: [List applicable state registrations]
+   - Professional Certifications: [List relevant certifications - ISO, CMMI, etc.]
+   - Security Clearances: [If applicable, describe facility and personnel clearances]
+
+4. REPRESENTATIONS AND CERTIFICATIONS SUMMARY
+   Provide affirmative statements for:
+   - FAR 52.204-8 Annual Representations and Certifications
+   - Organizational Conflict of Interest: No conflicts exist
+   - Debarment and Suspension: Not debarred or suspended
+   - Tax Compliance: Current on all federal tax obligations
+   - Equal Employment Opportunity: Full compliance with EEO requirements
+   - Drug-Free Workplace: Maintains drug-free workplace policy
+   - Anti-Kickback Act: Full compliance
+   - Lobbying Restrictions: No federal funds used for lobbying
+
+5. INSURANCE AND BONDING
+   - General Liability Insurance: [Coverage amount]
+   - Professional Liability Insurance: [Coverage amount]
+   - Workers' Compensation: [Compliant with state requirements]
+   - Bonding Capacity: [If applicable]
+
+Mark items requiring verification with [TO BE VERIFIED] but provide complete structure."""),
+
+            (3, "Technical Approach", f"""Generate a comprehensive, detailed Technical Approach section. TARGET LENGTH: 2,000-2,500 words. This is the most critical section - make it thorough and specific.
+
+1. UNDERSTANDING OF REQUIREMENTS (400-500 words)
+   Begin by demonstrating thorough understanding of the solicitation:
+   - Summarize the agency's objectives and desired outcomes
+   - Identify and discuss key technical requirements from the annotations
+   - Acknowledge challenges and constraints
+   - Show understanding of performance standards and success criteria
+   - Reference specific sections or requirements from the solicitation
+
+2. TECHNICAL SOLUTION AND METHODOLOGY (600-800 words)
+   Describe the proposed technical approach in detail:
+   - Overall solution architecture and design philosophy
+   - Specific methodologies, frameworks, and best practices to be employed
+   - Technology stack, tools, and systems to be used
+   - How the solution addresses each major requirement
+   - Innovation and value-added features
+   - Integration with existing agency systems (if applicable)
+   - Scalability and flexibility of the proposed solution
+
+3. WORK PLAN AND IMPLEMENTATION APPROACH (500-600 words)
+   Provide a detailed implementation plan:
+   - Project phases with clear objectives for each phase
+   - Key activities and tasks within each phase
+   - Timeline and schedule (use realistic estimates)
+   - Dependencies and critical path items
+   - Transition and knowledge transfer approach
+   - Change management methodology
+
+4. DELIVERABLES AND ACCEPTANCE CRITERIA (300-400 words)
+   List and describe all deliverables:
+   - For each deliverable: description, format, delivery schedule
+   - Quality standards for deliverables
+   - Review and acceptance process
+   - Documentation requirements
+
+5. COMPLIANCE MATRIX SUMMARY (200-300 words)
+   Demonstrate compliance with key requirements:
+   - Map major solicitation requirements to proposed solution elements
+   - Identify any exceptions or deviations (if none, state full compliance)
+   - Reference applicable standards and regulations
+
+Write with technical depth and specificity. Reference the contract requirements provided and tailor the approach accordingly."""),
+
+            (4, "Management & Staffing Plan", f"""Generate a comprehensive Management & Staffing Plan section. TARGET LENGTH: 1,500-1,800 words.
+
+1. PROJECT MANAGEMENT APPROACH (400-500 words)
+   Describe the management methodology in detail:
+   - Project management framework (Agile, Waterfall, Hybrid - justify the choice)
+   - Governance structure and decision-making processes
+   - Communication plan: frequency, methods, stakeholders, escalation procedures
+   - Status reporting: format, frequency, distribution
+   - Issue and risk management processes
+   - Change control procedures
+   - Quality management integration
+   - Tools and systems for project management
+
+2. ORGANIZATIONAL STRUCTURE (300-400 words)
+   Describe the project organization:
+   - Organizational chart description (describe hierarchy and relationships)
+   - Reporting relationships and lines of authority
+   - Interface with agency personnel
+   - Subcontractor management structure (if applicable)
+   - Corporate support and oversight
+
+3. KEY PERSONNEL (500-600 words)
+   Provide detailed descriptions of key team members:
+{team_summary}
+
+   For each key person, include:
+   - Name and proposed role
+   - Relevant qualifications and certifications
+   - Years of experience in similar roles
+   - Specific relevant project experience
+   - Percentage of time dedicated to this contract
+   - Backup/succession plan
+
+   If team members are not yet identified, provide detailed position descriptions with required qualifications.
+
+4. STAFFING PLAN AND RESOURCE ALLOCATION (300-400 words)
+   - Total staffing levels by phase and labor category
+   - Full-time equivalent (FTE) breakdown
+   - Skill mix and expertise areas
+   - Recruitment and retention strategies
+   - Training and professional development
+   - Contingency staffing plans
+   - Ramp-up and ramp-down approach
+
+Write with specificity about roles, responsibilities, and management processes."""),
+
+            (5, "Corporate Experience & Past Performance", f"""Generate a comprehensive Corporate Experience & Past Performance section. TARGET LENGTH: 1,500-1,800 words.
+
+1. CORPORATE OVERVIEW (300-400 words)
+   Provide a compelling company profile:
+   - Company history and founding
+   - Mission and core values
+   - Areas of expertise and specialization
+   - Geographic presence and capabilities
+   - Key differentiators in the market
+   - Awards, recognitions, and achievements
+   - Growth trajectory and stability indicators
+
+2. CORE COMPETENCIES (200-300 words)
+   Detail the company's core capabilities:
+   - Technical competencies relevant to this contract
+   - Management and operational capabilities
+   - Quality assurance expertise
+   - Innovation and continuous improvement track record
+
+3. PAST PERFORMANCE EXAMPLES (800-1,000 words)
+   Provide 3-4 detailed past performance references. For each, include:
+
+   PAST PERFORMANCE EXAMPLE 1:
+   - Contract Name/Title: [Name or description]
+   - Contracting Agency/Client: [Agency name]
+   - Contract Number: [TO BE PROVIDED]
+   - Contract Type: [FFP/T&M/Cost-Plus]
+   - Contract Value: $[Amount]
+   - Period of Performance: [Start Date] to [End Date]
+   - Point of Contact: [Name, Title, Phone, Email - TO BE PROVIDED]
+   - Scope of Work: [Detailed description of work performed]
+   - Key Accomplishments: [Specific achievements, metrics, outcomes]
+   - Relevance to Current Solicitation: [Explain how this experience applies]
+
+   [Repeat structure for Examples 2, 3, and 4]
+
+   Base these on the capability statement provided. Use realistic placeholders where specific data is not available.
+
+4. RELEVANCE MAPPING (200-300 words)
+   - Summarize how past experience directly qualifies the company for this contract
+   - Identify lessons learned and how they will be applied
+   - Demonstrate pattern of successful performance
+
+Write with confidence and specificity. Make the past performance compelling and relevant."""),
+
+            (6, "Quality Assurance, Risk Management & Small Business Participation", f"""Generate a comprehensive section covering Quality Assurance, Risk Management, and Small Business Participation. TARGET LENGTH: 1,400-1,700 words.
+
+1. QUALITY ASSURANCE AND QUALITY CONTROL (500-600 words)
+   Describe a robust QA/QC program:
+   
+   QA/QC PHILOSOPHY AND APPROACH:
+   - Quality management philosophy and commitment
+   - Quality management system description (ISO 9001 or equivalent)
+   - Continuous improvement methodology
+   
+   QUALITY CONTROL PROCEDURES:
+   - Inspection and testing protocols
+   - Documentation and record-keeping requirements
+   - Non-conformance identification and correction
+   - Root cause analysis procedures
+   
+   QUALITY ASSURANCE ACTIVITIES:
+   - Quality audits and reviews (internal and external)
+   - Performance metrics and KPIs
+   - Customer satisfaction measurement
+   - Corrective and preventive action processes
+   
+   QUALITY PERSONNEL:
+   - Quality manager role and responsibilities
+   - Quality team structure
+   - Training and certification requirements
+
+2. RISK MANAGEMENT (500-600 words)
+   Present a comprehensive risk management approach:
+   
+   RISK MANAGEMENT METHODOLOGY:
+   - Risk identification process
+   - Risk assessment and prioritization criteria
+   - Risk monitoring and reporting procedures
+   
+   KEY RISKS AND MITIGATION STRATEGIES:
+   Identify 5-7 specific risks relevant to this contract:
+   
+   Risk 1: [Technical/Schedule/Cost/Performance Risk]
+   - Description: [Detailed description]
+   - Likelihood: [High/Medium/Low]
+   - Impact: [High/Medium/Low]
+   - Mitigation Strategy: [Specific actions to reduce risk]
+   - Contingency Plan: [Actions if risk materializes]
+   
+   [Continue for additional risks]
+   
+   RISK REGISTER AND TRACKING:
+   - Risk register maintenance
+   - Regular risk reviews
+   - Escalation procedures
+
+3. SMALL BUSINESS PARTICIPATION PLAN (400-500 words)
+   If applicable, describe small business participation:
+   
+   SMALL BUSINESS SUBCONTRACTING GOALS:
+   - Overall small business goal: [Percentage]
+   - Small Disadvantaged Business: [Percentage]
+   - Woman-Owned Small Business: [Percentage]
+   - HUBZone Small Business: [Percentage]
+   - Veteran-Owned Small Business: [Percentage]
+   - Service-Disabled Veteran-Owned: [Percentage]
+   
+   SUBCONTRACTING APPROACH:
+   - Identification of subcontracting opportunities
+   - Outreach and recruitment of small business partners
+   - Mentor-protégé relationships (if applicable)
+   - Small business development and capacity building
+   
+   MONITORING AND REPORTING:
+   - Tracking mechanisms for small business participation
+   - Reporting requirements and frequency
+   - Good faith effort documentation
+
+Write with specificity and demonstrate commitment to quality and risk management."""),
+
+            (7, "Price/Cost Proposal (High-Level Draft)", f"""Generate a comprehensive Price/Cost Proposal section. TARGET LENGTH: 1,000-1,200 words.
+
+IMPORTANT DISCLAIMER (Include at the top):
+"DRAFT PRICING NOTICE: All prices, rates, and cost estimates in this section are preliminary draft values for internal review purposes only. These figures are subject to adjustment, validation, and formal approval before any official submission. This is NOT a final pricing commitment or binding offer."
+
+1. PRICING SUMMARY AND TOTAL PRICE (200-250 words)
+   Present the overall pricing structure:
+   
+{pricing_summary}
+
+   TOTAL PROPOSED PRICE: $[Total Amount] (DRAFT ESTIMATE)
+   
+   Provide a brief narrative explaining the pricing approach and how it represents best value to the government.
+
+2. DETAILED COST BREAKDOWN (300-400 words)
+   
+   DIRECT LABOR COSTS:
+   - Labor categories, hours, and rates
+   - Basis for labor estimates
+   - Labor escalation factors (if multi-year)
+   
+   MATERIALS AND EQUIPMENT:
+   - Direct materials costs
+   - Equipment purchases or rentals
+   - Software licenses
+   
+   OTHER DIRECT COSTS (ODCs):
+   - Travel costs (trips, per diem, transportation)
+   - Subcontractor costs
+   - Other allowable direct costs
+   
+   INDIRECT COSTS:
+   - Fringe benefits rate and basis
+   - Overhead rate and basis
+   - General & Administrative (G&A) rate and basis
+   
+   PROFIT/FEE:
+   - Proposed profit percentage
+   - Basis for profit determination
+
+3. PRICING ASSUMPTIONS AND BASIS OF ESTIMATE (250-300 words)
+   Document key assumptions:
+   - Scope assumptions
+   - Schedule assumptions
+   - Labor productivity assumptions
+   - Material pricing assumptions
+   - Inflation/escalation assumptions
+   - Government-furnished property/information assumptions
+   
+   BASIS OF ESTIMATE:
+   - Historical data used
+   - Vendor quotes obtained
+   - Engineering estimates
+   - Analogous pricing references
+
+4. VALUE PROPOSITION AND COST REALISM (200-250 words)
+   Explain why this pricing represents best value:
+   - Cost-effectiveness compared to alternatives
+   - Efficiency measures incorporated
+   - Value-added services included
+   - Total cost of ownership considerations
+   - Return on investment for the agency
+
+Mark all figures as DRAFT/ESTIMATED. Present pricing professionally and transparently."""),
+
+            (8, "Attachments & Supporting Documentation Index", f"""Generate a comprehensive Attachments & Supporting Documentation Index section. TARGET LENGTH: 600-800 words.
+
+1. ATTACHMENT INDEX AND DESCRIPTIONS
+   List all attachments with detailed descriptions:
+
+   ATTACHMENT A: CAPABILITY STATEMENT
+   - Description: Comprehensive overview of company capabilities, past performance, and qualifications
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT B: KEY PERSONNEL RESUMES
+   - Description: Detailed resumes for all key personnel identified in the Management Plan
+   - Contents: [List names and positions]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT C: PAST PERFORMANCE QUESTIONNAIRES (PPQs)
+   - Description: Completed PPQs from references for contracts cited in Past Performance section
+   - Number of PPQs: [Number]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT D: CERTIFICATIONS AND LICENSES
+   - Description: Copies of relevant professional certifications, business licenses, and registrations
+   - Contents: [List specific certifications]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT E: TECHNICAL DIAGRAMS AND CHARTS
+   - Description: Visual representations of technical approach, organizational structure, and project schedule
+   - Contents: [List specific diagrams]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT F: SUBCONTRACTOR LETTERS OF COMMITMENT
+   - Description: Letters from subcontractors confirming participation and commitment
+   - Number of Letters: [Number]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT G: FINANCIAL STATEMENTS
+   - Description: Audited financial statements demonstrating financial capability
+   - Years Covered: [Years]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+   
+   ATTACHMENT H: INSURANCE CERTIFICATES
+   - Description: Certificates of insurance for required coverage types
+   - Coverage Types: [List types]
+   - Status: [TO BE ATTACHED]
+   - Responsible Party: [Name/Title]
+
+2. DOCUMENT PREPARATION CHECKLIST
+   - List of all required documents per solicitation instructions
+   - Format requirements (page limits, font, margins)
+   - Electronic submission requirements
+   - Hard copy requirements (if applicable)
+   - Binding and packaging instructions
+
+3. SUBMISSION INSTRUCTIONS AND NOTES
+   - Submission deadline and time zone
+   - Submission method (electronic portal, email, physical delivery)
+   - Required number of copies
+   - Marking and labeling requirements
+   - Points of contact for submission questions
+
+This section serves as a roadmap for completing the proposal package.""")
+        ]
+        
+        # Generate all 8 sections in parallel
+        sections = {}
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            future_to_section = {
+                executor.submit(generate_section, num, name, prompt): (num, name)
+                for num, name, prompt in section_prompts
+            }
+            
+            for future in as_completed(future_to_section):
+                section_num, section_name = future_to_section[future]
+                try:
+                    content = future.result()
+                    sections[section_num] = {
+                        'name': section_name,
+                        'content': content
+                    }
+                    logging.info(f"✓ Generated Section {section_num}: {section_name}")
+                except Exception as e:
+                    logging.error(f"Error in section {section_num}: {e}")
+                    sections[section_num] = {
+                        'name': section_name,
+                        'content': f"[Error generating this section: {str(e)}]"
+                    }
+        
+        # Order sections 1-8
+        ordered_sections = [sections.get(i, {'name': f'Section {i}', 'content': '[Not generated]'}) for i in range(1, 9)]
+        
+        # Build the full proposal document
+        disclaimer = """
+================================================================================
+                    DRAFT - FOR INTERNAL REVIEW ONLY
+================================================================================
+
+DISCLAIMER - DRAFT DOCUMENT
+
+This document is an automatically generated draft proposal produced by an 
+AI-assisted tool. It is NOT a final, complete, or legally binding offer. 
+The content may be incomplete, inaccurate, or inconsistent. It MUST be 
+thoroughly reviewed, edited, and approved by qualified human personnel 
+before being used for any official submission or external communication.
+
+================================================================================
+"""
+        
+        full_proposal = disclaimer + "\n\n"
+        for i, section in enumerate(ordered_sections, 1):
+            full_proposal += f"\n\n{'='*80}\nSECTION {i}: {section['name'].upper()}\n{'='*80}\n\n"
+            full_proposal += section['content']
+        
+        # Add instructions at the end
+        instructions = """
+
+================================================================================
+                    INSTRUCTIONS FOR USING THIS DRAFT
+================================================================================
+
+This AI-generated draft proposal requires careful review and refinement before 
+any official use. Please follow these steps:
+
+1. READ EACH SECTION CAREFULLY
+   - Review all 8 sections for accuracy and completeness
+   - Verify all facts, figures, and claims
+
+2. CORRECT AND REFINE
+   - Replace all placeholders marked with [brackets]
+   - Insert missing details and specific data
+   - Validate all pricing and compliance statements
+   - Adjust language to match your company's voice
+
+3. VERIFY COMPLIANCE
+   - Check alignment with actual solicitation instructions
+   - Ensure all evaluation criteria are addressed
+   - Verify format requirements are met
+
+4. INTERNAL APPROVAL
+   - Obtain necessary legal/compliance approvals
+   - Get management sign-off on pricing
+   - Verify technical accuracy with subject matter experts
+
+5. FINALIZE FOR SUBMISSION
+   - Download and edit in your word processor
+   - Apply your company's proposal template
+   - Perform final compliance check
+   - Submit before the deadline
+
+================================================================================
+"""
+        full_proposal += instructions
+        
+        # Save the generated proposal to the draft
+        draft_ref.update({
+            'generated_proposal': {
+                'sections': ordered_sections,
+                'full_text': full_proposal,
+                'generated_at': datetime.now().isoformat(),
+                'status': 'draft'
+            }
+        })
+        
+        return jsonify({
+            'success': True,
+            'sections': ordered_sections,
+            'full_proposal': full_proposal,
+            'total_sections': len(ordered_sections)
+        })
+        
+    except Exception as e:
+        logging.error(f"Error generating proposal sections: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/download_proposal_pdf', methods=['GET'])
+def download_proposal_docx():
+    """Generate and download the proposal as a professionally styled DOCX file"""
+    from docx import Document
+    from docx.shared import Pt, Inches, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.style import WD_STYLE_TYPE
+    from docx.enum.section import WD_ORIENT
+    import io
+    import re
+    
+    def slugify_bid_name(bid_name):
+        """Convert bid name to safe filename"""
+        clean = re.sub(r'[^A-Za-z0-9 _-]', '', bid_name)
+        clean = re.sub(r'\s+', '_', clean)
+        return clean[:50] if clean else 'Proposal'
+    
+    def configure_styles(doc):
+        """Configure document styles for professional appearance"""
+        styles = doc.styles
+        
+        # Normal style
+        normal = styles['Normal']
+        normal.font.name = 'Calibri'
+        normal.font.size = Pt(11)
+        
+        # Heading 1 style
+        h1 = styles['Heading 1']
+        h1.font.name = 'Calibri'
+        h1.font.size = Pt(16)
+        h1.font.bold = True
+        h1.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
+        
+        # Heading 2 style
+        h2 = styles['Heading 2']
+        h2.font.name = 'Calibri'
+        h2.font.size = Pt(14)
+        h2.font.bold = True
+        h2.font.color.rgb = RGBColor(0x00, 0x52, 0x8B)
+        
+        # Heading 3 style
+        h3 = styles['Heading 3']
+        h3.font.name = 'Calibri'
+        h3.font.size = Pt(12)
+        h3.font.bold = True
+    
+    def add_header_footer(doc, bid_name, company_name):
+        """Add headers and footers to all sections"""
+        for section in doc.sections:
+            # Header
+            header = section.header
+            header_para = header.paragraphs[0] if header.paragraphs else header.add_paragraph()
+            header_para.text = f"{bid_name} | {company_name} | DRAFT PROPOSAL"
+            header_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            header_para.style = doc.styles['Normal']
+            for run in header_para.runs:
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(0x66, 0x66, 0x66)
+            
+            # Footer
+            footer = section.footer
+            footer_para = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+            footer_para.text = "DRAFT - NOT FOR OFFICIAL SUBMISSION | This document requires human review before use"
+            footer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for run in footer_para.runs:
+                run.font.size = Pt(9)
+                run.font.color.rgb = RGBColor(0xAA, 0x00, 0x00)
+    
+    def add_cover_page(doc, bid_name, company_name, solicitation_number, agency):
+        """Add a professional cover page"""
+        # Large DRAFT label
+        draft_para = doc.add_paragraph()
+        draft_run = draft_para.add_run("DRAFT PROPOSAL")
+        draft_run.bold = True
+        draft_run.font.size = Pt(28)
+        draft_run.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
+        draft_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        
+        # For Internal Review Only
+        review_para = doc.add_paragraph()
+        review_run = review_para.add_run("FOR INTERNAL REVIEW ONLY")
+        review_run.bold = True
+        review_run.font.size = Pt(14)
+        review_run.font.color.rgb = RGBColor(0xAA, 0x00, 0x00)
+        review_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        doc.add_paragraph()
+        
+        # Bid Name/Title
+        title_para = doc.add_paragraph()
+        title_run = title_para.add_run(bid_name)
+        title_run.bold = True
+        title_run.font.size = Pt(20)
+        title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        
+        # Solicitation info
+        if solicitation_number:
+            sol_para = doc.add_paragraph()
+            sol_para.add_run(f"Solicitation Number: {solicitation_number}")
+            sol_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        if agency:
+            agency_para = doc.add_paragraph()
+            agency_para.add_run(f"Agency: {agency}")
+            agency_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        
+        # Company info
+        company_para = doc.add_paragraph()
+        company_run = company_para.add_run(f"Submitted by: {company_name}")
+        company_run.bold = True
+        company_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        # Date
+        from datetime import datetime
+        date_para = doc.add_paragraph()
+        date_para.add_run(f"Date: {datetime.now().strftime('%B %d, %Y')}")
+        date_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph()
+        doc.add_paragraph()
+        
+        # Disclaimer box
+        disclaimer_para = doc.add_paragraph()
+        disclaimer_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        disclaimer_run = disclaimer_para.add_run(
+            "DISCLAIMER: This document is an automatically generated draft proposal produced by an "
+            "AI-assisted tool. It is NOT a final, complete, or legally binding offer. The content may "
+            "be incomplete, inaccurate, or inconsistent. It MUST be thoroughly reviewed, edited, and "
+            "approved by qualified human personnel before being used for any official submission or "
+            "external communication."
+        )
+        disclaimer_run.font.size = Pt(10)
+        disclaimer_run.italic = True
+        
+        # Page break after cover
+        doc.add_page_break()
+    
+    def add_section_content(doc, section_num, section_name, content):
+        """Add a section with proper formatting"""
+        # Section heading
+        heading = doc.add_heading(f"Section {section_num}: {section_name}", level=1)
+        
+        # Process content into paragraphs
+        paragraphs = content.split('\n\n')
+        for para_text in paragraphs:
+            para_text = para_text.strip()
+            if not para_text:
+                continue
+            
+            # Check if it's a subheading (all caps or numbered)
+            lines = para_text.split('\n')
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Skip separator lines
+                if line.startswith('===') or line.startswith('---'):
+                    continue
+                
+                # Check for subheadings
+                if line.isupper() and len(line) > 5 and len(line) < 100:
+                    doc.add_heading(line.title(), level=2)
+                elif line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')) and line[2:3] == ' ':
+                    # Numbered item - could be a subheading
+                    if len(line) < 80 and ':' in line:
+                        doc.add_heading(line, level=3)
+                    else:
+                        doc.add_paragraph(line)
+                else:
+                    doc.add_paragraph(line)
+        
+        # Page break after each section
+        doc.add_page_break()
+    
+    try:
+        draft_id = request.args.get('draft_id')
+        
+        if not draft_id:
+            return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
+        
+        user = auth.current_user
+        if not user:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = user["localId"]
+        
+        # Get the generated proposal from Firebase
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data or 'generated_proposal' not in draft_data:
+            return jsonify({'success': False, 'error': 'No generated proposal found. Please generate the proposal first.'}), 404
+        
+        proposal_data = draft_data['generated_proposal']
+        sections = proposal_data.get('sections', [])
+        
+        # Get user data for company info
+        user_ref = admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+        company_name = user_data.get('company', 'Our Company')
+        
+        # Extract bid name from draft data - prioritize stored contract_name
+        bid_name = draft_data.get('contract_name', '') or draft_data.get('bid_name', '')
+        solicitation_number = ''
+        agency = draft_data.get('organization', '')
+        
+        # If no bid_name stored, try to extract from annotations
+        if not bid_name:
+            annotations = draft_data.get('annotations', [])
+            for ann in annotations:
+                category = ann.get('category', '').lower()
+                text = ann.get('text', '')
+                if ('title' in category or 'subject' in category or 'name' in category) and not bid_name:
+                    bid_name = text
+                elif ('solicitation' in category or 'rfp' in category or 'rfq' in category) and not solicitation_number:
+                    solicitation_number = text
+                elif 'agency' in category and not agency:
+                    agency = text
+        
+        # Final fallback - use a cleaner format without "Proposal" prefix
+        if not bid_name:
+            bid_name = f"Contract_{draft_id[:8]}"
+        
+        # Create DOCX document
+        doc = Document()
+        
+        # Configure styles
+        configure_styles(doc)
+        
+        # Add cover page
+        add_cover_page(doc, bid_name, company_name, solicitation_number, agency)
+        
+        # Add headers and footers
+        add_header_footer(doc, bid_name, company_name)
+        
+        # Add each section
+        for i, section in enumerate(sections, 1):
+            section_name = section.get('name', f'Section {i}')
+            content = section.get('content', '[Content not generated]')
+            add_section_content(doc, i, section_name, content)
+        
+        # Add instructions section at the end
+        doc.add_heading("Instructions for Using This Draft", level=1)
+        
+        instructions = [
+            "This AI-generated draft proposal requires careful review and refinement before any official use.",
+            "",
+            "1. READ EACH SECTION CAREFULLY",
+            "   Review all 8 sections for accuracy and completeness. Verify all facts, figures, and claims.",
+            "",
+            "2. CORRECT AND REFINE",
+            "   Replace all placeholders marked with [brackets]. Insert missing details and specific data. "
+            "Validate all pricing and compliance statements. Adjust language to match your company's voice.",
+            "",
+            "3. VERIFY COMPLIANCE",
+            "   Check alignment with actual solicitation instructions. Ensure all evaluation criteria are addressed. "
+            "Verify format requirements are met.",
+            "",
+            "4. INTERNAL APPROVAL",
+            "   Obtain necessary legal/compliance approvals. Get management sign-off on pricing. "
+            "Verify technical accuracy with subject matter experts.",
+            "",
+            "5. FINALIZE FOR SUBMISSION",
+            "   Apply your company's proposal template. Perform final compliance check. Submit before the deadline."
+        ]
+        
+        for instruction in instructions:
+            doc.add_paragraph(instruction)
+        
+        # Save to buffer
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        
+        # Generate filename with bid name
+        safe_bid_name = slugify_bid_name(bid_name)
+        filename = f"DRAFT_Proposal_{safe_bid_name}.docx"
+        
+        return send_file(
+            buffer,
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logging.error(f"Error generating DOCX: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+def ensure_session_from_auth():
+    """Helper function to populate session from auth.current_user if session is missing"""
+    if 'user_data' not in session:
+        user = auth.current_user
+        if user:
+            # Repopulate session from auth.current_user
+            session['user_data'] = {
+                'user_id': user.get('localId'),
+                'idToken': user.get('idToken'),
+                'refreshToken': user.get('refreshToken'),
+                'email': user.get('email', ''),
+                'first_name': user.get('first_name', ''),
+                'last_name': user.get('last_name', ''),
+                'company': user.get('company', '')
+            }
+            session.permanent = True
+            app.logger.info(f"✅ Repopulated session from auth.current_user for user {user.get('localId')}")
+            return True
+        return False
+    return True
+
+@app.route('/directory-profile')
+def directory_profile():
+    """Directory profile management page"""
+    if not ensure_session_from_auth():
+        return redirect(url_for('Login'))
+    
+    return render_template('directory_profile.html')
+
+@app.route('/api/get_directory_profile', methods=['GET'])
+def get_directory_profile():
+    """Get user's directory profile"""
+    try:
+        # Ensure session is populated from auth.current_user if needed
+        if not ensure_session_from_auth():
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
+        
+        user_data = None
+        try:
+            user_data = db.child("users").child(user_id).get(id_token).val()
+        except Exception as user_error:
+            app.logger.warning(f"Could not read user data with token for user {user_id}: {user_error}")
+            if admin_initialized and admin_db:
+                try:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_data = user_ref.get()
+                    app.logger.info(f"✅ Successfully read user data using Admin SDK for user {user_id}")
+                except Exception as admin_error:
+                    app.logger.error(f"❌ Admin SDK read also failed for user {user_id}: {repr(admin_error)}")
+        
+        if not user_data:
+            user_data = {
+                'company': session['user_data'].get('company', ''),
+                'first_name': session['user_data'].get('first_name', ''),
+                'last_name': session['user_data'].get('last_name', ''),
+                'email': session['user_data'].get('email', ''),
+                'directory_listed': False
+            }
+            app.logger.warning(f"Using session data as fallback for user {user_id}")
+        
+        directory_data = None
+        try:
+            directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
+        except Exception as dir_error:
+            app.logger.warning(f"Could not read directory data with token for user {user_id}: {dir_error}")
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                    directory_data = directory_ref.get()
+                    app.logger.info(f"✅ Successfully read directory data using Admin SDK for user {user_id}")
+                except Exception as admin_error:
+                    app.logger.warning(f"⚠️ Admin SDK read also failed for directory data {user_id}: {repr(admin_error)}")
+        
+        if not directory_data:
+            directory_data = {
+                'company': user_data.get('company', ''),
+                'contact_name': f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip(),
+                'email': user_data.get('email', ''),
+                'services': '',
+                'description': '',
+                'phone': '',
+                'website': '',
+                'linkedin_url': '',
+                'certifications': '',
+                'past_projects': '',
+                'team_size': '',
+                'years_in_business': '',
+                'logo_url': '',
+                'listed': user_data.get('directory_listed', False)
+            }
+        
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'profile': directory_data
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error getting directory profile: {e}")
+        return jsonify({'success': False, 'error': 'Failed to load profile. Please try again.'}), 500
+
+@app.route('/api/update_directory_profile', methods=['POST'])
+def update_directory_profile():
+    """Update user's directory profile"""
+    try:
+        # Use session-based authentication instead of auth.current_user
+        if 'user_data' not in session:
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
+        data = request.json
+        
+        # Get user data to include company name
+        user_data = db.child("users").child(user_id).get(id_token).val()
+        
+        if not user_data:
+            return jsonify({'success': False, 'error': 'User data not found'}), 404
+        
+        profile_data = {
+            'company': data.get('company', user_data.get('company', '')).strip(),
+            'contact_name': data.get('contact_name', '').strip(),
+            'email': data.get('email', '').strip(),
+            'phone': data.get('phone', '').strip(),
+            'website': data.get('website', '').strip(),
+            'linkedin_url': data.get('linkedin_url', '').strip(),
+            'services': data.get('services', '').strip(),
+            'description': data.get('description', '').strip(),
+            'certifications': data.get('certifications', '').strip(),
+            'past_projects': data.get('past_projects', '').strip(),
+            'team_size': data.get('team_size', '').strip(),
+            'years_in_business': data.get('years_in_business', '').strip(),
+            'logo_url': data.get('logo_url', ''),
+            'listed': data.get('listed', False),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        app.logger.info(f"Attempting to update directory profile for user {user_id}")
+        
+        directory_write_success = False
+        
+        try:
+            db.child("corama_directory").child(user_id).set(profile_data, id_token)
+            directory_write_success = True
+            app.logger.info(f"✅ Successfully wrote directory entry for user {user_id} using user token")
+        except Exception as dir_error:
+            error_str = str(dir_error).upper()
+            app.logger.warning(f"⚠️ User token write failed for user {user_id}: {repr(dir_error)}")
+            
+            if 'PERMISSION' in error_str or 'UNAUTHORIZED' in error_str or '401' in error_str:
+                if admin_initialized and admin_db:
+                    try:
+                        directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                        directory_ref.set(profile_data)
+                        directory_write_success = True
+                        app.logger.info(f"✅ Successfully wrote directory entry for user {user_id} using Admin SDK fallback")
+                    except Exception as admin_error:
+                        app.logger.error(f"❌ Admin SDK write also failed for user {user_id}: {repr(admin_error)}")
+                        return jsonify({
+                            'success': False, 
+                            'error': 'Unable to update directory profile. Please contact support.',
+                            'permission_error': True
+                        }), 403
+                else:
+                    app.logger.error(f"❌ Admin SDK not available and user token failed for user {user_id}")
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Permission denied. Please contact support to enable directory access.',
+                        'permission_error': True
+                    }), 403
+            else:
+                raise
+        
+        if not directory_write_success:
+            app.logger.error(f"❌ Directory write failed for user {user_id}")
+            return jsonify({'success': False, 'error': 'Failed to update directory profile'}), 500
+        
+        try:
+            db.child("users").child(user_id).update({
+                'directory_listed': data.get('listed', False),
+                'company': profile_data['company']
+            }, id_token)
+            app.logger.info(f"✅ Successfully updated directory_listed flag and company for user {user_id}")
+        except Exception as user_update_error:
+            app.logger.warning(f"⚠️ Failed to update directory_listed flag and company for user {user_id}: {repr(user_update_error)}")
+            if admin_initialized and admin_db:
+                try:
+                    user_ref = admin_db.reference(f'users/{user_id}')
+                    user_ref.update({
+                        'directory_listed': data.get('listed', False),
+                        'company': profile_data['company']
+                    })
+                    app.logger.info(f"✅ Successfully updated directory_listed flag and company using Admin SDK for user {user_id}")
+                except Exception as admin_user_error:
+                    app.logger.error(f"❌ Admin SDK user update also failed for user {user_id}: {repr(admin_user_error)}")
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        app.logger.error(f"Error updating directory profile: {e}")
+        return jsonify({'success': False, 'error': 'Failed to update profile. Please try again.'}), 500
+
+@app.route('/api/upload_directory_logo', methods=['POST'])
+def upload_directory_logo():
+    """Upload company logo for directory profile - stores in Firebase Storage for persistence"""
+    app.logger.info("📤 Entered upload_directory_logo route")
+    try:
+        if 'user_data' not in session:
+            app.logger.warning("Logo upload attempted without authentication")
+            return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+        
+        user_id = session['user_data']['user_id']
+        
+        if 'logo' not in request.files:
+            app.logger.warning(f"Logo upload for user {user_id}: No logo file in request")
+            return jsonify({'success': False, 'error': 'No logo file provided'}), 400
+        
+        logo_file = request.files['logo']
+        
+        if logo_file.filename == '':
+            app.logger.warning(f"Logo upload for user {user_id}: Empty filename")
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        file_ext = logo_file.filename.rsplit('.', 1)[1].lower() if '.' in logo_file.filename else ''
+        
+        if file_ext not in allowed_extensions:
+            app.logger.warning(f"Logo upload for user {user_id}: Invalid file type '{file_ext}' for file '{logo_file.filename}'")
+            return jsonify({'success': False, 'error': f'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+        
+        logo_file.seek(0, os.SEEK_END)
+        file_size = logo_file.tell()
+        logo_file.seek(0)
+        
+        app.logger.info(f"Logo upload for user {user_id}: file='{logo_file.filename}', ext='{file_ext}', size={file_size} bytes")
+        
+        if file_size > 5 * 1024 * 1024:
+            app.logger.warning(f"Logo upload for user {user_id}: File too large ({file_size} bytes)")
+            return jsonify({'success': False, 'error': 'File too large. Maximum size is 5MB'}), 400
+        
+        # Read file data
+        logo_data = logo_file.read()
+        
+        # Generate unique filename
+        filename = f"{user_id}_{int(time.time())}.{file_ext}"
+        
+        # Determine content type
+        content_type_map = {
+            'png': 'image/png',
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'gif': 'image/gif',
+            'webp': 'image/webp'
+        }
+        content_type = content_type_map.get(file_ext, 'image/png')
+        
+        # Try to upload to Firebase Storage first
+        firebase_url = upload_to_firebase_storage(
+            logo_data,
+            f'directory_logos/{filename}',
+            content_type
+        )
+        
+        if firebase_url:
+            app.logger.info(f"✅ Logo uploaded to Firebase Storage for user {user_id}: {firebase_url}")
+            return jsonify({
+                'success': True,
+                'logo_url': firebase_url,
+                'storage': 'firebase'
+            })
+        
+        # Fallback to local storage if Firebase fails
+        app.logger.warning("Firebase Storage upload failed, falling back to local storage")
+        logos_dir = os.path.join(base_dir, 'static', 'uploads', 'directory_logos')
+        os.makedirs(logos_dir, exist_ok=True)
+        
+        import glob
+        for old_logo in glob.glob(os.path.join(logos_dir, f"{user_id}_*.*")):
+            try:
+                os.remove(old_logo)
+                app.logger.info(f"🗑️ Removed old logo: {old_logo}")
+            except Exception as cleanup_error:
+                app.logger.warning(f"Could not remove old logo {old_logo}: {cleanup_error}")
+        
+        filepath = os.path.join(logos_dir, filename)
+        
+        app.logger.info(f"Saving logo to: {filepath}")
+        with open(filepath, 'wb') as f:
+            f.write(logo_data)
+        
+        # Generate URL for the logo
+        logo_url = f"/static/uploads/directory_logos/{filename}"
+        
+        app.logger.info(f"✅ Logo uploaded locally for user {user_id}: {logo_url}")
+        return jsonify({
+            'success': True,
+            'logo_url': logo_url,
+            'storage': 'local'
+        })
+        
+    except Exception as e:
+        app.logger.error(f"❌ Error uploading directory logo: {repr(e)}")
+        return jsonify({'success': False, 'error': f'Failed to upload logo: {str(e)}'}), 500
+
+@app.route('/api/get_directory_companies', methods=['GET'])
+def get_directory_companies():
+    """Get all companies listed in the directory - PUBLIC endpoint (no login required)"""
+    try:
+        search_query = request.args.get('search', '').lower()
+        
+        directory_data = None
+        
+        if 'user_data' in session:
+            try:
+                id_token = session['user_data']['idToken']
+                directory_data = db.child("corama_directory").get(id_token).val()
+            except Exception as token_error:
+                app.logger.warning(f"Could not read directory with user token: {token_error}")
+        
+        if not directory_data and admin_initialized and admin_db:
+            try:
+                directory_ref = admin_db.reference('corama_directory')
+                directory_data = directory_ref.get()
+                app.logger.info("✅ Successfully read directory using Admin SDK")
+            except Exception as admin_error:
+                app.logger.error(f"❌ Admin SDK read also failed for directory: {repr(admin_error)}")
+        
+        if not directory_data:
+            app.logger.info("📋 Firebase directory is empty, loading seed data")
+            try:
+                import json
+                seed_file_path = os.path.join(os.path.dirname(__file__), 'static', 'data', 'directory_seed.json')
+                if os.path.exists(seed_file_path):
+                    with open(seed_file_path, 'r') as f:
+                        seed_data = json.load(f)
+                        directory_data = seed_data
+                        app.logger.info(f"✅ Loaded {len(seed_data)} seed companies")
+                else:
+                    app.logger.warning("⚠️ Seed data file not found")
+                    return jsonify({'success': True, 'companies': []})
+            except Exception as seed_error:
+                app.logger.error(f"❌ Error loading seed data: {seed_error}")
+                return jsonify({'success': True, 'companies': []})
+        
+        companies = []
+        for user_id, profile in directory_data.items():
+            if profile.get('listed', False):
+                if search_query:
+                    searchable_text = f"{profile.get('company', '')} {profile.get('services', '')} {profile.get('description', '')}".lower()
+                    if search_query not in searchable_text:
+                        continue
+                
+                companies.append({
+                    'user_id': user_id,
+                    'company': profile.get('company', ''),
+                    'contact_name': profile.get('contact_name', ''),
+                    'email': profile.get('email', ''),
+                    'phone': profile.get('phone', ''),
+                    'website': profile.get('website', ''),
+                    'linkedin_url': profile.get('linkedin_url', ''),
+                    'team_size': profile.get('team_size', ''),
+                    'years_in_business': profile.get('years_in_business', ''),
+                    'services': profile.get('services', ''),
+                    'description': profile.get('description', ''),
+                    'certifications': profile.get('certifications', ''),
+                    'past_projects': profile.get('past_projects', ''),
+                    'logo_url': profile.get('logo_url', '')
+                })
+        
+        companies.sort(key=lambda x: x['company'])
+        
+        return jsonify({'success': True, 'companies': companies})
+        
+    except Exception as e:
+        app.logger.error(f"Error getting directory companies: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/directory')
+def directory_browse():
+    """Public directory browse page - no login required"""
+    return render_template('directory_browse.html')
+
+@app.route('/directory/company/<user_id>')
+def directory_company_profile(user_id):
+    """Individual company profile page - no login required"""
+    return render_template('directory_company_profile.html', company_user_id=user_id)
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))

@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposal Generation - CORAMA</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
+    <style>
+        .proposal-result {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
+            padding: 0;
+            padding-top: 100px;
+            min-height: 100vh;
+        }
+        
+        .proposal-result .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .proposal-result .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-result .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-result .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposal-result .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+        
+        .proposal-result .draft-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
+            color: white;
+            padding: 0.5rem 1.5rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .proposal-result .progress-section {
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-result .progress-bar-container {
+            background: #e0e0e0;
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+        
+        .proposal-result .progress-bar-fill {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        
+        .proposal-result .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 0.95rem;
+        }
+        
+        .proposal-result .sections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-result .section-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.25rem;
+            border-left: 4px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-result .section-card.completed {
+            border-left-color: #27ae60;
+            background: #f0fff4;
+        }
+        
+        .proposal-result .section-card.generating {
+            border-left-color: #667eea;
+            background: #f0f4ff;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .proposal-result .section-card.error {
+            border-left-color: #e74c3c;
+            background: #fff5f5;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .proposal-result .section-card h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposal-result .section-card .status {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .proposal-result .section-card .status-icon {
+            margin-right: 0.5rem;
+        }
+        
+        .proposal-result .disclaimer-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-result .disclaimer-box h4 {
+            color: #856404;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        
+        .proposal-result .disclaimer-box p {
+            color: #856404;
+            font-size: 0.9rem;
+            margin-bottom: 0;
+        }
+        
+        .proposal-result .preview-section {
+            margin-top: 2rem;
+        }
+        
+        .proposal-result .preview-section h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        
+        .proposal-result .preview-content {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .proposal-result .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
+        
+        .proposal-result .btn {
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .proposal-result .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .proposal-result .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .proposal-result .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .proposal-result .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .proposal-result .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .proposal-result .btn-success {
+            background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+            color: white;
+        }
+        
+        .proposal-result .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.4);
+        }
+        
+        .proposal-result .instructions-section {
+            background: #e8f4fd;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .proposal-result .instructions-section h4 {
+            color: #0c5460;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        
+        .proposal-result .instructions-section ol {
+            color: #0c5460;
+            padding-left: 1.5rem;
+            margin-bottom: 0;
+        }
+        
+        .proposal-result .instructions-section li {
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposal-result .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 0.5rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Site Alert Modal */
+        .site-alert-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .site-alert-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        .site-alert-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        
+        .site-alert-message {
+            color: #666;
+            margin-bottom: 1.5rem;
+        }
+        
+        .site-alert-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <!-- Site Alert Modal -->
+    <div class="site-alert-modal" id="siteAlertModal">
+        <div class="site-alert-content">
+            <div class="site-alert-title" id="siteAlertTitle">Notification</div>
+            <div class="site-alert-message" id="siteAlertMessage"></div>
+            <button class="site-alert-btn" onclick="closeSiteAlert()">OK</button>
+        </div>
+    </div>
+    
+    <div class="proposal-result">
+        <div class="container">
+            <div class="main-card">
+                <div class="header">
+                    <span class="draft-badge">DRAFT - FOR INTERNAL REVIEW ONLY</span>
+                    <h1>Public Bid Proposal Generator</h1>
+                    <p>AI-powered 8-section proposal generation</p>
+                </div>
+                
+                <div class="disclaimer-box">
+                    <h4>Important Disclaimer</h4>
+                    <p>This tool generates a DRAFT proposal using AI. The output is NOT a final, complete, or legally binding document. 
+                    All content must be thoroughly reviewed, edited, and approved by qualified personnel before any official use or submission.</p>
+                </div>
+                
+                <div class="progress-section" id="progressSection">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" id="progressBar"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">Click "Generate Proposal" to start</div>
+                </div>
+                
+                <div class="sections-grid" id="sectionsGrid">
+                    <div class="section-card" id="section1">
+                        <h4>1. Cover Letter & Executive Summary</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                    <div class="section-card" id="section2">
+                        <h4>2. Administrative & Compliance</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                    <div class="section-card" id="section3">
+                        <h4>3. Technical Approach</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                    <div class="section-card" id="section4">
+                        <h4>4. Management & Staffing Plan</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                    <div class="section-card" id="section5">
+                        <h4>5. Corporate Experience & Past Performance</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                    <div class="section-card" id="section6">
+                        <h4>6. Quality Assurance & Risk Management</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                    <div class="section-card" id="section7">
+                        <h4>7. Price/Cost Proposal (Draft)</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                    <div class="section-card" id="section8">
+                        <h4>8. Attachments & Documentation Index</h4>
+                        <div class="status"><span class="status-icon">&#9675;</span>Pending</div>
+                    </div>
+                </div>
+                
+                <div class="action-buttons" id="actionButtons">
+                    <button class="btn btn-primary" id="generateBtn" onclick="generateProposal()">
+                        Generate 8-Section Proposal
+                    </button>
+                    <button class="btn btn-secondary" onclick="goBack()">
+                        Back to Pricing
+                    </button>
+                </div>
+                
+                <div class="preview-section" id="previewSection" style="display: none;">
+                    <h3>Proposal Preview</h3>
+                    <div class="preview-content" id="previewContent"></div>
+                    
+                    <div class="action-buttons" style="margin-top: 1.5rem;">
+                        <button class="btn btn-success" onclick="downloadDOCX()">
+                            Download DRAFT DOCX
+                        </button>
+                        <button class="btn btn-primary" onclick="regenerateProposal()">
+                            Regenerate Proposal
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="instructions-section">
+                    <h4>How to Use This Draft</h4>
+                    <ol>
+                        <li><strong>Generate:</strong> Click the button above to generate all 8 sections in parallel using AI.</li>
+                        <li><strong>Review:</strong> Carefully read each section for accuracy and completeness.</li>
+                        <li><strong>Edit:</strong> Replace placeholders marked with [brackets] and refine the language.</li>
+                        <li><strong>Validate:</strong> Verify all pricing, compliance statements, and technical claims.</li>
+                        <li><strong>Approve:</strong> Obtain necessary internal legal/compliance approvals.</li>
+                        <li><strong>Finalize:</strong> Download the DOCX file, edit in your word processor, and prepare for submission.</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const draftId = '{{ draft_id }}';
+        const userId = '{{ user_id }}';
+        let isGenerating = false;
+        
+        // Site Alert Modal
+        let siteAlertResolve = null;
+        
+        function showSiteAlert(message, title = 'Notification') {
+            return new Promise(resolve => {
+                siteAlertResolve = resolve;
+                document.getElementById('siteAlertTitle').textContent = title;
+                document.getElementById('siteAlertMessage').textContent = message;
+                document.getElementById('siteAlertModal').style.display = 'flex';
+            });
+        }
+        
+        function closeSiteAlert() {
+            document.getElementById('siteAlertModal').style.display = 'none';
+            if (siteAlertResolve) {
+                const resolve = siteAlertResolve;
+                siteAlertResolve = null;
+                resolve();
+            }
+        }
+        
+        // Update section status
+        function updateSectionStatus(sectionNum, status, message) {
+            const card = document.getElementById(`section${sectionNum}`);
+            const statusEl = card.querySelector('.status');
+            
+            card.classList.remove('completed', 'generating', 'error');
+            
+            if (status === 'generating') {
+                card.classList.add('generating');
+                statusEl.innerHTML = '<span class="spinner"></span>Generating...';
+            } else if (status === 'completed') {
+                card.classList.add('completed');
+                statusEl.innerHTML = '<span class="status-icon">&#10003;</span>Completed';
+            } else if (status === 'error') {
+                card.classList.add('error');
+                statusEl.innerHTML = '<span class="status-icon">&#10007;</span>Error';
+            } else {
+                statusEl.innerHTML = '<span class="status-icon">&#9675;</span>Pending';
+            }
+        }
+        
+        // Update progress bar
+        function updateProgress(percent, text) {
+            document.getElementById('progressBar').style.width = `${percent}%`;
+            document.getElementById('progressText').textContent = text;
+        }
+        
+        // Generate proposal
+        async function generateProposal() {
+            if (isGenerating) return;
+            isGenerating = true;
+            
+            const generateBtn = document.getElementById('generateBtn');
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="spinner"></span>Generating...';
+            
+            // Set all sections to generating
+            for (let i = 1; i <= 8; i++) {
+                updateSectionStatus(i, 'generating');
+            }
+            updateProgress(10, 'Generating 8 sections in parallel...');
+            
+            try {
+                const response = await fetch(`${window.location.origin}/api/generate_proposal_sections`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        draft_id: draftId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Mark all sections as completed
+                    for (let i = 1; i <= 8; i++) {
+                        updateSectionStatus(i, 'completed');
+                    }
+                    updateProgress(100, 'All 8 sections generated successfully!');
+                    
+                    // Show preview
+                    document.getElementById('previewSection').style.display = 'block';
+                    document.getElementById('previewContent').textContent = data.full_proposal;
+                    
+                    // Update button
+                    generateBtn.innerHTML = 'Regenerate Proposal';
+                    generateBtn.disabled = false;
+                    
+                    showSiteAlert('Your 8-section DRAFT proposal has been generated successfully! Please review and download below.', 'Generation Complete');
+                } else {
+                    throw new Error(data.error || 'Failed to generate proposal');
+                }
+            } catch (error) {
+                console.error('Error generating proposal:', error);
+                
+                // Mark sections as error
+                for (let i = 1; i <= 8; i++) {
+                    updateSectionStatus(i, 'error');
+                }
+                updateProgress(0, 'Error generating proposal');
+                
+                generateBtn.innerHTML = 'Retry Generation';
+                generateBtn.disabled = false;
+                
+                showSiteAlert(`Error: ${error.message}`, 'Generation Failed');
+            }
+            
+            isGenerating = false;
+        }
+        
+        // Regenerate proposal
+        function regenerateProposal() {
+            document.getElementById('previewSection').style.display = 'none';
+            generateProposal();
+        }
+        
+        // Download DOCX
+        function downloadDOCX() {
+            window.location.href = `${window.location.origin}/api/download_proposal_pdf?draft_id=${draftId}`;
+        }
+        
+        // Go back to pricing page
+        function goBack() {
+            window.location.href = `/proposal/pricing?draft_id=${draftId}`;
+        }
+        
+        // Check if proposal was already generated
+        async function checkExistingProposal() {
+            try {
+                const response = await fetch(`${window.location.origin}/api/get_draft_pricing?draft_id=${draftId}`, {
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                
+                // If there's already a generated proposal, we could show it
+                // For now, just leave the page ready for generation
+            } catch (error) {
+                console.error('Error checking existing proposal:', error);
+            }
+        }
+        
+        // Initialize
+        window.addEventListener('DOMContentLoaded', function() {
+            checkExistingProposal();
+        });
+    </script>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>
