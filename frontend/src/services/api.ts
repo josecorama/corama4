@@ -182,6 +182,28 @@ class ApiService {
     return res.json();
   }
 
+  // Import Capability Statement from File
+  async importCapabilityFromFile(file: File): Promise<{success: boolean, message: string, data?: {companyName?: string, capabilityStatement?: string}}> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch('/api/capability/import_file', {
+      method: 'POST',
+      body: formData
+    });
+    return res.json();
+  }
+
+  // Import Capability Statement from URL
+  async importCapabilityFromUrl(url: string): Promise<{success: boolean, message: string, data?: {companyName?: string, capabilityStatement?: string}}> {
+    const res = await fetch('/api/capability/import_url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    return res.json();
+  }
+
   // Directory
   async getDirectory(page: number = 1, search: string = ''): Promise<{success: boolean, companies: DirectoryCompany[], total: number, page: number, total_pages: number}> {
     const params = new URLSearchParams({ page: String(page) });

@@ -6087,6 +6087,222 @@ def capability_builder_enhanced():
             current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
     return render_template('capability_builder_enhanced.html', current_credits=current_credits)
 
+# ============= React Capability Builder API Endpoints =============
+
+@app.route('/api/capability/import_file', methods=['POST'])
+def api_capability_import_file():
+    """Import capability statement from uploaded PDF file and extract data."""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': 'User not logged in.'}), 401
+
+    user_id = session['user']['localId']
+    file = request.files.get('file')
+    
+    if not file or not file.filename:
+        return jsonify({'success': False, 'message': 'Please select a file.'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'message': 'Invalid file type. Please upload a PDF file.'}), 400
+
+    try:
+        # Create user upload directory
+        user_upload_dir = f"uploads/bid_uploads_{user_id}"
+        os.makedirs(user_upload_dir, exist_ok=True)
+
+        # Save the uploaded file
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(user_upload_dir, filename)
+        file.save(file_path)
+        app.logger.info(f"[api_capability_import_file] Saved file: {file_path}")
+
+        # Process the PDF to extract text
+        csv_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+        process_pdfs([file_path], csv_path)
+        app.logger.info(f"[api_capability_import_file] Processed PDF, created CSV: {csv_path}")
+
+        # Read extracted data from CSV
+        extracted = {}
+        if os.path.exists(csv_path):
+            cs_df = pd.read_csv(csv_path, dtype=str)
+            if not cs_df.empty:
+                row = cs_df.iloc[0].fillna('')
+                extracted = {
+                    'companyName': row.get('Company', ''),
+                    'capabilityStatement': row.get('Capability_Statement', '')[:5000] if row.get('Capability_Statement') else '',  # Limit length
+                }
+                app.logger.info(f"[api_capability_import_file] Extracted company: {extracted.get('companyName')}")
+
+        return jsonify({
+            'success': True, 
+            'message': 'File processed successfully',
+            'data': extracted
+        })
+
+    except Exception as e:
+        app.logger.error(f"[api_capability_import_file] Error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Failed to process file: {str(e)}'}), 500
+
+
+@app.route('/api/capability/import_url', methods=['POST'])
+def api_capability_import_url():
+    """Import capability statement from URL and extract data."""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': 'User not logged in.'}), 401
+
+    user_id = session['user']['localId']
+    data = request.get_json() or {}
+    url = data.get('url')
+    
+    if not url:
+        return jsonify({'success': False, 'message': 'URL is required'}), 400
+
+    try:
+        # Fetch the PDF from URL
+        app.logger.info(f"[api_capability_import_url] Fetching URL: {url}")
+        resp = requests.get(url, timeout=30, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        resp.raise_for_status()
+        
+        # Verify it's a PDF
+        content_type = resp.headers.get('Content-Type', '')
+        if 'pdf' not in content_type.lower() and not url.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'message': 'URL does not point to a PDF file'}), 400
+
+        # Create user upload directory
+        user_upload_dir = f"uploads/bid_uploads_{user_id}"
+        os.makedirs(user_upload_dir, exist_ok=True)
+
+        # Save the downloaded file
+        filename = secure_filename(os.path.basename(url) or 'imported.pdf')
+        if not filename.lower().endswith('.pdf'):
+            filename += '.pdf'
+        file_path = os.path.join(user_upload_dir, filename)
+        
+        with open(file_path, 'wb') as f:
+            f.write(resp.content)
+        app.logger.info(f"[api_capability_import_url] Saved file: {file_path}")
+
+        # Process the PDF to extract text
+        csv_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+        process_pdfs([file_path], csv_path)
+        app.logger.info(f"[api_capability_import_url] Processed PDF, created CSV: {csv_path}")
+
+        # Read extracted data from CSV
+        extracted = {}
+        if os.path.exists(csv_path):
+            cs_df = pd.read_csv(csv_path, dtype=str)
+            if not cs_df.empty:
+                row = cs_df.iloc[0].fillna('')
+                extracted = {
+                    'companyName': row.get('Company', ''),
+                    'capabilityStatement': row.get('Capability_Statement', '')[:5000] if row.get('Capability_Statement') else '',
+                }
+                app.logger.info(f"[api_capability_import_url] Extracted company: {extracted.get('companyName')}")
+
+        return jsonify({
+            'success': True, 
+            'message': 'URL processed successfully',
+            'data': extracted
+        })
+
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"[api_capability_import_url] Request error: {str(e)}")
+        return jsonify({'success': False, 'message': f'Failed to fetch URL: {str(e)}'}), 400
+    except Exception as e:
+        app.logger.error(f"[api_capability_import_url] Error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Failed to process URL: {str(e)}'}), 500
+
+
+@app.route('/api/capability/generate_pdf', methods=['POST'])
+def api_capability_generate_pdf():
+    """Generate PDF capability statement and return it for download."""
+    if 'user' not in session:
+        return jsonify({'success': False, 'message': 'User not logged in.'}), 401
+
+    try:
+        user = session['user']
+        local_id = user.get('localId')
+        
+        # Get form data from JSON body
+        data = request.get_json() or {}
+        
+        # Map color to color scheme
+        primary_color = data.get('primaryColor', '#FF0000')
+        color_map = {
+            '#FF0000': 'red',
+            '#22C55E': 'green', 
+            '#EC4899': 'pink',
+            '#F97316': 'orange',
+            '#0000FF': 'blue',
+        }
+        logo_color = color_map.get(primary_color, 'blue')
+        
+        colors = {
+            'red': [(255, 0, 0), (255, 175, 175)],
+            'blue': [(0, 76, 153), (163, 215, 250)],
+            'green': [(0, 156, 76), (134, 246, 190)],
+            'yellow': [(153, 153, 0), (242, 242, 132)],
+            'orange': [(255, 165, 0), (255, 204, 153)],
+            'darkblue': [(30, 58, 138), (147, 197, 253)],
+            'black': [(0, 0, 0), (77, 77, 77)],
+            'pink': [(206, 120, 120), (250, 188, 188)],
+        }
+        
+        # Build formatted data for PDF generation
+        formatted_data = {
+            'company_name': data.get('companyName', ''),
+            'logo_color': colors.get(logo_color, [(64, 64, 64), (192, 192, 192)]),
+            'logo_path': None,
+            'image_path': None,
+            'uei_code': data.get('ueiCode', ''),
+            'cage_code': data.get('cageCode', ''),
+            'contact_name': data.get('contactName', ''),
+            'contact_title': data.get('title', ''),
+            'contact_phone': data.get('phone', ''),
+            'contact_email': data.get('email', ''),
+            'contact_address': data.get('address', ''),
+            'city': data.get('city', ''),
+            'state': data.get('state', ''),
+            'zip': data.get('zipCode', ''),
+            'contact_website': data.get('website', ''),
+            'company_description': data.get('companyDescription', ''),
+            'differentiators': [data.get('keyDifferentiators', '')] if data.get('keyDifferentiators') else [],
+            'naics_codes': [data.get('naicsCodes', '')] if data.get('naicsCodes') else [],
+            'core_competencies': [data.get('coreCompetencies', '')] if data.get('coreCompetencies') else [],
+            'certifications': [data.get('certifications', '')] if data.get('certifications') else [],
+            'qr_code_path': None,
+            'social_media': '',
+            'public_performance_logo_paths': [],
+            'private_performance': [],
+        }
+        
+        app.logger.info(f"[api_capability_generate_pdf] Generating PDF for: {formatted_data.get('company_name')}")
+        
+        # Generate PDF
+        output_dir = app.config.get('PDF_FOLDER', 'static/uploads')
+        os.makedirs(output_dir, exist_ok=True)
+        output_path = os.path.join(output_dir, f'capability_statement_{local_id}.pdf')
+        
+        create_pdf(formatted_data, output_path)
+        
+        if not os.path.exists(output_path):
+            return jsonify({'success': False, 'message': 'PDF generation failed'}), 500
+        
+        app.logger.info(f"[api_capability_generate_pdf] PDF generated: {output_path}")
+        
+        # Return the PDF file for download
+        return send_file(
+            output_path,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='Capability_Statement.pdf'
+        )
+        
+    except Exception as e:
+        app.logger.error(f"[api_capability_generate_pdf] Error: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'PDF generation failed: {str(e)}'}), 500
+
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
     try:

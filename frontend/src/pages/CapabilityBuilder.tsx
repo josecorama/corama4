@@ -1,9 +1,18 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { Upload, Save, RotateCcw, Trash2, Check } from 'lucide-react'
 import { api } from '../services/api'
+
+interface ImportResult {
+  success: boolean
+  message: string
+  data?: {
+    companyName?: string
+    capabilityStatement?: string
+  }
+}
 
 interface ColorPreset {
   primary: string
@@ -16,7 +25,6 @@ const CapabilityBuilder = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const imagesInputRef = useRef<HTMLInputElement>(null)
-  const formRef = useRef<HTMLFormElement>(null)
 
   const [formData, setFormData] = useState({
     companyName: '',
@@ -51,6 +59,9 @@ const CapabilityBuilder = () => {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [completedSteps] = useState([true, true, true])
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [importingUrl, setImportingUrl] = useState(false)
+  const [generatingPdf, setGeneratingPdf] = useState(false)
 
   const colorPresets: ColorPreset[] = [
     { primary: '#22C55E', secondary: '#86EFAC', bgClass: 'bg-green-500' },
@@ -102,8 +113,15 @@ const CapabilityBuilder = () => {
     setUploadError('')
 
     try {
-      const result = await api.uploadCapabilityStatement(selectedFile, [], [])
+      const result: ImportResult = await api.importCapabilityFromFile(selectedFile)
       if (result.success) {
+        if (result.data) {
+          setFormData(prev => ({
+            ...prev,
+            companyName: result.data?.companyName || prev.companyName,
+            companyDescription: result.data?.capabilityStatement || prev.companyDescription,
+          }))
+        }
         setSelectedFile(null)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
@@ -118,9 +136,111 @@ const CapabilityBuilder = () => {
     }
   }
 
-  const handleGeneratePdf = () => {
-    if (formRef.current) {
-      formRef.current.submit()
+  const handleImportFromUrl = async () => {
+    if (!importUrl.trim()) {
+      setUploadError('Please enter a URL')
+      return
+    }
+
+    setImportingUrl(true)
+    setUploadError('')
+
+    try {
+      const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
+      if (result.success) {
+        if (result.data) {
+          setFormData(prev => ({
+            ...prev,
+            companyName: result.data?.companyName || prev.companyName,
+            companyDescription: result.data?.capabilityStatement || prev.companyDescription,
+          }))
+        }
+        setImportUrl('')
+      } else {
+        setUploadError(result.message || 'URL import failed')
+      }
+    } catch (error) {
+      setUploadError('Failed to import from URL. Please try again.')
+    } finally {
+      setImportingUrl(false)
+    }
+  }
+
+  // Drag and drop handlers
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file && file.type === 'application/pdf') {
+      setSelectedFile(file)
+      setUploadError('')
+    } else {
+      setUploadError('Please drop a PDF file')
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragOver(false)
+  }, [])
+
+  const handleGeneratePdf = async () => {
+    setGeneratingPdf(true)
+    try {
+      const response = await fetch('/api/capability/generate_pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: formData.companyName,
+          companyDescription: formData.companyDescription,
+          website: formData.website,
+          contactName: formData.contactName,
+          title: formData.title,
+          phone: formData.phone,
+          email: formData.email,
+          address: formData.address,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zipCode,
+          industryFocus: formData.industryFocus,
+          coreCompetencies: formData.coreCompetencies,
+          keyDifferentiators: formData.keyDifferentiators,
+          ueiCode: formData.ueiCode,
+          cageCode: formData.cageCode,
+          naicsCodes: formData.naicsCodes,
+          certifications: formData.certifications,
+          primaryColor: formData.primaryColor,
+          secondaryColor: formData.secondaryColor,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.message || 'PDF generation failed')
+      }
+      
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'Capability_Statement.pdf'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('PDF generation error:', error)
+      alert('Failed to generate PDF. Please try again.')
+    } finally {
+      setGeneratingPdf(false)
     }
   }
 
@@ -195,10 +315,11 @@ const CapabilityBuilder = () => {
 
           {/* Import Existing Capability Statement */}
           <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">
-            <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Import Existing Capability Statement</h2>
-            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-              <div className="flex items-center gap-3">
-                <span className="text-gray-400 font-poppins text-sm">Upload File</span>
+            <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4 sm:mb-5">Import Existing Capability Statement</h2>
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start lg:items-center">
+              {/* Upload File Section */}
+              <div className="flex items-center gap-4">
+                <span className="text-white font-poppins text-sm whitespace-nowrap">Upload File</span>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -206,42 +327,61 @@ const CapabilityBuilder = () => {
                   accept=".pdf"
                   className="hidden"
                 />
-                <button
+                <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-4 text-gray-400 text-sm hover:border-corama-teal transition-colors"
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`bg-white rounded-full py-2 px-6 cursor-pointer transition-all min-w-[280px] ${
+                    isDragOver ? 'ring-2 ring-corama-teal' : ''
+                  }`}
                 >
-                  {selectedFile ? selectedFile.name : 'Click here to browse your pdf file'}
-                </button>
+                  <span className="text-gray-500 font-poppins text-sm">
+                    {selectedFile ? selectedFile.name : 'Click here to browse your pdf file'}
+                  </span>
+                </div>
                 {selectedFile && (
                   <button
                     onClick={handleImportFile}
                     disabled={uploading}
                     className="bg-corama-teal text-white rounded-lg py-2 px-4 text-sm hover:bg-corama-teal/80 transition-colors disabled:opacity-50"
                   >
-                    {uploading ? 'Uploading...' : 'Upload'}
+                    {uploading ? 'Importing...' : 'Import'}
                   </button>
                 )}
               </div>
-              <span className="text-gray-400 font-poppins text-sm">Or Import from URL</span>
-              <input
-                type="text"
-                value={importUrl}
-                onChange={(e) => setImportUrl(e.target.value)}
-                placeholder="https://example/capabilitystate..."
-                className="flex-1 bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-corama-teal"
-              />
+
+              {/* Or Import from URL Section */}
+              <div className="flex items-center gap-4 flex-1">
+                <span className="text-white font-poppins text-sm whitespace-nowrap">Or Import from URL</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <input
+                    type="text"
+                    value={importUrl}
+                    onChange={(e) => setImportUrl(e.target.value)}
+                    placeholder="https://example/capabilitystate..."
+                    className="flex-1 bg-white rounded-full py-2 px-4 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-corama-teal"
+                  />
+                  <button
+                    onClick={handleImportFromUrl}
+                    disabled={importingUrl || !importUrl.trim()}
+                    className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50"
+                    style={{ backgroundColor: '#6B9B9B' }}
+                  >
+                    {importingUrl ? (
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <img src="/static/app/dashboard/ImportURL.svg" alt="Import" className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
             {uploadError && (
-              <p className="text-red-400 text-sm mt-2">{uploadError}</p>
+              <p className="text-red-400 text-sm mt-3">{uploadError}</p>
             )}
           </div>
-
-          {/* Hidden form for PDF generation */}
-          <form ref={formRef} method="POST" action="/generate_pdf" encType="multipart/form-data" className="hidden">
-            <input type="hidden" name="companyName" value={formData.companyName} />
-            <input type="hidden" name="companyDescription" value={formData.companyDescription} />
-            <input type="hidden" name="logoColor" value={formData.primaryColor === '#FF0000' ? 'red' : formData.primaryColor === '#22C55E' ? 'green' : formData.primaryColor === '#EC4899' ? 'pink' : formData.primaryColor === '#F97316' ? 'orange' : 'blue'} />
-          </form>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
             {/* Left Column - Form */}
@@ -581,13 +721,20 @@ const CapabilityBuilder = () => {
               {/* Generate PDF Button */}
               <button
                 onClick={handleGeneratePdf}
-                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer"
+                disabled={generatingPdf}
+                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer disabled:opacity-50"
               >
                 <div>
-                  <h3 className="text-corama-teal font-poppins font-bold text-sm sm:text-base">Generate PDF</h3>
+                  <h3 className="text-corama-teal font-poppins font-bold text-sm sm:text-base">
+                    {generatingPdf ? 'Generating...' : 'Generate PDF'}
+                  </h3>
                   <p className="text-gray-400 font-poppins text-xs sm:text-sm">Create your Capability Statement</p>
                 </div>
-                <img src="/static/app/dashboard/FullProposal.svg" alt="" className="w-6 h-6 flex-shrink-0" />
+                {generatingPdf ? (
+                  <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                ) : (
+                  <img src="/static/app/dashboard/FullProposal.svg" alt="" className="w-6 h-6 flex-shrink-0" />
+                )}
               </button>
 
               {/* AI Assistant Button */}
