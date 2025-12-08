@@ -17,6 +17,18 @@ interface ColorPreset {
   bgClass: string
 }
 
+// Industry Focus dropdown options
+const INDUSTRY_OPTIONS = [
+  'Information Technology Services',
+  'Construction & Engineering',
+  'Professional Services',
+  'Healthcare Services',
+  'Logistics & Transportation',
+  'Manufacturing',
+  'Management Consulting',
+  'Research & Development',
+]
+
 const CapabilityBuilder = () => {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -142,6 +154,9 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromFile(selectedFile)
+      console.log('[CS Import File] Full result:', result)
+      console.log('[CS Import File] Data fields:', result.data ? Object.keys(result.data) : 'no data')
+      console.log('[CS Import File] Data values:', result.data)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setSelectedFile(null)
@@ -152,6 +167,7 @@ const CapabilityBuilder = () => {
         setUploadError(result.error || 'Upload failed')
       }
     } catch (error) {
+      console.error('[CS Import File] Error:', error)
       setUploadError('Failed to upload file. Please try again.')
     } finally {
       setUploading(false)
@@ -169,6 +185,9 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
+      console.log('[CS Import URL] Full result:', result)
+      console.log('[CS Import URL] Data fields:', result.data ? Object.keys(result.data) : 'no data')
+      console.log('[CS Import URL] Data values:', result.data)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setImportUrl('')
@@ -176,6 +195,7 @@ const CapabilityBuilder = () => {
         setUploadError(result.error || 'URL import failed')
       }
     } catch (error) {
+      console.error('[CS Import URL] Error:', error)
       setUploadError('Failed to import from URL. Please try again.')
     } finally {
       setImportingUrl(false)
@@ -526,12 +546,19 @@ const CapabilityBuilder = () => {
                 <div className="space-y-3 sm:space-y-4">
                   <div>
                     <label className="text-gray-400 font-poppins text-sm mb-1 block">Industry Focus</label>
-                    <input
-                      type="text"
+                    <select
                       value={formData.industryFocus}
                       onChange={(e) => handleInputChange('industryFocus', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
-                    />
+                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal appearance-none cursor-pointer"
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25rem' }}
+                    >
+                      <option value="" className="bg-corama-darker text-gray-400">Select Industry Focus</option>
+                      {INDUSTRY_OPTIONS.map((option) => (
+                        <option key={option} value={option} className="bg-corama-darker text-white">
+                          {option}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="text-gray-400 font-poppins text-sm mb-1 block">Core Competencies</label>
