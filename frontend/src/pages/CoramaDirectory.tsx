@@ -121,8 +121,14 @@ const CoramaDirectory = () => {
             <div className="space-y-4 lg:space-y-6">
               {companies.map((company) => (
                 <div key={company.id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-6 pb-4 lg:pb-6 border-b border-corama-darker/50">
-                  {/* Company Logo Placeholder */}
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gray-300 rounded-lg flex-shrink-0 mx-auto sm:mx-0"></div>
+                  {/* Company Logo */}
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gray-200 rounded-lg flex-shrink-0 mx-auto sm:mx-0 overflow-hidden flex items-center justify-center">
+                    {company.logo ? (
+                      <img src={company.logo} alt={`${company.name} logo`} className="w-full h-full object-contain" />
+                    ) : (
+                      <Briefcase size={32} className="text-gray-400" />
+                    )}
+                  </div>
 
                   {/* Company Details */}
                   <div className="flex-1">

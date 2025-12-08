@@ -131,7 +131,7 @@ const GetMoreCredits = () => {
                   key={index}
                   className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient hover:bg-white text-white hover:text-corama-dark border-2 border-transparent hover:border-corama-teal transition-all duration-200 flex flex-col h-full"
                 >
-                  <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400 group-hover:text-gray-600">
+                  <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400 group-hover:text-gray-600 text-center">
                     {pack.credits} Credits
                   </p>
                   <div className="inline-block px-3 sm:px-4 py-1 rounded-full mb-3 sm:mb-4 border border-corama-teal/30 text-corama-teal group-hover:bg-corama-teal/20 group-hover:border-corama-teal/50 transition-all self-start">
