@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Upload } from 'lucide-react'
 import { api, DirectoryProfile } from '../services/api'
 
 const EditDirectoryProfile = () => {
@@ -227,7 +226,7 @@ const EditDirectoryProfile = () => {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center">
-                      <Upload size={24} className="text-gray-400 mb-2" />
+                      <img src="/static/app/dashboard/AddFile.svg" alt="" className="w-12 h-12 mb-2" aria-hidden="true" />
                       <span className="text-corama-teal font-poppins text-sm">
                         {uploading ? 'Uploading...' : 'Add your file'}
                       </span>
