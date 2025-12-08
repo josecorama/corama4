@@ -6,7 +6,8 @@ import { api, CreditPackage } from '../services/api'
 interface CreditPack {
   credits: number
   name: string
-  price: number
+  priceCents: number
+  displayPrice: number
   description: string
   highlighted?: boolean
 }
@@ -39,7 +40,8 @@ const GetMoreCredits = () => {
         const packs: CreditPack[] = data.packages.map((pkg: CreditPackage, index: number) => ({
           credits: pkg.credits,
           name: pkg.description || `${pkg.credits} Credits`,
-          price: pkg.price / 100, // Convert from cents to dollars
+          priceCents: pkg.price, // Keep cents for backend
+          displayPrice: pkg.price / 100, // Convert to dollars for display
           description: pkg.description || 'Credit package',
           highlighted: index === 2 // Highlight the third package
         }))
@@ -47,20 +49,20 @@ const GetMoreCredits = () => {
       }else {
         // Default packages if API doesn't return any
         setCreditPacks([
-          { credits: 50, name: 'Starter Pack', price: 10.00, description: 'Perfect for small projects' },
-          { credits: 150, name: 'Professional Pack', price: 25.00, description: 'Great for multiple proposals' },
-          { credits: 500, name: 'Enterprise Pack', price: 75.00, description: 'Best value for frequent users', highlighted: true },
-          { credits: 1500, name: 'Agency Pack', price: 200.00, description: 'For consulting firms and agencies' },
+          { credits: 50, name: 'Starter Pack', priceCents: 1000, displayPrice: 10.00, description: 'Perfect for small projects' },
+          { credits: 150, name: 'Professional Pack', priceCents: 2500, displayPrice: 25.00, description: 'Great for multiple proposals' },
+          { credits: 500, name: 'Enterprise Pack', priceCents: 7500, displayPrice: 75.00, description: 'Best value for frequent users', highlighted: true },
+          { credits: 1500, name: 'Agency Pack', priceCents: 20000, displayPrice: 200.00, description: 'For consulting firms and agencies' },
         ])
       }
     } catch (error) {
       console.error('Failed to load credits data:', error)
       // Set default packages on error
       setCreditPacks([
-        { credits: 50, name: 'Starter Pack', price: 10.00, description: 'Perfect for small projects' },
-        { credits: 150, name: 'Professional Pack', price: 25.00, description: 'Great for multiple proposals' },
-        { credits: 500, name: 'Enterprise Pack', price: 75.00, description: 'Best value for frequent users', highlighted: true },
-        { credits: 1500, name: 'Agency Pack', price: 200.00, description: 'For consulting firms and agencies' },
+        { credits: 50, name: 'Starter Pack', priceCents: 1000, displayPrice: 10.00, description: 'Perfect for small projects' },
+        { credits: 150, name: 'Professional Pack', priceCents: 2500, displayPrice: 25.00, description: 'Great for multiple proposals' },
+        { credits: 500, name: 'Enterprise Pack', priceCents: 7500, displayPrice: 75.00, description: 'Best value for frequent users', highlighted: true },
+        { credits: 1500, name: 'Agency Pack', priceCents: 20000, displayPrice: 200.00, description: 'For consulting firms and agencies' },
       ])
     } finally {
       setLoading(false)
@@ -70,7 +72,7 @@ const GetMoreCredits = () => {
   const handlePurchase = async (pack: CreditPack) => {
     setPurchasing(pack.credits)
     try {
-      const result = await api.createCheckout(pack.credits, pack.price)
+      const result = await api.createCheckout(pack.credits, pack.priceCents)
       if (result.checkout_url) {
         window.location.href = result.checkout_url
       }
@@ -137,12 +139,14 @@ const GetMoreCredits = () => {
                   <div className="inline-block px-3 sm:px-4 py-1 rounded-full mb-3 sm:mb-4 border border-corama-teal/30 text-corama-teal group-hover:bg-corama-teal/20 group-hover:border-corama-teal/50 transition-all self-start">
                     <span className="font-poppins font-semibold text-sm sm:text-base">{pack.name}</span>
                   </div>
-                  <div className="mb-3 sm:mb-4">
-                    <span className="text-xs sm:text-sm text-gray-400 group-hover:text-gray-600">$</span>
-                    <span className="text-3xl sm:text-4xl font-bold text-corama-teal group-hover:text-corama-dark">
-                      {pack.price.toFixed(2)}
-                    </span>
-                    <span className="text-xs sm:text-sm text-gray-400 group-hover:text-gray-600">/each</span>
+                  <div className="mb-3 sm:mb-4 flex flex-col items-center">
+                    <div>
+                      <span className="text-xs sm:text-sm text-gray-400 group-hover:text-gray-600">$</span>
+                      <span className="text-3xl sm:text-4xl font-bold text-corama-teal group-hover:text-corama-dark">
+                        {pack.displayPrice.toFixed(2)}
+                      </span>
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-400 group-hover:text-gray-600 mt-1">/each</span>
                   </div>
                   <p className="font-poppins text-xs sm:text-sm mb-4 sm:mb-6 text-gray-400 group-hover:text-gray-600 flex-grow">
                     {pack.description}
