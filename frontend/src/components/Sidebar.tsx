@@ -141,7 +141,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 {showGoBack && (
                   <button
                     onClick={handleGoBack}
-                    className="relative flex items-center gap-3 px-4 py-3 mt-2 mx-2 text-white rounded-r-full transition-all hover:opacity-90"
+                    className="relative flex items-center gap-3 px-4 py-3 mt-2 w-full text-white rounded-r-full transition-all hover:opacity-90"
                     style={{
                       background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)'
                     }}
