@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 
 interface SidebarProps {
@@ -16,7 +16,27 @@ interface MenuItem {
 
 const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
   const location = useLocation()
+  const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
+  const [previousPath, setPreviousPath] = useState<string | null>(null)
+  const currentPathRef = useRef(location.pathname)
+  
+  // Track navigation history
+  useEffect(() => {
+    if (location.pathname !== currentPathRef.current) {
+      setPreviousPath(currentPathRef.current)
+      currentPathRef.current = location.pathname
+    }
+  }, [location.pathname])
+  
+  const handleGoBack = () => {
+    if (previousPath) {
+      navigate(previousPath)
+    }
+  }
+  
+  const isDashboard = location.pathname === '/dashboard'
+  const showGoBack = !isDashboard && previousPath !== null
   
   const actualOpen = onMobileToggle ? mobileOpen : isOpen
   const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
@@ -103,6 +123,20 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                     </div>
                   )
                 })}
+                
+                {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
+                {showGoBack && (
+                  <button
+                    onClick={handleGoBack}
+                    className="relative flex items-center gap-3 px-4 py-3 mt-2 mx-2 text-white rounded-r-full transition-all hover:opacity-90"
+                    style={{
+                      background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)'
+                    }}
+                  >
+                    <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />
+                    <span className="font-poppins text-sm">Go Back</span>
+                  </button>
+                )}
               </nav>
         
       {/* IHCC and Social Media Section - fixed at bottom, centered */}
