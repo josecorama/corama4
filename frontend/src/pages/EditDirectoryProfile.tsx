@@ -100,7 +100,7 @@ const EditDirectoryProfile = () => {
         listed: true
       })
       if (data.success) {
-        navigate('/app/corama-directory')
+        navigate('/corama-directory')
       } else {
         alert(data.error || 'Failed to save profile')
       }

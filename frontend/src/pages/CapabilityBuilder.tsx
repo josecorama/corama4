@@ -125,7 +125,7 @@ const CapabilityBuilder = () => {
   }
 
   const handleAiAssistant = () => {
-    navigate('/app/dashboard')
+    navigate('/dashboard')
   }
 
   const handleSave = () => {
