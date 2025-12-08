@@ -72,26 +72,35 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 </a>
               </div>
         
-              <nav className="flex-1 px-2 py-4 overflow-y-auto">
+              <nav className="flex-1 py-4 overflow-y-auto">
                 {menuItems.map((item) => {
                   const isActive = location.pathname === item.path
                   return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={closeMobile}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl mb-1 transition-all ${
-                        isActive 
-                          ? 'bg-corama-teal/20 text-white' 
-                          : 'text-gray-300 hover:bg-corama-darker hover:text-white'
-                      }`}
-                    >
-                      <img src={item.icon} alt="" className="w-5 h-5" aria-hidden="true" />
-                      <span className="font-poppins text-sm">{item.label}</span>
-                      {item.badge && (
-                        <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
+                    <div key={item.path} className="relative">
+                      {isActive && (
+                        <img 
+                          src="/static/app/dashboard/Highlight.svg" 
+                          alt="" 
+                          className="absolute inset-0 w-full h-full object-cover object-left"
+                          aria-hidden="true"
+                        />
                       )}
-                    </Link>
+                      <Link
+                        to={item.path}
+                        onClick={closeMobile}
+                        className={`relative flex items-center gap-3 px-4 py-3 mb-1 transition-all ${
+                          isActive 
+                            ? 'text-white' 
+                            : 'text-gray-300 hover:bg-corama-darker hover:text-white rounded-xl mx-2'
+                        }`}
+                      >
+                        <img src={item.icon} alt="" className="w-5 h-5" aria-hidden="true" />
+                        <span className="font-poppins text-sm">{item.label}</span>
+                        {item.badge && (
+                          <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
+                        )}
+                      </Link>
+                    </div>
                   )
                 })}
               </nav>
