@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 
@@ -18,15 +18,28 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
-  const [previousPath, setPreviousPath] = useState<string | null>(null)
-  const currentPathRef = useRef(location.pathname)
   
-  // Track navigation history
+  // Initialize previousPath from sessionStorage to persist across component remounts
+  const [previousPath, setPreviousPath] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    return sessionStorage.getItem('corama_prev_path') || null
+  })
+  
+  // Track navigation history using sessionStorage
   useEffect(() => {
-    if (location.pathname !== currentPathRef.current) {
-      setPreviousPath(currentPathRef.current)
-      currentPathRef.current = location.pathname
+    if (typeof window === 'undefined') return
+
+    const current = location.pathname
+    const storedCurrent = sessionStorage.getItem('corama_current_path')
+
+    // If we had a previous "current" and it's different, that becomes the prev path
+    if (storedCurrent && storedCurrent !== current) {
+      sessionStorage.setItem('corama_prev_path', storedCurrent)
+      setPreviousPath(storedCurrent)
     }
+
+    // Update the current path in storage
+    sessionStorage.setItem('corama_current_path', current)
   }, [location.pathname])
   
   const handleGoBack = () => {
@@ -36,7 +49,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
   }
   
   const isDashboard = location.pathname === '/dashboard'
-  const showGoBack = !isDashboard && previousPath !== null
+  const showGoBack = !isDashboard && !!previousPath
   
   const actualOpen = onMobileToggle ? mobileOpen : isOpen
   const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
