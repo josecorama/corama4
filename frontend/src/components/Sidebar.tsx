@@ -139,16 +139,21 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 
                 {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
                 {showGoBack && (
-                  <button
-                    onClick={handleGoBack}
-                    className="relative flex items-center gap-3 px-4 py-3 mt-2 w-full text-white rounded-r-full transition-all hover:opacity-90"
-                    style={{
-                      background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)'
-                    }}
-                  >
-                    <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                    <span className="font-poppins text-sm">Go Back</span>
-                  </button>
+                  <div className="relative mt-2">
+                    <img 
+                      src="/static/app/dashboard/GoBackButton.svg" 
+                      alt="" 
+                      className="absolute inset-0 w-full h-full object-cover object-left"
+                      aria-hidden="true"
+                    />
+                    <button
+                      onClick={handleGoBack}
+                      className="relative flex items-center gap-3 px-4 py-3 w-full text-white transition-all hover:opacity-90"
+                    >
+                      <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />
+                      <span className="font-poppins text-sm">Go Back</span>
+                    </button>
+                  </div>
                 )}
               </nav>
         
