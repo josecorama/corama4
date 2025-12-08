@@ -98,7 +98,7 @@ const GetMoreCredits = () => {
       title: 'Basic AI Chat',
       description: 'Get instant answers to your questions about government contracting, procurement processes, and general guidance.',
       credits: 1,
-      bgColor: 'bg-[#D9D9D9]',
+      bgColor: 'bg-[#8FBABC]',
       textColor: '#1C4262',
     },
     {
@@ -114,7 +114,7 @@ const GetMoreCredits = () => {
       title: 'Contract Analysis',
       description: 'Verify that your capability statement or proposal meets all necessary compliance requirements for government contracting.',
       credits: 3,
-      bgColor: 'bg-[#D9D9D9]',
+      bgColor: 'bg-[#8FBABC]',
       textColor: '#1C4262',
     },
     {

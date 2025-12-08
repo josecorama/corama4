@@ -63,13 +63,13 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
         ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
             <div className="p-4 pt-16 lg:pt-4 flex justify-center shrink-0">
-                <Link to="/app" className="inline-flex items-center" onClick={closeMobile}>
+                <a href="/" className="inline-flex items-center" onClick={closeMobile}>
                   <img 
                     src="/static/app/dashboard/CoramaLogo.svg" 
                     alt="CORAMA" 
                     className="h-8 lg:h-10 w-auto"
                   />
-                </Link>
+                </a>
               </div>
         
               <nav className="flex-1 px-2 py-4 overflow-y-auto">
