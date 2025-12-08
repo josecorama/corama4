@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Phone, Mail, Globe, Users, Calendar, ChevronLeft, ChevronRight, Filter, Briefcase } from 'lucide-react'
+import { Calendar, Briefcase } from 'lucide-react'
 import { api, DirectoryCompany } from '../services/api'
 
 interface Company {
@@ -87,31 +87,31 @@ const CoramaDirectory = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search companies..."
-                className="w-full bg-white border border-gray-200 rounded-lg py-2 sm:py-3 px-3 sm:px-4 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm sm:text-base"
+                placeholder="Search by company name, services, or description..."
+                className="w-full bg-white border border-gray-200 rounded-full py-2 sm:py-3 px-4 sm:px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm sm:text-base"
               />
             </form>
 
             {/* Results Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
-              <h2 className="text-white font-poppins font-semibold text-sm sm:text-base">Available Companies</h2>
+              <h2 className="text-corama-teal font-poppins font-semibold text-sm sm:text-base">Available Companies</h2>
               <div className="flex items-center gap-3 sm:gap-4">
-                <button className="text-gray-400 hover:text-white">
-                  <Filter size={18} />
+                <button className="hover:opacity-80">
+                  <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-4 h-4" />
                 </button>
                 <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                   <span>{startItem}-{endItem} of {totalCompanies}</span>
                   <button 
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="p-1 hover:text-white"
+                    className="p-1 hover:opacity-80"
                   >
-                    <ChevronLeft size={16} />
+                    <img src="/static/app/dashboard/LeftArrow.svg" alt="Previous" className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => setCurrentPage(p => p + 1)}
-                    className="p-1 hover:text-white"
+                    className="p-1 hover:opacity-80"
                   >
-                    <ChevronRight size={16} />
+                    <img src="/static/app/dashboard/RightArrow.svg" alt="Next" className="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -120,14 +120,28 @@ const CoramaDirectory = () => {
             {/* Company Cards */}
             <div className="space-y-4 lg:space-y-6">
               {companies.map((company) => (
-                <div key={company.id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-6 pb-4 lg:pb-6 border-b border-corama-darker/50">
-                  {/* Company Logo */}
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 lg:w-32 lg:h-32 bg-gray-200 rounded-lg flex-shrink-0 mx-auto sm:mx-0 overflow-hidden flex items-center justify-center">
-                    {company.logo ? (
-                      <img src={company.logo} alt={`${company.name} logo`} className="w-full h-full object-contain" />
-                    ) : (
-                      <Briefcase size={32} className="text-gray-400" />
-                    )}
+                <div key={company.id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-6">
+                  {/* Company Logo and Stats Column */}
+                  <div className="flex flex-col items-center sm:items-start">
+                    {/* Company Logo */}
+                    <div className="w-40 h-40 sm:w-44 sm:h-44 lg:w-48 lg:h-48 bg-gray-300 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center border-2 border-corama-teal/30">
+                      {company.logo ? (
+                        <img src={company.logo} alt={`${company.name} logo`} className="w-full h-full object-contain" />
+                      ) : (
+                        <Briefcase size={32} className="text-gray-400" />
+                      )}
+                    </div>
+                    {/* Company Stats - Below logo */}
+                    <div className="flex items-center gap-4 mt-3">
+                      <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
+                        <img src="/static/app/dashboard/Employees.svg" alt="" className="w-4 h-4" aria-hidden="true" />
+                        <span>{company.employees}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
+                        <Calendar size={14} />
+                        <span>{company.yearsInBusiness} years</span>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Company Details */}
@@ -136,37 +150,19 @@ const CoramaDirectory = () => {
                     <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-2 text-center sm:text-left">{company.contactName}</p>
                     <p className="text-gray-300 font-poppins text-xs sm:text-sm mb-3 lg:mb-4">{company.description}</p>
 
-                    {/* Contact Info - Stack on mobile */}
-                    <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-2 sm:gap-4 lg:gap-6">
+                    {/* Contact Info */}
+                    <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-4 lg:gap-6">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-corama-teal/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Phone size={12} className="text-corama-teal" />
-                        </div>
+                        <img src="/static/app/dashboard/Phone.svg" alt="Phone" className="w-8 h-8" />
                         <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.phone}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-corama-teal/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Mail size={12} className="text-corama-teal" />
-                        </div>
-                        <span className="text-corama-teal font-poppins text-xs sm:text-sm break-all">{company.email}</span>
+                        <img src="/static/app/dashboard/Email.svg" alt="Email" className="w-8 h-8" />
+                        <a href={`mailto:${company.email}`} className="text-corama-teal font-poppins text-xs sm:text-sm break-all underline hover:opacity-80">{company.email}</a>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 sm:w-8 sm:h-8 bg-corama-teal/20 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Globe size={12} className="text-corama-teal" />
-                        </div>
+                        <img src="/static/app/dashboard/Website.svg" alt="Website" className="w-8 h-8" />
                         <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.website}</span>
-                      </div>
-                    </div>
-
-                    {/* Company Stats */}
-                    <div className="flex items-center gap-4 sm:gap-6 mt-3 lg:mt-4">
-                      <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
-                        <Users size={14} />
-                        <span>{company.employees}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
-                        <Calendar size={14} />
-                        <span>{company.yearsInBusiness} years</span>
                       </div>
                     </div>
                   </div>
@@ -176,12 +172,12 @@ const CoramaDirectory = () => {
 
             {/* Join the List CTA */}
             <div className="mt-6 lg:mt-8 flex justify-center">
-              <button className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 card-gradient border border-corama-teal/30 rounded-xl px-4 sm:px-6 lg:px-8 py-3 sm:py-4 hover:bg-corama-darker transition-colors w-full sm:w-auto">
-                <div className="text-center sm:text-left">
+              <button className="flex flex-row items-center justify-between gap-4 bg-[#2F3C4F] border border-corama-teal/30 rounded-xl px-6 lg:px-8 py-4 hover:bg-corama-darker transition-colors w-full max-w-2xl">
+                <div className="text-left">
                   <h3 className="text-white font-poppins font-bold text-base sm:text-lg">Join the list</h3>
-                  <p className="text-gray-400 font-poppins text-xs sm:text-sm">Increase your visibility and connect with businesses.</p>
+                  <p className="text-gray-400 font-poppins text-xs sm:text-sm">Increase your visibility and connect with businesses seeking your expertise.</p>
                 </div>
-                <Briefcase size={28} className="text-corama-teal flex-shrink-0" />
+                <img src="/static/app/dashboard/JoinTheList.svg" alt="" className="w-12 h-12 flex-shrink-0" aria-hidden="true" />
               </button>
             </div>
           </div>
