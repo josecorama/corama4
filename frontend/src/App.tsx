@@ -6,6 +6,7 @@ import TopFiveContracts from './pages/TopFiveContracts'
 import AIAssistant from './pages/AIAssistant'
 import GetMoreCredits from './pages/GetMoreCredits'
 import CoramaDirectory from './pages/CoramaDirectory'
+import EditDirectoryProfile from './pages/EditDirectoryProfile'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/ai-assistant" element={<AIAssistant />} />
         <Route path="/get-more-credits" element={<GetMoreCredits />} />
         <Route path="/corama-directory" element={<CoramaDirectory />} />
+        <Route path="/edit-directory-profile" element={<EditDirectoryProfile />} />
       </Routes>
     </Router>
   )

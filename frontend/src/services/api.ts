@@ -63,6 +63,23 @@ export interface DirectoryCompany {
   certifications: string;
 }
 
+export interface DirectoryProfile {
+  company: string;
+  contact_name: string;
+  email: string;
+  phone: string;
+  website: string;
+  linkedin_url: string;
+  services: string;
+  description: string;
+  certifications: string;
+  past_projects: string;
+  team_size: string;
+  years_in_business: string;
+  logo_url: string;
+  listed: boolean;
+}
+
 class ApiService {
   // User
   async getUser(): Promise<User> {
@@ -171,6 +188,40 @@ class ApiService {
     if (search) params.append('search', search);
     const res = await fetch(`${API_BASE}/directory?${params}`);
     if (!res.ok) throw new Error('Failed to fetch directory');
+    return res.json();
+  }
+
+  // Directory Profile
+  async getDirectoryProfile(): Promise<{success: boolean, user_id: string, profile: DirectoryProfile}> {
+    const res = await fetch(`${API_BASE}/get_directory_profile`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      throw new Error('Failed to fetch directory profile');
+    }
+    return res.json();
+  }
+
+  async updateDirectoryProfile(data: Partial<DirectoryProfile>): Promise<{success: boolean, error?: string}> {
+    const res = await fetch(`${API_BASE}/update_directory_profile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) throw new Error('Failed to update directory profile');
+    return res.json();
+  }
+
+  async uploadDirectoryLogo(file: File): Promise<{success: boolean, logo_url?: string, error?: string}> {
+    const formData = new FormData();
+    formData.append('logo', file);
+    const res = await fetch(`${API_BASE}/upload_directory_logo`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.ok) throw new Error('Failed to upload logo');
     return res.json();
   }
 

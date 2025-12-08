@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { Briefcase } from 'lucide-react'
@@ -18,19 +19,36 @@ interface Company {
 }
 
 const CoramaDirectory = () => {
+  const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalCompanies, setTotalCompanies] = useState(0)
   const [_totalPages, setTotalPages] = useState(1)
   const [companies, setCompanies] = useState<Company[]>([])
   const [_loading, setLoading] = useState(true)
+  const [hasDirectoryProfile, setHasDirectoryProfile] = useState<boolean | null>(null)
   const companiesPerPage = 10
   const startItem = totalCompanies > 0 ? (currentPage - 1) * companiesPerPage + 1 : 0
   const endItem = Math.min(currentPage * companiesPerPage, totalCompanies)
 
   useEffect(() => {
     loadDirectory()
+    checkDirectoryProfile()
   }, [currentPage])
+
+  const checkDirectoryProfile = async () => {
+    try {
+      const data = await api.getDirectoryProfile()
+      if (data.success && data.profile) {
+        setHasDirectoryProfile(data.profile.listed === true)
+      } else {
+        setHasDirectoryProfile(false)
+      }
+    } catch (error) {
+      console.error('Failed to check directory profile:', error)
+      setHasDirectoryProfile(false)
+    }
+  }
 
   const loadDirectory = async () => {
     setLoading(true)
@@ -170,15 +188,31 @@ const CoramaDirectory = () => {
               ))}
             </div>
 
-            {/* Join the List CTA */}
+            {/* Join the List / Edit Profile CTA */}
             <div className="mt-6 lg:mt-8 flex justify-center">
-              <button className="flex flex-row items-center justify-between gap-4 bg-[#2F3C4F] border border-corama-teal/30 rounded-xl px-6 lg:px-8 py-4 hover:bg-corama-darker transition-colors w-full max-w-2xl">
-                <div className="text-left">
-                  <h3 className="text-white font-poppins font-bold text-base sm:text-lg">Join the list</h3>
-                  <p className="text-gray-400 font-poppins text-xs sm:text-sm">Increase your visibility and connect with businesses seeking your expertise.</p>
-                </div>
-                <img src="/static/app/dashboard/JoinTheList.svg" alt="" className="w-12 h-12 flex-shrink-0" aria-hidden="true" />
-              </button>
+              {hasDirectoryProfile ? (
+                <button 
+                  onClick={() => navigate('/edit-directory-profile')}
+                  className="flex flex-row items-center justify-between gap-4 bg-[#2F3C4F] border border-corama-teal/30 rounded-xl px-6 lg:px-8 py-4 hover:bg-corama-darker transition-colors w-full max-w-2xl"
+                >
+                  <div className="text-left">
+                    <h3 className="text-white font-poppins font-bold text-base sm:text-lg">Edit Profile</h3>
+                    <p className="text-gray-400 font-poppins text-xs sm:text-sm">Click to edit your registration.</p>
+                  </div>
+                  <img src="/static/app/dashboard/EditProfile.svg" alt="" className="w-12 h-12 flex-shrink-0" aria-hidden="true" />
+                </button>
+              ) : (
+                <button 
+                  onClick={() => navigate('/edit-directory-profile')}
+                  className="flex flex-row items-center justify-between gap-4 bg-[#2F3C4F] border border-corama-teal/30 rounded-xl px-6 lg:px-8 py-4 hover:bg-corama-darker transition-colors w-full max-w-2xl"
+                >
+                  <div className="text-left">
+                    <h3 className="text-white font-poppins font-bold text-base sm:text-lg">Join the list</h3>
+                    <p className="text-gray-400 font-poppins text-xs sm:text-sm">Increase your visibility and connect with businesses seeking your expertise.</p>
+                  </div>
+                  <img src="/static/app/dashboard/JoinTheList.svg" alt="" className="w-12 h-12 flex-shrink-0" aria-hidden="true" />
+                </button>
+              )}
             </div>
           </div>
         </main>
