@@ -6924,10 +6924,17 @@ def download_and_extract_from_url(url):
         from bs4 import BeautifulSoup
         from urllib.parse import urljoin, urlparse
         
+        # Normalize URL - add https:// if no protocol provided
+        original_url = url
+        url = (url or "").strip()
+        if url and not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+            logging.info(f"Normalized URL: {original_url} -> {url}")
+        
         logging.info(f"Attempting to download content from URL: {url}")
         
-        if not url.startswith(('http://', 'https://')):
-            logging.error(f"Invalid URL format: {url}")
+        if not url or not url.startswith(('http://', 'https://')):
+            logging.error(f"Invalid URL format: {original_url}")
             return ""
         
         headers = {
