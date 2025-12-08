@@ -25,7 +25,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
     { path: '/dashboard', label: 'Dashboard', icon: '/static/app/dashboard/Dashboard.svg' },
     { path: '/top-five-contracts', label: 'Top Five Contracts', icon: '/static/app/dashboard/TopFiveContracts.svg' },
     { path: '/capability-builder', label: 'Capability Builder', icon: '/static/app/dashboard/CapabilityBuilder.svg' },
-    { path: '/corama-directory', label: 'CORAMA Directory', icon: '/static/app/dashboard/CORAMADirectory.svg', badge: true },
+    { path: '/corama-directory', label: 'CORAMA Directory', icon: '/static/app/dashboard/CORAMADirectory.svg' },
     { path: '/get-more-credits', label: 'Get More Credits', icon: '/static/app/dashboard/Credits.svg' },
     { path: '/support', label: 'Support', icon: '/static/app/dashboard/Support.svg' },
     { path: '/about', label: 'About Us', icon: '/static/app/dashboard/AboutUs.svg' },
