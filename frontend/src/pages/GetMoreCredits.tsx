@@ -129,40 +129,28 @@ const GetMoreCredits = () => {
               {creditPacks.map((pack, index) => (
                 <div
                   key={index}
-                  className={`rounded-xl p-4 sm:p-5 lg:p-6 ${
-                    pack.highlighted
-                      ? 'bg-white text-corama-dark'
-                      : 'card-gradient text-white'
-                  }`}
+                  className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient text-white border-2 border-transparent hover:border-corama-teal transition-all flex flex-col h-full"
                 >
-                  <p className={`font-poppins text-xs sm:text-sm mb-2 ${pack.highlighted ? 'text-gray-600' : 'text-gray-400'}`}>
+                  <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400">
                     {pack.credits} Credits
                   </p>
-                  <div className={`inline-block px-3 sm:px-4 py-1 rounded-full mb-3 sm:mb-4 ${
-                    pack.highlighted
-                      ? 'bg-corama-teal/20 text-corama-teal'
-                      : 'border border-corama-teal/30 text-corama-teal'
-                  }`}>
+                  <div className="inline-block px-3 sm:px-4 py-1 rounded-full mb-3 sm:mb-4 border border-corama-teal/30 text-corama-teal group-hover:bg-corama-teal/20 group-hover:border-corama-teal/50 transition-all self-start">
                     <span className="font-poppins font-semibold text-sm sm:text-base">{pack.name}</span>
                   </div>
                   <div className="mb-3 sm:mb-4">
-                    <span className={`text-xs sm:text-sm ${pack.highlighted ? 'text-gray-600' : 'text-gray-400'}`}>$</span>
-                    <span className={`text-3xl sm:text-4xl font-bold ${pack.highlighted ? 'text-corama-dark' : 'text-corama-teal'}`}>
+                    <span className="text-xs sm:text-sm text-gray-400">$</span>
+                    <span className="text-3xl sm:text-4xl font-bold text-corama-teal">
                       {pack.price.toFixed(2)}
                     </span>
-                    <span className={`text-xs sm:text-sm ${pack.highlighted ? 'text-gray-600' : 'text-gray-400'}`}>/each</span>
+                    <span className="text-xs sm:text-sm text-gray-400">/each</span>
                   </div>
-                  <p className={`font-poppins text-xs sm:text-sm mb-4 sm:mb-6 ${pack.highlighted ? 'text-gray-600' : 'text-gray-400'}`}>
+                  <p className="font-poppins text-xs sm:text-sm mb-4 sm:mb-6 text-gray-400 flex-grow">
                     {pack.description}
                   </p>
                   <button
                     onClick={() => handlePurchase(pack)}
                     disabled={purchasing !== null}
-                    className={`w-full py-2 rounded-lg font-poppins font-semibold text-sm sm:text-base transition-colors ${
-                      pack.highlighted
-                        ? 'bg-corama-dark text-white hover:bg-corama-darker'
-                        : 'bg-corama-teal text-corama-dark hover:bg-corama-teal-light'
-                    } ${purchasing !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`w-full py-2 rounded-lg font-poppins font-semibold text-sm sm:text-base transition-colors bg-corama-teal text-corama-dark hover:bg-corama-teal-light mt-auto ${purchasing !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {purchasing === pack.credits ? 'Processing...' : 'Choose Pack'}
                   </button>
