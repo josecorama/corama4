@@ -453,7 +453,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.companyName}
                       onChange={(e) => handleInputChange('companyName', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -462,7 +462,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.website}
                       onChange={(e) => handleInputChange('website', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -471,7 +471,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.contactName}
                       onChange={(e) => handleInputChange('contactName', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -480,7 +480,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.title}
                       onChange={(e) => handleInputChange('title', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -489,7 +489,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -498,7 +498,7 @@ const CapabilityBuilder = () => {
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -507,7 +507,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.address}
                       onChange={(e) => handleInputChange('address', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -516,7 +516,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.city}
                       onChange={(e) => handleInputChange('city', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -525,7 +525,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.state}
                       onChange={(e) => handleInputChange('state', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -534,7 +534,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.zipCode}
                       onChange={(e) => handleInputChange('zipCode', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                 </div>
@@ -549,8 +549,8 @@ const CapabilityBuilder = () => {
                     <select
                       value={formData.industryFocus}
                       onChange={(e) => handleInputChange('industryFocus', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal appearance-none cursor-pointer"
-                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25rem' }}
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] appearance-none cursor-pointer"
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.25rem' }}
                     >
                       <option value="" className="bg-corama-darker text-gray-400">Select Industry Focus</option>
                       {INDUSTRY_OPTIONS.map((option) => (
@@ -566,7 +566,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.coreCompetencies}
                       onChange={(e) => handleInputChange('coreCompetencies', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -575,7 +575,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.keyDifferentiators}
                       onChange={(e) => handleInputChange('keyDifferentiators', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -584,7 +584,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.companyDescription}
                       onChange={(e) => handleInputChange('companyDescription', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                 </div>
@@ -682,7 +682,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.ueiCode}
                       onChange={(e) => handleInputChange('ueiCode', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -691,7 +691,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.cageCode}
                       onChange={(e) => handleInputChange('cageCode', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -700,7 +700,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.naicsCodes}
                       onChange={(e) => handleInputChange('naicsCodes', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -709,7 +709,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.certifications}
                       onChange={(e) => handleInputChange('certifications', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                 </div>
@@ -725,7 +725,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.clientAgency}
                       onChange={(e) => handleInputChange('clientAgency', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                   <div>
@@ -734,7 +734,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.contractValue}
                       onChange={(e) => handleInputChange('contractValue', e.target.value)}
-                      className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                      className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                     />
                   </div>
                 </div>
@@ -744,7 +744,7 @@ const CapabilityBuilder = () => {
                     type="text"
                     value={formData.projectDescription}
                     onChange={(e) => handleInputChange('projectDescription', e.target.value)}
-                    className="w-full bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
+                    className="w-full bg-transparent border-2 border-[#1C4262] rounded-full py-2.5 px-4 text-white focus:outline-none focus:border-[#2A5A7A] placeholder-gray-500"
                   />
                 </div>
               </div>
