@@ -106,7 +106,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
               </nav>
         
       {/* IHCC and Social Media Section - fixed at bottom, centered */}
-      <div className="p-4 text-center shrink-0">
+      <div className="px-4 pt-4 pb-[36px] text-center shrink-0">
         <p className="text-gray-400 text-xs mb-2">Learn More About IHCC</p>
         <a 
           href="https://ihccbusiness.net/" 
