@@ -178,8 +178,8 @@ const GetMoreCredits = () => {
             <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6">How Credits Work</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {creditFeatures.map((feature, index) => (
-                <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6`}>
-                  <div className="mb-3 sm:mb-4">
+                <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6 text-center`}>
+                  <div className="mb-3 sm:mb-4 flex justify-center">
                     <img src={feature.icon} alt="" className="w-10 h-10" aria-hidden="true" />
                   </div>
                   <h3 style={{ color: feature.textColor }} className="font-poppins font-bold text-base sm:text-lg mb-2 sm:mb-3">{feature.title}</h3>
