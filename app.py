@@ -6216,7 +6216,12 @@ def api_capability_import_url():
 
 @app.route('/api/capability/generate_pdf', methods=['POST'])
 def api_capability_generate_pdf():
-    """Generate PDF capability statement and return it for download."""
+    """Generate PDF capability statement and return it for download.
+    
+    This endpoint uses the same format_data() function as the legacy /generate_pdf route
+    to ensure consistent PDF generation. The React frontend field names are mapped to
+    the backend's expected format.
+    """
     if 'user' not in session:
         return jsonify({'success': False, 'message': 'User not logged in.'}), 401
 
@@ -6225,10 +6230,11 @@ def api_capability_generate_pdf():
         local_id = user.get('localId')
         
         # Get form data from JSON body
-        data = request.get_json() or {}
+        json_data = request.get_json() or {}
         
-        # Map color to color scheme
-        primary_color = data.get('primaryColor', '#FF0000')
+        # Map React frontend field names to backend expected format (flat=False style with lists)
+        # The format_data() function expects values as lists (from request.form.to_dict(flat=False))
+        primary_color = json_data.get('primaryColor', '#FF0000')
         color_map = {
             '#FF0000': 'red',
             '#22C55E': 'green', 
@@ -6236,8 +6242,36 @@ def api_capability_generate_pdf():
             '#F97316': 'orange',
             '#0000FF': 'blue',
         }
-        logo_color = color_map.get(primary_color, 'blue')
+        logo_color = color_map.get(primary_color, 'red')
         
+        # Build form_data dict in the format expected by format_data()
+        # (values as lists, using the same keys as the legacy HTML form)
+        form_data = {
+            'companyName': [json_data.get('companyName', '')],
+            'logoColor': [logo_color],
+            'ueiCode': [json_data.get('ueiCode', '')],
+            'cageCode': [json_data.get('cageCode', '')],
+            'nameLinkedIn': [json_data.get('contactName', '')],  # React uses contactName
+            'title': [json_data.get('title', '')],
+            'phoneNumber': [json_data.get('phone', '')],  # React uses phone
+            'email': [json_data.get('email', '')],
+            'addressStreet': [json_data.get('address', '')],  # React uses address
+            'addressCity': [json_data.get('city', '')],
+            'addressState': [json_data.get('state', '')],
+            'addressZip': [json_data.get('zipCode', '')],  # React uses zipCode
+            'web': [json_data.get('website', '')],  # React uses website
+            'companyDescription': [json_data.get('companyDescription', '')],
+            'uniquePoints[]': [json_data.get('keyDifferentiators', '')] if json_data.get('keyDifferentiators') else [],
+            'naicsCode[]': [json_data.get('naicsCodes', '')] if json_data.get('naicsCodes') else [],
+            'naicsDescription[]': [''] if json_data.get('naicsCodes') else [],  # Empty description for now
+            'coreCompetencies[]': [json_data.get('coreCompetencies', '')] if json_data.get('coreCompetencies') else [],
+            'certificateDescription[]': [json_data.get('certifications', '')] if json_data.get('certifications') else [],
+            'socialMedia[]': [''],
+            'privateCompanyName[]': [],
+            'privateDescription[]': [],
+        }
+        
+        # Use the same colors dict as the legacy /generate_pdf route
         colors = {
             'red': [(255, 0, 0), (255, 175, 175)],
             'blue': [(0, 76, 153), (163, 215, 250)],
@@ -6249,37 +6283,20 @@ def api_capability_generate_pdf():
             'pink': [(206, 120, 120), (250, 188, 188)],
         }
         
-        # Build formatted data for PDF generation
-        formatted_data = {
-            'company_name': data.get('companyName', ''),
-            'logo_color': colors.get(logo_color, [(64, 64, 64), (192, 192, 192)]),
-            'logo_path': None,
-            'image_path': None,
-            'uei_code': data.get('ueiCode', ''),
-            'cage_code': data.get('cageCode', ''),
-            'contact_name': data.get('contactName', ''),
-            'contact_title': data.get('title', ''),
-            'contact_phone': data.get('phone', ''),
-            'contact_email': data.get('email', ''),
-            'contact_address': data.get('address', ''),
-            'city': data.get('city', ''),
-            'state': data.get('state', ''),
-            'zip': data.get('zipCode', ''),
-            'contact_website': data.get('website', ''),
-            'company_description': data.get('companyDescription', ''),
-            'differentiators': [data.get('keyDifferentiators', '')] if data.get('keyDifferentiators') else [],
-            'naics_codes': [data.get('naicsCodes', '')] if data.get('naicsCodes') else [],
-            'core_competencies': [data.get('coreCompetencies', '')] if data.get('coreCompetencies') else [],
-            'certifications': [data.get('certifications', '')] if data.get('certifications') else [],
-            'qr_code_path': None,
-            'social_media': '',
-            'public_performance_logo_paths': [],
-            'private_performance': [],
-        }
+        # Use the existing format_data() function to ensure consistent PDF generation
+        formatted_data = format_data(
+            form_data,
+            colors,
+            logo_path=None,  # No logo file uploaded via JSON API
+            picture_path=None,  # No company picture uploaded via JSON API
+            qr_code_path=None,  # No QR code uploaded via JSON API
+            public_performance_logo_paths=[]  # No public performance logos via JSON API
+        )
         
         app.logger.info(f"[api_capability_generate_pdf] Generating PDF for: {formatted_data.get('company_name')}")
+        app.logger.info(f"[api_capability_generate_pdf] Formatted data: {formatted_data}")
         
-        # Generate PDF
+        # Generate PDF using the same create_pdf function as the legacy route
         output_dir = app.config.get('PDF_FOLDER', 'static/uploads')
         os.makedirs(output_dir, exist_ok=True)
         output_path = os.path.join(output_dir, f'capability_statement_{local_id}.pdf')
@@ -6291,7 +6308,7 @@ def api_capability_generate_pdf():
         
         app.logger.info(f"[api_capability_generate_pdf] PDF generated: {output_path}")
         
-        # Return the PDF file for download
+        # Return the PDF file for download (direct download, no redirect to preview)
         return send_file(
             output_path,
             mimetype='application/pdf',
