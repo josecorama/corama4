@@ -3,15 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { Upload, Save, RotateCcw, Trash2, Check } from 'lucide-react'
-import { api } from '../services/api'
+import { api, CapabilityStatementData } from '../services/api'
 
 interface ImportResult {
   success: boolean
-  message: string
-  data?: {
-    companyName?: string
-    capabilityStatement?: string
-  }
+  error?: string
+  data?: CapabilityStatementData
 }
 
 interface ColorPreset {
@@ -103,6 +100,37 @@ const CapabilityBuilder = () => {
     }
   }
 
+  // Helper function to convert array to newline-separated string
+  const arrayToString = (arr?: string[]): string => {
+    if (!arr || arr.length === 0) return ''
+    return arr.join('\n')
+  }
+
+  // Helper function to map imported data to form fields
+  const mapImportedDataToForm = (data: CapabilityStatementData) => {
+    setFormData(prev => ({
+      ...prev,
+      companyName: data.companyName || prev.companyName,
+      website: data.website || prev.website,
+      contactName: data.contactName || prev.contactName,
+      title: data.contactTitle || prev.title,
+      phone: data.phone || prev.phone,
+      email: data.email || prev.email,
+      address: data.address || prev.address,
+      city: data.city || prev.city,
+      state: data.state || prev.state,
+      zipCode: data.zipCode || prev.zipCode,
+      companyDescription: data.companyDescription || prev.companyDescription,
+      industryFocus: data.industryFocus || prev.industryFocus,
+      ueiCode: data.ueiCode || prev.ueiCode,
+      cageCode: data.cageCode || prev.cageCode,
+      coreCompetencies: arrayToString(data.competencies) || prev.coreCompetencies,
+      keyDifferentiators: arrayToString(data.differentiators) || prev.keyDifferentiators,
+      naicsCodes: arrayToString(data.naicsCodes) || prev.naicsCodes,
+      certifications: arrayToString(data.certifications) || prev.certifications,
+    }))
+  }
+
   const handleImportFile = async () => {
     if (!selectedFile) {
       setUploadError('Please select a file first')
@@ -114,20 +142,14 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromFile(selectedFile)
-      if (result.success) {
-        if (result.data) {
-          setFormData(prev => ({
-            ...prev,
-            companyName: result.data?.companyName || prev.companyName,
-            companyDescription: result.data?.capabilityStatement || prev.companyDescription,
-          }))
-        }
+      if (result.success && result.data) {
+        mapImportedDataToForm(result.data)
         setSelectedFile(null)
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
       } else {
-        setUploadError(result.message || 'Upload failed')
+        setUploadError(result.error || 'Upload failed')
       }
     } catch (error) {
       setUploadError('Failed to upload file. Please try again.')
@@ -147,17 +169,11 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
-      if (result.success) {
-        if (result.data) {
-          setFormData(prev => ({
-            ...prev,
-            companyName: result.data?.companyName || prev.companyName,
-            companyDescription: result.data?.capabilityStatement || prev.companyDescription,
-          }))
-        }
+      if (result.success && result.data) {
+        mapImportedDataToForm(result.data)
         setImportUrl('')
       } else {
-        setUploadError(result.message || 'URL import failed')
+        setUploadError(result.error || 'URL import failed')
       }
     } catch (error) {
       setUploadError('Failed to import from URL. Please try again.')
@@ -192,46 +208,67 @@ const CapabilityBuilder = () => {
     setIsDragOver(false)
   }, [])
 
+  // Helper function to convert newline-separated string to array
+  const stringToArray = (str: string): string[] => {
+    if (!str || str.trim() === '') return []
+    return str.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+  }
+
   const handleGeneratePdf = async () => {
     setGeneratingPdf(true)
     try {
-      const response = await fetch('/api/capability/generate_pdf', {
+      // Build FormData for /generate-enhanced-pdf endpoint
+      const pdfFormData = new FormData()
+      
+      // Scalar fields
+      pdfFormData.append('companyName', formData.companyName || '')
+      pdfFormData.append('ueiCode', formData.ueiCode || '')
+      pdfFormData.append('cageCode', formData.cageCode || '')
+      pdfFormData.append('contactName', formData.contactName || '')
+      pdfFormData.append('contactTitle', formData.title || '')
+      pdfFormData.append('phone', formData.phone || '')
+      pdfFormData.append('email', formData.email || '')
+      pdfFormData.append('address', formData.address || '')
+      pdfFormData.append('city', formData.city || '')
+      pdfFormData.append('state', formData.state || '')
+      pdfFormData.append('zipCode', formData.zipCode || '')
+      pdfFormData.append('website', formData.website || '')
+      pdfFormData.append('companyDescription', formData.companyDescription || '')
+      pdfFormData.append('primaryColor', formData.primaryColor || '#2E4C8B')
+      pdfFormData.append('secondaryColor', formData.secondaryColor || '#A8D5E2')
+      
+      // Array fields as JSON strings
+      pdfFormData.append('competencies', JSON.stringify(stringToArray(formData.coreCompetencies)))
+      pdfFormData.append('differentiators', JSON.stringify(stringToArray(formData.keyDifferentiators)))
+      pdfFormData.append('naicsCodes', JSON.stringify(stringToArray(formData.naicsCodes)))
+      pdfFormData.append('certifications', JSON.stringify(stringToArray(formData.certifications)))
+      
+      // File uploads (if available)
+      if (logoFile) {
+        pdfFormData.append('logoFile', logoFile)
+      }
+      if (imagesFile) {
+        pdfFormData.append('imageFile', imagesFile)
+      }
+      
+      // Make request to /generate-enhanced-pdf endpoint
+      // Note: Do NOT set Content-Type header - browser will set it with boundary for multipart/form-data
+      const response = await fetch('/generate-enhanced-pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: formData.companyName,
-          companyDescription: formData.companyDescription,
-          website: formData.website,
-          contactName: formData.contactName,
-          title: formData.title,
-          phone: formData.phone,
-          email: formData.email,
-          address: formData.address,
-          city: formData.city,
-          state: formData.state,
-          zipCode: formData.zipCode,
-          industryFocus: formData.industryFocus,
-          coreCompetencies: formData.coreCompetencies,
-          keyDifferentiators: formData.keyDifferentiators,
-          ueiCode: formData.ueiCode,
-          cageCode: formData.cageCode,
-          naicsCodes: formData.naicsCodes,
-          certifications: formData.certifications,
-          primaryColor: formData.primaryColor,
-          secondaryColor: formData.secondaryColor,
-        }),
+        body: pdfFormData
       })
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || 'PDF generation failed')
+        throw new Error(errorData.error || 'PDF generation failed')
       }
       
+      // Handle binary PDF response
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'Capability_Statement.pdf'
+      a.download = `${formData.companyName || 'Company'}_Capability_Statement.pdf`
       document.body.appendChild(a)
       a.click()
       a.remove()

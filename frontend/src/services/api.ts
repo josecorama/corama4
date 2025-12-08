@@ -80,6 +80,28 @@ export interface DirectoryProfile {
   listed: boolean;
 }
 
+export interface CapabilityStatementData {
+  companyName?: string;
+  website?: string;
+  contactName?: string;
+  contactTitle?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  companyDescription?: string;
+  industryFocus?: string;
+  ueiCode?: string;
+  cageCode?: string;
+  competencies?: string[];
+  differentiators?: string[];
+  naicsCodes?: string[];
+  certifications?: string[];
+  pastPerformance?: string[];
+}
+
 class ApiService {
   // User
   async getUser(): Promise<User> {
@@ -182,21 +204,22 @@ class ApiService {
     return res.json();
   }
 
-  // Import Capability Statement from File
-  async importCapabilityFromFile(file: File): Promise<{success: boolean, message: string, data?: {companyName?: string, capabilityStatement?: string}}> {
+  // Import Capability Statement from File (uses /process-capability-statement endpoint)
+  async importCapabilityFromFile(file: File): Promise<{success: boolean, error?: string, data?: CapabilityStatementData}> {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('capabilityFile', file);
 
-    const res = await fetch('/api/capability/import_file', {
+    const res = await fetch('/process-capability-statement', {
       method: 'POST',
       body: formData
     });
     return res.json();
   }
 
-  // Import Capability Statement from URL
-  async importCapabilityFromUrl(url: string): Promise<{success: boolean, message: string, data?: {companyName?: string, capabilityStatement?: string}}> {
-    const res = await fetch('/api/capability/import_url', {
+  // Import Capability Statement from URL (uses /process-capability-statement endpoint)
+  // This extracts data from web pages (HTML scraping), not expecting PDFs
+  async importCapabilityFromUrl(url: string): Promise<{success: boolean, error?: string, data?: CapabilityStatementData}> {
+    const res = await fetch('/process-capability-statement', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
