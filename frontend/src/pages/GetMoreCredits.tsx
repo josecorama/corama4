@@ -37,14 +37,21 @@ const GetMoreCredits = () => {
       
       // Transform API packages to component format
       if (data.packages && data.packages.length > 0) {
-        const packs: CreditPack[] = data.packages.map((pkg: CreditPackage, index: number) => ({
-          credits: pkg.credits,
-          name: pkg.description || `${pkg.credits} Credits`,
-          priceCents: pkg.price, // Keep cents for backend
-          displayPrice: pkg.price / 100, // Convert to dollars for display
-          description: pkg.description || 'Credit package',
-          highlighted: index === 2 // Highlight the third package
-        }))
+        const packs: CreditPack[] = data.packages.map((pkg: CreditPackage, index: number) => {
+          // Parse description which contains "Pack Name - Description"
+          const descParts = (pkg.description || '').split(' - ')
+          const packName = descParts[0] || `${pkg.credits} Credits`
+          const packDescription = descParts[1] || 'Credit package'
+          
+          return {
+            credits: pkg.credits,
+            name: packName,
+            priceCents: pkg.price, // Keep cents for backend
+            displayPrice: pkg.price / 100, // Convert to dollars for display
+            description: packDescription,
+            highlighted: index === 2 // Highlight the third package
+          }
+        })
         setCreditPacks(packs)
       }else {
         // Default packages if API doesn't return any
