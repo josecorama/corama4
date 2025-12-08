@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Upload, Save, RotateCcw, Trash2, Check, Link } from 'lucide-react'
+import { Upload, Save, RotateCcw, Trash2, Check } from 'lucide-react'
 import { api, CapabilityStatementData } from '../services/api'
 
 interface ImportResult {
@@ -429,7 +429,7 @@ const CapabilityBuilder = () => {
                     {importingUrl ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
-                      <Link size={20} className="text-white" />
+                      <img src="/static/app/dashboard/ImportURL.svg" alt="" className="w-5 h-5" />
                     )}
                   </button>
                 </div>

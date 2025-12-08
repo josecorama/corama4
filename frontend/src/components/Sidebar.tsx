@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X, ArrowLeft } from 'lucide-react'
+import { Menu, X } from 'lucide-react'
 
 interface SidebarProps {
   mobileOpen?: boolean
@@ -146,7 +146,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                       background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)'
                     }}
                   >
-                    <ArrowLeft size={20} className="text-white" />
+                    <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />
                     <span className="font-poppins text-sm">Go Back</span>
                   </button>
                 )}
