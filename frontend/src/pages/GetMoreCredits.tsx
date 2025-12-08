@@ -148,8 +148,10 @@ const GetMoreCredits = () => {
                   <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400 group-hover:text-gray-600 text-center">
                     {pack.credits} Credits
                   </p>
-                  <div className="inline-block px-3 sm:px-4 py-1 rounded-full mb-3 sm:mb-4 border border-corama-teal/30 text-corama-teal group-hover:bg-corama-teal/20 group-hover:border-corama-teal/50 transition-all self-start">
-                    <span className="font-poppins font-semibold text-sm sm:text-base">{pack.name}</span>
+                  <div className="flex justify-center mb-3 sm:mb-4">
+                    <div className="inline-block px-3 sm:px-4 py-1 rounded-full border border-corama-teal/30 text-corama-teal group-hover:bg-corama-teal/20 group-hover:border-corama-teal/50 transition-all">
+                      <span className="font-poppins font-semibold text-sm sm:text-base">{pack.name}</span>
+                    </div>
                   </div>
                   <div className="mb-3 sm:mb-4 flex flex-col items-center">
                     <div>
@@ -160,7 +162,7 @@ const GetMoreCredits = () => {
                     </div>
                     <span className="text-xs sm:text-sm text-gray-400 group-hover:text-gray-600 mt-1">/each</span>
                   </div>
-                  <p className="font-poppins text-xs sm:text-sm mb-4 sm:mb-6 text-gray-400 group-hover:text-gray-600 flex-grow">
+                  <p className="font-poppins text-xs sm:text-sm mb-4 sm:mb-6 text-gray-400 group-hover:text-gray-600 flex-grow text-center">
                     {pack.description}
                   </p>
                   <button
@@ -178,8 +180,8 @@ const GetMoreCredits = () => {
             <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6">How Credits Work</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {creditFeatures.map((feature, index) => (
-                <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6 text-center`}>
-                  <div className="mb-3 sm:mb-4 flex justify-center">
+                <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6`}>
+                  <div className="mb-3 sm:mb-4">
                     <img src={feature.icon} alt="" className="w-10 h-10" aria-hidden="true" />
                   </div>
                   <h3 style={{ color: feature.textColor }} className="font-poppins font-bold text-base sm:text-lg mb-2 sm:mb-3">{feature.title}</h3>
