@@ -18,6 +18,7 @@ interface CreditFeature {
   description: string
   credits: number
   bgColor: string
+  textColor: string
 }
 
 const GetMoreCredits = () => {
@@ -98,13 +99,15 @@ const GetMoreCredits = () => {
       description: 'Get instant answers to your questions about government contracting, procurement processes, and general guidance.',
       credits: 1,
       bgColor: 'bg-[#D9D9D9]',
+      textColor: '#1C4262',
     },
     {
       icon: '/static/app/dashboard/ComplianceCheck.svg',
       title: 'Compliance Check',
       description: 'Deep analysis of contract opportunities to identify key requirements, evaluation criteria, and match them against your capabilities.',
       credits: 2,
-      bgColor: 'bg-[#4A7A7C]',
+      bgColor: 'bg-[#2F3C4F]',
+      textColor: '#DDFFFF',
     },
     {
       icon: '/static/app/dashboard/ContractAnalysis.svg',
@@ -112,13 +115,15 @@ const GetMoreCredits = () => {
       description: 'Verify that your capability statement or proposal meets all necessary compliance requirements for government contracting.',
       credits: 3,
       bgColor: 'bg-[#D9D9D9]',
+      textColor: '#1C4262',
     },
     {
       icon: '/static/app/dashboard/FullProposal.svg',
       title: 'Full Proposal',
       description: 'Generate a comprehensive, professionally formatted proposal document tailored to a specific contract opportunity.',
       credits: 15,
-      bgColor: 'bg-[#4A8A8C]',
+      bgColor: 'bg-[#2F3C4F]',
+      textColor: '#DDFFFF',
     },
   ]
 
@@ -177,9 +182,9 @@ const GetMoreCredits = () => {
                   <div className="mb-3 sm:mb-4">
                     <img src={feature.icon} alt="" className="w-10 h-10" aria-hidden="true" />
                   </div>
-                  <h3 className="text-[#1C4262] font-poppins font-bold text-base sm:text-lg mb-2 sm:mb-3">{feature.title}</h3>
-                  <p className="text-[#1C4262]/80 font-poppins text-xs sm:text-sm mb-3 sm:mb-4">{feature.description}</p>
-                  <p className="text-[#1C4262] font-poppins font-bold text-sm sm:text-base">{feature.credits} Credit{feature.credits > 1 ? 's' : ''}.</p>
+                  <h3 style={{ color: feature.textColor }} className="font-poppins font-bold text-base sm:text-lg mb-2 sm:mb-3">{feature.title}</h3>
+                  <p style={{ color: feature.textColor, opacity: 0.8 }} className="font-poppins text-xs sm:text-sm mb-3 sm:mb-4">{feature.description}</p>
+                  <p style={{ color: feature.textColor }} className="font-poppins font-bold text-sm sm:text-base">{feature.credits} Credit{feature.credits > 1 ? 's' : ''}.</p>
                 </div>
               ))}
             </div>
