@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Calendar, Briefcase } from 'lucide-react'
+import { Briefcase } from 'lucide-react'
 import { api, DirectoryCompany } from '../services/api'
 
 interface Company {
@@ -124,7 +124,7 @@ const CoramaDirectory = () => {
                   {/* Company Logo and Stats Column */}
                   <div className="flex flex-col items-center sm:items-start">
                     {/* Company Logo */}
-                    <div className="w-40 h-40 sm:w-44 sm:h-44 lg:w-48 lg:h-48 bg-gray-300 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center border-2 border-corama-teal/30">
+                    <div className="w-40 h-40 sm:w-44 sm:h-44 lg:w-48 lg:h-48 bg-white rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center border-2 border-corama-teal/30">
                       {company.logo ? (
                         <img src={company.logo} alt={`${company.name} logo`} className="w-full h-full object-contain" />
                       ) : (
@@ -138,7 +138,7 @@ const CoramaDirectory = () => {
                         <span>{company.employees}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
-                        <Calendar size={14} />
+                        <img src="/static/app/dashboard/YearsInBusiness.svg" alt="" className="w-4 h-4" aria-hidden="true" />
                         <span>{company.yearsInBusiness} years</span>
                       </div>
                     </div>
