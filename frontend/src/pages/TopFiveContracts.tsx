@@ -90,35 +90,33 @@ const TopFiveContracts = () => {
             ) : (
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
-                <div key={contract.rank} className="card-gradient rounded-2xl p-4 sm:p-5 lg:p-6">
+                <div key={contract.rank} className="card-gradient rounded-2xl p-4 sm:p-5 lg:p-6 relative">
+                  {/* Match badge - absolute positioned at top right */}
+                  <div className="absolute top-4 right-4 lg:top-6 lg:right-6">
+                    <span className="bg-white text-corama-dark font-poppins text-sm font-bold px-4 py-1.5 rounded-full">
+                      {Number.isFinite(contract.matchPercentage) ? `${contract.matchPercentage}% Match` : 'Match Pending'}
+                    </span>
+                  </div>
+
                   <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
-                    {/* Left side: Rank circle with stars */}
-                    <div className="flex lg:flex-col items-center gap-3 lg:gap-0 w-full lg:w-auto">
-                      <div className="relative flex-shrink-0">
-                        <img src={CircleIcon} alt="" className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32" />
-                        <span className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl lg:text-5xl font-bold text-white" style={{ paddingTop: '4px' }}>
+                    {/* Left column: Rank circle with stars */}
+                    <div className="flex lg:flex-col items-center gap-3 lg:gap-2 flex-shrink-0">
+                      <div className="relative">
+                        <img src={CircleIcon} alt="" className="w-28 h-28 lg:w-36 lg:h-36" />
+                        <span className="absolute inset-0 flex items-center justify-center text-4xl lg:text-5xl font-bold text-white" style={{ paddingTop: '4px' }}>
                           {contract.rank}
                         </span>
                       </div>
-                      <img src={StarsIcon} alt="" className="w-16 sm:w-20 lg:w-24 lg:-mt-2" />
-                      {/* Mobile match percentage */}
-                      <span className="lg:hidden ml-auto bg-white text-corama-dark font-poppins text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full">
-                        {contract.matchPercentage}% Match
-                      </span>
+                      <img src={StarsIcon} alt="" className="w-20 lg:w-24" />
                     </div>
 
-                    {/* Middle: Contract Details */}
-                    <div className="flex-1 w-full">
-                      {/* State name and match badge row */}
-                      <div className="flex justify-between items-start mb-4 lg:mb-6">
-                        <h3 className="text-white font-poppins font-bold text-lg lg:text-xl">{contract.state}</h3>
-                        <span className="hidden lg:block bg-white text-corama-dark font-poppins text-sm font-bold px-4 py-1.5 rounded-full">
-                          {contract.matchPercentage}% Match
-                        </span>
-                      </div>
+                    {/* Middle column: Contract Details */}
+                    <div className="flex-1 w-full lg:pr-32">
+                      {/* State name */}
+                      <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
 
                       {/* Top row: Contract Value, Submission Deadline, Industry Sector */}
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 lg:gap-x-8 gap-y-4 mb-4 lg:mb-6">
+                      <div className="grid grid-cols-3 gap-x-6 lg:gap-x-10 mb-4">
                         <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Contract Value
@@ -131,7 +129,7 @@ const TopFiveContracts = () => {
                           </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-pre-line">{contract.submissionDeadline}</p>
                         </div>
-                        <div className="col-span-2 lg:col-span-1">
+                        <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Industry Sector
                           </span>
@@ -139,8 +137,8 @@ const TopFiveContracts = () => {
                         </div>
                       </div>
 
-                      {/* Bottom row: Name, Contracting Agency */}
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-4 lg:gap-x-8 gap-y-4">
+                      {/* Bottom row: Name, Contracting Agency, and Buttons */}
+                      <div className="grid grid-cols-3 gap-x-6 lg:gap-x-10">
                         <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Name
@@ -153,22 +151,21 @@ const TopFiveContracts = () => {
                           </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractingAgency}</p>
                         </div>
+                        {/* Action Buttons - aligned with bottom row */}
+                        <div className="flex flex-col gap-2 justify-start">
+                          <button 
+                            onClick={() => handleVisitSite(contract.detailLink)}
+                            className="flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                          >
+                            Contract Website
+                            <img src={ContractSiteIcon} alt="" className="w-5 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
+                          </button>
+                          <button className="flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
+                            Ask AI About This
+                            <img src={AskAIIcon} alt="" className="w-6 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-
-                    {/* Right side: Action Buttons */}
-                    <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-auto lg:items-end">
-                      <button 
-                        onClick={() => handleVisitSite(contract.detailLink)}
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
-                      >
-                        Contract Website
-                        <img src={ContractSiteIcon} alt="" className="w-5 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
-                      </button>
-                      <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
-                        Ask AI About This
-                        <img src={AskAIIcon} alt="" className="w-6 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
-                      </button>
                     </div>
                   </div>
                 </div>
