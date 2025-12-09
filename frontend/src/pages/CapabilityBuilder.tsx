@@ -94,7 +94,6 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
               className="flex items-center justify-between rounded-full px-4 py-1 text-xs text-white"
               style={{
                 background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
-                mixBlendMode: 'overlay',
               }}
             >
               <span className="truncate mr-2 font-poppins">{tag}</span>
