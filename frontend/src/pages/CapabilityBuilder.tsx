@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Save, RotateCcw, Trash2, Check } from 'lucide-react'
+import { Check } from 'lucide-react'
 import { api, CapabilityStatementData } from '../services/api'
 
 interface ImportResult {
@@ -604,7 +604,7 @@ const CapabilityBuilder = () => {
                   onClick={() => logoInputRef.current?.click()}
                   className="bg-white border-2 border-[#1C4262] rounded-xl p-6 sm:p-8 lg:p-10 text-center mb-4 sm:mb-6 cursor-pointer hover:border-[#0f2d42] transition-colors"
                 >
-                  <img src="/static/app/dashboard/AddFile.svg" alt="" className="mx-auto mb-2 w-10 h-10 sm:w-12 sm:h-12" />
+                  <img src="/static/app/dashboard/AddFile.svg" alt="" className="mx-auto mb-2 w-8 h-8 sm:w-9 sm:h-9" />
                   <p className="text-[#1C4262] font-poppins font-bold text-sm sm:text-base">
                     {logoFile ? logoFile.name : 'Add your file'}
                   </p>
@@ -621,7 +621,7 @@ const CapabilityBuilder = () => {
                   onClick={() => imagesInputRef.current?.click()}
                   className="bg-white border-2 border-[#1C4262] rounded-xl p-6 sm:p-8 lg:p-10 text-center cursor-pointer hover:border-[#0f2d42] transition-colors"
                 >
-                  <img src="/static/app/dashboard/AddFile.svg" alt="" className="mx-auto mb-2 w-10 h-10 sm:w-12 sm:h-12" />
+                  <img src="/static/app/dashboard/AddFile.svg" alt="" className="mx-auto mb-2 w-8 h-8 sm:w-9 sm:h-9" />
                   <p className="text-[#1C4262] font-poppins font-bold text-sm sm:text-base">
                     {imagesFile ? imagesFile.name : 'Add your file'}
                   </p>
@@ -752,34 +752,96 @@ const CapabilityBuilder = () => {
 
             {/* Right Column - Preview & Actions */}
             <div className="space-y-4 lg:space-y-6">
-              {/* Action Buttons */}
-              <div className="flex justify-center gap-6 sm:gap-8 mb-3 sm:mb-4">
-                <button 
-                  onClick={handleSave}
-                  className="text-gray-400 hover:text-white transition-colors"
-                  title="Save"
-                >
-                  <Save size={20} className="sm:w-6 sm:h-6" />
-                </button>
-                <button 
-                  onClick={handleReset}
-                  className="text-gray-400 hover:text-white transition-colors"
-                  title="Reset"
-                >
-                  <RotateCcw size={20} className="sm:w-6 sm:h-6" />
-                </button>
-                <button 
-                  onClick={handleClear}
-                  className="text-gray-400 hover:text-white transition-colors"
-                  title="Clear"
-                >
-                  <Trash2 size={20} className="sm:w-6 sm:h-6" />
-                </button>
-              </div>
-
-              {/* Preview Area */}
-              <div className="card-gradient rounded-xl p-4 sm:p-6 min-h-48 sm:min-h-64 lg:min-h-96 bg-white">
-                <p className="text-gray-400 text-center text-sm sm:text-base">Preview will appear here</p>
+              {/* Preview Area with Toolbar */}
+              <div className="rounded-xl border-2 border-[#1C4262] overflow-hidden">
+                {/* Toolbar Header */}
+                <div className="bg-[#2A3F54] flex justify-around items-center px-4 py-3 rounded-t-lg">
+                  <button 
+                    onClick={handleSave}
+                    className="hover:opacity-80 transition-opacity"
+                    title="Save"
+                  >
+                    <img src="/static/app/dashboard/SaveIcon.svg" alt="Save" className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </button>
+                  <button 
+                    onClick={handleReset}
+                    className="hover:opacity-80 transition-opacity"
+                    title="Reload"
+                  >
+                    <img src="/static/app/dashboard/Reload.svg" alt="Reload" className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </button>
+                  <button 
+                    onClick={handleClear}
+                    className="hover:opacity-80 transition-opacity"
+                    title="Load"
+                  >
+                    <img src="/static/app/dashboard/Load.svg" alt="Load" className="w-6 h-6 sm:w-7 sm:h-7" />
+                  </button>
+                </div>
+                
+                {/* Preview Content Area */}
+                <div className="bg-white min-h-48 sm:min-h-64 lg:min-h-96 p-4 overflow-auto">
+                  {formData.companyName || formData.coreCompetencies || formData.companyDescription ? (
+                    <div className="text-sm text-gray-800 space-y-4">
+                      {formData.companyName && (
+                        <div className="text-center">
+                          <h2 className="text-xl font-bold text-[#1C4262]">{formData.companyName}</h2>
+                          {formData.website && <p className="text-gray-600 text-xs">{formData.website}</p>}
+                        </div>
+                      )}
+                      {(formData.contactName || formData.phone || formData.email) && (
+                        <div className="text-center text-xs text-gray-600">
+                          {formData.contactName && <span>{formData.contactName}</span>}
+                          {formData.title && <span> - {formData.title}</span>}
+                          {formData.phone && <span> | {formData.phone}</span>}
+                          {formData.email && <span> | {formData.email}</span>}
+                        </div>
+                      )}
+                      {(formData.address || formData.city || formData.state) && (
+                        <div className="text-center text-xs text-gray-600">
+                          {formData.address && <span>{formData.address}, </span>}
+                          {formData.city && <span>{formData.city}, </span>}
+                          {formData.state && <span>{formData.state} </span>}
+                          {formData.zipCode && <span>{formData.zipCode}</span>}
+                        </div>
+                      )}
+                      {formData.coreCompetencies && (
+                        <div>
+                          <h3 className="font-bold text-[#1C4262] text-sm mb-1">Core Competencies</h3>
+                          <p className="text-xs">{formData.coreCompetencies}</p>
+                        </div>
+                      )}
+                      {formData.companyDescription && (
+                        <div>
+                          <h3 className="font-bold text-[#1C4262] text-sm mb-1">About Us</h3>
+                          <p className="text-xs">{formData.companyDescription}</p>
+                        </div>
+                      )}
+                      {formData.keyDifferentiators && (
+                        <div>
+                          <h3 className="font-bold text-[#1C4262] text-sm mb-1">Differentiators</h3>
+                          <p className="text-xs">{formData.keyDifferentiators}</p>
+                        </div>
+                      )}
+                      {(formData.naicsCodes || formData.certifications) && (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          {formData.naicsCodes && (
+                            <div>
+                              <span className="font-bold text-[#1C4262]">NAICS:</span> {formData.naicsCodes}
+                            </div>
+                          )}
+                          {formData.certifications && (
+                            <div>
+                              <span className="font-bold text-[#1C4262]">Certifications:</span> {formData.certifications}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-center text-sm sm:text-base pt-8">Preview will appear here</p>
+                  )}
+                </div>
               </div>
 
               {/* Generate PDF Button */}
