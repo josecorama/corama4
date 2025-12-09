@@ -99,9 +99,11 @@ const CapabilityBuilder = () => {
   )
 
   const stepsCompleted = [section1HasData, section2HasData, section3HasData]
-  const [isDragOver, setIsDragOver] = useState(false)
-  const [importingUrl, setImportingUrl] = useState(false)
-  const [generatingPdf, setGeneratingPdf] = useState(false)
+    const [isDragOver, setIsDragOver] = useState(false)
+    const [importingUrl, setImportingUrl] = useState(false)
+    const [generatingPdf, setGeneratingPdf] = useState(false)
+    const [activeColorField, setActiveColorField] = useState<'primary' | 'secondary'>('primary')
+    const [selectedHue, setSelectedHue] = useState(240) // Default blue hue
 
     const colorPresets: ColorPreset[] = [
       { primary: '#804fd5', secondary: '#a77de8', bgClass: '' },
@@ -745,110 +747,156 @@ const CapabilityBuilder = () => {
                             </div>
                           </div>
 
-                                                    {/* Color Scheme */}
-                                                    <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
-                                                      <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Color Scheme</h2>
+                                                                                                        {/* Color Scheme */}
+                                                                              <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
+                                                                                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Color Scheme</h2>
                             
-                                                      {/* Color Gradient Picker */}
-                                                      <div className="mb-6 rounded-lg overflow-hidden">
-                                                        <div 
-                                                          className="h-40 w-full rounded-t-lg relative cursor-crosshair"
-                                                          style={{
-                                                            background: `linear-gradient(to bottom, transparent, black), linear-gradient(to right, white, ${formData.primaryColor || '#4F46E5'})`,
-                                                            backgroundColor: formData.primaryColor || '#4F46E5'
-                                                          }}
-                                                                                                                    onClick={() => {
-                                                                                                                      // Color picker interaction - visual only for now
-                                                                                                                    }}
-                                                        >
-                                                          <div 
-                                                            className="absolute w-4 h-4 border-2 border-white rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
-                                                            style={{ left: '70%', top: '30%' }}
-                                                          />
-                                                        </div>
-                                                        {/* Hue Slider */}
-                                                        <div className="h-4 w-full relative">
-                                                          <div 
-                                                            className="h-full w-full"
-                                                            style={{
-                                                              background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)'
-                                                            }}
-                                                          />
-                                                          <div 
-                                                            className="absolute w-3 h-6 border-2 border-white rounded-sm transform -translate-x-1/2 -translate-y-1/4 pointer-events-none"
-                                                            style={{ left: '70%', top: '0' }}
-                                                          />
-                                                        </div>
-                                                      </div>
+                                                                                {/* Color Gradient Picker */}
+                                                                                <div className="mb-6 rounded-lg overflow-hidden">
+                                                                                  <div 
+                                                                                    className="h-40 w-full rounded-t-lg relative cursor-crosshair"
+                                                                                    style={{
+                                                                                      background: `linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1)), linear-gradient(to right, rgba(255,255,255,1), hsl(${selectedHue}, 100%, 50%))`,
+                                                                                    }}
+                                                                                    onClick={(e) => {
+                                                                                      const rect = e.currentTarget.getBoundingClientRect();
+                                                                                      const x = (e.clientX - rect.left) / rect.width;
+                                                                                      const y = (e.clientY - rect.top) / rect.height;
+                                                                                      const saturation = Math.round(x * 100);
+                                                                                      const lightness = Math.round((1 - y) * 50);
+                                                                                      const color = `hsl(${selectedHue}, ${saturation}%, ${lightness + 25}%)`;
+                                                                                      // Convert HSL to hex
+                                                                                      const tempDiv = document.createElement('div');
+                                                                                      tempDiv.style.color = color;
+                                                                                      document.body.appendChild(tempDiv);
+                                                                                      const computedColor = getComputedStyle(tempDiv).color;
+                                                                                      document.body.removeChild(tempDiv);
+                                                                                      const rgb = computedColor.match(/\d+/g);
+                                                                                      if (rgb) {
+                                                                                        const hex = '#' + rgb.map(x => parseInt(x).toString(16).padStart(2, '0')).join('');
+                                                                                        handleInputChange(activeColorField === 'primary' ? 'primaryColor' : 'secondaryColor', hex);
+                                                                                      }
+                                                                                    }}
+                                                                                  >
+                                                                                    <div 
+                                                                                      className="absolute w-4 h-4 border-2 border-white rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none shadow-lg"
+                                                                                      style={{ left: '70%', top: '30%' }}
+                                                                                    />
+                                                                                  </div>
+                                                                                  {/* Hue Slider */}
+                                                                                  <div 
+                                                                                    className="h-4 w-full relative cursor-pointer"
+                                                                                    onClick={(e) => {
+                                                                                      const rect = e.currentTarget.getBoundingClientRect();
+                                                                                      const x = (e.clientX - rect.left) / rect.width;
+                                                                                      setSelectedHue(Math.round(x * 360));
+                                                                                    }}
+                                                                                  >
+                                                                                    <div 
+                                                                                      className="h-full w-full"
+                                                                                      style={{
+                                                                                        background: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)'
+                                                                                      }}
+                                                                                    />
+                                                                                    <div 
+                                                                                      className="absolute w-3 h-6 border-2 border-white rounded-sm transform -translate-x-1/2 -translate-y-1/4 pointer-events-none shadow-lg"
+                                                                                      style={{ left: `${(selectedHue / 360) * 100}%`, top: '0' }}
+                                                                                    />
+                                                                                  </div>
+                                                                                  {/* Opacity Slider */}
+                                                                                  <div 
+                                                                                    className="h-4 w-full relative cursor-pointer mt-1"
+                                                                                    style={{
+                                                                                      background: `linear-gradient(to right, transparent, ${activeColorField === 'primary' ? formData.primaryColor : formData.secondaryColor}), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='8' height='8' fill='%23ccc'/%3E%3Crect x='8' y='8' width='8' height='8' fill='%23ccc'/%3E%3C/svg%3E")`
+                                                                                    }}
+                                                                                  >
+                                                                                    <div 
+                                                                                      className="absolute w-3 h-6 border-2 border-white rounded-sm transform -translate-x-1/2 -translate-y-1/4 pointer-events-none shadow-lg"
+                                                                                      style={{ left: '100%', top: '0' }}
+                                                                                    />
+                                                                                  </div>
+                                                                                </div>
 
-                                                      {/* Primary Color Section */}
-                                                      <div className="mb-6">
-                                                        <label className="text-white font-poppins text-sm mb-2 block">Primary Color (Headers/Accents)</label>
-                                                        <div className="bg-white rounded-lg p-3 mb-3">
-                                                          <div className="flex items-center gap-2">
-                                                            <span className="text-gray-500">#</span>
-                                                            <input
-                                                              type="text"
-                                                              value={formData.primaryColor.replace('#', '').toUpperCase()}
-                                                              onChange={(e) => handleInputChange('primaryColor', '#' + e.target.value.replace('#', ''))}
-                                                              className="flex-1 bg-transparent text-gray-900 focus:outline-none font-mono"
-                                                              maxLength={6}
-                                                            />
-                                                          </div>
-                                                        </div>
-                                                        <div className="bg-white rounded-lg p-3">
-                                                          <div className="flex justify-between items-center mb-2">
-                                                            <span className="text-gray-700 text-sm font-medium">Presets</span>
-                                                            <button type="button" className="text-blue-500 text-sm hover:text-blue-600">+ Add</button>
-                                                          </div>
-                                                          <div className="grid grid-cols-7 gap-2">
-                                                            {colorPresets.map((preset, index) => (
-                                                              <button
-                                                                key={`primary-${index}`}
-                                                                type="button"
-                                                                onClick={() => handleInputChange('primaryColor', preset.primary)}
-                                                                className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.primaryColor === preset.primary ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
-                                                                style={{ backgroundColor: preset.primary }}
-                                                              />
-                                                            ))}
-                                                          </div>
-                                                        </div>
-                                                      </div>
+                                                                                {/* Primary Color Section */}
+                                                                                <div className="mb-6">
+                                                                                  <label className="text-white font-poppins text-sm mb-2 block">Primary Color (Headers/Accents)</label>
+                                                                                  <div 
+                                                                                    className={`bg-white rounded-lg p-3 mb-3 cursor-pointer ${activeColorField === 'primary' ? 'ring-2 ring-blue-500' : ''}`}
+                                                                                    onClick={() => setActiveColorField('primary')}
+                                                                                  >
+                                                                                    <div className="flex items-center gap-2">
+                                                                                      <span className="text-gray-500">#</span>
+                                                                                      <input
+                                                                                        type="text"
+                                                                                        value={formData.primaryColor.replace('#', '').toUpperCase()}
+                                                                                        onChange={(e) => handleInputChange('primaryColor', '#' + e.target.value.replace('#', ''))}
+                                                                                        onFocus={() => setActiveColorField('primary')}
+                                                                                        className="flex-1 bg-transparent text-gray-900 focus:outline-none font-mono"
+                                                                                        maxLength={6}
+                                                                                      />
+                                                                                    </div>
+                                                                                  </div>
+                                                                                  <div className="bg-white rounded-lg p-3">
+                                                                                    <div className="mb-2">
+                                                                                      <span className="text-gray-700 text-sm font-medium">Presets</span>
+                                                                                    </div>
+                                                                                    <div className="flex flex-wrap gap-2 justify-center">
+                                                                                      {colorPresets.map((preset, index) => (
+                                                                                        <button
+                                                                                          key={`primary-${index}`}
+                                                                                          type="button"
+                                                                                          onClick={() => {
+                                                                                            setActiveColorField('primary');
+                                                                                            handleInputChange('primaryColor', preset.primary);
+                                                                                          }}
+                                                                                          className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.primaryColor.toLowerCase() === preset.primary.toLowerCase() ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
+                                                                                          style={{ backgroundColor: preset.primary }}
+                                                                                        />
+                                                                                      ))}
+                                                                                    </div>
+                                                                                  </div>
+                                                                                </div>
 
-                                                      {/* Secondary Color Section */}
-                                                      <div>
-                                                        <label className="text-white font-poppins text-sm mb-2 block">Secondary Color (Sections/Backgrounds)</label>
-                                                        <div className="bg-white rounded-lg p-3 mb-3">
-                                                          <div className="flex items-center gap-2">
-                                                            <span className="text-gray-500">#</span>
-                                                            <input
-                                                              type="text"
-                                                              value={formData.secondaryColor.replace('#', '').toUpperCase()}
-                                                              onChange={(e) => handleInputChange('secondaryColor', '#' + e.target.value.replace('#', ''))}
-                                                              className="flex-1 bg-transparent text-gray-900 focus:outline-none font-mono"
-                                                              maxLength={6}
-                                                            />
-                                                          </div>
-                                                        </div>
-                                                        <div className="bg-white rounded-lg p-3">
-                                                          <div className="flex justify-between items-center mb-2">
-                                                            <span className="text-gray-700 text-sm font-medium">Presets</span>
-                                                            <button type="button" className="text-blue-500 text-sm hover:text-blue-600">+ Add</button>
-                                                          </div>
-                                                          <div className="grid grid-cols-7 gap-2">
-                                                            {colorPresets.map((preset, index) => (
-                                                              <button
-                                                                key={`secondary-${index}`}
-                                                                type="button"
-                                                                onClick={() => handleInputChange('secondaryColor', preset.secondary)}
-                                                                className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.secondaryColor === preset.secondary ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
-                                                                style={{ backgroundColor: preset.primary }}
-                                                              />
-                                                            ))}
-                                                          </div>
-                                                        </div>
-                                                      </div>
-                                                    </div>
+                                                                                {/* Secondary Color Section */}
+                                                                                <div>
+                                                                                  <label className="text-white font-poppins text-sm mb-2 block">Secondary Color (Sections/Backgrounds)</label>
+                                                                                  <div 
+                                                                                    className={`bg-white rounded-lg p-3 mb-3 cursor-pointer ${activeColorField === 'secondary' ? 'ring-2 ring-blue-500' : ''}`}
+                                                                                    onClick={() => setActiveColorField('secondary')}
+                                                                                  >
+                                                                                    <div className="flex items-center gap-2">
+                                                                                      <span className="text-gray-500">#</span>
+                                                                                      <input
+                                                                                        type="text"
+                                                                                        value={formData.secondaryColor.replace('#', '').toUpperCase()}
+                                                                                        onChange={(e) => handleInputChange('secondaryColor', '#' + e.target.value.replace('#', ''))}
+                                                                                        onFocus={() => setActiveColorField('secondary')}
+                                                                                        className="flex-1 bg-transparent text-gray-900 focus:outline-none font-mono"
+                                                                                        maxLength={6}
+                                                                                      />
+                                                                                    </div>
+                                                                                  </div>
+                                                                                  <div className="bg-white rounded-lg p-3">
+                                                                                    <div className="mb-2">
+                                                                                      <span className="text-gray-700 text-sm font-medium">Presets</span>
+                                                                                    </div>
+                                                                                    <div className="flex flex-wrap gap-2 justify-center">
+                                                                                      {colorPresets.map((preset, index) => (
+                                                                                        <button
+                                                                                          key={`secondary-${index}`}
+                                                                                          type="button"
+                                                                                          onClick={() => {
+                                                                                            setActiveColorField('secondary');
+                                                                                            handleInputChange('secondaryColor', preset.primary);
+                                                                                          }}
+                                                                                          className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.secondaryColor.toLowerCase() === preset.primary.toLowerCase() ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
+                                                                                          style={{ backgroundColor: preset.primary }}
+                                                                                        />
+                                                                                      ))}
+                                                                                    </div>
+                                                                                  </div>
+                                                                                </div>
+                                                                              </div>
                         </div>
 
                                                             {/* Right Column - Preview & Actions (sticky on desktop) */}
