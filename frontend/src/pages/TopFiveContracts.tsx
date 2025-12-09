@@ -2,8 +2,14 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Globe, MessageSquare, Star, Edit, Printer } from 'lucide-react'
+import { Edit, Printer } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
+
+// SVG asset paths for contract cards
+const CircleIcon = '/static/app/dashboard/Circle.svg'
+const StarsIcon = '/static/app/dashboard/Stars.svg'
+const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
+const AskAIIcon = '/static/app/dashboard/AskAI.svg'
 
 interface ContractMatch {
   rank: number
@@ -84,83 +90,84 @@ const TopFiveContracts = () => {
             ) : (
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
-                <div key={contract.rank} className="card-gradient rounded-xl p-3 sm:p-4 lg:p-6">
+                <div key={contract.rank} className="card-gradient rounded-2xl p-4 sm:p-5 lg:p-6">
                   <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
-                    {/* Rank Badge - Horizontal on mobile, vertical on desktop */}
+                    {/* Left side: Rank circle with stars */}
                     <div className="flex lg:flex-col items-center gap-3 lg:gap-0 w-full lg:w-auto">
-                      <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 rounded-full border-4 border-corama-teal flex items-center justify-center bg-corama-dark flex-shrink-0">
-                        <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-corama-teal">{contract.rank}</span>
+                      <div className="relative flex-shrink-0">
+                        <img src={CircleIcon} alt="" className="w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32" />
+                        <span className="absolute inset-0 flex items-center justify-center text-3xl sm:text-4xl lg:text-5xl font-bold text-white" style={{ paddingTop: '4px' }}>
+                          {contract.rank}
+                        </span>
                       </div>
-                      <div className="flex gap-1 lg:mt-2">
-                        {[1, 2, 3].map((star) => (
-                          <Star key={star} size={14} className="text-corama-teal fill-corama-teal" />
-                        ))}
-                      </div>
+                      <img src={StarsIcon} alt="" className="w-16 sm:w-20 lg:w-24 lg:-mt-2" />
                       {/* Mobile match percentage */}
-                      <span className="lg:hidden ml-auto bg-white text-corama-dark font-poppins text-xs sm:text-sm font-bold px-3 py-1 rounded-full">
+                      <span className="lg:hidden ml-auto bg-white text-corama-dark font-poppins text-xs sm:text-sm font-bold px-3 py-1.5 rounded-full">
                         {contract.matchPercentage}% Match
                       </span>
                     </div>
 
-                    {/* Contract Details */}
+                    {/* Middle: Contract Details */}
                     <div className="flex-1 w-full">
-                      <div className="hidden lg:flex justify-between items-start mb-4">
-                        <h3 className="text-white font-poppins font-bold text-lg">{contract.state}</h3>
-                        <span className="bg-white text-corama-dark font-poppins text-sm font-bold px-4 py-1 rounded-full">
+                      {/* State name and match badge row */}
+                      <div className="flex justify-between items-start mb-4 lg:mb-6">
+                        <h3 className="text-white font-poppins font-bold text-lg lg:text-xl">{contract.state}</h3>
+                        <span className="hidden lg:block bg-white text-corama-dark font-poppins text-sm font-bold px-4 py-1.5 rounded-full">
                           {contract.matchPercentage}% Match
                         </span>
                       </div>
-                    
-                      {/* Mobile state title */}
-                      <h3 className="lg:hidden text-white font-poppins font-bold text-base sm:text-lg mb-3">{contract.state}</h3>
 
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-4 mb-3 lg:mb-4">
+                      {/* Top row: Contract Value, Submission Deadline, Industry Sector */}
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-4 lg:gap-x-8 gap-y-4 mb-4 lg:mb-6">
                         <div>
-                          <span className="inline-block bg-corama-teal/20 text-corama-teal font-poppins text-xs px-2 py-1 rounded mb-1">
+                          <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Contract Value
                           </span>
-                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractValue}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-corama-teal/20 text-corama-teal font-poppins text-xs px-2 py-1 rounded mb-1">
-                            Deadline
+                          <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
+                            Submission Deadline
                           </span>
-                          <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-pre-line">{contract.submissionDeadline}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-pre-line">{contract.submissionDeadline}</p>
                         </div>
                         <div className="col-span-2 lg:col-span-1">
-                          <span className="inline-block bg-corama-teal/20 text-corama-teal font-poppins text-xs px-2 py-1 rounded mb-1">
+                          <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Industry Sector
                           </span>
-                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.industrySector}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.industrySector}</p>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 lg:gap-4">
+                      {/* Bottom row: Name, Contracting Agency */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-4 lg:gap-x-8 gap-y-4">
                         <div>
-                          <span className="inline-block bg-corama-teal/20 text-corama-teal font-poppins text-xs px-2 py-1 rounded mb-1">
+                          <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Name
                           </span>
-                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.name}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.name}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-corama-teal/20 text-corama-teal font-poppins text-xs px-2 py-1 rounded mb-1">
+                          <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Contracting Agency
                           </span>
-                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractingAgency}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractingAgency}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-auto">
+                    {/* Right side: Action Buttons */}
+                    <div className="flex flex-row lg:flex-col gap-2 w-full lg:w-auto lg:items-end">
                       <button 
                         onClick={() => handleVisitSite(contract.detailLink)}
-                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-xs sm:text-sm px-3 lg:px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
                       >
-                        <span className="hidden sm:inline">Contract</span> Website <Globe size={16} />
+                        Contract Website
+                        <img src={ContractSiteIcon} alt="" className="w-5 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
                       </button>
-                      <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-xs sm:text-sm px-3 lg:px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors">
-                        Ask AI <MessageSquare size={16} />
+                      <button className="flex-1 lg:flex-none flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
+                        Ask AI About This
+                        <img src={AskAIIcon} alt="" className="w-6 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
                       </button>
                     </div>
                   </div>
