@@ -448,7 +448,7 @@ const CapabilityBuilder = () => {
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Information</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Company Name</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Company Name</label>
                     <input
                       type="text"
                       value={formData.companyName}
@@ -457,7 +457,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Website</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Website</label>
                     <input
                       type="text"
                       value={formData.website}
@@ -466,7 +466,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Contact Name</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Contact Name</label>
                     <input
                       type="text"
                       value={formData.contactName}
@@ -475,7 +475,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Title</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Title</label>
                     <input
                       type="text"
                       value={formData.title}
@@ -484,7 +484,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Phone</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Phone</label>
                     <input
                       type="text"
                       value={formData.phone}
@@ -493,7 +493,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Email</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Email</label>
                     <input
                       type="email"
                       value={formData.email}
@@ -502,7 +502,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Address</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Address</label>
                     <input
                       type="text"
                       value={formData.address}
@@ -511,7 +511,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">City</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">City</label>
                     <input
                       type="text"
                       value={formData.city}
@@ -520,7 +520,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">State</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">State</label>
                     <input
                       type="text"
                       value={formData.state}
@@ -529,7 +529,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Zip Code</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Zip Code</label>
                     <input
                       type="text"
                       value={formData.zipCode}
@@ -545,7 +545,7 @@ const CapabilityBuilder = () => {
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Details</h2>
                 <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Industry Focus</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Industry Focus</label>
                     <select
                       value={formData.industryFocus}
                       onChange={(e) => handleInputChange('industryFocus', e.target.value)}
@@ -561,7 +561,7 @@ const CapabilityBuilder = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Core Competencies</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Core Competencies</label>
                     <input
                       type="text"
                       value={formData.coreCompetencies}
@@ -570,7 +570,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Key Differentiators</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Key Differentiators</label>
                     <input
                       type="text"
                       value={formData.keyDifferentiators}
@@ -579,7 +579,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Company Description</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Company Description</label>
                     <input
                       type="text"
                       value={formData.companyDescription}
@@ -633,7 +633,7 @@ const CapabilityBuilder = () => {
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Color Scheme</h2>
                 <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Primary Color (Headers/Accents)</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Primary Color (Headers/Accents)</label>
                     <div className="flex gap-2">
                       <div className="w-24 h-10 rounded" style={{ backgroundColor: formData.primaryColor }}></div>
                       <input
@@ -645,7 +645,7 @@ const CapabilityBuilder = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Secondary Color (Sections/Backgrounds)</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Secondary Color (Sections/Backgrounds)</label>
                     <div className="flex gap-2">
                       <div className="w-24 h-10 rounded" style={{ backgroundColor: formData.secondaryColor }}></div>
                       <input
@@ -657,7 +657,7 @@ const CapabilityBuilder = () => {
                     </div>
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Quick Color Presets</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Quick Color Presets</label>
                     <div className="flex gap-2">
                       {colorPresets.map((preset, index) => (
                         <button
@@ -677,7 +677,7 @@ const CapabilityBuilder = () => {
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Government Codes & Certifications</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">UEI Code</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">UEI Code</label>
                     <input
                       type="text"
                       value={formData.ueiCode}
@@ -686,7 +686,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">CAGE Code</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">CAGE Code</label>
                     <input
                       type="text"
                       value={formData.cageCode}
@@ -695,7 +695,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">NAICS Codes</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">NAICS Codes</label>
                     <input
                       type="text"
                       value={formData.naicsCodes}
@@ -704,7 +704,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Certifications</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Certifications</label>
                     <input
                       type="text"
                       value={formData.certifications}
@@ -720,7 +720,7 @@ const CapabilityBuilder = () => {
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Past Performance</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Client/Agency</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Client/Agency</label>
                     <input
                       type="text"
                       value={formData.clientAgency}
@@ -729,7 +729,7 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-gray-400 font-poppins text-sm mb-1 block">Contract Value</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">Contract Value</label>
                     <input
                       type="text"
                       value={formData.contractValue}
@@ -739,7 +739,7 @@ const CapabilityBuilder = () => {
                   </div>
                 </div>
                 <div className="mt-4">
-                  <label className="text-gray-400 font-poppins text-sm mb-1 block">Project Description</label>
+                  <label className="text-white font-poppins text-sm mb-1 block">Project Description</label>
                   <input
                     type="text"
                     value={formData.projectDescription}
