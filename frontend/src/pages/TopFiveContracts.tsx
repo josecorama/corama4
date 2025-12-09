@@ -90,7 +90,7 @@ const TopFiveContracts = () => {
             ) : (
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
-                <div key={contract.rank} className="card-gradient rounded-2xl p-4 sm:p-5 lg:p-6 relative">
+                <div key={contract.rank} className="rounded-2xl p-4 sm:p-5 lg:p-6 relative" style={{ backgroundColor: '#2F3C4F' }}>
                   {/* Match badge - absolute positioned at top right */}
                   <div className="absolute top-4 right-4 lg:top-6 lg:right-6">
                     <span className="bg-white text-corama-dark font-poppins text-sm font-bold px-4 py-1.5 rounded-full">
@@ -98,12 +98,12 @@ const TopFiveContracts = () => {
                     </span>
                   </div>
 
-                  <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
+                  <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-8">
                     {/* Left column: Rank circle with stars */}
                     <div className="flex lg:flex-col items-center gap-3 lg:gap-2 flex-shrink-0">
                       <div className="relative">
-                        <img src={CircleIcon} alt="" className="w-28 h-28 lg:w-36 lg:h-36" />
-                        <span className="absolute inset-0 flex items-center justify-center text-4xl lg:text-5xl font-bold text-white" style={{ paddingTop: '4px' }}>
+                        <img src={CircleIcon} alt="" className="w-32 h-32 lg:w-40 lg:h-40" />
+                        <span className="absolute inset-0 flex items-center justify-center text-5xl lg:text-6xl font-bold text-white" style={{ paddingTop: '4px' }}>
                           {contract.rank}
                         </span>
                       </div>
@@ -111,7 +111,7 @@ const TopFiveContracts = () => {
                     </div>
 
                     {/* Middle column: Contract Details */}
-                    <div className="flex-1 w-full lg:pr-32">
+                    <div className="flex-1 w-full lg:pl-4">
                       {/* State name */}
                       <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
 
@@ -121,19 +121,19 @@ const TopFiveContracts = () => {
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Contract Value
                           </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractValue}</p>
                         </div>
                         <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Submission Deadline
                           </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-pre-line">{contract.submissionDeadline}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-pre-line">{contract.submissionDeadline}</p>
                         </div>
                         <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Industry Sector
                           </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.industrySector}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.industrySector}</p>
                         </div>
                       </div>
 
@@ -143,26 +143,30 @@ const TopFiveContracts = () => {
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Name
                           </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.name}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.name}</p>
                         </div>
                         <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Contracting Agency
                           </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractingAgency}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractingAgency}</p>
                         </div>
                         {/* Action Buttons - aligned with bottom row */}
                         <div className="flex flex-col gap-2 justify-start">
                           <button 
                             onClick={() => handleVisitSite(contract.detailLink)}
-                            className="flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                            className="flex items-center justify-center gap-2 text-white font-poppins text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-colors"
+                            style={{ backgroundColor: '#275570' }}
                           >
                             Contract Website
-                            <img src={ContractSiteIcon} alt="" className="w-5 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
+                            <img src={ContractSiteIcon} alt="" className="w-5 h-5" />
                           </button>
-                          <button className="flex items-center justify-center gap-2 bg-white text-corama-dark font-poppins text-sm px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
+                          <button 
+                            className="flex items-center justify-center gap-2 text-white font-poppins text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-colors"
+                            style={{ backgroundColor: '#275570' }}
+                          >
                             Ask AI About This
-                            <img src={AskAIIcon} alt="" className="w-6 h-5" style={{ filter: 'invert(32%) sepia(15%) saturate(1000%) hue-rotate(150deg) brightness(90%) contrast(90%)' }} />
+                            <img src={AskAIIcon} alt="" className="w-6 h-5" />
                           </button>
                         </div>
                       </div>
