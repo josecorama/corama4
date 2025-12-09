@@ -29,6 +29,92 @@ const INDUSTRY_OPTIONS = [
   'Research & Development',
 ]
 
+// Helper functions for tag conversion (defined outside component for reuse)
+const tagStringToArray = (str: string): string[] => {
+  if (!str || str.trim() === '') return []
+  return str.split('\n').map(s => s.trim()).filter(s => s.length > 0)
+}
+
+const tagArrayToString = (arr: string[]): string => {
+  if (!arr || arr.length === 0) return ''
+  return arr.join('\n')
+}
+
+// TagInput component for chip/tag-style inputs
+interface TagInputProps {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+}
+
+const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder }) => {
+  const [inputValue, setInputValue] = useState('')
+  
+  const tags = tagStringToArray(value)
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const trimmed = inputValue.trim()
+      if (!trimmed) return
+      // Avoid duplicates
+      if (!tags.includes(trimmed)) {
+        onChange(tagArrayToString([...tags, trimmed]))
+      }
+      setInputValue('')
+    }
+  }
+  
+  const handleRemove = (index: number) => {
+    const newTags = tags.filter((_, i) => i !== index)
+    onChange(tagArrayToString(newTags))
+  }
+  
+  return (
+    <div className="space-y-2">
+      <label className="text-white font-poppins text-sm block">{label}</label>
+      
+      {/* Input for new tags */}
+      <input
+        type="text"
+        className="w-full bg-[#1D2A3A] border border-[#3C5469] rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-corama-teal"
+        placeholder={placeholder || 'Type and press Enter to add'}
+        value={inputValue}
+        onChange={(e) => setInputValue(e.target.value)}
+        onKeyDown={handleKeyDown}
+      />
+      
+      {/* Tags stacked vertically */}
+      {tags.length > 0 && (
+        <div className="space-y-2">
+          {tags.map((tag, index) => (
+            <div
+              key={index}
+              className="flex items-center justify-between rounded-full px-4 py-1 text-xs text-white"
+              style={{
+                background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                mixBlendMode: 'overlay',
+              }}
+            >
+              <span className="truncate mr-2 font-poppins">{tag}</span>
+              <button
+                type="button"
+                onClick={() => handleRemove(index)}
+                className="flex items-center justify-center w-4 h-4 rounded-full hover:bg-white/20 transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M9 3L3 9M3 3L9 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const CapabilityBuilder = () => {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -702,24 +788,18 @@ const CapabilityBuilder = () => {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Core Competencies</label>
-                    <input
-                      type="text"
-                      value={formData.coreCompetencies}
-                      onChange={(e) => handleInputChange('coreCompetencies', e.target.value)}
-                      className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Key Differentiators</label>
-                    <input
-                      type="text"
-                      value={formData.keyDifferentiators}
-                      onChange={(e) => handleInputChange('keyDifferentiators', e.target.value)}
-                      className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
-                    />
-                  </div>
+                  <TagInput
+                    label="Core Competencies"
+                    value={formData.coreCompetencies}
+                    onChange={(value) => handleInputChange('coreCompetencies', value)}
+                    placeholder="Type a competency and press Enter"
+                  />
+                  <TagInput
+                    label="Key Differentiators"
+                    value={formData.keyDifferentiators}
+                    onChange={(value) => handleInputChange('keyDifferentiators', value)}
+                    placeholder="Type a differentiator and press Enter"
+                  />
                   <div>
                     <label className="text-white font-poppins text-sm mb-1 block">Company Description</label>
                     <input
@@ -792,24 +872,18 @@ const CapabilityBuilder = () => {
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
-                  <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">NAICS Codes</label>
-                    <input
-                      type="text"
-                      value={formData.naicsCodes}
-                      onChange={(e) => handleInputChange('naicsCodes', e.target.value)}
-                      className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Certifications</label>
-                    <input
-                      type="text"
-                      value={formData.certifications}
-                      onChange={(e) => handleInputChange('certifications', e.target.value)}
-                      className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
-                    />
-                  </div>
+                  <TagInput
+                    label="NAICS Codes"
+                    value={formData.naicsCodes}
+                    onChange={(value) => handleInputChange('naicsCodes', value)}
+                    placeholder="Type a NAICS code and press Enter"
+                  />
+                  <TagInput
+                    label="Certifications"
+                    value={formData.certifications}
+                    onChange={(value) => handleInputChange('certifications', value)}
+                    placeholder="Type a certification and press Enter"
+                  />
                 </div>
               </div>
 
