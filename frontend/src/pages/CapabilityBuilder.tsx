@@ -99,6 +99,17 @@ const CapabilityBuilder = () => {
   )
 
   const stepsCompleted = [section1HasData, section2HasData, section3HasData]
+  
+  // Check if required fields are filled for Generate PDF (excluding images, gov codes, past performance, colors)
+  const canGeneratePdf = !!(
+    formData.companyName &&
+    formData.contactName &&
+    formData.email &&
+    formData.industryFocus &&
+    formData.coreCompetencies &&
+    formData.companyDescription
+  )
+  
     const [isDragOver, setIsDragOver] = useState(false)
     const [importingUrl, setImportingUrl] = useState(false)
     const [generatingPdf, setGeneratingPdf] = useState(false)
@@ -901,10 +912,10 @@ const CapabilityBuilder = () => {
                             </div>
 
                             {/* Primary Color Section */}
-                            <div className="mb-6">
-                              <label className="text-white font-poppins text-sm mb-2 block">Primary Color (Headers/Accents)</label>
-                              <div className="flex justify-center">
-                                <div className={`bg-white rounded-xl overflow-hidden inline-block ${activeColorField === 'primary' ? 'ring-2 ring-blue-500' : ''}`}>
+                            <div className="mb-6 flex flex-col items-center">
+                              <div className="inline-block">
+                                <label className="text-white font-poppins text-sm mb-2 block">Primary Color (Headers/Accents)</label>
+                                <div className={`bg-white rounded-xl overflow-hidden ${activeColorField === 'primary' ? 'ring-2 ring-blue-500' : ''}`}>
                                   {/* Hex Input */}
                                   <div 
                                     className="px-4 py-2 cursor-pointer border-b border-gray-100"
@@ -947,10 +958,10 @@ const CapabilityBuilder = () => {
                             </div>
 
                             {/* Secondary Color Section */}
-                            <div>
-                              <label className="text-white font-poppins text-sm mb-2 block">Secondary Color (Sections/Backgrounds)</label>
-                              <div className="flex justify-center">
-                                <div className={`bg-white rounded-xl overflow-hidden inline-block ${activeColorField === 'secondary' ? 'ring-2 ring-blue-500' : ''}`}>
+                            <div className="flex flex-col items-center">
+                              <div className="inline-block">
+                                <label className="text-white font-poppins text-sm mb-2 block">Secondary Color (Sections/Backgrounds)</label>
+                                <div className={`bg-white rounded-xl overflow-hidden ${activeColorField === 'secondary' ? 'ring-2 ring-blue-500' : ''}`}>
                                   {/* Hex Input */}
                                   <div 
                                     className="px-4 py-2 cursor-pointer border-b border-gray-100"
@@ -1091,8 +1102,8 @@ const CapabilityBuilder = () => {
               {/* Generate PDF Button */}
               <button
                 onClick={handleGeneratePdf}
-                disabled={generatingPdf}
-                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer disabled:opacity-50"
+                disabled={generatingPdf || !canGeneratePdf}
+                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="text-left">
                   <h3 className="text-white font-poppins font-bold text-sm sm:text-base">
