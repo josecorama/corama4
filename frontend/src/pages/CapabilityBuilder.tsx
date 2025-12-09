@@ -380,25 +380,25 @@ const CapabilityBuilder = () => {
     <div className="flex min-h-screen bg-corama-dark">
       <Sidebar />
       
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 max-h-screen">
         <Header credits={5} />
         
-<main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6">
           {/* Sticky Page Title and Steps */}
           <div className="sticky top-0 z-20 bg-corama-dark pb-3 pt-2">
             <div className="text-center mb-3 lg:mb-4">
               <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
-              <div className="flex justify-center gap-3 sm:gap-4">
+              <div className="flex justify-center gap-4 sm:gap-6">
                 {stepsCompleted.map((completed, index) => (
                   <div
                     key={index}
-                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+                    className={`flex items-center justify-center transition-all duration-300 ease-out ${
                       completed 
-                        ? 'bg-corama-teal text-white scale-100 shadow-[0_0_12px_rgba(45,212,191,0.6)]' 
-                        : 'bg-corama-darker border border-corama-teal/30 text-corama-teal scale-90'
+                        ? 'scale-100 drop-shadow-[0_0_20px_rgba(153,200,202,0.8)]' 
+                        : 'scale-90 opacity-40'
                     }`}
                   >
-                    {completed && <img src="/static/app/dashboard/Check.svg" alt="" className="w-4 h-4 sm:w-5 sm:h-5" />}
+                    <img src="/static/app/dashboard/Check.svg" alt="" className="w-14 h-14 sm:w-16 sm:h-16" />
                   </div>
                 ))}
               </div>
