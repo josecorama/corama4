@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Upload, Save, RotateCcw, Trash2, Check } from 'lucide-react'
+import { Save, RotateCcw, Trash2, Check } from 'lucide-react'
 import { api, CapabilityStatementData } from '../services/api'
 
 interface ImportResult {
@@ -602,10 +602,10 @@ const CapabilityBuilder = () => {
                 />
                 <div 
                   onClick={() => logoInputRef.current?.click()}
-                  className="border-2 border-dashed border-corama-teal/30 rounded-lg p-4 sm:p-6 lg:p-8 text-center mb-3 sm:mb-4 cursor-pointer hover:border-corama-teal transition-colors"
+                  className="bg-white border-2 border-[#1C4262] rounded-xl p-6 sm:p-8 lg:p-10 text-center mb-4 sm:mb-6 cursor-pointer hover:border-[#0f2d42] transition-colors"
                 >
-                  <Upload className="mx-auto text-corama-teal mb-2" size={20} />
-                  <p className="text-corama-teal font-poppins text-xs sm:text-sm">
+                  <img src="/static/app/dashboard/AddFile.svg" alt="" className="mx-auto mb-2 w-10 h-10 sm:w-12 sm:h-12" />
+                  <p className="text-[#1C4262] font-poppins font-bold text-sm sm:text-base">
                     {logoFile ? logoFile.name : 'Add your file'}
                   </p>
                 </div>
@@ -619,10 +619,10 @@ const CapabilityBuilder = () => {
                 />
                 <div 
                   onClick={() => imagesInputRef.current?.click()}
-                  className="border-2 border-dashed border-corama-teal/30 rounded-lg p-4 sm:p-6 lg:p-8 text-center cursor-pointer hover:border-corama-teal transition-colors"
+                  className="bg-white border-2 border-[#1C4262] rounded-xl p-6 sm:p-8 lg:p-10 text-center cursor-pointer hover:border-[#0f2d42] transition-colors"
                 >
-                  <Upload className="mx-auto text-corama-teal mb-2" size={20} />
-                  <p className="text-corama-teal font-poppins text-xs sm:text-sm">
+                  <img src="/static/app/dashboard/AddFile.svg" alt="" className="mx-auto mb-2 w-10 h-10 sm:w-12 sm:h-12" />
+                  <p className="text-[#1C4262] font-poppins font-bold text-sm sm:text-base">
                     {imagesFile ? imagesFile.name : 'Add your file'}
                   </p>
                 </div>
@@ -789,10 +789,10 @@ const CapabilityBuilder = () => {
                 className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer disabled:opacity-50"
               >
                 <div className="text-left">
-                  <h3 className="text-corama-teal font-poppins font-bold text-sm sm:text-base">
+                  <h3 className="text-white font-poppins font-bold text-sm sm:text-base">
                     {generatingPdf ? 'Generating...' : 'Generate PDF'}
                   </h3>
-                  <p className="text-gray-400 font-poppins text-xs sm:text-sm">Create your Capability Statement</p>
+                  <p className="text-white font-poppins text-xs sm:text-sm">Create your Capability Statement</p>
                 </div>
                 {generatingPdf ? (
                   <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />
@@ -807,8 +807,8 @@ const CapabilityBuilder = () => {
                 className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer"
               >
                 <div className="text-left">
-                  <h3 className="text-corama-teal font-poppins font-bold text-sm sm:text-base">AI Assistant</h3>
-                  <p className="text-gray-400 font-poppins text-xs sm:text-sm">Use AI to enhance your content</p>
+                  <h3 className="text-white font-poppins font-bold text-sm sm:text-base">AI Assistant</h3>
+                  <p className="text-white font-poppins text-xs sm:text-sm">Use AI to enhance your content</p>
                 </div>
                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-6 h-6 flex-shrink-0" />
               </button>
