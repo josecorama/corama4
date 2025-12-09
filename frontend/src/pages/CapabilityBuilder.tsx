@@ -67,7 +67,38 @@ const CapabilityBuilder = () => {
   const [imagesFile, setImagesFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
-  const [completedSteps] = useState([true, true, true])
+  // Compute step completion based on form data
+  const section1HasData = !!(
+    formData.companyName ||
+    formData.website ||
+    formData.contactName ||
+    formData.title ||
+    formData.phone ||
+    formData.email ||
+    formData.address ||
+    formData.city ||
+    formData.state ||
+    formData.zipCode
+  )
+
+  const section2HasData = !!(
+    formData.industryFocus ||
+    formData.coreCompetencies ||
+    formData.keyDifferentiators ||
+    formData.companyDescription
+  )
+
+  const section3HasData = !!(
+    formData.ueiCode ||
+    formData.cageCode ||
+    formData.naicsCodes ||
+    formData.certifications ||
+    formData.clientAgency ||
+    formData.contractValue ||
+    formData.projectDescription
+  )
+
+  const stepsCompleted = [section1HasData, section2HasData, section3HasData]
   const [isDragOver, setIsDragOver] = useState(false)
   const [importingUrl, setImportingUrl] = useState(false)
   const [generatingPdf, setGeneratingPdf] = useState(false)
@@ -352,23 +383,27 @@ const CapabilityBuilder = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Header credits={5} />
         
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
-          {/* Page Title */}
-          <div className="text-center mb-6 lg:mb-8">
-            <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
-            <div className="flex justify-center gap-3 sm:gap-4">
-              {completedSteps.map((completed, index) => (
-                <div
-                  key={index}
-                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center ${
-                    completed ? 'bg-corama-teal' : 'bg-corama-darker border border-corama-teal/30'
-                  }`}
-                >
-                  {completed && <Check size={16} className="text-white sm:w-5 sm:h-5" />}
-                </div>
-              ))}
-            </div>
-          </div>
+                <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+                  {/* Sticky Page Title and Steps */}
+                  <div className="sticky top-0 z-20 bg-corama-dark pb-3 -mx-3 sm:-mx-4 lg:-mx-6 px-3 sm:px-4 lg:px-6 pt-2">
+                    <div className="text-center mb-3 lg:mb-4">
+                      <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
+                      <div className="flex justify-center gap-3 sm:gap-4">
+                        {stepsCompleted.map((completed, index) => (
+                          <div
+                            key={index}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+                              completed 
+                                ? 'bg-corama-teal text-white scale-100 shadow-[0_0_12px_rgba(45,212,191,0.6)]' 
+                                : 'bg-corama-darker border border-corama-teal/30 text-corama-teal scale-90'
+                            }`}
+                          >
+                            {completed && <Check size={16} className="text-white sm:w-5 sm:h-5" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
 
           {/* Import Existing Capability Statement */}
           <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">
