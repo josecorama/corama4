@@ -7,6 +7,7 @@ import AIAssistant from './pages/AIAssistant'
 import GetMoreCredits from './pages/GetMoreCredits'
 import CoramaDirectory from './pages/CoramaDirectory'
 import EditDirectoryProfile from './pages/EditDirectoryProfile'
+import NoCapabilityStatement from './pages/NoCapabilityStatement'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/get-more-credits" element={<GetMoreCredits />} />
         <Route path="/corama-directory" element={<CoramaDirectory />} />
         <Route path="/edit-directory-profile" element={<EditDirectoryProfile />} />
+        <Route path="/no-capability-statement" element={<NoCapabilityStatement />} />
       </Routes>
     </Router>
   )
