@@ -103,11 +103,22 @@ const CapabilityBuilder = () => {
   const [importingUrl, setImportingUrl] = useState(false)
   const [generatingPdf, setGeneratingPdf] = useState(false)
 
-  const colorPresets: ColorPreset[] = [
-    { primary: '#22C55E', secondary: '#86EFAC', bgClass: 'bg-green-500' },
-    { primary: '#EC4899', secondary: '#F9A8D4', bgClass: 'bg-pink-500' },
-    { primary: '#F97316', secondary: '#FDBA74', bgClass: 'bg-orange-500' },
-  ]
+    const colorPresets: ColorPreset[] = [
+      { primary: '#804fd5', secondary: '#a77de8', bgClass: '' },
+      { primary: '#5976f2', secondary: '#8a9ef5', bgClass: '' },
+      { primary: '#42bdac', secondary: '#7dd4c8', bgClass: '' },
+      { primary: '#52c977', secondary: '#85da9a', bgClass: '' },
+      { primary: '#f6bd31', secondary: '#f9d06a', bgClass: '' },
+      { primary: '#f67b27', secondary: '#f9a165', bgClass: '' },
+      { primary: '#ef4941', secondary: '#f47d77', bgClass: '' },
+      { primary: '#89bb2d', secondary: '#acd066', bgClass: '' },
+      { primary: '#408ecf', secondary: '#79b0de', bgClass: '' },
+      { primary: '#00ba83', secondary: '#4dd0a8', bgClass: '' },
+      { primary: '#a144d9', secondary: '#be7ae6', bgClass: '' },
+      { primary: '#e232d4', secondary: '#eb6fe1', bgClass: '' },
+      { primary: '#f3495f', secondary: '#f77d8d', bgClass: '' },
+      { primary: '#ee4688', secondary: '#f37daa', bgClass: '' },
+    ]
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -665,51 +676,7 @@ const CapabilityBuilder = () => {
                 </div>
               </div>
 
-              {/* Color Scheme */}
-              <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
-                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Color Scheme</h2>
-                <div className="space-y-3 sm:space-y-4">
-                  <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Primary Color (Headers/Accents)</label>
-                    <div className="flex gap-2">
-                      <div className="w-24 h-10 rounded" style={{ backgroundColor: formData.primaryColor }}></div>
-                      <input
-                        type="text"
-                        value={formData.primaryColor}
-                        onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                        className="flex-1 bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Secondary Color (Sections/Backgrounds)</label>
-                    <div className="flex gap-2">
-                      <div className="w-24 h-10 rounded" style={{ backgroundColor: formData.secondaryColor }}></div>
-                      <input
-                        type="text"
-                        value={formData.secondaryColor}
-                        onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
-                        className="flex-1 bg-corama-darker border border-corama-teal/30 rounded-lg py-2 px-3 text-white focus:outline-none focus:border-corama-teal"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Quick Color Presets</label>
-                    <div className="flex gap-2">
-                      {colorPresets.map((preset, index) => (
-                        <button
-                          key={index}
-                          type="button"
-                          onClick={() => handleColorPresetClick(preset)}
-                          className={`w-10 h-10 rounded ${preset.bgClass} hover:ring-2 hover:ring-white transition-all`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Government Codes & Certifications */}
+                            {/* Government Codes & Certifications */}
               <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Government Codes & Certifications</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
@@ -775,19 +742,37 @@ const CapabilityBuilder = () => {
                     />
                   </div>
                 </div>
-                <div className="mt-4">
-                  <label className="text-white font-poppins text-sm mb-1 block">Project Description</label>
-                  <input
-                    type="text"
-                    value={formData.projectDescription}
-                    onChange={(e) => handleInputChange('projectDescription', e.target.value)}
-                    className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
-                  />
-                </div>
-              </div>
-            </div>
+                            <div className="mt-4">
+                              <label className="text-white font-poppins text-sm mb-1 block">Project Description</label>
+                              <input
+                                type="text"
+                                value={formData.projectDescription}
+                                onChange={(e) => handleInputChange('projectDescription', e.target.value)}
+                                className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
+                              />
+                            </div>
+                          </div>
 
-                                                {/* Right Column - Preview & Actions (sticky on desktop) */}
+                          {/* Color Scheme */}
+                          <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
+                            <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Color Scheme</h2>
+                            <div className="bg-[#2F3C4F] rounded-lg p-4 border border-[#3D4F5F]">
+                              <div className="flex flex-wrap gap-3 justify-center">
+                                {colorPresets.map((preset, index) => (
+                                  <button
+                                    key={index}
+                                    type="button"
+                                    onClick={() => handleColorPresetClick(preset)}
+                                    className="w-6 h-6 rounded-full hover:ring-2 hover:ring-white hover:scale-110 transition-all"
+                                    style={{ backgroundColor: preset.primary }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                                                            {/* Right Column - Preview & Actions (sticky on desktop) */}
                                                 <div className="space-y-4 lg:space-y-6 lg:sticky lg:top-40 lg:self-start">
               {/* Preview Area with Toolbar */}
               <div className="rounded-xl border-2 border-[#1C4262] overflow-hidden">
