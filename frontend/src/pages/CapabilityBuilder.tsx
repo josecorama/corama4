@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Check } from 'lucide-react'
+// Check icon now uses SVG image instead of lucide-react
 import { api, CapabilityStatementData } from '../services/api'
 
 interface ImportResult {
@@ -383,27 +383,27 @@ const CapabilityBuilder = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Header credits={5} />
         
-                <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
-                  {/* Sticky Page Title and Steps */}
-                  <div className="sticky top-0 z-20 bg-corama-dark pb-3 -mx-3 sm:-mx-4 lg:-mx-6 px-3 sm:px-4 lg:px-6 pt-2">
-                    <div className="text-center mb-3 lg:mb-4">
-                      <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
-                      <div className="flex justify-center gap-3 sm:gap-4">
-                        {stepsCompleted.map((completed, index) => (
-                          <div
-                            key={index}
-                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
-                              completed 
-                                ? 'bg-corama-teal text-white scale-100 shadow-[0_0_12px_rgba(45,212,191,0.6)]' 
-                                : 'bg-corama-darker border border-corama-teal/30 text-corama-teal scale-90'
-                            }`}
-                          >
-                            {completed && <Check size={16} className="text-white sm:w-5 sm:h-5" />}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+<main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6">
+          {/* Sticky Page Title and Steps */}
+          <div className="sticky top-0 z-20 bg-corama-dark pb-3 pt-2">
+            <div className="text-center mb-3 lg:mb-4">
+              <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
+              <div className="flex justify-center gap-3 sm:gap-4">
+                {stepsCompleted.map((completed, index) => (
+                  <div
+                    key={index}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-300 ease-out ${
+                      completed 
+                        ? 'bg-corama-teal text-white scale-100 shadow-[0_0_12px_rgba(45,212,191,0.6)]' 
+                        : 'bg-corama-darker border border-corama-teal/30 text-corama-teal scale-90'
+                    }`}
+                  >
+                    {completed && <img src="/static/app/dashboard/Check.svg" alt="" className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* Import Existing Capability Statement */}
           <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">

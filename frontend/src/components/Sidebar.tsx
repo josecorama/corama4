@@ -161,11 +161,11 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
           rel="noopener noreferrer"
           className="inline-block mb-4"
         >
-          <img 
-            src="/static/app/dashboard/IHCC.svg" 
-            alt="IHCC - Illinois Hispanic Chamber of Commerce" 
-            className="h-24 w-auto mx-auto"
-          />
+                    <img 
+                      src="/static/app/dashboard/IHCC_logo.png" 
+                      alt="IHCC - Illinois Hispanic Chamber of Commerce" 
+                      className="h-24 w-auto mx-auto"
+                    />
         </a>
         <p className="text-white text-xs mb-3">Follow Contract Radar Maximizer</p>
         <div className="flex justify-center gap-3">
