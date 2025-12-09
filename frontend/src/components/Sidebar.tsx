@@ -154,7 +154,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
         
       {/* IHCC and Social Media Section - fixed at bottom, centered */}
       <div className="px-4 pt-4 pb-[36px] text-center shrink-0">
-        <p className="text-gray-400 text-xs mb-2">Learn More About IHCC</p>
+        <p className="text-white text-xs mb-2">Learn More About IHCC</p>
         <a 
           href="https://ihccbusiness.net/" 
           target="_blank" 
@@ -164,10 +164,10 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
           <img 
             src="/static/app/dashboard/IHCC.svg" 
             alt="IHCC - Illinois Hispanic Chamber of Commerce" 
-            className="h-12 w-auto mx-auto"
+            className="h-24 w-auto mx-auto"
           />
         </a>
-        <p className="text-gray-400 text-xs mb-3">Follow Contract Radar Maximizer</p>
+        <p className="text-white text-xs mb-3">Follow Contract Radar Maximizer</p>
         <div className="flex justify-center gap-3">
           <a 
             href="https://www.instagram.com/corama.ai/" 
