@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 0.5rem;
+    
+    /* Spacing tokens (8pt grid) */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+    --space-12: 3rem;
+    --space-16: 4rem;
+    
+    /* Indigo ◇ Cyan AI Palette - Light Mode */
+    --background: 220 33% 99%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 243 75% 58%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 220 13% 91%;
+    --secondary-foreground: 220 9% 46%;
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 197 92% 47%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 14% 90%;
+    --input: 220 14% 90%;
+    --ring: 197 92% 47%;
+    --success: 158 64% 42%;
+    --warning: 40 96% 50%;
+    
+    /* Mexican government colors */
+    --mexico-green: 120 100% 25%;
+    --mexico-red: 0 100% 50%;
+    --michoacan-blue: 243 75% 58%;
+    
+    /* Sidebar tokens */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* Animation tokens */
+    --animation-fast: 150ms;
+    --animation-normal: 200ms;
+    --animation-slow: 300ms;
+  }
+  
+  .dark {
+    /* Indigo ◇ Cyan AI Palette - Dark Mode */
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+    --card: 224 41% 9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 224 41% 9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 243 83% 70%;
+    --primary-foreground: 233 21% 12%;
+    --secondary: 220 14.3% 4.1%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 223 28% 12%;
+    --muted-foreground: 220 8.9% 46.1%;
+    --accent: 197 100% 55%;
+    --accent-foreground: 222 47% 7%;
+    --destructive: 0 84% 62%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 224 24% 18%;
+    --input: 224 24% 18%;
+    --ring: 197 100% 55%;
+    --success: 158 60% 48%;
+    --warning: 40 96% 55%;
+    
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+  
+  * {
+    border-color: hsl(var(--border));
+  }
+  
+  body {
+    margin: 0;
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  #root {
+    width: 100%;
+    min-height: 100vh;
+  }
+  
+  /* AI gradient utility */
+  .ai-gradient {
+    background-image: linear-gradient(135deg, hsl(243 75% 58%) 0%, hsl(197 92% 47%) 100%);
+  }
+  
+  /* Anti-CLS utilities */
+  .content-visibility-auto {
+    content-visibility: auto;
+  }
+  
+  /* Preload font for performance */
+  @font-face {
+    font-family: 'Inter';
+    font-display: swap;
+  }
+}
+
