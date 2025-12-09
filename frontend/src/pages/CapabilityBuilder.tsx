@@ -788,7 +788,7 @@ const CapabilityBuilder = () => {
                 disabled={generatingPdf}
                 className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer disabled:opacity-50"
               >
-                <div>
+                <div className="text-left">
                   <h3 className="text-corama-teal font-poppins font-bold text-sm sm:text-base">
                     {generatingPdf ? 'Generating...' : 'Generate PDF'}
                   </h3>
@@ -797,7 +797,7 @@ const CapabilityBuilder = () => {
                 {generatingPdf ? (
                   <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />
                 ) : (
-                  <img src="/static/app/dashboard/FullProposal.svg" alt="" className="w-6 h-6 flex-shrink-0" />
+                  <img src="/static/app/dashboard/GeneratePDF.svg" alt="" className="w-6 h-6 flex-shrink-0" />
                 )}
               </button>
 
@@ -806,7 +806,7 @@ const CapabilityBuilder = () => {
                 onClick={handleAiAssistant}
                 className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer"
               >
-                <div>
+                <div className="text-left">
                   <h3 className="text-corama-teal font-poppins font-bold text-sm sm:text-base">AI Assistant</h3>
                   <p className="text-gray-400 font-poppins text-xs sm:text-sm">Use AI to enhance your content</p>
                 </div>
