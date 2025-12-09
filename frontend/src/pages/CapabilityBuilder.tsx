@@ -383,9 +383,9 @@ const CapabilityBuilder = () => {
       <div className="flex-1 flex flex-col min-w-0 max-h-screen">
         <Header credits={5} />
         
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-4 lg:p-6">
-          {/* Sticky Page Title and Steps */}
-          <div className="sticky top-0 z-20 bg-corama-dark pb-3 pt-2">
+                <main className="flex-1 overflow-y-auto overflow-x-hidden">
+                  {/* Sticky Page Title and Steps */}
+                  <div className="sticky top-0 z-20 bg-corama-dark px-3 sm:px-4 lg:px-6 pb-3 pt-3">
             <div className="text-center mb-3 lg:mb-4">
               <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
               <div className="flex justify-center gap-4 sm:gap-6">
@@ -403,10 +403,12 @@ const CapabilityBuilder = () => {
                 ))}
               </div>
             </div>
-          </div>
+                    </div>
 
-          {/* Import Existing Capability Statement */}
-          <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">
+                    {/* Content wrapper with padding */}
+                    <div className="p-3 sm:p-4 lg:p-6">
+                    {/* Import Existing Capability Statement */}
+                    <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">
             <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4 sm:mb-5">Import Existing Capability Statement</h2>
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start lg:items-center">
               {/* Upload File Section */}
@@ -785,8 +787,8 @@ const CapabilityBuilder = () => {
               </div>
             </div>
 
-            {/* Right Column - Preview & Actions */}
-            <div className="space-y-4 lg:space-y-6">
+                        {/* Right Column - Preview & Actions (sticky on desktop) */}
+                        <div className="space-y-4 lg:space-y-6 lg:sticky lg:top-32 lg:self-start">
               {/* Preview Area with Toolbar */}
               <div className="rounded-xl border-2 border-[#1C4262] overflow-hidden">
                 {/* Toolbar Header */}
@@ -910,6 +912,7 @@ const CapabilityBuilder = () => {
                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-6 h-6 flex-shrink-0" />
               </button>
             </div>
+          </div>
           </div>
         </main>
       </div>
