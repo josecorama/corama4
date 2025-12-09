@@ -115,20 +115,22 @@ const CapabilityBuilder = () => {
     const opacityRef = useRef<HTMLDivElement | null>(null)
 
     const colorPresets: ColorPreset[] = [
+      // Row 1: pink, purple, blue, cyan, teal, yellow, orange
+      { primary: '#ee4688', secondary: '#f37daa', bgClass: '' },
       { primary: '#804fd5', secondary: '#a77de8', bgClass: '' },
       { primary: '#5976f2', secondary: '#8a9ef5', bgClass: '' },
       { primary: '#42bdac', secondary: '#7dd4c8', bgClass: '' },
       { primary: '#52c977', secondary: '#85da9a', bgClass: '' },
       { primary: '#f6bd31', secondary: '#f9d06a', bgClass: '' },
       { primary: '#f67b27', secondary: '#f9a165', bgClass: '' },
-      { primary: '#ef4941', secondary: '#f47d77', bgClass: '' },
+      // Row 2: green, lime, teal, purple, magenta, red, green
       { primary: '#89bb2d', secondary: '#acd066', bgClass: '' },
       { primary: '#408ecf', secondary: '#79b0de', bgClass: '' },
       { primary: '#00ba83', secondary: '#4dd0a8', bgClass: '' },
       { primary: '#a144d9', secondary: '#be7ae6', bgClass: '' },
       { primary: '#e232d4', secondary: '#eb6fe1', bgClass: '' },
       { primary: '#f3495f', secondary: '#f77d8d', bgClass: '' },
-      { primary: '#ee4688', secondary: '#f37daa', bgClass: '' },
+      { primary: '#ef4941', secondary: '#f47d77', bgClass: '' },
     ]
 
     // Helper function to update gradient color from mouse position
@@ -901,40 +903,44 @@ const CapabilityBuilder = () => {
                             {/* Primary Color Section */}
                             <div className="mb-6">
                               <label className="text-white font-poppins text-sm mb-2 block">Primary Color (Headers/Accents)</label>
-                              <div 
-                                className={`bg-white rounded-lg p-3 mb-3 cursor-pointer ${activeColorField === 'primary' ? 'ring-2 ring-blue-500' : ''}`}
-                                onClick={() => setActiveColorField('primary')}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-500">#</span>
-                                  <input
-                                    type="text"
-                                    value={formData.primaryColor.replace('#', '').toUpperCase()}
-                                    onChange={(e) => handleInputChange('primaryColor', '#' + e.target.value.replace('#', ''))}
-                                    onFocus={() => setActiveColorField('primary')}
-                                    className="flex-1 bg-transparent text-gray-900 focus:outline-none font-mono"
-                                    maxLength={6}
-                                  />
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-lg p-3">
-                                <div className="mb-2">
-                                  <span className="text-gray-700 text-sm font-medium">Presets</span>
-                                </div>
-                                <div className="flex justify-center">
-                                  <div className="grid grid-cols-7 gap-2">
-                                    {colorPresets.map((preset, index) => (
-                                      <button
-                                        key={`primary-${index}`}
-                                        type="button"
-                                        onClick={() => {
-                                          setActiveColorField('primary')
-                                          handleInputChange('primaryColor', preset.primary)
-                                        }}
-                                        className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.primaryColor.toLowerCase() === preset.primary.toLowerCase() ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
-                                        style={{ backgroundColor: preset.primary }}
+                              <div className="flex justify-center">
+                                <div className={`bg-white rounded-xl overflow-hidden inline-block ${activeColorField === 'primary' ? 'ring-2 ring-blue-500' : ''}`}>
+                                  {/* Hex Input */}
+                                  <div 
+                                    className="px-4 py-2 cursor-pointer border-b border-gray-100"
+                                    onClick={() => setActiveColorField('primary')}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-500">#</span>
+                                      <input
+                                        type="text"
+                                        value={formData.primaryColor.replace('#', '').toUpperCase()}
+                                        onChange={(e) => handleInputChange('primaryColor', '#' + e.target.value.replace('#', ''))}
+                                        onFocus={() => setActiveColorField('primary')}
+                                        className="bg-transparent text-gray-900 focus:outline-none font-mono w-20"
+                                        maxLength={6}
                                       />
-                                    ))}
+                                    </div>
+                                  </div>
+                                  {/* Presets */}
+                                  <div className="px-4 py-3">
+                                    <div className="text-center mb-2">
+                                      <span className="text-gray-700 text-sm font-medium">Presets</span>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2">
+                                      {colorPresets.map((preset, index) => (
+                                        <button
+                                          key={`primary-${index}`}
+                                          type="button"
+                                          onClick={() => {
+                                            setActiveColorField('primary')
+                                            handleInputChange('primaryColor', preset.primary)
+                                          }}
+                                          className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.primaryColor.toLowerCase() === preset.primary.toLowerCase() ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
+                                          style={{ backgroundColor: preset.primary }}
+                                        />
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
@@ -943,40 +949,44 @@ const CapabilityBuilder = () => {
                             {/* Secondary Color Section */}
                             <div>
                               <label className="text-white font-poppins text-sm mb-2 block">Secondary Color (Sections/Backgrounds)</label>
-                              <div 
-                                className={`bg-white rounded-lg p-3 mb-3 cursor-pointer ${activeColorField === 'secondary' ? 'ring-2 ring-blue-500' : ''}`}
-                                onClick={() => setActiveColorField('secondary')}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="text-gray-500">#</span>
-                                  <input
-                                    type="text"
-                                    value={formData.secondaryColor.replace('#', '').toUpperCase()}
-                                    onChange={(e) => handleInputChange('secondaryColor', '#' + e.target.value.replace('#', ''))}
-                                    onFocus={() => setActiveColorField('secondary')}
-                                    className="flex-1 bg-transparent text-gray-900 focus:outline-none font-mono"
-                                    maxLength={6}
-                                  />
-                                </div>
-                              </div>
-                              <div className="bg-white rounded-lg p-3">
-                                <div className="mb-2">
-                                  <span className="text-gray-700 text-sm font-medium">Presets</span>
-                                </div>
-                                <div className="flex justify-center">
-                                  <div className="grid grid-cols-7 gap-2">
-                                    {colorPresets.map((preset, index) => (
-                                      <button
-                                        key={`secondary-${index}`}
-                                        type="button"
-                                        onClick={() => {
-                                          setActiveColorField('secondary')
-                                          handleInputChange('secondaryColor', preset.primary)
-                                        }}
-                                        className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.secondaryColor.toLowerCase() === preset.primary.toLowerCase() ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
-                                        style={{ backgroundColor: preset.primary }}
+                              <div className="flex justify-center">
+                                <div className={`bg-white rounded-xl overflow-hidden inline-block ${activeColorField === 'secondary' ? 'ring-2 ring-blue-500' : ''}`}>
+                                  {/* Hex Input */}
+                                  <div 
+                                    className="px-4 py-2 cursor-pointer border-b border-gray-100"
+                                    onClick={() => setActiveColorField('secondary')}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-gray-500">#</span>
+                                      <input
+                                        type="text"
+                                        value={formData.secondaryColor.replace('#', '').toUpperCase()}
+                                        onChange={(e) => handleInputChange('secondaryColor', '#' + e.target.value.replace('#', ''))}
+                                        onFocus={() => setActiveColorField('secondary')}
+                                        className="bg-transparent text-gray-900 focus:outline-none font-mono w-20"
+                                        maxLength={6}
                                       />
-                                    ))}
+                                    </div>
+                                  </div>
+                                  {/* Presets */}
+                                  <div className="px-4 py-3">
+                                    <div className="text-center mb-2">
+                                      <span className="text-gray-700 text-sm font-medium">Presets</span>
+                                    </div>
+                                    <div className="grid grid-cols-7 gap-2">
+                                      {colorPresets.map((preset, index) => (
+                                        <button
+                                          key={`secondary-${index}`}
+                                          type="button"
+                                          onClick={() => {
+                                            setActiveColorField('secondary')
+                                            handleInputChange('secondaryColor', preset.primary)
+                                          }}
+                                          className={`w-8 h-8 rounded-full hover:scale-110 transition-all ${formData.secondaryColor.toLowerCase() === preset.primary.toLowerCase() ? 'ring-2 ring-gray-400 ring-offset-2' : ''}`}
+                                          style={{ backgroundColor: preset.primary }}
+                                        />
+                                      ))}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
