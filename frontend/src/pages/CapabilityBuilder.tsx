@@ -78,7 +78,7 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
       {/* Input for new tags */}
       <input
         type="text"
-        className="w-full bg-[#1D2A3A] border border-[#3C5469] rounded-lg px-3 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-corama-teal"
+        className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:border-[#1C4262]"
         placeholder={placeholder || 'Type and press Enter to add'}
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
@@ -93,7 +93,7 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
               key={index}
               className="flex items-center justify-between rounded-full px-4 py-1 text-xs text-white"
               style={{
-                background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                background: '#6BB4B5',
               }}
             >
               <span className="truncate mr-2 font-poppins">{tag}</span>
