@@ -195,13 +195,13 @@ const Dashboard = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="text-gray-400 font-poppins text-sm border-b border-corama-darker">
-                              <th className="text-left py-3 font-normal">Contract Name</th>
-                              <th className="text-left py-3 font-normal">Category</th>
-                              <th className="text-left py-3 font-normal">NAICS Code (s)</th>
-                              <th className="text-left py-3 font-normal">Due Date</th>
-                              <th className="text-left py-3 font-normal">Status</th>
-                              <th className="text-left py-3 font-normal">AI Assistant</th>
-                              <th className="text-left py-3 font-normal">Visit Site</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Contract Name</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Category</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">NAICS Code(s)</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Due Date</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Status</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">AI Assistant</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Visit Site</th>
                             </tr>
                           </thead>
                           <tbody>
