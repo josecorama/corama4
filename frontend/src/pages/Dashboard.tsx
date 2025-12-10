@@ -152,11 +152,13 @@ const Dashboard = () => {
           </div>
 
                     {/* Available Contracts Table */}
-                    <div className="rounded-xl p-3 sm:p-4 lg:p-6" style={{ backgroundColor: '#2f3c4f' }}>
-                      {/* Header row with Available Contracts and Search Bar aligned */}
-                      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4 lg:mb-6">
-                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg">Available Contracts</h2>
-                        <form onSubmit={handleSearch} className="relative w-full lg:w-auto lg:flex-1 lg:max-w-xl">
+                    <div className="rounded-xl p-3 sm:p-4 lg:p-6 border" style={{ backgroundColor: '#2f3c4f', borderColor: '#98C9CA' }}>
+                      {/* Available Contracts heading */}
+                      <h2 className="text-white font-poppins font-semibold text-base lg:text-lg mb-4">Available Contracts</h2>
+                      
+                      {/* Centered Search Bar */}
+                      <div className="flex justify-center mb-4 lg:mb-6">
+                        <form onSubmit={handleSearch} className="relative w-full max-w-xl">
                           <input
                             type="text"
                             placeholder="SEARCH CONTRACTS"
@@ -171,33 +173,32 @@ const Dashboard = () => {
                         </form>
                       </div>
                       
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 lg:mb-6">
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                          <button className="text-gray-400 hover:text-white p-2">
-                            <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
+                      {/* Filter and pagination row */}
+                      <div className="flex items-center gap-2 sm:gap-4 mb-4 lg:mb-6">
+                        <button className="text-gray-400 hover:text-white p-2">
+                          <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
+                        </button>
+                        <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">
+                          <span className="hidden sm:inline">{startItem}-{endItem} of {totalContracts}</span>
+                          <span className="sm:hidden">{currentPage}/{Math.ceil(totalContracts/contractsPerPage)}</span>
+                          <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            className="p-1 hover:opacity-80"
+                          >
+                            <img src="/static/app/dashboard/LeftArrow.svg" alt="Previous" className="w-4 h-4" />
                           </button>
-                          <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">
-                            <span className="hidden sm:inline">{startItem}-{endItem} of {totalContracts}</span>
-                            <span className="sm:hidden">{currentPage}/{Math.ceil(totalContracts/contractsPerPage)}</span>
-                            <button 
-                              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                              className="p-1 hover:opacity-80"
-                            >
-                              <img src="/static/app/dashboard/LeftArrow.svg" alt="Previous" className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => setCurrentPage(p => p + 1)}
-                              className="p-1 hover:opacity-80"
-                            >
-                              <img src="/static/app/dashboard/RightArrow.svg" alt="Next" className="w-4 h-4" />
-                            </button>
-                          </div>
+                          <button 
+                            onClick={() => setCurrentPage(p => p + 1)}
+                            className="p-1 hover:opacity-80"
+                          >
+                            <img src="/static/app/dashboard/RightArrow.svg" alt="Next" className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
                       {/* Desktop Table */}
                       <div className="hidden lg:block overflow-x-auto">
-                        <table className="w-full border rounded-lg" style={{ borderColor: '#98C9CA' }}>
+                        <table className="w-full">
                           <thead>
                             <tr className="font-poppins text-sm" style={{ color: '#9ccdcd' }}>
                               <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">Contract Name</th>
