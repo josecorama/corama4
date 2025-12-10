@@ -494,7 +494,9 @@
 
 
 <!-- reCAPTCHA Implementation -->
+{% if RECAPTCHA_SITE_KEY %}
 <script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}" async defer></script>
+{% endif %}
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
@@ -502,9 +504,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const submitBtn = document.getElementById("login-btn");
     const btnText = submitBtn?.querySelector(".btn-text");
     const btnLoading = submitBtn?.querySelector(".btn-loading");
+    const siteKey = "{{ RECAPTCHA_SITE_KEY }}";
     
     if (!form) {
         console.error("Login form not found.");
+        return;
+    }
+    
+    // If no site key configured, don't hook reCAPTCHA; let form submit normally
+    if (!siteKey) {
+        console.warn("reCAPTCHA disabled on login: RECAPTCHA_SITE_KEY not set.");
         return;
     }
     
@@ -519,7 +528,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         
         grecaptcha.ready(function () {
-            grecaptcha.execute("{{ RECAPTCHA_SITE_KEY }}", { action: "login" })
+            grecaptcha.execute(siteKey, { action: "login" })
                 .then(function (token) {
                     console.log("reCAPTCHA Token:", token);
                     
@@ -554,10 +563,12 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 <script>
-    gtag('event', 'login_success', {
-      method: 'email_password'  // or 'google', 'firebase', etc.
-    });
-  </script>
+    if (typeof gtag === "function") {
+        gtag('event', 'login_success', {
+          method: 'email_password'
+        });
+    }
+</script>
   
       
 </body>
