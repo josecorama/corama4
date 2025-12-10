@@ -114,8 +114,8 @@ const EditDirectoryProfile = () => {
 
   if (loading) {
     return (
-      <div className="relative flex min-h-screen bg-corama-dark">
-        <div className="hidden lg:block absolute inset-x-0 top-16 h-px bg-white z-10" aria-hidden="true" />
+      <div className="flex min-h-screen bg-corama-dark">
+        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-20" aria-hidden="true" />
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0">
           <Header credits={credits} />
@@ -128,9 +128,9 @@ const EditDirectoryProfile = () => {
   }
 
   return (
-    <div className="relative flex min-h-screen bg-corama-dark">
-      {/* Horizontal separator line across entire width, below header (lg only) */}
-      <div className="hidden lg:block absolute inset-x-0 top-16 h-px bg-white z-10" aria-hidden="true" />
+    <div className="flex min-h-screen bg-corama-dark">
+      {/* Horizontal separator line across entire viewport width, below header (lg only) */}
+      <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-20" aria-hidden="true" />
       
       <Sidebar />
       
