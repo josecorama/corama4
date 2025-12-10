@@ -99,7 +99,7 @@ const Dashboard = () => {
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
             <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>
-            <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
+            <div className="flex items-center gap-2 text-white font-poppins text-xs sm:text-sm">
               <span>Accounts</span>
               <span>|</span>
               <span className="text-white">Test User</span>
@@ -194,8 +194,8 @@ const Dashboard = () => {
                       <div className="hidden lg:block overflow-x-auto">
                         <table className="w-full">
                           <thead>
-                            <tr className="text-gray-400 font-poppins text-sm border-b border-corama-darker">
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Contract Name</th>
+                            <tr className="font-poppins text-sm border-b border-corama-darker" style={{ color: '#9ccdcd' }}>
+                              <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">Contract Name</th>
                               <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Category</th>
                               <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">NAICS Code(s)</th>
                               <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Due Date</th>
@@ -207,12 +207,12 @@ const Dashboard = () => {
                           <tbody>
                             {contracts.map((contract) => (
                               <tr key={contract.id} className="border-b border-corama-darker/50 hover:bg-corama-darker/30">
-                                <td className="py-4 text-white font-poppins font-semibold">{contract.name}</td>
-                                <td className="py-4 text-gray-300 font-poppins text-sm">{contract.category}</td>
-                                <td className="py-4 px-4 text-center text-gray-300 font-poppins text-sm">{contract.naicsCode}</td>
-                                <td className="py-4 px-4 text-center text-gray-300 font-poppins text-sm">{contract.dueDate}</td>
+                                <td className="py-4 pr-6 text-white font-poppins font-semibold">{contract.name}</td>
+                                <td className="py-4 text-white font-poppins text-sm">{contract.category}</td>
+                                <td className="py-4 px-4 text-center text-white font-poppins text-sm">{contract.naicsCode}</td>
+                                <td className="py-4 px-4 text-center text-white font-poppins text-sm whitespace-nowrap">{contract.dueDate}</td>
                                 <td className="py-4 px-4 text-center">
-                                  <span className="text-green-400 font-poppins text-sm">{contract.status}</span>
+                                  <span className="text-white font-poppins text-sm">{contract.status}</span>
                                 </td>
                                 <td className="py-4 px-4 text-center">
                                   <button 
