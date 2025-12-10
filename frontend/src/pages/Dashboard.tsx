@@ -92,12 +92,8 @@ const Dashboard = () => {
     <div className="flex min-h-screen bg-corama-dark">
       <Sidebar />
       
-      {/* Main content area with vertical separator line on left (visible on lg screens) */}
-      <div className="flex-1 flex flex-col min-w-0 lg:border-l lg:border-white/20">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header credits={5} />
-        
-        {/* Horizontal separator line below header */}
-        <div className="hidden lg:block w-full h-px bg-white/20"></div>
         
         <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
           {/* Overview Header */}

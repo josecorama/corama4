@@ -30,7 +30,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
   }
 
   return (
-    <header className="sticky top-0 z-30 h-14 lg:h-16 bg-corama-dark border-b border-corama-darker flex items-center justify-between px-4 lg:px-6 ml-0 lg:ml-0">
+    <header className="sticky top-0 z-30 h-14 lg:h-16 bg-corama-dark border-b border-corama-darker lg:border-b-white flex items-center justify-between px-4 lg:px-6 ml-0 lg:ml-0">
       {/* Search - hidden on mobile, visible on tablet+ */}
       <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl">
         <div className="relative">
