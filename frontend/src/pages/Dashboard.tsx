@@ -156,22 +156,23 @@ const Dashboard = () => {
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 lg:mb-6">
                         <h2 className="text-white font-poppins font-semibold text-base lg:text-lg">Available Contracts</h2>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                          <form onSubmit={handleSearch} className="relative flex-1 sm:flex-none">
+                          <form onSubmit={handleSearch} className="relative flex-1 lg:flex-none w-full lg:w-auto">
                             <input
                               type="text"
-                              placeholder="SEARCH"
+                              placeholder="SEARCH CONTRACTS"
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
-                              className="bg-corama-darker border border-corama-teal/30 rounded-lg py-2 pl-10 pr-4 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal w-full sm:w-48 lg:w-64 text-sm"
+                              className="border rounded-full py-3 pl-12 pr-6 text-white placeholder-gray-400 focus:outline-none w-full lg:w-[500px] text-sm font-poppins tracking-wide"
+                              style={{ backgroundColor: '#3a4a5c', borderColor: '#5a7a8a' }}
                             />
-                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                           </form>
                           <button className="text-gray-400 hover:text-white p-2">
                             <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
                           </button>
-                          <div className="flex items-center gap-1 sm:gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
+                          <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">
                             <span className="hidden sm:inline">{startItem}-{endItem} of {totalContracts}</span>
                             <span className="sm:hidden">{currentPage}/{Math.ceil(totalContracts/contractsPerPage)}</span>
                             <button 
