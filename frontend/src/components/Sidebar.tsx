@@ -110,8 +110,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                         <img 
                           src="/static/app/dashboard/Highlight.svg" 
                           alt="" 
-                          className="absolute inset-0 w-full h-full object-cover object-left pr-4"
-                          style={{ right: '16px', width: 'calc(100% - 16px)' }}
+                          className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
+                          style={{ width: 'calc(100% - 16px)' }}
                           aria-hidden="true"
                         />
                       )}
@@ -136,17 +136,19 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 
                 {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
                 {showGoBack && (
-                  <button
-                    onClick={handleGoBack}
-                    className="flex items-center gap-3 px-4 py-3 mt-2 text-white rounded-r-full transition-all hover:opacity-90"
-                    style={{
-                      background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
-                      width: 'calc(100% - 16px)'
-                    }}
-                  >
-                    <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                    <span className="font-poppins text-sm">Go Back</span>
-                  </button>
+                  <div className="relative mt-2">
+                    <button
+                      onClick={handleGoBack}
+                      className="flex items-center gap-3 px-4 py-3 text-white rounded-r-full transition-all hover:opacity-90"
+                      style={{
+                        background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                        width: 'calc(100% - 16px)'
+                      }}
+                    >
+                      <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />
+                      <span className="font-poppins text-sm">Go Back</span>
+                    </button>
+                  </div>
                 )}
               </nav>
         
