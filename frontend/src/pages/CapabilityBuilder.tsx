@@ -1096,7 +1096,7 @@ const CapabilityBuilder = () => {
                     className="hover:opacity-80 transition-opacity"
                     title="Save"
                   >
-                    <img src="/static/app/dashboard/SaveIcon.svg" alt="Save" className="w-6 h-6 sm:w-7 sm:h-7" />
+                    <img src="/static/app/dashboard/Save.svg" alt="Save" className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
                   <button 
                     onClick={handleReset}

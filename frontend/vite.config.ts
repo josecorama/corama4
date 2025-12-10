@@ -7,7 +7,7 @@ export default defineConfig({
   base: '/app/',
   build: {
     outDir: '../static/app',
-    emptyOutDir: true
+    emptyOutDir: false
   },
   resolve: {
     alias: {
