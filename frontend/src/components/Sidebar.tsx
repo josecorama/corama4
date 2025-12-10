@@ -110,7 +110,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                         <img 
                           src="/static/app/dashboard/Highlight.svg" 
                           alt="" 
-                          className="absolute inset-0 w-full h-full object-cover object-left"
+                          className="absolute inset-0 w-full h-full object-cover object-left pr-4"
+                          style={{ right: '16px', width: 'calc(100% - 16px)' }}
                           aria-hidden="true"
                         />
                       )}
@@ -137,9 +138,10 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 {showGoBack && (
                   <button
                     onClick={handleGoBack}
-                    className="flex items-center gap-3 px-4 py-3 mt-2 w-full text-white rounded-r-full transition-all hover:opacity-90"
+                    className="flex items-center gap-3 px-4 py-3 mt-2 text-white rounded-r-full transition-all hover:opacity-90"
                     style={{
-                      background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)'
+                      background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                      width: 'calc(100% - 16px)'
                     }}
                   >
                     <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />

@@ -22,7 +22,7 @@ const Dashboard = () => {
   const [_loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [_credits, setCredits] = useState(0)
-  const [_userName, setUserName] = useState('')
+  const [userName, setUserName] = useState('')
 
   const contractsPerPage = 10
   const startItem = (currentPage - 1) * contractsPerPage + 1
@@ -108,7 +108,7 @@ const Dashboard = () => {
             <div className="flex items-center gap-2 text-white font-poppins text-xs sm:text-sm">
               <span>Accounts</span>
               <span>|</span>
-              <span className="text-white">Test User</span>
+              <span className="text-white">{userName || 'Loading...'}</span>
             </div>
           </div>
 
