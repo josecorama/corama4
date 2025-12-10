@@ -14,6 +14,176 @@ interface Contract {
   hashValue?: string
 }
 
+interface FilterPopupProps {
+  isOpen: boolean
+  onClose: () => void
+  onApply: (contractType: string, states: string[]) => void
+  currentContractType: string
+  currentStates: string[]
+}
+
+const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentStates }: FilterPopupProps) => {
+  const [contractType, setContractType] = useState(currentContractType)
+  const [selectedStates, setSelectedStates] = useState<string[]>(currentStates)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setContractType(currentContractType)
+    setSelectedStates(currentStates)
+    setError('')
+  }, [isOpen, currentContractType, currentStates])
+
+  const handleContractTypeChange = (type: string) => {
+    setContractType(type)
+    setError('')
+    if (type !== 'state') {
+      setSelectedStates([])
+    }
+  }
+
+  const handleStateToggle = (state: string) => {
+    if (state === 'all') {
+      if (selectedStates.includes('all')) {
+        setSelectedStates([])
+      } else {
+        setSelectedStates(['all'])
+      }
+    } else {
+      const newStates = selectedStates.filter(s => s !== 'all')
+      if (newStates.includes(state)) {
+        setSelectedStates(newStates.filter(s => s !== state))
+      } else {
+        setSelectedStates([...newStates, state])
+      }
+    }
+    setError('')
+  }
+
+  const handleApply = () => {
+    if (contractType === 'state' && selectedStates.length === 0) {
+      setError('Please select at least one state')
+      return
+    }
+    onApply(contractType, selectedStates)
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  const isStateSelected = (state: string) => selectedStates.includes(state)
+  const showStatesSection = contractType === 'state'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div 
+        className="relative rounded-2xl p-6 w-[320px]"
+        style={{ backgroundColor: '#1e2a3a', border: '1px solid #3a4a5a' }}
+      >
+        {/* Close button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 hover:opacity-80"
+        >
+          <img src="/static/app/dashboard/ClosePop.svg" alt="Close" className="w-5 h-5" />
+        </button>
+
+        {/* Title */}
+        <h2 className="text-white font-poppins text-xl font-semibold text-center mb-6">
+          Select Your Filters
+        </h2>
+
+        {/* Contract Type Section */}
+        <div className="mb-4">
+          <h3 className="text-white font-poppins text-sm font-semibold mb-3">Contract Type</h3>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => handleContractTypeChange('all')}
+              className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
+                contractType === 'all'
+                  ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                  : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
+              }`}
+            >
+              All Contracts
+            </button>
+            <button
+              onClick={() => handleContractTypeChange('federal')}
+              className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
+                contractType === 'federal'
+                  ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                  : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
+              }`}
+            >
+              Federal
+            </button>
+            <button
+              onClick={() => handleContractTypeChange('state')}
+              className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
+                contractType === 'state'
+                  ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
+                  : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
+              }`}
+            >
+              State
+            </button>
+          </div>
+        </div>
+
+        {/* States Section - Only show when State is selected */}
+        {showStatesSection && (
+          <div className="mb-4">
+            <h3 className="text-white font-poppins text-sm font-semibold mb-3">Please Select One Or More States</h3>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleStateToggle('all')}
+                className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
+                  isStateSelected('all')
+                    ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                    : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
+                }`}
+              >
+                All States
+              </button>
+              <button
+                onClick={() => handleStateToggle('IL')}
+                className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
+                  isStateSelected('IL')
+                    ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                    : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
+                }`}
+              >
+                Illinois (IL)
+              </button>
+              <button
+                onClick={() => handleStateToggle('IN')}
+                className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
+                  isStateSelected('IN')
+                    ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
+                    : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
+                }`}
+              >
+                Indiana (IN)
+              </button>
+            </div>
+            {error && (
+              <p className="text-red-400 font-poppins text-xs mt-2">{error}</p>
+            )}
+          </div>
+        )}
+
+        {/* Apply Button */}
+        <button
+          onClick={handleApply}
+          className="w-full py-3 rounded-full font-poppins text-sm font-semibold text-white mt-4"
+          style={{ backgroundColor: '#6bb4b5' }}
+        >
+          Apply
+        </button>
+      </div>
+    </div>
+  )
+}
+
 const Dashboard = () => {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalContracts, setTotalContracts] = useState(0)
@@ -23,6 +193,11 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [_credits, setCredits] = useState(0)
   const [userName, setUserName] = useState('')
+  
+  // Filter state
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [contractType, setContractType] = useState('all')
+  const [selectedStates, setSelectedStates] = useState<string[]>([])
 
   const contractsPerPage = 10
   const startItem = (currentPage - 1) * contractsPerPage + 1
@@ -34,7 +209,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadContracts()
-  }, [currentPage])
+  }, [currentPage, contractType, selectedStates])
 
   const loadUserData = async () => {
     try {
@@ -49,9 +224,8 @@ const Dashboard = () => {
   const loadContracts = async () => {
     setLoading(true)
     try {
-      const data = searchQuery 
-        ? await api.searchContracts(searchQuery, currentPage)
-        : await api.getContracts(currentPage)
+      // Always use searchContracts to support filtering (even with empty query)
+      const data = await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
       
       // Transform API response to component format
       const transformedContracts: Contract[] = data.contracts.map((c: ApiContract, index: number) => ({
@@ -81,6 +255,12 @@ const Dashboard = () => {
     loadContracts()
   }
 
+  const handleApplyFilter = (newContractType: string, newStates: string[]) => {
+    setContractType(newContractType)
+    setSelectedStates(newStates)
+    setCurrentPage(1)
+  }
+
   const categories = [
     { name: 'Construction', percentage: 25.0, count: Math.round(totalContracts * 0.25) },
     { name: 'IT Services', percentage: 20.0, count: Math.round(totalContracts * 0.20) },
@@ -90,6 +270,15 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-corama-dark">
+      {/* Filter Popup */}
+      <FilterPopup
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        onApply={handleApplyFilter}
+        currentContractType={contractType}
+        currentStates={selectedStates}
+      />
+      
       {/* Header spans full width at top */}
       <Header credits={5} />
       
@@ -181,7 +370,10 @@ const Dashboard = () => {
                         
                         {/* Right: Filter and pagination */}
                         <div className="flex items-center gap-2 sm:gap-4">
-                          <button className="text-gray-400 hover:text-white p-1">
+                          <button 
+                            onClick={() => setIsFilterOpen(true)}
+                            className="text-gray-400 hover:text-white p-1"
+                          >
                             <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
                           </button>
                           <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">

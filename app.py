@@ -4650,6 +4650,40 @@ def dashboard_search():
         user_query = data.get('query', '').strip()
         page = data.get('page', 1)
         items_per_page = 10
+        
+        # Filter parameters
+        contract_type = data.get('contract_type', 'all')  # 'all', 'federal', 'state'
+        selected_states = data.get('states', [])  # List of state codes like ['IL', 'IN']
+
+        # Helper function to apply contract type and state filters
+        def apply_contract_filters(df, contract_type, selected_states):
+            """Apply contract type (federal/state) and state filters to dataframe"""
+            if contract_type == 'all':
+                return df
+            
+            # Ensure state column exists and is string
+            df['state'] = df['state'].fillna('').astype(str)
+            
+            if contract_type == 'federal':
+                # Federal contracts have 'Federal' in state field or empty/Unknown
+                mask = df['state'].str.lower().isin(['federal', 'unknown', ''])
+                df = df[mask]
+                logging.info(f"🔍 Federal filter applied: {len(df)} contracts")
+            elif contract_type == 'state':
+                # State contracts - filter by selected states
+                if selected_states and len(selected_states) > 0:
+                    if 'all' in [s.lower() for s in selected_states]:
+                        # All states - exclude federal contracts
+                        mask = ~df['state'].str.lower().isin(['federal', 'unknown', ''])
+                        df = df[mask]
+                    else:
+                        # Specific states selected
+                        state_codes_upper = [s.upper() for s in selected_states]
+                        mask = df['state'].str.upper().isin(state_codes_upper)
+                        df = df[mask]
+                    logging.info(f"🔍 State filter applied (states={selected_states}): {len(df)} contracts")
+            
+            return df
 
         # Check if query is a NAICS code (4-6 digit number) - use exact matching instead of vector search
         naics_match = re.fullmatch(r'\d{4,6}', user_query)
@@ -4668,6 +4702,9 @@ def dashboard_search():
                 naics_code = naics_match.group(0)
                 mask = df['naics_code'].str.contains(rf'\b{naics_code}\b', regex=True, na=False)
                 df = df[mask]
+                
+                # Apply contract type and state filters
+                df = apply_contract_filters(df, contract_type, selected_states)
                 
                 logging.info(f"✅ NAICS search found {len(df)} contracts with code {naics_code}")
             
@@ -4723,14 +4760,25 @@ def dashboard_search():
 
         if not user_query:
             # No query provided - return all contracts from Qdrant (CSV data is obsolete)
-            contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
-            
-            # Compute analytics from Qdrant data
+            # Get all contracts first for filtering
             import pandas as pd
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)  # Get all for analytics
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
             df = pd.DataFrame(all_contracts)
             
+            # Apply contract type and state filters
             if len(df) > 0:
+                df = apply_contract_filters(df, contract_type, selected_states)
+            
+            # Paginate filtered results
+            total_contracts = len(df)
+            total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
+            start = (page - 1) * items_per_page
+            end = start + items_per_page
+            
+            if len(df) > 0:
+                paginated_df = df.iloc[start:end]
+                contracts = paginated_df.to_dict('records')
+                
                 category_counts = df['category'].value_counts().to_dict()
                 status_counts = df['status'].value_counts().to_dict()
                 open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
@@ -4752,6 +4800,7 @@ def dashboard_search():
                     'high_score_opportunities': high_score_count
                 }
             else:
+                contracts = []
                 analytics = {
                     'total_contracts': 0,
                     'category_distribution': {},
@@ -4762,7 +4811,7 @@ def dashboard_search():
                     'high_score_opportunities': 0
                 }
             
-            logging.info(f"✅ /dashboard_search (no query): Returning {len(contracts)} contracts from Qdrant")
+            logging.info(f"✅ /dashboard_search (no query, filter={contract_type}): Returning {len(contracts)} contracts from Qdrant")
             
             return jsonify({
                 "success": True,
@@ -4819,6 +4868,10 @@ def dashboard_search():
                     df = df.drop(columns=['search_blob', 'rank_score'])
                 else:
                     df = df.drop(columns=['search_blob'])
+            
+            # Apply contract type and state filters
+            if len(df) > 0:
+                df = apply_contract_filters(df, contract_type, selected_states)
             
             total_contracts = len(df)
             total_pages = (total_contracts + items_per_page - 1) // items_per_page
@@ -4907,6 +4960,13 @@ def dashboard_search():
         
         # Combine: exact matches first (sorted by similarity), then other matches (sorted by similarity)
         filtered_results = exact_matches + other_matches
+        
+        # Apply contract type and state filters to vector search results
+        if contract_type != 'all' and filtered_results:
+            import pandas as pd
+            df = pd.DataFrame(filtered_results)
+            df = apply_contract_filters(df, contract_type, selected_states)
+            filtered_results = df.to_dict('records')
         
         if not filtered_results:
             return jsonify({

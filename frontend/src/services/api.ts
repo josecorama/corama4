@@ -130,11 +130,16 @@ class ApiService {
     return res.json();
   }
 
-  async searchContracts(query: string, page: number = 1): Promise<{success: boolean, contracts: Contract[], total_pages: number, total_contracts: number}> {
+  async searchContracts(
+    query: string, 
+    page: number = 1, 
+    contractType: string = 'all', 
+    states: string[] = []
+  ): Promise<{success: boolean, contracts: Contract[], total_pages: number, total_contracts: number}> {
     const res = await fetch('/dashboard_search', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, page })
+      body: JSON.stringify({ query, page, contract_type: contractType, states })
     });
     if (!res.ok) throw new Error('Failed to search contracts');
     return res.json();
