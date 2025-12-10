@@ -62,7 +62,10 @@ Analyze the contract with AI annotations -> Build your team -> Develop pricing s
   }
 
     return (
-      <div className="flex min-h-screen bg-corama-dark">
+      <div className="relative flex min-h-screen bg-corama-dark">
+        {/* Horizontal separator line across entire width, below header (lg only) */}
+        <div className="hidden lg:block absolute inset-x-0 top-16 h-px bg-white z-10" aria-hidden="true" />
+        
         <Sidebar />
       
         <div className="flex-1 flex flex-col min-w-0">

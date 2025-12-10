@@ -89,14 +89,17 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
       )}
 
       {/* Sidebar - sticky on desktop so IHCC section stays visible */}
-      {/* Right border creates vertical white separator line on lg screens */}
       <aside className={`
-        fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40
+        relative fixed lg:sticky lg:top-0 inset-y-0 left-0 z-40
         w-64 h-screen bg-corama-dark flex flex-col
         transform transition-transform duration-300 ease-in-out
-        lg:border-r lg:border-white
         ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
+        {/* Vertical separator line: starts below header (top-16), runs down the sidebar right edge */}
+        <div
+          className="hidden lg:block absolute right-0 top-16 bottom-0 w-px bg-white"
+          aria-hidden="true"
+        />
             <div className="p-4 pt-16 lg:pt-4 flex justify-center shrink-0">
                 <a href="/" className="inline-flex items-center" onClick={closeMobile}>
                   <img 
