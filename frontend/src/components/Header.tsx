@@ -30,7 +30,18 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
   }
 
   return (
-    <header className="sticky top-0 z-30 h-14 lg:h-16 bg-corama-dark border-b border-corama-darker flex items-center justify-between px-4 lg:px-6 ml-0 lg:ml-0">
+    <header className="sticky top-0 z-30 h-14 lg:h-16 bg-corama-dark border-b border-corama-darker flex items-center px-4 lg:px-6">
+      {/* CORAMA Logo - left side */}
+      <div className="flex items-center shrink-0 mr-4 lg:mr-8">
+        <a href="/" className="inline-flex items-center">
+          <img 
+            src="/static/app/dashboard/CoramaLogo.svg" 
+            alt="CORAMA" 
+            className="h-8 lg:h-10 w-auto"
+          />
+        </a>
+      </div>
+      
       {/* Search - hidden on mobile, visible on tablet+ */}
       <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl">
         <div className="relative">
