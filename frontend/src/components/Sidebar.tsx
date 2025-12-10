@@ -136,7 +136,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                 
                 {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
                 {showGoBack && (
-                  <div className="relative mt-2">
+                  <div className="relative mt-2 ml-2">
                     <button
                       onClick={handleGoBack}
                       className="flex items-center gap-3 px-4 py-3 text-white rounded-r-full transition-all hover:opacity-90"
