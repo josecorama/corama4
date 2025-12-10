@@ -89,16 +89,19 @@ const Dashboard = () => {
   ]
 
   return (
-    <div className="flex min-h-screen bg-corama-dark">
-      {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-      <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+    <div className="min-h-screen bg-corama-dark">
+      {/* Header spans full width at top */}
+      <Header credits={5} />
       
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header credits={5} />
+      {/* Sidebar + Content row below header */}
+      <div className="flex">
+        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
+        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
         
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+        <Sidebar />
+        
+        <div className="flex-1 flex flex-col min-w-0">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
             <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>
@@ -287,6 +290,7 @@ const Dashboard = () => {
                       </div>
                     </div>
         </main>
+        </div>
       </div>
     </div>
   )

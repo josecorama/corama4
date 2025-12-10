@@ -38,16 +38,19 @@ const NoCapabilityStatement = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-corama-dark">
-      {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-      <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+    <div className="min-h-screen bg-corama-dark">
+      {/* Header spans full width at top */}
+      <Header credits={5} />
       
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header credits={5} />
+      {/* Sidebar + Content row below header */}
+      <div className="flex">
+        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
+        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
         
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden flex items-center justify-center">
+        <Sidebar />
+        
+        <div className="flex-1 flex flex-col min-w-0">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden flex items-center justify-center">
           <div className="card-gradient rounded-xl p-6 lg:p-10 border border-[#3D4F5F] w-full max-w-4xl">
             {/* Header with exclamation mark */}
             <div className="flex items-center gap-4 mb-8">
@@ -88,6 +91,7 @@ const NoCapabilityStatement = () => {
             </div>
           </div>
         </main>
+        </div>
       </div>
     </div>
   )

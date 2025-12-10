@@ -62,16 +62,19 @@ Analyze the contract with AI annotations -> Build your team -> Develop pricing s
   }
 
     return (
-      <div className="flex min-h-screen bg-corama-dark">
-        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+      <div className="min-h-screen bg-corama-dark">
+        {/* Header spans full width at top */}
+        <Header credits={5} />
         
-        <Sidebar />
-      
-        <div className="flex-1 flex flex-col min-w-0">
-          <Header credits={5} />
+        {/* Sidebar + Content row below header */}
+        <div className="flex">
+          {/* Horizontal separator line across entire viewport width, below header (lg only) */}
+          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          
+          <Sidebar />
         
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col overflow-hidden">
             {/* Page Title */}
             <div className="mb-4 lg:mb-6">
               <h1 className="text-corama-teal font-poppins text-xs sm:text-sm uppercase tracking-wider">
@@ -124,6 +127,7 @@ Analyze the contract with AI annotations -> Build your team -> Develop pricing s
               </div>
             </div>
           </main>
+          </div>
         </div>
       </div>
     )

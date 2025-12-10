@@ -66,16 +66,19 @@ const TopFiveContracts = () => {
   }
 
     return (
-      <div className="flex min-h-screen bg-corama-dark">
-        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+      <div className="min-h-screen bg-corama-dark">
+        {/* Header spans full width at top */}
+        <Header credits={5} />
         
-        <Sidebar />
-      
-        <div className="flex-1 flex flex-col min-w-0">
-          <Header credits={5} />
+        {/* Sidebar + Content row below header */}
+        <div className="flex">
+          {/* Horizontal separator line across entire viewport width, below header (lg only) */}
+          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          
+          <Sidebar />
         
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+          <div className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <p className="text-gray-400 font-poppins">Loading top contracts...</p>
@@ -198,6 +201,7 @@ const TopFiveContracts = () => {
             </div>
             )}
           </main>
+          </div>
         </div>
       </div>
     )

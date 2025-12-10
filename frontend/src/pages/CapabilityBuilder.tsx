@@ -567,14 +567,18 @@ const CapabilityBuilder = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-corama-dark">
-      {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-      <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+    <div className="min-h-screen bg-corama-dark">
+      {/* Header spans full width at top */}
+      <Header credits={5} />
       
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col min-w-0 max-h-screen">
-        <Header credits={5} />
+      {/* Sidebar + Content row below header */}
+      <div className="flex">
+        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
+        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        
+        <Sidebar />
+        
+        <div className="flex-1 flex flex-col min-w-0 max-h-[calc(100vh-4rem)]">
         
                 <main className="flex-1 overflow-y-auto overflow-x-hidden">
                   {/* Sticky Page Title and Steps */}
@@ -1209,6 +1213,7 @@ const CapabilityBuilder = () => {
           </div>
           </div>
         </main>
+        </div>
       </div>
     </div>
   )

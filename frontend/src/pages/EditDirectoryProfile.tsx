@@ -114,30 +114,35 @@ const EditDirectoryProfile = () => {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen bg-corama-dark">
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <Header credits={credits} />
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden flex items-center justify-center">
-            <div className="text-white font-poppins">Loading...</div>
-          </main>
+      <div className="min-h-screen bg-corama-dark">
+        <Header credits={credits} />
+        <div className="flex">
+          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          <Sidebar />
+          <div className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden flex items-center justify-center">
+              <div className="text-white font-poppins">Loading...</div>
+            </main>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex min-h-screen bg-corama-dark">
-      {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-      <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+    <div className="min-h-screen bg-corama-dark">
+      {/* Header spans full width at top */}
+      <Header credits={credits} />
       
-      <Sidebar />
-      
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header credits={credits} />
+      {/* Sidebar + Content row below header */}
+      <div className="flex">
+        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
+        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
         
-        <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+        <Sidebar />
+        
+        <div className="flex-1 flex flex-col min-w-0">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
           <div className="max-w-4xl mx-auto">
             {/* Page Title */}
             <div className="mb-6">
@@ -339,6 +344,7 @@ const EditDirectoryProfile = () => {
             </div>
           </div>
         </main>
+        </div>
       </div>
     </div>
   )
