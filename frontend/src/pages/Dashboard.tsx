@@ -197,11 +197,11 @@ const Dashboard = () => {
                             <tr className="text-gray-400 font-poppins text-sm border-b border-corama-darker">
                               <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Contract Name</th>
                               <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Category</th>
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">NAICS Code(s)</th>
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Due Date</th>
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Status</th>
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">AI Assistant</th>
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Visit Site</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">NAICS Code(s)</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Due Date</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Status</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">AI Assistant</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Visit Site</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -209,24 +209,24 @@ const Dashboard = () => {
                               <tr key={contract.id} className="border-b border-corama-darker/50 hover:bg-corama-darker/30">
                                 <td className="py-4 text-white font-poppins font-semibold">{contract.name}</td>
                                 <td className="py-4 text-gray-300 font-poppins text-sm">{contract.category}</td>
-                                <td className="py-4 text-gray-300 font-poppins text-sm">{contract.naicsCode}</td>
-                                <td className="py-4 text-gray-300 font-poppins text-sm">{contract.dueDate}</td>
-                                <td className="py-4">
+                                <td className="py-4 px-4 text-center text-gray-300 font-poppins text-sm">{contract.naicsCode}</td>
+                                <td className="py-4 px-4 text-center text-gray-300 font-poppins text-sm">{contract.dueDate}</td>
+                                <td className="py-4 px-4 text-center">
                                   <span className="text-green-400 font-poppins text-sm">{contract.status}</span>
                                 </td>
-                                <td className="py-4">
+                                <td className="py-4 px-4 text-center">
                                   <button 
                                     onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
-                                    className="p-1 hover:opacity-80 transition-opacity"
+                                    className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title="Open AI Assistant for this contract"
                                   >
                                     <img src="/static/app/dashboard/AIAssistant.svg" alt="AI Assistant" className="w-6 h-6" />
                                   </button>
                                 </td>
-                                <td className="py-4">
+                                <td className="py-4 px-4 text-center">
                                   <button 
                                     onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
-                                    className="p-1 hover:opacity-80 transition-opacity"
+                                    className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title="Visit contract website"
                                   >
                                     <img src="/static/app/dashboard/VisitSite.svg" alt="Visit Site" className="w-6 h-6" />
