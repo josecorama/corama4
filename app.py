@@ -80,7 +80,10 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 # Initialize Flask App
 app = Flask(__name__, static_folder='static')
 
-app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(16))
+raw_secret = os.getenv('FLASK_SECRET_KEY')
+if not raw_secret:
+    raw_secret = secrets.token_hex(16)
+app.config['SECRET_KEY'] = raw_secret
 app.config['UPLOAD_FOLDER'] = os.path.join(base_dir, 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['WTF_CSRF_ENABLED'] = True
