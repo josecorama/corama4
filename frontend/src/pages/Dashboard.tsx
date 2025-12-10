@@ -152,23 +152,27 @@ const Dashboard = () => {
           </div>
 
                     {/* Available Contracts Table */}
-                    <div className="card-gradient rounded-xl p-3 sm:p-4 lg:p-6">
+                    <div className="rounded-xl p-3 sm:p-4 lg:p-6" style={{ backgroundColor: '#3a4a5c' }}>
+                      {/* Centered Search Bar */}
+                      <div className="flex justify-center mb-4 lg:mb-6">
+                        <form onSubmit={handleSearch} className="relative w-full max-w-2xl">
+                          <input
+                            type="text"
+                            placeholder="SEARCH CONTRACTS"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="border rounded-full py-3 pl-12 pr-6 text-white placeholder-gray-400 focus:outline-none w-full text-sm font-poppins tracking-wide"
+                            style={{ backgroundColor: '#3a4a5c', borderColor: '#5a7a8a' }}
+                          />
+                          <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                          </svg>
+                        </form>
+                      </div>
+                      
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 lg:mb-6">
                         <h2 className="text-white font-poppins font-semibold text-base lg:text-lg">Available Contracts</h2>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                          <form onSubmit={handleSearch} className="relative flex-1 lg:flex-none w-full lg:w-auto">
-                            <input
-                              type="text"
-                              placeholder="SEARCH CONTRACTS"
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="border rounded-full py-3 pl-12 pr-6 text-white placeholder-gray-400 focus:outline-none w-full lg:w-[500px] text-sm font-poppins tracking-wide"
-                              style={{ backgroundColor: '#3a4a5c', borderColor: '#5a7a8a' }}
-                            />
-                            <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                          </form>
                           <button className="text-gray-400 hover:text-white p-2">
                             <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
                           </button>
