@@ -152,17 +152,18 @@ const Dashboard = () => {
           </div>
 
                     {/* Available Contracts Table */}
-                    <div className="rounded-xl p-3 sm:p-4 lg:p-6" style={{ backgroundColor: '#3a4a5c' }}>
-                      {/* Centered Search Bar */}
-                      <div className="flex justify-center mb-4 lg:mb-6">
-                        <form onSubmit={handleSearch} className="relative w-full max-w-2xl">
+                    <div className="rounded-xl p-3 sm:p-4 lg:p-6" style={{ backgroundColor: '#2f3c4f' }}>
+                      {/* Header row with Available Contracts and Search Bar aligned */}
+                      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 mb-4 lg:mb-6">
+                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg">Available Contracts</h2>
+                        <form onSubmit={handleSearch} className="relative w-full lg:w-auto lg:flex-1 lg:max-w-xl">
                           <input
                             type="text"
                             placeholder="SEARCH CONTRACTS"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border rounded-full py-3 pl-12 pr-6 text-white placeholder-gray-400 focus:outline-none w-full text-sm font-poppins tracking-wide"
-                            style={{ backgroundColor: '#3a4a5c', borderColor: '#5a7a8a' }}
+                            style={{ backgroundColor: '#2f3c4f', borderColor: '#5a7a8a' }}
                           />
                           <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -171,7 +172,6 @@ const Dashboard = () => {
                       </div>
                       
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 lg:mb-6">
-                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg">Available Contracts</h2>
                         <div className="flex flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
                           <button className="text-gray-400 hover:text-white p-2">
                             <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
@@ -197,9 +197,9 @@ const Dashboard = () => {
 
                       {/* Desktop Table */}
                       <div className="hidden lg:block overflow-x-auto">
-                        <table className="w-full">
+                        <table className="w-full border rounded-lg" style={{ borderColor: '#98C9CA' }}>
                           <thead>
-                            <tr className="font-poppins text-sm border-b border-corama-darker" style={{ color: '#9ccdcd' }}>
+                            <tr className="font-poppins text-sm" style={{ color: '#9ccdcd' }}>
                               <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">Contract Name</th>
                               <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Category</th>
                               <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">NAICS Code(s)</th>
@@ -211,7 +211,7 @@ const Dashboard = () => {
                           </thead>
                           <tbody>
                             {contracts.map((contract) => (
-                              <tr key={contract.id} className="border-b border-corama-darker/50 hover:bg-corama-darker/30">
+                              <tr key={contract.id} className="hover:bg-corama-darker/30">
                                 <td className="py-4 pr-6 text-white font-poppins font-semibold">{contract.name}</td>
                                 <td className="py-4 text-white font-poppins text-sm">{contract.category}</td>
                                 <td className="py-4 px-4 text-center text-white font-poppins text-sm">{contract.naicsCode}</td>
