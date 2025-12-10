@@ -106,20 +106,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
                   const isActive = location.pathname === item.path
                   return (
                     <div key={item.path} className="relative">
-                      {isActive && (
-                        <img 
-                          src="/static/app/dashboard/Highlight.svg" 
-                          alt="" 
-                          className="absolute inset-0 w-full h-full object-cover object-left"
-                          aria-hidden="true"
-                        />
-                      )}
                       <Link
                         to={item.path}
                         onClick={closeMobile}
                         className={`relative flex items-center gap-3 px-4 py-3 mb-1 transition-all ${
                           isActive 
-                            ? 'text-white' 
+                            ? 'text-white bg-gradient-to-r from-[#1C4262] to-[#284165] rounded-r-full' 
                             : 'text-gray-300 hover:bg-corama-darker hover:text-white rounded-xl mx-2'
                         }`}
                       >
@@ -158,7 +150,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
           className="inline-block mb-4"
         >
                     <img 
-                      src="/static/app/dashboard/IHCC_logo.png" 
+                      src="/static/app/dashboard/IHCC.svg" 
                       alt="IHCC - Illinois Hispanic Chamber of Commerce" 
                       className="h-24 w-auto mx-auto"
                     />
