@@ -362,41 +362,39 @@ const Dashboard = () => {
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {topCategories.map((cat, index) => (
-                <div key={index} className="rounded-xl p-4 border border-white flex flex-col" style={{ backgroundColor: '#0b2c48' }}>
-                  {/* Category name at top */}
-                  <h3 className="text-white font-poppins font-semibold text-sm mb-3">{cat.name}</h3>
-                  
-                  {/* Percentage and graph - vertically centered, aligned to left */}
-                  <div className="flex-1 flex items-center justify-start">
-                    <div className="relative w-20 h-20">
-                      <svg className="w-20 h-20 transform -rotate-90">
-                        <circle
-                          cx="40"
-                          cy="40"
-                          r="35"
-                          stroke="rgba(107, 180, 181, 0.2)"
-                          strokeWidth="5"
-                          fill="none"
-                        />
-                        <circle
-                          cx="40"
-                          cy="40"
-                          r="35"
-                          stroke="#6bb4b5"
-                          strokeWidth="5"
-                          fill="none"
-                          strokeDasharray={`${cat.percentage * 2.2} 220`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-base font-bold">
-                        {cat.percentage}%
-                      </span>
-                    </div>
+                <div key={index} className="rounded-xl p-4 border border-white flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
+                  {/* Percentage graph on the left */}
+                  <div className="relative w-20 h-20 flex-shrink-0">
+                    <svg className="w-20 h-20 transform -rotate-90">
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="35"
+                        stroke="rgba(107, 180, 181, 0.2)"
+                        strokeWidth="5"
+                        fill="none"
+                      />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="35"
+                        stroke="#6bb4b5"
+                        strokeWidth="5"
+                        fill="none"
+                        strokeDasharray={`${cat.percentage * 2.2} 220`}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-base font-bold">
+                      {cat.percentage}%
+                    </span>
                   </div>
                   
-                  {/* Contract count at bottom - aligned with category name (left) */}
-                  <p className="text-corama-teal font-poppins text-sm text-left mt-3">{cat.count} contracts</p>
+                  {/* Category name and contract count to the right of graph */}
+                  <div className="flex flex-col justify-center">
+                    <h3 className="text-white font-poppins font-semibold text-sm">{cat.name}</h3>
+                    <p className="text-corama-teal font-poppins text-sm">{cat.count} contracts</p>
+                  </div>
                 </div>
               ))}
             </div>
