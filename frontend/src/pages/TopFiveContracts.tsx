@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
-import { Edit, Printer } from 'lucide-react'
+import { Edit, Printer, RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 
 // SVG asset paths for contract cards
@@ -29,10 +29,11 @@ const TopFiveContracts = () => {
   const navigate = useNavigate()
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
+  const [rerunning, setRerunning] = useState(false)
   const [hasMatches, setHasMatches] = useState<boolean | null>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const [_contractType, setContractType] = useState('')
-  const [_selectedStates, setSelectedStates] = useState<string[]>([])
+  const [contractType, setContractType] = useState('')
+  const [selectedStates, setSelectedStates] = useState<string[]>([])
   const [noFilterResults, setNoFilterResults] = useState(false)
 
   // Redirect to dashboard if user has no matches at all
@@ -97,10 +98,62 @@ const TopFiveContracts = () => {
     }
   }
 
+  const handleRerunMatching = async (filterContractType?: string, filterStates?: string[]) => {
+    setRerunning(true)
+    setNoFilterResults(false)
+    try {
+      // Convert contract type to array format expected by backend
+      const contractTypes = filterContractType && filterContractType !== 'all' && filterContractType !== '' 
+        ? [filterContractType] 
+        : []
+      const states = filterStates?.filter(s => s !== 'all') || []
+      
+      const data = await api.rerunTopFiveMatching(contractTypes, states)
+      if (data.success) {
+        const transformedContracts: ContractMatch[] = (data.matches || []).map((m: ApiContractMatch) => {
+          let matchPct = 0
+          const simScore = m.Similarity_Score
+          if (typeof simScore === 'string') {
+            matchPct = parseFloat(simScore.replace('%', '')) || 0
+          } else if (typeof simScore === 'number') {
+            matchPct = simScore > 1 ? simScore : simScore * 100
+          }
+          
+          return {
+            rank: m.rank,
+            state: m.State || 'N/A',
+            contractValue: m.Budget || 'TBD',
+            submissionDeadline: m.Due_Date || 'N/A',
+            naicsCode: m.NAICS_Code || 'N/A',
+            name: m.Bid_Name,
+            contractingAgency: m.Organization || m.Company || 'N/A',
+            matchPercentage: Math.round(matchPct),
+            detailLink: m.Detail_Link
+          }
+        })
+        setContracts(transformedContracts)
+        setHasMatches(transformedContracts.length > 0)
+        
+        if (transformedContracts.length === 0) {
+          setNoFilterResults(true)
+        }
+      } else {
+        console.error('Rerun matching failed:', data.error)
+        alert(data.error || 'Failed to refresh matches. Please try again.')
+      }
+    } catch (error) {
+      console.error('Failed to rerun matching:', error)
+      alert('Failed to refresh matches. Please try again.')
+    } finally {
+      setRerunning(false)
+    }
+  }
+
   const handleApplyFilter = (newContractType: string, newStates: string[]) => {
     setContractType(newContractType)
     setSelectedStates(newStates)
-    loadTopFive(newContractType, newStates)
+    // Re-run matching with the new filters
+    handleRerunMatching(newContractType, newStates)
   }
 
     return (
@@ -117,20 +170,31 @@ const TopFiveContracts = () => {
         
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
-              {/* Page Title and Sort By Button */}
+              {/* Page Title and Action Buttons */}
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Contracts</h1>
-                <button 
-                  onClick={() => setIsFilterOpen(true)}
-                  className="hover:opacity-90 transition-opacity"
-                >
-                  <img src={SortByIcon} alt="Sort By" className="h-10 lg:h-12" />
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => handleRerunMatching(contractType, selectedStates)}
+                    disabled={rerunning}
+                    className="flex items-center gap-2 px-4 py-2 rounded-full text-white font-poppins text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-50"
+                    style={{ backgroundColor: '#6bb4b5' }}
+                  >
+                    <RefreshCw size={16} className={rerunning ? 'animate-spin' : ''} />
+                    {rerunning ? 'Refreshing...' : 'Refresh Matches'}
+                  </button>
+                  <button 
+                    onClick={() => setIsFilterOpen(true)}
+                    className="hover:opacity-90 transition-opacity"
+                  >
+                    <img src={SortByIcon} alt="Sort By" className="h-10 lg:h-12" />
+                  </button>
+                </div>
               </div>
 
-            {loading ? (
+            {loading || rerunning ? (
               <div className="flex items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins">Loading top contracts...</p>
+                <p className="text-gray-400 font-poppins">{rerunning ? 'Refreshing matches from Qdrant...' : 'Loading top contracts...'}</p>
               </div>
             ) : noFilterResults ? (
               <div className="flex flex-col items-center justify-center h-64">

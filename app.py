@@ -13069,6 +13069,141 @@ def api_get_user():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# API: Re-run top five matching with existing capability statement
+@app.route('/api/rerun-top-five', methods=['POST'])
+def api_rerun_top_five():
+    """Re-run the top 5 matching using the user's existing capability statement PDF"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    user_upload_dir = f"uploads/bid_uploads_{user_id}"
+    
+    # Get filter parameters from request body
+    data = request.get_json() or {}
+    contract_types = data.get('contractTypes', [])
+    states = data.get('states', [])
+    
+    logging.info(f"[rerun-top5] user_id={user_id}, contract_types={contract_types}, states={states}")
+    
+    # Find the existing capability statement PDF in the user's upload directory
+    pdf_path = None
+    if os.path.exists(user_upload_dir):
+        for fname in os.listdir(user_upload_dir):
+            if fname.lower().endswith('.pdf') and fname != 'matches.csv':
+                pdf_path = os.path.join(user_upload_dir, fname)
+                break
+    
+    if not pdf_path or not os.path.exists(pdf_path):
+        logging.warning(f"[rerun-top5] No capability statement PDF found for user {user_id}")
+        return jsonify({"success": False, "error": "No capability statement found. Please upload one first."}), 400
+    
+    logging.info(f"[rerun-top5] Found capability statement: {pdf_path}")
+    
+    try:
+        # Get company name from capability statements CSV
+        pdf_company_name = None
+        cs_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+        if os.path.exists(cs_path):
+            try:
+                cs_df = pd.read_csv(cs_path, dtype=str)
+                if "Company" in cs_df.columns and not cs_df.empty:
+                    pdf_company_name = cs_df["Company"].iloc[0]
+            except Exception as e:
+                logging.warning(f"[rerun-top5] Could not read company from CSV: {e}")
+        
+        # Initialize CSQueryHandler for contract matching
+        openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        handler = CSQueryHandler(
+            openai_api_key=openai_key,
+            qdrant_url=os.getenv('Qdrant_EP'),
+            qdrant_api_key=os.getenv('Qdrant_AK'),
+            user_upload_dir=user_upload_dir
+        )
+        
+        # Process query to get top 5 matching contracts
+        logging.info(f"[rerun-top5] Starting Qdrant matching...")
+        with open(pdf_path, 'rb') as pdf_file:
+            results = handler.process_query(
+                pdf_file, 
+                contract_types=contract_types, 
+                states=states,
+                limit=50  # Get more results for better filtering
+            )
+        
+        logging.info(f"[rerun-top5] Qdrant matching completed. Found {len(results)} results")
+        
+        # Store results in session
+        session['top5_results'] = results
+        
+        # Write to CSV for persistence
+        matches_file = os.path.join(user_upload_dir, 'matches.csv')
+        try:
+            with open(matches_file, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=[
+                    'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
+                    'Status', 'Category', 'Due_Date', 'Detail_Link',
+                    'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id',
+                    'NAICS_Code', 'Contract_Type'
+                ])
+                writer.writeheader()
+                for row in results:
+                    writer.writerow({
+                        'Company':         pdf_company_name if pdf_company_name else "Unknown",
+                        'Bid_Number':      row.get('Bid_Number', ''),
+                        'Bid_Name':        row.get('Bid_Name', ''),
+                        'Bid_Description': row.get('Bid_Description', ''),
+                        'Status':          row.get('Status', ''),
+                        'Category':        row.get('Category', ''),
+                        'Due_Date':        row.get('Due_Date', ''),
+                        'Detail_Link':     row.get('Detail_Link', '#'),
+                        'State':           row.get('State', ''),
+                        'Organization':    row.get('Organization', ''),
+                        'Budget':          row.get('Budget', ''),
+                        'Similarity_Score': row.get('Similarity_Score', ''),
+                        'hash_value':      row.get('hash_value', ''),
+                        'contract_id':     row.get('contract_id', ''),
+                        'NAICS_Code':      row.get('NAICS_Code', row.get('naics_code', '')),
+                        'Contract_Type':   row.get('Contract_Type', row.get('contract_type', ''))
+                    })
+            logging.info(f"[rerun-top5] Saved {len(results)} matches to CSV: {matches_file}")
+        except Exception as csv_error:
+            logging.warning(f"[rerun-top5] Failed to write CSV: {csv_error}")
+        
+        # Format results for response
+        formatted_matches = []
+        for i, row in enumerate(results[:5]):
+            formatted_matches.append({
+                'rank': i + 1,
+                'Company': row.get('Company', pdf_company_name or 'Unknown'),
+                'Bid_Number': row.get('Bid_Number', ''),
+                'Bid_Name': row.get('Bid_Name', ''),
+                'Bid_Description': row.get('Bid_Description', ''),
+                'Status': row.get('Status', ''),
+                'Category': row.get('Category', ''),
+                'Due_Date': row.get('Due_Date', ''),
+                'Detail_Link': row.get('Detail_Link', '#'),
+                'State': row.get('State', ''),
+                'Organization': row.get('Organization', ''),
+                'Budget': row.get('Budget', ''),
+                'Similarity_Score': row.get('Similarity_Score', ''),
+                'NAICS_Code': row.get('NAICS_Code', row.get('NAICS_CODE', '')),
+                'Contract_Type': row.get('Contract_Type', '')
+            })
+        
+        return jsonify({
+            "success": True,
+            "matches": formatted_matches,
+            "total_found": len(results),
+            "message": f"Found {len(results)} matching contracts"
+        })
+        
+    except Exception as e:
+        logging.error(f"[rerun-top5] Error during matching: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": f"Matching failed: {str(e)}"}), 500
+
+
 # API: Get top five contract matches
 @app.route('/api/top-five-contracts', methods=['GET'])
 def api_top_five_contracts():
@@ -13087,6 +13222,13 @@ def api_top_five_contracts():
     selected_states = [s.strip().upper() for s in states_param.split(',') if s.strip()] if states_param else []
     
     logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}")
+    
+    # Check if session has top5_results (newer approach - CSV is fallback)
+    session_results = session.get('top5_results')
+    if session_results:
+        logging.info(f"[top5] Session has {len(session_results)} results")
+    else:
+        logging.info(f"[top5] No session results, will use CSV")
     
     matches = []
     total_matches = 0  # Track total matches before filtering

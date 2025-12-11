@@ -357,7 +357,7 @@ Respond with ONLY valid JSON array, no other text:
             print("\n执行搜索...")
             results = self.qdrant_client.search(**query_params)
 
-            print(f"\n(1) 初步搜索结果: 共 {len(results)} 条 (limit={limit})")
+            print(f"\n[MATCHING] Stage 1 - Raw Qdrant results: {len(results)} (limit={limit})")
             for idx, res in enumerate(results, 1):
                 # Use correct Qdrant field name: 'title' instead of 'Bid Name'
                 name = res.payload.get('title', 'Unknown Bid')
@@ -424,6 +424,8 @@ Respond with ONLY valid JSON array, no other text:
             unique_results = list(best_by_name.values())
 
             unique_results.sort(key=lambda x: x.score, reverse=True)
+            
+            print(f"\n[MATCHING] Stage 2 - After deduplication: {len(unique_results)} unique contracts")
 
             # Filter out closed contracts (past due dates) before selecting top 5
             open_results = []
@@ -436,10 +438,10 @@ Respond with ONLY valid JSON array, no other text:
                 else:
                     open_results.append(res)
             
-            if closed_count > 0:
-                print(f"\n(2.5) 过滤掉 {closed_count} 个已关闭合同 (截止日期已过)")
+            print(f"\n[MATCHING] Stage 3 - After filtering closed: {len(open_results)} open contracts (filtered out {closed_count} closed)")
             
             final_results = open_results[:5]
+            print(f"\n[MATCHING] Stage 4 - Final results (top 5): {len(final_results)} contracts")
 
             print("\n(2) 去重过程记录：")
             for line in duplicate_logs:

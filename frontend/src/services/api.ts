@@ -179,6 +179,30 @@ class ApiService {
     return res.json();
   }
 
+  // Re-run Top Five matching with existing capability statement
+  async rerunTopFiveMatching(
+    contractTypes?: string[],
+    states?: string[]
+  ): Promise<{success: boolean, matches: ContractMatch[], total_found?: number, message?: string, error?: string}> {
+    const res = await fetch(`${API_BASE()}/rerun-top-five`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contractTypes: contractTypes || [],
+        states: states || []
+      })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to re-run matching' }));
+      return { success: false, matches: [], error: errorData.error || 'Failed to re-run matching' };
+    }
+    return res.json();
+  }
+
   // AI Assistant
   async sendMessage(query: string, hashValue?: string, actionType: string = 'general'): Promise<{response: string, credits_used: number, remaining_credits: number, casual_greeting: boolean}> {
     const formData = new FormData();
