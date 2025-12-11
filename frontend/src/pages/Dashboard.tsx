@@ -297,9 +297,13 @@ const Dashboard = () => {
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
       
-      // Use top_categories from backend (calculated from ALL contracts, not just current page)
+      // Use top_categories from backend (calculated from filtered contracts)
+      // Sort by count descending to ensure left-to-right order is highest to lowest
       if (data.top_categories && data.top_categories.length > 0) {
-        setTopCategories(data.top_categories.slice(0, 4)) // Top 4 for the grid
+        const sorted = [...data.top_categories].sort((a, b) => b.count - a.count)
+        setTopCategories(sorted.slice(0, 4)) // Top 4 for the grid
+      } else {
+        setTopCategories([]) // Clear categories when no results
       }
     } catch (error) {
       console.error('Failed to load contracts:', error)

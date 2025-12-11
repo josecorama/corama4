@@ -4702,7 +4702,28 @@ def dashboard_search():
             
             return df
 
-        # Check if query is a NAICS code (4-6 digit number) - use exact matching instead of vector search
+        # Helper function to compute top_categories from filtered dataframe
+        def compute_top_categories(df, total_contracts):
+            """Compute top categories with counts and percentages from filtered dataframe"""
+            if len(df) == 0 or total_contracts == 0:
+                return []
+            
+            category_counts = df['category'].value_counts().to_dict()
+            # Sort by count descending and take top 4
+            sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
+            
+            top_categories = []
+            for cat_name, count in sorted_categories:
+                percentage = round((count / total_contracts * 100), 1)
+                top_categories.append({
+                    'name': cat_name,
+                    'count': count,
+                    'percentage': percentage
+                })
+            
+            return top_categories
+
+        # Check if query is a NAICS code(4-6 digit number) - use exact matching instead of vector search
         naics_match = re.fullmatch(r'\d{4,6}', user_query)
         if naics_match:
             logging.info(f"🔍 NAICS code search detected: {user_query}")
@@ -4772,7 +4793,8 @@ def dashboard_search():
                 "total_contracts": total_contracts,
                 "current_page": page,
                 "total_pages": total_pages,
-                "analytics": analytics
+                "analytics": analytics,
+                "top_categories": compute_top_categories(df, total_contracts)
             })
 
         if not user_query:
@@ -4836,7 +4858,8 @@ def dashboard_search():
                 "total_contracts": total_contracts,
                 "current_page": page,
                 "total_pages": total_pages,
-                "analytics": analytics
+                "analytics": analytics,
+                "top_categories": compute_top_categories(df, total_contracts)
             })
 
         if not vector_store:
@@ -4940,7 +4963,8 @@ def dashboard_search():
                 "total_contracts": total_contracts,
                 "current_page": page,
                 "total_pages": total_pages,
-                "analytics": analytics
+                "analytics": analytics,
+                "top_categories": compute_top_categories(df, total_contracts)
             })
 
         valid, msg = validate_query(user_query)
@@ -5000,7 +5024,8 @@ def dashboard_search():
                     'open_contracts': 0,
                     'upcoming_deadlines': 0,
                     'high_score_opportunities': 0
-                }
+                },
+                "top_categories": []
             })
 
         total_contracts = len(filtered_results)
@@ -5046,7 +5071,8 @@ def dashboard_search():
             "total_contracts": total_contracts,
             "current_page": page,
             "total_pages": total_pages,
-            "analytics": analytics
+            "analytics": analytics,
+            "top_categories": compute_top_categories(filtered_df, total_contracts)
         })
 
     except Exception as e:
