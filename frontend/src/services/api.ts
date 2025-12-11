@@ -121,7 +121,7 @@ class ApiService {
   }
 
   // Contracts
-  async getContracts(page: number = 1): Promise<{contracts: Contract[], total_pages: number, total_contracts: number}> {
+  async getContracts(page: number = 1): Promise<{contracts: Contract[], total_pages: number, total_contracts: number, top_categories?: {name: string, count: number, percentage: number}[]}> {
     const res = await fetch(`${API_BASE()}/contracts?page=${page}`);
     if (!res.ok) {
       if (res.status === 401) {
@@ -138,7 +138,7 @@ class ApiService {
     page: number = 1, 
     contractType: string = 'all', 
     states: string[] = []
-  ): Promise<{success: boolean, contracts: Contract[], total_pages: number, total_contracts: number}> {
+  ): Promise<{success: boolean, contracts: Contract[], total_pages: number, total_contracts: number, top_categories?: {name: string, count: number, percentage: number}[]}> {
     const res = await fetch(apiUrl('/dashboard_search'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

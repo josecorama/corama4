@@ -245,6 +245,9 @@ const Dashboard = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>([])
+  
+  // Top categories from backend (calculated from ALL contracts, not just current page)
+  const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
 
   const contractsPerPage = 10
   const startItem = (currentPage - 1) * contractsPerPage + 1
@@ -293,6 +296,11 @@ const Dashboard = () => {
       setContracts(transformedContracts)
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
+      
+      // Use top_categories from backend (calculated from ALL contracts, not just current page)
+      if (data.top_categories && data.top_categories.length > 0) {
+        setTopCategories(data.top_categories.slice(0, 4)) // Top 4 for the grid
+      }
     } catch (error) {
       console.error('Failed to load contracts:', error)
     } finally {
@@ -312,29 +320,7 @@ const Dashboard = () => {
     setCurrentPage(1)
   }
 
-  // Calculate dynamic categories from actual contract data
-  const categories = (() => {
-    // Count contracts by category
-    const categoryCounts: Record<string, number> = {}
-    contracts.forEach(contract => {
-      const cat = contract.category || 'Other'
-      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
-    })
-    
-    // Convert to array and sort by count (descending)
-    const sortedCategories = Object.entries(categoryCounts)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 4) // Top 4 categories (to fit the 4-column grid)
-    
-    // Calculate percentages based on total contracts loaded
-    const total = contracts.length || 1 // Avoid division by zero
-    return sortedCategories.map(cat => ({
-      name: cat.name,
-      count: cat.count,
-      percentage: Math.round((cat.count / total) * 100)
-    }))
-  })()
+  // topCategories is now loaded from the backend in loadContracts()
 
   return (
     <div className="min-h-screen bg-corama-dark">
@@ -369,9 +355,9 @@ const Dashboard = () => {
 
           {/* Top Contract Categories */}
           <div className="mb-6 lg:mb-8">
-            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP 5 CONTRACT CATEGORIES</h2>
+            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-              {categories.map((cat, index) => (
+              {topCategories.map((cat, index) => (
                 <div key={index} className="card-gradient rounded-xl p-4">
                   <div className="flex items-center gap-4">
                     <div className="relative w-16 h-16">

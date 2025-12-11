@@ -4393,6 +4393,7 @@ def get_contracts_api():
     """API endpoint to get contract data for the dashboard with pagination.
     
     NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
+    Also includes category analytics for the Top Contract Categories section.
     """
     try:
         # Get pagination parameters
@@ -4402,13 +4403,28 @@ def get_contracts_api():
         # Fetch contracts from Qdrant with pagination
         contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
         
+        # Get category analytics from all contracts (not just current page)
+        analytics = get_qdrant_analytics()
+        category_distribution = analytics.get('category_distribution', {})
+        
+        # Build top_categories with counts and percentages
+        top_categories = []
+        for cat_name, count in category_distribution.items():
+            percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
+            top_categories.append({
+                'name': cat_name,
+                'count': count,
+                'percentage': percentage
+            })
+        
         logging.info(f"✅ /api/contracts: Returning {len(contracts)} contracts from Qdrant (page {page}/{total_pages})")
         
         return jsonify({
             "contracts": contracts,
             "total_contracts": total_contracts,
             "current_page": page,
-            "total_pages": total_pages
+            "total_pages": total_pages,
+            "top_categories": top_categories
         })
     except Exception as e:
         logging.error(f"Error loading contracts from Qdrant: {e}", exc_info=True)
@@ -4417,6 +4433,7 @@ def get_contracts_api():
             "total_contracts": 0,
             "current_page": 1,
             "total_pages": 1,
+            "top_categories": [],
             "error": "Failed to load contracts from database"
         })
 
