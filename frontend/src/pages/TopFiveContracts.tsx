@@ -216,7 +216,7 @@ const TopFiveContracts = () => {
                           <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractingAgency}</p>
                         </div>
                         {/* Action Buttons - aligned with bottom row, pill style matching NAICS Code label */}
-                        <div className="flex flex-col gap-2 justify-start">
+                        <div className="flex flex-col gap-2 justify-start items-start">
                           <button 
                             onClick={() => handleVisitSite(contract.detailLink)}
                             className="inline-flex items-center justify-center gap-2 text-white font-poppins text-xs px-3 py-1 rounded-full hover:opacity-90 transition-colors"
