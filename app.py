@@ -5578,7 +5578,8 @@ def upload_and_process():
                         writer = csv.DictWriter(f, fieldnames=[
                             'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
                             'Status', 'Category', 'Due_Date', 'Detail_Link',
-                            'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id'
+                            'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id',
+                            'NAICS_Code', 'Contract_Type'
                         ])
                         writer.writeheader()
                         for row in results:
@@ -5597,7 +5598,9 @@ def upload_and_process():
                                 'Budget':          row.get('Budget',''),
                                 'Similarity_Score': row.get('Similarity_Score',''),
                                 'hash_value':      row.get('hash_value',''),
-                                'contract_id':     row.get('contract_id','')
+                                'contract_id':     row.get('contract_id',''),
+                                'NAICS_Code':      row.get('NAICS_Code', row.get('naics_code', '')),
+                                'Contract_Type':   row.get('Contract_Type', row.get('contract_type', ''))
                             })
                     app.logger.info(f"Also saved {len(results)} matches to CSV fallback: {matches_file}")
                 except Exception as csv_error:
@@ -13069,7 +13072,7 @@ def api_get_user():
 # API: Get top five contract matches
 @app.route('/api/top-five-contracts', methods=['GET'])
 def api_top_five_contracts():
-    """Get user's top 5 matched contracts as JSON"""
+    """Get user's top 5 matched contracts as JSON, with optional filtering"""
     if 'user' not in session:
         return jsonify({"success": False, "error": "Not authenticated"}), 401
     
@@ -13078,19 +13081,77 @@ def api_top_five_contracts():
     user_upload_dir = f"uploads/bid_uploads_{user_id}"
     matches_file = os.path.join(user_upload_dir, 'matches.csv')
     
+    # Get filter parameters
+    contract_type = request.args.get('contract_type', '')  # 'federal', 'state', 'all', or ''
+    states_param = request.args.get('states', '')  # comma-separated list of state codes
+    selected_states = [s.strip().upper() for s in states_param.split(',') if s.strip()] if states_param else []
+    
     matches = []
+    total_matches = 0  # Track total matches before filtering
+    
     if os.path.exists(matches_file):
         try:
             df = pd.read_csv(matches_file)
-            df['rank'] = range(1, len(df) + 1)
-            matches = df.to_dict('records')
+            total_matches = len(df)
+            
+            # Apply filters if provided
+            if contract_type or selected_states:
+                filtered_rows = []
+                for _, row in df.iterrows():
+                    row_dict = row.to_dict()
+                    
+                    # Get contract type from Contract_Type column or derive from State
+                    row_contract_type = str(row_dict.get('Contract_Type', '')).lower()
+                    row_state = str(row_dict.get('State', '')).upper()
+                    
+                    # Determine if this is a federal or state contract
+                    is_federal = 'federal' in row_contract_type or row_state in ['', 'UNKNOWN', 'N/A', 'DC']
+                    is_state = not is_federal and row_state not in ['', 'UNKNOWN', 'N/A']
+                    
+                    # Apply contract type filter
+                    if contract_type and contract_type != 'all':
+                        if contract_type == 'federal' and not is_federal:
+                            continue
+                        if contract_type == 'state' and not is_state:
+                            continue
+                    
+                    # Apply state filter (only for state contracts)
+                    if selected_states and is_state:
+                        if row_state not in selected_states:
+                            continue
+                    
+                    filtered_rows.append(row_dict)
+                
+                # Sort by similarity score descending
+                def to_float(x):
+                    try:
+                        # Handle percentage strings like "52.83%"
+                        if isinstance(x, str) and '%' in x:
+                            return float(x.replace('%', ''))
+                        return float(x)
+                    except (TypeError, ValueError):
+                        return 0.0
+                
+                filtered_rows.sort(key=lambda m: to_float(m.get('Similarity_Score', 0)), reverse=True)
+                
+                # Add rank to filtered results
+                for i, row in enumerate(filtered_rows):
+                    row['rank'] = i + 1
+                
+                matches = filtered_rows
+            else:
+                # No filters - return all matches with rank
+                df['rank'] = range(1, len(df) + 1)
+                matches = df.to_dict('records')
+                
         except Exception as e:
             logging.error(f"Error loading matches: {e}")
     
     return jsonify({
         "success": True,
         "matches": matches[:5],
-        "has_matches": len(matches) > 0
+        "has_matches": total_matches > 0,  # True if user has ANY matches (before filtering)
+        "filtered_count": len(matches)  # Count after filtering
     })
 
 

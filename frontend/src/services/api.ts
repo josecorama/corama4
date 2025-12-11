@@ -40,8 +40,10 @@ export interface ContractMatch {
   State: string;
   Organization: string;
   Budget: string;
-  Similarity_Score: number;
+  Similarity_Score: number | string;
   hash_value: string;
+  NAICS_Code?: string;
+  Contract_Type?: string;
 }
 
 export interface CreditPackage {
@@ -149,8 +151,24 @@ class ApiService {
   }
 
   // Top Five
-  async getTopFiveContracts(): Promise<{success: boolean, matches: ContractMatch[], has_matches: boolean}> {
-    const res = await fetch(`${API_BASE()}/top-five-contracts`);
+  async getTopFiveContracts(
+    contractType?: string,
+    states?: string[]
+  ): Promise<{success: boolean, matches: ContractMatch[], has_matches: boolean, filtered_count?: number}> {
+    const params = new URLSearchParams();
+    if (contractType && contractType !== 'all' && contractType !== '') {
+      params.append('contract_type', contractType);
+    }
+    if (states && states.length > 0) {
+      const filteredStates = states.filter(s => s !== 'all');
+      if (filteredStates.length > 0) {
+        params.append('states', filteredStates.join(','));
+      }
+    }
+    const qs = params.toString();
+    const url = qs ? `${API_BASE()}/top-five-contracts?${qs}` : `${API_BASE()}/top-five-contracts`;
+    
+    const res = await fetch(url);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import FilterPopup from '../components/FilterPopup'
 import { Edit, Printer } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 
@@ -10,13 +11,14 @@ const CircleIcon = '/static/app/dashboard/Circle.svg'
 const StarsIcon = '/static/app/dashboard/Stars.svg'
 const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
 const AskAIIcon = '/static/app/dashboard/AskAI.svg'
+const SortByIcon = '/static/app/dashboard/SortBy.svg'
 
 interface ContractMatch {
   rank: number
   state: string
   contractValue: string
   submissionDeadline: string
-  industrySector: string
+  naicsCode: string
   name: string
   contractingAgency: string
   matchPercentage: number
@@ -27,30 +29,60 @@ const TopFiveContracts = () => {
   const navigate = useNavigate()
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
-  const [_hasMatches, setHasMatches] = useState(false)
+  const [hasMatches, setHasMatches] = useState<boolean | null>(null)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [_contractType, setContractType] = useState('')
+  const [_selectedStates, setSelectedStates] = useState<string[]>([])
+  const [noFilterResults, setNoFilterResults] = useState(false)
+
+  // Redirect to dashboard if user has no matches at all
+  useEffect(() => {
+    if (!loading && hasMatches === false) {
+      navigate('/dashboard')
+    }
+  }, [loading, hasMatches, navigate])
 
   useEffect(() => {
     loadTopFive()
   }, [])
 
-  const loadTopFive = async () => {
+  const loadTopFive = async (filterContractType?: string, filterStates?: string[]) => {
     setLoading(true)
+    setNoFilterResults(false)
     try {
-      const data = await api.getTopFiveContracts()
-      if (data.success && data.matches) {
-        const transformedContracts: ContractMatch[] = data.matches.map((m: ApiContractMatch) => ({
-          rank: m.rank,
-          state: m.State || 'N/A',
-          contractValue: m.Budget || 'TBD',
-          submissionDeadline: m.Due_Date || 'N/A',
-          industrySector: m.Category || 'N/A',
-          name: m.Bid_Name,
-          contractingAgency: m.Organization || m.Company || 'N/A',
-          matchPercentage: Math.round((m.Similarity_Score || 0) * 100),
-          detailLink: m.Detail_Link
-        }))
+      const data = await api.getTopFiveContracts(filterContractType, filterStates)
+      if (data.success) {
+        const transformedContracts: ContractMatch[] = (data.matches || []).map((m: ApiContractMatch) => {
+          // Parse similarity score - handle both percentage strings and decimals
+          let matchPct = 0
+          const simScore = m.Similarity_Score
+          if (typeof simScore === 'string') {
+            // Handle "52.83%" format
+            matchPct = parseFloat(simScore.replace('%', '')) || 0
+          } else if (typeof simScore === 'number') {
+            // Handle decimal format (0.5283) or already percentage (52.83)
+            matchPct = simScore > 1 ? simScore : simScore * 100
+          }
+          
+          return {
+            rank: m.rank,
+            state: m.State || 'N/A',
+            contractValue: m.Budget || 'TBD',
+            submissionDeadline: m.Due_Date || 'N/A',
+            naicsCode: m.NAICS_Code || m.Category || 'N/A',
+            name: m.Bid_Name,
+            contractingAgency: m.Organization || m.Company || 'N/A',
+            matchPercentage: Math.round(matchPct),
+            detailLink: m.Detail_Link
+          }
+        })
         setContracts(transformedContracts)
         setHasMatches(data.has_matches)
+        
+        // Check if filters produced no results but user has matches overall
+        if (data.has_matches && transformedContracts.length === 0) {
+          setNoFilterResults(true)
+        }
       }
     } catch (error) {
       console.error('Failed to load top five contracts:', error)
@@ -63,6 +95,12 @@ const TopFiveContracts = () => {
     if (url) {
       window.open(url, '_blank')
     }
+  }
+
+  const handleApplyFilter = (newContractType: string, newStates: string[]) => {
+    setContractType(newContractType)
+    setSelectedStates(newStates)
+    loadTopFive(newContractType, newStates)
   }
 
     return (
@@ -79,20 +117,40 @@ const TopFiveContracts = () => {
         
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+              {/* Page Title and Sort By Button */}
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Contracts</h1>
+                <button 
+                  onClick={() => setIsFilterOpen(true)}
+                  className="hover:opacity-90 transition-opacity"
+                >
+                  <img src={SortByIcon} alt="Sort By" className="h-10 lg:h-12" />
+                </button>
+              </div>
+
             {loading ? (
               <div className="flex items-center justify-center h-64">
                 <p className="text-gray-400 font-poppins">Loading top contracts...</p>
               </div>
+            ) : noFilterResults ? (
+              <div className="flex flex-col items-center justify-center h-64">
+                <p className="text-gray-400 font-poppins text-lg mb-4">No contracts match these filters.</p>
+                <button 
+                  onClick={() => {
+                    setContractType('')
+                    setSelectedStates([])
+                    loadTopFive()
+                  }}
+                  className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white"
+                  style={{ backgroundColor: '#6bb4b5' }}
+                >
+                  Clear Filters
+                </button>
+              </div>
             ) : contracts.length === 0 ? (
-              // Redirect to the dedicated No Capability Statement page
-              (() => {
-                navigate('/no-capability-statement')
-                return (
-                  <div className="flex items-center justify-center h-64">
-                    <p className="text-gray-400 font-poppins">Redirecting...</p>
-                  </div>
-                )
-              })()
+              <div className="flex items-center justify-center h-64">
+                <p className="text-gray-400 font-poppins">Redirecting to dashboard...</p>
+              </div>
             ) : (
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
@@ -137,9 +195,9 @@ const TopFiveContracts = () => {
                         </div>
                         <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
-                            Industry Sector
+                            NAICS Code
                           </span>
-                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.industrySector}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.naicsCode}</p>
                         </div>
                       </div>
 
@@ -203,6 +261,13 @@ const TopFiveContracts = () => {
           </main>
           </div>
         </div>
+
+        {/* Filter Popup */}
+        <FilterPopup 
+          isOpen={isFilterOpen}
+          onClose={() => setIsFilterOpen(false)}
+          onApply={handleApplyFilter}
+        />
       </div>
     )
 }
