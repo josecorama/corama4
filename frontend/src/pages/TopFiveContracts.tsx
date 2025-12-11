@@ -217,9 +217,20 @@ const TopFiveContracts = () => {
                   Clear Filters
                 </button>
               </div>
-            ) : contracts.length === 0 ? (
+            ) : (!loading && hasMatches === false) ? (
               <div className="flex items-center justify-center h-64">
                 <p className="text-gray-400 font-poppins">Redirecting to dashboard...</p>
+              </div>
+            ) : contracts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-64">
+                <p className="text-gray-400 font-poppins text-lg mb-4">No contracts to show yet.</p>
+                <button 
+                  onClick={() => handleRerunMatching(contractType, selectedStates)}
+                  className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white"
+                  style={{ backgroundColor: '#6bb4b5' }}
+                >
+                  Refresh Matches
+                </button>
               </div>
             ) : (
             <div className="space-y-4 lg:space-y-6">
