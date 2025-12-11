@@ -69,7 +69,7 @@ const TopFiveContracts = () => {
             state: m.State || 'N/A',
             contractValue: m.Budget || 'TBD',
             submissionDeadline: m.Due_Date || 'N/A',
-            naicsCode: m.NAICS_Code || m.Category || 'N/A',
+            naicsCode: m.NAICS_Code || 'N/A',
             name: m.Bid_Name,
             contractingAgency: m.Organization || m.Company || 'N/A',
             matchPercentage: Math.round(matchPct),
@@ -215,22 +215,22 @@ const TopFiveContracts = () => {
                           </span>
                           <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractingAgency}</p>
                         </div>
-                        {/* Action Buttons - aligned with bottom row */}
+                        {/* Action Buttons - aligned with bottom row, pill style matching NAICS Code label */}
                         <div className="flex flex-col gap-2 justify-start">
                           <button 
                             onClick={() => handleVisitSite(contract.detailLink)}
-                            className="flex items-center justify-center gap-2 text-white font-poppins text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-colors"
+                            className="inline-flex items-center justify-center gap-2 text-white font-poppins text-xs px-3 py-1 rounded-full hover:opacity-90 transition-colors"
                             style={{ backgroundColor: '#275570' }}
                           >
                             Contract Website
-                            <img src={ContractSiteIcon} alt="" className="w-5 h-5" />
+                            <img src={ContractSiteIcon} alt="" className="w-4 h-4" />
                           </button>
                           <button 
-                            className="flex items-center justify-center gap-2 text-white font-poppins text-sm px-4 py-2 rounded-lg hover:opacity-90 transition-colors"
+                            className="inline-flex items-center justify-center gap-2 text-white font-poppins text-xs px-3 py-1 rounded-full hover:opacity-90 transition-colors"
                             style={{ backgroundColor: '#275570' }}
                           >
                             Ask AI About This
-                            <img src={AskAIIcon} alt="" className="w-6 h-5" />
+                            <img src={AskAIIcon} alt="" className="w-5 h-4" />
                           </button>
                         </div>
                       </div>

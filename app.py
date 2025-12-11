@@ -13086,13 +13086,47 @@ def api_top_five_contracts():
     states_param = request.args.get('states', '')  # comma-separated list of state codes
     selected_states = [s.strip().upper() for s in states_param.split(',') if s.strip()] if states_param else []
     
+    logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}")
+    
     matches = []
     total_matches = 0  # Track total matches before filtering
     
+    # Use the dashboard contracts cache to look up NAICS codes
+    # The cache is keyed by hash_value (SHA256 of detail_link + bid_number)
+    # First, ensure the cache is populated
+    global _dashboard_contracts_hash_index
+    if _dashboard_contracts_hash_index is None:
+        # Trigger cache population by calling get_dashboard_contracts_from_qdrant
+        get_dashboard_contracts_from_qdrant(1, 1)
+    
+    logging.info(f"[top5] Dashboard hash index has {len(_dashboard_contracts_hash_index) if _dashboard_contracts_hash_index else 0} entries")
+    
     if os.path.exists(matches_file):
         try:
+            import hashlib
             df = pd.read_csv(matches_file)
             total_matches = len(df)
+            logging.info(f"[top5] Loaded {total_matches} matches from CSV")
+            
+            # Helper function to compute hash_value the same way as dashboard cache
+            def compute_hash(detail_link, bid_number):
+                hash_input = f"{detail_link}{bid_number}"
+                return hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+            
+            # Helper function to enrich row with NAICS from dashboard cache
+            def enrich_with_naics(row_dict):
+                # Try to find this contract in the dashboard cache using computed hash
+                detail_link = row_dict.get('Detail_Link', '')
+                bid_number = row_dict.get('Bid_Number', '')
+                if detail_link and bid_number and _dashboard_contracts_hash_index:
+                    computed_hash = compute_hash(detail_link, bid_number)
+                    cached_contract = _dashboard_contracts_hash_index.get(computed_hash)
+                    if cached_contract:
+                        naics_code = cached_contract.get('naics_code', '')
+                        if naics_code:
+                            row_dict['NAICS_Code'] = naics_code
+                            logging.info(f"[top5] Found NAICS {naics_code} for {bid_number}")
+                return row_dict
             
             # Apply filters if provided
             if contract_type or selected_states:
@@ -13100,13 +13134,26 @@ def api_top_five_contracts():
                 for _, row in df.iterrows():
                     row_dict = row.to_dict()
                     
+                    # Enrich with NAICS code from dashboard cache
+                    row_dict = enrich_with_naics(row_dict)
+                    
                     # Get contract type from Contract_Type column or derive from State
-                    row_contract_type = str(row_dict.get('Contract_Type', '')).lower()
-                    row_state = str(row_dict.get('State', '')).upper()
+                    row_contract_type = str(row_dict.get('Contract_Type', '')).lower().strip()
+                    row_state = str(row_dict.get('State', '')).upper().strip()
                     
                     # Determine if this is a federal or state contract
-                    is_federal = 'federal' in row_contract_type or row_state in ['', 'UNKNOWN', 'N/A', 'DC']
-                    is_state = not is_federal and row_state not in ['', 'UNKNOWN', 'N/A']
+                    # Federal markers: empty state, Unknown, N/A, DC, US, USA
+                    federal_state_markers = {'', 'UNKNOWN', 'N/A', 'DC', 'US', 'USA'}
+                    
+                    if row_contract_type in ('federal', 'fed'):
+                        is_federal = True
+                    elif row_contract_type == 'state':
+                        is_federal = False
+                    else:
+                        # Derive from State column
+                        is_federal = row_state in federal_state_markers
+                    
+                    is_state = not is_federal
                     
                     # Apply contract type filter
                     if contract_type and contract_type != 'all':
@@ -13139,13 +13186,29 @@ def api_top_five_contracts():
                     row['rank'] = i + 1
                 
                 matches = filtered_rows
+                logging.info(f"[top5] After filtering: {len(matches)} matches")
             else:
-                # No filters - return all matches with rank
-                df['rank'] = range(1, len(df) + 1)
-                matches = df.to_dict('records')
+                # No filters - return all matches with rank, enriched with NAICS
+                all_rows = []
+                for _, row in df.iterrows():
+                    row_dict = row.to_dict()
+                    
+                    # Enrich with NAICS code from dashboard cache
+                    row_dict = enrich_with_naics(row_dict)
+                    
+                    all_rows.append(row_dict)
+                
+                # Add rank
+                for i, row in enumerate(all_rows):
+                    row['rank'] = i + 1
+                
+                matches = all_rows
+                logging.info(f"[top5] No filters, returning {len(matches)} matches")
                 
         except Exception as e:
             logging.error(f"Error loading matches: {e}")
+    else:
+        logging.info(f"[top5] No matches file found at {matches_file}")
     
     return jsonify({
         "success": True,
