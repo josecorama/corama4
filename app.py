@@ -1807,41 +1807,65 @@ BALANCED_CATEGORIES_INITIALIZED = False
 # Keyword dictionaries for category scoring
 CATEGORY_KEYWORDS = {
     'Goods/Supplies': [
-        'supply', 'supplies', 'equipment', 'vehicle', 'hardware', 'materials', 'parts', 'kit', 
-        'tool', 'inventory', 'warehouse', 'spare', 'component', 'item', 'commodity', 'furniture',
-        'clothing', 'textile', 'food', 'medical', 'pharmaceutical', 'chemical', 'fuel', 'oil',
-        'gas', 'battery', 'cable', 'wire', 'pipe', 'valve', 'pump', 'motor', 'engine', 'generator',
+        'supply', 'supplies', 'vehicle', 'hardware', 'parts', 'kit', 
+        'tool', 'inventory', 'warehouse', 'spare', 'component', 'commodity', 'furniture',
+        'clothing', 'textile', 'food', 'pharmaceutical', 'chemical', 'fuel', 'oil',
+        'gas', 'battery', 'cable', 'wire', 'valve', 'pump', 'motor', 'engine', 'generator',
         'compressor', 'filter', 'bearing', 'seal', 'gasket', 'bolt', 'nut', 'screw', 'fastener',
         'rod', 'piston', 'cylinder', 'hose', 'tube', 'fitting', 'connector', 'adapter', 'bracket',
-        'mount', 'clamp', 'spring', 'gear', 'shaft', 'wheel', 'tire', 'brake', 'clutch', 'transmission'
+        'mount', 'clamp', 'spring', 'gear', 'shaft', 'wheel', 'tire', 'brake', 'clutch', 'transmission',
+        'purchase', 'procurement', 'delivery', 'shipment', 'order'
     ],
     'Construction': [
-        'construction', 'renovation', 'build', 'repair', 'replacement', 'demolition', 'facility',
+        'construction', 'renovation', 'build', 'replacement', 'demolition', 'facility',
         'structural', 'roofing', 'paving', 'site work', 'excavation', 'foundation', 'concrete',
         'masonry', 'steel', 'framing', 'drywall', 'painting', 'flooring', 'ceiling', 'window',
-        'door', 'hvac', 'plumbing', 'electrical', 'mechanical', 'landscaping', 'fencing', 'paving',
-        'asphalt', 'bridge', 'road', 'highway', 'tunnel', 'dam', 'water treatment', 'sewer'
+        'door', 'hvac', 'plumbing', 'electrical', 'mechanical', 'landscaping', 'fencing',
+        'asphalt', 'bridge', 'road', 'highway', 'tunnel', 'dam', 'water treatment', 'sewer',
+        'remodel', 'upgrade', 'improvement', 'modernization', 'expansion', 'addition',
+        'install', 'installation', 'contractor', 'general contractor', 'subcontractor',
+        'building', 'infrastructure', 'project', 'site', 'work', 'phase', 'bid',
+        'architect', 'blueprint', 'permit', 'code', 'zoning', 'inspection'
     ],
     'Maintenance/Operations': [
         'maintenance', 'janitorial', 'cleaning', 'custodial', 'operations', 'support services',
         'facility management', 'groundskeeping', 'repair services', 'preventive', 'corrective',
-        'inspection', 'testing', 'calibration', 'lubrication', 'overhaul', 'refurbishment',
-        'restoration', 'service', 'upkeep', 'care', 'preservation', 'sanitation', 'waste',
-        'recycling', 'pest control', 'lawn', 'snow removal', 'security', 'guard', 'patrol'
+        'calibration', 'lubrication', 'overhaul', 'refurbishment',
+        'restoration', 'upkeep', 'care', 'preservation', 'sanitation', 'waste',
+        'recycling', 'pest control', 'lawn', 'snow removal', 'security', 'guard', 'patrol',
+        'repair', 'service', 'servicing', 'maintain', 'maintaining', 'operated', 'operating',
+        'fleet', 'vehicle maintenance', 'equipment maintenance', 'building maintenance',
+        'hvac maintenance', 'elevator', 'escalator', 'fire alarm', 'sprinkler',
+        'landscaping services', 'grounds', 'mowing', 'trimming', 'irrigation',
+        'trash', 'garbage', 'disposal', 'hauling', 'collection',
+        'monitoring', 'surveillance', 'alarm', 'access control', 'badge'
     ],
     'IT Services': [
         'software', 'system integration', 'it support', 'cybersecurity', 'data center', 'cloud',
         'networking', 'help desk', 'application development', 'database', 'server', 'storage',
         'backup', 'recovery', 'virtualization', 'automation', 'analytics', 'artificial intelligence',
         'machine learning', 'web', 'mobile', 'app', 'programming', 'coding', 'development',
-        'testing', 'qa', 'devops', 'infrastructure', 'telecommunications', 'voip', 'video'
+        'qa', 'devops', 'infrastructure', 'telecommunications', 'voip', 'video',
+        'computer', 'laptop', 'desktop', 'workstation', 'network', 'internet', 'wifi',
+        'firewall', 'antivirus', 'encryption', 'security', 'cyber', 'data',
+        'information technology', 'it services', 'technical support', 'tech support',
+        'managed services', 'hosting', 'saas', 'paas', 'iaas', 'api',
+        'website', 'portal', 'platform', 'system', 'solution', 'integration',
+        'digital', 'electronic', 'online', 'virtual', 'remote'
     ],
     'Professional Services': [
         'consulting', 'training', 'advisory', 'legal', 'financial', 'audit', 'management support',
         'staffing', 'professional services', 'engineering', 'architecture', 'design', 'planning',
         'research', 'analysis', 'study', 'assessment', 'evaluation', 'review', 'survey',
-        'investigation', 'inspection', 'certification', 'accreditation', 'licensing', 'permit',
-        'compliance', 'regulatory', 'environmental', 'health', 'safety', 'quality', 'assurance'
+        'investigation', 'certification', 'accreditation', 'licensing',
+        'compliance', 'regulatory', 'environmental', 'health', 'safety', 'quality', 'assurance',
+        'consultant', 'advisor', 'specialist', 'expert', 'analyst', 'manager',
+        'project management', 'program management', 'contract management',
+        'accounting', 'bookkeeping', 'payroll', 'tax', 'budget', 'fiscal',
+        'human resources', 'hr', 'recruitment', 'hiring', 'personnel', 'employee',
+        'marketing', 'communications', 'public relations', 'media', 'advertising',
+        'writing', 'editing', 'translation', 'interpretation', 'documentation',
+        'testing', 'inspection', 'medical', 'healthcare', 'clinical', 'laboratory'
     ]
 }
 
