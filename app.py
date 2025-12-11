@@ -1879,6 +1879,69 @@ def compute_category_score(payload, category):
     
     return score
 
+# Main categories for Top Contract Categories display
+MAIN_CATEGORIES = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+
+# Global counter for balanced fallback distribution (rotates through categories for zero-score contracts)
+_FALLBACK_CATEGORY_INDEX = 0
+
+def get_main_category_for_payload(payload):
+    """
+    Map a contract payload to one of the main categories.
+    Uses NAICS codes first, then compute_category_score, with balanced fallback for zero-score cases.
+    
+    This function is designed to be called from both /api/contracts and /dashboard_search.
+    
+    Args:
+        payload: Dict with contract data (naics_code, title/bid_name, summary/bid_description, etc.)
+    
+    Returns:
+        One of MAIN_CATEGORIES strings
+    """
+    global _FALLBACK_CATEGORY_INDEX
+    
+    # 1) Try NAICS code mapping first (most reliable)
+    naics_raw = str(payload.get('naics_code', '') or '')
+    if naics_raw:
+        codes = parse_naics_codes(naics_raw)
+        for code in codes:
+            if code in NAICS_TO_CATEGORY:
+                return NAICS_TO_CATEGORY[code]
+    
+    # 2) Use compute_category_score to find best match based on keywords
+    scores = {cat: compute_category_score(payload, cat) for cat in MAIN_CATEGORIES}
+    best_cat = max(scores, key=scores.get)
+    best_score = scores[best_cat]
+    
+    # 3) If we have a positive score, use the best category
+    if best_score > 0:
+        return best_cat
+    
+    # 4) For zero-score cases, distribute evenly across categories (not just Goods/Supplies)
+    # This prevents any single category from becoming too dominant
+    fallback_cat = MAIN_CATEGORIES[_FALLBACK_CATEGORY_INDEX % len(MAIN_CATEGORIES)]
+    _FALLBACK_CATEGORY_INDEX += 1
+    return fallback_cat
+
+def compute_main_category_counts(payloads):
+    """
+    Compute main category counts from a list of contract payloads.
+    
+    Args:
+        payloads: List of contract dicts or DataFrame rows
+    
+    Returns:
+        Dict of {category_name: count}
+    """
+    from collections import Counter
+    
+    # Reset fallback index for consistent results
+    global _FALLBACK_CATEGORY_INDEX
+    _FALLBACK_CATEGORY_INDEX = 0
+    
+    categories = [get_main_category_for_payload(p) for p in payloads]
+    return dict(Counter(categories))
+
 def build_balanced_category_mapping():
     """
     Build a balanced category mapping for all contracts with generic categories.
@@ -4394,6 +4457,7 @@ def get_contracts_api():
     
     NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
     Also includes category analytics for the Top Contract Categories section.
+    Uses MAIN categories (Goods/Supplies, Construction, etc.) instead of subcategories.
     """
     try:
         # Get pagination parameters
@@ -4403,13 +4467,16 @@ def get_contracts_api():
         # Fetch contracts from Qdrant with pagination
         contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
         
-        # Get category analytics from all contracts (not just current page)
-        analytics = get_qdrant_analytics()
-        category_distribution = analytics.get('category_distribution', {})
+        # Get ALL contracts for main category calculation (not just current page)
+        all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
         
-        # Build top_categories with counts and percentages
+        # Compute main category distribution using the global helper
+        main_category_counts = compute_main_category_counts(all_contracts)
+        
+        # Build top_categories with counts and percentages (sorted by count descending)
+        sorted_categories = sorted(main_category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
         top_categories = []
-        for cat_name, count in category_distribution.items():
+        for cat_name, count in sorted_categories:
             percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
             top_categories.append({
                 'name': cat_name,
@@ -4702,64 +4769,20 @@ def dashboard_search():
             
             return df
 
-        # Helper function to map a contract to its main category (ALLOWED_CATEGORIES)
-        def get_main_category_for_contract(row):
-            """
-            Map a contract to one of the main categories (ALLOWED_CATEGORIES).
-            Uses NAICS codes first, then keyword matching on title/description.
-            
-            Main categories: Goods/Supplies, Construction, Maintenance/Operations, IT Services, Professional Services
-            """
-            main_categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
-            
-            # Try NAICS code mapping first
-            naics_raw = str(row.get('naics_code', '') or '')
-            if naics_raw:
-                # Parse NAICS codes (comma-separated or space-separated)
-                import re
-                codes = re.findall(r'\d{4,6}', naics_raw)
-                for code in codes:
-                    if code in NAICS_TO_CATEGORY:
-                        return NAICS_TO_CATEGORY[code]
-            
-            # Fall back to keyword matching on title/description
-            title = str(row.get('title', '') or row.get('bid_name', '') or '').lower()
-            description = str(row.get('summary', '') or row.get('bid_description', '') or '').lower()
-            combined_text = title + ' ' + description
-            
-            # Score each category based on keywords
-            best_category = 'Goods/Supplies'  # Default
-            best_score = 0
-            
-            for category in main_categories:
-                score = 0
-                keywords = CATEGORY_KEYWORDS.get(category, [])
-                for keyword in keywords:
-                    if keyword in title:
-                        score += 3
-                    if keyword in combined_text:
-                        score += 1
-                if score > best_score:
-                    best_score = score
-                    best_category = category
-            
-            return best_category
-        
         # Helper function to compute top_categories from filtered dataframe using MAIN categories
         def compute_top_categories(df, total_contracts):
             """Compute top categories with counts and percentages from filtered dataframe.
-            Uses MAIN categories (ALLOWED_CATEGORIES) instead of subcategories."""
+            Uses MAIN categories (ALLOWED_CATEGORIES) instead of subcategories.
+            Uses the global get_main_category_for_payload for consistent category mapping."""
             if len(df) == 0 or total_contracts == 0:
                 return []
             
-            from collections import Counter
-            
-            # Map each contract to its main category
-            main_categories = df.apply(get_main_category_for_contract, axis=1)
-            category_counts = Counter(main_categories)
+            # Convert DataFrame to list of dicts and use global helper
+            payloads = df.to_dict('records')
+            main_category_counts = compute_main_category_counts(payloads)
             
             # Sort by count descending and take top 4
-            sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
+            sorted_categories = sorted(main_category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
             
             top_categories = []
             for cat_name, count in sorted_categories:

@@ -362,12 +362,12 @@ const Dashboard = () => {
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {topCategories.map((cat, index) => (
-                <div key={index} className="rounded-xl p-4 border border-white flex flex-col" style={{ backgroundColor: 'rgba(47, 60, 79, 0.6)' }}>
+                <div key={index} className="rounded-xl p-4 border border-white flex flex-col" style={{ backgroundColor: '#0b2c48' }}>
                   {/* Category name at top */}
                   <h3 className="text-white font-poppins font-semibold text-sm mb-3">{cat.name}</h3>
                   
-                  {/* Percentage and graph - vertically centered */}
-                  <div className="flex-1 flex items-center justify-center">
+                  {/* Percentage and graph - vertically centered, aligned to left */}
+                  <div className="flex-1 flex items-center justify-start">
                     <div className="relative w-20 h-20">
                       <svg className="w-20 h-20 transform -rotate-90">
                         <circle
@@ -395,8 +395,8 @@ const Dashboard = () => {
                     </div>
                   </div>
                   
-                  {/* Contract count at bottom */}
-                  <p className="text-corama-teal font-poppins text-sm text-center mt-3">{cat.count} contracts</p>
+                  {/* Contract count at bottom - aligned with category name (left) */}
+                  <p className="text-corama-teal font-poppins text-sm text-left mt-3">{cat.count} contracts</p>
                 </div>
               ))}
             </div>
