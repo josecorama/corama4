@@ -131,7 +131,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
               onClick={() => handleContractTypeChange('all')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                 contractType === 'all'
-                  ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
+                  ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
             >
@@ -141,7 +141,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
               onClick={() => handleContractTypeChange('federal')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                 contractType === 'federal' || contractType === 'all'
-                  ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
+                  ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
             >
@@ -151,7 +151,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
               onClick={() => handleContractTypeChange('state')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                 contractType === 'state' || contractType === 'all'
-                  ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
+                  ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
             >
@@ -169,7 +169,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
                 onClick={() => handleStateToggle('all')}
                 className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                   isStateSelected('all')
-                    ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
+                    ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                     : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
                 }`}
               >
@@ -179,7 +179,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
                 onClick={() => handleStateToggle('IL')}
                 className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                   isStateSelected('IL')
-                    ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
+                    ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                     : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
                 }`}
               >
@@ -189,7 +189,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
                 onClick={() => handleStateToggle('IN')}
                 className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                   isStateSelected('IN')
-                    ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
+                    ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                     : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
                 }`}
               >
@@ -255,8 +255,12 @@ const Dashboard = () => {
   const loadContracts = async () => {
     setLoading(true)
     try {
-      // Always use searchContracts to support filtering (even with empty query)
-      const data = await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
+      // Use searchContracts only when there's a query or non-default filters
+      // Otherwise use getContracts (which doesn't require auth)
+      const hasFilters = searchQuery || contractType !== 'all' || selectedStates.length > 0
+      const data = hasFilters
+        ? await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
+        : await api.getContracts(currentPage)
       
       // Transform API response to component format
       const transformedContracts: Contract[] = data.contracts.map((c: ApiContract, index: number) => ({
