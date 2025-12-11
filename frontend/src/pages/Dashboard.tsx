@@ -362,41 +362,41 @@ const Dashboard = () => {
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {topCategories.map((cat, index) => (
-                <div key={index} className="card-gradient rounded-xl p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-16 h-16">
-                      <svg className="w-16 h-16 transform -rotate-90">
+                <div key={index} className="rounded-xl p-4 border border-white flex flex-col" style={{ backgroundColor: 'rgba(47, 60, 79, 0.6)' }}>
+                  {/* Category name at top */}
+                  <h3 className="text-white font-poppins font-semibold text-sm mb-3">{cat.name}</h3>
+                  
+                  {/* Percentage and graph - vertically centered */}
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="relative w-20 h-20">
+                      <svg className="w-20 h-20 transform -rotate-90">
                         <circle
-                          cx="32"
-                          cy="32"
-                          r="28"
+                          cx="40"
+                          cy="40"
+                          r="35"
                           stroke="rgba(107, 180, 181, 0.2)"
-                          strokeWidth="4"
+                          strokeWidth="5"
                           fill="none"
                         />
                         <circle
-                          cx="32"
-                          cy="32"
-                          r="28"
+                          cx="40"
+                          cy="40"
+                          r="35"
                           stroke="#6bb4b5"
-                          strokeWidth="4"
+                          strokeWidth="5"
                           fill="none"
-                          strokeDasharray={`${cat.percentage * 1.76} 176`}
+                          strokeDasharray={`${cat.percentage * 2.2} 220`}
                           strokeLinecap="round"
                         />
                       </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-sm font-bold">
+                      <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-base font-bold">
                         {cat.percentage}%
                       </span>
                     </div>
-                    <div>
-                      <h3 className="text-white font-poppins font-semibold">{cat.name}</h3>
-                      <p className="text-corama-teal font-poppins text-sm">{cat.count} contracts</p>
-                    </div>
                   </div>
-                  <button className="absolute top-2 right-2 text-gray-400 hover:text-white">
-                    ...
-                  </button>
+                  
+                  {/* Contract count at bottom */}
+                  <p className="text-corama-teal font-poppins text-sm text-center mt-3">{cat.count} contracts</p>
                 </div>
               ))}
             </div>

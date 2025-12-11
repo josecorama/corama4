@@ -4702,13 +4702,62 @@ def dashboard_search():
             
             return df
 
-        # Helper function to compute top_categories from filtered dataframe
+        # Helper function to map a contract to its main category (ALLOWED_CATEGORIES)
+        def get_main_category_for_contract(row):
+            """
+            Map a contract to one of the main categories (ALLOWED_CATEGORIES).
+            Uses NAICS codes first, then keyword matching on title/description.
+            
+            Main categories: Goods/Supplies, Construction, Maintenance/Operations, IT Services, Professional Services
+            """
+            main_categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+            
+            # Try NAICS code mapping first
+            naics_raw = str(row.get('naics_code', '') or '')
+            if naics_raw:
+                # Parse NAICS codes (comma-separated or space-separated)
+                import re
+                codes = re.findall(r'\d{4,6}', naics_raw)
+                for code in codes:
+                    if code in NAICS_TO_CATEGORY:
+                        return NAICS_TO_CATEGORY[code]
+            
+            # Fall back to keyword matching on title/description
+            title = str(row.get('title', '') or row.get('bid_name', '') or '').lower()
+            description = str(row.get('summary', '') or row.get('bid_description', '') or '').lower()
+            combined_text = title + ' ' + description
+            
+            # Score each category based on keywords
+            best_category = 'Goods/Supplies'  # Default
+            best_score = 0
+            
+            for category in main_categories:
+                score = 0
+                keywords = CATEGORY_KEYWORDS.get(category, [])
+                for keyword in keywords:
+                    if keyword in title:
+                        score += 3
+                    if keyword in combined_text:
+                        score += 1
+                if score > best_score:
+                    best_score = score
+                    best_category = category
+            
+            return best_category
+        
+        # Helper function to compute top_categories from filtered dataframe using MAIN categories
         def compute_top_categories(df, total_contracts):
-            """Compute top categories with counts and percentages from filtered dataframe"""
+            """Compute top categories with counts and percentages from filtered dataframe.
+            Uses MAIN categories (ALLOWED_CATEGORIES) instead of subcategories."""
             if len(df) == 0 or total_contracts == 0:
                 return []
             
-            category_counts = df['category'].value_counts().to_dict()
+            from collections import Counter
+            
+            # Map each contract to its main category
+            main_categories = df.apply(get_main_category_for_contract, axis=1)
+            category_counts = Counter(main_categories)
+            
             # Sort by count descending and take top 4
             sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
             
