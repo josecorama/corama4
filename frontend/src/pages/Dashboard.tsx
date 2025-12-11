@@ -26,6 +26,8 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
   const [contractType, setContractType] = useState(currentContractType)
   const [selectedStates, setSelectedStates] = useState<string[]>(currentStates)
   const [error, setError] = useState('')
+  
+  const ALL_STATES = ['IL', 'IN']
 
   useEffect(() => {
     setContractType(currentContractType)
@@ -34,26 +36,54 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
   }, [isOpen, currentContractType, currentStates])
 
   const handleContractTypeChange = (type: string) => {
-    setContractType(type)
-    setError('')
-    if (type !== 'state') {
+    if (type === 'all') {
+      // When "All Contracts" is selected, select all contract types and all states
+      if (contractType === 'all') {
+        // If already selected, deselect everything
+        setContractType('')
+        setSelectedStates([])
+      } else {
+        setContractType('all')
+        setSelectedStates(['all', ...ALL_STATES])
+      }
+    } else if (type === 'federal') {
+      setContractType(contractType === 'federal' ? '' : 'federal')
       setSelectedStates([])
+    } else if (type === 'state') {
+      setContractType(contractType === 'state' ? '' : 'state')
+      if (contractType !== 'state') {
+        setSelectedStates([])
+      }
     }
+    setError('')
   }
 
   const handleStateToggle = (state: string) => {
     if (state === 'all') {
+      // When "All States" is selected, select all individual states too
       if (selectedStates.includes('all')) {
+        // Deselect all states
         setSelectedStates([])
       } else {
-        setSelectedStates(['all'])
+        // Select all states
+        setSelectedStates(['all', ...ALL_STATES])
       }
     } else {
-      const newStates = selectedStates.filter(s => s !== 'all')
+      // Toggle individual state
+      const newStates = [...selectedStates]
       if (newStates.includes(state)) {
-        setSelectedStates(newStates.filter(s => s !== state))
+        // Remove this state and also remove 'all' if it was selected
+        const filtered = newStates.filter(s => s !== state && s !== 'all')
+        setSelectedStates(filtered)
       } else {
-        setSelectedStates([...newStates, state])
+        // Add this state
+        newStates.push(state)
+        // Check if all individual states are now selected, if so add 'all'
+        const hasAllIndividual = ALL_STATES.every(s => newStates.includes(s))
+        if (hasAllIndividual && !newStates.includes('all')) {
+          newStates.push('all')
+        }
+        setSelectedStates(newStates)
       }
     }
     setError('')
@@ -71,7 +101,8 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
   if (!isOpen) return null
 
   const isStateSelected = (state: string) => selectedStates.includes(state)
-  const showStatesSection = contractType === 'state'
+  // Show states section when "All Contracts" or "State" is selected
+  const showStatesSection = contractType === 'state' || contractType === 'all'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -100,7 +131,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
               onClick={() => handleContractTypeChange('all')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                 contractType === 'all'
-                  ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                  ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
             >
@@ -109,8 +140,8 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
             <button
               onClick={() => handleContractTypeChange('federal')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
-                contractType === 'federal'
-                  ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                contractType === 'federal' || contractType === 'all'
+                  ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
             >
@@ -119,8 +150,8 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
             <button
               onClick={() => handleContractTypeChange('state')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
-                contractType === 'state'
-                  ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
+                contractType === 'state' || contractType === 'all'
+                  ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
             >
@@ -129,7 +160,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
           </div>
         </div>
 
-        {/* States Section - Only show when State is selected */}
+        {/* States Section - Only show when State or All Contracts is selected */}
         {showStatesSection && (
           <div className="mb-4">
             <h3 className="text-white font-poppins text-sm font-semibold mb-3">Please Select One Or More States</h3>
@@ -138,7 +169,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
                 onClick={() => handleStateToggle('all')}
                 className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                   isStateSelected('all')
-                    ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                    ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
                     : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
                 }`}
               >
@@ -148,7 +179,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
                 onClick={() => handleStateToggle('IL')}
                 className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                   isStateSelected('IL')
-                    ? 'bg-[#1a3a4a] text-white border border-[#6bb4b5]'
+                    ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
                     : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
                 }`}
               >
@@ -158,7 +189,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
                 onClick={() => handleStateToggle('IN')}
                 className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
                   isStateSelected('IN')
-                    ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
+                    ? 'bg-[#1e2a3a] text-white border-2 border-[#6bb4b5]'
                     : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
                 }`}
               >

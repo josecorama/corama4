@@ -1,4 +1,7 @@
-const API_BASE = '/api';
+// Use window.location.origin to avoid issues with credentials in URL (e.g., user:pass@domain)
+const getOrigin = () => typeof window === 'undefined' ? '' : window.location.origin;
+const API_BASE = () => `${getOrigin()}/api`;
+const apiUrl = (path: string) => `${getOrigin()}${path}`;
 
 export interface User {
   id: string;
@@ -105,7 +108,7 @@ export interface CapabilityStatementData {
 class ApiService {
   // User
   async getUser(): Promise<User> {
-    const res = await fetch(`${API_BASE}/me`);
+    const res = await fetch(`${API_BASE()}/me`);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';
@@ -119,7 +122,7 @@ class ApiService {
 
   // Contracts
   async getContracts(page: number = 1): Promise<{contracts: Contract[], total_pages: number, total_contracts: number}> {
-    const res = await fetch(`${API_BASE}/contracts?page=${page}`);
+    const res = await fetch(`${API_BASE()}/contracts?page=${page}`);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';
@@ -136,7 +139,7 @@ class ApiService {
     contractType: string = 'all', 
     states: string[] = []
   ): Promise<{success: boolean, contracts: Contract[], total_pages: number, total_contracts: number}> {
-    const res = await fetch('/dashboard_search', {
+    const res = await fetch(apiUrl('/dashboard_search'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, page, contract_type: contractType, states })
@@ -147,7 +150,7 @@ class ApiService {
 
   // Top Five
   async getTopFiveContracts(): Promise<{success: boolean, matches: ContractMatch[], has_matches: boolean}> {
-    const res = await fetch(`${API_BASE}/top-five-contracts`);
+    const res = await fetch(`${API_BASE()}/top-five-contracts`);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';
@@ -165,7 +168,7 @@ class ApiService {
     if (hashValue) formData.append('hash_value', hashValue);
     formData.append('action_type', actionType);
 
-    const res = await fetch('/ai_assistant_enhanced', {
+    const res = await fetch(apiUrl('/ai_assistant_enhanced'), {
       method: 'POST',
       body: formData
     });
@@ -174,7 +177,7 @@ class ApiService {
 
   // Credits
   async getCredits(): Promise<{success: boolean, current_balance: number, credits_used: number, packages: CreditPackage[]}> {
-    const res = await fetch(`${API_BASE}/credits`);
+    const res = await fetch(`${API_BASE()}/credits`);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';
@@ -186,7 +189,7 @@ class ApiService {
   }
 
   async createCheckout(credits: number, price: number): Promise<{checkout_url: string}> {
-    const res = await fetch('/create_credit_checkout', {
+    const res = await fetch(apiUrl('/create_credit_checkout'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credits, price })
@@ -202,7 +205,7 @@ class ApiService {
     contractTypes.forEach(t => formData.append('contractTypes[]', t));
     states.forEach(s => formData.append('states[]', s));
 
-    const res = await fetch('/upload_and_process', {
+    const res = await fetch(apiUrl('/upload_and_process'), {
       method: 'POST',
       body: formData
     });
@@ -214,7 +217,7 @@ class ApiService {
     const formData = new FormData();
     formData.append('capabilityFile', file);
 
-    const res = await fetch('/process-capability-statement', {
+    const res = await fetch(apiUrl('/process-capability-statement'), {
       method: 'POST',
       body: formData
     });
@@ -224,7 +227,7 @@ class ApiService {
   // Import Capability Statement from URL (uses /process-capability-statement endpoint)
   // This extracts data from web pages (HTML scraping), not expecting PDFs
   async importCapabilityFromUrl(url: string): Promise<{success: boolean, error?: string, data?: CapabilityStatementData}> {
-    const res = await fetch('/process-capability-statement', {
+    const res = await fetch(apiUrl('/process-capability-statement'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url })
@@ -236,14 +239,14 @@ class ApiService {
   async getDirectory(page: number = 1, search: string = ''): Promise<{success: boolean, companies: DirectoryCompany[], total: number, page: number, total_pages: number}> {
     const params = new URLSearchParams({ page: String(page) });
     if (search) params.append('search', search);
-    const res = await fetch(`${API_BASE}/directory?${params}`);
+    const res = await fetch(`${API_BASE()}/directory?${params}`);
     if (!res.ok) throw new Error('Failed to fetch directory');
     return res.json();
   }
 
   // Directory Profile
   async getDirectoryProfile(): Promise<{success: boolean, user_id: string, profile: DirectoryProfile}> {
-    const res = await fetch(`${API_BASE}/get_directory_profile`);
+    const res = await fetch(`${API_BASE()}/get_directory_profile`);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';
@@ -255,7 +258,7 @@ class ApiService {
   }
 
   async updateDirectoryProfile(data: Partial<DirectoryProfile>): Promise<{success: boolean, error?: string}> {
-    const res = await fetch(`${API_BASE}/update_directory_profile`, {
+    const res = await fetch(`${API_BASE()}/update_directory_profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -267,7 +270,7 @@ class ApiService {
   async uploadDirectoryLogo(file: File): Promise<{success: boolean, logo_url?: string, error?: string}> {
     const formData = new FormData();
     formData.append('logo', file);
-    const res = await fetch(`${API_BASE}/upload_directory_logo`, {
+    const res = await fetch(`${API_BASE()}/upload_directory_logo`, {
       method: 'POST',
       body: formData
     });
