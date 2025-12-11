@@ -132,10 +132,16 @@ const TopFiveContracts = () => {
           }
         })
         setContracts(transformedContracts)
-        setHasMatches(transformedContracts.length > 0)
+        // Don't change hasMatches here - rerun with filters returning 0 results
+        // doesn't mean the user has no matches at all, just that filters are too restrictive
+        // Only show "no filter results" message instead of redirecting to dashboard
         
         if (transformedContracts.length === 0) {
           setNoFilterResults(true)
+        } else {
+          // Only set hasMatches to true if we got results
+          // Never set it to false from rerun - that would cause redirect to dashboard
+          setHasMatches(true)
         }
       } else {
         console.error('Rerun matching failed:', data.error)
