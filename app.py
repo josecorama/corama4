@@ -13087,12 +13087,39 @@ def api_rerun_top_five():
     
     logging.info(f"[rerun-top5] user_id={user_id}, contract_types={contract_types}, states={states}")
     
-    # Find the existing capability statement PDF in the user's upload directory
+    # Find the primary capability statement PDF from the CSV
     pdf_path = None
-    if os.path.exists(user_upload_dir):
+    cs_csv_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+    
+    if os.path.exists(cs_csv_path):
+        try:
+            cs_df = pd.read_csv(cs_csv_path, dtype=str)
+            # Look for the primary capability statement first
+            if "is_primary" in cs_df.columns and "filename" in cs_df.columns:
+                primary_rows = cs_df[cs_df["is_primary"].str.lower() == "true"]
+                if not primary_rows.empty:
+                    primary_filename = primary_rows.iloc[0]["filename"]
+                    candidate_path = os.path.join(user_upload_dir, primary_filename)
+                    if os.path.exists(candidate_path):
+                        pdf_path = candidate_path
+                        logging.info(f"[rerun-top5] Using primary capability statement from CSV: {primary_filename}")
+            
+            # Fallback: use the first filename in the CSV
+            if not pdf_path and "filename" in cs_df.columns and not cs_df.empty:
+                first_filename = cs_df.iloc[0]["filename"]
+                candidate_path = os.path.join(user_upload_dir, first_filename)
+                if os.path.exists(candidate_path):
+                    pdf_path = candidate_path
+                    logging.info(f"[rerun-top5] Using first capability statement from CSV: {first_filename}")
+        except Exception as e:
+            logging.warning(f"[rerun-top5] Could not read capability statements CSV: {e}")
+    
+    # Final fallback: find any PDF in the directory
+    if not pdf_path and os.path.exists(user_upload_dir):
         for fname in os.listdir(user_upload_dir):
             if fname.lower().endswith('.pdf') and fname != 'matches.csv':
                 pdf_path = os.path.join(user_upload_dir, fname)
+                logging.info(f"[rerun-top5] Using fallback PDF: {fname}")
                 break
     
     if not pdf_path or not os.path.exists(pdf_path):
