@@ -18,40 +18,55 @@ interface FilterPopupProps {
   isOpen: boolean
   onClose: () => void
   onApply: (contractType: string, states: string[]) => void
-  currentContractType: string
-  currentStates: string[]
 }
 
-const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentStates }: FilterPopupProps) => {
-  const [contractType, setContractType] = useState(currentContractType)
-  const [selectedStates, setSelectedStates] = useState<string[]>(currentStates)
+const FilterPopup = ({ isOpen, onClose, onApply }: FilterPopupProps) => {
+  // Track which contract types are selected (can be multiple: federal, state, or both)
+  const [federalSelected, setFederalSelected] = useState(false)
+  const [stateSelected, setStateSelected] = useState(false)
+  const [selectedStates, setSelectedStates] = useState<string[]>([])
   const [error, setError] = useState('')
   
   const ALL_STATES = ['IL', 'IN']
 
   useEffect(() => {
-    setContractType(currentContractType)
-    setSelectedStates(currentStates)
+    // Reset to nothing selected when popup opens (fresh state each time)
+    setFederalSelected(false)
+    setStateSelected(false)
+    setSelectedStates([])
     setError('')
-  }, [isOpen, currentContractType, currentStates])
+  }, [isOpen])
+
+  // Derive contractType for the parent component
+  const getContractType = () => {
+    if (federalSelected && stateSelected) return 'all'
+    if (federalSelected) return 'federal'
+    if (stateSelected) return 'state'
+    return ''
+  }
 
   const handleContractTypeChange = (type: string) => {
     if (type === 'all') {
-      // When "All Contracts" is selected, select all contract types and all states
-      if (contractType === 'all') {
-        // If already selected, deselect everything
-        setContractType('')
+      // "All Contracts" is a master toggle - selects/deselects everything
+      const allCurrentlySelected = federalSelected && stateSelected && selectedStates.includes('all')
+      if (allCurrentlySelected) {
+        // Deselect everything
+        setFederalSelected(false)
+        setStateSelected(false)
         setSelectedStates([])
       } else {
-        setContractType('all')
+        // Select everything
+        setFederalSelected(true)
+        setStateSelected(true)
         setSelectedStates(['all', ...ALL_STATES])
       }
     } else if (type === 'federal') {
-      setContractType(contractType === 'federal' ? '' : 'federal')
-      setSelectedStates([])
+      setFederalSelected(!federalSelected)
     } else if (type === 'state') {
-      setContractType(contractType === 'state' ? '' : 'state')
-      if (contractType !== 'state') {
+      const newStateSelected = !stateSelected
+      setStateSelected(newStateSelected)
+      if (!newStateSelected) {
+        // Clear state selections when State is deselected
         setSelectedStates([])
       }
     }
@@ -90,19 +105,20 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
   }
 
   const handleApply = () => {
-    if (contractType === 'state' && selectedStates.length === 0) {
+    // If State is selected but no states are chosen, show error
+    if (stateSelected && selectedStates.length === 0) {
       setError('Please select at least one state')
       return
     }
-    onApply(contractType, selectedStates)
+    onApply(getContractType(), selectedStates)
     onClose()
   }
 
   if (!isOpen) return null
 
   const isStateSelected = (state: string) => selectedStates.includes(state)
-  // Show states section when "All Contracts" or "State" is selected
-  const showStatesSection = contractType === 'state' || contractType === 'all'
+  // Show states section when "State" is selected (either alone or with Federal)
+  const showStatesSection = stateSelected
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -130,7 +146,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
             <button
               onClick={() => handleContractTypeChange('all')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
-                contractType === 'all'
+                federalSelected && stateSelected
                   ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
@@ -140,7 +156,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
             <button
               onClick={() => handleContractTypeChange('federal')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
-                contractType === 'federal' || contractType === 'all'
+                federalSelected
                   ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
@@ -150,7 +166,7 @@ const FilterPopup = ({ isOpen, onClose, onApply, currentContractType, currentSta
             <button
               onClick={() => handleContractTypeChange('state')}
               className={`px-4 py-2 rounded-full font-poppins text-sm transition-colors ${
-                contractType === 'state' || contractType === 'all'
+                stateSelected
                   ? 'bg-[#6bb4b5] text-white border border-[#6bb4b5]'
                   : 'bg-[#2a3a4a] text-gray-300 border border-[#3a4a5a] hover:border-[#5a6a7a]'
               }`}
@@ -296,12 +312,29 @@ const Dashboard = () => {
     setCurrentPage(1)
   }
 
-  const categories = [
-    { name: 'Construction', percentage: 25.0, count: Math.round(totalContracts * 0.25) },
-    { name: 'IT Services', percentage: 20.0, count: Math.round(totalContracts * 0.20) },
-    { name: 'Professional', percentage: 18.0, count: Math.round(totalContracts * 0.18) },
-    { name: 'Maintenance', percentage: 15.0, count: Math.round(totalContracts * 0.15) },
-  ]
+  // Calculate dynamic categories from actual contract data
+  const categories = (() => {
+    // Count contracts by category
+    const categoryCounts: Record<string, number> = {}
+    contracts.forEach(contract => {
+      const cat = contract.category || 'Other'
+      categoryCounts[cat] = (categoryCounts[cat] || 0) + 1
+    })
+    
+    // Convert to array and sort by count (descending)
+    const sortedCategories = Object.entries(categoryCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4) // Top 4 categories (to fit the 4-column grid)
+    
+    // Calculate percentages based on total contracts loaded
+    const total = contracts.length || 1 // Avoid division by zero
+    return sortedCategories.map(cat => ({
+      name: cat.name,
+      count: cat.count,
+      percentage: Math.round((cat.count / total) * 100)
+    }))
+  })()
 
   return (
     <div className="min-h-screen bg-corama-dark">
@@ -310,8 +343,6 @@ const Dashboard = () => {
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         onApply={handleApplyFilter}
-        currentContractType={contractType}
-        currentStates={selectedStates}
       />
       
       {/* Header spans full width at top */}
@@ -338,7 +369,7 @@ const Dashboard = () => {
 
           {/* Top Contract Categories */}
           <div className="mb-6 lg:mb-8">
-            <h2 className="text-gray-400 font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4">TOP CONTRACT CATEGORIES</h2>
+            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP 5 CONTRACT CATEGORIES</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {categories.map((cat, index) => (
                 <div key={index} className="card-gradient rounded-xl p-4">
