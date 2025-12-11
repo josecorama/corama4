@@ -13161,42 +13161,47 @@ def api_rerun_top_five():
         
         logging.info(f"[rerun-top5] Qdrant matching completed. Found {len(results)} results")
         
-        # Store results in session
-        session['top5_results'] = results
-        
-        # Write to CSV for persistence
+        # Only update session and CSV if we got results
+        # This prevents overwriting good matches with empty results from restrictive filters
         matches_file = os.path.join(user_upload_dir, 'matches.csv')
-        try:
-            with open(matches_file, 'w', newline='', encoding='utf-8') as f:
-                writer = csv.DictWriter(f, fieldnames=[
-                    'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
-                    'Status', 'Category', 'Due_Date', 'Detail_Link',
-                    'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id',
-                    'NAICS_Code', 'Contract_Type'
-                ])
-                writer.writeheader()
-                for row in results:
-                    writer.writerow({
-                        'Company':         pdf_company_name if pdf_company_name else "Unknown",
-                        'Bid_Number':      row.get('Bid_Number', ''),
-                        'Bid_Name':        row.get('Bid_Name', ''),
-                        'Bid_Description': row.get('Bid_Description', ''),
-                        'Status':          row.get('Status', ''),
-                        'Category':        row.get('Category', ''),
-                        'Due_Date':        row.get('Due_Date', ''),
-                        'Detail_Link':     row.get('Detail_Link', '#'),
-                        'State':           row.get('State', ''),
-                        'Organization':    row.get('Organization', ''),
-                        'Budget':          row.get('Budget', ''),
-                        'Similarity_Score': row.get('Similarity_Score', ''),
-                        'hash_value':      row.get('hash_value', ''),
-                        'contract_id':     row.get('contract_id', ''),
-                        'NAICS_Code':      row.get('NAICS_Code', row.get('naics_code', '')),
-                        'Contract_Type':   row.get('Contract_Type', row.get('contract_type', ''))
-                    })
-            logging.info(f"[rerun-top5] Saved {len(results)} matches to CSV: {matches_file}")
-        except Exception as csv_error:
-            logging.warning(f"[rerun-top5] Failed to write CSV: {csv_error}")
+        if results:
+            # Store results in session
+            session['top5_results'] = results
+            
+            # Write to CSV for persistence
+            try:
+                with open(matches_file, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.DictWriter(f, fieldnames=[
+                        'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
+                        'Status', 'Category', 'Due_Date', 'Detail_Link',
+                        'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id',
+                        'NAICS_Code', 'Contract_Type'
+                    ])
+                    writer.writeheader()
+                    for row in results:
+                        writer.writerow({
+                            'Company':         pdf_company_name if pdf_company_name else "Unknown",
+                            'Bid_Number':      row.get('Bid_Number', ''),
+                            'Bid_Name':        row.get('Bid_Name', ''),
+                            'Bid_Description': row.get('Bid_Description', ''),
+                            'Status':          row.get('Status', ''),
+                            'Category':        row.get('Category', ''),
+                            'Due_Date':        row.get('Due_Date', ''),
+                            'Detail_Link':     row.get('Detail_Link', '#'),
+                            'State':           row.get('State', ''),
+                            'Organization':    row.get('Organization', ''),
+                            'Budget':          row.get('Budget', ''),
+                            'Similarity_Score': row.get('Similarity_Score', ''),
+                            'hash_value':      row.get('hash_value', ''),
+                            'contract_id':     row.get('contract_id', ''),
+                            'NAICS_Code':      row.get('NAICS_Code', row.get('naics_code', '')),
+                            'Contract_Type':   row.get('Contract_Type', row.get('contract_type', ''))
+                        })
+                logging.info(f"[rerun-top5] Saved {len(results)} matches to CSV: {matches_file}")
+            except Exception as csv_error:
+                logging.warning(f"[rerun-top5] Failed to write CSV: {csv_error}")
+        else:
+            logging.info(f"[rerun-top5] 0 results from filters, keeping existing matches.csv unchanged")
         
         # Format results for response
         formatted_matches = []
@@ -13269,6 +13274,164 @@ def api_top_five_contracts():
         get_dashboard_contracts_from_qdrant(1, 1)
     
     logging.info(f"[top5] Dashboard hash index has {len(_dashboard_contracts_hash_index) if _dashboard_contracts_hash_index else 0} entries")
+    
+    # Helper function to attempt fresh matching when CSV is empty or missing
+    def attempt_fresh_matching():
+        """Try to regenerate matches using the capability statement PDF"""
+        logging.info(f"[top5] Attempting fresh matching for user {user_id}")
+        
+        # Find the primary capability statement PDF
+        pdf_path = None
+        cs_csv_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+        
+        if os.path.exists(cs_csv_path):
+            try:
+                cs_df = pd.read_csv(cs_csv_path, dtype=str)
+                if "is_primary" in cs_df.columns and "filename" in cs_df.columns:
+                    primary_rows = cs_df[cs_df["is_primary"].str.lower() == "true"]
+                    if not primary_rows.empty:
+                        primary_filename = primary_rows.iloc[0]["filename"]
+                        candidate_path = os.path.join(user_upload_dir, primary_filename)
+                        if os.path.exists(candidate_path):
+                            pdf_path = candidate_path
+                
+                if not pdf_path and "filename" in cs_df.columns and not cs_df.empty:
+                    first_filename = cs_df.iloc[0]["filename"]
+                    candidate_path = os.path.join(user_upload_dir, first_filename)
+                    if os.path.exists(candidate_path):
+                        pdf_path = candidate_path
+            except Exception as e:
+                logging.warning(f"[top5] Could not read capability statements CSV: {e}")
+        
+        # Fallback: find any PDF in the directory
+        if not pdf_path and os.path.exists(user_upload_dir):
+            for fname in os.listdir(user_upload_dir):
+                if fname.lower().endswith('.pdf') and fname != 'matches.csv':
+                    pdf_path = os.path.join(user_upload_dir, fname)
+                    break
+        
+        if not pdf_path:
+            logging.info(f"[top5] No capability statement PDF found for fresh matching")
+            return []
+        
+        logging.info(f"[top5] Found capability statement for fresh matching: {pdf_path}")
+        
+        try:
+            # Get company name
+            pdf_company_name = None
+            if os.path.exists(cs_csv_path):
+                try:
+                    cs_df = pd.read_csv(cs_csv_path, dtype=str)
+                    if "Company" in cs_df.columns and not cs_df.empty:
+                        pdf_company_name = cs_df["Company"].iloc[0]
+                except:
+                    pass
+            
+            # Initialize CSQueryHandler
+            openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            handler = CSQueryHandler(
+                openai_api_key=openai_key,
+                qdrant_url=os.getenv('Qdrant_EP'),
+                qdrant_api_key=os.getenv('Qdrant_AK'),
+                user_upload_dir=user_upload_dir
+            )
+            
+            # Run matching without filters
+            logging.info(f"[top5] Running fresh Qdrant matching...")
+            with open(pdf_path, 'rb') as pdf_file:
+                results = handler.process_query(pdf_file, contract_types=[], states=[], limit=50)
+            
+            logging.info(f"[top5] Fresh matching completed. Found {len(results)} results")
+            
+            if results:
+                # Write to CSV for persistence
+                try:
+                    with open(matches_file, 'w', newline='', encoding='utf-8') as f:
+                        writer = csv.DictWriter(f, fieldnames=[
+                            'Company', 'Bid_Number', 'Bid_Name', 'Bid_Description',
+                            'Status', 'Category', 'Due_Date', 'Detail_Link',
+                            'State', 'Organization', 'Budget', 'Similarity_Score', 'hash_value', 'contract_id',
+                            'NAICS_Code', 'Contract_Type'
+                        ])
+                        writer.writeheader()
+                        for row in results:
+                            writer.writerow({
+                                'Company':         pdf_company_name if pdf_company_name else "Unknown",
+                                'Bid_Number':      row.get('Bid_Number', ''),
+                                'Bid_Name':        row.get('Bid_Name', ''),
+                                'Bid_Description': row.get('Bid_Description', ''),
+                                'Status':          row.get('Status', ''),
+                                'Category':        row.get('Category', ''),
+                                'Due_Date':        row.get('Due_Date', ''),
+                                'Detail_Link':     row.get('Detail_Link', '#'),
+                                'State':           row.get('State', ''),
+                                'Organization':    row.get('Organization', ''),
+                                'Budget':          row.get('Budget', ''),
+                                'Similarity_Score': row.get('Similarity_Score', ''),
+                                'hash_value':      row.get('hash_value', ''),
+                                'contract_id':     row.get('contract_id', ''),
+                                'NAICS_Code':      row.get('NAICS_Code', row.get('naics_code', '')),
+                                'Contract_Type':   row.get('Contract_Type', row.get('contract_type', ''))
+                            })
+                    logging.info(f"[top5] Saved {len(results)} fresh matches to CSV")
+                except Exception as csv_error:
+                    logging.warning(f"[top5] Failed to write fresh matches CSV: {csv_error}")
+                
+                # Store in session
+                session['top5_results'] = results
+            
+            return results
+        except Exception as e:
+            logging.error(f"[top5] Fresh matching failed: {e}")
+            return []
+    
+    # Check if we need to attempt fresh matching (CSV missing or empty, and no filters applied)
+    need_fresh_matching = False
+    if os.path.exists(matches_file):
+        try:
+            df_check = pd.read_csv(matches_file)
+            if len(df_check) == 0 and not contract_type and not selected_states:
+                logging.info(f"[top5] CSV exists but is empty, will attempt fresh matching")
+                need_fresh_matching = True
+        except Exception as e:
+            logging.warning(f"[top5] Error checking CSV: {e}")
+            if not contract_type and not selected_states:
+                need_fresh_matching = True
+    else:
+        if not contract_type and not selected_states:
+            logging.info(f"[top5] No matches file found, will attempt fresh matching")
+            need_fresh_matching = True
+    
+    # Attempt fresh matching if needed
+    if need_fresh_matching:
+        fresh_results = attempt_fresh_matching()
+        if fresh_results:
+            # Format fresh results for response
+            formatted_matches = []
+            for i, row in enumerate(fresh_results[:5]):
+                formatted_matches.append({
+                    'rank': i + 1,
+                    'Company': row.get('Company', 'Unknown'),
+                    'Bid_Number': row.get('Bid_Number', ''),
+                    'Bid_Name': row.get('Bid_Name', ''),
+                    'Bid_Description': row.get('Bid_Description', ''),
+                    'Status': row.get('Status', ''),
+                    'Category': row.get('Category', ''),
+                    'Due_Date': row.get('Due_Date', ''),
+                    'Detail_Link': row.get('Detail_Link', '#'),
+                    'State': row.get('State', ''),
+                    'Organization': row.get('Organization', ''),
+                    'Budget': row.get('Budget', ''),
+                    'Similarity_Score': row.get('Similarity_Score', ''),
+                    'NAICS_Code': row.get('NAICS_Code', row.get('NAICS_CODE', '')),
+                    'Contract_Type': row.get('Contract_Type', '')
+                })
+            return jsonify({
+                "success": True,
+                "matches": formatted_matches,
+                "has_matches": len(fresh_results) > 0,
+                "filtered_count": len(fresh_results)
+            })
     
     if os.path.exists(matches_file):
         try:
