@@ -346,6 +346,23 @@ class ApiService {
     return res.json();
   }
 
+  // Contract Analysis - Generate AI findings from PDF
+  async generateContractAnalysis(formData: FormData): Promise<{success: boolean, findings?: string, error?: string}> {
+    const res = await fetch(`${API_BASE()}/contract-analysis/findings`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to analyze contract' }));
+      return { success: false, error: errorData.error || 'Failed to analyze contract' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     window.location.href = '/logout';

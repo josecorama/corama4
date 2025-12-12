@@ -5903,7 +5903,7 @@ def add_test_credits():
         return jsonify({"error": str(e)}), 500
 
 def detect_query_intent(query):
-    """Detect if query is casual/greeting or an actual task request"""
+    """Detect if query is casual/greeting, CS analysis request, or an actual task request"""
     query_lower = query.lower().strip()
     
     # Casual greetings and test messages
@@ -5923,6 +5923,25 @@ def detect_query_intent(query):
     # If very short (< 5 chars) and doesn't contain keywords, likely casual
     if len(query_lower) < 5 and not any(keyword in query_lower for keyword in ['analyze', 'help', 'what', 'how', 'why']):
         return 'casual'
+    
+    # CS analysis patterns - detect when user wants to analyze their capability statement
+    cs_analysis_patterns = [
+        'analyze my cs', 'analyse my cs',
+        'analyze my capability', 'analyse my capability',
+        'review my cs', 'review my capability',
+        'check my cs', 'check my capability',
+        'am i a good fit', 'am i good fit',
+        'do i qualify', 'am i qualified',
+        'check my qualifications', 'review my qualifications',
+        'what are my strengths', 'what are my weaknesses',
+        'how does my company', 'how does my cs',
+        'evaluate my capability', 'assess my capability',
+        'my capability statement', 'analyze capability statement',
+    ]
+    
+    for pattern in cs_analysis_patterns:
+        if pattern in query_lower:
+            return 'cs_analysis'
     
     return 'task'
 
@@ -5986,6 +6005,88 @@ How can I help you with your contract response today?"""
                 "remaining_credits": current_credits,
                 "casual_greeting": True
             })
+        
+        # Handle CS analysis queries - analyze user's actual capability statement
+        if query_intent == 'cs_analysis' and action_type == 'general':
+            try:
+                # Get user's capability statement from their uploads directory
+                user_uploads_dir = user_data.get('uploads_dir', '')
+                capability_statement = ''
+                company_name = 'your company'
+                
+                if user_uploads_dir:
+                    capability_statement = process_files_user_input(user_uploads_dir)
+                    company_identity = extract_company_identity(user_uploads_dir)
+                    company_name = company_identity.get('company_name', 'your company')
+                
+                # Check if user has a valid capability statement
+                if not capability_statement or capability_statement in ['Not available', '[capability_statements_processed.csv not found]', '[No capability statement text found]'] or len(capability_statement.strip()) < 50:
+                    return jsonify({
+                        "response": "I don't have your capability statement on file yet. Please upload or create your capability statement in the Capability Statement section first, then I can analyze it and provide personalized insights about your company's strengths and qualifications.",
+                        "credits_used": 0,
+                        "remaining_credits": current_credits,
+                        "casual_greeting": False
+                    })
+                
+                # Deduct 1 credit for CS analysis
+                success, message, new_balance = credit_manager.deduct_credits_admin(
+                    user_id, 1, 'cs_analysis', "Capability statement analysis",
+                    admin_db=admin_db if admin_initialized else None
+                )
+                if not success:
+                    return jsonify({"error": message, "credits_required": 1, "current_balance": current_credits}), 402
+                
+                # Truncate CS if too long
+                cs_text = capability_statement[:8000] if len(capability_statement) > 8000 else capability_statement
+                
+                # Call OpenAI to analyze the capability statement
+                api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+                if not api_key:
+                    return jsonify({'error': 'OpenAI API key not configured'}), 500
+                
+                client = OpenAI(api_key=api_key, timeout=60.0)
+                
+                # Include the user's specific question in the analysis
+                cs_analysis_prompt = f"""You are an expert government contracting consultant analyzing a company's capability statement. The user asked: "{user_query}"
+
+COMPANY: {company_name}
+
+CAPABILITY STATEMENT:
+{cs_text}
+
+Based on this capability statement, provide a detailed analysis addressing the user's question. Include:
+
+1. **Company Strengths**: Key capabilities and differentiators evident from the CS
+2. **Certifications & Qualifications**: Any certifications, registrations, or qualifications mentioned
+3. **Core Competencies**: Main service areas and expertise
+4. **Past Performance**: Notable projects or experience mentioned
+5. **Areas for Improvement**: Suggestions for strengthening the capability statement
+6. **Contract Fit Assessment**: Types of government contracts this company would be well-suited for
+
+Be specific and reference actual content from their capability statement. Keep your response focused and actionable."""
+
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": "You are an expert government contracting consultant providing personalized capability statement analysis."},
+                        {"role": "user", "content": cs_analysis_prompt}
+                    ],
+                    max_tokens=1500,
+                    temperature=0.7
+                )
+                
+                cs_analysis_response = response.choices[0].message.content
+                
+                return jsonify({
+                    "response": cs_analysis_response,
+                    "credits_used": 1,
+                    "remaining_credits": current_credits - 1,
+                    "casual_greeting": False
+                })
+                
+            except Exception as e:
+                app.logger.error(f"Error in CS analysis: {e}", exc_info=True)
+                return jsonify({"error": f"Failed to analyze capability statement: {str(e)}"}), 500
         
         # Determine credit cost based on action type
         credit_costs = {
@@ -10887,6 +10988,111 @@ Provide your analysis as a JSON array with objects containing 'category' and 'te
         
     except Exception as e:
         logging.error(f"Error analyzing contract: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/contract-analysis/findings', methods=['POST'])
+def contract_analysis_findings():
+    """Generate AI findings from uploaded contract PDF for Contract Analysis page"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        # Check for uploaded file
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No PDF file uploaded'}), 400
+        
+        file = request.files['file']
+        contract_name = request.form.get('contractName', 'Contract')
+        
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'error': 'Only PDF files are supported'}), 400
+        
+        # Save file temporarily
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            file.save(tmp_file.name)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Extract text from PDF using existing function
+            pdf_text = extract_text_from_pdf(tmp_path)
+            
+            if not pdf_text or len(pdf_text.strip()) < 50:
+                return jsonify({'success': False, 'error': 'Could not extract text from PDF. The document may be image-only or scanned.'}), 400
+            
+            # Truncate to avoid token explosion (keep first ~15000 chars)
+            max_chars = 15000
+            if len(pdf_text) > max_chars:
+                pdf_text = pdf_text[:max_chars] + "\n\n[Document truncated for analysis...]"
+            
+            # Call OpenAI to analyze the contract
+            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
+            
+            client = OpenAI(api_key=api_key, timeout=60.0)
+            
+            prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights for a business considering whether to bid on this opportunity.
+
+CONTRACT NAME: {contract_name}
+
+CONTRACT DOCUMENT TEXT:
+{pdf_text}
+
+Provide a comprehensive analysis with the following sections:
+
+**Contract Overview**
+Summarize what this contract is about, the issuing agency, and the scope of work.
+
+**Key Requirements**
+List the main deliverables, qualifications, and requirements specified in the contract.
+
+**Important Deadlines**
+Identify any deadlines mentioned (proposal due dates, performance periods, milestones).
+
+**Compliance Requirements**
+Note any certifications, registrations, or compliance requirements (SAM, NAICS codes, set-asides, etc.).
+
+**Evaluation Criteria**
+If mentioned, summarize how proposals will be evaluated.
+
+**Strategic Recommendations**
+Provide 3-5 actionable recommendations for a business considering this opportunity.
+
+**Risk Assessment**
+Identify potential risks or challenges with this contract.
+
+Keep your response focused and actionable. Use markdown formatting for readability."""
+
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contract analyst providing strategic insights."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.7
+            )
+            
+            findings = response.choices[0].message.content
+            
+            return jsonify({
+                'success': True,
+                'findings': findings
+            })
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        
+    except Exception as e:
+        logging.error(f"Error in contract analysis findings: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/get_draft_team', methods=['GET'])

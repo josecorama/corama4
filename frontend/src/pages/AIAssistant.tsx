@@ -369,7 +369,6 @@ const AIAssistant = () => {
                             >
                               {message.visibleContent ?? message.content}
                             </ReactMarkdown>
-                            {message.isTyping && <span className="animate-pulse">|</span>}
                           </div>
                         ) : (
                           <p className="font-poppins text-xs sm:text-sm whitespace-pre-line">

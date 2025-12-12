@@ -554,10 +554,12 @@ document.addEventListener("DOMContentLoaded", function () {
 </script>
 
 <script>
-    gtag('event', 'login_success', {
-      method: 'email_password'  // or 'google', 'firebase', etc.
-    });
-  </script>
+    if (typeof gtag === "function") {
+        gtag('event', 'login_success', {
+          method: 'email_password'
+        });
+    }
+</script>
   
       
 </body>

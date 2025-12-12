@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { ChevronRight } from 'lucide-react'
+import { api } from '../services/api'
 
 // SVG asset paths
 const UploadContractPDFIcon = '/static/app/contract-analysis/UploadContractPDF.svg'
@@ -67,46 +68,27 @@ const ContractAnalysis = () => {
   }
 
   const handleGenerateFindings = async () => {
-    if (!pdfFile && !contractId) {
+    if (!pdfFile) {
       alert('Please upload a contract PDF first')
       return
     }
 
     setIsGeneratingFindings(true)
     try {
-      // For now, simulate AI findings generation
-      // In a full implementation, this would call the backend API
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // Call backend API to analyze the PDF
+      const formData = new FormData()
+      formData.append('file', pdfFile)
+      formData.append('contractName', contractName)
       
-      setAiFindings(`**Contract Analysis for ${contractName}**
-
-**Key Requirements:**
-1. The contract requires specific certifications and qualifications
-2. Performance period spans 12 months with option years
-3. Deliverables must meet federal quality standards
-
-**Important Deadlines:**
-- Proposal submission deadline
-- Questions due date
-- Contract start date
-
-**Compliance Considerations:**
-- Small business set-aside requirements
-- Required certifications and registrations
-- Past performance documentation needed
-
-**Strategic Recommendations:**
-- Focus on demonstrating relevant experience
-- Highlight team qualifications and certifications
-- Emphasize competitive pricing strategy
-
-**Risk Assessment:**
-- Medium complexity project
-- Standard federal contracting requirements
-- Competitive bidding environment expected`)
+      const response = await api.generateContractAnalysis(formData)
       
-      // Force Header to refresh credits
-      setHeaderKey(k => k + 1)
+      if (response.success && response.findings) {
+        setAiFindings(response.findings)
+        // Force Header to refresh credits
+        setHeaderKey(k => k + 1)
+      } else {
+        alert(response.error || 'Failed to generate AI findings. Please try again.')
+      }
     } catch (error) {
       console.error('Error generating findings:', error)
       alert('Failed to generate AI findings. Please try again.')
@@ -117,7 +99,8 @@ const ContractAnalysis = () => {
 
   const handleContinue = () => {
     // Navigate to the next step (Team Builder)
-    navigate('/app/proposal-team', { 
+    // Note: Don't include /app prefix since Router basename already adds it
+    navigate('/proposal-team', { 
       state: { 
         contractName, 
         contractId,
@@ -140,8 +123,8 @@ const ContractAnalysis = () => {
         
         <Sidebar />
       
-        <div className="flex-1 flex flex-col min-w-0">
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+        <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-6">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-4">Contract Analysis</h1>
@@ -162,15 +145,15 @@ const ContractAnalysis = () => {
               </div>
             </div>
 
-            {/* Main Content - Two Cards Side by Side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Main Content - Two Cards Side by Side - Larger cards */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 mb-6">
               {/* Left Card - Upload PDF / View Contract */}
-              <div className="bg-white rounded-2xl p-6">
+              <div className="bg-white rounded-2xl p-6 flex flex-col min-h-[500px]">
                 <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-1">Upload PDF</h2>
                 <p className="text-gray-600 font-poppins text-sm mb-4">Contract Document</p>
                 
                 {pdfUrl ? (
-                  <div className="h-80 border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="flex-1 min-h-[400px] border border-gray-200 rounded-lg overflow-hidden">
                     <iframe 
                       src={pdfUrl} 
                       className="w-full h-full"
@@ -179,12 +162,12 @@ const ContractAnalysis = () => {
                   </div>
                 ) : (
                   <div 
-                    className="h-80 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-corama-teal transition-colors"
+                    className="flex-1 min-h-[400px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-corama-teal transition-colors"
                     onClick={handleUploadClick}
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                   >
-                    <img src={UploadContractPDFIcon} alt="Upload Contract" className="w-64 h-48 mb-4" />
+                    <img src={UploadContractPDFIcon} alt="Upload Contract" className="w-80 h-60 mb-4" />
                     <p className="text-gray-500 font-poppins text-sm">Click or drag to upload PDF</p>
                   </div>
                 )}
@@ -205,11 +188,11 @@ const ContractAnalysis = () => {
               </div>
 
               {/* Right Card - AI Findings */}
-              <div className="bg-white rounded-2xl p-6">
+              <div className="bg-white rounded-2xl p-6 flex flex-col min-h-[500px]">
                 <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-4">AI Findings</h2>
                 
                 {aiFindings ? (
-                  <div className="h-80 overflow-y-auto">
+                  <div className="flex-1 min-h-[400px] overflow-y-auto">
                     <div className="font-poppins text-sm text-gray-700">
                       <ReactMarkdown
                         components={{
@@ -229,11 +212,11 @@ const ContractAnalysis = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-80 flex flex-col items-center justify-center">
-                    <img src={AIFindingsIcon} alt="AI Findings" className="w-48 h-64 mb-4" />
+                  <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center">
+                    <img src={AIFindingsIcon} alt="AI Findings" className="w-64 h-80 mb-4" />
                     <button
                       onClick={handleGenerateFindings}
-                      disabled={isGeneratingFindings}
+                      disabled={isGeneratingFindings || !pdfFile}
                       className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white disabled:opacity-50"
                       style={{ backgroundColor: '#6bb4b5' }}
                     >
@@ -244,8 +227,8 @@ const ContractAnalysis = () => {
               </div>
             </div>
 
-            {/* Continue Button */}
-            <div className="flex justify-end">
+            {/* Continue Button - At bottom of page */}
+            <div className="mt-auto pt-6 flex justify-end">
               <button
                 onClick={handleContinue}
                 disabled={!aiFindings}
