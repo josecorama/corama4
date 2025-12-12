@@ -13237,6 +13237,25 @@ def api_rerun_top_five():
         return jsonify({"success": False, "error": f"Matching failed: {str(e)}"}), 500
 
 
+# Helper function to clean NaN/Infinity values from data before JSON serialization
+# NaN and Infinity are not valid JSON, so we convert them to None (which becomes null in JSON)
+def clean_for_json(value):
+    """Recursively clean NaN/Infinity values from dicts/lists for JSON serialization"""
+    import math
+    # Handle floats (including numpy float64) with NaN/inf
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+    # Recurse into lists
+    if isinstance(value, list):
+        return [clean_for_json(v) for v in value]
+    # Recurse into dicts
+    if isinstance(value, dict):
+        return {k: clean_for_json(v) for k, v in value.items()}
+    return value
+
+
 # API: Get top five contract matches
 @app.route('/api/top-five-contracts', methods=['GET'])
 def api_top_five_contracts():
@@ -13427,9 +13446,11 @@ def api_top_five_contracts():
                     'NAICS_Code': row.get('NAICS_Code', row.get('NAICS_CODE', '')),
                     'Contract_Type': row.get('Contract_Type', '')
                 })
+            # Clean NaN values before returning JSON
+            cleaned_matches = clean_for_json(formatted_matches)
             return jsonify({
                 "success": True,
-                "matches": formatted_matches,
+                "matches": cleaned_matches,
                 "has_matches": len(fresh_results) > 0,
                 "filtered_count": len(fresh_results)
             })
@@ -13546,9 +13567,11 @@ def api_top_five_contracts():
     else:
         logging.info(f"[top5] No matches file found at {matches_file}")
     
+    # Clean NaN values before returning JSON
+    cleaned_matches = clean_for_json(matches[:5])
     return jsonify({
         "success": True,
-        "matches": matches[:5],
+        "matches": cleaned_matches,
         "has_matches": total_matches > 0,  # True if user has ANY matches (before filtering)
         "filtered_count": len(matches)  # Count after filtering
     })
