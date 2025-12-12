@@ -200,11 +200,15 @@ const TopFiveContracts = () => {
                 </div>
               </div>
 
-                        {loading || rerunning ? (
+                        {loading || rerunning || hasMatches === null ? (
                           <div className="flex items-center justify-center h-64">
                             <p className="text-gray-400 font-poppins">{rerunning ? 'Refreshing matches...' : 'Loading top contracts...'}</p>
                           </div>
-                        ) : noFilterResults ? (
+                        ) : hasMatches === false ? (
+              <div className="flex items-center justify-center h-64">
+                <p className="text-gray-400 font-poppins">Redirecting to dashboard...</p>
+              </div>
+            ) : noFilterResults ? (
               <div className="flex flex-col items-center justify-center h-64">
                 <p className="text-gray-400 font-poppins text-lg mb-4">No contracts match these filters.</p>
                 <button 
@@ -218,10 +222,6 @@ const TopFiveContracts = () => {
                 >
                   Clear Filters
                 </button>
-              </div>
-            ) : (!loading && hasMatches === false) ? (
-              <div className="flex items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins">Redirecting to dashboard...</p>
               </div>
             ) : contracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64">
