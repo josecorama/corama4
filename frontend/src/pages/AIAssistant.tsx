@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -12,14 +12,38 @@ interface Message {
   sender: 'user' | 'ai'
   content: string
   timestamp: string
+  isTyping?: boolean
+  visibleContent?: string
 }
 
-// Map display names to action keys for backend
-const ACTION_KEYS: Record<string, string> = {
-  'Analyze Contract (3 credits)': 'analyze_contract',
-  'Check Compliance (2 credits)': 'check_compliance',
-  'Develop Strategy (3 credits)': 'develop_strategy',
-  'Create Outline (2 credits)': 'create_outline',
+// Action patterns for flexible matching
+const ACTION_PATTERNS: Record<string, string[]> = {
+  analyze_contract: ['analyze contract', 'analyze', 'analysis'],
+  check_compliance: ['check compliance', 'compliance', 'compliant'],
+  develop_strategy: ['develop strategy', 'strategy', 'strategic'],
+  create_outline: ['create outline', 'outline', 'proposal outline'],
+}
+
+// Get action key from user input with flexible matching
+function getActionKeyFromInput(raw: string): string | null {
+  let text = raw.toLowerCase().trim()
+  
+  // Strip leading bullet/number patterns like "- " or "1. "
+  text = text.replace(/^[-*\d.\s]+/, '')
+  
+  // Remove the credits suffix if present (e.g., "(3 credits)")
+  text = text.replace(/\(\s*\d+\s*credits?\s*\)/i, '').trim()
+  
+  // Collapse whitespace
+  text = text.replace(/\s+/g, ' ')
+  
+  for (const [actionKey, patterns] of Object.entries(ACTION_PATTERNS)) {
+    if (patterns.some((p) => text.startsWith(p) || text === p)) {
+      return actionKey
+    }
+  }
+  
+  return null
 }
 
 // System help keywords and responses
@@ -96,23 +120,76 @@ const AIAssistant = () => {
       sender: 'ai',
       content: buildInitialMessage(contractName),
       timestamp: formatTime(),
+      isTyping: false,
+      visibleContent: buildInitialMessage(contractName),
     },
   ])
   const [inputValue, setInputValue] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
   const [headerKey, setHeaderKey] = useState(0)
+  const chatContainerRef = useRef<HTMLDivElement>(null)
 
   // Update initial message when contract name changes
   useEffect(() => {
+    const initialContent = buildInitialMessage(contractName)
     setMessages([
       {
         id: 1,
         sender: 'ai',
-        content: buildInitialMessage(contractName),
+        content: initialContent,
         timestamp: formatTime(),
+        isTyping: false,
+        visibleContent: initialContent,
       },
     ])
   }, [contractName])
+
+  // Typing animation effect
+  useEffect(() => {
+    const typingMessage = [...messages].reverse().find(m => m.sender === 'ai' && m.isTyping)
+    if (!typingMessage) return
+
+    const full = typingMessage.content
+    const totalDuration = 2000 // 2 seconds total animation time
+    const stepMs = 30
+    const steps = Math.max(1, Math.floor(totalDuration / stepMs))
+    const charsPerStep = Math.max(1, Math.ceil(full.length / steps))
+
+    let currentLength = typingMessage.visibleContent?.length || 0
+
+    const interval = setInterval(() => {
+      currentLength += charsPerStep
+      if (currentLength >= full.length) {
+        // Finish typing
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === typingMessage.id
+              ? { ...m, visibleContent: full, isTyping: false }
+              : m
+          )
+        )
+        clearInterval(interval)
+      } else {
+        const slice = full.slice(0, currentLength)
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === typingMessage.id
+              ? { ...m, visibleContent: slice }
+              : m
+          )
+        )
+      }
+    }, stepMs)
+
+    return () => clearInterval(interval)
+  }, [messages])
+
+  // Auto-scroll to bottom when new messages arrive or during typing
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight
+    }
+  }, [messages])
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isProcessing) return
@@ -129,24 +206,30 @@ const AIAssistant = () => {
     setInputValue('')
     setIsProcessing(true)
 
+    // Helper to add AI message with typing animation
+    const addAiMessage = (content: string) => {
+      const aiMessage: Message = {
+        id: Date.now(), // Use timestamp for unique ID
+        sender: 'ai',
+        content: content,
+        timestamp: formatTime(),
+        isTyping: true,
+        visibleContent: '',
+      }
+      setMessages(prev => [...prev, aiMessage])
+    }
+
     try {
       // Check if this is a system help question
       const helpResponse = getSystemHelpResponse(userInput)
       if (helpResponse) {
-        const aiResponse: Message = {
-          id: messages.length + 2,
-          sender: 'ai',
-          content: helpResponse,
-          timestamp: formatTime(),
-        }
-        setMessages(prev => [...prev, aiResponse])
+        addAiMessage(helpResponse)
         setIsProcessing(false)
         return
       }
 
-      // Check if this is one of the action commands
-      const normalizedInput = userInput.startsWith('- ') ? userInput.slice(2).trim() : userInput
-      const actionKey = ACTION_KEYS[normalizedInput]
+      // Check if this is one of the action commands using flexible matching
+      const actionKey = getActionKeyFromInput(userInput)
       
       if (actionKey) {
         // Call backend API for AI action
@@ -154,40 +237,19 @@ const AIAssistant = () => {
           const response = await api.aiAssistantAction(actionKey, contractName)
           
           if (response.success) {
-            const aiResponse: Message = {
-              id: messages.length + 2,
-              sender: 'ai',
-              content: response.message,
-              timestamp: formatTime(),
-            }
-            setMessages(prev => [...prev, aiResponse])
+            addAiMessage(response.message)
             // Force Header to refresh credits
             setHeaderKey(k => k + 1)
           } else {
-            const errorResponse: Message = {
-              id: messages.length + 2,
-              sender: 'ai',
-              content: response.error || 'Sorry, I encountered an error processing your request. Please try again.',
-              timestamp: formatTime(),
-            }
-            setMessages(prev => [...prev, errorResponse])
+            addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
           }
         } catch (error) {
           console.error('AI action error:', error)
-          const errorResponse: Message = {
-            id: messages.length + 2,
-            sender: 'ai',
-            content: 'Sorry, I encountered an error processing your request. Please try again later.',
-            timestamp: formatTime(),
-          }
-          setMessages(prev => [...prev, errorResponse])
+          addAiMessage('Sorry, I encountered an error processing your request. Please try again later.')
         }
       } else {
         // General question - provide helpful response
-        const aiResponse: Message = {
-          id: messages.length + 2,
-          sender: 'ai',
-          content: `I understand you're asking about "${userInput}". 
+        addAiMessage(`I understand you're asking about "${userInput}". 
 
 To help you with this contract, I recommend using one of my specialized tools:
 - Analyze Contract (3 credits) - For detailed contract analysis
@@ -195,10 +257,7 @@ To help you with this contract, I recommend using one of my specialized tools:
 - Develop Strategy (3 credits) - For winning strategies
 - Create Outline (2 credits) - To start your proposal
 
-Or ask me about how CORAMA works and I'll be happy to explain!`,
-          timestamp: formatTime(),
-        }
-        setMessages(prev => [...prev, aiResponse])
+Or ask me about how CORAMA works and I'll be happy to explain!`)
       }
     } finally {
       setIsProcessing(false)
@@ -228,7 +287,7 @@ Or ask me about how CORAMA works and I'll be happy to explain!`,
 
             {/* Chat Area */}
             <div className="flex-1 flex flex-col min-h-0">
-              <div className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 mb-3 sm:mb-4">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 mb-3 sm:mb-4">
                 {messages.map((message) => (
                   <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-full sm:max-w-xl lg:max-w-2xl ${message.sender === 'user' ? 'order-2' : ''}`}>
@@ -241,7 +300,10 @@ Or ask me about how CORAMA works and I'll be happy to explain!`,
                         }`}
                         style={message.sender === 'user' ? { backgroundColor: '#333c4d' } : undefined}
                       >
-                        <p className="font-poppins text-xs sm:text-sm whitespace-pre-line">{message.content}</p>
+                        <p className="font-poppins text-xs sm:text-sm whitespace-pre-line">
+                          {message.sender === 'ai' ? (message.visibleContent ?? message.content) : message.content}
+                          {message.isTyping && <span className="animate-pulse">|</span>}
+                        </p>
                       </div>
                     </div>
                   </div>
