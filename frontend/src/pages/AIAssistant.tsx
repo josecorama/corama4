@@ -210,8 +210,9 @@ const AIAssistant = () => {
       setInputValue('')
       
       // Navigate to Contract Analysis page after a brief delay
+      // Note: Don't include /app prefix since Router basename already adds it
       setTimeout(() => {
-        navigate('/app/contract-analysis', { 
+        navigate('/contract-analysis', { 
           state: { 
             contractName, 
             contractId,
