@@ -33,8 +33,6 @@ const ContractAnalysis = () => {
   const [headerKey, setHeaderKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Current step in the guided process (1 = Contract Analysis, 2 = Team, 3 = Pricing)
-  const currentStep = 1
   // Track if step 1 is complete (findings generated)
   const step1Complete = !!aiFindings
 
@@ -132,7 +130,7 @@ const ContractAnalysis = () => {
             <div className="text-center mb-3 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Contract Analysis</h1>
               
-              {/* Progress Circles - Show check icon when step is complete */}
+              {/* Progress Circles - All empty until step is complete, then show check with animation */}
               <div className="flex justify-center gap-4">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
@@ -142,11 +140,8 @@ const ContractAnalysis = () => {
                         <div className="absolute inset-0 rounded-full bg-corama-teal/50 animate-pulse blur-md" />
                         <img src={CheckIcon} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
                       </div>
-                    ) : currentStep === step ? (
-                      <div className="w-14 h-14 rounded-full bg-corama-teal flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">{step}</span>
-                      </div>
                     ) : (
+                      // All other steps show empty check (no numbers)
                       <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
                   </div>
@@ -236,8 +231,8 @@ const ContractAnalysis = () => {
               </div>
             </div>
 
-            {/* Continue Button - Fixed at bottom */}
-            <div className="flex-shrink-0 flex justify-center">
+            {/* Continue Button - Fixed at bottom right */}
+            <div className="flex-shrink-0 flex justify-end">
               <button
                 onClick={handleContinue}
                 disabled={!aiFindings}

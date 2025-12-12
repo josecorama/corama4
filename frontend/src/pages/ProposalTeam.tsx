@@ -24,8 +24,6 @@ const ProposalTeam = () => {
   const navigate = useNavigate()
   const state = location.state as ProposalTeamState | null
   
-  // Current step in the guided process (1 = Contract Analysis, 2 = Team, 3 = Pricing)
-  const currentStep = 2
   // Step 1 is complete (we came from Contract Analysis)
   const step1Complete = true
   
@@ -67,7 +65,7 @@ const ProposalTeam = () => {
             <div className="text-center mb-4 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Build Your Team</h1>
               
-              {/* Progress Circles */}
+              {/* Progress Circles - Check for step 1, empty for steps 2 and 3 */}
               <div className="flex justify-center gap-4">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
@@ -77,11 +75,8 @@ const ProposalTeam = () => {
                         <div className="absolute inset-0 rounded-full bg-corama-teal/50 animate-pulse blur-md" />
                         <img src={CheckIcon} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
                       </div>
-                    ) : currentStep === step ? (
-                      <div className="w-14 h-14 rounded-full bg-corama-teal flex items-center justify-center">
-                        <span className="text-white font-bold text-lg">{step}</span>
-                      </div>
                     ) : (
+                      // Steps 2 and 3 show empty check (no numbers)
                       <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
                   </div>
@@ -89,77 +84,80 @@ const ProposalTeam = () => {
               </div>
             </div>
 
-            {/* AI Suggestions Section */}
-            <div className="text-center mb-4 flex-shrink-0">
-              <h2 className="text-white font-poppins font-semibold text-lg mb-2">AI Suggestions For a Wise Team Selection</h2>
-              <p className="text-gray-300 font-poppins text-sm max-w-2xl mx-auto">
-                Based on the contract requirements, we recommend building a team with expertise in the relevant areas. 
-                Add team members using one of the options below.
-              </p>
-            </div>
+            {/* Main Content Container with border */}
+            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-gray-600 p-4">
+              {/* AI Suggestions Section - White card */}
+              <div className="bg-white rounded-xl p-4 flex-shrink-0">
+                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Suggestions For a Wise Team Selection</h2>
+                <p className="text-gray-600 font-poppins text-sm">
+                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam turpis dolor, mollis vel lacinia in, suscipit suscipit odio. In tristique metus velit, vitae fermentum enim maximus et. Donec in sollicitudin justo, vitae euismod dolor. Curabitur at nisl sit amet nibh dignissim viverra quis non tellus.
+                </p>
+              </div>
 
-            {/* Main Content Area */}
-            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
-              {/* Option Cards - Three options in a row */}
+              {/* Option Cards - Three teal cards in a row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
                 {/* From CORAMA Directory */}
                 <div 
                   onClick={() => handleOptionClick('from-directory')}
-                  className={`bg-white rounded-2xl p-6 flex flex-col items-center cursor-pointer transition-all hover:shadow-lg ${
-                    selectedOption === 'from-directory' ? 'ring-2 ring-corama-teal' : ''
+                  className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
+                    selectedOption === 'from-directory' ? 'ring-2 ring-blue-500' : ''
                   }`}
+                  style={{ backgroundColor: 'rgba(107, 180, 181, 0.3)' }}
                 >
-                  <img src={FromCORAMADirectoryIcon} alt="From CORAMA Directory" className="w-16 h-16 mb-3" />
-                  <h3 className="text-gray-800 font-poppins font-semibold text-base text-center">From CORAMA Directory</h3>
-                  <p className="text-gray-500 font-poppins text-xs text-center mt-1">Search our network of professionals</p>
+                  <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
+                  <p className="text-gray-300 font-poppins text-sm">Find partners from the CORAMA network</p>
+                  <img src={FromCORAMADirectoryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                 </div>
 
                 {/* Manual Entry */}
                 <div 
                   onClick={() => handleOptionClick('manual-entry')}
-                  className={`bg-white rounded-2xl p-6 flex flex-col items-center cursor-pointer transition-all hover:shadow-lg ${
-                    selectedOption === 'manual-entry' ? 'ring-2 ring-corama-teal' : ''
+                  className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
+                    selectedOption === 'manual-entry' ? 'ring-2 ring-blue-500' : ''
                   }`}
+                  style={{ backgroundColor: 'rgba(107, 180, 181, 0.3)' }}
                 >
-                  <img src={ManualEntryIcon} alt="Manual Entry" className="w-16 h-16 mb-3" />
-                  <h3 className="text-gray-800 font-poppins font-semibold text-base text-center">Manual Entry</h3>
-                  <p className="text-gray-500 font-poppins text-xs text-center mt-1">Add team members manually</p>
+                  <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
+                  <p className="text-gray-300 font-poppins text-sm">Enter subcontractor details manually</p>
+                  <img src={ManualEntryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                 </div>
 
                 {/* From Web Site */}
                 <div 
                   onClick={() => handleOptionClick('from-site')}
-                  className={`bg-white rounded-2xl p-6 flex flex-col items-center cursor-pointer transition-all hover:shadow-lg ${
-                    selectedOption === 'from-site' ? 'ring-2 ring-corama-teal' : ''
+                  className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
+                    selectedOption === 'from-site' ? 'ring-2 ring-blue-500' : ''
                   }`}
+                  style={{ backgroundColor: 'rgba(107, 180, 181, 0.3)' }}
                 >
-                  <img src={FromSiteIcon} alt="From Web Site" className="w-16 h-16 mb-3" />
-                  <h3 className="text-gray-800 font-poppins font-semibold text-base text-center">From Web Site</h3>
-                  <p className="text-gray-500 font-poppins text-xs text-center mt-1">Import from LinkedIn or company site</p>
+                  <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
+                  <p className="text-gray-300 font-poppins text-sm">Extract company info from their website</p>
+                  <img src={FromSiteIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                 </div>
               </div>
+            </div>
 
-              {/* Team Members Section */}
-              <div className="bg-white rounded-2xl p-4 flex-1 min-h-0 overflow-hidden flex flex-col">
-                <h3 className="text-gray-800 font-poppins font-semibold text-lg mb-3 flex-shrink-0">Team Members</h3>
-                
-                {teamMembers.length > 0 ? (
-                  <div className="flex-1 min-h-0 overflow-y-auto">
-                    {teamMembers.map((member, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border-b border-gray-100 last:border-b-0">
-                        <div>
-                          <p className="font-poppins font-medium text-gray-800">{member.name}</p>
-                          <p className="font-poppins text-sm text-gray-500">{member.role}</p>
-                        </div>
+            {/* Team Members Section - Dark background with border */}
+            <div className="rounded-2xl border border-gray-600 p-4 flex-shrink-0" style={{ backgroundColor: 'rgba(30, 41, 59, 0.8)' }}>
+              <h3 className="text-white font-poppins font-semibold text-lg mb-2">Team Members</h3>
+              
+              {teamMembers.length > 0 ? (
+                <div className="space-y-2">
+                  {teamMembers.map((member, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
+                      <div>
+                        <p className="font-poppins font-medium text-white">{member.name}</p>
+                        <p className="font-poppins text-sm text-gray-400">{member.role}</p>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex-1 flex items-center justify-center">
-                    <p className="text-gray-400 font-poppins text-sm">No team members added yet</p>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-4">
+                  <p className="text-gray-300 font-poppins text-sm">No team members added yet</p>
+                  <p className="text-gray-500 font-poppins text-xs mt-1">Click one of the options above to add team members</p>
+                </div>
+              )}
             </div>
 
             {/* Continue Button - Fixed at bottom */}
