@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import { api } from '../services/api'
 
 // SVG asset paths
 const CheckIcon = '/static/app/contract-analysis/Check.svg'
@@ -27,11 +28,36 @@ const ProposalTeam = () => {
   // Step 1 is complete (we came from Contract Analysis)
   const step1Complete = true
   
-  // Selected option for adding team members
-  const [selectedOption, setSelectedOption] = useState<string | null>('from-site')
+  // Selected option for adding team members (null = no default selection)
+  const [selectedOption, setSelectedOption] = useState<string | null>(null)
   
   // Team members list (empty for now)
   const [teamMembers] = useState<Array<{ name: string; role: string }>>([])
+  
+  // AI suggestions state
+  const [aiSuggestions, setAiSuggestions] = useState<string>('')
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
+  
+  // Fetch AI suggestions on mount
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      if (!state?.aiFindings) return
+      
+      setIsLoadingSuggestions(true)
+      try {
+        const response = await api.getTeamSuggestions(state.aiFindings, state.contractName || 'Contract')
+        if (response.success && response.suggestions) {
+          setAiSuggestions(response.suggestions)
+        }
+      } catch (error) {
+        console.error('Error fetching team suggestions:', error)
+      } finally {
+        setIsLoadingSuggestions(false)
+      }
+    }
+    
+    fetchSuggestions()
+  }, [state?.aiFindings, state?.contractName])
 
   const handleContinue = () => {
     // Navigate to the next step (Pricing)
@@ -85,13 +111,19 @@ const ProposalTeam = () => {
             </div>
 
             {/* Main Content Container with border */}
-            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-gray-600 p-4">
-              {/* AI Suggestions Section - White card */}
-              <div className="bg-white rounded-xl p-4 flex-shrink-0">
-                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Suggestions For a Wise Team Selection</h2>
-                <p className="text-gray-600 font-poppins text-sm">
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam turpis dolor, mollis vel lacinia in, suscipit suscipit odio. In tristique metus velit, vitae fermentum enim maximus et. Donec in sollicitudin justo, vitae euismod dolor. Curabitur at nisl sit amet nibh dignissim viverra quis non tellus.
-                </p>
+            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-white p-4">
+              {/* AI Suggestions Section - White card, taller and scrollable */}
+              <div className="bg-white rounded-xl p-4 flex-1 min-h-0 flex flex-col">
+                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
+                <div className="text-gray-600 font-poppins text-sm overflow-y-auto flex-1">
+                  {isLoadingSuggestions ? (
+                    <p className="text-gray-500 italic">Loading AI suggestions...</p>
+                  ) : aiSuggestions ? (
+                    <p>{aiSuggestions}</p>
+                  ) : (
+                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam turpis dolor, mollis vel lacinia in, suscipit suscipit odio. In tristique metus velit, vitae fermentum enim maximus et. Donec in sollicitudin justo, vitae euismod dolor. Curabitur at nisl sit amet nibh dignissim viverra quis non tellus.</p>
+                  )}
+                </div>
               </div>
 
               {/* Option Cards - Three teal cards in a row */}
@@ -102,10 +134,10 @@ const ProposalTeam = () => {
                   className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                     selectedOption === 'from-directory' ? 'ring-2 ring-blue-500' : ''
                   }`}
-                  style={{ backgroundColor: 'rgba(107, 180, 181, 0.3)' }}
+                  style={{ backgroundColor: '#99C8CA' }}
                 >
                   <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
-                  <p className="text-gray-300 font-poppins text-sm">Find partners from the CORAMA network</p>
+                  <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
                   <img src={FromCORAMADirectoryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                 </div>
 
@@ -115,10 +147,10 @@ const ProposalTeam = () => {
                   className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                     selectedOption === 'manual-entry' ? 'ring-2 ring-blue-500' : ''
                   }`}
-                  style={{ backgroundColor: 'rgba(107, 180, 181, 0.3)' }}
+                  style={{ backgroundColor: '#99C8CA' }}
                 >
                   <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
-                  <p className="text-gray-300 font-poppins text-sm">Enter subcontractor details manually</p>
+                  <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
                   <img src={ManualEntryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                 </div>
 
@@ -128,17 +160,17 @@ const ProposalTeam = () => {
                   className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                     selectedOption === 'from-site' ? 'ring-2 ring-blue-500' : ''
                   }`}
-                  style={{ backgroundColor: 'rgba(107, 180, 181, 0.3)' }}
+                  style={{ backgroundColor: '#99C8CA' }}
                 >
                   <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
-                  <p className="text-gray-300 font-poppins text-sm">Extract company info from their website</p>
+                  <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
                   <img src={FromSiteIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                 </div>
               </div>
             </div>
 
-            {/* Team Members Section - Dark background with border */}
-            <div className="rounded-2xl border border-gray-600 p-4 flex-shrink-0" style={{ backgroundColor: 'rgba(30, 41, 59, 0.8)' }}>
+            {/* Team Members Section - Dark background with white border */}
+            <div className="rounded-2xl border border-white p-4 flex-shrink-0 mt-4" style={{ backgroundColor: 'rgba(30, 41, 59, 0.8)' }}>
               <h3 className="text-white font-poppins font-semibold text-lg mb-2">Team Members</h3>
               
               {teamMembers.length > 0 ? (
@@ -165,7 +197,7 @@ const ProposalTeam = () => {
               <button
                 onClick={handleContinue}
                 className="flex items-center gap-2 px-8 py-3 rounded-full font-poppins text-base font-semibold hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#99C8CA', color: '#1a2744' }}
+                style={{ backgroundColor: '#99C8CA', color: 'white' }}
               >
                 Continue
                 <img src={ContinueIcon} alt="" className="w-6 h-6" />

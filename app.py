@@ -11095,6 +11095,64 @@ Keep your response focused and actionable. Use markdown formatting for readabili
         logging.error(f"Error in contract analysis findings: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/team-suggestions', methods=['POST'])
+def team_suggestions():
+    """Generate AI suggestions for team selection based on contract analysis"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        ai_findings = data.get('aiFindings', '')
+        contract_name = data.get('contractName', 'Contract')
+        
+        if not ai_findings:
+            return jsonify({'success': False, 'error': 'No AI findings provided'}), 400
+        
+        # Call OpenAI to generate team suggestions
+        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
+        
+        client = OpenAI(api_key=api_key, timeout=60.0)
+        
+        prompt = f"""Based on the following contract analysis, provide specific recommendations for building a winning team. Focus on the types of roles, expertise, and partnerships that would be most valuable.
+
+CONTRACT NAME: {contract_name}
+
+CONTRACT ANALYSIS:
+{ai_findings[:8000]}
+
+Provide concise, actionable team-building suggestions in 2-3 paragraphs. Focus on:
+1. Key roles and expertise needed based on the contract requirements
+2. Types of subcontractors or partners that would strengthen the proposal
+3. Any specific certifications or qualifications team members should have
+
+Keep your response focused and practical for someone building a proposal team."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert government contracting consultant helping businesses build winning proposal teams."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=800,
+            temperature=0.7
+        )
+        
+        suggestions = response.choices[0].message.content
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions
+        })
+        
+    except Exception as e:
+        logging.error(f"Error generating team suggestions: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/get_draft_team', methods=['GET'])
 def get_draft_team():
     """Get team members from draft"""

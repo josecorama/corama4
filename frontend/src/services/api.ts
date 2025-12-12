@@ -363,6 +363,24 @@ class ApiService {
     return res.json();
   }
 
+  // Team Builder - Get AI suggestions for team selection
+  async getTeamSuggestions(aiFindings: string, contractName: string): Promise<{success: boolean, suggestions?: string, error?: string}> {
+    const res = await fetch(`${API_BASE()}/team-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aiFindings, contractName })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to get team suggestions' }));
+      return { success: false, error: errorData.error || 'Failed to get team suggestions' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     window.location.href = '/logout';
