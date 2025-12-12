@@ -8,6 +8,7 @@ import GetMoreCredits from './pages/GetMoreCredits'
 import CoramaDirectory from './pages/CoramaDirectory'
 import EditDirectoryProfile from './pages/EditDirectoryProfile'
 import NoCapabilityStatement from './pages/NoCapabilityStatement'
+import ContractAnalysis from './pages/ContractAnalysis'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/corama-directory" element={<CoramaDirectory />} />
         <Route path="/edit-directory-profile" element={<EditDirectoryProfile />} />
         <Route path="/no-capability-statement" element={<NoCapabilityStatement />} />
+        <Route path="/contract-analysis" element={<ContractAnalysis />} />
       </Routes>
     </Router>
   )

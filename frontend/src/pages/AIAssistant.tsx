@@ -1,9 +1,29 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
+
+// Normalize markdown to fix common formatting issues from AI responses
+// Fixes cases where numbered lists or bullets appear on separate lines from their text
+const normalizeMarkdown = (input: string): string => {
+  let text = input
+
+  // Fix "3.\nText" → "3. Text" (numbered list with text on next line)
+  text = text.replace(
+    /^(\s*\d+\.)\s*\n(\s*\S.*)$/gm,
+    (_match, num, rest) => `${num} ${rest.trim()}`
+  )
+
+  // Fix "-\nText" or "*\nText" or "•\nText" → "- Text" (bullet with text on next line)
+  text = text.replace(
+    /^(\s*[-*•])\s*\n(\s*\S.*)$/gm,
+    (_match, bullet, rest) => `${bullet} ${rest.trim()}`
+  )
+
+  return text
+}
 
 // Send message icon path (served from static folder)
 const SendMessageIcon = '/static/app/dashboard/SendMessage.svg'
@@ -79,8 +99,10 @@ Analyze the contract with AI annotations -> Build your team -> Develop pricing s
 
 const AIAssistant = () => {
   const location = useLocation()
-  const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string } | null
+  const navigate = useNavigate()
+  const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string } | null
   const contractName = state?.contractName || 'this contract'
+  const contractId = state?.contractId || ''
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -112,13 +134,13 @@ const AIAssistant = () => {
     ])
   }, [contractName])
 
-  // Typing animation effect (6 seconds total - 100% slower than original)
+  // Typing animation effect (9 seconds total - even slower as requested)
   useEffect(() => {
     const typingMessage = [...messages].reverse().find(m => m.sender === 'ai' && m.isTyping)
     if (!typingMessage) return
 
     const full = typingMessage.content
-    const totalDuration = 6000 // 6 seconds total animation time (100% slower)
+    const totalDuration = 9000 // 9 seconds total animation time (even slower)
     const stepMs = 30
     const steps = Math.max(1, Math.floor(totalDuration / stepMs))
     const charsPerStep = Math.max(1, Math.ceil(full.length / steps))
@@ -163,6 +185,44 @@ const AIAssistant = () => {
     if (!inputValue.trim() || isProcessing) return
 
     const userInput = inputValue.trim()
+    const normalizedInput = userInput.toLowerCase()
+    
+    // Check for "Start Guided Process" - redirect to Contract Analysis page
+    if (normalizedInput === 'start guided process' || normalizedInput.includes('start guided process')) {
+      const newMessage: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+      
+      // Add user message and AI response
+      const aiResponse: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: "Great! I'll open the guided Contract Analysis step for you now. This will help you analyze the contract with AI annotations, build your team, develop pricing strategy, and generate a comprehensive proposal.",
+        timestamp: formatTime(),
+        isTyping: false,
+        visibleContent: "Great! I'll open the guided Contract Analysis step for you now. This will help you analyze the contract with AI annotations, build your team, develop pricing strategy, and generate a comprehensive proposal.",
+      }
+      
+      setMessages(prev => [...prev, newMessage, aiResponse])
+      setInputValue('')
+      
+      // Navigate to Contract Analysis page after a brief delay
+      setTimeout(() => {
+        navigate('/app/contract-analysis', { 
+          state: { 
+            contractName, 
+            contractId,
+            contractAgency: state?.contractAgency,
+            contractCategory: state?.contractCategory 
+          } 
+        })
+      }, 1500)
+      return
+    }
+    
     const newMessage: Message = {
       id: messages.length + 1,
       sender: 'user',
@@ -175,11 +235,13 @@ const AIAssistant = () => {
     setIsProcessing(true)
 
     // Helper to add AI message with typing animation
+    // Apply normalizeMarkdown to fix formatting issues
     const addAiMessage = (content: string) => {
+      const normalizedContent = normalizeMarkdown(content)
       const aiMessage: Message = {
         id: Date.now(), // Use timestamp for unique ID
         sender: 'ai',
-        content: content,
+        content: normalizedContent,
         timestamp: formatTime(),
         isTyping: true,
         visibleContent: '',
