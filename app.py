@@ -13441,6 +13441,9 @@ def api_top_five_contracts():
             total_matches = len(df)
             logging.info(f"[top5] Loaded {total_matches} matches from CSV")
             
+            # Replace NaN/NaT with None so JSON output is valid (NaN is not valid JSON)
+            df = df.where(pd.notnull(df), None)
+            
             # Helper function to compute hash_value the same way as dashboard cache
             def compute_hash(detail_link, bid_number):
                 hash_input = f"{detail_link}{bid_number}"

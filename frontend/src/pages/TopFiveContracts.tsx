@@ -89,6 +89,9 @@ const TopFiveContracts = () => {
       }
     } catch (error) {
       console.error('Failed to load top five contracts:', error)
+      // Set hasMatches to false on error to prevent infinite loading state
+      // This will trigger the redirect to dashboard
+      setHasMatches(false)
     } finally {
       setLoading(false)
     }
