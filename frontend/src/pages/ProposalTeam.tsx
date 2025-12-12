@@ -22,6 +22,8 @@ const PhoneIcon = '/static/app/team-builder/Phone.svg'
 const RightArrowIcon = '/static/app/team-builder/RightArrow.svg'
 const WebsiteIcon = '/static/app/team-builder/Website.svg'
 const YearsInBusinessIcon = '/static/app/team-builder/YearsInBusiness.svg'
+const RemoveIcon = '/static/app/team-builder/Remove.svg'
+const ClosePopIcon = '/static/app/team-builder/ClosePop.svg'
 
 interface ProposalTeamState {
   contractName?: string
@@ -57,7 +59,7 @@ interface DirectoryCompany {
   certifications: string
 }
 
-type ViewMode = 'default' | 'addFromWebsite' | 'coramaDirectory'
+type ViewMode = 'default' | 'addFromWebsite' | 'coramaDirectory' | 'manualEntry'
 
 const ProposalTeam = () => {
   const location = useLocation()
@@ -93,6 +95,22 @@ const ProposalTeam = () => {
   const [directorySearch, setDirectorySearch] = useState('')
   const [isLoadingDirectory, setIsLoadingDirectory] = useState(false)
   const [currentCompanyIndex, setCurrentCompanyIndex] = useState(0)
+  
+  // Manual Entry form state
+  const [manualCompanyName, setManualCompanyName] = useState('')
+  const [manualContactName, setManualContactName] = useState('')
+  const [manualRoleTitle, setManualRoleTitle] = useState('')
+  const [manualEmail, setManualEmail] = useState('')
+  const [manualPhone, setManualPhone] = useState('')
+  const [manualServices, setManualServices] = useState('')
+  
+  // Team Members pagination state
+  const [currentTeamMemberIndex, setCurrentTeamMemberIndex] = useState(0)
+  
+  // Delete confirmation popup state
+  const [showDeletePopup, setShowDeletePopup] = useState(false)
+  const [memberToDelete, setMemberToDelete] = useState<number | null>(null)
+  const [deleteButtonSelected, setDeleteButtonSelected] = useState<'yes' | 'no' | null>(null)
   
   // Fetch AI suggestions on mount - with caching to avoid regeneration
   useEffect(() => {
@@ -146,6 +164,8 @@ const ProposalTeam = () => {
     } else if (option === 'from-directory') {
       setViewMode('coramaDirectory')
       fetchDirectory(1, '')
+    } else if (option === 'manual-entry') {
+      setViewMode('manualEntry')
     }
   }
   
@@ -241,7 +261,7 @@ const ProposalTeam = () => {
   
   // Handle Go Back button - different behavior based on view mode
   const handleGoBack = () => {
-    if (viewMode === 'coramaDirectory' || viewMode === 'addFromWebsite') {
+    if (viewMode === 'coramaDirectory' || viewMode === 'addFromWebsite' || viewMode === 'manualEntry') {
       // Return to default view - AI suggestions are preserved
       setViewMode('default')
       setSelectedOption(null)
@@ -249,6 +269,82 @@ const ProposalTeam = () => {
       // From default view, go back to contract analysis
       navigate('/contract-analysis', { state })
     }
+  }
+  
+  // Manual Entry handlers
+  const handleCancelManualEntry = () => {
+    setViewMode('default')
+    setSelectedOption(null)
+    // Clear form fields
+    setManualCompanyName('')
+    setManualContactName('')
+    setManualRoleTitle('')
+    setManualEmail('')
+    setManualPhone('')
+    setManualServices('')
+  }
+  
+  const handleAddManualEntry = () => {
+    if (!manualCompanyName) return
+    
+    setTeamMembers(prev => [
+      ...prev,
+      {
+        name: manualCompanyName,
+        role: manualServices || manualRoleTitle || 'Team Member',
+        email: manualEmail,
+        phone: manualPhone
+      }
+    ])
+    
+    // Return to default view and clear form
+    setViewMode('default')
+    setSelectedOption(null)
+    setManualCompanyName('')
+    setManualContactName('')
+    setManualRoleTitle('')
+    setManualEmail('')
+    setManualPhone('')
+    setManualServices('')
+  }
+  
+  // Team Members pagination handlers
+  const handlePrevTeamMember = () => {
+    if (currentTeamMemberIndex > 0) {
+      setCurrentTeamMemberIndex(prev => prev - 1)
+    }
+  }
+  
+  const handleNextTeamMember = () => {
+    if (currentTeamMemberIndex < teamMembers.length - 1) {
+      setCurrentTeamMemberIndex(prev => prev + 1)
+    }
+  }
+  
+  // Delete team member handlers
+  const handleDeleteClick = (index: number) => {
+    setMemberToDelete(index)
+    setShowDeletePopup(true)
+    setDeleteButtonSelected(null)
+  }
+  
+  const handleConfirmDelete = () => {
+    if (memberToDelete !== null) {
+      setTeamMembers(prev => prev.filter((_, i) => i !== memberToDelete))
+      // Adjust current index if needed
+      if (currentTeamMemberIndex >= teamMembers.length - 1 && currentTeamMemberIndex > 0) {
+        setCurrentTeamMemberIndex(prev => prev - 1)
+      }
+    }
+    setShowDeletePopup(false)
+    setMemberToDelete(null)
+    setDeleteButtonSelected(null)
+  }
+  
+  const handleCancelDelete = () => {
+    setShowDeletePopup(false)
+    setMemberToDelete(null)
+    setDeleteButtonSelected(null)
   }
 
   const handleCancelAddFromWebsite = () => {
@@ -451,7 +547,7 @@ const ProposalTeam = () => {
                     <p className="text-red-400 text-sm">{extractError}</p>
                   )}
                 </div>
-              ) : (
+              ) : viewMode === 'coramaDirectory' ? (
                 /* CORAMA Partner Directory View */
                 <div className="flex flex-col gap-4 flex-1 overflow-hidden">
                   {/* Header */}
@@ -479,7 +575,7 @@ const ProposalTeam = () => {
                         <img src={FilterIcon} alt="Filter" className="w-4 h-4" />
                       </button>
                       <span className="text-white font-poppins text-sm">
-                        {directoryTotal > 0 ? `${(directoryPage - 1) * directoryCompanies.length + currentCompanyIndex + 1}-${Math.min((directoryPage - 1) * directoryCompanies.length + currentCompanyIndex + 2, directoryTotal)} of ${directoryTotal}` : '0 of 0'}
+                        {directoryTotal > 0 ? `${(directoryPage - 1) * directoryCompanies.length + currentCompanyIndex + 1} of ${directoryTotal}` : '0 of 0'}
                       </span>
                       <div className="flex gap-2">
                         <button 
@@ -511,13 +607,13 @@ const ProposalTeam = () => {
                       style={{ backgroundColor: 'rgba(30, 41, 59, 0.5)' }}
                       onClick={() => handleAddFromDirectory(directoryCompanies[currentCompanyIndex])}
                     >
-                      {/* Company Logo */}
-                      <div className="w-40 h-40 flex-shrink-0 bg-gray-300 rounded-lg overflow-hidden">
+                      {/* Company Logo - smaller size */}
+                      <div className="w-32 h-32 flex-shrink-0 bg-gray-300 rounded-lg overflow-hidden">
                         {directoryCompanies[currentCompanyIndex].logo ? (
                           <img 
                             src={directoryCompanies[currentCompanyIndex].logo} 
                             alt={directoryCompanies[currentCompanyIndex].name}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                           />
                         ) : (
                           <div className="w-full h-full bg-gray-300" />
@@ -533,16 +629,16 @@ const ProposalTeam = () => {
                         </p>
 
                         {/* Contact Info Row */}
-                        <div className="flex flex-wrap gap-4 mt-4">
+                        <div className="flex flex-wrap gap-4 mt-3">
                           {directoryCompanies[currentCompanyIndex].phone && (
                             <div className="flex items-center gap-2">
-                              <img src={PhoneIcon} alt="" className="w-8 h-8" />
+                              <img src={PhoneIcon} alt="" className="w-7 h-7" />
                               <span className="text-white font-poppins text-sm">{directoryCompanies[currentCompanyIndex].phone}</span>
                             </div>
                           )}
                           {directoryCompanies[currentCompanyIndex].email && (
                             <div className="flex items-center gap-2">
-                              <img src={EmailIcon} alt="" className="w-8 h-8" />
+                              <img src={EmailIcon} alt="" className="w-7 h-7" />
                               <a href={`mailto:${directoryCompanies[currentCompanyIndex].email}`} className="text-white font-poppins text-sm underline">
                                 {directoryCompanies[currentCompanyIndex].email}
                               </a>
@@ -550,10 +646,26 @@ const ProposalTeam = () => {
                           )}
                           {directoryCompanies[currentCompanyIndex].website && (
                             <div className="flex items-center gap-2">
-                              <img src={WebsiteIcon} alt="" className="w-8 h-8" />
+                              <img src={WebsiteIcon} alt="" className="w-7 h-7" />
                               <a href={directoryCompanies[currentCompanyIndex].website.startsWith('http') ? directoryCompanies[currentCompanyIndex].website : `https://${directoryCompanies[currentCompanyIndex].website}`} target="_blank" rel="noopener noreferrer" className="text-white font-poppins text-sm">
                                 {directoryCompanies[currentCompanyIndex].website.replace(/^https?:\/\//, '')}
                               </a>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Employees and Years in Business - moved inside company info */}
+                        <div className="flex gap-6 mt-3">
+                          {directoryCompanies[currentCompanyIndex].employees && (
+                            <div className="flex items-center gap-2">
+                              <img src={EmployeesIcon} alt="" className="w-5 h-5" />
+                              <span className="text-white font-poppins text-sm">{directoryCompanies[currentCompanyIndex].employees}</span>
+                            </div>
+                          )}
+                          {directoryCompanies[currentCompanyIndex].yearsInBusiness > 0 && (
+                            <div className="flex items-center gap-2">
+                              <img src={YearsInBusinessIcon} alt="" className="w-5 h-5" />
+                              <span className="text-white font-poppins text-sm">{directoryCompanies[currentCompanyIndex].yearsInBusiness} years</span>
                             </div>
                           )}
                         </div>
@@ -564,43 +676,169 @@ const ProposalTeam = () => {
                       <p className="text-gray-400 font-poppins">No companies found</p>
                     </div>
                   )}
-
-                  {/* Bottom Info Row - Employees and Years in Business */}
-                  {directoryCompanies.length > 0 && directoryCompanies[currentCompanyIndex] && (
-                    <div className="flex gap-6 flex-shrink-0">
-                      {directoryCompanies[currentCompanyIndex].employees && (
-                        <div className="flex items-center gap-2">
-                          <img src={EmployeesIcon} alt="" className="w-5 h-5" />
-                          <span className="text-white font-poppins text-sm">{directoryCompanies[currentCompanyIndex].employees}</span>
-                        </div>
-                      )}
-                      {directoryCompanies[currentCompanyIndex].yearsInBusiness > 0 && (
-                        <div className="flex items-center gap-2">
-                          <img src={YearsInBusinessIcon} alt="" className="w-5 h-5" />
-                          <span className="text-white font-poppins text-sm">{directoryCompanies[currentCompanyIndex].yearsInBusiness} years</span>
-                        </div>
-                      )}
+                </div>
+              ) : (
+                /* Manual Entry View */
+                <div className="flex flex-col gap-4 flex-1">
+                  <h2 className="text-white font-poppins font-bold text-lg">Add Team Member</h2>
+                  
+                  {/* Form Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Company Name */}
+                    <div>
+                      <label className="text-white font-poppins text-sm mb-1 block">Company Name</label>
+                      <input
+                        type="text"
+                        className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
+                        placeholder="ABC Construction"
+                        value={manualCompanyName}
+                        onChange={e => setManualCompanyName(e.target.value)}
+                      />
                     </div>
-                  )}
+                    
+                    {/* Contact Name */}
+                    <div>
+                      <label className="text-white font-poppins text-sm mb-1 block">Contact Name</label>
+                      <input
+                        type="text"
+                        className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
+                        placeholder="John Doe"
+                        value={manualContactName}
+                        onChange={e => setManualContactName(e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Role Title */}
+                    <div>
+                      <label className="text-white font-poppins text-sm mb-1 block">Role Title</label>
+                      <input
+                        type="text"
+                        className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
+                        placeholder="CEO, Project Manager, etc..."
+                        value={manualRoleTitle}
+                        onChange={e => setManualRoleTitle(e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Email */}
+                    <div>
+                      <label className="text-white font-poppins text-sm mb-1 block">Email</label>
+                      <input
+                        type="email"
+                        className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
+                        placeholder="Contact@example.com"
+                        value={manualEmail}
+                        onChange={e => setManualEmail(e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Phone */}
+                    <div>
+                      <label className="text-white font-poppins text-sm mb-1 block">Phone</label>
+                      <input
+                        type="tel"
+                        className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
+                        placeholder="+1 (555) 123-4567"
+                        value={manualPhone}
+                        onChange={e => setManualPhone(e.target.value)}
+                      />
+                    </div>
+                    
+                    {/* Services provided */}
+                    <div>
+                      <label className="text-white font-poppins text-sm mb-1 block">Services provided</label>
+                      <input
+                        type="text"
+                        className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
+                        placeholder="IT Services, Construction, etc..."
+                        value={manualServices}
+                        onChange={e => setManualServices(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Buttons */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <button
+                      type="button"
+                      onClick={handleCancelManualEntry}
+                      className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: '#99C8CA' }}
+                    >
+                      <span>Cancel</span>
+                      <img src={CancelIcon} alt="" className="w-7 h-7" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleAddManualEntry}
+                      className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                      style={{ backgroundColor: '#99C8CA' }}
+                      disabled={!manualCompanyName}
+                    >
+                      <span>Add to team</span>
+                      <img src={AddIcon} alt="" className="w-7 h-7" />
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {/* Team Members Section - Dark background with white border */}
-            <div className="rounded-2xl border border-white p-4 flex-shrink-0 mt-4" style={{ backgroundColor: 'rgba(30, 41, 59, 0.8)' }}>
-              <h3 className="text-white font-poppins font-semibold text-lg mb-2">Team Members</h3>
+            <div className="rounded-2xl border border-white p-4 flex-shrink-0 mt-4" style={{ backgroundColor: '#333c4d' }}>
+              {/* Header with pagination */}
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-white font-poppins font-semibold text-lg">Team Members</h3>
+                {teamMembers.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-poppins text-sm">
+                      {currentTeamMemberIndex + 1} of {teamMembers.length}
+                    </span>
+                    <button 
+                      onClick={handlePrevTeamMember}
+                      disabled={currentTeamMemberIndex === 0}
+                      className="p-1 hover:opacity-80 disabled:opacity-30"
+                    >
+                      <img src={LeftArrowIcon} alt="Previous" className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={handleNextTeamMember}
+                      disabled={currentTeamMemberIndex >= teamMembers.length - 1}
+                      className="p-1 hover:opacity-80 disabled:opacity-30"
+                    >
+                      <img src={RightArrowIcon} alt="Next" className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
               
               {teamMembers.length > 0 ? (
-                <div className="space-y-2">
-                  {teamMembers.map((member, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg">
-                      <div>
-                        <p className="font-poppins font-medium text-white">{member.name}</p>
-                        <p className="font-poppins text-sm text-gray-400">{member.role}</p>
-                      </div>
+                <>
+                  {/* Column Headers */}
+                  <div className="grid grid-cols-5 gap-4 mb-2">
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">Company</span>
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">Contact</span>
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">Email</span>
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">Services</span>
+                    <span></span>
+                  </div>
+                  
+                  {/* Current Team Member Row */}
+                  {teamMembers[currentTeamMemberIndex] && (
+                    <div className="grid grid-cols-5 gap-4 items-center">
+                      <span className="text-white font-poppins text-sm truncate">{teamMembers[currentTeamMemberIndex].name}</span>
+                      <span className="text-white font-poppins text-sm truncate">{teamMembers[currentTeamMemberIndex].phone || '-'}</span>
+                      <span className="text-white font-poppins text-sm truncate">{teamMembers[currentTeamMemberIndex].email || '-'}</span>
+                      <span className="text-white font-poppins text-sm truncate">{teamMembers[currentTeamMemberIndex].role || '-'}</span>
+                      <button 
+                        onClick={() => handleDeleteClick(currentTeamMemberIndex)}
+                        className="flex justify-end hover:opacity-80"
+                      >
+                        <img src={RemoveIcon} alt="Remove" className="w-6 h-6" />
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  )}
+                </>
               ) : (
                 <div className="py-4">
                   <p className="text-gray-300 font-poppins text-sm">No team members added yet</p>
@@ -608,6 +846,57 @@ const ProposalTeam = () => {
                 </div>
               )}
             </div>
+            
+            {/* Delete Confirmation Popup */}
+            {showDeletePopup && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="rounded-2xl p-6 max-w-md w-full mx-4" style={{ backgroundColor: '#1e293b' }}>
+                  {/* Close button */}
+                  <div className="flex justify-end mb-2">
+                    <button onClick={handleCancelDelete} className="hover:opacity-80">
+                      <img src={ClosePopIcon} alt="Close" className="w-6 h-6" />
+                    </button>
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="flex items-start gap-4 mb-6">
+                    <img src={RemoveIcon} alt="" className="w-16 h-16" />
+                    <div>
+                      <h4 className="text-white font-poppins font-bold text-xl mb-2">Remove Team Member</h4>
+                      <p className="text-gray-400 font-poppins text-sm">Are you sure you want to remove this team member?</p>
+                    </div>
+                  </div>
+                  
+                  {/* Buttons */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => {
+                        setDeleteButtonSelected('yes')
+                        handleConfirmDelete()
+                      }}
+                      className={`px-6 py-3 rounded-full font-poppins font-semibold text-white transition-all ${
+                        deleteButtonSelected === 'yes' ? 'ring-2 ring-white' : ''
+                      }`}
+                      style={{ backgroundColor: '#99C8CA' }}
+                    >
+                      Yes, Remove it
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeleteButtonSelected('no')
+                        handleCancelDelete()
+                      }}
+                      className={`px-6 py-3 rounded-full font-poppins font-semibold text-white transition-all ${
+                        deleteButtonSelected === 'no' ? 'ring-2 ring-white' : ''
+                      }`}
+                      style={{ backgroundColor: '#334155' }}
+                    >
+                      No, Keep it
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Continue Button - Fixed at bottom */}
             <div className="flex-shrink-0 pt-4 flex justify-center">
