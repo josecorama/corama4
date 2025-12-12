@@ -381,6 +381,31 @@ class ApiService {
     return res.json();
   }
 
+  // Team Builder - Extract company info from website URL
+  async extractCompanyFromWebsite(url: string): Promise<{
+    success: boolean;
+    company_name?: string;
+    contact_number?: string;
+    email?: string;
+    services_area?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/team-from-website`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to extract company info' }));
+      return { success: false, error: errorData.error || 'Failed to extract company info' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     window.location.href = '/logout';

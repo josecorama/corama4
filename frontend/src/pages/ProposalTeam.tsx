@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
@@ -11,6 +12,8 @@ const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 const FromCORAMADirectoryIcon = '/static/app/team-builder/FromCORAMADirectory.svg'
 const ManualEntryIcon = '/static/app/team-builder/ManualEntry.svg'
 const FromSiteIcon = '/static/app/team-builder/FromSite.svg'
+const AddIcon = '/static/app/team-builder/Add.svg'
+const CancelIcon = '/static/app/team-builder/Cancel.svg'
 
 interface ProposalTeamState {
   contractName?: string
@@ -20,6 +23,15 @@ interface ProposalTeamState {
   aiFindings?: string
 }
 
+interface TeamMember {
+  name: string
+  role: string
+  email?: string
+  phone?: string
+}
+
+type ViewMode = 'default' | 'addFromWebsite'
+
 const ProposalTeam = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -28,26 +40,48 @@ const ProposalTeam = () => {
   // Step 1 is complete (we came from Contract Analysis)
   const step1Complete = true
   
+  // View mode state
+  const [viewMode, setViewMode] = useState<ViewMode>('default')
+  
   // Selected option for adding team members (null = no default selection)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   
-  // Team members list (empty for now)
-  const [teamMembers] = useState<Array<{ name: string; role: string }>>([])
+  // Team members list
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   
-  // AI suggestions state
+  // AI suggestions state - cached to avoid regeneration
   const [aiSuggestions, setAiSuggestions] = useState<string>('')
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
   
-  // Fetch AI suggestions on mount
+  // Add from website state
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [isExtracting, setIsExtracting] = useState(false)
+  const [extractError, setExtractError] = useState<string | null>(null)
+  
+  // Fetch AI suggestions on mount - with caching to avoid regeneration
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (!state?.aiFindings) return
+      
+      // Check sessionStorage cache first
+      const cacheKey = state?.contractId ? `teamSuggestions:${state.contractId}` : null
+      if (cacheKey) {
+        const cached = sessionStorage.getItem(cacheKey)
+        if (cached) {
+          setAiSuggestions(cached)
+          return
+        }
+      }
       
       setIsLoadingSuggestions(true)
       try {
         const response = await api.getTeamSuggestions(state.aiFindings, state.contractName || 'Contract')
         if (response.success && response.suggestions) {
           setAiSuggestions(response.suggestions)
+          // Cache the suggestions
+          if (cacheKey) {
+            sessionStorage.setItem(cacheKey, response.suggestions)
+          }
         }
       } catch (error) {
         console.error('Error fetching team suggestions:', error)
@@ -57,7 +91,7 @@ const ProposalTeam = () => {
     }
     
     fetchSuggestions()
-  }, [state?.aiFindings, state?.contractName])
+  }, [state?.aiFindings, state?.contractName, state?.contractId])
 
   const handleContinue = () => {
     // Navigate to the next step (Pricing)
@@ -71,6 +105,53 @@ const ProposalTeam = () => {
 
   const handleOptionClick = (option: string) => {
     setSelectedOption(option)
+    if (option === 'from-site') {
+      setViewMode('addFromWebsite')
+    }
+  }
+
+  const handleCancelAddFromWebsite = () => {
+    setViewMode('default')
+    setSelectedOption(null)
+    setWebsiteUrl('')
+    setExtractError(null)
+  }
+
+  const handleAddFromWebsite = async () => {
+    if (!websiteUrl) return
+    
+    setIsExtracting(true)
+    setExtractError(null)
+    
+    try {
+      const response = await api.extractCompanyFromWebsite(websiteUrl.trim())
+      
+      if (!response.success || !response.company_name) {
+        setExtractError(response.error || 'Could not extract company info from that URL.')
+        return
+      }
+      
+      // Add the extracted company to team members
+      setTeamMembers(prev => [
+        ...prev,
+        {
+          name: response.company_name || 'Unknown Company',
+          role: response.services_area || 'Partner from website',
+          email: response.email,
+          phone: response.contact_number
+        }
+      ])
+      
+      // Return to default view - AI suggestions are preserved
+      setViewMode('default')
+      setSelectedOption(null)
+      setWebsiteUrl('')
+    } catch (error) {
+      console.error('Error extracting company info:', error)
+      setExtractError('Something went wrong extracting company info.')
+    } finally {
+      setIsExtracting(false)
+    }
   }
 
   return (
@@ -112,61 +193,124 @@ const ProposalTeam = () => {
 
             {/* Main Content Container with border */}
             <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-white p-4">
-              {/* AI Suggestions Section - White card, taller and scrollable */}
-              <div className="bg-white rounded-xl p-4 flex-1 min-h-0 flex flex-col">
-                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
-                <div className="text-gray-600 font-poppins text-sm overflow-y-auto flex-1">
-                  {isLoadingSuggestions ? (
-                    <p className="text-gray-500 italic">Loading AI suggestions...</p>
-                  ) : aiSuggestions ? (
-                    <p>{aiSuggestions}</p>
-                  ) : (
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam turpis dolor, mollis vel lacinia in, suscipit suscipit odio. In tristique metus velit, vitae fermentum enim maximus et. Donec in sollicitudin justo, vitae euismod dolor. Curabitur at nisl sit amet nibh dignissim viverra quis non tellus.</p>
+              {viewMode === 'default' ? (
+                <>
+                  {/* AI Suggestions Section - White card, taller and scrollable */}
+                  <div className="bg-white rounded-xl p-4 flex-1 min-h-0 flex flex-col">
+                    <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
+                    <div className="text-gray-600 font-poppins text-sm overflow-y-auto flex-1">
+                      {isLoadingSuggestions ? (
+                        <p className="text-gray-500 italic">Loading AI suggestions...</p>
+                      ) : aiSuggestions ? (
+                        <ReactMarkdown
+                          components={{
+                            p: ({children}) => <p className="mb-3 last:mb-0">{children}</p>,
+                            ul: ({children}) => <ul className="list-disc list-inside mb-3 space-y-1">{children}</ul>,
+                            ol: ({children}) => <ol className="list-decimal list-inside mb-3 space-y-1">{children}</ol>,
+                            li: ({children}) => <li className="ml-2">{children}</li>,
+                            strong: ({children}) => <strong className="font-semibold text-gray-800">{children}</strong>,
+                            em: ({children}) => <em className="italic">{children}</em>,
+                            h1: ({children}) => <h1 className="text-lg font-bold mb-2 text-gray-800">{children}</h1>,
+                            h2: ({children}) => <h2 className="text-base font-bold mb-2 text-gray-800">{children}</h2>,
+                            h3: ({children}) => <h3 className="text-sm font-bold mb-1 text-gray-800">{children}</h3>,
+                          }}
+                        >
+                          {aiSuggestions}
+                        </ReactMarkdown>
+                      ) : (
+                        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam turpis dolor, mollis vel lacinia in, suscipit suscipit odio. In tristique metus velit, vitae fermentum enim maximus et. Donec in sollicitudin justo, vitae euismod dolor. Curabitur at nisl sit amet nibh dignissim viverra quis non tellus.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Option Cards - Three teal cards in a row */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
+                    {/* From CORAMA Directory */}
+                    <div 
+                      onClick={() => handleOptionClick('from-directory')}
+                      className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
+                        selectedOption === 'from-directory' ? 'ring-2 ring-blue-500' : ''
+                      }`}
+                      style={{ backgroundColor: '#99C8CA' }}
+                    >
+                      <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
+                      <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
+                      <img src={FromCORAMADirectoryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
+                    </div>
+
+                    {/* Manual Entry */}
+                    <div 
+                      onClick={() => handleOptionClick('manual-entry')}
+                      className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
+                        selectedOption === 'manual-entry' ? 'ring-2 ring-blue-500' : ''
+                      }`}
+                      style={{ backgroundColor: '#99C8CA' }}
+                    >
+                      <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
+                      <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
+                      <img src={ManualEntryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
+                    </div>
+
+                    {/* From Web Site */}
+                    <div 
+                      onClick={() => handleOptionClick('from-site')}
+                      className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
+                        selectedOption === 'from-site' ? 'ring-2 ring-blue-500' : ''
+                      }`}
+                      style={{ backgroundColor: '#99C8CA' }}
+                    >
+                      <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
+                      <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
+                      <img src={FromSiteIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* Add from Website View */
+                <div className="flex flex-col gap-6 flex-1">
+                  <div>
+                    <h2 className="text-white font-poppins font-semibold text-lg">Add from Website</h2>
+                    <p className="text-white font-poppins text-sm mt-1">Company Website URL</p>
+                  </div>
+
+                  <input
+                    type="url"
+                    className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
+                    placeholder="https://example.com"
+                    value={websiteUrl}
+                    onChange={e => setWebsiteUrl(e.target.value)}
+                    disabled={isExtracting}
+                  />
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button
+                      type="button"
+                      onClick={handleCancelAddFromWebsite}
+                      className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: '#99C8CA' }}
+                      disabled={isExtracting}
+                    >
+                      <span>Cancel</span>
+                      <img src={CancelIcon} alt="" className="w-7 h-7" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleAddFromWebsite}
+                      className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                      style={{ backgroundColor: '#99C8CA' }}
+                      disabled={isExtracting || !websiteUrl}
+                    >
+                      <span>{isExtracting ? 'Extracting...' : 'Add to team'}</span>
+                      <img src={AddIcon} alt="" className="w-7 h-7" />
+                    </button>
+                  </div>
+
+                  {extractError && (
+                    <p className="text-red-400 text-sm">{extractError}</p>
                   )}
                 </div>
-              </div>
-
-              {/* Option Cards - Three teal cards in a row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
-                {/* From CORAMA Directory */}
-                <div 
-                  onClick={() => handleOptionClick('from-directory')}
-                  className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
-                    selectedOption === 'from-directory' ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  style={{ backgroundColor: '#99C8CA' }}
-                >
-                  <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
-                  <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
-                  <img src={FromCORAMADirectoryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
-                </div>
-
-                {/* Manual Entry */}
-                <div 
-                  onClick={() => handleOptionClick('manual-entry')}
-                  className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
-                    selectedOption === 'manual-entry' ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  style={{ backgroundColor: '#99C8CA' }}
-                >
-                  <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
-                  <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
-                  <img src={ManualEntryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
-                </div>
-
-                {/* From Web Site */}
-                <div 
-                  onClick={() => handleOptionClick('from-site')}
-                  className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
-                    selectedOption === 'from-site' ? 'ring-2 ring-blue-500' : ''
-                  }`}
-                  style={{ backgroundColor: '#99C8CA' }}
-                >
-                  <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
-                  <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
-                  <img src={FromSiteIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Team Members Section - Dark background with white border */}

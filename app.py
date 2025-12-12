@@ -11153,6 +11153,97 @@ Keep your response focused and practical for someone building a proposal team.""
         logging.error(f"Error generating team suggestions: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/team-from-website', methods=['POST'])
+def team_from_website():
+    """Extract company information from a website URL"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        url = data.get('url', '').strip()
+        
+        if not url:
+            return jsonify({'success': False, 'error': 'No URL provided'}), 400
+        
+        # Normalize URL
+        if not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+        
+        logging.info(f"Extracting company info from URL: {url}")
+        
+        # Use existing function to scrape website content
+        website_text = download_and_extract_from_url(url)
+        
+        if not website_text or len(website_text.strip()) < 50:
+            return jsonify({
+                'success': False,
+                'error': 'Could not extract content from the website. Please check the URL and try again.'
+            })
+        
+        # Use OpenAI to extract structured company information
+        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
+        
+        client = OpenAI(api_key=api_key, timeout=60.0)
+        
+        prompt = f"""Extract company information from the following website content. Return a JSON object with these fields:
+- company_name: The name of the company
+- contact_number: Phone number if found (format as string)
+- email: Email address if found
+- services_area: Brief description of what services/products the company offers (max 100 words)
+
+If a field cannot be found, use null for that field.
+
+WEBSITE CONTENT:
+{website_text[:6000]}
+
+Return ONLY valid JSON, no other text."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a data extraction assistant. Extract company information and return only valid JSON."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=500,
+            temperature=0.1
+        )
+        
+        result_text = response.choices[0].message.content.strip()
+        
+        # Clean up the response - remove markdown code blocks if present
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+            result_text = result_text.strip()
+        
+        import json
+        try:
+            extracted = json.loads(result_text)
+        except json.JSONDecodeError:
+            logging.error(f"Failed to parse OpenAI response as JSON: {result_text}")
+            return jsonify({
+                'success': False,
+                'error': 'Failed to extract structured data from the website.'
+            })
+        
+        return jsonify({
+            'success': True,
+            'company_name': extracted.get('company_name'),
+            'contact_number': extracted.get('contact_number'),
+            'email': extracted.get('email'),
+            'services_area': extracted.get('services_area')
+        })
+        
+    except Exception as e:
+        logging.error(f"Error extracting company from website: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/get_draft_team', methods=['GET'])
 def get_draft_team():
     """Get team members from draft"""
