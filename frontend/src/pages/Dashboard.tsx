@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
@@ -16,6 +17,7 @@ interface Contract {
 }
 
 const Dashboard = () => {
+  const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
   const [totalContracts, setTotalContracts] = useState(0)
   const [_totalPages, setTotalPages] = useState(1)
@@ -261,7 +263,7 @@ const Dashboard = () => {
                                 </td>
                                 <td className="py-4 px-4 text-center">
                                   <button 
-                                    onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
+                                    onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title="Open AI Assistant for this contract"
                                   >
@@ -303,7 +305,7 @@ const Dashboard = () => {
                             </div>
                             <div className="flex gap-4">
                               <button 
-                                onClick={() => contract.hashValue && (window.location.href = `/ai-assistant?contract=${contract.hashValue}`)}
+                                onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />

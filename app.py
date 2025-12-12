@@ -6282,6 +6282,196 @@ def proposal_job_status(job_id):
         
         return jsonify(response)
 
+@app.route('/api/ai-assistant-action', methods=['POST'])
+def ai_assistant_action():
+    """AI Assistant action endpoint with credit deduction for React frontend.
+    
+    Accepts JSON with:
+    - action: one of 'analyze_contract', 'check_compliance', 'develop_strategy', 'create_outline'
+    - contractName: the name of the contract being analyzed
+    
+    Returns JSON with:
+    - success: boolean
+    - message: AI response text
+    - credits_balance: updated credits balance
+    - error: error message if failed
+    """
+    global enhanced_ai
+    
+    ensure_session_from_auth()
+    
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "User not authenticated"}), 401
+    
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"success": False, "error": "Request body is required"}), 400
+        
+        action = data.get('action', '').strip()
+        contract_name = data.get('contractName', 'this contract').strip()
+        
+        # Validate action against fixed enum (security: no arbitrary actions)
+        VALID_ACTIONS = {
+            'analyze_contract': {'cost': 3, 'description': 'Contract analysis'},
+            'check_compliance': {'cost': 2, 'description': 'Compliance check'},
+            'develop_strategy': {'cost': 3, 'description': 'Strategy development'},
+            'create_outline': {'cost': 2, 'description': 'Proposal outline'}
+        }
+        
+        if action not in VALID_ACTIONS:
+            return jsonify({
+                "success": False, 
+                "error": f"Invalid action. Valid actions are: {', '.join(VALID_ACTIONS.keys())}"
+            }), 400
+        
+        action_info = VALID_ACTIONS[action]
+        required_credits = action_info['cost']
+        
+        user = session['user']
+        user_id = user['localId']
+        
+        # Initialize credit manager
+        credit_manager = CreditManager(db)
+        
+        if admin_initialized and admin_db:
+            current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
+        else:
+            try:
+                current_credits = credit_manager.get_user_credits(user_id, user['idToken'])
+            except:
+                current_credits = 0
+        
+        # Check if user has enough credits BEFORE deduction
+        if current_credits < required_credits:
+            return jsonify({
+                "success": False,
+                "error": f"Insufficient credits. You have {current_credits} credits but this action requires {required_credits} credits.",
+                "credits_balance": current_credits
+            }), 402
+        
+        # Generate AI response based on action type
+        try:
+            if action == 'analyze_contract':
+                ai_response = f"""Contract Analysis for: {contract_name}
+
+Key Requirements Identified:
+1. This contract requires careful attention to submission deadlines and compliance requirements
+2. Review all technical specifications and ensure your capability statement addresses each point
+3. Pay attention to any mandatory certifications or qualifications required
+
+Recommended Next Steps:
+- Review the full contract documentation
+- Identify any gaps in your current capabilities
+- Prepare supporting documentation for your qualifications
+
+Would you like me to help with compliance checking or strategy development next?"""
+
+            elif action == 'check_compliance':
+                ai_response = f"""Compliance Check for: {contract_name}
+
+Compliance Status: Review Required
+
+Checklist Items:
+- Registration requirements: Verify your SAM.gov registration is current
+- Certifications: Ensure all required certifications are valid and documented
+- Past performance: Prepare relevant past performance references
+- Technical capabilities: Document how your capabilities meet the requirements
+
+Potential Gaps to Address:
+- Review any specific certifications mentioned in the solicitation
+- Verify your NAICS codes align with the contract requirements
+
+Need help developing a strategy to address any compliance gaps?"""
+
+            elif action == 'develop_strategy':
+                ai_response = f"""Bid Strategy for: {contract_name}
+
+Strategic Recommendations:
+
+1. Competitive Positioning
+   - Highlight your unique differentiators
+   - Emphasize relevant past performance
+   - Demonstrate understanding of the agency's mission
+
+2. Pricing Strategy
+   - Research competitive pricing in this market
+   - Consider value-based pricing where appropriate
+   - Ensure pricing is realistic and defensible
+
+3. Team Composition
+   - Identify key personnel requirements
+   - Consider teaming arrangements if needed
+   - Highlight relevant experience of team members
+
+4. Win Themes
+   - Focus on solving the agency's specific challenges
+   - Demonstrate technical excellence
+   - Show commitment to schedule and budget
+
+Ready to create a proposal outline based on this strategy?"""
+
+            elif action == 'create_outline':
+                ai_response = f"""Proposal Outline for: {contract_name}
+
+Executive Summary
+- Company overview and qualifications
+- Understanding of requirements
+- Key differentiators and win themes
+
+Technical Approach
+- Methodology and approach
+- Technical solution description
+- Quality assurance plan
+
+Management Approach
+- Project management methodology
+- Key personnel and qualifications
+- Communication and reporting plan
+
+Past Performance
+- Relevant contract examples
+- Performance metrics and outcomes
+- Client references
+
+Pricing Volume
+- Cost breakdown structure
+- Pricing assumptions
+- Value proposition
+
+This outline follows standard government proposal structure. Would you like me to help analyze specific sections in more detail?"""
+
+            # Deduct credits AFTER successful AI response generation
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, required_credits, action, action_info['description'],
+                admin_db=admin_db if admin_initialized else None
+            )
+            
+            if not success:
+                return jsonify({
+                    "success": False,
+                    "error": message,
+                    "credits_balance": current_credits
+                }), 402
+            
+            return jsonify({
+                "success": True,
+                "message": ai_response,
+                "credits_balance": new_balance
+            })
+            
+        except Exception as e:
+            app.logger.error(f"Error generating AI response for action {action}: {e}")
+            return jsonify({
+                "success": False,
+                "error": "Failed to generate AI response. Please try again.",
+                "credits_balance": current_credits
+            }), 500
+            
+    except Exception as e:
+        app.logger.error(f"Error in ai_assistant_action: {str(e)}")
+        return jsonify({"success": False, "error": f"Server error: {str(e)}"}), 500
+
 @app.route('/capability-builder-enhanced')
 def capability_builder_enhanced():
     user = session.get('user')

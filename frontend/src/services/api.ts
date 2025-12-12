@@ -217,6 +217,24 @@ class ApiService {
     return res.json();
   }
 
+  // AI Assistant Action (with credit deduction)
+  async aiAssistantAction(action: string, contractName: string): Promise<{success: boolean, message: string, credits_balance?: number, error?: string}> {
+    const res = await fetch(`${API_BASE()}/ai-assistant-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, contractName })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to process AI action' }));
+      return { success: false, message: '', error: errorData.error || 'Failed to process AI action' };
+    }
+    return res.json();
+  }
+
   // Credits
   async getCredits(): Promise<{success: boolean, current_balance: number, credits_used: number, packages: CreditPackage[]}> {
     const res = await fetch(`${API_BASE()}/credits`);

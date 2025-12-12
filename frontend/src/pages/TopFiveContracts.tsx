@@ -312,7 +312,7 @@ const TopFiveContracts = () => {
                             <img src={ContractSiteIcon} alt="" className="w-4 h-4" />
                           </button>
                           <button 
-                            onClick={() => navigate('/ai-assistant')}
+                            onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractAgency: contract.contractingAgency } })}
                             className="inline-flex items-center justify-center gap-2 text-white font-poppins text-xs px-3 py-1 rounded-full hover:opacity-90 transition-colors"
                             style={{ backgroundColor: '#275570' }}
                           >
