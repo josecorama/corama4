@@ -3,13 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { ChevronRight } from 'lucide-react'
 import { api } from '../services/api'
 
 // SVG asset paths
 const UploadContractPDFIcon = '/static/app/contract-analysis/UploadContractPDF.svg'
 const AIFindingsIcon = '/static/app/contract-analysis/AIFindings.svg'
 const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
+const CheckIcon = '/static/app/contract-analysis/Check.svg'
+const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 
 interface ContractAnalysisState {
   contractName?: string
@@ -33,7 +34,9 @@ const ContractAnalysis = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Current step in the guided process (1 = Contract Analysis, 2 = Team, 3 = Pricing)
-  const [currentStep] = useState(1)
+  const currentStep = 1
+  // Track if step 1 is complete (findings generated)
+  const step1Complete = !!aiFindings
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -112,28 +115,34 @@ const ContractAnalysis = () => {
   }
 
   return (
-    <div className="min-h-screen bg-corama-dark">
+    <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
       {/* Header spans full width at top */}
       <Header key={headerKey} credits={5} />
       
       {/* Sidebar + Content row below header */}
-      <div className="flex">
+      <div className="flex flex-1 overflow-hidden">
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
         <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
         
         <Sidebar />
       
-        <div className="flex-1 flex flex-col min-w-0 min-h-screen">
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <main className="flex-1 p-3 sm:p-4 lg:p-5 overflow-hidden flex flex-col">
             {/* Page Title */}
-            <div className="text-center mb-6">
-              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-4">Contract Analysis</h1>
+            <div className="text-center mb-3 flex-shrink-0">
+              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Contract Analysis</h1>
               
-              {/* Progress Circles */}
+              {/* Progress Circles - Show check icon when step is complete */}
               <div className="flex justify-center gap-4">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
-                    {currentStep === step ? (
+                    {step === 1 && step1Complete ? (
+                      // Step 1 complete - show check with glow animation
+                      <div className="relative">
+                        <div className="absolute inset-0 rounded-full bg-corama-teal/50 animate-pulse blur-md" />
+                        <img src={CheckIcon} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
+                      </div>
+                    ) : currentStep === step ? (
                       <div className="w-14 h-14 rounded-full bg-corama-teal flex items-center justify-center">
                         <span className="text-white font-bold text-lg">{step}</span>
                       </div>
@@ -145,15 +154,15 @@ const ContractAnalysis = () => {
               </div>
             </div>
 
-            {/* Main Content - Two Cards Side by Side - Larger cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 mb-6">
+            {/* Main Content - Two Cards Side by Side - Fixed height with scrollable content */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0 mb-3">
               {/* Left Card - Upload PDF / View Contract */}
-              <div className="bg-white rounded-2xl p-6 flex flex-col min-h-[500px]">
-                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-1">Upload PDF</h2>
-                <p className="text-gray-600 font-poppins text-sm mb-4">Contract Document</p>
+              <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
+                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-1 flex-shrink-0">Upload PDF</h2>
+                <p className="text-gray-600 font-poppins text-sm mb-3 flex-shrink-0">Contract Document</p>
                 
                 {pdfUrl ? (
-                  <div className="flex-1 min-h-[400px] border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
                     <iframe 
                       src={pdfUrl} 
                       className="w-full h-full"
@@ -162,12 +171,12 @@ const ContractAnalysis = () => {
                   </div>
                 ) : (
                   <div 
-                    className="flex-1 min-h-[400px] border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-corama-teal transition-colors"
+                    className="flex-1 min-h-0 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-corama-teal transition-colors"
                     onClick={handleUploadClick}
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                   >
-                    <img src={UploadContractPDFIcon} alt="Upload Contract" className="w-80 h-60 mb-4" />
+                    <img src={UploadContractPDFIcon} alt="Upload Contract" className="w-48 h-36 mb-3" />
                     <p className="text-gray-500 font-poppins text-sm">Click or drag to upload PDF</p>
                   </div>
                 )}
@@ -181,18 +190,18 @@ const ContractAnalysis = () => {
                 />
                 
                 {pdfFile && (
-                  <p className="mt-3 text-gray-600 font-poppins text-sm">
+                  <p className="mt-2 text-gray-600 font-poppins text-sm flex-shrink-0">
                     Uploaded: {pdfFile.name}
                   </p>
                 )}
               </div>
 
               {/* Right Card - AI Findings */}
-              <div className="bg-white rounded-2xl p-6 flex flex-col min-h-[500px]">
-                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-4">AI Findings</h2>
+              <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
+                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-3 flex-shrink-0">AI Findings</h2>
                 
                 {aiFindings ? (
-                  <div className="flex-1 min-h-[400px] overflow-y-auto">
+                  <div className="flex-1 min-h-0 overflow-y-auto">
                     <div className="font-poppins text-sm text-gray-700">
                       <ReactMarkdown
                         components={{
@@ -212,8 +221,8 @@ const ContractAnalysis = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex-1 min-h-[400px] flex flex-col items-center justify-center">
-                    <img src={AIFindingsIcon} alt="AI Findings" className="w-64 h-80 mb-4" />
+                  <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                    <img src={AIFindingsIcon} alt="AI Findings" className="w-40 h-52 mb-3" />
                     <button
                       onClick={handleGenerateFindings}
                       disabled={isGeneratingFindings || !pdfFile}
@@ -227,16 +236,16 @@ const ContractAnalysis = () => {
               </div>
             </div>
 
-            {/* Continue Button - At bottom of page */}
-            <div className="mt-auto pt-6 flex justify-end">
+            {/* Continue Button - Fixed at bottom */}
+            <div className="flex-shrink-0 flex justify-center">
               <button
                 onClick={handleContinue}
                 disabled={!aiFindings}
-                className="flex items-center gap-2 px-8 py-3 rounded-full font-poppins text-base font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#6bb4b5' }}
+                className="flex items-center gap-2 px-8 py-3 rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: '#99C8CA', color: '#1a2744' }}
               >
                 Continue
-                <ChevronRight size={20} />
+                <img src={ContinueIcon} alt="" className="w-6 h-6" />
               </button>
             </div>
           </main>
