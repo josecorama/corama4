@@ -44,6 +44,8 @@ const TopFiveContracts = () => {
   }, [loading, hasMatches, navigate])
 
   useEffect(() => {
+    // Load with no filters on initial load - the API will return all matches from CSV
+    // The default filter state ('all') is just for the UI display
     loadTopFive()
   }, [])
 
@@ -198,11 +200,11 @@ const TopFiveContracts = () => {
                 </div>
               </div>
 
-            {loading || rerunning ? (
-              <div className="flex items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins">{rerunning ? 'Refreshing matches from Qdrant...' : 'Loading top contracts...'}</p>
-              </div>
-            ) : noFilterResults ? (
+                        {loading || rerunning ? (
+                          <div className="flex items-center justify-center h-64">
+                            <p className="text-gray-400 font-poppins">{rerunning ? 'Refreshing matches...' : 'Loading top contracts...'}</p>
+                          </div>
+                        ) : noFilterResults ? (
               <div className="flex flex-col items-center justify-center h-64">
                 <p className="text-gray-400 font-poppins text-lg mb-4">No contracts match these filters.</p>
                 <button 

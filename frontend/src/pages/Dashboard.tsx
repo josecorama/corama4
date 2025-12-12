@@ -217,17 +217,19 @@ const Dashboard = () => {
                           <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">
                             <span className="hidden sm:inline">{startItem}-{endItem} of {totalContracts}</span>
                             <span className="sm:hidden">{currentPage}/{Math.ceil(totalContracts/contractsPerPage)}</span>
-                            <button 
-                              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                              className="p-1 hover:opacity-80"
-                            >
-                              <img src="/static/app/dashboard/LeftArrow.svg" alt="Previous" className="w-4 h-4" />
-                            </button>
-                            <button 
-                              onClick={() => setCurrentPage(p => p + 1)}
-                              className="p-1 hover:opacity-80"
-                            >
-                              <img src="/static/app/dashboard/RightArrow.svg" alt="Next" className="w-4 h-4" />
+                                                        <button 
+                                                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                                          disabled={currentPage <= 1}
+                                                          className={`p-1 ${currentPage <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'}`}
+                                                        >
+                                                          <img src="/static/app/dashboard/LeftArrow.svg" alt="Previous" className="w-4 h-4" />
+                                                        </button>
+                                                        <button 
+                                                          onClick={() => setCurrentPage(p => p + 1)}
+                                                          disabled={currentPage >= Math.ceil(totalContracts / contractsPerPage)}
+                                                          className={`p-1 ${currentPage >= Math.ceil(totalContracts / contractsPerPage) ? 'opacity-30 cursor-not-allowed' : 'hover:opacity-80'}`}
+                                                        >
+                                                          <img src="/static/app/dashboard/RightArrow.svg" alt="Next" className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
