@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react'
 interface SidebarProps {
   mobileOpen?: boolean
   onMobileToggle?: () => void
+  onGoBack?: () => void
 }
 
 interface MenuItem {
@@ -14,7 +15,7 @@ interface MenuItem {
   badge?: boolean
 }
 
-const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
+const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }: SidebarProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -43,7 +44,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle }: SidebarProps) => {
   }, [location.pathname])
   
   const handleGoBack = () => {
-    if (previousPath) {
+    if (customGoBack) {
+      customGoBack()
+    } else if (previousPath) {
       navigate(previousPath)
     }
   }
