@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Send } from 'lucide-react'
 import { api } from '../services/api'
+
+// Send message icon path (served from static folder)
+const SendMessageIcon = '/static/app/dashboard/SendMessage.svg'
 
 interface Message {
   id: number
@@ -219,10 +221,9 @@ Or ask me about how CORAMA works and I'll be happy to explain!`,
             <main className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col overflow-hidden">
             {/* Page Title */}
             <div className="mb-4 lg:mb-6">
-              <h1 className="text-corama-teal font-poppins text-xs sm:text-sm uppercase tracking-wider">
-                AI BID ASSISTANT FOR
+              <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl">
+                <span className="text-corama-teal">AI BID ASSISTANT FOR </span>{contractName}
               </h1>
-              <h2 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl">{contractName}</h2>
             </div>
 
             {/* Chat Area */}
@@ -231,15 +232,14 @@ Or ask me about how CORAMA works and I'll be happy to explain!`,
                 {messages.map((message) => (
                   <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-full sm:max-w-xl lg:max-w-2xl ${message.sender === 'user' ? 'order-2' : ''}`}>
-                      {message.sender === 'ai' && (
-                        <p className="text-gray-400 font-poppins text-xs mb-1">{message.timestamp}</p>
-                      )}
+                      <p className={`text-gray-400 font-poppins text-xs mb-1 ${message.sender === 'user' ? 'text-right' : ''}`}>{message.timestamp}</p>
                       <div
                         className={`rounded-xl sm:rounded-2xl p-3 sm:p-4 ${
                           message.sender === 'user'
-                            ? 'bg-corama-teal text-corama-dark'
+                            ? 'text-white'
                             : 'bg-white text-gray-800'
                         }`}
+                        style={message.sender === 'user' ? { backgroundColor: '#333c4d' } : undefined}
                       >
                         <p className="font-poppins text-xs sm:text-sm whitespace-pre-line">{message.content}</p>
                       </div>
@@ -256,14 +256,15 @@ Or ask me about how CORAMA works and I'll be happy to explain!`,
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Ask about this contract..."
-                    className="w-full bg-corama-darker border border-corama-teal/30 rounded-full py-3 sm:py-4 pl-4 sm:pl-6 pr-12 sm:pr-14 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
+                    placeholder={`Start asking your questions about ${contractName} here`}
+                    className="w-full border border-corama-teal/30 rounded-full py-3 sm:py-4 pl-4 sm:pl-6 pr-12 sm:pr-14 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
+                    style={{ backgroundColor: '#333c4d' }}
                   />
                   <button
                     onClick={handleSendMessage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center hover:opacity-80 transition-opacity"
                   >
-                    <Send size={16} className="text-corama-dark sm:w-5 sm:h-5" />
+                    <img src={SendMessageIcon} alt="Send" className="w-10 h-10" />
                   </button>
                 </div>
               </div>
