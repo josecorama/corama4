@@ -217,12 +217,20 @@ class ApiService {
     return res.json();
   }
 
-  // AI Assistant Action (with credit deduction)
-  async aiAssistantAction(action: string, contractName: string): Promise<{success: boolean, message: string, credits_balance?: number, error?: string}> {
+  // AI Assistant Action (with credit deduction and optional conversation history)
+  async aiAssistantAction(
+    action: string, 
+    contractName: string, 
+    conversationHistory?: Array<{role: string, content: string}>
+  ): Promise<{success: boolean, message: string, credits_balance?: number, error?: string}> {
     const res = await fetch(`${API_BASE()}/ai-assistant-action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, contractName })
+      body: JSON.stringify({ 
+        action, 
+        contractName,
+        conversationHistory: conversationHistory || []
+      })
     });
     if (!res.ok) {
       if (res.status === 401) {

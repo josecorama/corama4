@@ -144,13 +144,13 @@ const AIAssistant = () => {
     ])
   }, [contractName])
 
-  // Typing animation effect
+  // Typing animation effect (3 seconds total - 50% slower than before)
   useEffect(() => {
     const typingMessage = [...messages].reverse().find(m => m.sender === 'ai' && m.isTyping)
     if (!typingMessage) return
 
     const full = typingMessage.content
-    const totalDuration = 2000 // 2 seconds total animation time
+    const totalDuration = 3000 // 3 seconds total animation time (50% slower)
     const stepMs = 30
     const steps = Math.max(1, Math.floor(totalDuration / stepMs))
     const charsPerStep = Math.max(1, Math.ceil(full.length / steps))
@@ -219,6 +219,19 @@ const AIAssistant = () => {
       setMessages(prev => [...prev, aiMessage])
     }
 
+    // Build conversation history from messages (for context in follow-up questions)
+    // Include the new user message in the history
+    const buildConversationHistory = () => {
+      const allMessages = [...messages, newMessage]
+      return allMessages
+        .filter(m => m.sender === 'user' || m.sender === 'ai')
+        .slice(-8) // Last 8 messages for context
+        .map(m => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.content, // Use full content, not visibleContent
+        }))
+    }
+
     try {
       // Check if this is a system help question
       const helpResponse = getSystemHelpResponse(userInput)
@@ -232,9 +245,10 @@ const AIAssistant = () => {
       const actionKey = getActionKeyFromInput(userInput)
       
       if (actionKey) {
-        // Call backend API for AI action
+        // Call backend API for AI action with conversation history
         try {
-          const response = await api.aiAssistantAction(actionKey, contractName)
+          const conversationHistory = buildConversationHistory()
+          const response = await api.aiAssistantAction(actionKey, contractName, conversationHistory)
           
           if (response.success) {
             addAiMessage(response.message)
@@ -248,16 +262,23 @@ const AIAssistant = () => {
           addAiMessage('Sorry, I encountered an error processing your request. Please try again later.')
         }
       } else {
-        // General question - provide helpful response
-        addAiMessage(`I understand you're asking about "${userInput}". 
-
-To help you with this contract, I recommend using one of my specialized tools:
-- Analyze Contract (3 credits) - For detailed contract analysis
-- Check Compliance (2 credits) - To verify your qualifications
-- Develop Strategy (3 credits) - For winning strategies
-- Create Outline (2 credits) - To start your proposal
-
-Or ask me about how CORAMA works and I'll be happy to explain!`)
+        // Non-action message - send as conversation to maintain context (1 credit)
+        // This allows the AI to follow up on its own questions
+        try {
+          const conversationHistory = buildConversationHistory()
+          const response = await api.aiAssistantAction('conversation', contractName, conversationHistory)
+          
+          if (response.success) {
+            addAiMessage(response.message)
+            // Force Header to refresh credits
+            setHeaderKey(k => k + 1)
+          } else {
+            addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
+          }
+        } catch (error) {
+          console.error('Conversation error:', error)
+          addAiMessage('Sorry, I encountered an error processing your request. Please try again later.')
+        }
       }
     } finally {
       setIsProcessing(false)
