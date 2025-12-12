@@ -277,7 +277,7 @@ const TopFiveContracts = () => {
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
                             Submission Deadline
                           </span>
-                          <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-pre-line">{contract.submissionDeadline}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-pre-line">{contract.submissionDeadline?.replace('T', ' ')}</p>
                         </div>
                         <div>
                           <span className="inline-block bg-corama-teal text-white font-poppins text-xs px-3 py-1 rounded-full mb-2">
@@ -312,6 +312,7 @@ const TopFiveContracts = () => {
                             <img src={ContractSiteIcon} alt="" className="w-4 h-4" />
                           </button>
                           <button 
+                            onClick={() => navigate('/ai-assistant')}
                             className="inline-flex items-center justify-center gap-2 text-white font-poppins text-xs px-3 py-1 rounded-full hover:opacity-90 transition-colors"
                             style={{ backgroundColor: '#275570' }}
                           >
