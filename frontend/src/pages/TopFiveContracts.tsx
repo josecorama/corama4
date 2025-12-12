@@ -32,8 +32,8 @@ const TopFiveContracts = () => {
   const [rerunning, setRerunning] = useState(false)
   const [hasMatches, setHasMatches] = useState<boolean | null>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const [contractType, setContractType] = useState('')
-  const [selectedStates, setSelectedStates] = useState<string[]>([])
+  const [contractType, setContractType] = useState('all')
+  const [selectedStates, setSelectedStates] = useState<string[]>(['all', 'IL', 'IN'])
   const [noFilterResults, setNoFilterResults] = useState(false)
 
   // Redirect to dashboard if user has no matches at all

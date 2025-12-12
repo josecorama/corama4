@@ -42,14 +42,15 @@ from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
 
-# Load environment variables
-load_dotenv()
+# Load environment variables - use override=True to ensure .env values take precedence
+# over any system environment variables (fixes API key issues)
+load_dotenv(override=True)
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
 env_path = os.path.join(base_dir, '.env')
 
-load_dotenv(env_path)
+load_dotenv(env_path, override=True)
 
 #New Imports:
 import smtplib
@@ -133,8 +134,8 @@ app.config['UPLOAD_PICTURE_FOLDER'] = 'static/uploads_pictures'
 
 
 
-# Load environment variables from '.env' file
-load_dotenv()
+# Load environment variables from '.env' file (override=True ensures .env takes precedence)
+load_dotenv(override=True)
 
 
 

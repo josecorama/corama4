@@ -16,10 +16,10 @@ const FilterPopup = ({ isOpen, onClose, onApply }: FilterPopupProps) => {
   const ALL_STATES = ['IL', 'IN']
 
   useEffect(() => {
-    // Reset to nothing selected when popup opens (fresh state each time)
-    setFederalSelected(false)
-    setStateSelected(false)
-    setSelectedStates([])
+    // Default to "All Contracts" selected when popup opens
+    setFederalSelected(true)
+    setStateSelected(true)
+    setSelectedStates(['all', 'IL', 'IN'])
     setError('')
   }, [isOpen])
 
