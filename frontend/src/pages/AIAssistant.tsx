@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
+import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
@@ -46,44 +47,11 @@ function getActionKeyFromInput(raw: string): string | null {
   return null
 }
 
-// System help keywords and responses
-const getSystemHelpResponse = (query: string): string | null => {
-  const lowerQuery = query.toLowerCase()
-  
-  if (lowerQuery.includes('credit') || lowerQuery.includes('how many')) {
-    return `Credits are used to access AI-powered features in CORAMA. Here's how they work:
-
-- Analyze Contract: 3 credits - Get a detailed analysis of the contract requirements
-- Check Compliance: 2 credits - Verify your capability statement meets requirements
-- Develop Strategy: 3 credits - Get strategic recommendations for winning the bid
-- Create Outline: 2 credits - Generate a proposal outline based on the contract
-
-You can purchase more credits from the "Get More Credits" page in the menu.`
-  }
-  
-  if (lowerQuery.includes('how does this work') || lowerQuery.includes('what can you do') || lowerQuery.includes('help')) {
-    return `I'm your AI Bid Assistant! I can help you win government contracts by:
-
-1. Analyzing contracts to identify key requirements
-2. Checking if your capability statement is compliant
-3. Developing winning strategies tailored to each opportunity
-4. Creating proposal outlines to get you started
-
-Just type one of the options above, or ask me any question about this contract!`
-  }
-  
-  if (lowerQuery.includes('corama') || lowerQuery.includes('what is')) {
-    return `CORAMA is a platform that helps businesses find and win government contracts. We use AI to match your capability statement with relevant opportunities and provide tools to help you create winning proposals.
-
-Key features:
-- Smart contract matching based on your capabilities
-- AI-powered bid assistance
-- Compliance checking
-- Proposal generation tools
-
-Is there anything specific you'd like to know?`
-  }
-  
+// System help - now handled by AI with CORAMA knowledge in backend
+// Only keep credit-specific help as a quick reference (no API call needed)
+const getSystemHelpResponse = (_query: string): string | null => {
+  // All questions now go to OpenAI which has CORAMA feature knowledge
+  // This allows the AI to provide contextual guidance about the platform
   return null
 }
 
@@ -144,13 +112,13 @@ const AIAssistant = () => {
     ])
   }, [contractName])
 
-  // Typing animation effect (3 seconds total - 50% slower than before)
+  // Typing animation effect (6 seconds total - 100% slower than original)
   useEffect(() => {
     const typingMessage = [...messages].reverse().find(m => m.sender === 'ai' && m.isTyping)
     if (!typingMessage) return
 
     const full = typingMessage.content
-    const totalDuration = 3000 // 3 seconds total animation time (50% slower)
+    const totalDuration = 6000 // 6 seconds total animation time (100% slower)
     const stepMs = 30
     const steps = Math.max(1, Math.floor(totalDuration / stepMs))
     const charsPerStep = Math.max(1, Math.ceil(full.length / steps))
@@ -321,10 +289,30 @@ const AIAssistant = () => {
                         }`}
                         style={message.sender === 'user' ? { backgroundColor: '#333c4d' } : undefined}
                       >
-                        <p className="font-poppins text-xs sm:text-sm whitespace-pre-line">
-                          {message.sender === 'ai' ? (message.visibleContent ?? message.content) : message.content}
-                          {message.isTyping && <span className="animate-pulse">|</span>}
-                        </p>
+                        {message.sender === 'ai' ? (
+                          <div className="font-poppins text-xs sm:text-sm">
+                            <ReactMarkdown
+                              components={{
+                                p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                                ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                li: ({children}) => <li className="ml-2">{children}</li>,
+                                strong: ({children}) => <strong className="font-semibold">{children}</strong>,
+                                em: ({children}) => <em className="italic">{children}</em>,
+                                h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                                h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                                h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                              }}
+                            >
+                              {message.visibleContent ?? message.content}
+                            </ReactMarkdown>
+                            {message.isTyping && <span className="animate-pulse">|</span>}
+                          </div>
+                        ) : (
+                          <p className="font-poppins text-xs sm:text-sm whitespace-pre-line">
+                            {message.content}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
