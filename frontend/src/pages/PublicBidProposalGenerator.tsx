@@ -1,6 +1,8 @@
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import { api } from '../services/api'
 
 // Icons
 const SaveIcon = '/static/app/dashboard/SaveIcon.svg'
@@ -25,18 +27,36 @@ interface ProposalGeneratorState {
   profitMargin?: number
   riskReserve?: number
   totalBidAmount?: number
+  draftId?: string
 }
+
+type SectionStatus = 'pending' | 'generating' | 'completed' | 'error'
 
 // Section card component
 interface SectionCardProps {
   number: number
   title: string
   progress: number
+  status: SectionStatus
 }
 
-const SectionCard = ({ number, title, progress }: SectionCardProps) => {
+const SectionCard = ({ number, title, progress, status }: SectionCardProps) => {
+  const getStatusColor = () => {
+    switch (status) {
+      case 'generating': return '#99C8CA'
+      case 'completed': return '#27ae60'
+      case 'error': return '#e74c3c'
+      default: return '#1a2332'
+    }
+  }
+
   return (
-    <div className="rounded-2xl border border-white p-3 flex items-center gap-3" style={{ backgroundColor: '#333c4d' }}>
+    <div 
+      className={`rounded-2xl border border-white p-3 flex items-center gap-3 transition-all duration-300 ${
+        status === 'generating' ? 'animate-pulse' : ''
+      }`} 
+      style={{ backgroundColor: '#333c4d' }}
+    >
       {/* Progress Circle */}
       <div className="relative w-12 h-12 flex-shrink-0">
         <svg className="w-12 h-12 transform -rotate-90">
@@ -52,15 +72,20 @@ const SectionCard = ({ number, title, progress }: SectionCardProps) => {
             cx="24"
             cy="24"
             r="20"
-            stroke="#99C8CA"
+            stroke={getStatusColor()}
             strokeWidth="4"
             fill="none"
             strokeDasharray={`${progress * 1.256} 125.6`}
             strokeLinecap="round"
+            className="transition-all duration-500"
           />
         </svg>
         <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-xs font-semibold">
-          {progress.toFixed(1)}%
+          {status === 'generating' ? (
+            <span className="animate-spin">...</span>
+          ) : (
+            `${progress.toFixed(0)}%`
+          )}
         </span>
       </div>
       
@@ -68,6 +93,17 @@ const SectionCard = ({ number, title, progress }: SectionCardProps) => {
       <div className="flex-1 min-w-0">
         <span className="text-white font-poppins text-sm font-medium leading-tight block">
           {number}. {title}
+        </span>
+        <span className={`text-xs font-poppins ${
+          status === 'completed' ? 'text-green-400' : 
+          status === 'error' ? 'text-red-400' : 
+          status === 'generating' ? 'text-corama-teal' : 
+          'text-gray-400'
+        }`}>
+          {status === 'completed' ? 'Completed' : 
+           status === 'error' ? 'Error' : 
+           status === 'generating' ? 'Generating...' : 
+           'Pending'}
         </span>
       </div>
       
@@ -83,6 +119,32 @@ const PublicBidProposalGenerator = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ProposalGeneratorState | null
+  
+  // State for generation
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationComplete, setGenerationComplete] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [draftId, setDraftId] = useState<string | null>(state?.draftId || null)
+  const [fullProposal, setFullProposal] = useState<string>('')
+  const [sectionStatuses, setSectionStatuses] = useState<SectionStatus[]>(
+    Array(8).fill('pending')
+  )
+  const [progressText, setProgressText] = useState('Initializing proposal generation...')
+  
+  // Ref to prevent double generation on mount
+  const hasStartedGeneration = useRef(false)
+
+  // 8 proposal sections
+  const sectionTitles = [
+    'Cover Letter & Executive Summary',
+    'Administrative & Compliance',
+    'Technical Approach',
+    'Management & Staffing Plan',
+    'Corporate Experience',
+    'Quality Assurance',
+    'Price/Cost Proposal (Draft)',
+    'Attachments Documentation Index',
+  ]
 
   const handleGoBack = () => {
     navigate('/proposal-summary', { state })
@@ -92,17 +154,120 @@ const PublicBidProposalGenerator = () => {
     navigate('/dashboard')
   }
 
-  // 8 proposal sections
-  const sections = [
-    { number: 1, title: 'Cover Letter & Executive Summary' },
-    { number: 2, title: 'Administrative & Compliance' },
-    { number: 3, title: 'Technical Approach' },
-    { number: 4, title: 'Management & Staffing Plan' },
-    { number: 5, title: 'Corporate Experience' },
-    { number: 6, title: 'Quality Assurance' },
-    { number: 7, title: 'Price/Cost Proposal (Draft)' },
-    { number: 8, title: 'Attachments Documentation Index' },
-  ]
+  const handleDownload = () => {
+    if (draftId) {
+      api.downloadProposalDocx(draftId)
+    }
+  }
+
+  // Initialize draft and generate proposal on mount
+  useEffect(() => {
+    const initializeAndGenerate = async () => {
+      // Prevent double execution
+      if (hasStartedGeneration.current) return
+      hasStartedGeneration.current = true
+
+      // Check if we have the required data
+      const contractId = state?.contractId || sessionStorage.getItem('currentContractId')
+      
+      if (!contractId) {
+        setError('No contract ID available. Please go back and select a contract.')
+        return
+      }
+
+      // Start generation process
+      setIsGenerating(true)
+      setError(null)
+      setSectionStatuses(Array(8).fill('generating'))
+      setProgressText('Initializing proposal draft...')
+
+      try {
+        // Step 1: Initialize the draft
+        const initResult = await api.initializeProposalDraft({
+          contract_id: contractId,
+          contract_name: state?.contractName || sessionStorage.getItem('currentContractName') || 'Contract',
+          ai_findings: state?.aiFindings || sessionStorage.getItem('currentAiFindings') || '',
+          ai_suggestions: state?.aiSuggestions || sessionStorage.getItem('currentAiSuggestions') || '',
+          ai_strategy: state?.aiStrategy || '',
+          team_members: state?.teamMembers || JSON.parse(sessionStorage.getItem('currentTeamMembers') || '[]'),
+          labor_costs: state?.laborCosts || [],
+          materials: state?.materials || [],
+          margin_risk: {
+            profit_margin_pct: parseFloat(state?.profitMarginPct || '15'),
+            risk_reserve_pct: parseFloat(state?.riskReservePct || '5')
+          }
+        })
+
+        if (!initResult.success || !initResult.draft_id) {
+          throw new Error(initResult.error || 'Failed to initialize draft')
+        }
+
+        setDraftId(initResult.draft_id)
+        setProgressText('Generating 8 sections in parallel using AI...')
+
+        // Step 2: Generate the proposal sections
+        const generateResult = await api.generateProposalSections(initResult.draft_id)
+
+        if (!generateResult.success) {
+          throw new Error(generateResult.error || 'Failed to generate proposal')
+        }
+
+        // Success! Update state
+        setFullProposal(generateResult.full_proposal || '')
+        setSectionStatuses(Array(8).fill('completed'))
+        setGenerationComplete(true)
+        setProgressText('All 8 sections generated successfully!')
+        setIsGenerating(false)
+
+      } catch (err) {
+        console.error('Error generating proposal:', err)
+        setError(err instanceof Error ? err.message : 'Failed to generate proposal')
+        setSectionStatuses(Array(8).fill('error'))
+        setProgressText('Error generating proposal')
+        setIsGenerating(false)
+      }
+    }
+
+    initializeAndGenerate()
+  }, [state])
+
+  // Regenerate proposal
+  const handleRegenerate = async () => {
+    if (!draftId) {
+      setError('No draft ID available. Please go back and try again.')
+      return
+    }
+
+    setIsGenerating(true)
+    setError(null)
+    setGenerationComplete(false)
+    setSectionStatuses(Array(8).fill('generating'))
+    setProgressText('Regenerating 8 sections in parallel using AI...')
+
+    try {
+      const generateResult = await api.generateProposalSections(draftId)
+
+      if (!generateResult.success) {
+        throw new Error(generateResult.error || 'Failed to regenerate proposal')
+      }
+
+      setFullProposal(generateResult.full_proposal || '')
+      setSectionStatuses(Array(8).fill('completed'))
+      setGenerationComplete(true)
+      setProgressText('All 8 sections regenerated successfully!')
+      setIsGenerating(false)
+
+    } catch (err) {
+      console.error('Error regenerating proposal:', err)
+      setError(err instanceof Error ? err.message : 'Failed to regenerate proposal')
+      setSectionStatuses(Array(8).fill('error'))
+      setProgressText('Error regenerating proposal')
+      setIsGenerating(false)
+    }
+  }
+
+  // Calculate overall progress
+  const overallProgress = sectionStatuses.filter(s => s === 'completed').length * 12.5
 
   return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
@@ -131,14 +296,33 @@ const PublicBidProposalGenerator = () => {
               </p>
             </div>
 
+            {/* Progress Bar */}
+            <div className="mb-4 flex-shrink-0">
+              <div className="bg-gray-700 rounded-full h-3 overflow-hidden">
+                <div 
+                  className="bg-corama-teal h-full rounded-full transition-all duration-500"
+                  style={{ width: `${overallProgress}%` }}
+                />
+              </div>
+              <p className="text-center text-gray-400 font-poppins text-sm mt-2">{progressText}</p>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="bg-red-500/20 border border-red-500 rounded-2xl p-4 mb-4 flex-shrink-0">
+                <p className="text-red-400 font-poppins text-sm">{error}</p>
+              </div>
+            )}
+
             {/* Section Cards Grid - 2 rows of 4 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 flex-shrink-0">
-              {sections.map((section) => (
+              {sectionTitles.map((title, index) => (
                 <SectionCard
-                  key={section.number}
-                  number={section.number}
-                  title={section.title}
-                  progress={0}
+                  key={index}
+                  number={index + 1}
+                  title={title}
+                  progress={sectionStatuses[index] === 'completed' ? 100 : sectionStatuses[index] === 'generating' ? 50 : 0}
+                  status={sectionStatuses[index]}
                 />
               ))}
             </div>
@@ -157,41 +341,81 @@ const PublicBidProposalGenerator = () => {
 
             {/* Toolbar */}
             <div className="rounded-2xl p-3 mb-4 flex justify-center gap-10 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-              <button className="text-white hover:opacity-80 transition-opacity">
+              <button className="text-white hover:opacity-80 transition-opacity" title="Save">
                 <img src={SaveIcon} alt="Save" className="w-6 h-6" />
               </button>
-              <button className="text-white hover:opacity-80 transition-opacity">
-                <img src={ReloadIcon} alt="Regenerate" className="w-6 h-6" />
+              <button 
+                className="text-white hover:opacity-80 transition-opacity disabled:opacity-50" 
+                title="Regenerate"
+                onClick={handleRegenerate}
+                disabled={isGenerating}
+              >
+                <img src={ReloadIcon} alt="Regenerate" className={`w-6 h-6 ${isGenerating ? 'animate-spin' : ''}`} />
               </button>
-              <button className="text-white hover:opacity-80 transition-opacity">
+              <button className="text-white hover:opacity-80 transition-opacity" title="Folder">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                 </svg>
               </button>
             </div>
 
-            {/* Large Content Area */}
-            <div className="bg-white rounded-2xl flex-1 min-h-[300px] mb-4">
-              {/* Empty content area for generated proposal */}
+            {/* Large Content Area - Shows generated proposal */}
+            <div className="bg-white rounded-2xl flex-1 min-h-[300px] mb-4 p-4 overflow-y-auto">
+              {isGenerating ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-corama-teal mx-auto mb-4"></div>
+                    <p className="text-gray-600 font-poppins">Generating your proposal...</p>
+                    <p className="text-gray-400 font-poppins text-sm mt-2">This may take 1-2 minutes</p>
+                  </div>
+                </div>
+              ) : generationComplete && fullProposal ? (
+                <div className="font-mono text-sm text-gray-800 whitespace-pre-wrap">
+                  {fullProposal}
+                </div>
+              ) : error ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <p className="text-red-500 font-poppins mb-4">{error}</p>
+                    <button
+                      onClick={() => {
+                        hasStartedGeneration.current = false
+                        window.location.reload()
+                      }}
+                      className="px-4 py-2 bg-corama-teal text-white rounded-lg font-poppins hover:opacity-90"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-400 font-poppins">Proposal content will appear here once generated</p>
+                </div>
+              )}
             </div>
 
             {/* Bottom Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-center gap-4 mb-4 flex-shrink-0">
               <button
-                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
+                onClick={handleRegenerate}
+                disabled={isGenerating}
+                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                 style={{ backgroundColor: '#99C8CA' }}
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Regenerate Proposal</span>
                   <span className="text-xs opacity-80">You can get a second chance</span>
                 </div>
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                <svg className={`w-8 h-8 ${isGenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                 </svg>
               </button>
 
               <button
-                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                onClick={handleDownload}
+                disabled={!generationComplete || isGenerating}
+                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Download DRAFT</span>

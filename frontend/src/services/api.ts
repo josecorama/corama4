@@ -495,6 +495,65 @@ class ApiService {
     return res.json();
   }
 
+  // Initialize Proposal Draft - Creates/updates a draft in proposal_drafts for use with generate_proposal_sections
+  async initializeProposalDraft(data: {
+    contract_id: string;
+    contract_name: string;
+    ai_findings: string;
+    ai_suggestions: string;
+    ai_strategy: string;
+    team_members: Array<{name: string; role: string; email?: string; phone?: string}>;
+    labor_costs: Array<{id: string; role: string; hours: number; rate: number; cost: number}>;
+    materials: Array<{id: string; item: string; quantity: number; unit_cost: number; cost: number}>;
+    margin_risk: {profit_margin_pct: number; risk_reserve_pct: number};
+  }): Promise<{success: boolean; draft_id?: string; error?: string}> {
+    const res = await fetch(`${API_BASE()}/initialize-proposal-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to initialize draft' }));
+      return { success: false, error: errorData.error || 'Failed to initialize draft' };
+    }
+    return res.json();
+  }
+
+  // Generate Proposal Sections - Generates all 8 proposal sections using AI
+  async generateProposalSections(draftId: string): Promise<{
+    success: boolean;
+    sections?: Array<{number: number; name: string; content: string}>;
+    full_proposal?: string;
+    total_sections?: number;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/generate_proposal_sections`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ draft_id: draftId })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to generate proposal' }));
+      return { success: false, error: errorData.error || 'Failed to generate proposal' };
+    }
+    return res.json();
+  }
+
+  // Download Proposal DOCX - Opens download in new window
+  downloadProposalDocx(draftId: string): void {
+    window.open(`${API_BASE()}/download_proposal_pdf?draft_id=${draftId}`, '_blank');
+  }
+
   // Logout
   logout(): void {
     window.location.href = '/logout';

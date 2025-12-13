@@ -11196,6 +11196,160 @@ def get_proposal_summary():
         logging.error(f"Error getting proposal summary: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/initialize-proposal-draft', methods=['POST'])
+def initialize_proposal_draft():
+    """Initialize a proposal draft from React flow data for use with generate_proposal_sections.
+    
+    This endpoint bridges the React flow (which uses contract_id and stores in proposal_summaries)
+    to the legacy proposal generator (which expects draft_id and reads from proposal_drafts).
+    """
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        contract_id = data.get('contract_id', '')
+        contract_name = data.get('contract_name', '')
+        ai_findings = data.get('ai_findings', '')
+        ai_suggestions = data.get('ai_suggestions', '')
+        ai_strategy = data.get('ai_strategy', '')
+        team_members = data.get('team_members', [])
+        labor_costs = data.get('labor_costs', [])
+        materials = data.get('materials', [])
+        margin_risk = data.get('margin_risk', {})
+        
+        if not contract_id:
+            return jsonify({'success': False, 'error': 'Missing contract_id'}), 400
+        
+        user = session.get('user', {})
+        user_id = user.get('localId', '')
+        
+        if not user_id:
+            return jsonify({'success': False, 'error': 'User ID not found'}), 401
+        
+        # Use contract_id as draft_id for simplicity
+        draft_id = contract_id
+        
+        # Convert ai_findings to annotations format expected by generate_proposal_sections
+        # The backend expects annotations as [{category: str, text: str}, ...]
+        annotations = []
+        if ai_findings:
+            # Split findings into sections and create annotations
+            # Try to parse structured findings
+            lines = ai_findings.split('\n')
+            current_category = 'Contract Analysis'
+            current_text = []
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                # Check if this is a section header (starts with ** or # or is all caps)
+                if line.startswith('**') or line.startswith('#') or (line.isupper() and len(line) > 3):
+                    # Save previous section
+                    if current_text:
+                        annotations.append({
+                            'category': current_category,
+                            'text': ' '.join(current_text)
+                        })
+                        current_text = []
+                    # Extract new category name
+                    current_category = line.strip('*#').strip()
+                else:
+                    current_text.append(line)
+            
+            # Save last section
+            if current_text:
+                annotations.append({
+                    'category': current_category,
+                    'text': ' '.join(current_text)
+                })
+            
+            # If no structured sections found, create a single annotation
+            if not annotations:
+                annotations.append({
+                    'category': 'Requirements Summary',
+                    'text': ai_findings[:5000]
+                })
+        
+        # Add AI strategy as an annotation if available
+        if ai_strategy:
+            annotations.append({
+                'category': 'Recommended Strategy',
+                'text': ai_strategy[:3000]
+            })
+        
+        # Convert labor_costs and materials to pricing format
+        # Expected: {labor: [{role, hours, rate, cost}], materials: [{item, quantity, unit_cost, cost}], margin_pct, risk_pct}
+        pricing = {
+            'labor': [
+                {
+                    'role': item.get('role', 'Role'),
+                    'hours': item.get('hours', 0),
+                    'rate': item.get('rate', 0),
+                    'cost': item.get('cost', 0)
+                }
+                for item in labor_costs
+            ],
+            'materials': [
+                {
+                    'item': item.get('item', 'Item'),
+                    'quantity': item.get('quantity', 0),
+                    'unit_cost': item.get('unit_cost', 0),
+                    'cost': item.get('cost', 0)
+                }
+                for item in materials
+            ],
+            'margin_pct': margin_risk.get('profit_margin_pct', 15),
+            'risk_pct': margin_risk.get('risk_reserve_pct', 5)
+        }
+        
+        # Convert team_members to expected format
+        # Expected: [{name, role, experience}]
+        formatted_team = [
+            {
+                'name': member.get('name', 'Team Member'),
+                'role': member.get('role', 'Role'),
+                'experience': member.get('email', '') or member.get('phone', '') or 'Experienced professional'
+            }
+            for member in team_members
+        ]
+        
+        # Save to Firebase as proposal_drafts/{user_id}/{draft_id}
+        if admin_initialized and admin_db:
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+            draft_data = {
+                'draft_id': draft_id,
+                'user_id': user_id,
+                'contract_id': contract_id,
+                'contract_name': contract_name,
+                'annotations': annotations,
+                'pricing': pricing,
+                'team_members': formatted_team,
+                'ai_findings': ai_findings,
+                'ai_suggestions': ai_suggestions,
+                'ai_strategy': ai_strategy,
+                'created_at': datetime.now().isoformat(),
+                'status': 'ready_for_generation'
+            }
+            draft_ref.set(draft_data)
+            
+            logging.info(f"Initialized proposal draft {draft_id} for user {user_id}")
+            
+            return jsonify({
+                'success': True,
+                'draft_id': draft_id,
+                'message': 'Draft initialized successfully'
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
+        
+    except Exception as e:
+        logging.error(f"Error initializing proposal draft: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/proposal-summary', methods=['POST'])
 def save_proposal_summary():
     """Save proposal summary checkpoint for a contract"""
