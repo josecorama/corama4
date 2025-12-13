@@ -162,9 +162,12 @@ const ProposalTeam = () => {
   }, [state?.aiFindings, state?.contractName, state?.contractId])
 
   const handleContinue = () => {
+    // Get effective contractId from state or sessionStorage
+    const effectiveContractId = state?.contractId || sessionStorage.getItem('currentContractId') || ''
+    
     // Store data in sessionStorage for persistence across page reloads
-    if (state?.contractId) {
-      sessionStorage.setItem('currentContractId', state.contractId)
+    if (effectiveContractId) {
+      sessionStorage.setItem('currentContractId', effectiveContractId)
     }
     if (state?.contractName) {
       sessionStorage.setItem('currentContractName', state.contractName)
@@ -180,9 +183,11 @@ const ProposalTeam = () => {
     }
     
     // Navigate to the next step (Proposal Summary)
+    // Include the effective contractId in state to ensure it's passed along
     navigate('/proposal-summary', { 
       state: { 
         ...state,
+        contractId: effectiveContractId,
         aiSuggestions,
         teamMembers 
       } 

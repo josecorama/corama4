@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
@@ -12,6 +12,11 @@ const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
 const CheckIcon = '/static/app/contract-analysis/Check.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 
+// Generate a unique ID for contracts that don't have one
+const generateContractId = () => {
+  return `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+}
+
 interface ContractAnalysisState {
   contractName?: string
   contractId?: string
@@ -24,7 +29,29 @@ const ContractAnalysis = () => {
   const navigate = useNavigate()
   const state = location.state as ContractAnalysisState | null
   const contractName = state?.contractName || 'Contract'
-  const contractId = state?.contractId || ''
+  
+  // Generate a stable contractId - use provided one, or generate a new one
+  // useMemo ensures the same ID is used throughout the component lifecycle
+  const contractId = useMemo(() => {
+    const fromState = state?.contractId
+    const fromStorage = sessionStorage.getItem('currentContractId')
+    
+    // If we have a valid ID from state, use it
+    if (fromState && fromState.trim()) {
+      sessionStorage.setItem('currentContractId', fromState)
+      return fromState
+    }
+    
+    // If we have a valid ID from storage, use it
+    if (fromStorage && fromStorage.trim()) {
+      return fromStorage
+    }
+    
+    // Generate a new ID and store it
+    const newId = generateContractId()
+    sessionStorage.setItem('currentContractId', newId)
+    return newId
+  }, [state?.contractId])
   
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)
