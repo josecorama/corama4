@@ -10,6 +10,7 @@ import EditDirectoryProfile from './pages/EditDirectoryProfile'
 import NoCapabilityStatement from './pages/NoCapabilityStatement'
 import ContractAnalysis from './pages/ContractAnalysis'
 import ProposalTeam from './pages/ProposalTeam'
+import ProposalSummary from './pages/ProposalSummary'
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/no-capability-statement" element={<NoCapabilityStatement />} />
         <Route path="/contract-analysis" element={<ContractAnalysis />} />
         <Route path="/proposal-team" element={<ProposalTeam />} />
+        <Route path="/proposal-summary" element={<ProposalSummary />} />
       </Routes>
     </Router>
   )

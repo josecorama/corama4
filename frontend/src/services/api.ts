@@ -406,6 +406,95 @@ class ApiService {
     return res.json();
   }
 
+  // Proposal Summary - Get checkpoint
+  async getProposalSummary(contractId: string): Promise<{
+    success: boolean;
+    summary?: {
+      contract_id: string;
+      contract_name: string;
+      ai_findings: string;
+      ai_suggestions: string;
+      ai_strategy: string;
+      team_members: Array<{name: string; role: string; email?: string; phone?: string}>;
+      labor_costs: Array<{id: string; role: string; hours: number; rate: number; cost: number}>;
+      materials: Array<{id: string; item: string; quantity: number; unit_cost: number; cost: number}>;
+      margin_risk: {profit_margin_pct: number; risk_reserve_pct: number};
+      totals: {
+        labor_costs: number;
+        materials_costs: number;
+        subtotal: number;
+        profit_margin: number;
+        risk_reserve: number;
+        total_bid_amount: number;
+      };
+      updated_at: string;
+    } | null;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/proposal-summary?contract_id=${encodeURIComponent(contractId)}`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to get proposal summary' }));
+      return { success: false, error: errorData.error || 'Failed to get proposal summary' };
+    }
+    return res.json();
+  }
+
+  // Proposal Summary - Save checkpoint
+  async saveProposalSummary(data: {
+    contract_id: string;
+    contract_name: string;
+    ai_findings: string;
+    ai_suggestions: string;
+    ai_strategy: string;
+    team_members: Array<{name: string; role: string; email?: string; phone?: string}>;
+    labor_costs: Array<{id: string; role: string; hours: number; rate: number; cost: number}>;
+    materials: Array<{id: string; item: string; quantity: number; unit_cost: number; cost: number}>;
+    margin_risk: {profit_margin_pct: number; risk_reserve_pct: number};
+  }): Promise<{success: boolean; summary?: object; error?: string}> {
+    const res = await fetch(`${API_BASE()}/proposal-summary`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to save proposal summary' }));
+      return { success: false, error: errorData.error || 'Failed to save proposal summary' };
+    }
+    return res.json();
+  }
+
+  // Proposal Strategy - Generate AI strategy
+  async generateProposalStrategy(data: {
+    contract_id: string;
+    contract_name: string;
+    ai_findings: string;
+    ai_suggestions: string;
+    team_members: Array<{name: string; role: string; email?: string; phone?: string}>;
+  }): Promise<{success: boolean; strategy?: string; error?: string}> {
+    const res = await fetch(`${API_BASE()}/proposal-strategy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to generate strategy' }));
+      return { success: false, error: errorData.error || 'Failed to generate strategy' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     window.location.href = '/logout';

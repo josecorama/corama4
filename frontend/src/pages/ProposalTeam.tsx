@@ -112,7 +112,21 @@ const ProposalTeam = () => {
   const [memberToDelete, setMemberToDelete] = useState<number | null>(null)
   const [deleteButtonSelected, setDeleteButtonSelected] = useState<'yes' | 'no' | null>(null)
   
-  // Fetch AI suggestions on mount - with caching to avoid regeneration
+  // Second check animation state - triggers once when first team member is added
+  const [hasAnimatedSecondCheck, setHasAnimatedSecondCheck] = useState(false)
+  const [showSecondCheckAnimation, setShowSecondCheckAnimation] = useState(false)
+  
+  // Watch for first team member being added to trigger animation
+  useEffect(() => {
+    if (teamMembers.length === 1 && !hasAnimatedSecondCheck) {
+      setHasAnimatedSecondCheck(true)
+      setShowSecondCheckAnimation(true)
+      // Remove animation class after animation completes (1 second)
+      setTimeout(() => setShowSecondCheckAnimation(false), 1000)
+    }
+  }, [teamMembers.length, hasAnimatedSecondCheck])
+  
+  // Fetch AI suggestions on mount- with caching to avoid regeneration
   useEffect(() => {
     const fetchSuggestions = async () => {
       if (!state?.aiFindings) return
@@ -148,10 +162,11 @@ const ProposalTeam = () => {
   }, [state?.aiFindings, state?.contractName, state?.contractId])
 
   const handleContinue = () => {
-    // Navigate to the next step (Pricing)
-    navigate('/proposal-pricing', { 
+    // Navigate to the next step (Proposal Summary)
+    navigate('/proposal-summary', { 
       state: { 
         ...state,
+        aiSuggestions,
         teamMembers 
       } 
     })
@@ -409,18 +424,34 @@ const ProposalTeam = () => {
             <div className="text-center mb-4 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Build Your Team</h1>
               
-              {/* Progress Circles - Check for step 1, empty for steps 2 and 3 */}
+              {/* Progress Circles - Check for step 1, animated check for step 2 when team member added, empty for step 3 */}
               <div className="flex justify-center gap-4">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (
-                      // Step 1 complete - show check with glow animation
+                      // Step 1 complete - show check with glow
                       <div className="relative">
-                        <div className="absolute inset-0 rounded-full bg-corama-teal/50 animate-pulse blur-md" />
+                        <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
                         <img src={CheckIcon} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
                       </div>
+                    ) : step === 2 && teamMembers.length > 0 ? (
+                      // Step 2 complete when team members added - show check with animation on first add
+                      <div className="relative">
+                        <div 
+                          className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                            showSecondCheckAnimation ? 'animate-ping' : ''
+                          }`} 
+                        />
+                        <img 
+                          src={CheckIcon} 
+                          alt="Step 2 Complete" 
+                          className={`w-14 h-14 relative z-10 ${
+                            showSecondCheckAnimation ? 'animate-bounce' : ''
+                          }`} 
+                        />
+                      </div>
                     ) : (
-                      // Steps 2 and 3 show empty check (no numbers)
+                      // Empty check for incomplete steps
                       <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
                   </div>

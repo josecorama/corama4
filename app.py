@@ -11153,6 +11153,223 @@ Keep your response focused and practical for someone building a proposal team.""
         logging.error(f"Error generating team suggestions: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/proposal-summary', methods=['GET'])
+def get_proposal_summary():
+    """Get proposal summary checkpoint for a contract"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        contract_id = request.args.get('contract_id', '')
+        if not contract_id:
+            return jsonify({'success': False, 'error': 'Missing contract_id'}), 400
+        
+        user = session.get('user', {})
+        user_id = user.get('localId', '')
+        
+        if not user_id:
+            return jsonify({'success': False, 'error': 'User ID not found'}), 401
+        
+        # Try to get existing proposal summary from Firebase
+        if admin_initialized and admin_db:
+            try:
+                summary_ref = admin_db.reference(f'proposal_summaries/{user_id}/{contract_id}')
+                summary_data = summary_ref.get()
+                
+                if summary_data:
+                    return jsonify({
+                        'success': True,
+                        'summary': summary_data
+                    })
+            except Exception as e:
+                logging.warning(f"Error fetching proposal summary from Firebase: {e}")
+        
+        # Return empty summary if not found
+        return jsonify({
+            'success': True,
+            'summary': None
+        })
+        
+    except Exception as e:
+        logging.error(f"Error getting proposal summary: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/proposal-summary', methods=['POST'])
+def save_proposal_summary():
+    """Save proposal summary checkpoint for a contract"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        contract_id = data.get('contract_id', '')
+        
+        if not contract_id:
+            return jsonify({'success': False, 'error': 'Missing contract_id'}), 400
+        
+        user = session.get('user', {})
+        user_id = user.get('localId', '')
+        
+        if not user_id:
+            return jsonify({'success': False, 'error': 'User ID not found'}), 401
+        
+        # Extract summary data
+        summary_data = {
+            'contract_id': contract_id,
+            'contract_name': data.get('contract_name', ''),
+            'ai_findings': data.get('ai_findings', ''),
+            'ai_suggestions': data.get('ai_suggestions', ''),
+            'ai_strategy': data.get('ai_strategy', ''),
+            'team_members': data.get('team_members', []),
+            'labor_costs': data.get('labor_costs', []),
+            'materials': data.get('materials', []),
+            'margin_risk': data.get('margin_risk', {
+                'profit_margin_pct': 0,
+                'risk_reserve_pct': 0
+            }),
+            'totals': data.get('totals', {}),
+            'updated_at': datetime.now().isoformat()
+        }
+        
+        # Recompute totals server-side for accuracy
+        labor_total = 0
+        for item in summary_data['labor_costs']:
+            hours = float(item.get('hours', 0) or 0)
+            rate = float(item.get('rate', 0) or 0)
+            labor_total += hours * rate
+        
+        materials_total = 0
+        for item in summary_data['materials']:
+            quantity = float(item.get('quantity', 0) or 0)
+            unit_cost = float(item.get('unit_cost', 0) or 0)
+            materials_total += quantity * unit_cost
+        
+        subtotal = labor_total + materials_total
+        profit_margin_pct = float(summary_data['margin_risk'].get('profit_margin_pct', 0) or 0)
+        risk_reserve_pct = float(summary_data['margin_risk'].get('risk_reserve_pct', 0) or 0)
+        profit_margin = subtotal * (profit_margin_pct / 100)
+        risk_reserve = subtotal * (risk_reserve_pct / 100)
+        total_bid = subtotal + profit_margin + risk_reserve
+        
+        summary_data['totals'] = {
+            'labor_costs': round(labor_total, 2),
+            'materials_costs': round(materials_total, 2),
+            'subtotal': round(subtotal, 2),
+            'profit_margin': round(profit_margin, 2),
+            'risk_reserve': round(risk_reserve, 2),
+            'total_bid_amount': round(total_bid, 2)
+        }
+        
+        # Save to Firebase
+        if admin_initialized and admin_db:
+            try:
+                summary_ref = admin_db.reference(f'proposal_summaries/{user_id}/{contract_id}')
+                summary_ref.set(summary_data)
+                logging.info(f"Saved proposal summary for user {user_id}, contract {contract_id}")
+            except Exception as e:
+                logging.error(f"Error saving proposal summary to Firebase: {e}")
+                return jsonify({'success': False, 'error': 'Failed to save summary'}), 500
+        
+        return jsonify({
+            'success': True,
+            'summary': summary_data
+        })
+        
+    except Exception as e:
+        logging.error(f"Error saving proposal summary: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/proposal-strategy', methods=['POST'])
+def generate_proposal_strategy():
+    """Generate AI recommended strategy based on contract data, findings, and suggestions"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        contract_id = data.get('contract_id', '')
+        contract_name = data.get('contract_name', 'Contract')
+        ai_findings = data.get('ai_findings', '')
+        ai_suggestions = data.get('ai_suggestions', '')
+        team_members = data.get('team_members', [])
+        
+        if not ai_findings:
+            return jsonify({'success': False, 'error': 'AI findings are required to generate strategy'}), 400
+        
+        # Call OpenAI to generate strategy
+        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        if not api_key:
+            return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
+        
+        client = OpenAI(api_key=api_key, timeout=60.0)
+        
+        # Build team members summary
+        team_summary = ""
+        if team_members:
+            team_summary = "\n\nPROPOSED TEAM:\n"
+            for member in team_members[:10]:  # Limit to 10 members
+                team_summary += f"- {member.get('name', 'Unknown')}: {member.get('role', 'Team Member')}\n"
+        
+        prompt = f"""You are an expert government contracting proposal strategist. Based on the following contract analysis, team suggestions, and proposed team, provide a comprehensive recommended strategy for winning this bid.
+
+CONTRACT NAME: {contract_name}
+
+CONTRACT ANALYSIS (AI FINDINGS):
+{ai_findings[:6000]}
+
+TEAM BUILDING SUGGESTIONS:
+{ai_suggestions[:2000] if ai_suggestions else 'No specific team suggestions provided.'}
+{team_summary}
+
+Provide a strategic recommendation in 2-3 paragraphs that covers:
+1. Key strengths to emphasize in the proposal based on the contract requirements
+2. How to position the team's capabilities to address evaluation criteria
+3. Specific win themes and differentiators to highlight
+4. Risk mitigation strategies
+
+Keep your response focused, actionable, and professional. Write in a confident tone that would help the proposal team understand the winning strategy."""
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert government contracting proposal strategist providing winning strategies."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        strategy = response.choices[0].message.content
+        
+        # Save strategy to proposal summary if contract_id provided
+        user = session.get('user', {})
+        user_id = user.get('localId', '')
+        
+        if contract_id and user_id and admin_initialized and admin_db:
+            try:
+                summary_ref = admin_db.reference(f'proposal_summaries/{user_id}/{contract_id}')
+                existing = summary_ref.get() or {}
+                existing['ai_strategy'] = strategy
+                existing['updated_at'] = datetime.now().isoformat()
+                summary_ref.update(existing)
+            except Exception as e:
+                logging.warning(f"Could not save strategy to Firebase: {e}")
+        
+        return jsonify({
+            'success': True,
+            'strategy': strategy
+        })
+        
+    except Exception as e:
+        logging.error(f"Error generating proposal strategy: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/team-from-website', methods=['POST'])
 def team_from_website():
     """Extract company information from a website URL"""
