@@ -162,6 +162,23 @@ const ProposalTeam = () => {
   }, [state?.aiFindings, state?.contractName, state?.contractId])
 
   const handleContinue = () => {
+    // Store data in sessionStorage for persistence across page reloads
+    if (state?.contractId) {
+      sessionStorage.setItem('currentContractId', state.contractId)
+    }
+    if (state?.contractName) {
+      sessionStorage.setItem('currentContractName', state.contractName)
+    }
+    if (state?.aiFindings) {
+      sessionStorage.setItem('currentAiFindings', state.aiFindings)
+    }
+    if (aiSuggestions) {
+      sessionStorage.setItem('currentAiSuggestions', aiSuggestions)
+    }
+    if (teamMembers.length > 0) {
+      sessionStorage.setItem('currentTeamMembers', JSON.stringify(teamMembers))
+    }
+    
     // Navigate to the next step (Proposal Summary)
     navigate('/proposal-summary', { 
       state: { 

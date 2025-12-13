@@ -48,6 +48,15 @@ const ProposalSummary = () => {
   const step1Complete = true
   const step2Complete = true
   
+  // Animation state for first check icon - triggers on mount
+  const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(true)
+  
+  // Trigger animation on mount and remove after 1 second
+  useEffect(() => {
+    const timer = setTimeout(() => setShowFirstCheckAnimation(false), 1000)
+    return () => clearTimeout(timer)
+  }, [])
+  
   // Contract ID with sessionStorage fallback
   const [contractId, setContractId] = useState<string | null>(null)
   const [contractName, setContractName] = useState<string>('')
@@ -331,21 +340,29 @@ const ProposalSummary = () => {
             <div className="text-center mb-2 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
-              {/* Progress Circles - First two checked, third empty */}
-              <div className="flex justify-center gap-4">
-                {[1, 2, 3].map((step) => (
-                  <div key={step} className="relative">
-                    {(step === 1 && step1Complete) || (step === 2 && step2Complete) ? (
-                      <div className="relative">
-                        <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
-                        <img src={CheckIcon} alt={`Step ${step} Complete`} className="w-12 h-12 relative z-10" />
-                      </div>
-                    ) : (
-                      <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-12 h-12" />
-                    )}
-                  </div>
-                ))}
-              </div>
+                {/* Progress Circles - First two checked with animation, third empty */}
+                <div className="flex justify-center gap-4">
+                  {[1, 2, 3].map((step) => (
+                    <div key={step} className="relative">
+                      {(step === 1 && step1Complete) || (step === 2 && step2Complete) ? (
+                        <div className="relative">
+                          <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                            step === 1 && showFirstCheckAnimation ? 'animate-ping' : ''
+                          }`} />
+                          <img 
+                            src={CheckIcon} 
+                            alt={`Step ${step} Complete`} 
+                            className={`w-12 h-12 relative z-10 ${
+                              step === 1 && showFirstCheckAnimation ? 'animate-bounce' : ''
+                            }`} 
+                          />
+                        </div>
+                      ) : (
+                        <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-12 h-12" />
+                      )}
+                    </div>
+                  ))}
+                </div>
             </div>
 
             {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
@@ -596,8 +613,8 @@ const ProposalSummary = () => {
               </div>
             </div>
 
-            {/* Bottom Row: Margin & Risk + Proposal Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 flex-shrink-0">
+            {/* Bottom Row: Margin & Risk + Proposal Summary - double horizontal space */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-3 flex-shrink-0">
               {/* Margin & Risk Adjustments */}
               <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#333c4d' }}>
                 <h3 className="text-corama-teal font-poppins font-semibold text-base mb-2">Margin & Risk Adjustments</h3>
@@ -683,8 +700,27 @@ const ProposalSummary = () => {
               </button>
 
               <button
-                disabled
-                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white opacity-50 cursor-not-allowed"
+                onClick={() => navigate('/public-bid-proposal-generator', { 
+                  state: { 
+                    contractId, 
+                    contractName, 
+                    aiFindings, 
+                    aiSuggestions, 
+                    aiStrategy,
+                    teamMembers,
+                    laborCosts,
+                    materials,
+                    profitMarginPct,
+                    riskReservePct,
+                    laborTotal,
+                    materialsTotal,
+                    subtotal,
+                    profitMargin,
+                    riskReserve,
+                    totalBidAmount
+                  } 
+                })}
+                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
                 style={{ backgroundColor: '#99C8CA' }}
               >
                 <span>Generate Final Proposal</span>

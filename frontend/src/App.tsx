@@ -11,6 +11,7 @@ import NoCapabilityStatement from './pages/NoCapabilityStatement'
 import ContractAnalysis from './pages/ContractAnalysis'
 import ProposalTeam from './pages/ProposalTeam'
 import ProposalSummary from './pages/ProposalSummary'
+import PublicBidProposalGenerator from './pages/PublicBidProposalGenerator'
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/contract-analysis" element={<ContractAnalysis />} />
         <Route path="/proposal-team" element={<ProposalTeam />} />
         <Route path="/proposal-summary" element={<ProposalSummary />} />
+        <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
       </Routes>
     </Router>
   )
