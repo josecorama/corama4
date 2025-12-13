@@ -44,7 +44,7 @@ from credit_manager import CreditManager
 
 # Load environment variables - use override=True to ensure .env values take precedence
 # over any system environment variables (fixes API key issues)
-load_dotenv(override=True)
+load_dotenv(override=False)
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 
