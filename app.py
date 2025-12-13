@@ -370,8 +370,8 @@ app.logger.setLevel(logging.INFO)
 
 #OPEN AI 
 
-# Use OPENAI_MARIO as primary key for all AI features (including smart search embeddings)
-smart_search_api_key = os.getenv('OPENAI_MARIO') or os.getenv('SMART_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+# Use OPENAI_API_KEY as primary key for all AI features (including smart search embeddings)
+smart_search_api_key = os.getenv('OPENAI_API_KEY')
 client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
 
 # In-memory cache for AI-generated NAICS codes (keyed by hash_value)
@@ -421,8 +421,8 @@ def get_qdrant_collection_signature():
     try:
         from qdrant_client import QdrantClient
         qdrant_client = QdrantClient(
-            url=os.getenv('Qdrant_EP'),
-            api_key=os.getenv('Qdrant_AK'),
+            url=os.getenv('Qdrant_URL'),
+            api_key=os.getenv('QDRANT_API_KEY'),
             timeout=5
         )
         collection_info = qdrant_client.get_collection("government_contracts")
@@ -1435,7 +1435,7 @@ def has_construction_sector_naics(naics_codes):
 def predict_category_with_ai(payload, hash_value=None):
     """
     Use OpenAI to predict the category for a contract based on its data.
-    Uses OPENAI_MARIO key and caches results to avoid repeated API calls.
+    Uses OPENAI_API_KEY key and caches results to avoid repeated API calls.
     
     Args:
         payload: Contract data dict with bid_name, bid_description, naics_code, etc.
@@ -1494,7 +1494,7 @@ Allowed categories:
 
 Respond with exactly one category from the list above."""
 
-        # Call OpenAI with OPENAI_MARIO key
+        # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1605,7 +1605,7 @@ Allowed categories:
 
 Respond with exactly one category from the list above."""
 
-        # Call OpenAI with OPENAI_MARIO key
+        # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1739,7 +1739,7 @@ Allowed categories:
 
 Respond with exactly one category from the list above."""
 
-        # Call OpenAI with OPENAI_MARIO key
+        # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -1989,8 +1989,8 @@ def build_balanced_category_mapping():
         import re
         
         # Read directly from Qdrant to get ORIGINAL categories
-        qdrant_url = os.getenv('Qdrant_EP')
-        qdrant_api_key = os.getenv('Qdrant_AK')
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
         if not qdrant_url or not qdrant_api_key:
             logging.error("Qdrant credentials not configured for balanced category mapping")
@@ -2187,7 +2187,7 @@ def get_effective_category(payload, hash_value=None):
 def generate_naics_codes_with_ai(payload, hash_value=None):
     """
     Use OpenAI to generate NAICS codes for contracts that don't have them.
-    Uses OPENAI_MARIO key and caches results to avoid repeated API calls.
+    Uses OPENAI_API_KEY key and caches results to avoid repeated API calls.
     
     Args:
         payload: Qdrant point payload dict OR search match dict with contract info
@@ -2236,7 +2236,7 @@ Requirements:
 - For titles like "30--ROD,PISTON" or similar part numbers, infer the industry from the component name (e.g., piston = machinery/automotive parts).
 - Do NOT include any explanation or text outside of the JSON."""
         
-        # Call OpenAI with OPENAI_MARIO key
+        # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -2347,7 +2347,7 @@ Requirements:
 - Use the OFFICIAL NAICS description, not a made-up one.
 - Do NOT include any explanation or text outside of the JSON."""
         
-        # Call OpenAI with OPENAI_MARIO key
+        # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -2531,14 +2531,14 @@ def fallback_category_from_text(bid_name, bid_description, organization):
     return "General Services"
 
 
-if os.getenv('OPENAI_MARIO'):
-    app.logger.info("✅ Smart search embeddings using OPENAI_MARIO key")
+if os.getenv('OPENAI_API_KEY'):
+    app.logger.info("✅ Smart search embeddings using OPENAI_API_KEY key")
 else:
-    app.logger.warning("⚠️ Smart search using fallback key (OPENAI_MARIO not found)")
+    app.logger.warning("⚠️ Smart search using fallback key (OPENAI_API_KEY not found)")
 
-cs_api_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
-if os.getenv('OPENAI_MARIO'):
-    app.logger.info("CS parser using key: OPENAI_MARIO")
+cs_api_key = os.getenv('OPENAI_API_KEY')
+if os.getenv('OPENAI_API_KEY'):
+    app.logger.info("CS parser using key: OPENAI_API_KEY")
 elif os.getenv('CS_BUILDER_OPENAI_API_KEY'):
     app.logger.info("CS parser using key: CS_BUILDER_OPENAI_API_KEY")
 else:
@@ -4611,8 +4611,8 @@ def backfill_naics_api():
         data = request.get_json() or {}
         limit = data.get('limit', None)  # None means process all
         
-        qdrant_url = os.getenv('Qdrant_EP')
-        qdrant_api_key = os.getenv('Qdrant_AK')
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
         if not qdrant_url or not qdrant_api_key:
             return jsonify({"success": False, "error": "Qdrant credentials not configured"}), 500
@@ -5435,8 +5435,8 @@ def logout():
 
 
 def check_qdrant_config():
-    qdrant_url = os.getenv('Qdrant_EP')
-    qdrant_api_key = os.getenv('Qdrant_AK')
+    qdrant_url = os.getenv('QDRANT_URL')
+    qdrant_api_key = os.getenv('QDRANT_API_KEY')
     
     if not qdrant_url or not qdrant_api_key:
         raise ValueError("Qdrant configuration missing. Check your .env file.")
@@ -5534,12 +5534,12 @@ def upload_and_process():
         if selected_contract_types or selected_states or not hash_value:
             # Example: re-run your Qdrant or RAG logic to produce “matches.csv”
             # (the same steps from your original upload_and_process).
-            # Use OPENAI_MARIO as primary key for all AI features (including Top 5 enrichment)
-            openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            # Use OPENAI_API_KEY as primary key for all AI features (including Top 5 enrichment)
+            openai_key = os.getenv('OPENAI_API_KEY')
             handler = CSQueryHandler(
                 openai_api_key=openai_key,
-                qdrant_url=os.getenv('Qdrant_EP'),
-                qdrant_api_key=os.getenv('Qdrant_AK'),
+                qdrant_url=os.getenv('QDRANT_URL'),
+                qdrant_api_key=os.getenv('QDRANT_API_KEY'),
                 user_upload_dir=user_upload_dir
             )
             with open(file_path, 'rb') as pdf_file:
@@ -5548,12 +5548,12 @@ def upload_and_process():
             try:
                 app.logger.info(f"Starting Qdrant matching with contract_types: {selected_contract_types}, states: {selected_states}")
                 
-                # Initialize CSQueryHandler for contract matching - use OPENAI_MARIO as primary key
-                openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+                # Initialize CSQueryHandler for contract matching - use OPENAI_API_KEY as primary key
+                openai_key = os.getenv('OPENAI_API_KEY')
                 handler = CSQueryHandler(
                     openai_api_key=openai_key,
-                    qdrant_url=os.getenv('Qdrant_EP'),
-                    qdrant_api_key=os.getenv('Qdrant_AK'),
+                    qdrant_url=os.getenv('QDRANT_URL'),
+                    qdrant_api_key=os.getenv('QDRANT_API_KEY'),
                     user_upload_dir=user_upload_dir
                 )
                 
@@ -6040,7 +6040,7 @@ How can I help you with your contract response today?"""
                 cs_text = capability_statement[:8000] if len(capability_statement) > 8000 else capability_statement
                 
                 # Call OpenAI to analyze the capability statement
-                api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+                api_key = os.getenv('OPENAI_API_KEY')
                 if not api_key:
                     return jsonify({'error': 'OpenAI API key not configured'}), 500
                 
@@ -6971,7 +6971,7 @@ def load_capability_statement():
 def enhance_capability_statement_content(data):
     """Use AI to create professional, compelling capability statement content matching industry standards"""
     try:
-        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv('OPENAI_API_KEY')
         client = OpenAI(api_key=api_key)
         
         prompt = f"""You are an expert in creating professional government contracting capability statements. Create compelling, detailed content that matches the quality of top-tier capability statements.
@@ -7789,7 +7789,7 @@ def generate_naics_descriptions(codes):
         return codes  # All codes already have descriptions
     
     try:
-        openai_api_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BUILDER_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        openai_api_key = os.getenv('OPENAI_API_KEY')
         if not openai_api_key:
             logging.warning("No OpenAI API key found for NAICS description generation")
             return codes
@@ -8929,8 +8929,8 @@ def process_contract():
 
 class QdrantStore:
     def __init__(self, dimension=1536):
-        qdrant_url = os.getenv('Qdrant_EP')
-        qdrant_api_key = os.getenv('Qdrant_AK')
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
         if not qdrant_url or not qdrant_api_key:
             raise ValueError("Qdrant configuration not found in environment variables")
@@ -8966,8 +8966,8 @@ class QdrantStore:
     @staticmethod
     def inspect_state_values():
         try:
-            qdrant_url = os.getenv('Qdrant_EP')
-            qdrant_api_key = os.getenv('Qdrant_AK')
+            qdrant_url = os.getenv('QDRANT_URL')
+            qdrant_api_key = os.getenv('QDRANT_API_KEY')
             
             client = QdrantClient(
                 url=qdrant_url,
@@ -9282,8 +9282,8 @@ def get_contract_from_qdrant_by_id(point_id):
         Dict with contract data in template-compatible format, or None if not found
     """
     try:
-        qdrant_url = os.getenv('Qdrant_EP')
-        qdrant_api_key = os.getenv('Qdrant_AK')
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
         if not qdrant_url or not qdrant_api_key:
             logging.error("Qdrant credentials not configured")
@@ -9324,8 +9324,8 @@ def get_contracts_from_qdrant_by_ids(point_ids):
         List of dicts with contract data in template-compatible format
     """
     try:
-        qdrant_url = os.getenv('Qdrant_EP')
-        qdrant_api_key = os.getenv('Qdrant_AK')
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
         if not qdrant_url or not qdrant_api_key:
             logging.error("Qdrant credentials not configured")
@@ -9387,8 +9387,8 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
     # Initialize cache on first call
     if _dashboard_contracts_cache is None:
         try:
-            qdrant_url = os.getenv('Qdrant_EP')
-            qdrant_api_key = os.getenv('Qdrant_AK')
+            qdrant_url = os.getenv('QDRANT_URL')
+            qdrant_api_key = os.getenv('QDRANT_API_KEY')
             
             if not qdrant_url or not qdrant_api_key:
                 logging.error("Qdrant credentials not configured for dashboard")
@@ -9800,8 +9800,8 @@ def Smartsearch():
         items_per_page = 50
 
         # Initialize Qdrant client
-        qdrant_url    = os.getenv('Qdrant_EP')
-        qdrant_api_key = os.getenv('Qdrant_AK')
+        qdrant_url    = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
 
         def normalize_payload(payload):
@@ -10881,7 +10881,7 @@ def analyze_contract():
         
         # Generate AI annotations using OpenAI
         try:
-            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
             client = OpenAI(api_key=api_key, timeout=60.0)
@@ -11031,7 +11031,7 @@ def contract_analysis_findings():
                 pdf_text = pdf_text[:max_chars] + "\n\n[Document truncated for analysis...]"
             
             # Call OpenAI to analyze the contract
-            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
             
@@ -11112,7 +11112,7 @@ def team_suggestions():
             return jsonify({'success': False, 'error': 'No AI findings provided'}), 400
         
         # Call OpenAI to generate team suggestions
-        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
             return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
         
@@ -11457,7 +11457,7 @@ def generate_proposal_strategy():
             return jsonify({'success': False, 'error': 'AI findings are required to generate strategy'}), 400
         
         # Call OpenAI to generate strategy
-        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
             return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
         
@@ -11555,7 +11555,7 @@ def team_from_website():
             })
         
         # Use OpenAI to extract structured company information
-        api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
             return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
         
@@ -12277,7 +12277,7 @@ def suggest_team():
             ])
         
         try:
-            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            api_key = os.getenv('OPENAI_API_KEY')
             client = OpenAI(api_key=api_key, timeout=45.0)
             
             prompt = f"""You are an expert government contracting team composition advisor.Based on the contract analysis and company capabilities, recommend a strategic team composition.
@@ -12465,7 +12465,7 @@ def generate_pricing_strategy():
         
         try:
             from openai import OpenAI
-            api_key = os.getenv('OPENAI_MARIO') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            api_key = os.getenv('OPENAI_API_KEY')
             client = OpenAI(api_key=api_key)
             
             prompt = f"""You are an expert pricing strategist for government contracts. Based on the contract analysis and team composition below, provide a comprehensive pricing strategy recommendation.
@@ -14140,11 +14140,11 @@ def api_rerun_top_five():
                 logging.warning(f"[rerun-top5] Could not read company from CSV: {e}")
         
         # Initialize CSQueryHandler for contract matching
-        openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+        openai_key = os.getenv('OPENAI_API_KEY')
         handler = CSQueryHandler(
             openai_api_key=openai_key,
-            qdrant_url=os.getenv('Qdrant_EP'),
-            qdrant_api_key=os.getenv('Qdrant_AK'),
+            qdrant_url=os.getenv('QDRANT_URL'),
+            qdrant_api_key=os.getenv('QDRANT_API_KEY'),
             user_upload_dir=user_upload_dir
         )
         
@@ -14346,11 +14346,11 @@ def api_top_five_contracts():
                     pass
             
             # Initialize CSQueryHandler
-            openai_key = os.getenv('OPENAI_MARIO') or os.getenv('CS_BID_SEARCH_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY')
+            openai_key = os.getenv('OPENAI_API_KEY')
             handler = CSQueryHandler(
                 openai_api_key=openai_key,
-                qdrant_url=os.getenv('Qdrant_EP'),
-                qdrant_api_key=os.getenv('Qdrant_AK'),
+                qdrant_url=os.getenv('QDRANT_URL'),
+                qdrant_api_key=os.getenv('QDRANT_API_KEY'),
                 user_upload_dir=user_upload_dir
             )
             
