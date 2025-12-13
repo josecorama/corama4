@@ -50,7 +50,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 
 env_path = os.path.join(base_dir, '.env')
 
-load_dotenv(env_path, override=True)
+load_dotenv(env_path, override=False)
 
 #New Imports:
 import smtplib
@@ -135,7 +135,7 @@ app.config['UPLOAD_PICTURE_FOLDER'] = 'static/uploads_pictures'
 
 
 # Load environment variables from '.env' file (override=True ensures .env takes precedence)
-load_dotenv(override=True)
+load_dotenv(override=False)
 
 
 
