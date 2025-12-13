@@ -5,10 +5,8 @@ import Sidebar from '../components/Sidebar'
 import { api } from '../services/api'
 
 // Icons
-const SaveIcon = '/static/app/dashboard/SaveIcon.svg'
 const DocxIcon = '/static/app/dashboard/Docx.svg'
 const DashboardIcon = '/static/app/dashboard/DashboardIcon.svg'
-const ReloadIcon = '/static/app/dashboard/Reload.svg'
 
 interface ProposalGeneratorState {
   contractId?: string
@@ -339,28 +337,39 @@ const PublicBidProposalGenerator = () => {
               </ol>
             </div>
 
-            {/* Toolbar */}
-            <div className="rounded-2xl p-3 mb-4 flex justify-center gap-10 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-              <button className="text-white hover:opacity-80 transition-opacity" title="Save">
-                <img src={SaveIcon} alt="Save" className="w-6 h-6" />
-              </button>
-              <button 
-                className="text-white hover:opacity-80 transition-opacity disabled:opacity-50" 
-                title="Regenerate"
-                onClick={handleRegenerate}
-                disabled={isGenerating}
-              >
-                <img src={ReloadIcon} alt="Regenerate" className={`w-6 h-6 ${isGenerating ? 'animate-spin' : ''}`} />
-              </button>
-              <button className="text-white hover:opacity-80 transition-opacity" title="Folder">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-              </button>
-            </div>
+            {/* Preview Area with Toolbar */}
+            <div className="flex-1 min-h-[300px] mb-4 flex flex-col rounded-2xl overflow-hidden border-2" style={{ borderColor: '#233f65', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+              {/* Toolbar */}
+              <div className="p-3 flex justify-center gap-16 flex-shrink-0" style={{ backgroundColor: '#233f65' }}>
+                <button 
+                  onClick={handleDownload}
+                  disabled={!generationComplete || isGenerating}
+                  className="text-white hover:opacity-80 transition-opacity disabled:opacity-50" 
+                  title="Save/Download"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                </button>
+                <button 
+                  className="text-white hover:opacity-80 transition-opacity disabled:opacity-50" 
+                  title="Regenerate"
+                  onClick={handleRegenerate}
+                  disabled={isGenerating}
+                >
+                  <svg className={`w-6 h-6 ${isGenerating ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+                <button className="text-white hover:opacity-80 transition-opacity" title="Folder">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
+                </button>
+              </div>
 
-            {/* Large Content Area - Shows generated proposal */}
-            <div className="bg-white rounded-2xl flex-1 min-h-[300px] mb-4 p-4 overflow-y-auto">
+              {/* Content Area - Shows generated proposal */}
+              <div className="bg-white flex-1 p-4 overflow-y-auto">
               {isGenerating ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
@@ -393,15 +402,16 @@ const PublicBidProposalGenerator = () => {
                   <p className="text-gray-400 font-poppins">Proposal content will appear here once generated</p>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Bottom Action Buttons */}
-            <div className="flex flex-col sm:flex-row justify-center gap-4 mb-4 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row justify-center gap-4 mb-4 flex-shrink-0" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
               <button
                 onClick={handleRegenerate}
                 disabled={isGenerating}
                 className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: '#99C8CA' }}
+                style={{ backgroundColor: '#233f65' }}
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Regenerate Proposal</span>
@@ -415,27 +425,29 @@ const PublicBidProposalGenerator = () => {
               <button
                 onClick={handleDownload}
                 disabled={!generationComplete || isGenerating}
-                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#233f65' }}
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Download DRAFT</span>
-                  <span className="text-xs text-gray-500">Download your draft on DOCX</span>
+                  <span className="text-xs opacity-80">Download your draft on DOCX</span>
                 </div>
-                <img src={DocxIcon} alt="DOCX" className="w-8 h-8" />
+                <img src={DocxIcon} alt="DOCX" className="w-8 h-8 invert" />
               </button>
             </div>
 
             {/* Dashboard Button */}
-            <div className="flex justify-center flex-shrink-0">
+            <div className="flex justify-center flex-shrink-0" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
               <button
                 onClick={handleDashboard}
-                className="flex items-center justify-center gap-3 px-8 py-3 rounded-2xl font-poppins font-semibold text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-center gap-3 px-8 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-colors"
+                style={{ backgroundColor: '#233f65' }}
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Dashboard</span>
-                  <span className="text-xs text-gray-500">Return to the dashboard</span>
+                  <span className="text-xs opacity-80">Return to the dashboard</span>
                 </div>
-                <img src={DashboardIcon} alt="Dashboard" className="w-6 h-6" />
+                <img src={DashboardIcon} alt="Dashboard" className="w-6 h-6 invert" />
               </button>
             </div>
           </main>
