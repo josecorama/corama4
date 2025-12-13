@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
@@ -59,9 +59,23 @@ const ContractAnalysis = () => {
   const [isGeneratingFindings, setIsGeneratingFindings] = useState(false)
   const [headerKey, setHeaderKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Animation state for first checkmark - triggers when AI findings load
+  const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(false)
+  const firstAnimationShown = useRef(false)
 
   // Track if step 1 is complete (findings generated)
   const step1Complete = !!aiFindings
+  
+  // Trigger first checkmark animation when AI findings are loaded
+  useEffect(() => {
+    if (aiFindings && !firstAnimationShown.current) {
+      firstAnimationShown.current = true
+      setShowFirstCheckAnimation(true)
+      const timer = setTimeout(() => setShowFirstCheckAnimation(false), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [aiFindings])
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -162,10 +176,18 @@ const ContractAnalysis = () => {
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (
-                      // Step 1 complete - show check with glow animation
+                      // Step 1 complete - show check with bounce/ping animation when findings load
                       <div className="relative">
-                        <div className="absolute inset-0 rounded-full bg-corama-teal/50 animate-pulse blur-md" />
-                        <img src={CheckIcon} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
+                        <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                          showFirstCheckAnimation ? 'animate-ping' : ''
+                        }`} />
+                        <img 
+                          src={CheckIcon} 
+                          alt="Step 1 Complete" 
+                          className={`w-14 h-14 relative z-10 ${
+                            showFirstCheckAnimation ? 'animate-bounce' : ''
+                          }`} 
+                        />
                       </div>
                     ) : (
                       // All other steps show empty check (no numbers)

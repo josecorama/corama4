@@ -54,14 +54,16 @@ const SectionCard = ({ number, title, progress, status }: SectionCardProps) => {
 
   return (
     <div 
-      className={`rounded-2xl border border-white p-3 flex items-center gap-3 transition-all duration-300 ${
-        status === 'generating' ? 'animate-pulse' : ''
-      }`} 
-      style={{ backgroundColor: '#333c4d' }}
+      className="rounded-2xl border border-white p-3 flex items-center gap-3 transition-all duration-300"
+      style={{ backgroundColor: '#192c46' }}
     >
-      {/* Progress Circle */}
+      {/* Progress Circle with spinning animation */}
       <div className="relative w-12 h-12 flex-shrink-0">
-        <svg className="w-12 h-12 transform -rotate-90">
+        <svg 
+          className={`w-12 h-12 ${status === 'generating' ? 'animate-spin' : ''}`}
+          style={{ transformOrigin: 'center' }}
+        >
+          {/* Background circle */}
           <circle
             cx="24"
             cy="24"
@@ -70,6 +72,7 @@ const SectionCard = ({ number, title, progress, status }: SectionCardProps) => {
             strokeWidth="4"
             fill="none"
           />
+          {/* Progress circle */}
           <circle
             cx="24"
             cy="24"
@@ -80,14 +83,12 @@ const SectionCard = ({ number, title, progress, status }: SectionCardProps) => {
             strokeDasharray={`${progress * 1.256} 125.6`}
             strokeLinecap="round"
             className="transition-all duration-500"
+            style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }}
           />
         </svg>
+        {/* Percentage counter in center */}
         <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-xs font-semibold">
-          {status === 'generating' ? (
-            <span className="animate-spin">...</span>
-          ) : (
-            `${progress.toFixed(0)}%`
-          )}
+          {`${Math.round(progress)}%`}
         </span>
       </div>
       
@@ -131,10 +132,16 @@ const PublicBidProposalGenerator = () => {
   const [sectionStatuses, setSectionStatuses] = useState<SectionStatus[]>(
     Array(8).fill('pending')
   )
+  const [sectionProgress, setSectionProgress] = useState<number[]>(
+    Array(8).fill(0)
+  )
   const [progressText, setProgressText] = useState('Initializing proposal generation...')
   
   // Ref to prevent double generation on mount
   const hasStartedGeneration = useRef(false)
+  
+  // Refs for progress animation intervals
+  const progressIntervalsRef = useRef<ReturnType<typeof setInterval>[]>([])
 
   // 8 proposal sections
   const sectionTitles = [
@@ -181,7 +188,33 @@ const PublicBidProposalGenerator = () => {
       setIsGenerating(true)
       setError(null)
       setSectionStatuses(Array(8).fill('generating'))
+      setSectionProgress(Array(8).fill(0))
       setProgressText('Initializing proposal draft...')
+      
+      // Clear any existing progress intervals
+      progressIntervalsRef.current.forEach(interval => clearInterval(interval))
+      progressIntervalsRef.current = []
+      
+      // Start progress animations for each section with different speeds
+      // Each section will animate from 0 to ~95% at different rates
+      const sectionDurations = [8000, 10000, 12000, 9000, 11000, 7000, 13000, 6000] // Different durations for each section
+      sectionDurations.forEach((duration, index) => {
+        const stepMs = 100
+        const steps = duration / stepMs
+        const incrementPerStep = 95 / steps // Go up to 95%, final 5% when complete
+        
+        const interval = setInterval(() => {
+          setSectionProgress(prev => {
+            const newProgress = [...prev]
+            if (newProgress[index] < 95) {
+              newProgress[index] = Math.min(95, newProgress[index] + incrementPerStep)
+            }
+            return newProgress
+          })
+        }, stepMs)
+        
+        progressIntervalsRef.current.push(interval)
+      })
 
       try {
         // Step 1: Initialize the draft
@@ -214,17 +247,43 @@ const PublicBidProposalGenerator = () => {
           throw new Error(generateResult.error || 'Failed to generate proposal')
         }
 
-        // Success! Update state
-        setFullProposal(generateResult.full_proposal || '')
-        setSectionStatuses(Array(8).fill('completed'))
-        setGenerationComplete(true)
-        setProgressText('All 8 sections generated successfully!')
-        setIsGenerating(false)
+        // Success! Clear progress intervals and complete all sections
+        progressIntervalsRef.current.forEach(interval => clearInterval(interval))
+        progressIntervalsRef.current = []
+        
+        // Animate each section to 100% with staggered completion
+        const completionDelays = [0, 200, 400, 100, 300, 500, 600, 700] // Staggered completion times
+        completionDelays.forEach((delay, index) => {
+          setTimeout(() => {
+            setSectionProgress(prev => {
+              const newProgress = [...prev]
+              newProgress[index] = 100
+              return newProgress
+            })
+            setSectionStatuses(prev => {
+              const newStatuses = [...prev]
+              newStatuses[index] = 'completed'
+              return newStatuses
+            })
+          }, delay)
+        })
+        
+        // Final state update after all animations complete
+        setTimeout(() => {
+          setFullProposal(generateResult.full_proposal || '')
+          setGenerationComplete(true)
+          setProgressText('All 8 sections generated successfully!')
+          setIsGenerating(false)
+        }, 800)
 
       } catch (err) {
         console.error('Error generating proposal:', err)
+        // Clear progress intervals on error
+        progressIntervalsRef.current.forEach(interval => clearInterval(interval))
+        progressIntervalsRef.current = []
         setError(err instanceof Error ? err.message : 'Failed to generate proposal')
         setSectionStatuses(Array(8).fill('error'))
+        setSectionProgress(Array(8).fill(0))
         setProgressText('Error generating proposal')
         setIsGenerating(false)
       }
@@ -244,7 +303,32 @@ const PublicBidProposalGenerator = () => {
     setError(null)
     setGenerationComplete(false)
     setSectionStatuses(Array(8).fill('generating'))
+    setSectionProgress(Array(8).fill(0))
     setProgressText('Regenerating 8 sections in parallel using AI...')
+    
+    // Clear any existing progress intervals
+    progressIntervalsRef.current.forEach(interval => clearInterval(interval))
+    progressIntervalsRef.current = []
+    
+    // Start progress animations for each section with different speeds
+    const sectionDurations = [8000, 10000, 12000, 9000, 11000, 7000, 13000, 6000]
+    sectionDurations.forEach((duration, index) => {
+      const stepMs = 100
+      const steps = duration / stepMs
+      const incrementPerStep = 95 / steps
+      
+      const interval = setInterval(() => {
+        setSectionProgress(prev => {
+          const newProgress = [...prev]
+          if (newProgress[index] < 95) {
+            newProgress[index] = Math.min(95, newProgress[index] + incrementPerStep)
+          }
+          return newProgress
+        })
+      }, stepMs)
+      
+      progressIntervalsRef.current.push(interval)
+    })
 
     try {
       const generateResult = await api.generateProposalSections(draftId)
@@ -253,16 +337,41 @@ const PublicBidProposalGenerator = () => {
         throw new Error(generateResult.error || 'Failed to regenerate proposal')
       }
 
-      setFullProposal(generateResult.full_proposal || '')
-      setSectionStatuses(Array(8).fill('completed'))
-      setGenerationComplete(true)
-      setProgressText('All 8 sections regenerated successfully!')
-      setIsGenerating(false)
+      // Clear progress intervals and complete all sections
+      progressIntervalsRef.current.forEach(interval => clearInterval(interval))
+      progressIntervalsRef.current = []
+      
+      // Animate each section to 100% with staggered completion
+      const completionDelays = [0, 200, 400, 100, 300, 500, 600, 700]
+      completionDelays.forEach((delay, index) => {
+        setTimeout(() => {
+          setSectionProgress(prev => {
+            const newProgress = [...prev]
+            newProgress[index] = 100
+            return newProgress
+          })
+          setSectionStatuses(prev => {
+            const newStatuses = [...prev]
+            newStatuses[index] = 'completed'
+            return newStatuses
+          })
+        }, delay)
+      })
+      
+      setTimeout(() => {
+        setFullProposal(generateResult.full_proposal || '')
+        setGenerationComplete(true)
+        setProgressText('All 8 sections regenerated successfully!')
+        setIsGenerating(false)
+      }, 800)
 
     } catch (err) {
       console.error('Error regenerating proposal:', err)
+      progressIntervalsRef.current.forEach(interval => clearInterval(interval))
+      progressIntervalsRef.current = []
       setError(err instanceof Error ? err.message : 'Failed to regenerate proposal')
       setSectionStatuses(Array(8).fill('error'))
+      setSectionProgress(Array(8).fill(0))
       setProgressText('Error regenerating proposal')
       setIsGenerating(false)
     }
@@ -323,7 +432,7 @@ const PublicBidProposalGenerator = () => {
                   key={index}
                   number={index + 1}
                   title={title}
-                  progress={sectionStatuses[index] === 'completed' ? 100 : sectionStatuses[index] === 'generating' ? 50 : 0}
+                  progress={sectionProgress[index]}
                   status={sectionStatuses[index]}
                 />
               ))}
@@ -409,7 +518,7 @@ const PublicBidProposalGenerator = () => {
                 onClick={handleRegenerate}
                 disabled={isGenerating}
                 className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: '#99C8CA' }}
+                style={{ backgroundColor: '#2d4160' }}
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Regenerate Proposal</span>
@@ -421,11 +530,12 @@ const PublicBidProposalGenerator = () => {
               <button
                 onClick={handleDownload}
                 disabled={!generationComplete || isGenerating}
-                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-3 px-6 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#2d4160' }}
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Download DRAFT</span>
-                  <span className="text-xs text-gray-500">Download your draft on DOCX</span>
+                  <span className="text-xs opacity-80">Download your draft on DOCX</span>
                 </div>
                 <img src={DocxIcon} alt="DOCX" className="w-8 h-8" />
               </button>
@@ -435,11 +545,12 @@ const PublicBidProposalGenerator = () => {
             <div className="flex justify-center flex-shrink-0" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
               <button
                 onClick={handleDashboard}
-                className="flex items-center justify-center gap-3 px-8 py-3 rounded-2xl font-poppins font-semibold text-gray-800 bg-white border border-gray-300 hover:bg-gray-50 transition-colors"
+                className="flex items-center justify-center gap-3 px-8 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
+                style={{ backgroundColor: '#2d4160' }}
               >
                 <div className="flex flex-col items-start">
                   <span className="text-base">Dashboard</span>
-                  <span className="text-xs text-gray-500">Return to the dashboard</span>
+                  <span className="text-xs opacity-80">Return to the dashboard</span>
                 </div>
                 <img src={DashboardIcon} alt="Dashboard" className="w-6 h-6" />
               </button>

@@ -209,7 +209,7 @@ const AIAssistant = () => {
       setMessages(prev => [...prev, newMessage, aiResponse])
       setInputValue('')
       
-      // Navigate to Contract Analysis page after a brief delay
+      // Navigate to Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
       // Note: Don't include /app prefix since Router basename already adds it
       setTimeout(() => {
         navigate('/contract-analysis', { 
@@ -220,7 +220,7 @@ const AIAssistant = () => {
             contractCategory: state?.contractCategory 
           } 
         })
-      }, 1500)
+      }, 10000)
       return
     }
     

@@ -48,13 +48,11 @@ const ProposalSummary = () => {
   const step1Complete = true
   const step2Complete = true
   
-  // Animation states for check icons
-  const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(false)
+  // Animation states for check icons (first checkmark animation is now in ContractAnalysis)
   const [showThirdCheckAnimation, setShowThirdCheckAnimation] = useState(false)
   const [step3Complete, setStep3Complete] = useState(false)
   
   // Track if animations have been shown (to prevent re-triggering)
-  const firstAnimationShown = useRef(false)
   const thirdAnimationShown = useRef(false)
   
   // Contract ID with sessionStorage fallback
@@ -185,16 +183,6 @@ const ProposalSummary = () => {
       loadSummaryAndStrategy()
     }
   }, [contractId, aiFindings])
-  
-  // Trigger first checkmark animation when AI strategy is loaded (isLoadingStrategy becomes false)
-  useEffect(() => {
-    if (!isLoadingStrategy && aiStrategy && !firstAnimationShown.current) {
-      firstAnimationShown.current = true
-      setShowFirstCheckAnimation(true)
-      const timer = setTimeout(() => setShowFirstCheckAnimation(false), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [isLoadingStrategy, aiStrategy])
   
   // Trigger third checkmark animation when both profit margin and risk reserve are filled
   useEffect(() => {
@@ -364,11 +352,11 @@ const ProposalSummary = () => {
             <div className="text-center mb-2 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
-                {/* Progress Circles - First two checked with animation, third when profit/risk filled */}
+                {/* Progress Circles - First two always checked, third when profit/risk filled */}
                 <div className="flex justify-center gap-4">
                   {[1, 2, 3].map((step) => {
                     const isComplete = (step === 1 && step1Complete) || (step === 2 && step2Complete) || (step === 3 && step3Complete)
-                    const showAnimation = (step === 1 && showFirstCheckAnimation) || (step === 3 && showThirdCheckAnimation)
+                    const showAnimation = step === 3 && showThirdCheckAnimation
                     
                     return (
                       <div key={step} className="relative">
