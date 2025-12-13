@@ -42,15 +42,22 @@ interface MaterialItem {
 const ProposalSummary = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const state = location.state as ProposalSummaryState | null
+  const locationState = location.state as ProposalSummaryState | null
   
   // Progress - steps 1 and 2 are complete
   const step1Complete = true
   const step2Complete = true
   
+  // Contract ID with sessionStorage fallback
+  const [contractId, setContractId] = useState<string | null>(null)
+  const [contractName, setContractName] = useState<string>('')
+  const [aiFindings, setAiFindings] = useState<string>('')
+  const [aiSuggestions, setAiSuggestions] = useState<string>('')
+  const [teamMembers, setTeamMembers] = useState<Array<{name: string; role: string; email?: string; phone?: string}>>([])
+  
   // AI Strategy state
   const [aiStrategy, setAiStrategy] = useState<string>('')
-  const [isLoadingStrategy, setIsLoadingStrategy] = useState(false)
+  const [isLoadingStrategy, setIsLoadingStrategy] = useState(true)
   
   // Labor Costs state
   const [laborCosts, setLaborCosts] = useState<LaborCostItem[]>([])
@@ -85,60 +92,90 @@ const ProposalSummary = () => {
   const riskReserve = subtotal * (parseFloat(riskReservePct) || 0) / 100
   const totalBidAmount = subtotal + profitMargin + riskReserve
   
+  // Initialize contract data from state or sessionStorage
+  useEffect(() => {
+    const fromState = locationState?.contractId || null
+    const fromStorage = sessionStorage.getItem('currentContractId')
+    const effectiveId = fromState || fromStorage || null
+    
+    if (effectiveId) {
+      setContractId(effectiveId)
+      sessionStorage.setItem('currentContractId', effectiveId)
+    }
+    
+    // Set other state values
+    setContractName(locationState?.contractName || sessionStorage.getItem('currentContractName') || '')
+    setAiFindings(locationState?.aiFindings || sessionStorage.getItem('currentAiFindings') || '')
+    setAiSuggestions(locationState?.aiSuggestions || sessionStorage.getItem('currentAiSuggestions') || '')
+    setTeamMembers(locationState?.teamMembers || JSON.parse(sessionStorage.getItem('currentTeamMembers') || '[]'))
+    
+    // Store in sessionStorage for persistence
+    if (locationState?.contractName) sessionStorage.setItem('currentContractName', locationState.contractName)
+    if (locationState?.aiFindings) sessionStorage.setItem('currentAiFindings', locationState.aiFindings)
+    if (locationState?.aiSuggestions) sessionStorage.setItem('currentAiSuggestions', locationState.aiSuggestions)
+    if (locationState?.teamMembers) sessionStorage.setItem('currentTeamMembers', JSON.stringify(locationState.teamMembers))
+  }, [locationState])
+  
   // Load existing summary and generate strategy on mount
   useEffect(() => {
     const loadSummaryAndStrategy = async () => {
-      if (!state?.contractId) return
+      setIsLoadingStrategy(true)
       
-      // Try to load existing summary
-      try {
-        const summaryResponse = await api.getProposalSummary(state.contractId)
-        if (summaryResponse.success && summaryResponse.summary) {
-          const summary = summaryResponse.summary
-          if (summary.ai_strategy) {
-            setAiStrategy(summary.ai_strategy)
+      // Try to load existing summary if we have a contractId
+      if (contractId) {
+        try {
+          const summaryResponse = await api.getProposalSummary(contractId)
+          if (summaryResponse.success && summaryResponse.summary) {
+            const summary = summaryResponse.summary
+            if (summary.ai_strategy) {
+              setAiStrategy(summary.ai_strategy)
+              setIsLoadingStrategy(false)
+            }
+            if (summary.labor_costs && summary.labor_costs.length > 0) {
+              setLaborCosts(summary.labor_costs)
+            }
+            if (summary.materials && summary.materials.length > 0) {
+              setMaterials(summary.materials)
+            }
+            if (summary.margin_risk) {
+              setProfitMarginPct(String(summary.margin_risk.profit_margin_pct || ''))
+              setRiskReservePct(String(summary.margin_risk.risk_reserve_pct || ''))
+            }
+            // If we have a saved strategy, don't regenerate
+            if (summary.ai_strategy) return
           }
-          if (summary.labor_costs && summary.labor_costs.length > 0) {
-            setLaborCosts(summary.labor_costs)
-          }
-          if (summary.materials && summary.materials.length > 0) {
-            setMaterials(summary.materials)
-          }
-          if (summary.margin_risk) {
-            setProfitMarginPct(String(summary.margin_risk.profit_margin_pct || ''))
-            setRiskReservePct(String(summary.margin_risk.risk_reserve_pct || ''))
-          }
-          // If we have a saved strategy, don't regenerate
-          if (summary.ai_strategy) return
+        } catch (error) {
+          console.error('Error loading summary:', error)
         }
-      } catch (error) {
-        console.error('Error loading summary:', error)
       }
       
-      // Generate strategy if not found
-      if (state?.aiFindings && !aiStrategy) {
-        setIsLoadingStrategy(true)
+      // Generate strategy using OpenAI if we have findings
+      const findings = aiFindings || locationState?.aiFindings || ''
+      if (findings) {
         try {
           const response = await api.generateProposalStrategy({
-            contract_id: state.contractId || '',
-            contract_name: state.contractName || 'Contract',
-            ai_findings: state.aiFindings,
-            ai_suggestions: state.aiSuggestions || '',
-            team_members: state.teamMembers || []
+            contract_id: contractId || '',
+            contract_name: contractName || locationState?.contractName || 'Contract',
+            ai_findings: findings,
+            ai_suggestions: aiSuggestions || locationState?.aiSuggestions || '',
+            team_members: teamMembers.length > 0 ? teamMembers : (locationState?.teamMembers || [])
           })
           if (response.success && response.strategy) {
             setAiStrategy(response.strategy)
           }
         } catch (error) {
           console.error('Error generating strategy:', error)
-        } finally {
-          setIsLoadingStrategy(false)
         }
       }
+      
+      setIsLoadingStrategy(false)
     }
     
-    loadSummaryAndStrategy()
-  }, [state?.contractId, state?.aiFindings])
+    // Only run when contractId is set or we have findings
+    if (contractId || aiFindings || locationState?.aiFindings) {
+      loadSummaryAndStrategy()
+    }
+  }, [contractId, aiFindings])
   
   // Labor cost handlers
   const handleAddLaborRole = () => {
@@ -228,8 +265,8 @@ const ProposalSummary = () => {
   
   // Save summary handler
   const handleSaveSummary = async () => {
-    if (!state?.contractId) {
-      setSaveMessage('No contract ID available')
+    if (!contractId) {
+      setSaveMessage('No contract ID available. Please go back and select a contract.')
       return
     }
     
@@ -238,12 +275,12 @@ const ProposalSummary = () => {
     
     try {
       const response = await api.saveProposalSummary({
-        contract_id: state.contractId,
-        contract_name: state.contractName || '',
-        ai_findings: state.aiFindings || '',
-        ai_suggestions: state.aiSuggestions || '',
+        contract_id: contractId,
+        contract_name: contractName,
+        ai_findings: aiFindings,
+        ai_suggestions: aiSuggestions,
         ai_strategy: aiStrategy,
-        team_members: state.teamMembers || [],
+        team_members: teamMembers,
         labor_costs: laborCosts,
         materials: materials,
         margin_risk: {
@@ -267,7 +304,7 @@ const ProposalSummary = () => {
   }
   
   const handleGoBack = () => {
-    navigate('/proposal-team', { state })
+    navigate('/proposal-team', { state: locationState })
   }
   
   // Format currency
@@ -289,10 +326,10 @@ const ProposalSummary = () => {
         <Sidebar onGoBack={handleGoBack} />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-4 lg:p-5 overflow-y-auto flex flex-col">
+          <main className="flex-1 p-3 sm:p-3 lg:p-4 overflow-hidden flex flex-col">
             {/* Page Title */}
-            <div className="text-center mb-4 flex-shrink-0">
-              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Proposal Summary</h1>
+            <div className="text-center mb-2 flex-shrink-0">
+              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
               {/* Progress Circles - First two checked, third empty */}
               <div className="flex justify-center gap-4">
@@ -301,59 +338,59 @@ const ProposalSummary = () => {
                     {(step === 1 && step1Complete) || (step === 2 && step2Complete) ? (
                       <div className="relative">
                         <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
-                        <img src={CheckIcon} alt={`Step ${step} Complete`} className="w-14 h-14 relative z-10" />
+                        <img src={CheckIcon} alt={`Step ${step} Complete`} className="w-12 h-12 relative z-10" />
                       </div>
                     ) : (
-                      <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
+                      <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-12 h-12" />
                     )}
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* AI Recommended Strategy - White Card */}
-            <div className="bg-white rounded-2xl p-4 mb-4 flex-shrink-0">
+            {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
+            <div className="bg-white rounded-2xl border border-white p-4 mb-3 flex-shrink-0">
               <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
-              <div className="text-gray-600 font-poppins text-sm">
+              <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
                 {isLoadingStrategy ? (
                   <p className="text-gray-500 italic">Generating AI strategy...</p>
                 ) : aiStrategy ? (
                   <p>{aiStrategy}</p>
                 ) : (
-                  <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nam turpis dolor, mollis vel lacinia in, suscipit suscipit odio. In tristique metus velit, vitae fermentum enim maximus et. Donec in sollicitudin justo, vitae euismod dolor. Curabitur at nisl sit amet nibh dignissim viverra quis non tellus.</p>
+                  <p className="text-gray-500 italic">Generating AI strategy...</p>
                 )}
               </div>
             </div>
 
             {/* Labor Costs Section */}
-            <div className="rounded-2xl border border-white p-4 mb-4 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-poppins font-semibold text-lg">Labor Costs</h3>
-                {laborCosts.length > 0 && (
-                  <div className="flex items-center gap-2">
+            <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-white font-poppins font-semibold text-base">Labor Costs</h3>
+                <div className="flex items-center gap-2">
+                  {laborCosts.length > 0 && (
                     <span className="text-white font-poppins text-sm">{currentLaborIndex + 1} of {laborCosts.length}</span>
-                    <div className="flex gap-1">
-                      <button 
-                        onClick={handlePrevLabor}
-                        disabled={currentLaborIndex === 0}
-                        className="p-1 hover:opacity-80 disabled:opacity-30"
-                      >
-                        <img src={LeftArrowIcon} alt="Previous" className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={handleNextLabor}
-                        disabled={currentLaborIndex >= laborCosts.length - 1}
-                        className="p-1 hover:opacity-80 disabled:opacity-30"
-                      >
-                        <img src={RightArrowIcon} alt="Next" className="w-5 h-5" />
-                      </button>
-                    </div>
+                  )}
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={handlePrevLabor}
+                      disabled={currentLaborIndex === 0 || laborCosts.length === 0}
+                      className="p-1 hover:opacity-80 disabled:opacity-30"
+                    >
+                      <img src={LeftArrowIcon} alt="Previous" className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={handleNextLabor}
+                      disabled={currentLaborIndex >= laborCosts.length - 1 || laborCosts.length === 0}
+                      className="p-1 hover:opacity-80 disabled:opacity-30"
+                    >
+                      <img src={RightArrowIcon} alt="Next" className="w-5 h-5" />
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
               
               {/* Column Headers */}
-              <div className="grid grid-cols-4 gap-3 mb-2">
+              <div className="grid grid-cols-4 gap-2 mb-1">
                 <span className="text-corama-teal font-poppins text-sm">Role</span>
                 <span className="text-corama-teal font-poppins text-sm">Hours</span>
                 <span className="text-corama-teal font-poppins text-sm">Rate ($/hr)</span>
@@ -361,31 +398,31 @@ const ProposalSummary = () => {
               </div>
               
               {/* Input Row or Display Row */}
-              <div className="flex items-center gap-3">
-                <div className="grid grid-cols-4 gap-3 flex-1">
+              <div className="flex items-center gap-2">
+                <div className="grid grid-cols-4 gap-2 flex-1">
                   {currentLabor ? (
                     <>
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={currentLabor.role}
                         readOnly
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={currentLabor.hours}
                         readOnly
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={currentLabor.rate}
                         readOnly
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={formatCurrency(currentLabor.cost)}
                         readOnly
                       />
@@ -394,28 +431,28 @@ const ProposalSummary = () => {
                     <>
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         placeholder="Project Manager"
                         value={laborRole}
                         onChange={e => setLaborRole(e.target.value)}
                       />
                       <input
                         type="number"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         placeholder="40"
                         value={laborHours}
                         onChange={e => setLaborHours(e.target.value)}
                       />
                       <input
                         type="number"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         placeholder="75"
                         value={laborRate}
                         onChange={e => setLaborRate(e.target.value)}
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm"
                         value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))}
                         readOnly
                       />
@@ -425,52 +462,52 @@ const ProposalSummary = () => {
                 
                 <button
                   onClick={handleAddLaborRole}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
                   style={{ backgroundColor: '#99C8CA' }}
                 >
                   Add Role
-                  <img src={AddIcon} alt="" className="w-5 h-5" />
+                  <img src={AddIcon} alt="" className="w-4 h-4" />
                 </button>
                 
                 <button
                   onClick={handleDeleteLaborRole}
                   disabled={laborCosts.length === 0}
-                  className="p-2 hover:opacity-80 disabled:opacity-30"
+                  className="p-1 hover:opacity-80 disabled:opacity-30"
                 >
-                  <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                  <img src={RemoveIcon} alt="Delete" className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             {/* Materials & Equipment Section */}
-            <div className="rounded-2xl border border-white p-4 mb-4 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-poppins font-semibold text-lg">Materials & Equipment</h3>
-                {materials.length > 0 && (
-                  <div className="flex items-center gap-2">
+            <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-white font-poppins font-semibold text-base">Materials & Equipment</h3>
+                <div className="flex items-center gap-2">
+                  {materials.length > 0 && (
                     <span className="text-white font-poppins text-sm">{currentMaterialIndex + 1} of {materials.length}</span>
-                    <div className="flex gap-1">
-                      <button 
-                        onClick={handlePrevMaterial}
-                        disabled={currentMaterialIndex === 0}
-                        className="p-1 hover:opacity-80 disabled:opacity-30"
-                      >
-                        <img src={LeftArrowIcon} alt="Previous" className="w-5 h-5" />
-                      </button>
-                      <button 
-                        onClick={handleNextMaterial}
-                        disabled={currentMaterialIndex >= materials.length - 1}
-                        className="p-1 hover:opacity-80 disabled:opacity-30"
-                      >
-                        <img src={RightArrowIcon} alt="Next" className="w-5 h-5" />
-                      </button>
-                    </div>
+                  )}
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={handlePrevMaterial}
+                      disabled={currentMaterialIndex === 0 || materials.length === 0}
+                      className="p-1 hover:opacity-80 disabled:opacity-30"
+                    >
+                      <img src={LeftArrowIcon} alt="Previous" className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={handleNextMaterial}
+                      disabled={currentMaterialIndex >= materials.length - 1 || materials.length === 0}
+                      className="p-1 hover:opacity-80 disabled:opacity-30"
+                    >
+                      <img src={RightArrowIcon} alt="Next" className="w-5 h-5" />
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
               
               {/* Column Headers */}
-              <div className="grid grid-cols-4 gap-3 mb-2">
+              <div className="grid grid-cols-4 gap-2 mb-1">
                 <span className="text-corama-teal font-poppins text-sm">Item</span>
                 <span className="text-corama-teal font-poppins text-sm">Quantity</span>
                 <span className="text-corama-teal font-poppins text-sm">Unit Cost</span>
@@ -478,31 +515,31 @@ const ProposalSummary = () => {
               </div>
               
               {/* Input Row or Display Row */}
-              <div className="flex items-center gap-3">
-                <div className="grid grid-cols-4 gap-3 flex-1">
+              <div className="flex items-center gap-2">
+                <div className="grid grid-cols-4 gap-2 flex-1">
                   {currentMaterial ? (
                     <>
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={currentMaterial.item}
                         readOnly
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={currentMaterial.quantity}
                         readOnly
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={currentMaterial.unit_cost}
                         readOnly
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         value={formatCurrency(currentMaterial.cost)}
                         readOnly
                       />
@@ -511,28 +548,28 @@ const ProposalSummary = () => {
                     <>
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         placeholder="Laptop"
                         value={materialItem}
                         onChange={e => setMaterialItem(e.target.value)}
                       />
                       <input
                         type="number"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         placeholder="5"
                         value={materialQuantity}
                         onChange={e => setMaterialQuantity(e.target.value)}
                       />
                       <input
                         type="number"
-                        className="rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                         placeholder="1200"
                         value={materialUnitCost}
                         onChange={e => setMaterialUnitCost(e.target.value)}
                       />
                       <input
                         type="text"
-                        className="rounded-lg px-3 py-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm"
+                        className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm"
                         value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))}
                         readOnly
                       />
@@ -542,34 +579,34 @@ const ProposalSummary = () => {
                 
                 <button
                   onClick={handleAddMaterial}
-                  className="flex items-center gap-2 px-4 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
                   style={{ backgroundColor: '#99C8CA' }}
                 >
                   Add Item
-                  <img src={AddIcon} alt="" className="w-5 h-5" />
+                  <img src={AddIcon} alt="" className="w-4 h-4" />
                 </button>
                 
                 <button
                   onClick={handleDeleteMaterial}
                   disabled={materials.length === 0}
-                  className="p-2 hover:opacity-80 disabled:opacity-30"
+                  className="p-1 hover:opacity-80 disabled:opacity-30"
                 >
-                  <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                  <img src={RemoveIcon} alt="Delete" className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
             {/* Bottom Row: Margin & Risk + Proposal Summary */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 flex-shrink-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 flex-shrink-0">
               {/* Margin & Risk Adjustments */}
-              <div className="rounded-2xl border border-white p-4" style={{ backgroundColor: '#333c4d' }}>
-                <h3 className="text-corama-teal font-poppins font-semibold text-lg mb-3">Margin & Risk Adjustments</h3>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#333c4d' }}>
+                <h3 className="text-corama-teal font-poppins font-semibold text-base mb-2">Margin & Risk Adjustments</h3>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-corama-teal font-poppins text-sm mb-1 block">Profit Margin (%)</label>
                     <input
                       type="number"
-                      className="w-full rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                      className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                       placeholder="15"
                       value={profitMarginPct}
                       onChange={e => setProfitMarginPct(e.target.value)}
@@ -579,7 +616,7 @@ const ProposalSummary = () => {
                     <label className="text-corama-teal font-poppins text-sm mb-1 block">Risk Reserve (%)</label>
                     <input
                       type="number"
-                      className="w-full rounded-lg px-3 py-2 bg-white text-gray-800 outline-none font-poppins text-sm"
+                      className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
                       placeholder="5"
                       value={riskReservePct}
                       onChange={e => setRiskReservePct(e.target.value)}
@@ -588,34 +625,47 @@ const ProposalSummary = () => {
                 </div>
               </div>
 
-              {/* Proposal Summary */}
-              <div className="rounded-2xl border border-white p-4" style={{ backgroundColor: '#333c4d' }}>
-                <h3 className="text-white font-poppins font-semibold text-lg mb-3 text-center">Proposal Summary</h3>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                  <span className="text-white font-poppins">Labor Costs:</span>
-                  <span className="text-white font-poppins text-right">{formatCurrency(laborTotal)}</span>
-                  
-                  <span className="text-white font-poppins">Materials & Equipment:</span>
-                  <span className="text-white font-poppins text-right">{formatCurrency(materialsTotal)}</span>
-                  
-                  <span className="text-white font-poppins">Subtotal:</span>
-                  <span className="text-white font-poppins text-right">{formatCurrency(subtotal)}</span>
-                  
-                  <span className="text-white font-poppins">Profit Margin:</span>
-                  <span className="text-white font-poppins text-right">{formatCurrency(profitMargin)}</span>
-                  
-                  <span className="text-white font-poppins">Risk Reserve:</span>
-                  <span className="text-white font-poppins text-right">{formatCurrency(riskReserve)}</span>
-                  
-                  <span className="text-white font-poppins font-semibold">Total Bid Amount:</span>
-                  <span className="text-white font-poppins font-semibold text-right">{formatCurrency(totalBidAmount)}</span>
+              {/* Proposal Summary - Two column layout */}
+              <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#333c4d' }}>
+                <h3 className="text-white font-poppins font-semibold text-base mb-2 text-center">Proposal Summary</h3>
+                <div className="grid grid-cols-2 gap-x-4 text-sm">
+                  {/* Left Column */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between">
+                      <span className="text-white font-poppins">Labor Costs:</span>
+                      <span className="text-white font-poppins">{formatCurrency(laborTotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white font-poppins">Materials & Equipment:</span>
+                      <span className="text-white font-poppins">{formatCurrency(materialsTotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white font-poppins">Subtotal:</span>
+                      <span className="text-white font-poppins">{formatCurrency(subtotal)}</span>
+                    </div>
+                  </div>
+                  {/* Right Column */}
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between">
+                      <span className="text-white font-poppins">Profit Margin:</span>
+                      <span className="text-white font-poppins">{formatCurrency(profitMargin)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white font-poppins">Risk Reserve:</span>
+                      <span className="text-white font-poppins">{formatCurrency(riskReserve)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white font-poppins font-semibold">Total Bid Amount:</span>
+                      <span className="text-white font-poppins font-semibold">{formatCurrency(totalBidAmount)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Save Message */}
             {saveMessage && (
-              <div className={`text-center mb-4 font-poppins text-sm ${saveMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
+              <div className={`text-center mb-2 font-poppins text-sm ${saveMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
                 {saveMessage}
               </div>
             )}
@@ -625,20 +675,20 @@ const ProposalSummary = () => {
               <button
                 onClick={handleSaveSummary}
                 disabled={isSaving}
-                className="flex items-center justify-center gap-3 px-8 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                 style={{ backgroundColor: '#99C8CA' }}
               >
                 <span>{isSaving ? 'Saving...' : 'Save Summary'}</span>
-                <img src={ContinueIcon} alt="" className="w-6 h-6" />
+                <img src={ContinueIcon} alt="" className="w-5 h-5" />
               </button>
 
               <button
                 disabled
-                className="flex items-center justify-center gap-3 px-8 py-3 rounded-full font-poppins font-semibold text-white opacity-50 cursor-not-allowed"
+                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white opacity-50 cursor-not-allowed"
                 style={{ backgroundColor: '#99C8CA' }}
               >
                 <span>Generate Final Proposal</span>
-                <span className="w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-sm font-bold">$</span>
+                <span className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">$</span>
               </button>
             </div>
           </main>
