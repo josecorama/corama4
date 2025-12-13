@@ -338,9 +338,9 @@ const PublicBidProposalGenerator = () => {
             </div>
 
             {/* Preview Area with Toolbar */}
-            <div className="flex-1 min-h-[300px] mb-4 flex flex-col rounded-2xl overflow-hidden border-2" style={{ borderColor: '#233f65', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+            <div className="flex-1 min-h-[300px] mb-4 flex flex-col rounded-2xl overflow-hidden border-2" style={{ borderColor: '#333c4d', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
               {/* Toolbar */}
-              <div className="p-3 flex justify-center gap-16 flex-shrink-0" style={{ backgroundColor: '#233f65' }}>
+              <div className="p-3 flex justify-center gap-16 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
                 <button 
                   onClick={handleDownload}
                   disabled={!generationComplete || isGenerating}
