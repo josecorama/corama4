@@ -90,8 +90,8 @@ class QdrantManager:
 
 def main():
     # Qdrant配置
-    QDRANT_URL = os.getenv('QDRANT_URL')
-    QDRANT_API_KEY = os.getenv('QDRANT_API_KEY')
+    QDRANT_URL = os.getenv('Qdrant_EP')
+    QDRANT_API_KEY = os.getenv('Qdrant_AK')
     
     CSV_PATH = "embedded_smartsearch.csv"    # 您的CSV文件路径
     

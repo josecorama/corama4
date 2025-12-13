@@ -1,0 +1,38 @@
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import LandingPage from './pages/LandingPage'
+import Dashboard from './pages/Dashboard'
+import CapabilityBuilder from './pages/CapabilityBuilder'
+import TopFiveContracts from './pages/TopFiveContracts'
+import AIAssistant from './pages/AIAssistant'
+import GetMoreCredits from './pages/GetMoreCredits'
+import CoramaDirectory from './pages/CoramaDirectory'
+import EditDirectoryProfile from './pages/EditDirectoryProfile'
+import NoCapabilityStatement from './pages/NoCapabilityStatement'
+import ContractAnalysis from './pages/ContractAnalysis'
+import ProposalTeam from './pages/ProposalTeam'
+import ProposalSummary from './pages/ProposalSummary'
+import PublicBidProposalGenerator from './pages/PublicBidProposalGenerator'
+
+function App() {
+  return (
+    <Router basename="/app">
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/capability-builder" element={<CapabilityBuilder />} />
+        <Route path="/top-five-contracts" element={<TopFiveContracts />} />
+        <Route path="/ai-assistant" element={<AIAssistant />} />
+        <Route path="/get-more-credits" element={<GetMoreCredits />} />
+        <Route path="/corama-directory" element={<CoramaDirectory />} />
+        <Route path="/edit-directory-profile" element={<EditDirectoryProfile />} />
+        <Route path="/no-capability-statement" element={<NoCapabilityStatement />} />
+        <Route path="/contract-analysis" element={<ContractAnalysis />} />
+        <Route path="/proposal-team" element={<ProposalTeam />} />
+        <Route path="/proposal-summary" element={<ProposalSummary />} />
+        <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
+      </Routes>
+    </Router>
+  )
+}
+
+export default App

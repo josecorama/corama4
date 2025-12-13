@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #0b2c48;
+  color: white;
+}
+
+#root {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.gradient-bg {
+  background: linear-gradient(135deg, #0b2c48 0%, #0a3f68 50%, #144e80 100%);
+}
+
+.teal-gradient {
+  background: linear-gradient(135deg, #6bb4b5 0%, #98c9ca 100%);
+}
+
+.card-gradient {
+  background: linear-gradient(180deg, rgba(107, 180, 181, 0.1) 0%, rgba(107, 180, 181, 0.05) 100%);
+  border: 1px solid rgba(107, 180, 181, 0.3);
+}
+
+.glow-effect {
+  box-shadow: 0 0 20px rgba(107, 180, 181, 0.3);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
