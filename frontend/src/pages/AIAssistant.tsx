@@ -196,14 +196,14 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
       
-      // Add user message and AI response
+      // Add user message and AI response with typing animation
       const aiResponse: Message = {
         id: Date.now(),
         sender: 'ai',
         content: "Great! I'll open the guided Contract Analysis step for you now. This will help you analyze the contract with AI annotations, build your team, develop pricing strategy, and generate a comprehensive proposal.",
         timestamp: formatTime(),
-        isTyping: false,
-        visibleContent: "Great! I'll open the guided Contract Analysis step for you now. This will help you analyze the contract with AI annotations, build your team, develop pricing strategy, and generate a comprehensive proposal.",
+        isTyping: true,
+        visibleContent: '',
       }
       
       setMessages(prev => [...prev, newMessage, aiResponse])

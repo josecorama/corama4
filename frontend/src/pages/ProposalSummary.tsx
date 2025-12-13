@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -44,18 +44,18 @@ const ProposalSummary = () => {
   const navigate = useNavigate()
   const locationState = location.state as ProposalSummaryState | null
   
-  // Progress - steps 1 and 2 are complete
+  // Progress - steps 1 and 2 are complete, step 3 when profit margin and risk reserve are filled
   const step1Complete = true
   const step2Complete = true
   
-  // Animation state for first check icon - triggers on mount
-  const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(true)
+  // Animation states for check icons
+  const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(false)
+  const [showThirdCheckAnimation, setShowThirdCheckAnimation] = useState(false)
+  const [step3Complete, setStep3Complete] = useState(false)
   
-  // Trigger animation on mount and remove after 1 second
-  useEffect(() => {
-    const timer = setTimeout(() => setShowFirstCheckAnimation(false), 1000)
-    return () => clearTimeout(timer)
-  }, [])
+  // Track if animations have been shown (to prevent re-triggering)
+  const firstAnimationShown = useRef(false)
+  const thirdAnimationShown = useRef(false)
   
   // Contract ID with sessionStorage fallback
   const [contractId, setContractId] = useState<string | null>(null)
@@ -185,6 +185,30 @@ const ProposalSummary = () => {
       loadSummaryAndStrategy()
     }
   }, [contractId, aiFindings])
+  
+  // Trigger first checkmark animation when AI strategy is loaded (isLoadingStrategy becomes false)
+  useEffect(() => {
+    if (!isLoadingStrategy && aiStrategy && !firstAnimationShown.current) {
+      firstAnimationShown.current = true
+      setShowFirstCheckAnimation(true)
+      const timer = setTimeout(() => setShowFirstCheckAnimation(false), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoadingStrategy, aiStrategy])
+  
+  // Trigger third checkmark animation when both profit margin and risk reserve are filled
+  useEffect(() => {
+    const profitFilled = profitMarginPct !== '' && parseFloat(profitMarginPct) > 0
+    const riskFilled = riskReservePct !== '' && parseFloat(riskReservePct) > 0
+    
+    if (profitFilled && riskFilled && !thirdAnimationShown.current) {
+      thirdAnimationShown.current = true
+      setStep3Complete(true)
+      setShowThirdCheckAnimation(true)
+      const timer = setTimeout(() => setShowThirdCheckAnimation(false), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [profitMarginPct, riskReservePct])
   
   // Labor cost handlers
   const handleAddLaborRole = () => {
@@ -340,28 +364,33 @@ const ProposalSummary = () => {
             <div className="text-center mb-2 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
-                {/* Progress Circles - First two checked with animation, third empty */}
+                {/* Progress Circles - First two checked with animation, third when profit/risk filled */}
                 <div className="flex justify-center gap-4">
-                  {[1, 2, 3].map((step) => (
-                    <div key={step} className="relative">
-                      {(step === 1 && step1Complete) || (step === 2 && step2Complete) ? (
-                        <div className="relative">
-                          <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
-                            step === 1 && showFirstCheckAnimation ? 'animate-ping' : ''
-                          }`} />
-                          <img 
-                            src={CheckIcon} 
-                            alt={`Step ${step} Complete`} 
-                            className={`w-12 h-12 relative z-10 ${
-                              step === 1 && showFirstCheckAnimation ? 'animate-bounce' : ''
-                            }`} 
-                          />
-                        </div>
-                      ) : (
-                        <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-12 h-12" />
-                      )}
-                    </div>
-                  ))}
+                  {[1, 2, 3].map((step) => {
+                    const isComplete = (step === 1 && step1Complete) || (step === 2 && step2Complete) || (step === 3 && step3Complete)
+                    const showAnimation = (step === 1 && showFirstCheckAnimation) || (step === 3 && showThirdCheckAnimation)
+                    
+                    return (
+                      <div key={step} className="relative">
+                        {isComplete ? (
+                          <div className="relative">
+                            <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                              showAnimation ? 'animate-ping' : ''
+                            }`} />
+                            <img 
+                              src={CheckIcon} 
+                              alt={`Step ${step} Complete`} 
+                              className={`w-12 h-12 relative z-10 ${
+                                showAnimation ? 'animate-bounce' : ''
+                              }`} 
+                            />
+                          </div>
+                        ) : (
+                          <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-12 h-12" />
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
             </div>
 
