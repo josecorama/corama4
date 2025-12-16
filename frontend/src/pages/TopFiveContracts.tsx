@@ -36,10 +36,10 @@ const TopFiveContracts = () => {
   const [selectedStates, setSelectedStates] = useState<string[]>(['all', 'IL', 'IN'])
   const [noFilterResults, setNoFilterResults] = useState(false)
 
-  // Redirect to dashboard if user has no matches at all
+  // Redirect to no-capability-statement page if user has no matches at all
   useEffect(() => {
     if (!loading && hasMatches === false) {
-      navigate('/dashboard')
+      navigate('/no-capability-statement')
     }
   }, [loading, hasMatches, navigate])
 

@@ -260,42 +260,50 @@ try:
     
     firebase_creds_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
     
-    if firebase_creds_json:
-        try:
-            # Parse JSON string from environment variable
-            service_account_dict = json.loads(firebase_creds_json)
-            cred = credentials.Certificate(service_account_dict)
-            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': database_url,
-                'storageBucket': storage_bucket
-            })
-            admin_db = admin_database
-            admin_initialized = True
-            logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
-            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
-        except json.JSONDecodeError as e:
-            logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
-            logging.warning("Credit purchase via webhook will use fallback method.")
-    else:
-        service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
-        
-        if os.path.exists(service_account_path):
-            cred = credentials.Certificate(service_account_path)
-            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': database_url,
-                'storageBucket': storage_bucket
-            })
-            admin_db = admin_database
-            admin_initialized = True
-            logging.info("✅ Firebase Admin SDK initialized successfully from file")
-            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
+    # Check if Firebase Admin is already initialized (handles debug reloader / multi-worker)
+    try:
+        existing_app = firebase_admin.get_app()
+        admin_db = admin_database
+        admin_initialized = True
+        logging.info("✅ Firebase Admin SDK already initialized (reusing existing app)")
+    except ValueError:
+        # App not initialized yet, proceed with initialization
+        if firebase_creds_json:
+            try:
+                # Parse JSON string from environment variable
+                service_account_dict = json.loads(firebase_creds_json)
+                cred = credentials.Certificate(service_account_dict)
+                storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
+                firebase_admin.initialize_app(cred, {
+                    'databaseURL': database_url,
+                    'storageBucket': storage_bucket
+                })
+                admin_db = admin_database
+                admin_initialized = True
+                logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
+                logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
+            except json.JSONDecodeError as e:
+                logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+                logging.warning("Credit purchase via webhook will use fallback method.")
         else:
-            logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
-            logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
-            logging.warning(f"   - File path: {service_account_path} (does not exist)")
-            logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
+            service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
+            
+            if os.path.exists(service_account_path):
+                cred = credentials.Certificate(service_account_path)
+                storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
+                firebase_admin.initialize_app(cred, {
+                    'databaseURL': database_url,
+                    'storageBucket': storage_bucket
+                })
+                admin_db = admin_database
+                admin_initialized = True
+                logging.info("✅ Firebase Admin SDK initialized successfully from file")
+                logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
+            else:
+                logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
+                logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
+                logging.warning(f"   - File path: {service_account_path} (does not exist)")
+                logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
         
 except ImportError:
     logging.warning("⚠️ firebase-admin package not installed. Run: pip install firebase-admin")
@@ -14696,13 +14704,19 @@ def api_directory():
     
     try:
         # Get directory data from Firebase
+        logging.info(f"[Directory] admin_initialized={admin_initialized}, admin_db={'set' if admin_db else 'None'}")
         if admin_initialized and admin_db:
+            logging.info("[Directory] Using Firebase Admin SDK to read corama_directory")
             directory_ref = admin_db.reference('corama_directory')
             directory_data = directory_ref.get() or {}
+            logging.info(f"[Directory] Retrieved {len(directory_data)} entries from Firebase Admin SDK")
         else:
+            logging.info("[Directory] Firebase Admin SDK not available, using fallback")
             if 'user' in session:
+                logging.info("[Directory] Using user idToken to read corama_directory")
                 directory_data = db.child("corama_directory").get(session['user']['idToken']).val() or {}
             else:
+                logging.info("[Directory] No user session, returning empty directory")
                 directory_data = {}
         
         all_companies = []
