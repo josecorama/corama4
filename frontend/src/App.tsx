@@ -12,12 +12,20 @@ import ContractAnalysis from './pages/ContractAnalysis'
 import ProposalTeam from './pages/ProposalTeam'
 import ProposalSummary from './pages/ProposalSummary'
 import PublicBidProposalGenerator from './pages/PublicBidProposalGenerator'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import ConfirmTerms from './pages/ConfirmTerms'
+import ResetPassword from './pages/ResetPassword'
 
 function App() {
   return (
     <Router basename="/">
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/confirm-terms" element={<ConfirmTerms />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/capability-builder" element={<CapabilityBuilder />} />
         <Route path="/top-five-contracts" element={<TopFiveContracts />} />

@@ -140,6 +140,365 @@ def admin_clear_caches():
     }), 200
 
 
+# ============================================================================
+# AUTH API ENDPOINTS (for React frontend)
+# ============================================================================
+
+def verify_recaptcha(token):
+    """Verify reCAPTCHA token with Google's API.
+    
+    Returns True if verification passes, False otherwise.
+    """
+    if not token:
+        app.logger.warning("[reCAPTCHA] No token provided")
+        return False
+    
+    secret_key = os.getenv("RECAPTCHA_SECRET_KEY")
+    if not secret_key:
+        app.logger.warning("[reCAPTCHA] RECAPTCHA_SECRET_KEY not configured, skipping verification")
+        return True  # Skip verification if not configured
+    
+    try:
+        import requests
+        response = requests.post(
+            'https://www.google.com/recaptcha/api/siteverify',
+            data={
+                'secret': secret_key,
+                'response': token
+            },
+            timeout=10
+        )
+        result = response.json()
+        
+        if result.get('success'):
+            score = result.get('score', 0)
+            app.logger.info(f"[reCAPTCHA] Verification passed with score: {score}")
+            # For reCAPTCHA v3, score >= 0.5 is generally considered human
+            return score >= 0.3  # Be lenient for now
+        else:
+            app.logger.warning(f"[reCAPTCHA] Verification failed: {result.get('error-codes', [])}")
+            return False
+    except Exception as e:
+        app.logger.error(f"[reCAPTCHA] Verification error: {e}")
+        return True  # Fail open to not block users if Google is down
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_auth_login():
+    """API endpoint for React login page.
+    
+    Expects JSON: { email, password, recaptcha_token }
+    Returns JSON: { success, redirect, error }
+    """
+    session.clear()
+    
+    data = request.get_json() or {}
+    email = data.get('email')
+    password = data.get('password')
+    recaptcha_token = data.get('recaptcha_token')
+    
+    if not email or not password:
+        return jsonify({"success": False, "error": "Email and password are required"}), 400
+    
+    # Verify reCAPTCHA
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    app.logger.info(f"[Auth API] Login attempt for email: {email}")
+    
+    try:
+        # Authenticate user with Firebase
+        user = auth.sign_in_with_email_and_password(email, password)
+        local_id = user['localId']
+        refreshed_user = auth.refresh(user['refreshToken'])
+
+        # Set session data for the authenticated user
+        session['user'] = {
+            'localId': local_id,
+            'idToken': refreshed_user['idToken'],
+            'email': email,
+            'refreshToken': refreshed_user['refreshToken']
+        }
+
+        # Retrieve user data from Firebase
+        user_data = db.child("users").child(local_id).get(refreshed_user['idToken']).val()
+        
+        # Handle case where user exists in Firebase Auth but not in database
+        if user_data is None:
+            app.logger.warning(f"User {email} exists in Firebase Auth but not in database. Creating default user data.")
+            default_user_data = {
+                "email": email,
+                "account_type": "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS",
+                "subscription_end_date": "9999-12-31",
+                "is_stripe_customer": False,
+                "first_name": email.split('@')[0],
+                "last_name": "",
+                "company": "",
+                "username": email.split('@')[0],
+                "credits_balance": 100,
+                "credits_used": 0,
+                "last_credit_update": datetime.now().isoformat(),
+                "credit_purchase_history": []
+            }
+            
+            db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
+            user_data = default_user_data
+            app.logger.info(f"Created default user data for {email}")
+
+        session['is_subscriber'] = True
+        session['is_logged_in'] = True
+        app.logger.info(f"[Auth API] User logged in successfully: {email}")
+        
+        return jsonify({
+            "success": True,
+            "redirect": "/dashboard",
+            "user": {
+                "email": email,
+                "first_name": user_data.get('first_name', ''),
+                "last_name": user_data.get('last_name', ''),
+                "company": user_data.get('company', '')
+            }
+        })
+    
+    except Exception as e:
+        app.logger.error(f"[Auth API] Login error for {email}: {e}")
+        
+        error_message = "Login failed. Check your email or password and try again."
+        error_str = str(e).upper()
+        
+        if 'EMAIL_NOT_FOUND' in error_str:
+            error_message = "This email is not registered. Please sign up first."
+        elif 'INVALID_PASSWORD' in error_str or 'INVALID_LOGIN_CREDENTIALS' in error_str:
+            error_message = "Incorrect email or password. Please try again."
+        elif 'USER_DISABLED' in error_str:
+            error_message = "This account has been disabled. Contact support for assistance."
+        elif 'INVALID_EMAIL' in error_str:
+            error_message = "Invalid email format. Please check your email address."
+        elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_str:
+            error_message = "Too many failed login attempts. Please try again later."
+        
+        return jsonify({"success": False, "error": error_message}), 401
+
+
+@app.route('/api/auth/signup', methods=['POST'])
+def api_auth_signup():
+    """API endpoint for React signup page.
+    
+    Expects JSON: { first_name, last_name, company, email, username, password, recaptcha_token }
+    Returns JSON: { success, next, error }
+    """
+    data = request.get_json() or {}
+    
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
+    company = data.get('company')
+    email = data.get('email')
+    password = data.get('password')
+    username = data.get('username')
+    recaptcha_token = data.get('recaptcha_token')
+    
+    account_type = 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS'
+    subscription_end_date = '9999-12-31'  # Permanent free access
+    
+    if not email or not password:
+        return jsonify({"success": False, "error": "Email and password are required"}), 400
+    
+    if not first_name or not last_name:
+        return jsonify({"success": False, "error": "First name and last name are required"}), 400
+    
+    # Verify reCAPTCHA
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    app.logger.info(f"[Auth API] Signup attempt for email: {email}")
+    
+    try:
+        # Create Firebase User
+        user = auth.create_user_with_email_and_password(email, password)
+        user_id = user.get('localId')
+        user_logged_in = auth.sign_in_with_email_and_password(email, password)
+        
+        app.logger.info(f"[Auth API] Firebase user created: {user_id}")
+        
+        # Send Welcome Email (non-blocking)
+        import threading
+        email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+        email_thread.daemon = True
+        email_thread.start()
+        app.logger.info("[Auth API] Welcome email thread started")
+        
+        # Store User Data in Session
+        session['user_data'] = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "company": company,
+            "email": email,
+            "username": username,
+            "account_type": account_type,
+            "subscription_end_date": subscription_end_date,
+            "user_id": user_id
+        }
+        
+        # Store User Authentication in Session
+        session['user'] = {
+            'localId': user_id,
+            'idToken': user_logged_in['idToken'],
+            'email': email,
+            'refreshToken': user_logged_in['refreshToken']
+        }
+        
+        # Store User Data in Firebase Database
+        db.child("users").child(user_id).set({
+            "first_name": first_name,
+            "last_name": last_name,
+            "company": company,
+            "email": email,
+            "username": username,
+            "account_type": account_type,
+            "subscription_end_date": subscription_end_date,
+            "uploads_dir": create_user_directory(user_id),
+            "credits_balance": 100,
+            "credits_used": 0,
+            "directory_listed": False
+        }, user_logged_in['idToken'])
+        
+        app.logger.info(f"[Auth API] User data stored in Firebase for {email}")
+        
+        return jsonify({
+            "success": True,
+            "next": "/confirm-terms"
+        })
+    
+    except Exception as e:
+        app.logger.error(f"[Auth API] Signup error for {email}: {e}")
+        
+        error_message = "An unexpected error occurred. Please try again."
+        error_str = str(e).upper()
+        
+        if 'EMAIL_EXISTS' in error_str:
+            error_message = "This email is already registered. Please log in instead."
+        elif 'INVALID_EMAIL' in error_str:
+            error_message = "Invalid email format. Please check your email address."
+        elif 'WEAK_PASSWORD' in error_str:
+            error_message = "Password is too weak. Please choose a stronger password (minimum 6 characters)."
+        elif 'INVALID_PASSWORD' in error_str:
+            error_message = "Invalid password format. Please check your password."
+        elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_str:
+            error_message = "Too many failed attempts. Please try again later."
+        
+        return jsonify({"success": False, "error": error_message}), 400
+
+
+@app.route('/api/auth/confirm-terms', methods=['POST'])
+def api_auth_confirm_terms():
+    """API endpoint for React confirm terms page.
+    
+    Expects JSON: { confirm_terms: true }
+    Returns JSON: { success, redirect, error }
+    """
+    data = request.get_json() or {}
+    
+    if not data.get('confirm_terms'):
+        return jsonify({"success": False, "error": "You must agree to the terms to proceed"}), 400
+    
+    user_data = session.get('user_data')
+    user_auth = session.get('user')
+    
+    if not user_data:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    if not user_auth:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    try:
+        user_id = user_data.get('user_id')
+        if not user_id:
+            return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+        
+        db.child("users").child(user_id).update({
+            "account_type": user_data['account_type'],
+            "subscription_end_date": "9999-12-31",
+            "terms_accepted": True,
+            "terms_accepted_date": datetime.now().isoformat()
+        }, user_auth['idToken'])
+        
+        session['is_subscriber'] = True
+        session['is_logged_in'] = True
+        
+        app.logger.info(f"[Auth API] Terms accepted for user {user_id}")
+        
+        return jsonify({
+            "success": True,
+            "redirect": "/dashboard"
+        })
+    
+    except Exception as e:
+        app.logger.error(f"[Auth API] Confirm terms error: {e}")
+        return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
+
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def api_auth_reset_password():
+    """API endpoint for React password reset page.
+    
+    Expects JSON: { email, recaptcha_token }
+    Returns JSON: { success, message, error }
+    """
+    data = request.get_json() or {}
+    email = data.get('email')
+    recaptcha_token = data.get('recaptcha_token')
+    
+    if not email:
+        return jsonify({"success": False, "error": "Email is required"}), 400
+    
+    # Verify reCAPTCHA
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    try:
+        auth.send_password_reset_email(email)
+        app.logger.info(f"[Auth API] Password reset email sent to {email}")
+        return jsonify({
+            "success": True,
+            "message": "A password reset link has been sent to your email."
+        })
+    except Exception as e:
+        app.logger.error(f"[Auth API] Password reset error for {email}: {e}")
+        return jsonify({
+            "success": False,
+            "error": "Failed to send password reset email. Please check the email address."
+        }), 400
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def api_auth_logout():
+    """API endpoint for logout.
+    
+    Returns JSON: { success, redirect }
+    """
+    session.clear()
+    app.logger.info("[Auth API] User logged out")
+    return jsonify({
+        "success": True,
+        "redirect": "/login"
+    })
+
+
+@app.route('/api/auth/recaptcha-site-key', methods=['GET'])
+def api_auth_recaptcha_site_key():
+    """API endpoint to get reCAPTCHA site key for React frontend.
+    
+    Returns JSON: { site_key }
+    """
+    site_key = os.getenv("RECAPTCHA_SITE_KEY", "")
+    return jsonify({"site_key": site_key})
+
+
+# ============================================================================
+# END AUTH API ENDPOINTS
+# ============================================================================
+
+
 # ALLOWED EXTENTIONS
 ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'png', 'jpeg'}
 
@@ -3871,99 +4230,14 @@ def Viewcontractdetails():
 
 
 
-#login
- 
-# UPDATED 2/25 
-@app.route('/login', methods=['GET', 'POST'])
+# Login page - now served by React SPA
+# The old template-based login has been replaced with React frontend
+# Authentication is handled by /api/auth/login endpoint
+@app.route('/login', methods=['GET'])
 def Login():
-    session.clear()  # Clear any existing session data
-
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        app.logger.info("✅ FREE ACCESS - Skipping reCAPTCHA validation for Contract Radar Maximizer free users")
-        app.logger.info(f"🔐 Login attempt for email: {email}")
-        
-        try:
-            # Authenticate user with Firebase
-            user = auth.sign_in_with_email_and_password(email, password)
-            local_id = user['localId']
-            refreshed_user = auth.refresh(user['refreshToken'])
-
-            # Set session data for the authenticated user
-            session['user'] = {
-                'localId': local_id,
-                'idToken': refreshed_user['idToken'],
-                'email': email,
-                'refreshToken': refreshed_user['refreshToken']
-            }
-
-            # Retrieve user data from Firebase
-            user_data = db.child("users").child(local_id).get(refreshed_user['idToken']).val()
-            
-            # Handle case where user exists in Firebase Auth but not in database
-            if user_data is None:
-                app.logger.warning(f"User {email} exists in Firebase Auth but not in database. Creating default user data.")
-                default_user_data = {
-                    "email": email,
-                    "account_type": "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS",
-                    "subscription_end_date": "9999-12-31",
-                    "is_stripe_customer": False,
-                    "first_name": email.split('@')[0],
-                    "last_name": "",
-                    "company": "",
-                    "username": email.split('@')[0],
-                    "credits_balance": 100,
-                    "credits_used": 0,
-                    "last_credit_update": datetime.now().isoformat(),
-                    "credit_purchase_history": []
-                }
-                
-                db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
-                user_data = default_user_data
-                app.logger.info(f"Created default user data for {email}")
-            
-            account_type = user_data.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
-            subscription_end_date = user_data.get('subscription_end_date', '9999-12-31')
-            is_stripe_customer = user_data.get('is_stripe_customer', False)  
-            stripe_customer_id = user_data.get('stripe_customer_id', None)
-
-            app.logger.info(f"Retrieved account_type: {account_type}, subscription_end_date: {subscription_end_date}, is_stripe_customer: {is_stripe_customer}")
-
-            session['is_subscriber'] = True  # Grant full access to all users
-            session['is_logged_in'] = True
-            app.logger.info(f"✅ User logged in successfully - FREE ACCESS granted to {email}")
-            return redirect('/app/dashboard')
-        
-        except Exception as e:
-            app.logger.error(f"❌ Login error for {email}: {e}")
-            app.logger.error(f"Login error type: {type(e)}")
-            app.logger.error(f"Login error args: {e.args if hasattr(e, 'args') else 'No args'}")
-            
-            error_message = "Login failed. Check your email or password and try again."
-            if 'EMAIL_NOT_FOUND' in str(e):
-                error_message = "This email is not registered. Please sign up first."
-                app.logger.info(f"✅ EMAIL_NOT_FOUND error handled for {email}")
-            elif 'INVALID_PASSWORD' in str(e) or 'INVALID_LOGIN_CREDENTIALS' in str(e):
-                error_message = "Incorrect email or password. Please try again."
-                app.logger.info(f"✅ INVALID_LOGIN_CREDENTIALS error handled for {email}")
-            elif 'USER_DISABLED' in str(e):
-                error_message = "This account has been disabled. Contact support for assistance."
-                app.logger.info(f"✅ USER_DISABLED error handled for {email}")
-            elif 'INVALID_EMAIL' in str(e):
-                error_message = "Invalid email format. Please check your email address."
-                app.logger.info(f"✅ INVALID_EMAIL error handled for {email}")
-            elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in str(e):
-                error_message = "Too many failed login attempts. Please try again later."
-                app.logger.info(f"✅ TOO_MANY_ATTEMPTS error handled for {email}")
-            else:
-                app.logger.error(f"❌ Unhandled login error for {email}: {str(e)}")
-                error_message = f"Login failed: {str(e)}"
-            
-            return render_template('login.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-    
-    return render_template('login.html', RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
+    """Serve React SPA for login page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 
@@ -4130,191 +4404,25 @@ app.logger.info(f"🔍 Loaded RECAPTCHA_SITE_KEY: {RECAPTCHA_SITE_KEY if RECAPTC
 app.logger.info(f"🔍 Firebase Initialized: {'✔ Successful' if firebase else '❌ Failed'}")
 
 
-@app.route('/signup', methods=['GET', 'POST'])
+# Signup page - now served by React SPA
+# The old template-based signup has been replaced with React frontend
+# User registration is handled by /api/auth/signup endpoint
+@app.route('/signup', methods=['GET'])
 def Signup():
-    if request.method == 'POST':
-        app.logger.info("📌 Received a POST request on /signup")
+    """Serve React SPA for signup page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
-        # ✅ Log Incoming Form Data
-        app.logger.debug(f"📩 Form Data Received: {request.form}")
 
-        app.logger.info("✅ FREE ACCESS - Skipping reCAPTCHA validation for Contract Radar Maximizer free users")
-
-        # ✅ Get User Data from Form
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        company = request.form.get('company')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        username = request.form.get('username')
-        account_type = request.form.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
-        billing_period = request.form.get('billing_period', 'free')
-        subscription_end_date = '9999-12-31'  # Permanent free access
-        join_directory = request.form.get('join_directory') == 'on'  # Checkbox value
-
-        app.logger.debug(f"📌 User Info: {first_name} {last_name} | {email} | {company}")
-
-        if not email or not password:
-            app.logger.error("❌ ERROR: Email or Password missing!")
-            return render_template('signup.html', error="Please provide both email and password.", RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-        try:
-            # ✅ Create Firebase User
-            app.logger.info(f"👤 Creating user in Firebase: {email}")
-            user = auth.create_user_with_email_and_password(email, password)
-            user_id = user.get('localId')
-            user_logged_in = auth.sign_in_with_email_and_password(email, password)
-
-            app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
-
-            # ✅ Send Welcome Email (non-blocking)
-            app.logger.info("📨 Starting welcome email in background thread...")
-            import threading
-            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
-            email_thread.daemon = True
-            email_thread.start()
-            app.logger.info("📨 Welcome email thread started, continuing with signup...")
-
-            # ✅ Store User Data in Session (including user_id for confirm_terms)
-            session['user_data'] = {
-                "first_name": first_name,
-                "last_name": last_name,
-                "company": company,
-                "email": email,
-                "username": username,
-                "account_type": account_type,
-                "billing_period": billing_period,
-                "subscription_end_date": subscription_end_date,
-                "user_id": user_id
-            }
-            
-            # ✅ Store User Authentication in Session (for confirm_terms idToken)
-            session['user'] = {
-                'localId': user_id,
-                'idToken': user_logged_in['idToken'],
-                'email': email,
-                'refreshToken': user_logged_in['refreshToken']
-            }
-
-            app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
-            app.logger.debug(f"💾 User Auth Stored: localId={user_id}, email={email}")
-
-            # ✅ Store User Data in Firebase Database
-            db.child("users").child(user_id).set({
-                "first_name": first_name,
-                "last_name": last_name,
-                "company": company,
-                "email": email,
-                "username": username,
-                "account_type": account_type,
-                "subscription_end_date": subscription_end_date,
-                "uploads_dir": create_user_directory(user_id),
-                "credits_balance": 100,
-                "credits_used": 0,
-                "directory_listed": join_directory
-            }, user_logged_in['idToken'])
-            
-            if join_directory:
-                try:
-                    db.child("corama_directory").child(user_id).set({
-                        "company": company,
-                        "contact_name": f"{first_name} {last_name}",
-                        "email": email,
-                        "services": "",  # To be filled in directory profile
-                        "description": "",  # To be filled in directory profile
-                        "phone": "",  # To be filled in directory profile
-                        "website": "",  # To be filled in directory profile
-                        "listed": True,
-                        "created_at": datetime.now().isoformat()
-                    }, user_logged_in['idToken'])
-                    app.logger.info(f"✅ User {user_id} added to CORAMA Directory")
-                except Exception as e:
-                    app.logger.error(f"❌ Failed to add user to directory: {e}")
-
-            app.logger.info("✅ User successfully added to Firebase Database!")
-
-            return redirect(url_for('confirm_terms'))
-
-        except Exception as e:
-            app.logger.exception(f"❌ ERROR: Signup failed for email {email}: {e}")
-            app.logger.error(f"❌ ERROR TYPE: {type(e)}")
-            app.logger.error(f"❌ ERROR ARGS: {e.args if hasattr(e, 'args') else 'No args'}")
-            app.logger.error(f"❌ ERROR STRING: {str(e)}")
-
-            error_message = "An unexpected error occurred. Please try again."
-
-            error_str = str(e).upper()
-            if 'EMAIL_EXISTS' in error_str:
-                error_message = "This email is already registered. Please log in instead."
-                app.logger.info(f"✅ EMAIL_EXISTS error handled for {email}")
-            elif 'INVALID_EMAIL' in error_str:
-                error_message = "Invalid email format. Please check your email address."
-                app.logger.info(f"✅ INVALID_EMAIL error handled for {email}")
-            elif 'WEAK_PASSWORD' in error_str:
-                error_message = "Password is too weak. Please choose a stronger password (minimum 6 characters)."
-                app.logger.info(f"✅ WEAK_PASSWORD error handled for {email}")
-            elif 'INVALID_PASSWORD' in error_str:
-                error_message = "Invalid password format. Please check your password."
-                app.logger.info(f"✅ INVALID_PASSWORD error handled for {email}")
-            elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_str:
-                error_message = "Too many failed attempts. Please try again later."
-                app.logger.info(f"✅ TOO_MANY_ATTEMPTS error handled for {email}")
-            else:
-                app.logger.error(f"❌ UNHANDLED SIGNUP ERROR for {email}: {str(e)}")
-                if "400 Client Error" in str(e):
-                    error_message = "Account creation failed. Please check your information and try again."
-                else:
-                    error_message = "An unexpected error occurred during signup. Please try again."
-
-            return render_template('signup.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-    return render_template('signup.html', RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-#UPDATED 3/13/25
-@app.route('/confirm_terms', methods=['GET', 'POST'])
+# Confirm terms page - now served by React SPA
+# The old template-based confirm_terms has been replaced with React frontend
+# Terms confirmation is handled by /api/auth/confirm-terms endpoint
+@app.route('/confirm-terms', methods=['GET'])
+@app.route('/confirm_terms', methods=['GET'])  # Keep old URL for backwards compatibility
 def confirm_terms():
-    if request.method == 'POST':
-        if not request.form.get('confirm_terms'):
-            app.logger.warning("⚠️ User attempted to proceed without agreeing to terms")
-            return render_template('confirm_terms.html', error="You must agree to the Automatic Renewal Terms and Conditions to proceed.")
-        
-        # Retrieve user data from session
-        user_data = session.get('user_data')
-        user_auth = session.get('user')
-
-        if not user_data:
-            app.logger.error("❌ No user_data in session, redirecting to signup")
-            return redirect(url_for('Signup'))
-        
-        if not user_auth:
-            app.logger.error("❌ No user auth in session, redirecting to signup")
-            return redirect(url_for('Signup'))
-
-        try:
-            user_id = user_data.get('user_id')
-            if not user_id:
-                app.logger.error("❌ No user_id in session data")
-                return render_template('confirm_terms.html', error="Session expired. Please sign up again.")
-            
-            db.child("users").child(user_id).update({
-                "account_type": user_data['account_type'],
-                "subscription_end_date": "9999-12-31",
-                "terms_accepted": True,
-                "terms_accepted_date": datetime.now().isoformat()
-            }, user_auth['idToken'])
-            
-            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Terms accepted, redirecting to React app")
-            return redirect('/app/dashboard')
-
-        except KeyError as e:
-            app.logger.error(f"❌ Missing session key in confirm_terms: {e}")
-            return render_template('confirm_terms.html', error=f"Session error: {e}. Please sign up again.")
-        except Exception as e:
-            app.logger.exception(f"❌ Error in confirm_terms for user: {e}")
-            return render_template('confirm_terms.html', error="An error occurred. Please try again.")
-
-    # Render the terms confirmation page on GET
-    return render_template('confirm_terms.html')
+    """Serve React SPA for confirm terms page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 #updated 3/4/25
@@ -8907,20 +9015,15 @@ def generate_docx():
     return send_file(buffer, as_attachment=True, download_name=f'{contract_name}_response.docx', mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
 
-@app.route('/reset_password', methods=['GET', 'POST'])
+# Reset password page - now served by React SPA
+# The old template-based reset_password has been replaced with React frontend
+# Password reset is handled by /api/auth/reset-password endpoint
+@app.route('/reset-password', methods=['GET'])
+@app.route('/reset_password', methods=['GET'])  # Keep old URL for backwards compatibility
 def reset_password():
-    if request.method == 'POST':
-        email = request.form.get('email')  # Get the email from the form
-        try:
-            auth.send_password_reset_email(email)
-            # Provide feedback that the email has been sent
-            return render_template('reset_password.html', 
-                                   message="A password reset link has been sent to your email.")
-        except Exception as e:
-            print(f"Error sending password reset email: {e}")
-            error_message = "Failed to send password reset email. Please check the email address."
-            return render_template('reset_password.html', error=error_message)
-    return render_template('reset_password.html')
+    """Serve React SPA for reset password page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 # Static route to serve the PDF file
 @app.route('/static/uploads/<filename>')
@@ -14084,15 +14187,16 @@ def directory_company_profile(user_id):
 # =============================================================================
 
 # Serve React app - SPA routing
-# Public paths that don't require authentication (landing page)
-REACT_PUBLIC_PATHS = {'', 'landing'}
+# Public paths that don't require authentication (landing page and auth pages)
+REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password'}
 
 # React page routes - these will be handled by the SPA
 REACT_PAGE_ROUTES = {
     'dashboard', 'capability-builder', 'top-five-contracts', 'ai-assistant',
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
-    'proposal-summary', 'public-bid-proposal-generator', 'landing'
+    'proposal-summary', 'public-bid-proposal-generator', 'landing',
+    'login', 'signup', 'confirm-terms', 'reset-password'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
