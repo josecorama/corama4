@@ -91,7 +91,7 @@ const LandingPage = () => {
       <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-corama-teal font-poppins font-bold text-lg sm:text-xl">CORAMA</span>
+            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-4 sm:h-5 w-auto" />
           </div>
           
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
@@ -111,8 +111,12 @@ const LandingPage = () => {
       {/* Scrollable container - takes remaining height below header */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto scroll-smooth"
-        style={{ scrollBehavior: 'smooth' }}
+        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide"
+        style={{ 
+          scrollBehavior: 'smooth',
+          scrollbarWidth: 'none', /* Firefox */
+          msOverflowStyle: 'none', /* IE/Edge */
+        }}
       >
       {/* Hero Section */}
       <section 
@@ -120,29 +124,68 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('hero')}`}
       >
-        {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          {/* Main teal glow - top left, tilted ellipse effect */}
-          <div className="absolute top-[10%] left-[20%] w-[800px] h-[500px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.3)_0%,rgba(26,58,74,0.2)_40%,transparent_70%)] -rotate-6"></div>
-          {/* Secondary teal glow - center */}
-          <div className="absolute top-[30%] left-[30%] w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,transparent_60%)]"></div>
-          {/* Subtle dark blue glow */}
-          <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-[radial-gradient(circle,rgba(26,58,74,0.25)_0%,transparent_70%)]"></div>
+        {/* Layer 0: Center gradient glow (degradate.svg effect) */}
+        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center">
+          <img 
+            src="/static/app/landing/degradate.svg" 
+            alt="" 
+            aria-hidden="true"
+            className="w-[120%] max-w-[1400px] h-auto opacity-80"
+          />
         </div>
         
-        {/* Layer 1: Orbital lines decoration */}
-        <div className="absolute inset-0 pointer-events-none z-[1]">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-corama-teal/15 rounded-full"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-corama-teal/8 rounded-full"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] border border-corama-teal/5 rounded-full"></div>
+        {/* Layer 1: Orbital lines (orbit.svg) */}
+        <div className="absolute inset-0 pointer-events-none z-[1] flex items-center justify-center">
+          <img 
+            src="/static/app/landing/orbit.svg" 
+            alt="" 
+            aria-hidden="true"
+            className="w-[140%] max-w-[2000px] h-auto"
+            style={{ transform: 'translateY(-5%)' }}
+          />
         </div>
         
-        {/* Layer 2: Decorative dots/stars */}
-        <div className="absolute top-20 left-10 w-2 h-2 bg-corama-teal rounded-full opacity-60 hidden sm:block animate-pulse z-[2]"></div>
-        <div className="absolute top-40 right-20 w-3 h-3 bg-corama-teal/50 rounded-full hidden sm:block z-[2]"></div>
-        <div className="absolute bottom-20 left-1/4 w-2 h-2 bg-corama-teal/30 rounded-full hidden sm:block z-[2]"></div>
-        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/40 rounded-full hidden sm:block z-[2]"></div>
-        <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-corama-teal/60 rounded-full hidden sm:block z-[2]"></div>
+        {/* Layer 2: 3D Spheres */}
+        {/* Left sphere */}
+        <div className="absolute left-[5%] sm:left-[8%] top-[35%] sm:top-[40%] pointer-events-none z-[2] hidden sm:block">
+          <img 
+            src="/static/app/landing/sphere.svg" 
+            alt="" 
+            aria-hidden="true"
+            className="w-[100px] sm:w-[130px] lg:w-[160px] h-auto"
+          />
+        </div>
+        {/* Right sphere */}
+        <div className="absolute right-[3%] sm:right-[5%] top-[50%] sm:top-[55%] pointer-events-none z-[2] hidden sm:block">
+          <img 
+            src="/static/app/landing/sphere.svg" 
+            alt="" 
+            aria-hidden="true"
+            className="w-[120px] sm:w-[150px] lg:w-[180px] h-auto"
+          />
+        </div>
+        
+        {/* Layer 3: Decorative stars */}
+        {/* Star top-center (above title) */}
+        <div className="absolute top-[18%] left-[32%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star2-img.svg" alt="" aria-hidden="true" className="w-[16px] h-auto opacity-90" />
+        </div>
+        {/* Star mid-left */}
+        <div className="absolute top-[32%] left-[18%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star-img.svg" alt="" aria-hidden="true" className="w-[28px] h-auto" />
+        </div>
+        {/* Star mid-right (larger, rotated) */}
+        <div className="absolute top-[28%] right-[12%] pointer-events-none z-[3] hidden lg:block">
+          <img src="/static/app/landing/star1-img.svg" alt="" aria-hidden="true" className="w-[32px] h-auto" />
+        </div>
+        {/* Star bottom-left (near button) */}
+        <div className="absolute bottom-[28%] left-[28%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star3-img.svg" alt="" aria-hidden="true" className="w-[20px] h-auto opacity-80" />
+        </div>
+        {/* Star bottom-right */}
+        <div className="absolute bottom-[32%] right-[25%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star4-img.svg" alt="" aria-hidden="true" className="w-[24px] h-auto" />
+        </div>
         
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
@@ -154,7 +197,7 @@ const LandingPage = () => {
           </p>
           <a 
             href="/login" 
-            className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
+            className="inline-flex items-center gap-2 bg-[#0B0B0F]/60 border border-corama-teal/60 text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base backdrop-blur-sm"
           >
             Get Started
           </a>
