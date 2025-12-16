@@ -122,30 +122,38 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
           aria-hidden="true"
         />
         
-        {/* Hamburger Toggle Button - Desktop only, at top of sidebar */}
-        <div 
-          className="hidden lg:flex items-center h-[51px] py-2"
-          style={{ paddingLeft: isCollapsed ? '28px' : '16px' }}
-        >
-          <button
-            onClick={toggleCollapse}
-            className={`flex items-center transition-all hover:opacity-80 ${isCollapsed ? '' : 'gap-3'}`}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            <img 
-              src="/static/app/dashboard/HamburgerButton.svg" 
-              alt="" 
-              className="w-[35px] h-[35px] flex-shrink-0"
-              style={{ marginLeft: '10px' }}
-              aria-hidden="true"
-            />
-            {!isCollapsed && (
-              <span className="font-poppins text-sm text-white whitespace-nowrap">
-                Hide Side Bar
-              </span>
-            )}
-          </button>
-        </div>
+                {/* Hamburger Toggle Button - Desktop only, at top of sidebar */}
+                <div 
+                  className="hidden lg:block relative"
+                  style={{ height: '51px' }}
+                >
+                  <img 
+                    src={isCollapsed ? "/static/app/dashboard/HighlightCollapsed.svg" : "/static/app/dashboard/Highlight.svg"}
+                    alt="" 
+                    className="absolute top-0 left-0 h-[51px] object-cover object-left"
+                    style={{ width: isCollapsed ? '91px' : 'calc(100% - 16px)' }}
+                    aria-hidden="true"
+                  />
+                  <button
+                    onClick={toggleCollapse}
+                    className={`relative flex items-center h-[51px] px-4 transition-all hover:opacity-80 ${isCollapsed ? '' : 'gap-3'}`}
+                    style={{ paddingLeft: isCollapsed ? '28px' : '16px' }}
+                    aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  >
+                    <img 
+                      src="/static/app/dashboard/HamburgerButton.svg" 
+                      alt="" 
+                      className="w-[35px] h-[35px] flex-shrink-0"
+                      style={{ marginLeft: '10px' }}
+                      aria-hidden="true"
+                    />
+                    {!isCollapsed && (
+                      <span className="font-poppins text-sm text-white whitespace-nowrap">
+                        Hide Side Bar
+                      </span>
+                    )}
+                  </button>
+                </div>
         
                 {/* Navigation - static, no scrollbar */}
                 <nav className="flex-1 flex flex-col gap-[12px] pt-[16px]">
