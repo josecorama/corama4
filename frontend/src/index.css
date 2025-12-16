@@ -31,7 +31,7 @@ body {
 }
 
 .card-gradient {
-  background: linear-gradient(180deg, rgba(107, 180, 181, 0.1) 0%, rgba(107, 180, 181, 0.05) 100%);
+  background: #2F3C4F;
   border: 1px solid rgba(107, 180, 181, 0.3);
 }
 
