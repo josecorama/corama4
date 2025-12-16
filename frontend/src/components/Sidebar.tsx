@@ -181,7 +181,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                   } ${
                     isActive 
                       ? 'text-white' 
-                      : 'text-gray-300 hover:bg-corama-darker hover:text-white rounded-xl mx-2'
+                      : 'text-gray-300 hover:bg-corama-darker hover:text-white'
                   }`}
                   style={{ paddingLeft: isCollapsed ? '28px' : '16px' }}
                   title={isCollapsed ? item.label : undefined}
