@@ -57,14 +57,14 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
         {/* Right: Main header content */}
         <div className="flex-1 flex items-center justify-between px-4 lg:px-6">
           {/* Search - hidden on mobile, visible on tablet+ */}
-          <div className="hidden md:block flex-1 max-w-2xl lg:max-w-5xl ml-4">
+          <div className="hidden md:block flex-1 max-w-2xl lg:max-w-5xl ml-6">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
                 placeholder="SEARCH IN CORAMA"
                 className="w-full rounded-full py-2 lg:py-2.5 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-sm"
-                style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid #3c5772' }}
+                style={{ backgroundColor: '#132947', border: '1px solid #3c5772' }}
               />
             </div>
           </div>
