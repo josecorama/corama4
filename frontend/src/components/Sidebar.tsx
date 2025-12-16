@@ -116,23 +116,30 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
         />
         
         {/* Hamburger Toggle Button */}
-        <div className="px-4 pt-4" style={{ marginTop: '8px' }}>
-          <div className="relative">
-            {/* Highlight background - opacity-0 for hamburger */}
-            <div className="absolute inset-0 opacity-0" />
-            <button
-              onClick={toggleExpanded}
-              className="relative flex items-center justify-center w-[35px] h-[35px] hover:opacity-80 transition-opacity"
-              aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-            >
-              <img 
-                src="/static/app/dashboard/HamburgerButton.svg" 
-                alt="" 
-                className="w-[35px] h-[35px]"
-                aria-hidden="true"
-              />
-            </button>
-          </div>
+        <div className="hidden lg:block relative" style={{ height: '51px', marginTop: '8px' }}>
+          <img 
+            src="/static/app/dashboard/Highlight.svg" 
+            alt="" 
+            className="absolute top-0 left-0 h-[51px] object-cover object-left opacity-0"
+            style={{ width: 'calc(100% - 16px)' }}
+            aria-hidden="true"
+          />
+          <button
+            onClick={toggleExpanded}
+            className="relative flex items-center h-[51px] px-4 transition-all hover:opacity-80 gap-3"
+            style={{ paddingLeft: '16px' }}
+            aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            <img 
+              src="/static/app/dashboard/HamburgerButton.svg" 
+              alt="" 
+              className="w-[25px] h-[25px] flex-shrink-0"
+              aria-hidden="true"
+            />
+            {isExpanded && (
+              <span className="font-poppins text-sm text-white whitespace-nowrap">Hide Side Bar</span>
+            )}
+          </button>
         </div>
         
         <nav className="flex-1 pt-[16px] overflow-y-auto" style={{ gap: '8px' }}>

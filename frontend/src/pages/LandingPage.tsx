@@ -103,7 +103,7 @@ const LandingPage = () => {
           
           <div className="flex items-center gap-2 sm:gap-4">
             <a href="/login" className="text-white font-poppins text-xs sm:text-sm hover:text-corama-teal transition-colors">Log In</a>
-            <a href="/signup" className="bg-corama-teal text-[#0B0B0F] font-poppins text-xs sm:text-sm font-semibold px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-[#99c8ca] transition-colors">Sign up</a>
+            <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
           </div>
         </div>
       </header>
@@ -227,7 +227,8 @@ const LandingPage = () => {
           </p>
           <a 
             href="/login" 
-            className="inline-flex items-center gap-2 bg-[#0B0B0F]/60 border border-corama-teal/60 text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base backdrop-blur-sm"
+            className="inline-flex items-center gap-2 text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:opacity-90 transition-all text-sm sm:text-base"
+            style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}
           >
             Get Started
           </a>
@@ -272,89 +273,101 @@ const LandingPage = () => {
         </div>
         
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch">
             {/* Feature 1 - Smart Contract Matching */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+            <div className="bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Smart Contract Matching</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
               </p>
-              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Get Started <ArrowRight size={14} />
-              </a>
+              <div className="mt-5 sm:mt-6">
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn more <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 2 - Automated Proposal Generation */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+            <div className="bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Automated Proposal Generation</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              <div className="mt-5 sm:mt-6">
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn more <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 3 - Compliance Intelligence */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+            <div className="bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Compliance Intelligence</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              <div className="mt-5 sm:mt-6">
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn more <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 4 - Win Probability Scoring */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+            <div className="bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Win Probability Scoring</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
               </p>
-              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Get Started <ArrowRight size={14} />
-              </a>
+              <div className="mt-5 sm:mt-6">
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn more <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 5 - Intelligent Market Research */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+            <div className="bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Intelligent Market Research</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              <div className="mt-5 sm:mt-6">
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn more <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 6 - Smart Deadline Management */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
+            <div className="bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Smart Deadline Management</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
               </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              <div className="mt-5 sm:mt-6">
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn more <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
