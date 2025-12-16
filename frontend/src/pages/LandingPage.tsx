@@ -145,9 +145,9 @@ const LandingPage = () => {
           />
         </div>
         
-        {/* Layer 2: 3D Spheres */}
-        {/* Left sphere */}
-        <div className="absolute left-[13%] sm:left-[16%] top-[40%] sm:top-[45%] -translate-y-1/2 pointer-events-none z-[2] hidden sm:block">
+        {/* Layer 2: Animated 3D Spheres on orbital paths */}
+        {/* Left sphere - clockwise orbit on inner ring */}
+        <div className="orbit-sphere-left pointer-events-none z-[2] hidden sm:block">
           <img 
             src="/static/app/landing/sphere.svg" 
             alt="" 
@@ -155,8 +155,8 @@ const LandingPage = () => {
             className="w-[100px] sm:w-[130px] lg:w-[160px] h-auto"
           />
         </div>
-        {/* Right sphere */}
-        <div className="absolute right-[3%] sm:right-[5%] top-[50%] sm:top-[55%] pointer-events-none z-[2] hidden sm:block">
+        {/* Right sphere - counter-clockwise orbit on outer ring */}
+        <div className="orbit-sphere-right pointer-events-none z-[2] hidden sm:block">
           <img 
             src="/static/app/landing/sphere.svg" 
             alt="" 

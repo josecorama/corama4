@@ -58,3 +58,46 @@ body {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+
+/* Orbital animation keyframes - smooth elliptical motion using transform only */
+/* Left sphere: clockwise orbit - gentle elliptical motion on left side */
+@keyframes orbit-left-clockwise {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(8vw, -12vh); }
+  50% { transform: translate(0, -5vh); }
+  75% { transform: translate(-5vw, 8vh); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Right sphere: counter-clockwise orbit - gentle elliptical motion on right side */
+@keyframes orbit-right-counter-clockwise {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-8vw, -10vh); }
+  50% { transform: translate(0, -5vh); }
+  75% { transform: translate(5vw, 8vh); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Left sphere orbit animation - positioned on left side */
+.orbit-sphere-left {
+  position: absolute;
+  left: 15%;
+  top: 42%;
+  animation: orbit-left-clockwise 50s ease-in-out infinite;
+}
+
+/* Right sphere orbit animation - positioned on right side */
+.orbit-sphere-right {
+  position: absolute;
+  right: 8%;
+  top: 55%;
+  animation: orbit-right-counter-clockwise 50s ease-in-out infinite;
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .orbit-sphere-left,
+  .orbit-sphere-right {
+    animation: none;
+  }
+}
