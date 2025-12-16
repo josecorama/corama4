@@ -123,10 +123,13 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
         />
         
         {/* Hamburger Toggle Button - Desktop only, at top of sidebar */}
-        <div className="hidden lg:flex items-center px-4 py-4">
+        <div 
+          className="hidden lg:flex items-center h-[51px] py-2"
+          style={{ paddingLeft: isCollapsed ? '28px' : '16px' }}
+        >
           <button
             onClick={toggleCollapse}
-            className="flex items-center gap-3 transition-all hover:opacity-80"
+            className={`flex items-center transition-all hover:opacity-80 ${isCollapsed ? '' : 'gap-3'}`}
             aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             <img 
@@ -233,7 +236,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
         
         {/* IHCC and Social Media Section - fixed at bottom, centered - hidden when collapsed */}
         {!isCollapsed && (
-          <div className="px-4 pt-4 pb-[36px] text-center shrink-0">
+          <div className="px-4 pt-2 pb-[16px] text-center shrink-0">
             <p className="text-white text-xs mb-2">Learn More About IHCC</p>
             <a 
               href="https://ihccbusiness.net/" 
