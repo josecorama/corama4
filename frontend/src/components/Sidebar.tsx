@@ -130,7 +130,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                   <img 
                     src={isCollapsed ? "/static/app/dashboard/HighlightCollapsed.svg" : "/static/app/dashboard/Highlight.svg"}
                     alt="" 
-                    className="absolute top-0 left-0 h-[51px] object-cover object-left"
+                    className="absolute top-0 left-0 h-[51px] object-cover object-left opacity-0"
                     style={{ width: isCollapsed ? '91px' : 'calc(100% - 16px)' }}
                     aria-hidden="true"
                   />
