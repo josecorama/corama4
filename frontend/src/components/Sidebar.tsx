@@ -144,7 +144,6 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                       src="/static/app/dashboard/HamburgerButton.svg" 
                       alt="" 
                       className="w-[25px] h-[25px] flex-shrink-0"
-                      style={{ marginLeft: '6px' }}
                       aria-hidden="true"
                     />
                     {!isCollapsed && (
@@ -156,7 +155,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                 </div>
         
                 {/* Navigation - static, no scrollbar */}
-                <nav className="flex-1 flex flex-col gap-[12px] pt-[16px]">
+                <nav className="flex-1 flex flex-col gap-[8px] pt-[16px]">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path
             return (
