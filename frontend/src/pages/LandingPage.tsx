@@ -1,8 +1,48 @@
-import { ArrowRight, CheckCircle } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 const LandingPage = () => {
+  const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set(['hero']))
+  const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
+
   const scrollToFeatures = () => {
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const sectionId = entry.target.getAttribute('data-section')
+            if (sectionId) {
+              setVisibleSections((prev) => new Set([...prev, sectionId]))
+            }
+          }
+        })
+      },
+      {
+        threshold: 0.1,
+        rootMargin: '0px 0px -50px 0px'
+      }
+    )
+
+    Object.values(sectionRefs.current).forEach((ref) => {
+      if (ref) observer.observe(ref)
+    })
+
+    return () => observer.disconnect()
+  }, [])
+
+  const setSectionRef = (id: string) => (el: HTMLElement | null) => {
+    sectionRefs.current[id] = el
+  }
+
+  const getSectionClass = (sectionId: string) => {
+    const isVisible = visibleSections.has(sectionId)
+    return `transition-all duration-1000 ${
+      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+    }`
   }
 
   return (
@@ -29,7 +69,11 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
+      <section 
+        ref={setSectionRef('hero')}
+        data-section="hero"
+        className={`pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('hero')}`}
+      >
         {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
         <div className="absolute inset-0 pointer-events-none z-0">
           {/* Main teal glow - top left, tilted ellipse effect */}
@@ -72,7 +116,12 @@ const LandingPage = () => {
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+      <section 
+        id="features" 
+        ref={setSectionRef('features')}
+        data-section="features"
+        className={`py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('features')}`}
+      >
         {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
         <div className="absolute inset-0 pointer-events-none z-0">
           {/* Top-left teal glow */}
@@ -110,7 +159,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
               </p>
@@ -124,7 +173,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
               </p>
@@ -138,7 +187,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
               </p>
@@ -152,7 +201,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
               </p>
@@ -166,7 +215,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
               </p>
@@ -180,7 +229,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
               </p>
@@ -192,14 +241,19 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Scope of Work Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+      {/* Scope of Work + Revolutionizing Section (Grouped) */}
+      <section 
+        ref={setSectionRef('scope-revolution')}
+        data-section="scope-revolution"
+        className={`py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('scope-revolution')}`}
+      >
         {/* Soft teal glow background */}
         <div className="absolute inset-0 pointer-events-none z-0">
           <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
         </div>
         
-        <div className="max-w-6xl mx-auto relative z-10">
+        {/* Scope of Work */}
+        <div className="max-w-6xl mx-auto relative z-10 mb-24">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
               <img 
@@ -210,7 +264,7 @@ const LandingPage = () => {
               />
             </div>
             <div className="text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
+              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
@@ -223,17 +277,15 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Revolution Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
-        {/* Section background glow */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full"></div>
-        </div>
-        
+        {/* Revolutionizing Government Contracting */}
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+          {/* Section background glow */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full"></div>
+          </div>
+          
+          <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
@@ -245,11 +297,16 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Mission Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+      {/* Mission + Vision Section (Grouped) */}
+      <section 
+        ref={setSectionRef('mission-vision')}
+        data-section="mission-vision"
+        className={`py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('mission-vision')}`}
+      >
         {/* Soft teal glow background */}
         <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
+          <div className="absolute top-1/4 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
+          <div className="absolute bottom-1/4 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
         </div>
         
         {/* Decorative star */}
@@ -259,20 +316,20 @@ const LandingPage = () => {
           </svg>
         </div>
         
-        <div className="max-w-6xl mx-auto relative z-10">
+        {/* Mission */}
+        <div className="max-w-6xl mx-auto relative z-10 mb-24">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="order-2 md:order-1">
-              <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-[0_0_60px_rgba(107,180,181,0.1)]">
-                <div className="text-center">
-                  <div className="text-3xl sm:text-4xl text-gray-500 mb-4 font-poppins tracking-wider">CONTRACT</div>
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 mx-auto bg-gradient-to-br from-corama-teal/30 to-corama-teal/10 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(107,180,181,0.3)]">
-                    <CheckCircle className="text-corama-teal" size={36} />
-                  </div>
-                </div>
+              <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-[0_0_60px_rgba(107,180,181,0.1)] flex items-center justify-center min-h-[280px]">
+                <img 
+                  src="/static/app/landing/Contract.svg" 
+                  alt="Contract" 
+                  className="w-full max-w-[400px] h-auto"
+                />
               </div>
             </div>
             <div className="order-1 md:order-2 text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
+              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
               </p>
@@ -285,19 +342,12 @@ const LandingPage = () => {
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Vision Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
-        {/* Soft teal glow background */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-1/2 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
-        </div>
-        
+        {/* Vision */}
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
+              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
               </p>
@@ -309,26 +359,24 @@ const LandingPage = () => {
               </a>
             </div>
             <div className="flex justify-center order-first md:order-last">
-              {/* Hexagon grid pattern */}
-              <div className="relative w-64 h-64 sm:w-80 sm:h-80">
-                <div className="absolute top-0 right-0 w-16 h-16 sm:w-20 sm:h-20 bg-corama-teal/40 rounded-lg transform rotate-45 shadow-[0_0_20px_rgba(107,180,181,0.3)]"></div>
-                <div className="absolute top-12 right-16 w-14 h-14 sm:w-18 sm:h-18 bg-corama-teal/30 rounded-lg transform rotate-45"></div>
-                <div className="absolute top-24 right-0 w-16 h-16 sm:w-20 sm:h-20 bg-corama-teal/25 rounded-lg transform rotate-45"></div>
-                <div className="absolute top-12 right-32 w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/20 rounded-lg transform rotate-45"></div>
-                <div className="absolute top-24 right-16 w-14 h-14 sm:w-18 sm:h-18 bg-corama-teal/35 rounded-lg transform rotate-45 shadow-[0_0_15px_rgba(107,180,181,0.2)]"></div>
-                <div className="absolute top-36 right-0 w-12 h-12 sm:w-16 sm:h-16 bg-corama-teal/15 rounded-lg transform rotate-45"></div>
-                <div className="absolute top-36 right-32 w-14 h-14 sm:w-18 sm:h-18 bg-corama-teal/25 rounded-lg transform rotate-45"></div>
-                <div className="absolute top-48 right-16 w-16 h-16 sm:w-20 sm:h-20 bg-corama-teal/30 rounded-lg transform rotate-45 shadow-[0_0_20px_rgba(107,180,181,0.25)]"></div>
-              </div>
+              <img 
+                src="/static/app/landing/Vision.svg" 
+                alt="Vision" 
+                className="w-full max-w-[400px] h-auto"
+              />
             </div>
           </div>
         </div>
       </section>
 
-      {/* Capturing Major State Procurement Wins Section */}
-      <section className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative bg-[#0B0B0F]">
+      {/* Capturing Major State Procurement Wins + Footer (Grouped) */}
+      <section 
+        ref={setSectionRef('testimonial-footer')}
+        data-section="testimonial-footer"
+        className={`pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative bg-[#0B0B0F] ${getSectionClass('testimonial-footer')}`}
+      >
         <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+          <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Capturing Major State<br />Procurement Wins
           </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
