@@ -35,6 +35,11 @@ body {
   border: 1px solid rgba(107, 180, 181, 0.3);
 }
 
+.card-gradient-original {
+  background: linear-gradient(180deg, rgba(107, 180, 181, 0.1) 0%, rgba(107, 180, 181, 0.05) 100%);
+  border: 1px solid rgba(107, 180, 181, 0.3);
+}
+
 .glow-effect {
   box-shadow: 0 0 20px rgba(107, 180, 181, 0.3);
 }
