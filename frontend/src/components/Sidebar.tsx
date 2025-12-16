@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
 
 interface SidebarProps {
   mobileOpen?: boolean
@@ -19,6 +18,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(true)
   
   // Initialize previousPath from sessionStorage to persist across component remounts
   const [previousPath, setPreviousPath] = useState<string | null>(() => {
@@ -72,6 +72,10 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
     else if (!onMobileToggle) setIsOpen(false)
   }
 
+  const toggleExpanded = () => {
+    setIsExpanded(!isExpanded)
+  }
+
   return (
     <>
       {/* Mobile Menu Button */}
@@ -80,7 +84,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-corama-darker rounded-lg text-white"
         aria-label="Toggle menu"
       >
-        {actualOpen ? <X size={24} /> : <Menu size={24} />}
+        <img 
+          src="/static/app/dashboard/HamburgerButton.svg" 
+          alt="" 
+          className="w-6 h-6"
+          aria-hidden="true"
+        />
       </button>
 
       {/* Mobile Overlay */}
@@ -92,113 +101,160 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
       )}
 
       {/* Sidebar - sticky on desktop, starts below header (top-16) so horizontal line can span full width */}
-      <aside className={`
-        relative fixed lg:sticky lg:top-16 inset-y-0 left-0 z-40
-        w-64 lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
-        transform transition-transform duration-300 ease-in-out
-        ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      <aside 
+        className={`
+          relative fixed lg:sticky lg:top-16 inset-y-0 left-0 z-40
+          ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
+          transform transition-all duration-300 ease-in-out
+          ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
         {/* Vertical separator line: runs down the sidebar right edge from top */}
         <div
           className="hidden lg:block absolute right-0 top-0 bottom-0 w-px bg-white"
           aria-hidden="true"
         />
         
-              <nav className="flex-1 py-4 overflow-y-auto">
-                {menuItems.map((item) => {
-                  const isActive = location.pathname === item.path
-                  return (
-                    <div key={item.path} className="relative">
-                      {isActive && (
-                        <img 
-                          src="/static/app/dashboard/Highlight.svg" 
-                          alt="" 
-                          className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
-                          style={{ width: 'calc(100% - 16px)' }}
-                          aria-hidden="true"
-                        />
-                      )}
-                      <Link
-                        to={item.path}
-                        onClick={closeMobile}
-                        className={`relative flex items-center gap-3 px-4 py-3 mb-1 transition-all ${
-                          isActive 
-                            ? 'text-white' 
-                            : 'text-gray-300 hover:bg-corama-darker hover:text-white rounded-xl mx-2'
-                        }`}
-                      >
-                        <img src={item.icon} alt="" className="w-5 h-5" aria-hidden="true" />
-                        <span className="font-poppins text-sm">{item.label}</span>
-                        {item.badge && (
-                          <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
-                        )}
-                      </Link>
-                    </div>
-                  )
-                })}
-                
-                {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
-                {showGoBack && (
-                  <div className="relative mt-2">
-                    <button
-                      onClick={handleGoBack}
-                      className="flex items-center gap-3 pl-6 pr-4 py-3 text-white rounded-r-full transition-all hover:opacity-90"
-                      style={{
-                        background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
-                        width: 'calc(100% - 16px)'
-                      }}
-                    >
-                      <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                      <span className="font-poppins text-sm">Go Back</span>
-                    </button>
-                  </div>
-                )}
-              </nav>
-        
-      {/* IHCC and Social Media Section - fixed at bottom, centered */}
-      <div className="px-4 pt-4 pb-[36px] text-center shrink-0">
-        <p className="text-white text-xs mb-2">Learn More About IHCC</p>
-        <a 
-          href="https://ihccbusiness.net/" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="inline-block mb-4"
-        >
-                    <img 
-                      src="/static/app/dashboard/IHCC.svg" 
-                      alt="IHCC - Illinois Hispanic Chamber of Commerce" 
-                      className="h-24 w-auto mx-auto"
-                    />
-        </a>
-        <p className="text-white text-xs mb-3">Follow Contract Radar Maximizer</p>
-        <div className="flex justify-center gap-3">
-          <a 
-            href="https://www.instagram.com/corama.ai/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="hover:opacity-80 transition-opacity"
-          >
-            <img src="/static/app/dashboard/InstagramLogo.svg" alt="Instagram" className="w-5 h-5" />
-          </a>
-          <a 
-            href="https://www.facebook.com/people/Corama/61568626109717/" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="hover:opacity-80 transition-opacity"
-          >
-            <img src="/static/app/dashboard/Facebook.svg" alt="Facebook" className="w-5 h-5" />
-          </a>
-          <a 
-            href="https://www.linkedin.com/company/corama-ai" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="hover:opacity-80 transition-opacity"
-          >
-            <img src="/static/app/dashboard/LinkedIn.svg" alt="LinkedIn" className="w-5 h-5" />
-          </a>
+        {/* Hamburger Toggle Button */}
+        <div className="px-4 pt-4" style={{ marginTop: '8px' }}>
+          <div className="relative">
+            {/* Highlight background - opacity-0 for hamburger */}
+            <div className="absolute inset-0 opacity-0" />
+            <button
+              onClick={toggleExpanded}
+              className="relative flex items-center justify-center w-[35px] h-[35px] hover:opacity-80 transition-opacity"
+              aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <img 
+                src="/static/app/dashboard/HamburgerButton.svg" 
+                alt="" 
+                className="w-[35px] h-[35px]"
+                aria-hidden="true"
+              />
+            </button>
+          </div>
         </div>
-      </div>
-    </aside>
+        
+        <nav className="flex-1 pt-[16px] overflow-y-auto" style={{ gap: '8px' }}>
+          {menuItems.map((item) => {
+            const isActive = location.pathname === item.path
+            const isCapabilityBuilder = item.path === '/capability-builder'
+            return (
+              <div key={item.path} className="relative" style={{ height: '51px' }}>
+                {isActive && (
+                  <img 
+                    src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
+                    alt="" 
+                    className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
+                    style={{ width: isExpanded ? 'calc(100% - 16px)' : '91px' }}
+                    aria-hidden="true"
+                  />
+                )}
+                <Link
+                  to={item.path}
+                  onClick={closeMobile}
+                  className={`relative flex items-center h-full px-4 transition-all ${
+                    isActive 
+                      ? 'text-white' 
+                      : 'text-gray-300 hover:bg-corama-darker hover:text-white'
+                  }`}
+                  style={{ gap: '8px' }}
+                >
+                  <img 
+                    src={item.icon} 
+                    alt="" 
+                    className="w-[25px] h-[25px]" 
+                    style={{ marginLeft: isCapabilityBuilder ? '4px' : '0' }}
+                    aria-hidden="true" 
+                  />
+                  {isExpanded && (
+                    <span className="font-poppins text-sm">{item.label}</span>
+                  )}
+                  {item.badge && (
+                    <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
+                  )}
+                </Link>
+              </div>
+            )
+          })}
+          
+          {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
+          {showGoBack && (
+            <div className="relative mt-2" style={{ height: '51px' }}>
+              {!isExpanded && (
+                <img 
+                  src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
+                  alt="" 
+                  className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
+                  style={{ width: '91px' }}
+                  aria-hidden="true"
+                />
+              )}
+              <button
+                onClick={handleGoBack}
+                className="relative flex items-center h-full px-4 text-white transition-all hover:opacity-90"
+                style={{
+                  background: isExpanded ? 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' : 'transparent',
+                  width: isExpanded ? 'calc(100% - 16px)' : '100%',
+                  borderRadius: isExpanded ? '0 9999px 9999px 0' : '0',
+                  gap: '8px'
+                }}
+              >
+                <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-[25px] h-[25px]" aria-hidden="true" />
+                {isExpanded && (
+                  <span className="font-poppins text-sm">Go Back</span>
+                )}
+              </button>
+            </div>
+          )}
+        </nav>
+        
+        {/* IHCC and Social Media Section - fixed at bottom, centered */}
+        {isExpanded && (
+          <div className="px-4 pt-4 pb-[36px] text-center shrink-0">
+            <p className="text-white text-xs mb-2">Learn More About IHCC</p>
+            <a 
+              href="https://ihccbusiness.net/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-block mb-4"
+            >
+              <img 
+                src="/static/app/dashboard/IHCC.svg" 
+                alt="IHCC - Illinois Hispanic Chamber of Commerce" 
+                className="h-24 w-auto mx-auto"
+              />
+            </a>
+            <p className="text-white text-xs mb-3">Follow Contract Radar Maximizer</p>
+            <div className="flex justify-center gap-3">
+              <a 
+                href="https://www.instagram.com/corama.ai/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:opacity-80 transition-opacity"
+              >
+                <img src="/static/app/dashboard/InstagramLogo.svg" alt="Instagram" className="w-5 h-5" />
+              </a>
+              <a 
+                href="https://www.facebook.com/people/Corama/61568626109717/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:opacity-80 transition-opacity"
+              >
+                <img src="/static/app/dashboard/Facebook.svg" alt="Facebook" className="w-5 h-5" />
+              </a>
+              <a 
+                href="https://www.linkedin.com/company/corama-ai" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="hover:opacity-80 transition-opacity"
+              >
+                <img src="/static/app/dashboard/LinkedIn.svg" alt="LinkedIn" className="w-5 h-5" />
+              </a>
+            </div>
+          </div>
+        )}
+      </aside>
     </>
   )
 }

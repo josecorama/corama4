@@ -20,7 +20,7 @@ import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 
 function App() {
   return (
-    <Router basename="/">
+    <Router basename="/app">
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />

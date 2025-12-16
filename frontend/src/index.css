@@ -31,6 +31,11 @@ body {
 }
 
 .card-gradient {
+  background: #2F3C4F;
+  border: 1px solid rgba(107, 180, 181, 0.3);
+}
+
+.card-gradient-original {
   background: linear-gradient(180deg, rgba(107, 180, 181, 0.1) 0%, rgba(107, 180, 181, 0.05) 100%);
   border: 1px solid rgba(107, 180, 181, 0.3);
 }
@@ -62,9 +67,22 @@ body {
 /* Orbital animation is now handled by SVG animateMotion in LandingPage.tsx */
 /* This ensures spheres follow the exact orbit paths from orbit.svg */
 
+/* Twinkling star animation */
+@keyframes twinkle {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 8px rgba(107, 180, 181, 0.8)); }
+  50% { opacity: 0.6; filter: drop-shadow(0 0 4px rgba(107, 180, 181, 0.4)); }
+}
+
+.animate-twinkle {
+  animation: twinkle 2s ease-in-out infinite;
+}
+
 /* Respect reduced motion preference - pause SVG animations */
 @media (prefers-reduced-motion: reduce) {
   svg animateMotion {
     animation-play-state: paused;
+  }
+  .animate-twinkle {
+    animation: none;
   }
 }

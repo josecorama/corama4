@@ -144,29 +144,32 @@ const LandingPage = () => {
           />
         </div>
         
-        {/* Layer 3: Decorative stars */}
+        {/* Layer 3: Decorative stars with twinkling glow */}
         {/* Star top-center (above title) */}
-        <div className="absolute top-[18%] left-[32%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star2-img.svg" alt="" aria-hidden="true" className="w-[16px] h-auto opacity-90" />
+        <div className="absolute top-[18%] left-[32%] pointer-events-none z-[3] hidden sm:block animate-twinkle">
+          <img src="/static/app/landing/star2-img.svg" alt="" aria-hidden="true" className="w-[16px] h-auto drop-shadow-[0_0_8px_rgba(107,180,181,0.8)]" />
         </div>
         {/* Star mid-left */}
-        <div className="absolute top-[32%] left-[18%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star-img.svg" alt="" aria-hidden="true" className="w-[28px] h-auto" />
+        <div className="absolute top-[32%] left-[18%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '0.5s' }}>
+          <img src="/static/app/landing/star-img.svg" alt="" aria-hidden="true" className="w-[28px] h-auto drop-shadow-[0_0_10px_rgba(107,180,181,0.8)]" />
         </div>
         {/* Star mid-right (larger) */}
-        <div className="absolute top-[28%] right-[12%] pointer-events-none z-[3] hidden lg:block">
-          <img src="/static/app/landing/star3-img.svg" alt="" aria-hidden="true" className="w-[32px] h-auto" />
+        <div className="absolute top-[28%] right-[12%] pointer-events-none z-[3] hidden lg:block animate-twinkle" style={{ animationDelay: '1s' }}>
+          <img src="/static/app/landing/star3-img.svg" alt="" aria-hidden="true" className="w-[32px] h-auto drop-shadow-[0_0_12px_rgba(107,180,181,0.8)]" />
         </div>
         {/* Star bottom-left (near button) */}
-        <div className="absolute bottom-[28%] left-[28%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star4-img.svg" alt="" aria-hidden="true" className="w-[20px] h-auto opacity-80" />
+        <div className="absolute bottom-[28%] left-[28%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '1.5s' }}>
+          <img src="/static/app/landing/star4-img.svg" alt="" aria-hidden="true" className="w-[20px] h-auto drop-shadow-[0_0_8px_rgba(107,180,181,0.8)]" />
         </div>
         {/* Star bottom-right */}
-        <div className="absolute bottom-[32%] right-[25%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star5-img.svg" alt="" aria-hidden="true" className="w-[24px] h-auto" />
+        <div className="absolute bottom-[32%] right-[25%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '2s' }}>
+          <img src="/static/app/landing/star5-img.svg" alt="" aria-hidden="true" className="w-[24px] h-auto drop-shadow-[0_0_10px_rgba(107,180,181,0.8)]" />
         </div>
         
-        {/* Layer 4: Animated 3D Spheres on orbital paths using inline SVG */}
+        {/* Layer 4: Star glow layer (between stars and spheres) */}
+        <div className="absolute inset-0 pointer-events-none z-[4]" aria-hidden="true" />
+        
+        {/* Layer 5: Animated 3D Spheres on orbital paths using inline SVG */}
         <div className="absolute inset-0 pointer-events-none z-[5] flex items-center justify-center hidden sm:flex">
           <svg 
             viewBox="0 0 1710 963" 
@@ -191,14 +194,14 @@ const LandingPage = () => {
                 />
               </image>
             </g>
-            {/* Right sphere - counter-clockwise on outer orbit (reverse direction) */}
+            {/* Right sphere - counter-clockwise on outer orbit (reverse direction) - 25% smaller */}
             <g>
               <image 
                 href="/static/app/landing/sphere.svg" 
-                width="160" 
-                height="160"
-                x="-80"
-                y="-80"
+                width="120" 
+                height="120"
+                x="-60"
+                y="-60"
               >
                 <animateMotion
                   dur="60s"
@@ -371,11 +374,11 @@ const LandingPage = () => {
         {/* Scope of Work */}
         <div className="max-w-6xl mx-auto relative z-10 mb-24">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
+            <div>
               <img 
                 src="/static/app/landing/Scope.svg" 
                 alt="Scope of Work Station" 
-                className="w-full h-56 sm:h-72 lg:h-80 object-cover"
+                className="w-full h-56 sm:h-72 lg:h-80 object-contain"
               />
             </div>
             <div className="text-center md:text-left">

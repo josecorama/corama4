@@ -328,14 +328,14 @@ const TopFiveContracts = () => {
 
               {/* Bottom Action Buttons */}
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8">
-                <button className="flex items-center gap-3 card-gradient text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
+                <button className="flex items-center gap-3 card-gradient-original text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
                   <Edit size={20} />
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">Edit Profile</p>
                     <p className="text-xs sm:text-sm text-gray-400">Click to edit your registration.</p>
                   </div>
                 </button>
-                <button className="flex items-center gap-3 card-gradient text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
+                <button className="flex items-center gap-3 card-gradient-original text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
                   <Printer size={20} />
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">Print Results</p>
