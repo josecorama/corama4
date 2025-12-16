@@ -20,9 +20,10 @@ const Login = () => {
 
   useEffect(() => {
     // Fetch reCAPTCHA site key
-    fetch('/api/auth/recaptcha-site-key')
-      .then(res => res.json())
-      .then(data => {
+    const loadRecaptcha = async () => {
+      try {
+        const res = await fetch('/api/auth/recaptcha-site-key')
+        const data = await res.json()
         if (data.site_key) {
           setRecaptchaSiteKey(data.site_key)
           // Load reCAPTCHA script
@@ -31,8 +32,13 @@ const Login = () => {
           script.async = true
           document.head.appendChild(script)
         }
-      })
-      .catch(err => console.error('Failed to load reCAPTCHA key:', err))
+      } catch (err) {
+        // reCAPTCHA may fail to load in some environments (e.g., tunnel with auth)
+        // Login will still work without reCAPTCHA token
+        console.warn('reCAPTCHA not available:', err)
+      }
+    }
+    loadRecaptcha()
   }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
