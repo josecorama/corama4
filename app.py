@@ -2,42 +2,53 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, s
 import os
 import re
 import io
-from docx import Document
 import sys
+import ast
+import csv
+import json
+import time
 import logging
+import secrets
+import hashlib
+import threading
+import uuid
+import shutil
+from datetime import datetime, timedelta
+from pathlib import Path
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import secrets
+import numpy as np
 import pandas as pd
+from PIL import Image
+from docx import Document
 import fitz  # PyMuPDF
-from openai import OpenAI
 from fpdf import FPDF
-from datetime import datetime, timedelta
-from werkzeug.utils import secure_filename 
+from openai import OpenAI
+import openai
+import tiktoken
+import pyrebase
+import stripe
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
+from sklearn.metrics.pairwise import cosine_similarity
+from rank_bm25 import BM25Okapi
+from pdf2docx import parse
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk import ne_chunk, pos_tag
-from PIL import Image
-import time  
-import pyrebase 
-import stripe 
-import numpy as np
-import shutil
-from sklearn.metrics.pairwise import cosine_similarity
-import ast
-import csv
-import json
-import threading
-import uuid
+
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
-#from RAG.Capability_statement_embedding import generate_embeddings as generate_capability_embeddings
-#from RAG.vector_store import VectorStore, load_embeddings, initialize_vector_stores
-#from RAG.matcher import find_matches
-from dotenv import load_dotenv
+from cs_processor import CSQueryHandler
+from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
@@ -52,25 +63,6 @@ env_path = os.path.join(base_dir, '.env')
 
 load_dotenv(env_path, override=False)
 
-#New Imports:
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-
-from pdf2docx import parse
-from pathlib import Path
-from rank_bm25 import BM25Okapi
-import json 
-
-#Qdrant
-from cs_processor import CSQueryHandler
-from qdrant_client import QdrantClient, models
-from capability_statement_preprocessing import process_pdfs
-import hashlib
-import openai
-import tiktoken
-import requests  # ✅ Fix: Ensure requests is imported
 
 
 
@@ -110,17 +102,65 @@ job_lock = threading.Lock()
 @app.route("/healthz")
 def health_check():
     return {"status": "ok"}, 200
+
+
+# Admin endpoint to clear all caches
+@app.route("/api/admin/clear-caches", methods=['POST'])
+def admin_clear_caches():
+    """Admin endpoint to clear all in-memory caches.
     
+    This endpoint requires admin authentication via a secret key.
+    Use this when you need to force refresh cached data without restarting the app.
+    """
+    admin_key = request.headers.get('X-Admin-Key') or request.json.get('admin_key') if request.is_json else None
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    
+    if not expected_key:
+        logging.warning("[Admin] ADMIN_SECRET_KEY not configured")
+        return jsonify({"error": "Admin functionality not configured"}), 503
+    
+    if admin_key != expected_key:
+        logging.warning("[Admin] Invalid admin key attempt")
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    clear_all_caches()
+    save_ai_naics_cache()
+    
+    return jsonify({
+        "success": True,
+        "message": "All caches cleared successfully",
+        "caches_cleared": [
+            "AI_NAICS_CACHE",
+            "AI_CATEGORY_CACHE", 
+            "AI_GOODS_SUBCATEGORY_CACHE",
+            "AI_CONSTRUCTION_SUBCATEGORY_CACHE",
+            "QDRANT_ANALYTICS_CACHE",
+            "QDRANT_CONTRACTS_CACHE"
+        ]
+    }), 200
+
 
 # ALLOWED EXTENTIONS
 ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'png', 'jpeg'}
 
-# Initialize NLTK downloads
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('maxent_ne_chunker')
-nltk.download('words')
-nltk.download('stopwords')
+# Initialize NLTK downloads (only download if not already present)
+def ensure_nltk_data():
+    """Download NLTK data only if not already present."""
+    nltk_packages = [
+        ('tokenizers/punkt', 'punkt'),
+        ('taggers/averaged_perceptron_tagger', 'averaged_perceptron_tagger'),
+        ('chunkers/maxent_ne_chunker', 'maxent_ne_chunker'),
+        ('corpora/words', 'words'),
+        ('corpora/stopwords', 'stopwords')
+    ]
+    for path, package in nltk_packages:
+        try:
+            nltk.data.find(path)
+        except LookupError:
+            logging.info(f"Downloading NLTK package: {package}")
+            nltk.download(package, quiet=True)
+
+ensure_nltk_data()
 
 
 
@@ -129,20 +169,6 @@ app.config['UPLOAD_LOGO_FOLDER'] = 'static/uploads_logo'
 app.config['PDF_FOLDER'] = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['UPLOAD_PICTURE_FOLDER'] = 'static/uploads_pictures'
-
-
-
-
-
-# Load environment variables from '.env' file (override=True ensures .env takes precedence)
-load_dotenv(override=False)
-
-
-
-
-
-
-
 # FIREBASE Configuration - Handle missing service account gracefully
 service_account_json_path = os.getenv('SERVICE_ACCOUNT_JSON')
 if service_account_json_path:
@@ -405,12 +431,62 @@ load_ai_naics_cache()
 # In-memory cache for AI-predicted categories (keyed by hash_value)
 AI_CATEGORY_CACHE = {}
 
+# In-memory caches for AI-predicted subcategories
+AI_GOODS_SUBCATEGORY_CACHE = {}
+AI_CONSTRUCTION_SUBCATEGORY_CACHE = {}
+
 # Qdrant analytics cache with signature-based invalidation
 # This allows detecting changes in Qdrant without expensive rescans
 QDRANT_ANALYTICS_CACHE = None
 QDRANT_ANALYTICS_SIGNATURE = None
 QDRANT_CONTRACTS_CACHE = None  # Cache for all contracts
 QDRANT_CONTRACTS_SIGNATURE = None
+
+# Centralized Qdrant client instance (lazy initialization)
+_qdrant_client = None
+
+def get_qdrant_client(timeout=30):
+    """Get a centralized Qdrant client instance.
+    
+    This function provides a single point of configuration for the Qdrant client,
+    avoiding repeated instantiation throughout the codebase.
+    
+    Args:
+        timeout: Connection timeout in seconds (default 30)
+    
+    Returns:
+        QdrantClient instance or None if connection fails
+    """
+    global _qdrant_client
+    if _qdrant_client is None:
+        try:
+            _qdrant_client = QdrantClient(
+                url=os.getenv('QDRANT_URL'),
+                api_key=os.getenv('QDRANT_API_KEY'),
+                timeout=timeout
+            )
+            logging.info("[Qdrant] Centralized client initialized successfully")
+        except Exception as e:
+            logging.error(f"[Qdrant] Failed to initialize centralized client: {e}")
+            return None
+    return _qdrant_client
+
+def clear_all_caches():
+    """Clear all in-memory caches. Useful for admin operations or testing."""
+    global AI_NAICS_CACHE, AI_CATEGORY_CACHE, AI_GOODS_SUBCATEGORY_CACHE
+    global AI_CONSTRUCTION_SUBCATEGORY_CACHE, QDRANT_ANALYTICS_CACHE
+    global QDRANT_ANALYTICS_SIGNATURE, QDRANT_CONTRACTS_CACHE, QDRANT_CONTRACTS_SIGNATURE
+    
+    AI_NAICS_CACHE = {}
+    AI_CATEGORY_CACHE = {}
+    AI_GOODS_SUBCATEGORY_CACHE = {}
+    AI_CONSTRUCTION_SUBCATEGORY_CACHE = {}
+    QDRANT_ANALYTICS_CACHE = None
+    QDRANT_ANALYTICS_SIGNATURE = None
+    QDRANT_CONTRACTS_CACHE = None
+    QDRANT_CONTRACTS_SIGNATURE = None
+    
+    logging.info("[Cache] All in-memory caches cleared")
 
 def get_qdrant_collection_signature():
     """Get a cheap signature for the Qdrant collection to detect changes.
@@ -419,13 +495,10 @@ def get_qdrant_collection_signature():
     This is much cheaper than scanning all contracts.
     """
     try:
-        from qdrant_client import QdrantClient
-        qdrant_client = QdrantClient(
-            url=os.getenv('Qdrant_URL'),
-            api_key=os.getenv('QDRANT_API_KEY'),
-            timeout=5
-        )
-        collection_info = qdrant_client.get_collection("government_contracts")
+        client = get_qdrant_client(timeout=5)
+        if client is None:
+            return None
+        collection_info = client.get_collection("government_contracts")
         return str(collection_info.points_count)
     except Exception as e:
         logging.warning(f"[Qdrant] Failed to get collection signature: {e}")
@@ -8112,7 +8185,7 @@ def upload_document():
         if not user_data or 'uploads_dir' not in user_data:
             return jsonify({"error": "User uploads directory not found"}), 400
             
-        skip_credits = True  # TODO: Set to False to re-enable credit checks after Firebase is fixed
+        skip_credits = False  # Credit checks re-enabled
         
         if not skip_credits:
             # Initialize credit manager and check credits
