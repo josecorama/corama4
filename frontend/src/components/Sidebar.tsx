@@ -136,6 +136,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
               src="/static/app/dashboard/HamburgerButton.svg" 
               alt="" 
               className="w-[35px] h-[35px] flex-shrink-0"
+              style={{ marginLeft: '8px' }}
               aria-hidden="true"
             />
             {!isCollapsed && (
