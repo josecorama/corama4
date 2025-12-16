@@ -56,7 +56,7 @@ const LandingPage = () => {
         
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-          <h1 className="font-inter font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
+          <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             With AI Find<br />Contracts
           </h1>
           <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
@@ -110,7 +110,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
+              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
               </p>
@@ -124,7 +124,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
+              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
               </p>
@@ -138,7 +138,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
+              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
               </p>
@@ -152,7 +152,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
+              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
               </p>
@@ -166,7 +166,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
+              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
               </p>
@@ -180,7 +180,7 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-inter font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
+              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
                 Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
               </p>
@@ -210,7 +210,7 @@ const LandingPage = () => {
               />
             </div>
             <div className="text-center md:text-left">
-              <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
+              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
@@ -233,7 +233,7 @@ const LandingPage = () => {
         </div>
         
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
@@ -272,7 +272,7 @@ const LandingPage = () => {
               </div>
             </div>
             <div className="order-1 md:order-2 text-center md:text-left">
-              <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
+              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
               </p>
@@ -297,7 +297,7 @@ const LandingPage = () => {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="text-center md:text-left">
-              <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
+              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
               </p>
@@ -328,7 +328,7 @@ const LandingPage = () => {
       {/* Capturing Major State Procurement Wins Section */}
       <section className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative bg-[#0B0B0F]">
         <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-          <h2 className="font-inter font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Capturing Major State<br />Procurement Wins
           </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
