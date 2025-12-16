@@ -124,8 +124,18 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('hero')}`}
       >
-        {/* Layer 0: Center gradient glow (degradate.svg effect) */}
-        <div className="absolute inset-0 pointer-events-none z-0 flex items-center justify-center">
+        {/* Layer 1: Orbital lines (orbit.svg) - vertically centered */}
+        <div className="absolute inset-0 pointer-events-none z-[1] flex items-center justify-center">
+          <img 
+            src="/static/app/landing/orbit.svg" 
+            alt="" 
+            aria-hidden="true"
+            className="w-[140%] max-w-[2000px] h-auto"
+          />
+        </div>
+        
+        {/* Layer 2: Center gradient glow (spectrum/degradate.svg) */}
+        <div className="absolute inset-0 pointer-events-none z-[2] flex items-center justify-center">
           <img 
             src="/static/app/landing/degradate.svg" 
             alt="" 
@@ -134,23 +144,33 @@ const LandingPage = () => {
           />
         </div>
         
-        {/* Layer 1: Orbital lines (orbit.svg) */}
-        <div className="absolute inset-0 pointer-events-none z-[1] flex items-center justify-center">
-          <img 
-            src="/static/app/landing/orbit.svg" 
-            alt="" 
-            aria-hidden="true"
-            className="w-[140%] max-w-[2000px] h-auto"
-            style={{ transform: 'translateY(-5%)' }}
-          />
+        {/* Layer 3: Decorative stars */}
+        {/* Star top-center (above title) */}
+        <div className="absolute top-[18%] left-[32%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star2-img.svg" alt="" aria-hidden="true" className="w-[16px] h-auto opacity-90" />
+        </div>
+        {/* Star mid-left */}
+        <div className="absolute top-[32%] left-[18%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star-img.svg" alt="" aria-hidden="true" className="w-[28px] h-auto" />
+        </div>
+        {/* Star mid-right (larger) */}
+        <div className="absolute top-[28%] right-[12%] pointer-events-none z-[3] hidden lg:block">
+          <img src="/static/app/landing/star3-img.svg" alt="" aria-hidden="true" className="w-[32px] h-auto" />
+        </div>
+        {/* Star bottom-left (near button) */}
+        <div className="absolute bottom-[28%] left-[28%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star4-img.svg" alt="" aria-hidden="true" className="w-[20px] h-auto opacity-80" />
+        </div>
+        {/* Star bottom-right */}
+        <div className="absolute bottom-[32%] right-[25%] pointer-events-none z-[3] hidden sm:block">
+          <img src="/static/app/landing/star5-img.svg" alt="" aria-hidden="true" className="w-[24px] h-auto" />
         </div>
         
-        {/* Layer 2: Animated 3D Spheres on orbital paths using inline SVG */}
-        <div className="absolute inset-0 pointer-events-none z-[2] flex items-center justify-center hidden sm:flex">
+        {/* Layer 4: Animated 3D Spheres on orbital paths using inline SVG */}
+        <div className="absolute inset-0 pointer-events-none z-[5] flex items-center justify-center hidden sm:flex">
           <svg 
             viewBox="0 0 1710 963" 
             className="w-[140%] max-w-[2000px] h-auto"
-            style={{ transform: 'translateY(-5%)' }}
             aria-hidden="true"
           >
             {/* Left sphere - clockwise on inner orbit, starts offset by 30s */}
@@ -194,34 +214,12 @@ const LandingPage = () => {
           </svg>
         </div>
         
-        {/* Layer 3: Decorative stars */}
-        {/* Star top-center (above title) */}
-        <div className="absolute top-[18%] left-[32%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star2-img.svg" alt="" aria-hidden="true" className="w-[16px] h-auto opacity-90" />
-        </div>
-        {/* Star mid-left */}
-        <div className="absolute top-[32%] left-[18%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star-img.svg" alt="" aria-hidden="true" className="w-[28px] h-auto" />
-        </div>
-        {/* Star mid-right (larger, rotated) */}
-        <div className="absolute top-[28%] right-[12%] pointer-events-none z-[3] hidden lg:block">
-          <img src="/static/app/landing/star1-img.svg" alt="" aria-hidden="true" className="w-[32px] h-auto" />
-        </div>
-        {/* Star bottom-left (near button) */}
-        <div className="absolute bottom-[28%] left-[28%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star3-img.svg" alt="" aria-hidden="true" className="w-[20px] h-auto opacity-80" />
-        </div>
-        {/* Star bottom-right */}
-        <div className="absolute bottom-[32%] right-[25%] pointer-events-none z-[3] hidden sm:block">
-          <img src="/static/app/landing/star4-img.svg" alt="" aria-hidden="true" className="w-[24px] h-auto" />
-        </div>
-        
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             With AI Find<br />Contracts
           </h1>
-          <p className="text-[#B6F8F9] font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
+          <p className="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
           </p>
           <a 
@@ -375,10 +373,9 @@ const LandingPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
               <img 
-                src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=800" 
-                alt="Work Station" 
+                src="/static/app/landing/Scope.svg" 
+                alt="Scope of Work Station" 
                 className="w-full h-56 sm:h-72 lg:h-80 object-cover"
-                onError={(e) => { e.currentTarget.src = 'https://placehold.co/800x400/0b2c48/6bb4b5?text=Work+Station' }}
               />
             </div>
             <div className="text-center md:text-left">
