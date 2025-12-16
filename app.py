@@ -3361,11 +3361,12 @@ def process_files_cs_feedback(user_uploads_dir, max_rows=300):
 
 #2/25 update
 #LANDING PAGE ROUTE FUNCTION 
-# UPDATED: Now redirects to React landing page for all users
+# UPDATED: Now serves React landing page directly at root
 @app.route('/', methods=['GET'])
 def Landingpage():
-    """Redirect to React landing page - old Jinja2 landing page is deprecated"""
-    return redirect('/app')
+    """Serve React landing page directly - clean URLs without /app prefix"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 #ABOUT US PAGE  ROUTE FUNCTION
@@ -14086,25 +14087,44 @@ def directory_company_profile(user_id):
 # Public paths that don't require authentication (landing page)
 REACT_PUBLIC_PATHS = {'', 'landing'}
 
+# React page routes - these will be handled by the SPA
+REACT_PAGE_ROUTES = {
+    'dashboard', 'capability-builder', 'top-five-contracts', 'ai-assistant',
+    'get-more-credits', 'corama-directory', 'edit-directory-profile',
+    'no-capability-statement', 'contract-analysis', 'proposal-team',
+    'proposal-summary', 'public-bid-proposal-generator', 'landing'
+}
+
+# Backwards compatibility: redirect /app/* to /* (clean URLs)
 @app.route('/app/')
 @app.route('/app/<path:path>')
-def serve_react_app(path=''):
-    """Serve the React frontend application"""
-    app_dir = os.path.join(app.static_folder, 'app')
+def serve_react_app_legacy(path=''):
+    """Redirect old /app/* URLs to new clean URLs for backwards compatibility"""
+    if path:
+        return redirect(f'/{path}', code=301)
+    return redirect('/', code=301)
+
+# Serve React SPA for clean URLs (e.g., /dashboard, /top-five-contracts)
+@app.route('/<path:path>')
+def serve_react_spa(path):
+    """Serve React SPA for page routes, let Flask handle everything else"""
+    # Check if this is a React page route
+    # Extract the first segment of the path (e.g., 'dashboard' from 'dashboard/something')
+    first_segment = path.split('/')[0] if path else ''
     
-    # Serve static assets (js, css, images) without auth check
-    # Use isfile() instead of exists() to avoid matching directories
-    file_path = os.path.join(app_dir, path) if path else None
-    if path and file_path and os.path.isfile(file_path):
-        return send_from_directory(app_dir, path)
+    if first_segment in REACT_PAGE_ROUTES:
+        app_dir = os.path.join(app.static_folder, 'app')
+        
+        # Check authentication for non-public paths
+        if first_segment not in REACT_PUBLIC_PATHS and 'user' not in session:
+            return redirect(url_for('Login'))
+        
+        # Serve index.html for React routes (SPA handles client-side routing)
+        return send_from_directory(app_dir, 'index.html')
     
-    # Allow public paths (landing page) without authentication
-    # All other React routes require authentication
-    if path not in REACT_PUBLIC_PATHS and 'user' not in session:
-        return redirect(url_for('Login'))
-    
-    # Serve index.html for all React routes (SPA)
-    return send_from_directory(app_dir, 'index.html')
+    # For any other path, return 404 (let Flask's default 404 handler take over)
+    # This ensures /api/*, /static/*, /login, /signup, etc. are not intercepted
+    abort(404)
 
 
 # API: Get current user info

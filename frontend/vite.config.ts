@@ -4,7 +4,7 @@ import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  base: '/app/',
+  base: '/static/app/',
   build: {
     outDir: '../static/app',
     emptyOutDir: false
