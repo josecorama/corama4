@@ -18,7 +18,7 @@ export default {
         'inter': ['Inter', 'sans-serif'],
       },
       padding: {
-        '6': '3.5rem',
+        '6': '2.5rem',
       },
     },
   },
