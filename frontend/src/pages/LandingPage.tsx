@@ -91,7 +91,7 @@ const LandingPage = () => {
       <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-4 sm:h-5 w-auto" />
+            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" />
           </div>
           
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
@@ -130,7 +130,7 @@ const LandingPage = () => {
             src="/static/app/landing/degradate.svg" 
             alt="" 
             aria-hidden="true"
-            className="w-[120%] max-w-[1400px] h-auto opacity-80"
+            className="w-[60%] max-w-[800px] h-auto opacity-50"
           />
         </div>
         
@@ -147,7 +147,7 @@ const LandingPage = () => {
         
         {/* Layer 2: 3D Spheres */}
         {/* Left sphere */}
-        <div className="absolute left-[5%] sm:left-[8%] top-[35%] sm:top-[40%] pointer-events-none z-[2] hidden sm:block">
+        <div className="absolute left-[13%] sm:left-[16%] top-[40%] sm:top-[45%] -translate-y-1/2 pointer-events-none z-[2] hidden sm:block">
           <img 
             src="/static/app/landing/sphere.svg" 
             alt="" 
@@ -189,10 +189,10 @@ const LandingPage = () => {
         
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-          <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
+          <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             With AI Find<br />Contracts
           </h1>
-          <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
+          <p className="text-[#B6F8F9] font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
           </p>
           <a 
