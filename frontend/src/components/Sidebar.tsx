@@ -143,40 +143,42 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
           </button>
         </div>
         
-        <nav className="flex-1 overflow-y-auto">
+        {/* Navigation - static, no scrollbar */}
+        <nav className="flex-1 flex flex-col gap-[12px] pt-2">
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path
             return (
               <div 
                 key={item.path} 
                 className="relative"
-                style={{ marginBottom: '36px' }}
+                style={{ height: '51px' }}
               >
                 {isActive && (
                   <img 
-                    src="/static/app/dashboard/Highlight.svg" 
+                    src={isCollapsed ? "/static/app/dashboard/HighlightCollapsed.svg" : "/static/app/dashboard/Highlight.svg"}
                     alt="" 
-                    className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
-                    style={{ width: isCollapsed ? '100%' : 'calc(100% - 16px)' }}
+                    className="absolute top-0 left-0 h-[51px] object-cover object-left"
+                    style={{ width: isCollapsed ? '91px' : 'calc(100% - 16px)' }}
                     aria-hidden="true"
                   />
                 )}
                 <Link
                   to={item.path}
                   onClick={closeMobile}
-                  className={`relative flex items-center px-4 py-2 transition-all ${
-                    isCollapsed ? 'justify-center' : 'gap-3'
+                  className={`relative flex items-center h-[51px] px-4 transition-all ${
+                    isCollapsed ? '' : 'gap-3'
                   } ${
                     isActive 
                       ? 'text-white' 
                       : 'text-gray-300 hover:bg-corama-darker hover:text-white rounded-xl mx-2'
                   }`}
+                  style={{ paddingLeft: isCollapsed ? '28px' : '16px' }}
                   title={isCollapsed ? item.label : undefined}
                 >
                   <img 
                     src={item.icon} 
                     alt="" 
-                    className="w-[35px] h-[35px] flex-shrink-0" 
+                    className="w-[35px] h-[35px] flex-shrink-0 object-contain" 
                     aria-hidden="true" 
                   />
                   {!isCollapsed && (
@@ -192,22 +194,33 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
           
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
-            <div className="relative" style={{ marginTop: '8px' }}>
+            <div className="relative" style={{ height: '51px', marginTop: '4px' }}>
+              {/* Highlight background for Go Back when collapsed */}
+              {isCollapsed && (
+                <img 
+                  src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
+                  alt="" 
+                  className="absolute top-0 left-0 h-[51px] w-[91px] object-cover object-left"
+                  aria-hidden="true"
+                />
+              )}
               <button
                 onClick={handleGoBack}
-                className={`flex items-center text-white rounded-r-full transition-all hover:opacity-90 ${
-                  isCollapsed ? 'justify-center px-4' : 'gap-3 pl-6 pr-4'
-                } py-3`}
+                className={`relative flex items-center h-[51px] text-white transition-all hover:opacity-90 ${
+                  isCollapsed ? '' : 'gap-3 rounded-r-full'
+                }`}
                 style={{
-                  background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
-                  width: isCollapsed ? '100%' : 'calc(100% - 16px)'
+                  background: isCollapsed ? 'transparent' : 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                  width: isCollapsed ? '91px' : 'calc(100% - 16px)',
+                  paddingLeft: isCollapsed ? '28px' : '24px',
+                  paddingRight: '16px'
                 }}
                 title={isCollapsed ? "Go Back" : undefined}
               >
                 <img 
                   src="/static/app/dashboard/GoBack.svg" 
                   alt="" 
-                  className="w-[35px] h-[35px] flex-shrink-0" 
+                  className="w-[35px] h-[35px] flex-shrink-0 object-contain" 
                   aria-hidden="true" 
                 />
                 {!isCollapsed && (
