@@ -182,6 +182,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                     src={item.icon} 
                     alt="" 
                     className="w-[35px] h-[35px] flex-shrink-0 object-contain" 
+                    style={{ marginLeft: item.path === '/capability-builder' ? '4px' : '0' }}
                     aria-hidden="true" 
                   />
                   {!isCollapsed && (
