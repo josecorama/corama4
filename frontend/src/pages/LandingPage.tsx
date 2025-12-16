@@ -1,55 +1,95 @@
 import { ArrowRight } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+
+const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
+const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', 'testimonial-footer']
 
 const LandingPage = () => {
-  const [visibleSections, setVisibleSections] = useState<Set<string>>(new Set(['hero']))
+  const [currentSection, setCurrentSection] = useState(0)
+  const [isScrolling, setIsScrolling] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
 
+  const scrollToSection = useCallback((index: number) => {
+    if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
+    
+    setIsScrolling(true)
+    setCurrentSection(index)
+    
+    const sectionId = SECTION_IDS[index]
+    const section = sectionRefs.current[sectionId]
+    
+    if (section && containerRef.current) {
+      containerRef.current.scrollTo({
+        top: section.offsetTop - HEADER_HEIGHT,
+        behavior: 'smooth'
+      })
+    }
+    
+    // Cooldown to prevent rapid scrolling
+    setTimeout(() => setIsScrolling(false), 800)
+  }, [isScrolling])
+
   const scrollToFeatures = () => {
-    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+    scrollToSection(1) // Features is index 1
   }
 
+  // Handle wheel events for snap scrolling
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const sectionId = entry.target.getAttribute('data-section')
-            if (sectionId) {
-              setVisibleSections((prev) => new Set([...prev, sectionId]))
-            }
-          }
-        })
-      },
-      {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
+    const container = containerRef.current
+    if (!container) return
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      
+      if (isScrolling) return
+      
+      if (e.deltaY > 0) {
+        // Scroll down - go to next section
+        scrollToSection(currentSection + 1)
+      } else if (e.deltaY < 0) {
+        // Scroll up - go to previous section
+        scrollToSection(currentSection - 1)
       }
-    )
+    }
 
-    Object.values(sectionRefs.current).forEach((ref) => {
-      if (ref) observer.observe(ref)
-    })
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowDown' || e.key === 'PageDown') {
+        e.preventDefault()
+        scrollToSection(currentSection + 1)
+      } else if (e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault()
+        scrollToSection(currentSection - 1)
+      }
+    }
 
-    return () => observer.disconnect()
-  }, [])
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [currentSection, isScrolling, scrollToSection])
 
   const setSectionRef = (id: string) => (el: HTMLElement | null) => {
     sectionRefs.current[id] = el
   }
 
+  // Section class for full-height sections with fade animation
   const getSectionClass = (sectionId: string) => {
-    const isVisible = visibleSections.has(sectionId)
-    return `transition-all duration-1000 ${
-      isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+    const sectionIndex = SECTION_IDS.indexOf(sectionId)
+    const isActive = currentSection === sectionIndex
+    return `min-h-[calc(100vh-${HEADER_HEIGHT}px)] flex flex-col justify-center transition-opacity duration-500 ${
+      isActive ? 'opacity-100' : 'opacity-70'
     }`
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F]">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
+      {/* Header - Fixed at top */}
+      <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-corama-teal font-poppins font-bold text-lg sm:text-xl">CORAMA</span>
           </div>
@@ -68,11 +108,17 @@ const LandingPage = () => {
         </div>
       </header>
 
+      {/* Scrollable container - takes remaining height below header */}
+      <div 
+        ref={containerRef}
+        className="flex-1 overflow-y-auto scroll-smooth"
+        style={{ scrollBehavior: 'smooth' }}
+      >
       {/* Hero Section */}
       <section 
         ref={setSectionRef('hero')}
         data-section="hero"
-        className={`pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('hero')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('hero')}`}
       >
         {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -120,7 +166,7 @@ const LandingPage = () => {
         id="features" 
         ref={setSectionRef('features')}
         data-section="features"
-        className={`py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('features')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('features')}`}
       >
         {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -245,7 +291,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('scope-revolution')}
         data-section="scope-revolution"
-        className={`py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('scope-revolution')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('scope-revolution')}`}
       >
         {/* Soft teal glow background */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -301,7 +347,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('mission-vision')}
         data-section="mission-vision"
-        className={`py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden ${getSectionClass('mission-vision')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('mission-vision')}`}
       >
         {/* Soft teal glow background */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -319,14 +365,12 @@ const LandingPage = () => {
         {/* Mission */}
         <div className="max-w-6xl mx-auto relative z-10 mb-24">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="order-2 md:order-1">
-              <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-[0_0_60px_rgba(107,180,181,0.1)] flex items-center justify-center min-h-[280px]">
-                <img 
-                  src="/static/app/landing/Contract.svg" 
-                  alt="Contract" 
-                  className="w-full max-w-[400px] h-auto"
-                />
-              </div>
+            <div className="order-2 md:order-1 flex items-center justify-center">
+              <img 
+                src="/static/app/landing/Contract.svg" 
+                alt="Contract" 
+                className="w-full max-w-[400px] h-auto"
+              />
             </div>
             <div className="order-1 md:order-2 text-center md:text-left">
               <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
@@ -373,118 +417,119 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('testimonial-footer')}
         data-section="testimonial-footer"
-        className={`pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative bg-[#0B0B0F] ${getSectionClass('testimonial-footer')}`}
+        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative bg-[#0B0B0F] flex flex-col justify-between ${getSectionClass('testimonial-footer')}`}
       >
-        <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-          <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
-            Capturing Major State<br />Procurement Wins
-          </h2>
-          <p className="text-gray-400 font-poppins text-base sm:text-lg mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
-            "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
-          </p>
-          
-          {/* Learn More BETWEEN HEXAGONS - with soft oval glow */}
-          <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '24px' }}>
-            {/* Left hexagon group - doubled size */}
-            <div
-              className="relative flex items-center justify-center"
-              style={{ width: '600px', height: '200px', flexShrink: 1 }}
-            >
-              {/* Soft oval glow that covers/encompasses the hexagons */}
-              <div
-                className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                style={{
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '100%',
-                  height: '140px',
-                  background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
-                  filter: 'blur(12px)',
-                  opacity: 0.75,
-                }}
-              />
-              <img
-                src="/static/app/landing/hexagons.png"
-                alt=""
-                aria-hidden="true"
-                className="relative z-10 w-full h-auto translate-y-[75px]"
-                style={{ maxWidth: '100%' }}
-              />
-            </div>
-
-            {/* Learn More button - centered between hexagons */}
-            <button
-              onClick={scrollToFeatures}
-              style={{ flexShrink: 0 }}
-              className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base sm:text-lg hover:gap-3 transition-all whitespace-nowrap px-2"
-            >
-              Learn More <ArrowRight size={18} />
-            </button>
-
-            {/* Right hexagon group (mirrored) - doubled size */}
-            <div
-              className="relative flex items-center justify-center"
-              style={{ width: '600px', height: '200px', flexShrink: 1 }}
-            >
-              {/* Soft oval glow that covers/encompasses the hexagons */}
-              <div
-                className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                style={{
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '100%',
-                  height: '140px',
-                  background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
-                  filter: 'blur(12px)',
-                  opacity: 0.75,
-                }}
-              />
-              <img
-                src="/static/app/landing/hexagons.png"
-                alt=""
-                aria-hidden="true"
-                className="relative z-10 w-full h-auto translate-y-[75px] scale-x-[-1]"
-                style={{ maxWidth: '100%' }}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="pt-4 sm:pt-6 pb-12 sm:pb-16 px-4 sm:px-6 bg-[#0B0B0F] relative">
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="text-center mb-8">
-            <p className="text-gray-400 font-poppins text-sm sm:text-base leading-relaxed">
-              222 W. Merchandise Mart Plaza<br />
-              Suite 1212 c/o 1871 Chicago, IL 60654
+        {/* Main content */}
+        <div className="flex-1 flex flex-col justify-center">
+          <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
+            <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-5 leading-tight">
+              Capturing Major State<br />Procurement Wins
+            </h2>
+            <p className="text-gray-400 font-poppins text-sm sm:text-base mb-4 max-w-3xl mx-auto px-2 leading-relaxed">
+              "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
             </p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center gap-4 sm:gap-8 mb-8 text-sm">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
-            <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
-            <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
-            <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Frequently Asked Questions</a>
-            <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Contact</a>
-          </div>
-          
-          <div className="text-center mb-8">
-            <a href="mailto:info@corama.ai" className="text-gray-400 hover:text-corama-teal font-poppins text-sm transition-colors">
-              Info@corama.ai
-            </a>
-          </div>
-          
-          {/* CORAMA Logo */}
-          <div className="flex justify-center">
-            <img 
-              src="/static/app/landing/corama-logo.png" 
-              alt="CORAMA" 
-              className="h-16 sm:h-20 w-auto"
-            />
+            
+            {/* Learn More BETWEEN HEXAGONS - with soft oval glow */}
+            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
+              {/* Left hexagon group */}
+              <div
+                className="relative flex items-center justify-center hidden sm:flex"
+                style={{ width: '400px', height: '120px', flexShrink: 1 }}
+              >
+                <div
+                  className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+                  style={{
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '100%',
+                    height: '100px',
+                    background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
+                    filter: 'blur(12px)',
+                    opacity: 0.75,
+                  }}
+                />
+                <img
+                  src="/static/app/landing/hexagons.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="relative z-10 w-full h-auto translate-y-[50px]"
+                  style={{ maxWidth: '100%' }}
+                />
+              </div>
+
+              {/* Learn More button */}
+              <button
+                onClick={scrollToFeatures}
+                style={{ flexShrink: 0 }}
+                className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base hover:gap-3 transition-all whitespace-nowrap px-2"
+              >
+                Learn More <ArrowRight size={18} />
+              </button>
+
+              {/* Right hexagon group (mirrored) */}
+              <div
+                className="relative flex items-center justify-center hidden sm:flex"
+                style={{ width: '400px', height: '120px', flexShrink: 1 }}
+              >
+                <div
+                  className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+                  style={{
+                    top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '100%',
+                    height: '100px',
+                    background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
+                    filter: 'blur(12px)',
+                    opacity: 0.75,
+                  }}
+                />
+                <img
+                  src="/static/app/landing/hexagons.png"
+                  alt=""
+                  aria-hidden="true"
+                  className="relative z-10 w-full h-auto translate-y-[50px] scale-x-[-1]"
+                  style={{ maxWidth: '100%' }}
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </footer>
+
+        {/* Footer - at bottom of section */}
+        <footer className="py-6 px-4 sm:px-6 bg-[#0B0B0F] relative">
+          <div className="max-w-6xl mx-auto relative z-10">
+            <div className="text-center mb-4">
+              <p className="text-gray-400 font-poppins text-xs sm:text-sm leading-relaxed">
+                222 W. Merchandise Mart Plaza, Suite 1212 c/o 1871 Chicago, IL 60654
+              </p>
+            </div>
+            
+            <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-4 text-xs sm:text-sm">
+              <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
+              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
+              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
+              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">FAQ</a>
+              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Contact</a>
+            </div>
+            
+            <div className="text-center mb-4">
+              <a href="mailto:info@corama.ai" className="text-gray-400 hover:text-corama-teal font-poppins text-xs sm:text-sm transition-colors">
+                Info@corama.ai
+              </a>
+            </div>
+            
+            {/* CORAMA Logo */}
+            <div className="flex justify-center">
+              <img 
+                src="/static/app/landing/corama-logo.png" 
+                alt="CORAMA" 
+                className="h-12 sm:h-16 w-auto"
+              />
+            </div>
+          </div>
+        </footer>
+      </section>
+      </div>
     </div>
   )
 }
