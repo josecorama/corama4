@@ -143,8 +143,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                     <img 
                       src="/static/app/dashboard/HamburgerButton.svg" 
                       alt="" 
-                      className="w-[35px] h-[35px] flex-shrink-0"
-                      style={{ marginLeft: '10px' }}
+                      className="w-[25px] h-[25px] flex-shrink-0"
+                      style={{ marginLeft: '6px' }}
                       aria-hidden="true"
                     />
                     {!isCollapsed && (
@@ -190,7 +190,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                   <img 
                     src={item.icon} 
                     alt="" 
-                    className="w-[35px] h-[35px] flex-shrink-0 object-contain" 
+                    className="w-[25px] h-[25px] flex-shrink-0 object-contain" 
                     style={{ marginLeft: item.path === '/capability-builder' ? '4px' : '0' }}
                     aria-hidden="true" 
                   />
@@ -233,7 +233,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                 <img 
                   src="/static/app/dashboard/GoBack.svg" 
                   alt="" 
-                  className="w-[35px] h-[35px] flex-shrink-0 object-contain" 
+                  className="w-[25px] h-[25px] flex-shrink-0 object-contain" 
                   aria-hidden="true" 
                 />
                 {!isCollapsed && (
