@@ -125,7 +125,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                 {/* Hamburger Toggle Button - Desktop only, at top of sidebar */}
                 <div 
                   className="hidden lg:block relative"
-                  style={{ height: '51px' }}
+                  style={{ height: '51px', marginTop: '8px' }}
                 >
                   <img 
                     src={isCollapsed ? "/static/app/dashboard/HighlightCollapsed.svg" : "/static/app/dashboard/Highlight.svg"}
