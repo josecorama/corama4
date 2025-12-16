@@ -64,7 +64,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
                 type="text"
                 placeholder="SEARCH IN CORAMA"
                 className="rounded-full py-2 lg:py-2.5 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-sm"
-                style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid rgb(60, 87, 114)', width: '118%' }}
+                style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid rgb(60, 87, 114)', width: '116%' }}
               />
             </div>
           </div>
