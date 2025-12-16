@@ -57,7 +57,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
         {/* Right: Main header content */}
         <div className="flex-1 flex items-center justify-between px-4 lg:px-6">
           {/* Search - hidden on mobile, visible on tablet+ */}
-          <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl">
+          <div className="hidden md:block flex-1 max-w-2xl lg:max-w-5xl">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
