@@ -16,6 +16,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ConfirmTerms from './pages/ConfirmTerms'
 import ResetPassword from './pages/ResetPassword'
+import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/confirm-terms" element={<ConfirmTerms />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/capability-builder" element={<CapabilityBuilder />} />
         <Route path="/top-five-contracts" element={<TopFiveContracts />} />

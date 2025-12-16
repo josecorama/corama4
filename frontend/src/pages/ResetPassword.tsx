@@ -117,7 +117,7 @@ const ResetPassword = () => {
                 alt="CORAMA" 
                 className="h-20 mx-auto mb-6"
               />
-              <h1 className="font-georgia italic text-2xl text-white mb-2">Reset Password</h1>
+              <h1 className="font-poppins text-2xl text-white mb-2">Reset Password</h1>
               <p className="text-gray-400 font-poppins text-sm">
                 Enter your email address and we'll send you a link to reset your password.
               </p>

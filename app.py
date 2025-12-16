@@ -149,7 +149,15 @@ def verify_recaptcha(token):
     
     Returns True if verification passes, False otherwise.
     If no token is provided (e.g., script not loaded yet), skip verification.
+    
+    Set RECAPTCHA_ENABLED=false in .env to disable verification for testing.
     """
+    # Check if reCAPTCHA is disabled for testing
+    recaptcha_enabled = os.getenv("RECAPTCHA_ENABLED", "true").lower() != "false"
+    if not recaptcha_enabled:
+        app.logger.info("[reCAPTCHA] Verification disabled via RECAPTCHA_ENABLED=false")
+        return True
+    
     if not token:
         app.logger.warning("[reCAPTCHA] No token provided, skipping verification")
         return True  # Skip verification if no token (script may not have loaded)
@@ -438,9 +446,108 @@ def api_auth_confirm_terms():
         return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
 
 
+def send_email_smtp(to_email, subject, html_body):
+    """Unified email sending function using SMTP.
+    
+    This function sends emails via Gmail SMTP. It's used for all transactional emails
+    including welcome emails and password reset emails.
+    
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        html_body: HTML content of the email
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    import socket
+    
+    sender_email = os.getenv('EMAIL_GOOGLE_USER')
+    sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    
+    if not sender_email or not sender_password:
+        app.logger.error(f"[Email] Credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+        return False, "Email service not configured"
+    
+    try:
+        # Create MIME message
+        msg = MIMEMultipart("alternative")
+        msg['Subject'] = subject
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        
+        # Attach HTML part
+        mime_text = MIMEText(html_body, "html")
+        msg.attach(mime_text)
+        
+        # Set socket timeout
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(15)
+        
+        try:
+            app.logger.info(f"[Email] Connecting to smtp.gmail.com:465...")
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
+                app.logger.info(f"[Email] Connected, attempting login...")
+                server.login(sender_email, sender_password)
+                app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                server.sendmail(sender_email, to_email, msg.as_string())
+                app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                return True, None
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+            
+    except socket.timeout as e:
+        app.logger.error(f"[Email] SMTP timeout sending to {to_email}: {e}")
+        return False, "Email service timeout"
+    except smtplib.SMTPAuthenticationError as e:
+        app.logger.error(f"[Email] SMTP authentication failed: {e}")
+        return False, "Email authentication failed"
+    except Exception as e:
+        app.logger.error(f"[Email] Error sending to {to_email}: {type(e).__name__}: {e}")
+        return False, str(e)
+
+
+def send_password_reset_email(to_email, reset_link):
+    """Send password reset email with the reset link.
+    
+    Args:
+        to_email: Recipient email address
+        reset_link: The password reset link
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    subject = "Reset Your CORAMA Password"
+    
+    html_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <h2 style="color: #7AB8B9; text-align: center;">Reset Your Password</h2>
+          <p>Hi,</p>
+          <p>We received a request to reset your password for your CORAMA account.</p>
+          <p>Click the button below to set a new password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="{reset_link}" style="background-color: #7AB8B9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+          </div>
+          <p style="font-size: 0.9em; color: #666;">This link will expire in 1 hour for security reasons.</p>
+          <p style="font-size: 0.9em; color: #666;">If you didn't request a password reset, you can safely ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          <p style="text-align: center; font-size: 0.85em; color: #aaa;">&copy; 2025 CORAMA - Contract Radar Maximizer</p>
+        </div>
+      </body>
+    </html>
+    """
+    
+    return send_email_smtp(to_email, subject, html_body)
+
+
 @app.route('/api/auth/reset-password', methods=['POST'])
 def api_auth_reset_password():
     """API endpoint for React password reset page.
+    
+    Uses Firebase Admin SDK to generate a password reset link, then sends it
+    via our own SMTP service for consistent branding and deliverability.
     
     Expects JSON: { email, recaptcha_token }
     Returns JSON: { success, message, error }
@@ -457,18 +564,55 @@ def api_auth_reset_password():
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
     
     try:
-        auth.send_password_reset_email(email)
-        app.logger.info(f"[Auth API] Password reset email sent to {email}")
+        # Import firebase_admin auth module
+        from firebase_admin import auth as admin_auth
+        
+        # Get the base URL for the reset link
+        # In production, this should be the actual domain
+        base_url = os.getenv('APP_BASE_URL', 'https://corama.ai')
+        
+        # Generate password reset link using Firebase Admin SDK
+        # The link will point to our custom reset confirmation page
+        action_code_settings = admin_auth.ActionCodeSettings(
+            url=f"{base_url}/reset-password/confirm",
+            handle_code_in_app=True
+        )
+        
+        reset_link = admin_auth.generate_password_reset_link(email, action_code_settings)
+        app.logger.info(f"[Auth API] Generated password reset link for {email}")
+        
+        # Send the reset email via our SMTP service
+        success, error = send_password_reset_email(email, reset_link)
+        
+        if success:
+            app.logger.info(f"[Auth API] Password reset email sent to {email}")
+            return jsonify({
+                "success": True,
+                "message": "A password reset link has been sent to your email."
+            })
+        else:
+            app.logger.error(f"[Auth API] Failed to send password reset email to {email}: {error}")
+            # Still return success to user to prevent email enumeration
+            # but log the actual error
+            return jsonify({
+                "success": True,
+                "message": "If an account exists with this email, a password reset link has been sent."
+            })
+            
+    except admin_auth.UserNotFoundError:
+        # Don't reveal if user exists - return success anyway
+        app.logger.info(f"[Auth API] Password reset requested for non-existent email: {email}")
         return jsonify({
             "success": True,
-            "message": "A password reset link has been sent to your email."
+            "message": "If an account exists with this email, a password reset link has been sent."
         })
     except Exception as e:
         app.logger.error(f"[Auth API] Password reset error for {email}: {e}")
+        # Return generic success to prevent email enumeration
         return jsonify({
-            "success": False,
-            "error": "Failed to send password reset email. Please check the email address."
-        }), 400
+            "success": True,
+            "message": "If an account exists with this email, a password reset link has been sent."
+        })
 
 
 @app.route('/api/auth/logout', methods=['POST'])
@@ -493,6 +637,98 @@ def api_auth_recaptcha_site_key():
     """
     site_key = os.getenv("RECAPTCHA_SITE_KEY", "")
     return jsonify({"site_key": site_key})
+
+
+@app.route('/api/auth/verify-reset-code', methods=['POST'])
+def api_auth_verify_reset_code():
+    """API endpoint to verify a password reset code (oobCode) is valid.
+    
+    Expects JSON: { oob_code }
+    Returns JSON: { valid, error }
+    """
+    data = request.get_json() or {}
+    oob_code = data.get('oob_code')
+    
+    if not oob_code:
+        return jsonify({"valid": False, "error": "Reset code is required"}), 400
+    
+    try:
+        # Use Firebase REST API to verify the oobCode
+        # This checks if the code is valid without consuming it
+        api_key = os.getenv('FIREBASE_WEB_API_KEY') or os.getenv('FIREBASE_API_KEY')
+        if not api_key:
+            app.logger.error("[Auth API] Firebase API key not configured")
+            return jsonify({"valid": False, "error": "Server configuration error"}), 500
+        
+        # Verify the reset code using Firebase Identity Toolkit
+        verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key={api_key}"
+        response = requests.post(verify_url, json={"oobCode": oob_code})
+        
+        if response.status_code == 200:
+            app.logger.info(f"[Auth API] Reset code verified successfully")
+            return jsonify({"valid": True})
+        else:
+            error_data = response.json()
+            error_message = error_data.get('error', {}).get('message', 'Invalid reset code')
+            app.logger.warning(f"[Auth API] Reset code verification failed: {error_message}")
+            return jsonify({"valid": False, "error": "Invalid or expired reset link."})
+            
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error verifying reset code: {e}")
+        return jsonify({"valid": False, "error": "Failed to verify reset link."}), 500
+
+
+@app.route('/api/auth/confirm-reset-password', methods=['POST'])
+def api_auth_confirm_reset_password():
+    """API endpoint to confirm password reset with new password.
+    
+    Expects JSON: { oob_code, new_password }
+    Returns JSON: { success, error }
+    """
+    data = request.get_json() or {}
+    oob_code = data.get('oob_code')
+    new_password = data.get('new_password')
+    
+    if not oob_code:
+        return jsonify({"success": False, "error": "Reset code is required"}), 400
+    if not new_password:
+        return jsonify({"success": False, "error": "New password is required"}), 400
+    if len(new_password) < 8:
+        return jsonify({"success": False, "error": "Password must be at least 8 characters"}), 400
+    
+    try:
+        # Use Firebase REST API to confirm the password reset
+        api_key = os.getenv('FIREBASE_WEB_API_KEY') or os.getenv('FIREBASE_API_KEY')
+        if not api_key:
+            app.logger.error("[Auth API] Firebase API key not configured")
+            return jsonify({"success": False, "error": "Server configuration error"}), 500
+        
+        # Confirm password reset using Firebase Identity Toolkit
+        reset_url = f"https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key={api_key}"
+        response = requests.post(reset_url, json={
+            "oobCode": oob_code,
+            "newPassword": new_password
+        })
+        
+        if response.status_code == 200:
+            app.logger.info(f"[Auth API] Password reset confirmed successfully")
+            return jsonify({"success": True})
+        else:
+            error_data = response.json()
+            error_message = error_data.get('error', {}).get('message', 'Failed to reset password')
+            app.logger.warning(f"[Auth API] Password reset confirmation failed: {error_message}")
+            
+            # Provide user-friendly error messages
+            if 'EXPIRED' in error_message or 'INVALID' in error_message:
+                return jsonify({"success": False, "error": "This reset link has expired. Please request a new one."})
+            elif 'WEAK_PASSWORD' in error_message:
+                return jsonify({"success": False, "error": "Password is too weak. Please use a stronger password."})
+            else:
+                return jsonify({"success": False, "error": "Failed to reset password. Please try again."})
+            
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error confirming password reset: {e}")
+        return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
 
 
 # ============================================================================

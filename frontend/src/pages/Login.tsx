@@ -112,7 +112,7 @@ const Login = () => {
                 alt="CORAMA" 
                 className="h-20 mx-auto mb-6"
               />
-              <h1 className="font-georgia italic text-2xl text-white">Welcome Back</h1>
+              <h1 className="font-poppins text-2xl text-white">Welcome Back</h1>
             </div>
 
             {/* Error Message */}

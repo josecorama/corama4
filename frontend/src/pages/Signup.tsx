@@ -122,7 +122,7 @@ const Signup = () => {
                 alt="CORAMA" 
                 className="h-20 mx-auto mb-4"
               />
-              <h1 className="font-georgia italic text-2xl text-white">Create Your Account</h1>
+              <h1 className="font-poppins text-2xl text-white">Create Your Account</h1>
             </div>
 
             {/* Error Message */}
