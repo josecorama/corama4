@@ -33,10 +33,20 @@ const faqData: FAQItem[] = [
 ]
 
 const FAQ = () => {
-  const [openIndex, setOpenIndex] = useState<number | null>(0)
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
 
   const toggleCard = (index: number) => {
     setOpenIndex(openIndex === index ? null : index)
+  }
+
+  const getZIndex = (idx: number, column: 'left' | 'right') => {
+    const columnIndices = column === 'left' ? [0, 1, 2] : [3, 4, 5]
+    const positionInColumn = columnIndices.indexOf(idx)
+    
+    if (openIndex === idx) {
+      return 30
+    }
+    return 20 - positionInColumn * 5
   }
 
   return (
@@ -61,29 +71,37 @@ const FAQ = () => {
       <div className="flex-1 pt-24 sm:pt-32 pb-32 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           {/* Title */}
-          <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white text-center mb-12 sm:mb-16 italic">
+          <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white text-center mb-12 sm:mb-16">
             Frequently Asked Questions
           </h1>
 
           {/* FAQ Grid - 2 columns */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
             {/* Left Column: Q1, Q2, Q3 */}
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 relative">
               {[0, 1, 2].map((idx) => (
                 <div 
                   key={idx}
-                  className={`relative transition-all duration-300 ${openIndex === idx ? 'z-20' : 'z-10'}`}
+                  className="relative transition-all duration-300"
+                  style={{ zIndex: getZIndex(idx, 'left') }}
                 >
                   <div 
-                    className={`bg-white rounded-2xl p-6 shadow-lg transition-all duration-300 ${
+                    className={`bg-white rounded-2xl shadow-lg transition-all duration-300 overflow-hidden ${
                       openIndex === idx ? 'shadow-2xl' : ''
                     }`}
+                    style={{ 
+                      width: '500px', 
+                      maxWidth: '100%',
+                      minHeight: openIndex === idx ? 'auto' : '100px',
+                      height: openIndex === idx ? 'auto' : '100px'
+                    }}
                   >
                     <div 
-                      className="flex items-start gap-4 cursor-pointer"
+                      className="flex items-center gap-4 cursor-pointer p-6"
                       onClick={() => toggleCard(idx)}
+                      style={{ height: '100px' }}
                     >
-                      <button className="flex-shrink-0 mt-1">
+                      <button className="flex-shrink-0">
                         {openIndex === idx ? (
                           <img src="/static/app/landing/Close.svg" alt="Close" className="w-5 h-5" />
                         ) : (
@@ -99,7 +117,7 @@ const FAQ = () => {
                     </div>
                     
                     {openIndex === idx && (
-                      <div className="mt-4 pl-9">
+                      <div className="px-6 pb-6 pl-[52px]">
                         <p 
                           className="font-poppins text-sm leading-relaxed"
                           style={{ color: '#363049' }}
@@ -114,22 +132,30 @@ const FAQ = () => {
             </div>
 
             {/* Right Column: Q4, Q5, Q6 */}
-            <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-6 relative">
               {[3, 4, 5].map((idx) => (
                 <div 
                   key={idx}
-                  className={`relative transition-all duration-300 ${openIndex === idx ? 'z-20' : 'z-10'}`}
+                  className="relative transition-all duration-300"
+                  style={{ zIndex: getZIndex(idx, 'right') }}
                 >
                   <div 
-                    className={`bg-white rounded-2xl p-6 shadow-lg transition-all duration-300 ${
+                    className={`bg-white rounded-2xl shadow-lg transition-all duration-300 overflow-hidden ${
                       openIndex === idx ? 'shadow-2xl' : ''
                     }`}
+                    style={{ 
+                      width: '500px', 
+                      maxWidth: '100%',
+                      minHeight: openIndex === idx ? 'auto' : '100px',
+                      height: openIndex === idx ? 'auto' : '100px'
+                    }}
                   >
                     <div 
-                      className="flex items-start gap-4 cursor-pointer"
+                      className="flex items-center gap-4 cursor-pointer p-6"
                       onClick={() => toggleCard(idx)}
+                      style={{ height: '100px' }}
                     >
-                      <button className="flex-shrink-0 mt-1">
+                      <button className="flex-shrink-0">
                         {openIndex === idx ? (
                           <img src="/static/app/landing/Close.svg" alt="Close" className="w-5 h-5" />
                         ) : (
@@ -145,7 +171,7 @@ const FAQ = () => {
                     </div>
                     
                     {openIndex === idx && (
-                      <div className="mt-4 pl-9">
+                      <div className="px-6 pb-6 pl-[52px]">
                         <p 
                           className="font-poppins text-sm leading-relaxed"
                           style={{ color: '#363049' }}
@@ -166,8 +192,8 @@ const FAQ = () => {
       <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent py-5 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
           <div className="text-center sm:text-left">
-            222 W. Merchandise Mart Plaza<br />
-            Suite 1212 c/o 1871 Chicago, IL 60654
+            <div>222 W. Merchandise Mart Plaza</div>
+            <div className="sm:text-center">Suite 1212 c/o 1871 Chicago, IL 60654</div>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="hover:text-corama-teal transition-colors">Learn More About IHCC</a>
