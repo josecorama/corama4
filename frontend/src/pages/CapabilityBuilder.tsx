@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import ThinkingPopup from '../components/ThinkingPopup'
 // Check icon now uses SVG image instead of lucide-react
 import { api, CapabilityStatementData } from '../services/api'
 
@@ -568,6 +569,9 @@ const CapabilityBuilder = () => {
 
   return (
     <div className="min-h-screen bg-corama-dark">
+      {/* Thinking popup for data extraction */}
+      <ThinkingPopup isVisible={uploading || importingUrl} />
+      
       {/* Header spans full width at top */}
       <Header credits={5} />
       
