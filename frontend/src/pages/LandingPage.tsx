@@ -7,17 +7,23 @@ const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', '
 // SmokyText component for the smoke dispersion effect
 interface SmokyTextProps {
   text: string
-  isActive: boolean
+  smokeState: 'idle' | 'active' | 'return'
 }
 
-const SmokyText = ({ text, isActive }: SmokyTextProps) => {
+const SmokyText = ({ text, smokeState }: SmokyTextProps) => {
+  const getClassName = () => {
+    if (smokeState === 'active') return 'smoky-text-wrapper smoke-active'
+    if (smokeState === 'return') return 'smoky-text-wrapper smoke-return'
+    return 'smoky-text-wrapper'
+  }
+  
   return (
-    <span className={`smoky-text-wrapper ${isActive ? 'smoke-active' : ''}`}>
+    <span className={getClassName()}>
       {text.split('').map((char, index) => (
         <span
           key={index}
           className="smoky-letter"
-          style={{ animationDelay: `${0.8 + index * 0.05}s` }}
+          style={{ animationDelay: `${Math.min(0.8 + index * 0.1, 2.7)}s` }}
         >
           {char === ' ' ? '\u00A0' : char}
         </span>
@@ -39,19 +45,26 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
     <div className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
       {/* Animation overlay elements */}
       <div className="card-shine"></div>
+      <div className="card-background"></div>
       <div className="card-tiles">
-        <div className="card-tile"></div>
-        <div className="card-tile"></div>
-        <div className="card-tile"></div>
-        <div className="card-tile"></div>
+        <div className="card-tile tile-1"></div>
+        <div className="card-tile tile-2"></div>
+        <div className="card-tile tile-3"></div>
+        <div className="card-tile tile-4"></div>
+        <div className="card-tile tile-5"></div>
+        <div className="card-tile tile-6"></div>
+        <div className="card-tile tile-7"></div>
+        <div className="card-tile tile-8"></div>
+        <div className="card-tile tile-9"></div>
+        <div className="card-tile tile-10"></div>
       </div>
-      <div className="card-line"></div>
-      <div className="card-line"></div>
-      <div className="card-line"></div>
+      <div className="card-line line-1"></div>
+      <div className="card-line line-2"></div>
+      <div className="card-line line-3"></div>
       
       {/* Card content */}
       <div className="flex justify-center mb-5 sm:mb-6 relative z-10">
-        <img src={icon} alt={title} className="w-16 h-16 sm:w-20 sm:h-20" />
+        <img src={icon} alt={title} className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
       </div>
       <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center relative z-10">{title}</h3>
       <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
@@ -69,11 +82,12 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
 const LandingPage = () => {
   const [currentSection, setCurrentSection] = useState(0)
   const [isScrolling, setIsScrolling] = useState(false)
-  const [smokeActive, setSmokeActive] = useState(false)
+  const [smokeState, setSmokeState] = useState<'idle' | 'active' | 'return'>('idle')
   const [parallaxStyle, setParallaxStyle] = useState<React.CSSProperties>({})
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
   const smokeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wasAboveThresholdRef = useRef(true) // Track if we were above the scroll threshold
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -137,26 +151,56 @@ const LandingPage = () => {
     }
   }, [currentSection, isScrolling, scrollToSection])
 
-  // Smoke effect trigger - activates when leaving hero section (currentSection > 0)
+  // Smoke effect trigger - uses scroll position on container
   useEffect(() => {
-    if (currentSection > 0 && !smokeActive) {
-      setSmokeActive(true)
-      // Clear any existing timeout
-      if (smokeTimeoutRef.current) {
-        clearTimeout(smokeTimeoutRef.current)
+    const container = containerRef.current
+    if (!container) return
+
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop
+      const isAboveThreshold = scrollTop <= 24
+      
+      // Detect threshold crossing
+      if (wasAboveThresholdRef.current && !isAboveThreshold && smokeState === 'idle') {
+        // Scrolled past threshold - trigger smoke out
+        setSmokeState('active')
+        
+        // Clear any existing timeout
+        if (smokeTimeoutRef.current) {
+          clearTimeout(smokeTimeoutRef.current)
+        }
+        
+        // Reset to idle after 4 seconds
+        smokeTimeoutRef.current = setTimeout(() => {
+          setSmokeState('idle')
+        }, 4000)
+      } else if (!wasAboveThresholdRef.current && isAboveThreshold && smokeState === 'idle') {
+        // Scrolled back above threshold - trigger smoke return
+        setSmokeState('return')
+        
+        // Clear any existing timeout
+        if (smokeTimeoutRef.current) {
+          clearTimeout(smokeTimeoutRef.current)
+        }
+        
+        // Reset to idle after animation completes (~2s for reverse)
+        smokeTimeoutRef.current = setTimeout(() => {
+          setSmokeState('idle')
+        }, 2000)
       }
-      // Reset smoke effect after 4 seconds
-      smokeTimeoutRef.current = setTimeout(() => {
-        setSmokeActive(false)
-      }, 4000)
+      
+      wasAboveThresholdRef.current = isAboveThreshold
     }
+
+    container.addEventListener('scroll', handleScroll, { passive: true })
     
     return () => {
+      container.removeEventListener('scroll', handleScroll)
       if (smokeTimeoutRef.current) {
         clearTimeout(smokeTimeoutRef.current)
       }
     }
-  }, [currentSection, smokeActive])
+  }, [smokeState])
 
   // Feature card IntersectionObserver for scroll-triggered animations
   useEffect(() => {
@@ -345,8 +389,8 @@ const LandingPage = () => {
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
-            <SmokyText text="With AI Find" isActive={smokeActive} /><br />
-            <SmokyText text="Contracts" isActive={smokeActive} />
+                        <SmokyText text="With AI Find" smokeState={smokeState} /><br />
+                        <SmokyText text="Contracts" smokeState={smokeState} />
           </h1>
           <p className="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
