@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import ScrollFloat from '../components/ScrollFloat'
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
 const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', 'testimonial-footer']
@@ -548,7 +549,18 @@ const LandingPage = () => {
               />
             </div>
             <div className="text-center md:text-left parallax-text">
-              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6"
+                textClassName="!text-[clamp(1.875rem,4vw,3rem)] !font-bold"
+                animationDuration={1}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.03}
+              >
+                Scope Of Work Station
+              </ScrollFloat>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
@@ -632,7 +644,18 @@ const LandingPage = () => {
               />
             </div>
             <div className="order-1 md:order-2 text-center md:text-left">
-              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6"
+                textClassName="!text-[clamp(1.875rem,4vw,3rem)] !font-bold"
+                animationDuration={1}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.03}
+              >
+                Mission
+              </ScrollFloat>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
               </p>
@@ -650,7 +673,18 @@ const LandingPage = () => {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="text-center md:text-left">
-              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6"
+                textClassName="!text-[clamp(1.875rem,4vw,3rem)] !font-bold"
+                animationDuration={1}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.03}
+              >
+                Vision
+              </ScrollFloat>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
               </p>
