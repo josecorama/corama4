@@ -33,9 +33,17 @@ const ScrollFloat = ({
 
   const splitText = useMemo(() => {
     const text = typeof children === 'string' ? children : '';
-    return text.split('').map((char, index) => (
-      <span className="char" key={index}>
-        {char === ' ' ? '\u00A0' : char}
+    // Split by words first, then by characters within each word
+    // This prevents mid-word breaks like "Statio/n"
+    const words = text.split(' ');
+    return words.map((word, wordIndex) => (
+      <span key={wordIndex} className="word">
+        {word.split('').map((char, charIndex) => (
+          <span className="char" key={`${wordIndex}-${charIndex}`}>
+            {char}
+          </span>
+        ))}
+        {wordIndex < words.length - 1 && <span className="char space">{'\u00A0'}</span>}
       </span>
     ));
   }, [children]);

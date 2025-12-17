@@ -10,6 +10,11 @@
   line-height: 1.5;
 }
 
+.word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 .char {
   display: inline-block;
 }
