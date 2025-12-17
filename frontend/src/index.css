@@ -82,7 +82,7 @@ body {
   border-radius: 50%;
   position: absolute;
   left: 50%;
-  bottom: 55%;
+  top: 55%;
   filter: blur(35px);
   opacity: var(--card-shine-opacity);
   transform: translateX(-50%);
@@ -95,8 +95,8 @@ body {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  -webkit-mask-image: radial-gradient(circle at 60% 5%, black 0%, black 15%, transparent 60%);
-  mask-image: radial-gradient(circle at 60% 5%, black 0%, black 15%, transparent 60%);
+  -webkit-mask-image: radial-gradient(circle at 60% 95%, black 0%, black 15%, transparent 60%);
+  mask-image: radial-gradient(circle at 60% 95%, black 0%, black 15%, transparent 60%);
 }
 
 .feature-card .card-tiles {
@@ -112,16 +112,16 @@ body {
   opacity: 0;
 }
 
-.feature-card .card-tile.tile-1 { top: 0; left: 0; height: 10%; width: 22.5%; }
-.feature-card .card-tile.tile-2 { top: 0; left: 22.5%; height: 10%; width: 27.5%; animation-delay: -6s; }
-.feature-card .card-tile.tile-3 { top: 0; left: 50%; height: 10%; width: 27.5%; animation-delay: -4s; }
-.feature-card .card-tile.tile-4 { top: 0; left: 77.5%; height: 10%; width: 22.5%; animation-delay: -2s; }
-.feature-card .card-tile.tile-5 { top: 10%; left: 0; height: 22.5%; width: 22.5%; animation-delay: -4s; }
-.feature-card .card-tile.tile-6 { top: 10%; left: 22.5%; height: 22.5%; width: 27.5%; animation-delay: -2s; }
-.feature-card .card-tile.tile-7 { top: 10%; left: 50%; height: 22.5%; width: 27.5%; }
-.feature-card .card-tile.tile-8 { top: 10%; left: 77.5%; height: 22.5%; width: 22.5%; animation-delay: -4s; }
-.feature-card .card-tile.tile-9 { top: 32.5%; left: 50%; height: 22.5%; width: 27.5%; animation-delay: -6s; }
-.feature-card .card-tile.tile-10 { top: 32.5%; left: 77.5%; height: 22.5%; width: 22.5%; animation-delay: -2s; }
+.feature-card .card-tile.tile-1 { bottom: 0; left: 0; height: 10%; width: 22.5%; }
+.feature-card .card-tile.tile-2 { bottom: 0; left: 22.5%; height: 10%; width: 27.5%; animation-delay: -6s; }
+.feature-card .card-tile.tile-3 { bottom: 0; left: 50%; height: 10%; width: 27.5%; animation-delay: -4s; }
+.feature-card .card-tile.tile-4 { bottom: 0; left: 77.5%; height: 10%; width: 22.5%; animation-delay: -2s; }
+.feature-card .card-tile.tile-5 { bottom: 10%; left: 0; height: 22.5%; width: 22.5%; animation-delay: -4s; }
+.feature-card .card-tile.tile-6 { bottom: 10%; left: 22.5%; height: 22.5%; width: 27.5%; animation-delay: -2s; }
+.feature-card .card-tile.tile-7 { bottom: 10%; left: 50%; height: 22.5%; width: 27.5%; }
+.feature-card .card-tile.tile-8 { bottom: 10%; left: 77.5%; height: 22.5%; width: 22.5%; animation-delay: -4s; }
+.feature-card .card-tile.tile-9 { bottom: 32.5%; left: 50%; height: 22.5%; width: 27.5%; animation-delay: -6s; }
+.feature-card .card-tile.tile-10 { bottom: 32.5%; left: 77.5%; height: 22.5%; width: 22.5%; animation-delay: -2s; }
 
 @keyframes tile {
   0%, 12.5%, 100% { opacity: 1; }
@@ -160,17 +160,17 @@ body {
   transform: scaleY(0);
 }
 
-.feature-card .card-line.line-1::before { top: 10%; }
+.feature-card .card-line.line-1::before { bottom: 10%; top: auto; }
 .feature-card .card-line.line-1::after { left: 22.5%; }
 .feature-card .card-line.line-1::before,
 .feature-card .card-line.line-1::after { transition-delay: 0.3s; }
 
-.feature-card .card-line.line-2::before { top: 32.5%; }
+.feature-card .card-line.line-2::before { bottom: 32.5%; top: auto; }
 .feature-card .card-line.line-2::after { left: 50%; }
 .feature-card .card-line.line-2::before,
 .feature-card .card-line.line-2::after { transition-delay: 0.15s; }
 
-.feature-card .card-line.line-3::before { top: 55%; }
+.feature-card .card-line.line-3::before { bottom: 55%; top: auto; }
 .feature-card .card-line.line-3::after { right: 22.5%; left: auto; }
 
 /* Hover states */
@@ -215,4 +215,14 @@ body {
 .feature-card .card-content {
   position: relative;
   z-index: 2;
+}
+
+/* Card icon hover effect */
+.feature-card .card-icon {
+  transition: filter 0.35s ease, transform 0.35s ease;
+}
+
+.feature-card:hover .card-icon {
+  filter: brightness(0) saturate(100%) invert(72%) sepia(15%) saturate(1000%) hue-rotate(130deg) brightness(95%) contrast(85%);
+  transform: scale(1.05);
 }
