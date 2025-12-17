@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
+import checkAnimation from '../assets/CheckAnimation.json'
+import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
 
 // SVG asset paths
-const CheckIcon = '/static/app/contract-analysis/Check.svg'
-const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 const FromCORAMADirectoryIcon = '/static/app/team-builder/FromCORAMADirectory.svg'
 const ManualEntryIcon = '/static/app/team-builder/ManualEntry.svg'
@@ -452,30 +453,36 @@ const ProposalTeam = () => {
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (
-                      // Step 1 complete - show check with glow
+                      // Step 1 complete - show Lottie check animation with glow
                       <div className="relative">
                         <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
-                        <img src={CheckIcon} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
+                        <div className="w-14 h-14 relative z-10">
+                          <Lottie 
+                            animationData={checkAnimation} 
+                            loop={false}
+                            autoplay={true}
+                          />
+                        </div>
                       </div>
                     ) : step === 2 && teamMembers.length > 0 ? (
-                      // Step 2 complete when team members added - show check with animation on first add
+                      // Step 2 complete when team members added - show Lottie check animation
                       <div className="relative">
                         <div 
                           className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
                             showSecondCheckAnimation ? 'animate-ping' : ''
                           }`} 
                         />
-                        <img 
-                          src={CheckIcon} 
-                          alt="Step 2 Complete" 
-                          className={`w-14 h-14 relative z-10 ${
-                            showSecondCheckAnimation ? 'animate-bounce' : ''
-                          }`} 
-                        />
+                        <div className="w-14 h-14 relative z-10">
+                          <Lottie 
+                            animationData={checkAnimation} 
+                            loop={false}
+                            autoplay={true}
+                          />
+                        </div>
                       </div>
                     ) : (
                       // Empty check for incomplete steps
-                      <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
+                      <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
                   </div>
                 ))}

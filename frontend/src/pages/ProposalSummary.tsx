@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
+import checkAnimation from '../assets/CheckAnimation.json'
+import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
 
 // SVG asset paths
-const CheckIcon = '/static/app/contract-analysis/Check.svg'
-const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
 const LeftArrowIcon = '/static/app/team-builder/LeftArrow.svg'
 const RightArrowIcon = '/static/app/team-builder/RightArrow.svg'
 const RemoveIcon = '/static/app/team-builder/Remove.svg'
@@ -366,16 +367,16 @@ const ProposalSummary = () => {
                             <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
                               showAnimation ? 'animate-ping' : ''
                             }`} />
-                            <img 
-                              src={CheckIcon} 
-                              alt={`Step ${step} Complete`} 
-                              className={`w-12 h-12 relative z-10 ${
-                                showAnimation ? 'animate-bounce' : ''
-                              }`} 
-                            />
+                            <div className="w-12 h-12 relative z-10">
+                              <Lottie 
+                                animationData={checkAnimation} 
+                                loop={false}
+                                autoplay={true}
+                              />
+                            </div>
                           </div>
                         ) : (
-                          <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-12 h-12" />
+                          <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-12 h-12" />
                         )}
                       </div>
                     )

@@ -1,16 +1,17 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
+import checkAnimation from '../assets/CheckAnimation.json'
+import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
 
 // SVG asset paths
 const UploadContractPDFIcon = '/static/app/contract-analysis/UploadContractPDF.svg'
 const AIFindingsIcon = '/static/app/contract-analysis/AIFindings.svg'
-const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
-const CheckIcon = '/static/app/contract-analysis/Check.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 
 // Generate a unique ID for contracts that don't have one
@@ -186,22 +187,22 @@ const ContractAnalysis = () => {
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (
-                      // Step 1 complete - show check with bounce/ping animation when findings load
+                      // Step 1 complete - show Lottie check animation
                       <div className="relative">
                         <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
                           showFirstCheckAnimation ? 'animate-ping' : ''
                         }`} />
-                        <img 
-                          src={CheckIcon} 
-                          alt="Step 1 Complete" 
-                          className={`w-14 h-14 relative z-10 ${
-                            showFirstCheckAnimation ? 'animate-bounce' : ''
-                          }`} 
-                        />
+                        <div className="w-14 h-14 relative z-10">
+                          <Lottie 
+                            animationData={checkAnimation} 
+                            loop={false}
+                            autoplay={true}
+                          />
+                        </div>
                       </div>
                     ) : (
                       // All other steps show empty check (no numbers)
-                      <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
+                      <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
                   </div>
                 ))}
