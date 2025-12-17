@@ -77,39 +77,6 @@ body {
   animation: twinkle 2s ease-in-out infinite;
 }
 
-/* Smoky text effect */
-.smoky-text-wrapper {
-  display: inline;
-}
-
-.smoky-letter {
-  display: inline-block;
-  color: white;
-}
-
-/* Smoke out animation (when scrolling away from hero) */
-.smoky-text-wrapper.smoke-active .smoky-letter {
-  animation: smoke 1.75s ease-in forwards;
-}
-
-/* Smoke return animation (when scrolling back to hero) */
-.smoky-text-wrapper.smoke-return .smoky-letter {
-  animation: smoke 1.75s ease-out reverse forwards;
-}
-
-@keyframes smoke {
-  0% {
-    transform: rotate(0deg) translate3d(0, 0, 0) skew(0deg) scale(1);
-    opacity: 1;
-    filter: blur(0.02vmin);
-  }
-  100% {
-    transform: rotate(15deg) translate3d(85%, -75%, 0) skew(-30deg) scale(2);
-    opacity: 0;
-    filter: blur(2.5vmin);
-  }
-}
-
 /* Parallax effect for Scope of Work section */
 .parallax-section {
   position: relative;
@@ -254,12 +221,18 @@ body {
 .line-3::before { bottom: 55%; }
 .line-3::after { right: 22.5%; left: auto; }
 
-/* Card Icon Effect - parallax transform */
+/* Card Icon Effect - parallax transform + filter on hover */
 .feature-card .card-icon {
   --icon-parallax-x: 0px;
   --icon-parallax-y: 0px;
-  transition: transform 0.15s ease-out;
+  transition: transform 0.15s ease-out, filter 0.35s ease;
   transform: translate(var(--icon-parallax-x), var(--icon-parallax-y));
+}
+
+.feature-card:hover .card-icon,
+.feature-card.is-active .card-icon {
+  filter: brightness(0) saturate(100%) invert(72%) sepia(15%) saturate(1000%) hue-rotate(130deg) brightness(95%) contrast(85%);
+  transform: translate(var(--icon-parallax-x), var(--icon-parallax-y)) scale(1.05);
 }
 
 /* Hover/Active states */
@@ -296,19 +269,12 @@ body {
   transform: scaleY(1);
 }
 
-/* Icon parallax is handled via CSS variables set by JavaScript onMouseMove */
-/* No additional hover transform needed - parallax provides the movement */
-
 /* Respect reduced motion preference - pause SVG animations */
 @media (prefers-reduced-motion: reduce) {
   svg animateMotion {
     animation-play-state: paused;
   }
   .animate-twinkle {
-    animation: none;
-  }
-  .smoky-text-wrapper.smoke-active .smoky-letter,
-  .smoky-text-wrapper.smoke-return .smoky-letter {
     animation: none;
   }
   .feature-card:hover .card-tile,

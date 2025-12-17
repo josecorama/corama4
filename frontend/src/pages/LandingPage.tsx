@@ -4,34 +4,6 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
 const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', 'testimonial-footer']
 
-// SmokyText component for the smoke dispersion effect
-interface SmokyTextProps {
-  text: string
-  smokeState: 'idle' | 'active' | 'return'
-}
-
-const SmokyText = ({ text, smokeState }: SmokyTextProps) => {
-  const getClassName = () => {
-    if (smokeState === 'active') return 'smoky-text-wrapper smoke-active'
-    if (smokeState === 'return') return 'smoky-text-wrapper smoke-return'
-    return 'smoky-text-wrapper'
-  }
-  
-  return (
-    <span className={getClassName()}>
-      {text.split('').map((char, index) => (
-        <span
-          key={index}
-          className="smoky-letter"
-          style={{ animationDelay: `${Math.min(0.8 + index * 0.1, 2.7)}s` }}
-        >
-          {char === ' ' ? '\u00A0' : char}
-        </span>
-      ))}
-    </span>
-  )
-}
-
 // FeatureCard component with animation elements
 interface FeatureCardProps {
   icon: string
@@ -104,13 +76,9 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
 const LandingPage = () => {
   const [currentSection, setCurrentSection] = useState(0)
   const [isScrolling, setIsScrolling] = useState(false)
-  const [smokeState, setSmokeState] = useState<'idle' | 'active' | 'return'>('idle')
   const [parallaxStyle, setParallaxStyle] = useState<React.CSSProperties>({})
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
-  const smokeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const wasAboveThresholdRef = useRef(true) // Track if we were above the scroll threshold
-  const smokeStateRef = useRef<'idle' | 'active' | 'return'>('idle') // Ref to track current smoke state for scroll handler
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -173,73 +141,6 @@ const LandingPage = () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [currentSection, isScrolling, scrollToSection])
-
-  // Keep smokeStateRef in sync with smokeState
-  useEffect(() => {
-    smokeStateRef.current = smokeState
-  }, [smokeState])
-
-  // Smoke effect trigger - uses scroll position on container (attached once)
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
-
-    const handleScroll = () => {
-      const scrollTop = container.scrollTop
-      const isAboveThreshold = scrollTop <= 24
-      const currentSmokeState = smokeStateRef.current
-      
-      // Detect threshold crossing - scrolling away from hero
-      if (wasAboveThresholdRef.current && !isAboveThreshold) {
-        if (currentSmokeState === 'idle' || currentSmokeState === 'return') {
-          // Clear any existing timeout
-          if (smokeTimeoutRef.current) {
-            clearTimeout(smokeTimeoutRef.current)
-          }
-          
-          // Trigger smoke out
-          setSmokeState('active')
-          smokeStateRef.current = 'active'
-          
-          // Reset to idle after 4 seconds
-          smokeTimeoutRef.current = setTimeout(() => {
-            setSmokeState('idle')
-            smokeStateRef.current = 'idle'
-          }, 4000)
-        }
-      }
-      // Detect threshold crossing - scrolling back to hero
-      else if (!wasAboveThresholdRef.current && isAboveThreshold) {
-        if (currentSmokeState === 'idle' || currentSmokeState === 'active') {
-          // Clear any existing timeout
-          if (smokeTimeoutRef.current) {
-            clearTimeout(smokeTimeoutRef.current)
-          }
-          
-          // Trigger smoke return
-          setSmokeState('return')
-          smokeStateRef.current = 'return'
-          
-          // Reset to idle after animation completes (~2s for reverse)
-          smokeTimeoutRef.current = setTimeout(() => {
-            setSmokeState('idle')
-            smokeStateRef.current = 'idle'
-          }, 2000)
-        }
-      }
-      
-      wasAboveThresholdRef.current = isAboveThreshold
-    }
-
-    container.addEventListener('scroll', handleScroll, { passive: true })
-    
-    return () => {
-      container.removeEventListener('scroll', handleScroll)
-      if (smokeTimeoutRef.current) {
-        clearTimeout(smokeTimeoutRef.current)
-      }
-    }
-  }, []) // Empty dependency array - attach once
 
   // Feature card IntersectionObserver for scroll-triggered animations
   useEffect(() => {
@@ -428,8 +329,8 @@ const LandingPage = () => {
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
-                        <SmokyText text="With AI Find" smokeState={smokeState} /><br />
-                        <SmokyText text="Contracts" smokeState={smokeState} />
+            With AI Find<br />
+            Contracts
           </h1>
           <p className="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
