@@ -250,26 +250,48 @@ const LandingPage = () => {
           <div className="absolute bottom-0 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(26,58,74,0.12)_40%,transparent_70%)] -rotate-6"></div>
         </div>
         
-        {/* Decorative stars - more visible */}
-        <div className="absolute top-16 left-16 text-corama-teal hidden lg:block">
-          <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor" className="opacity-50">
-            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
-          </svg>
+        {/* Decorative stars with twinkling effect - positioned as per design */}
+        {/* Left side stars - between the two rows of cards */}
+        <div className="absolute left-4 sm:left-8 lg:left-16 top-1/2 -translate-y-1/2 hidden lg:block">
+          {/* Small star 1 - top left */}
+          <img 
+            src="/static/app/landing/StarCardLeft1.svg" 
+            alt="" 
+            className="absolute -top-16 -left-4 w-4 h-4 animate-twinkle"
+            style={{ animationDelay: '0s' }}
+          />
+          {/* Small star 2 - left of big star */}
+          <img 
+            src="/static/app/landing/StarCardLeft2.svg" 
+            alt="" 
+            className="absolute top-4 -left-8 w-3 h-3 animate-twinkle"
+            style={{ animationDelay: '0.5s' }}
+          />
+          {/* Big star - main left star */}
+          <img 
+            src="/static/app/landing/BigStarCardLeft.svg" 
+            alt="" 
+            className="w-10 h-10 animate-twinkle"
+            style={{ animationDelay: '1s' }}
+          />
         </div>
-        <div className="absolute top-32 right-24 text-corama-teal hidden lg:block">
-          <svg width="18" height="18" viewBox="0 0 20 20" fill="currentColor" className="opacity-40">
-            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
-          </svg>
-        </div>
-        <div className="absolute bottom-32 right-16 text-corama-teal hidden lg:block">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" className="opacity-35">
-            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
-          </svg>
-        </div>
-        <div className="absolute bottom-48 left-24 text-corama-teal hidden lg:block">
-          <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" className="opacity-30">
-            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
-          </svg>
+        
+        {/* Right side stars - bottom right corner */}
+        <div className="absolute right-4 sm:right-8 lg:right-16 bottom-8 lg:bottom-12 hidden lg:block">
+          {/* Small star - above big star */}
+          <img 
+            src="/static/app/landing/StarCardRight.svg" 
+            alt="" 
+            className="absolute -top-12 right-0 w-4 h-4 animate-twinkle"
+            style={{ animationDelay: '0.3s' }}
+          />
+          {/* Big star - main right star */}
+          <img 
+            src="/static/app/landing/BigStarCardRight.svg" 
+            alt="" 
+            className="w-10 h-10 animate-twinkle"
+            style={{ animationDelay: '0.8s' }}
+          />
         </div>
         
         <div className="max-w-6xl mx-auto relative z-10">
