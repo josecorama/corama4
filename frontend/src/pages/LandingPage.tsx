@@ -65,6 +65,37 @@ interface ParallaxSectionProps {
 
 const ParallaxSection = ({ children }: ParallaxSectionProps) => {
   const sectionRef = useRef<HTMLDivElement>(null)
+  const hasTriggeredRef = useRef(false)
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasTriggeredRef.current) {
+            hasTriggeredRef.current = true
+            // Trigger a "kick" animation when entering viewport
+            section.style.setProperty('--parallax-x', '0.5')
+            section.style.setProperty('--parallax-y', '-0.3')
+            setTimeout(() => {
+              section.style.setProperty('--parallax-x', '-0.3')
+              section.style.setProperty('--parallax-y', '0.2')
+            }, 200)
+            setTimeout(() => {
+              section.style.setProperty('--parallax-x', '0')
+              section.style.setProperty('--parallax-y', '0')
+            }, 400)
+          }
+        })
+      },
+      { threshold: 0.3 }
+    )
+
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!sectionRef.current) return
@@ -179,7 +210,35 @@ const LandingPage = () => {
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
   }
 
-        return (
+  // Scroll-triggered activation for feature cards
+  useEffect(() => {
+    const cards = document.querySelectorAll('.feature-card')
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const card = entry.target as HTMLElement
+            // Add is-active class with a staggered delay based on card index
+            const index = Array.from(cards).indexOf(card)
+            setTimeout(() => {
+              card.classList.add('is-active')
+              // Remove the class after 2 seconds to allow hover to work again
+              setTimeout(() => {
+                card.classList.remove('is-active')
+              }, 2000)
+            }, index * 150)
+          }
+        })
+      },
+      { threshold: 0.3 }
+    )
+
+    cards.forEach((card) => observer.observe(card))
+    return () => observer.disconnect()
+  }, [])
+
+  return (
         <div className="min-h-screen bg-[#0B0B0F]">
           {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">

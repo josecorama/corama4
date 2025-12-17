@@ -173,43 +173,55 @@ body {
 .feature-card .card-line.line-3::before { bottom: 55%; top: auto; }
 .feature-card .card-line.line-3::after { right: 22.5%; left: auto; }
 
-/* Hover states */
-.feature-card:hover .card-shine {
+/* Hover states and scroll-triggered states */
+.feature-card:hover .card-shine,
+.feature-card.is-active .card-shine {
   opacity: 1;
   transition-duration: 0.5s;
   transition-delay: 0s;
 }
 
-.feature-card:hover .card-tiles {
+.feature-card:hover .card-tiles,
+.feature-card.is-active .card-tiles {
   opacity: 1;
   transition-delay: 0.25s;
 }
 
-.feature-card:hover .card-tile {
+.feature-card:hover .card-tile,
+.feature-card.is-active .card-tile {
   animation-name: tile;
 }
 
-.feature-card:hover .card-line {
+.feature-card:hover .card-line,
+.feature-card.is-active .card-line {
   opacity: 1;
   transition-duration: 0.15s;
 }
 
-.feature-card:hover .card-line::before {
+.feature-card:hover .card-line::before,
+.feature-card.is-active .card-line::before {
   transform: scaleX(1);
 }
 
-.feature-card:hover .card-line::after {
+.feature-card:hover .card-line::after,
+.feature-card.is-active .card-line::after {
   transform: scaleY(1);
 }
 
 .feature-card:hover .card-line.line-1::before,
-.feature-card:hover .card-line.line-1::after { transition-delay: 0s; }
+.feature-card:hover .card-line.line-1::after,
+.feature-card.is-active .card-line.line-1::before,
+.feature-card.is-active .card-line.line-1::after { transition-delay: 0s; }
 
 .feature-card:hover .card-line.line-2::before,
-.feature-card:hover .card-line.line-2::after { transition-delay: 0.15s; }
+.feature-card:hover .card-line.line-2::after,
+.feature-card.is-active .card-line.line-2::before,
+.feature-card.is-active .card-line.line-2::after { transition-delay: 0.15s; }
 
 .feature-card:hover .card-line.line-3::before,
-.feature-card:hover .card-line.line-3::after { transition-delay: 0.3s; }
+.feature-card:hover .card-line.line-3::after,
+.feature-card.is-active .card-line.line-3::before,
+.feature-card.is-active .card-line.line-3::after { transition-delay: 0.3s; }
 
 /* Card content z-index */
 .feature-card .card-content {
@@ -222,7 +234,8 @@ body {
   transition: filter 0.35s ease, transform 0.35s ease;
 }
 
-.feature-card:hover .card-icon {
+.feature-card:hover .card-icon,
+.feature-card.is-active .card-icon {
   filter: brightness(0) saturate(100%) invert(72%) sepia(15%) saturate(1000%) hue-rotate(130deg) brightness(95%) contrast(85%);
   transform: scale(1.05);
 }
