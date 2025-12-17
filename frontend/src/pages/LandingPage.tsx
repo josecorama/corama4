@@ -518,6 +518,22 @@ const LandingPage = () => {
           <div className="absolute bottom-1/4 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
         </div>
         
+        {/* Spiral SVGs behind stars - left side mirrored, right side original */}
+        <img 
+          src="/static/app/landing/Spiral.svg" 
+          alt="" 
+          className="absolute top-[15%] left-[2%] w-[300px] h-auto hidden lg:block pointer-events-none"
+          style={{ transform: 'scaleX(-1)', opacity: 0.6 }}
+          aria-hidden="true"
+        />
+        <img 
+          src="/static/app/landing/Spiral.svg" 
+          alt="" 
+          className="absolute bottom-[15%] right-[2%] w-[300px] h-auto hidden lg:block pointer-events-none"
+          style={{ opacity: 0.6 }}
+          aria-hidden="true"
+        />
+        
         {/* Twinkling stars for Mission section */}
         <img 
           src="/static/app/landing/left-star-img.svg" 
