@@ -5763,19 +5763,6 @@ def Businessplan():
 
 
 
-#FAQ ROUTE FUNCTION 
-@app.route('/faq', methods=['GET']) 
-def Faq():
-    if 'user' not in session:
-        return render_template('faq.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('faq.html')
-
-
 #TERMS OF USE ROUTE FUNCTION
 @app.route('/terms_of_use', methods=['GET'])
 def terms_of_use():
