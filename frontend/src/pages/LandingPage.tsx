@@ -8,8 +8,8 @@ const WavesBackground = () => {
   const frameCountRef = useRef(0)
 
   const waveColor = { r: 154, g: 199, b: 202 }
-  const expansionSpeed = 1.5
-  const spawnRate = 60
+  const expansionSpeed = 0.8
+  const spawnRate = 150
 
   const resize = useCallback(() => {
     const canvas = canvasRef.current
@@ -20,7 +20,7 @@ const WavesBackground = () => {
     canvas.style.width = `${window.innerWidth}px`
     canvas.style.height = `${window.innerHeight}px`
     const ctx = canvas.getContext('2d')
-    if (ctx) ctx.scale(dpr, dpr)
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   }, [])
 
   useEffect(() => {
@@ -36,10 +36,9 @@ const WavesBackground = () => {
       const width = window.innerWidth
       const height = window.innerHeight
       const centerX = width / 2
-      const centerY = height / 2
+      const centerY = height * 0.75
 
-      ctx.fillStyle = 'rgba(11, 11, 15, 1)'
-      ctx.fillRect(0, 0, width, height)
+      ctx.clearRect(0, 0, width, height)
 
       frameCountRef.current++
       if (frameCountRef.current % spawnRate === 0) {
@@ -50,15 +49,15 @@ const WavesBackground = () => {
       for (let i = wavesRef.current.length - 1; i >= 0; i--) {
         const wave = wavesRef.current[i]
         const fadeOut = 1 - (wave.radius / wave.maxRadius)
-        const finalOpacity = fadeOut * 0.5
+        const finalOpacity = fadeOut * 0.15
 
         if (finalOpacity > 0) {
           ctx.beginPath()
           ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2)
           const colorString = `rgba(${waveColor.r}, ${waveColor.g}, ${waveColor.b}, ${finalOpacity})`
-          ctx.shadowBlur = 20
+          ctx.shadowBlur = 12
           ctx.shadowColor = colorString
-          ctx.lineWidth = 1.6
+          ctx.lineWidth = 1.0
           ctx.globalCompositeOperation = 'lighter'
           ctx.strokeStyle = colorString
           ctx.stroke()
