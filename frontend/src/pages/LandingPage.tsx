@@ -14,21 +14,80 @@ interface FeatureCardProps {
 
 const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null)
+  const layer1Ref = useRef<HTMLDivElement>(null)
+  const layer2Ref = useRef<HTMLDivElement>(null)
+  const layer3Ref = useRef<HTMLDivElement>(null)
+  const isHoveredRef = useRef(false)
+  const animationCompleteRef = useRef(false)
+  
+  const applyParallaxEffect = useCallback((x: number, y: number) => {
+    const tiltY = (x - 0.5) * 60
+    const layers = [layer1Ref.current, layer2Ref.current, layer3Ref.current]
+    
+    layers.forEach((layer, index) => {
+      if (!layer) return
+      const depthX = index * 30
+      const depthY = index * 13
+      const moveX = (x - 0.5) * depthX
+      const moveY = (y - 0.5) * depthY
+      layer.style.transform = `translate(${moveX}px, ${moveY}px) rotateY(${tiltY}deg)`
+      
+      // Color change effect based on x position (hue shift)
+      const hue = (x - 0.5) * 80 // -40 to +40 degrees
+      layer.style.filter = `hue-rotate(${hue}deg) saturate(1.4) brightness(${1 + (x - 0.5) * 0.3})`
+    })
+  }, [])
   
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!cardRef.current) return
     const rect = cardRef.current.getBoundingClientRect()
-    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2 // -1 to 1
-    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2 // -1 to 1
-    cardRef.current.style.setProperty('--icon-parallax-x', `${x * 8}px`)
-    cardRef.current.style.setProperty('--icon-parallax-y', `${y * 6}px`)
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+    isHoveredRef.current = true
+    applyParallaxEffect(x, y)
   }
   
   const handleMouseLeave = () => {
-    if (!cardRef.current) return
-    cardRef.current.style.setProperty('--icon-parallax-x', '0px')
-    cardRef.current.style.setProperty('--icon-parallax-y', '0px')
+    isHoveredRef.current = false
+    // Reset to center position smoothly
+    const layers = [layer1Ref.current, layer2Ref.current, layer3Ref.current]
+    layers.forEach(layer => {
+      if (!layer) return
+      layer.style.transform = 'translate(0px, 0px) rotateY(0deg)'
+      layer.style.filter = 'hue-rotate(0deg) saturate(1) brightness(1)'
+    })
   }
+  
+  // Auto-animation on load - runs ONCE
+  useEffect(() => {
+    let progress = 0
+    let animationId: number
+    
+    function animate() {
+      if (isHoveredRef.current || animationCompleteRef.current) return
+      progress += 0.005
+      const x = Math.sin(progress) * 0.5 + 0.5
+      const y = 0.5
+      applyParallaxEffect(x, y)
+      if (progress < Math.PI * 2) {
+        animationId = requestAnimationFrame(animate)
+      } else {
+        animationCompleteRef.current = true
+        // Reset to center after animation completes
+        const layers = [layer1Ref.current, layer2Ref.current, layer3Ref.current]
+        layers.forEach(layer => {
+          if (!layer) return
+          layer.style.transform = 'translate(0px, 0px) rotateY(0deg)'
+          layer.style.filter = 'hue-rotate(0deg) saturate(1) brightness(1)'
+        })
+      }
+    }
+    animate()
+    
+    return () => {
+      if (animationId) cancelAnimationFrame(animationId)
+    }
+  }, [applyParallaxEffect])
   
   return (
     <div 
@@ -37,9 +96,34 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
-      {/* Card content - icon at top with parallax */}
-      <div className="flex justify-center mb-5 sm:mb-6 relative z-10">
-        <img src={icon} alt={title} className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
+      {/* Card content - icon at top with parallax layers */}
+      <div className="flex justify-center mb-5 sm:mb-6 relative z-10" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
+        <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+          {/* Parallax Layer 1 - Back layer (shadow/glow) */}
+          <div 
+            ref={layer1Ref}
+            className="absolute inset-0 transition-transform duration-100 ease-out"
+            style={{ transformStyle: 'preserve-3d' }}
+          >
+            <img src={icon} alt="" className="w-full h-full opacity-30 blur-sm scale-110" />
+          </div>
+          {/* Parallax Layer 2 - Middle layer */}
+          <div 
+            ref={layer2Ref}
+            className="absolute inset-0 transition-transform duration-100 ease-out"
+            style={{ transformStyle: 'preserve-3d' }}
+          >
+            <img src={icon} alt="" className="w-full h-full opacity-60" />
+          </div>
+          {/* Parallax Layer 3 - Front layer (main icon) */}
+          <div 
+            ref={layer3Ref}
+            className="absolute inset-0 transition-transform duration-100 ease-out"
+            style={{ transformStyle: 'preserve-3d' }}
+          >
+            <img src={icon} alt={title} className="w-full h-full" />
+          </div>
+        </div>
       </div>
       <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center relative z-10">{title}</h3>
       <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
