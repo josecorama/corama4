@@ -52,3 +52,167 @@ body {
 .animate-float {
   animation: float 3s ease-in-out infinite;
 }
+
+/* Feature Card Animation Styles */
+.feature-card {
+  --card-shine-opacity: 0.15;
+  --card-shine-gradient: conic-gradient(from 205deg at 50% 50%, rgba(107,180,181,0) 0deg, #6BB4B5 25deg, rgba(153,200,202,0.18) 295deg, rgba(107,180,181,0) 360deg);
+  --card-tile-color: rgba(107, 180, 181, 0.08);
+  --card-line-color: rgba(107, 180, 181, 0.2);
+  position: relative;
+  cursor: pointer;
+  transition: box-shadow 0.25s, border-color 0.25s;
+}
+
+.feature-card .card-shine {
+  border-radius: inherit;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.5s;
+  pointer-events: none;
+}
+
+.feature-card .card-shine::before {
+  content: '';
+  width: 150%;
+  padding-bottom: 150%;
+  border-radius: 50%;
+  position: absolute;
+  left: 50%;
+  bottom: 55%;
+  filter: blur(35px);
+  opacity: var(--card-shine-opacity);
+  transform: translateX(-50%);
+  background-image: var(--card-shine-gradient);
+}
+
+.feature-card .card-background {
+  border-radius: inherit;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle at 60% 5%, black 0%, black 15%, transparent 60%);
+  mask-image: radial-gradient(circle at 60% 5%, black 0%, black 15%, transparent 60%);
+}
+
+.feature-card .card-tiles {
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+
+.feature-card .card-tile {
+  position: absolute;
+  background-color: var(--card-tile-color);
+  animation-duration: 8s;
+  animation-iteration-count: infinite;
+  opacity: 0;
+}
+
+.feature-card .card-tile.tile-1 { top: 0; left: 0; height: 10%; width: 22.5%; }
+.feature-card .card-tile.tile-2 { top: 0; left: 22.5%; height: 10%; width: 27.5%; animation-delay: -6s; }
+.feature-card .card-tile.tile-3 { top: 0; left: 50%; height: 10%; width: 27.5%; animation-delay: -4s; }
+.feature-card .card-tile.tile-4 { top: 0; left: 77.5%; height: 10%; width: 22.5%; animation-delay: -2s; }
+.feature-card .card-tile.tile-5 { top: 10%; left: 0; height: 22.5%; width: 22.5%; animation-delay: -4s; }
+.feature-card .card-tile.tile-6 { top: 10%; left: 22.5%; height: 22.5%; width: 27.5%; animation-delay: -2s; }
+.feature-card .card-tile.tile-7 { top: 10%; left: 50%; height: 22.5%; width: 27.5%; }
+.feature-card .card-tile.tile-8 { top: 10%; left: 77.5%; height: 22.5%; width: 22.5%; animation-delay: -4s; }
+.feature-card .card-tile.tile-9 { top: 32.5%; left: 50%; height: 22.5%; width: 27.5%; animation-delay: -6s; }
+.feature-card .card-tile.tile-10 { top: 32.5%; left: 77.5%; height: 22.5%; width: 22.5%; animation-delay: -2s; }
+
+@keyframes tile {
+  0%, 12.5%, 100% { opacity: 1; }
+  25%, 82.5% { opacity: 0; }
+}
+
+.feature-card .card-line {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.35s;
+  pointer-events: none;
+}
+
+.feature-card .card-line::before,
+.feature-card .card-line::after {
+  content: '';
+  position: absolute;
+  background-color: var(--card-line-color);
+  transition: transform 0.35s;
+}
+
+.feature-card .card-line::before {
+  left: 0;
+  right: 0;
+  height: 1px;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+}
+
+.feature-card .card-line::after {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  transform-origin: 50% 0;
+  transform: scaleY(0);
+}
+
+.feature-card .card-line.line-1::before { top: 10%; }
+.feature-card .card-line.line-1::after { left: 22.5%; }
+.feature-card .card-line.line-1::before,
+.feature-card .card-line.line-1::after { transition-delay: 0.3s; }
+
+.feature-card .card-line.line-2::before { top: 32.5%; }
+.feature-card .card-line.line-2::after { left: 50%; }
+.feature-card .card-line.line-2::before,
+.feature-card .card-line.line-2::after { transition-delay: 0.15s; }
+
+.feature-card .card-line.line-3::before { top: 55%; }
+.feature-card .card-line.line-3::after { right: 22.5%; left: auto; }
+
+/* Hover states */
+.feature-card:hover .card-shine {
+  opacity: 1;
+  transition-duration: 0.5s;
+  transition-delay: 0s;
+}
+
+.feature-card:hover .card-tiles {
+  opacity: 1;
+  transition-delay: 0.25s;
+}
+
+.feature-card:hover .card-tile {
+  animation-name: tile;
+}
+
+.feature-card:hover .card-line {
+  opacity: 1;
+  transition-duration: 0.15s;
+}
+
+.feature-card:hover .card-line::before {
+  transform: scaleX(1);
+}
+
+.feature-card:hover .card-line::after {
+  transform: scaleY(1);
+}
+
+.feature-card:hover .card-line.line-1::before,
+.feature-card:hover .card-line.line-1::after { transition-delay: 0s; }
+
+.feature-card:hover .card-line.line-2::before,
+.feature-card:hover .card-line.line-2::after { transition-delay: 0.15s; }
+
+.feature-card:hover .card-line.line-3::before,
+.feature-card:hover .card-line.line-3::after { transition-delay: 0.3s; }
+
+/* Card content z-index */
+.feature-card .card-content {
+  position: relative;
+  z-index: 2;
+}
