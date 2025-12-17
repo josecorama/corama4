@@ -404,13 +404,47 @@ const LandingPage = () => {
         
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-          <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
-            With AI Find<br />
-            Contracts
-          </h1>
-          <p className="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
+          <div className="mb-4 sm:mb-6">
+            <ScrollFloat
+              scrollContainerRef={containerRef}
+              containerClassName="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white leading-tight tracking-tight"
+              textClassName="!text-[clamp(3rem,8vw,6rem)] !font-black"
+              animationDuration={1}
+              ease="back.inOut(2)"
+              scrollStart="center bottom+=50%"
+              scrollEnd="bottom bottom-=40%"
+              stagger={0.03}
+              as="h1"
+            >
+              With AI Find
+            </ScrollFloat>
+            <ScrollFloat
+              scrollContainerRef={containerRef}
+              containerClassName="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white leading-tight tracking-tight"
+              textClassName="!text-[clamp(3rem,8vw,6rem)] !font-black"
+              animationDuration={1}
+              ease="back.inOut(2)"
+              scrollStart="center bottom+=50%"
+              scrollEnd="bottom bottom-=40%"
+              stagger={0.03}
+              as="h1"
+            >
+              Contracts
+            </ScrollFloat>
+          </div>
+          <ScrollFloat
+            scrollContainerRef={containerRef}
+            containerClassName="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed"
+            textClassName="!text-sm sm:!text-base lg:!text-lg !font-normal"
+            animationDuration={0.8}
+            ease="back.inOut(2)"
+            scrollStart="center bottom+=50%"
+            scrollEnd="bottom bottom-=40%"
+            stagger={0.01}
+            as="p"
+          >
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
-          </p>
+          </ScrollFloat>
           <a 
             href="/login" 
             className="inline-flex items-center gap-2 text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:opacity-90 transition-all text-sm sm:text-base"
@@ -561,9 +595,19 @@ const LandingPage = () => {
               >
                 Scope Of Work Station
               </ScrollFloat>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed"
+                textClassName="!text-base sm:!text-lg !font-normal"
+                animationDuration={0.8}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.01}
+                as="p"
+              >
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
-              </p>
+              </ScrollFloat>
               <a 
                 href="/login" 
                 className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
@@ -581,12 +625,57 @@ const LandingPage = () => {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full"></div>
           </div>
           
-          <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
-            Revolutionizing Government<br />Contracting for Small<br />Businesses
-          </h2>
-          <p className="text-[#6bb4b5] font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+          <div className="mb-5 sm:mb-6">
+            <ScrollFloat
+              scrollContainerRef={containerRef}
+              containerClassName="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white leading-tight"
+              textClassName="!text-[clamp(1.875rem,4vw,3rem)] !font-bold"
+              animationDuration={1}
+              ease="back.inOut(2)"
+              scrollStart="center bottom+=50%"
+              scrollEnd="bottom bottom-=40%"
+              stagger={0.03}
+            >
+              Revolutionizing Government
+            </ScrollFloat>
+            <ScrollFloat
+              scrollContainerRef={containerRef}
+              containerClassName="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white leading-tight"
+              textClassName="!text-[clamp(1.875rem,4vw,3rem)] !font-bold"
+              animationDuration={1}
+              ease="back.inOut(2)"
+              scrollStart="center bottom+=50%"
+              scrollEnd="bottom bottom-=40%"
+              stagger={0.03}
+            >
+              Contracting for Small
+            </ScrollFloat>
+            <ScrollFloat
+              scrollContainerRef={containerRef}
+              containerClassName="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white leading-tight"
+              textClassName="!text-[clamp(1.875rem,4vw,3rem)] !font-bold"
+              animationDuration={1}
+              ease="back.inOut(2)"
+              scrollStart="center bottom+=50%"
+              scrollEnd="bottom bottom-=40%"
+              stagger={0.03}
+            >
+              Businesses
+            </ScrollFloat>
+          </div>
+          <ScrollFloat
+            scrollContainerRef={containerRef}
+            containerClassName="text-[#6bb4b5] font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed"
+            textClassName="!text-base sm:!text-lg !font-normal"
+            animationDuration={0.8}
+            ease="back.inOut(2)"
+            scrollStart="center bottom+=50%"
+            scrollEnd="bottom bottom-=40%"
+            stagger={0.01}
+            as="p"
+          >
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
-          </p>
+          </ScrollFloat>
           <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-base hover:gap-3 transition-all">
             Learn More <ArrowRight size={18} />
           </button>
@@ -656,9 +745,19 @@ const LandingPage = () => {
               >
                 Mission
               </ScrollFloat>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed"
+                textClassName="!text-base sm:!text-lg !font-normal"
+                animationDuration={0.8}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.01}
+                as="p"
+              >
                 To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
-              </p>
+              </ScrollFloat>
               <a 
                 href="/login" 
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
@@ -685,9 +784,19 @@ const LandingPage = () => {
               >
                 Vision
               </ScrollFloat>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed"
+                textClassName="!text-base sm:!text-lg !font-normal"
+                animationDuration={0.8}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.01}
+                as="p"
+              >
                 To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
-              </p>
+              </ScrollFloat>
               <a 
                 href="/login" 
                 className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
@@ -715,12 +824,45 @@ const LandingPage = () => {
         {/* Main content */}
         <div className="flex-1 flex flex-col justify-center">
           <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-            <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-5 leading-tight">
-              Capturing Major State<br />Procurement Wins
-            </h2>
-            <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base mb-4 max-w-3xl mx-auto px-2 leading-relaxed">
-              "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
-            </p>
+            <div className="mb-4 sm:mb-5">
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white leading-tight"
+                textClassName="!text-[clamp(1.5rem,3vw,2.25rem)] !font-bold"
+                animationDuration={1}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.03}
+              >
+                Capturing Major State
+              </ScrollFloat>
+              <ScrollFloat
+                scrollContainerRef={containerRef}
+                containerClassName="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white leading-tight"
+                textClassName="!text-[clamp(1.5rem,3vw,2.25rem)] !font-bold"
+                animationDuration={1}
+                ease="back.inOut(2)"
+                scrollStart="center bottom+=50%"
+                scrollEnd="bottom bottom-=40%"
+                stagger={0.03}
+              >
+                Procurement Wins
+              </ScrollFloat>
+            </div>
+            <ScrollFloat
+              scrollContainerRef={containerRef}
+              containerClassName="text-[#6bb4b5] font-poppins text-sm sm:text-base mb-4 max-w-3xl mx-auto px-2 leading-relaxed"
+              textClassName="!text-sm sm:!text-base !font-normal"
+              animationDuration={0.8}
+              ease="back.inOut(2)"
+              scrollStart="center bottom+=50%"
+              scrollEnd="bottom bottom-=40%"
+              stagger={0.005}
+              as="p"
+            >
+              Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements.
+            </ScrollFloat>
             
             {/* Learn More BETWEEN HEXAGONS - with soft oval glow */}
             <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>

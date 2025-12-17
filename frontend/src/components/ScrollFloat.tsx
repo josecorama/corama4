@@ -16,6 +16,7 @@ interface ScrollFloatProps {
   scrollStart?: string;
   scrollEnd?: string;
   stagger?: number;
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'p' | 'span' | 'div';
 }
 
 const ScrollFloat = ({
@@ -27,9 +28,10 @@ const ScrollFloat = ({
   ease = 'back.inOut(2)',
   scrollStart = 'center bottom+=50%',
   scrollEnd = 'bottom bottom-=40%',
-  stagger = 0.03
+  stagger = 0.03,
+  as: Component = 'h2'
 }: ScrollFloatProps) => {
-  const containerRef = useRef<HTMLHeadingElement>(null);
+  const containerRef = useRef<HTMLElement>(null);
 
   const splitText = useMemo(() => {
     const text = typeof children === 'string' ? children : '';
@@ -81,9 +83,10 @@ const ScrollFloat = ({
             scroller,
             start: scrollStart,
             end: scrollEnd,
-            // Use toggleActions instead of scrub for snap-scroll compatibility
-            // "play" when entering from bottom, "none" on leave/enter-back/leave-back
-            toggleActions: 'play none none none'
+            // Use toggleActions for snap-scroll compatibility
+            // "play" on enter, "reverse" on leave, "play" on enter-back, "reverse" on leave-back
+            // This makes the animation work when scrolling both up and down
+            toggleActions: 'play reverse play reverse'
           }
         }
       );
@@ -94,9 +97,9 @@ const ScrollFloat = ({
   }, [scrollContainerRef, animationDuration, ease, scrollStart, scrollEnd, stagger]);
 
   return (
-    <h2 ref={containerRef} className={`scroll-float ${containerClassName}`}>
+    <Component ref={containerRef as React.RefObject<HTMLHeadingElement>} className={`scroll-float ${containerClassName}`}>
       <span className={`scroll-float-text ${textClassName}`}>{splitText}</span>
-    </h2>
+    </Component>
   );
 };
 
