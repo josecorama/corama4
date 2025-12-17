@@ -77,12 +77,224 @@ body {
   animation: twinkle 2s ease-in-out infinite;
 }
 
+/* Smoky text effect */
+.smoky-text-wrapper {
+  display: inline;
+}
+
+.smoky-text-wrapper.smoke-active .smoky-letter {
+  animation: smoke 1.75s ease-in forwards;
+}
+
+.smoky-letter {
+  display: inline-block;
+  color: white;
+}
+
+@keyframes smoke {
+  0% {
+    transform: rotate(0deg) translate3d(0, 0, 0) skew(0deg) scale(1);
+    opacity: 1;
+    filter: blur(0.02vmin);
+  }
+  100% {
+    transform: rotate(15deg) translate3d(85%, -75%, 0) skew(-30deg) scale(2);
+    opacity: 0;
+    filter: blur(2.5vmin);
+  }
+}
+
+/* Parallax effect for Scope of Work section */
+.parallax-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.parallax-image {
+  transition: transform 0.15s ease-out;
+  transform: translate3d(calc(var(--parallax-x, 0) * 12px), calc(var(--parallax-y, 0) * 8px), 0);
+}
+
+.parallax-text {
+  transition: transform 0.15s ease-out;
+  transform: translate3d(calc(var(--parallax-x, 0) * 24px), calc(var(--parallax-y, 0) * 16px), 0);
+}
+
+/* Feature card animations */
+.feature-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(107, 180, 181, 0.15) 50%,
+    transparent 70%
+  );
+  opacity: 0;
+  transform: translateX(-100%);
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.feature-card:hover .card-shine,
+.feature-card.is-active .card-shine {
+  opacity: 1;
+  animation: shine 0.8s ease-out forwards;
+}
+
+@keyframes shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.card-tiles {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.feature-card:hover .card-tiles,
+.feature-card.is-active .card-tiles {
+  opacity: 1;
+}
+
+.card-tile {
+  position: absolute;
+  width: 50%;
+  height: 50%;
+  background: rgba(107, 180, 181, 0.03);
+  border: 1px solid rgba(107, 180, 181, 0.1);
+  opacity: 0;
+}
+
+.card-tile:nth-child(1) { top: 0; left: 0; }
+.card-tile:nth-child(2) { top: 0; right: 0; }
+.card-tile:nth-child(3) { bottom: 0; left: 0; }
+.card-tile:nth-child(4) { bottom: 0; right: 0; }
+
+.feature-card:hover .card-tile,
+.feature-card.is-active .card-tile {
+  animation: tile 0.5s ease-out forwards;
+}
+
+.card-tile:nth-child(1) { animation-delay: 0s; }
+.card-tile:nth-child(2) { animation-delay: 0.05s; }
+.card-tile:nth-child(3) { animation-delay: 0.1s; }
+.card-tile:nth-child(4) { animation-delay: 0.15s; }
+
+@keyframes tile {
+  0% {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+}
+
+.card-line {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, rgba(107, 180, 181, 0.4), transparent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.card-line:nth-child(1) {
+  top: 33%;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.card-line:nth-child(2) {
+  top: 66%;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.card-line:nth-child(3) {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(107, 180, 181, 0.4), transparent);
+}
+
+.feature-card:hover .card-line,
+.feature-card.is-active .card-line {
+  animation: line-reveal 0.6s ease-out forwards;
+}
+
+.card-line:nth-child(1) { animation-delay: 0.1s; }
+.card-line:nth-child(2) { animation-delay: 0.2s; }
+.card-line:nth-child(3) { animation-delay: 0.15s; }
+
+@keyframes line-reveal {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+.card-line:nth-child(3) {
+  animation-name: line-reveal-vertical;
+}
+
+@keyframes line-reveal-vertical {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: scaleY(1);
+  }
+}
+
 /* Respect reduced motion preference - pause SVG animations */
 @media (prefers-reduced-motion: reduce) {
   svg animateMotion {
     animation-play-state: paused;
   }
   .animate-twinkle {
+    animation: none;
+  }
+  .smoky-text-wrapper.smoke-active .smoky-letter {
+    animation: none;
+  }
+  .feature-card:hover .card-shine,
+  .feature-card.is-active .card-shine,
+  .feature-card:hover .card-tile,
+  .feature-card.is-active .card-tile,
+  .feature-card:hover .card-line,
+  .feature-card.is-active .card-line {
     animation: none;
   }
 }
