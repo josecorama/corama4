@@ -518,20 +518,41 @@ const LandingPage = () => {
           <div className="absolute bottom-1/4 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
         </div>
         
-        {/* Decorative star */}
-        <div className="absolute top-20 left-10 text-corama-teal/30 hidden lg:block">
-          <svg width="24" height="24" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M10 0L12 8L20 10L12 12L10 20L8 12L0 10L8 8L10 0Z"/>
-          </svg>
-        </div>
+        {/* Twinkling stars for Mission section */}
+        <img 
+          src="/static/app/landing/left-star-img.svg" 
+          alt="" 
+          className="absolute top-16 left-[8%] w-8 h-8 animate-twinkle hidden lg:block"
+          style={{ animationDelay: '0s' }}
+        />
+        <img 
+          src="/static/app/landing/left-big-star-img.svg" 
+          alt="" 
+          className="absolute top-[38%] left-[5%] w-12 h-12 animate-twinkle hidden lg:block"
+          style={{ animationDelay: '0.5s' }}
+        />
+        
+        {/* Twinkling stars for Vision section */}
+        <img 
+          src="/static/app/landing/right-star-img.svg" 
+          alt="" 
+          className="absolute top-[55%] right-[8%] w-8 h-8 animate-twinkle hidden lg:block"
+          style={{ animationDelay: '1s' }}
+        />
+        <img 
+          src="/static/app/landing/right-big-star-img.svg" 
+          alt="" 
+          className="absolute bottom-16 right-[5%] w-12 h-12 animate-twinkle hidden lg:block"
+          style={{ animationDelay: '1.5s' }}
+        />
         
         {/* Mission */}
         <div className="max-w-6xl mx-auto relative z-10 mb-24">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="order-2 md:order-1 flex items-center justify-center">
               <img 
-                src="/static/app/landing/Contract.svg" 
-                alt="Contract" 
+                src="/static/app/landing/Mission.svg" 
+                alt="Mission" 
                 className="w-full max-w-[400px] h-auto"
               />
             </div>
