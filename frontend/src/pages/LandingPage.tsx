@@ -16,13 +16,12 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   const cardRef = useRef<HTMLDivElement>(null)
   const layer1Ref = useRef<HTMLDivElement>(null)
   const layer2Ref = useRef<HTMLDivElement>(null)
-  const layer3Ref = useRef<HTMLDivElement>(null)
   const isHoveredRef = useRef(false)
   const animationCompleteRef = useRef(false)
   
   const applyParallaxEffect = useCallback((x: number, y: number) => {
     const tiltY = (x - 0.5) * 60
-    const layers = [layer1Ref.current, layer2Ref.current, layer3Ref.current]
+    const layers = [layer1Ref.current, layer2Ref.current]
     
     layers.forEach((layer, index) => {
       if (!layer) return
@@ -50,7 +49,7 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   const handleMouseLeave = () => {
     isHoveredRef.current = false
     // Reset to center position smoothly
-    const layers = [layer1Ref.current, layer2Ref.current, layer3Ref.current]
+    const layers = [layer1Ref.current, layer2Ref.current]
     layers.forEach(layer => {
       if (!layer) return
       layer.style.transform = 'translate(0px, 0px) rotateY(0deg)'
@@ -74,7 +73,7 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
       } else {
         animationCompleteRef.current = true
         // Reset to center after animation completes
-        const layers = [layer1Ref.current, layer2Ref.current, layer3Ref.current]
+        const layers = [layer1Ref.current, layer2Ref.current]
         layers.forEach(layer => {
           if (!layer) return
           layer.style.transform = 'translate(0px, 0px) rotateY(0deg)'
@@ -107,17 +106,9 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
           >
             <img src={icon} alt="" className="w-full h-full opacity-30 blur-sm scale-110" />
           </div>
-          {/* Parallax Layer 2 - Middle layer */}
+          {/* Parallax Layer 2 - Front layer (main icon) */}
           <div 
             ref={layer2Ref}
-            className="absolute inset-0 transition-transform duration-100 ease-out"
-            style={{ transformStyle: 'preserve-3d' }}
-          >
-            <img src={icon} alt="" className="w-full h-full opacity-60" />
-          </div>
-          {/* Parallax Layer 3 - Front layer (main icon) */}
-          <div 
-            ref={layer3Ref}
             className="absolute inset-0 transition-transform duration-100 ease-out"
             style={{ transformStyle: 'preserve-3d' }}
           >
