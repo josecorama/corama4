@@ -103,7 +103,7 @@ const LandingPage = () => {
           
           <div className="flex items-center gap-2 sm:gap-4">
             <a href="/login" className="text-white font-poppins text-xs sm:text-sm hover:text-corama-teal transition-colors">Log In</a>
-            <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
+            <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)', width: '96px' }}>Sign up</a>
           </div>
         </div>
       </header>
@@ -279,8 +279,8 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Smart Contract Matching</h3>
-              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center">Smart Contract Matching</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center">
                 Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
               </p>
               <div className="mt-5 sm:mt-6 text-center">
@@ -295,8 +295,8 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Automated Proposal Generation</h3>
-              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center">Automated Proposal Generation</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center">
                 Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
               </p>
               <div className="mt-5 sm:mt-6 text-center">
@@ -311,8 +311,8 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Compliance Intelligence</h3>
-              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center">Compliance Intelligence</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center">
                 Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
               </p>
               <div className="mt-5 sm:mt-6 text-center">
@@ -327,8 +327,8 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Win Probability Scoring</h3>
-              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center">Win Probability Scoring</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center">
                 Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
               </p>
               <div className="mt-5 sm:mt-6 text-center">
@@ -343,8 +343,8 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Intelligent Market Research</h3>
-              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center">Intelligent Market Research</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center">
                 Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
               </p>
               <div className="mt-5 sm:mt-6 text-center">
@@ -359,8 +359,8 @@ const LandingPage = () => {
               <div className="flex justify-center mb-5 sm:mb-6">
                 <img src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" className="w-16 h-16 sm:w-20 sm:h-20" />
               </div>
-              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px]">Smart Deadline Management</h3>
-              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
+              <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center">Smart Deadline Management</h3>
+              <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center">
                 Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
               </p>
               <div className="mt-5 sm:mt-6 text-center">

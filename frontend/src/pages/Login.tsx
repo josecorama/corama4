@@ -22,7 +22,7 @@ const Login = () => {
     // Fetch reCAPTCHA site key
     const loadRecaptcha = async () => {
       try {
-        const res = await fetch('/api/auth/recaptcha-site-key')
+        const res = await fetch(new URL('/api/auth/recaptcha-site-key', window.location.origin).href)
         const data = await res.json()
         if (data.site_key) {
           setRecaptchaSiteKey(data.site_key)
@@ -59,7 +59,7 @@ const Login = () => {
         }
       }
 
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(new URL('/api/auth/login', window.location.origin).href, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
