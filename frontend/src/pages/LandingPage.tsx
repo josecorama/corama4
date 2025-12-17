@@ -1,4 +1,85 @@
 import { ArrowRight, CheckCircle } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+
+interface ParallaxIconProps {
+  src: string
+  alt: string
+}
+
+const ParallaxIcon = ({ src, alt }: ParallaxIconProps) => {
+  const iconRef = useRef<HTMLImageElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [isHovered, setIsHovered] = useState(false)
+  const animationRef = useRef<number | null>(null)
+  const progressRef = useRef(0)
+
+  const applyParallaxEffect = (x: number, y: number) => {
+    if (!iconRef.current) return
+    const tiltY = (x - 0.5) * 30
+    const depthX = 20
+    const depthY = 10
+    const moveX = (x - 0.5) * depthX
+    const moveY = (y - 0.5) * depthY
+    iconRef.current.style.transform = `translate(${moveX}px, ${moveY}px) rotateY(${tiltY}deg)`
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+    setIsHovered(true)
+    applyParallaxEffect(x, y)
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    if (iconRef.current) {
+      iconRef.current.style.transform = 'translate(0px, 0px) rotateY(0deg)'
+    }
+  }
+
+  useEffect(() => {
+    const animate = () => {
+      if (isHovered) return
+      progressRef.current += 0.005
+      const x = Math.sin(progressRef.current) * 0.3 + 0.5
+      const y = 0.5
+      applyParallaxEffect(x, y)
+      if (progressRef.current < Math.PI * 4) {
+        animationRef.current = requestAnimationFrame(animate)
+      }
+    }
+    
+    if (!isHovered) {
+      animationRef.current = requestAnimationFrame(animate)
+    }
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [isHovered])
+
+  return (
+    <div 
+      ref={cardRef}
+      className="flex justify-center mb-5 sm:mb-6"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ perspective: '1000px' }}
+    >
+      <img 
+        ref={iconRef}
+        src={src} 
+        alt={alt} 
+        className="card-icon w-16 h-16 sm:w-20 sm:h-20"
+        style={{ transition: 'transform 0.1s ease-out' }}
+      />
+    </div>
+  )
+}
 
 const LandingPage = () => {
   const scrollToFeatures = () => {
@@ -128,9 +209,7 @@ const LandingPage = () => {
               </div>
               {/* Card content */}
               <div className="card-content flex flex-col flex-grow">
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <img src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
-                </div>
+                                <ParallaxIcon src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" />
                 <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
                 <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
                   Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
@@ -164,9 +243,7 @@ const LandingPage = () => {
               </div>
               {/* Card content */}
               <div className="card-content flex flex-col flex-grow">
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <img src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
-                </div>
+                                <ParallaxIcon src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" />
                 <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
                 <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
                   Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
@@ -200,9 +277,7 @@ const LandingPage = () => {
               </div>
               {/* Card content */}
               <div className="card-content flex flex-col flex-grow">
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <img src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
-                </div>
+                                <ParallaxIcon src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" />
                 <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
                 <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
                   Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
@@ -236,9 +311,7 @@ const LandingPage = () => {
               </div>
               {/* Card content */}
               <div className="card-content flex flex-col flex-grow">
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <img src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
-                </div>
+                                <ParallaxIcon src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" />
                 <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
                 <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
                   Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
@@ -272,9 +345,7 @@ const LandingPage = () => {
               </div>
               {/* Card content */}
               <div className="card-content flex flex-col flex-grow">
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <img src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
-                </div>
+                                <ParallaxIcon src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" />
                 <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
                 <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
                   Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
@@ -308,9 +379,7 @@ const LandingPage = () => {
               </div>
               {/* Card content */}
               <div className="card-content flex flex-col flex-grow">
-                <div className="flex justify-center mb-5 sm:mb-6">
-                  <img src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
-                </div>
+                                <ParallaxIcon src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" />
                 <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
                 <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
                   Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
