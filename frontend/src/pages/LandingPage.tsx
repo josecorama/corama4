@@ -519,17 +519,18 @@ const LandingPage = () => {
         </div>
         
         {/* Spiral SVGs behind stars - left side mirrored, right side original */}
+        {/* 25% bigger (375px instead of 300px), positioned at viewport edges */}
         <img 
           src="/static/app/landing/Spiral.svg" 
           alt="" 
-          className="absolute top-[15%] left-[2%] w-[300px] h-auto hidden lg:block pointer-events-none"
+          className="absolute top-[15%] left-0 w-[375px] h-auto hidden lg:block pointer-events-none"
           style={{ transform: 'scaleX(-1)', opacity: 0.6 }}
           aria-hidden="true"
         />
         <img 
           src="/static/app/landing/Spiral.svg" 
           alt="" 
-          className="absolute bottom-[15%] right-[2%] w-[300px] h-auto hidden lg:block pointer-events-none"
+          className="absolute bottom-[15%] right-0 w-[375px] h-auto hidden lg:block pointer-events-none"
           style={{ opacity: 0.6 }}
           aria-hidden="true"
         />
