@@ -98,12 +98,12 @@ const Signup = () => {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-4 sm:h-5 w-auto" /></a>
+          <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" /></a>
           
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
             <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
             <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">Support</a>
-            <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">FAQ</a>
+            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">FAQ</a>
             <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">About Us</a>
           </nav>
           
