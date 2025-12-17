@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { ChatBubbleLoading } from '../components/ThinkingPopup'
 import { api } from '../services/api'
 
 // Normalize markdown to fix common formatting issues from AI responses
@@ -380,8 +379,19 @@ const AIAssistant = () => {
                     </div>
                   </div>
                 ))}
-                {/* Show loading bubble while waiting for AI response */}
-                {isProcessing && <ChatBubbleLoading timestamp={formatTime()} />}
+                {/* Show thinking text while waiting for AI response */}
+                {isProcessing && (
+                  <div className="flex justify-start">
+                    <div className="max-w-full sm:max-w-xl lg:max-w-2xl">
+                      <p className="text-gray-400 font-poppins text-xs mb-1">{formatTime()}</p>
+                      <div className="rounded-xl sm:rounded-2xl p-3 sm:p-4 bg-white text-gray-800">
+                        <p className="font-poppins text-xs sm:text-sm">
+                          Thinking<span className="animate-ellipsis">...</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Input Area */}

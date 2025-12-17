@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import { InlineLoading } from '../components/ThinkingPopup'
 import { api } from '../services/api'
 
 // SVG asset paths
@@ -387,11 +388,11 @@ const ProposalSummary = () => {
               <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
               <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
                 {isLoadingStrategy ? (
-                  <p className="text-gray-500 italic">Generating AI strategy...</p>
+                  <InlineLoading text="Thinking" size="small" />
                 ) : aiStrategy ? (
                   <p>{aiStrategy}</p>
                 ) : (
-                  <p className="text-gray-500 italic">Generating AI strategy...</p>
+                  <InlineLoading text="Thinking" size="small" />
                 )}
               </div>
             </div>
