@@ -1,5 +1,83 @@
 import { ArrowRight, CheckCircle } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
+
+interface ScrollFloatProps {
+  text: string
+  className?: string
+  animationDuration?: number
+  ease?: string
+  scrollStart?: string
+  scrollEnd?: string
+  stagger?: number
+}
+
+const ScrollFloat = ({ 
+  text, 
+  className = '',
+  animationDuration = 1,
+  ease = 'back.inOut(2)',
+  scrollStart = 'center bottom+=50%',
+  scrollEnd = 'bottom bottom-=40%',
+  stagger = 0.03
+}: ScrollFloatProps) => {
+  const containerRef = useRef<HTMLSpanElement>(null)
+
+  const splitText = useMemo(() => {
+    return text.split('').map((char, index) => (
+      <span className="scroll-float-char" key={index}>
+        {char === ' ' ? '\u00A0' : char}
+      </span>
+    ))
+  }, [text])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const charElements = el.querySelectorAll('.scroll-float-char')
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        charElements,
+        {
+          willChange: 'opacity, transform',
+          opacity: 0,
+          yPercent: 120,
+          scaleY: 2.3,
+          scaleX: 0.7,
+          transformOrigin: '50% 0%'
+        },
+        {
+          duration: animationDuration,
+          ease: ease,
+          opacity: 1,
+          yPercent: 0,
+          scaleY: 1,
+          scaleX: 1,
+          stagger: stagger,
+          scrollTrigger: {
+            trigger: el,
+            start: scrollStart,
+            end: scrollEnd,
+            scrub: true
+          }
+        }
+      )
+    })
+
+    return () => ctx.revert()
+  }, [animationDuration, ease, scrollStart, scrollEnd, stagger])
+
+  return (
+    <span ref={containerRef} className={`scroll-float ${className}`}>
+      {splitText}
+    </span>
+  )
+}
 
 interface SmokyTextProps {
   text: string
@@ -589,9 +667,11 @@ const LandingPage = () => {
         </div>
         
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
-            Revolutionizing Government<br />Contracting for Small<br />Businesses
-          </h2>
+                    <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+                      <ScrollFloat text="Revolutionizing Government" /><br />
+                      <ScrollFloat text="Contracting for Small" /><br />
+                      <ScrollFloat text="Businesses" />
+                    </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
@@ -628,7 +708,7 @@ const LandingPage = () => {
               </div>
             </div>
             <div className="order-1 md:order-2 text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
+              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6"><ScrollFloat text="Mission" /></h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
               </p>
@@ -653,7 +733,7 @@ const LandingPage = () => {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
+              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6"><ScrollFloat text="Vision" /></h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
               </p>
@@ -684,9 +764,10 @@ const LandingPage = () => {
       {/* Capturing Major State Procurement Wins Section */}
       <section className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative bg-[#0B0B0F]">
         <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
-            Capturing Major State<br />Procurement Wins
-          </h2>
+                    <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+                      <ScrollFloat text="Capturing Major State" /><br />
+                      <ScrollFloat text="Procurement Wins" />
+                    </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
             "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
           </p>

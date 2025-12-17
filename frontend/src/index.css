@@ -383,3 +383,20 @@ body {
     transform: none !important;
   }
 }
+
+/* Scroll Float Animation Styles */
+.scroll-float {
+  display: inline-block;
+  overflow: hidden;
+}
+
+.scroll-float-char {
+  display: inline-block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-float-char {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
