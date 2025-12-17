@@ -1,9 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import ThinkingPopup from '../components/ThinkingPopup'
-// Check icon now uses SVG image instead of lucide-react
+import checkAnimation from '../assets/CheckAnimation.json'
+import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api, CapabilityStatementData } from '../services/api'
 
 interface ImportResult {
@@ -596,10 +598,20 @@ const CapabilityBuilder = () => {
                     className={`flex items-center justify-center transition-all duration-300 ease-out ${
                       completed 
                         ? 'scale-100 drop-shadow-[0_0_20px_rgba(153,200,202,0.8)]' 
-                        : 'scale-90 opacity-40'
+                        : 'scale-90'
                     }`}
                   >
-                    <img src="/static/app/dashboard/Check.svg" alt="" className="w-14 h-14 sm:w-16 sm:h-16" />
+                    {completed ? (
+                      <div className="w-14 h-14 sm:w-16 sm:h-16">
+                        <Lottie 
+                          animationData={checkAnimation} 
+                          loop={false}
+                          autoplay={true}
+                        />
+                      </div>
+                    ) : (
+                      <img src={EmptyCheckSvg} alt="" className="w-14 h-14 sm:w-16 sm:h-16" />
+                    )}
                   </div>
                 ))}
               </div>
