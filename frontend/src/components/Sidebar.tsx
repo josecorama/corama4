@@ -18,7 +18,13 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
-  const [isExpanded, setIsExpanded] = useState(true)
+  
+  // Initialize isExpanded from localStorage to persist across page navigation
+  const [isExpanded, setIsExpanded] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem('corama_sidebar_expanded')
+    return stored === null ? true : stored === 'true'
+  })
   
   // Initialize previousPath from sessionStorage to persist across component remounts
   const [previousPath, setPreviousPath] = useState<string | null>(() => {
@@ -73,7 +79,10 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
   }
 
   const toggleExpanded = () => {
-    setIsExpanded(!isExpanded)
+    const newValue = !isExpanded
+    setIsExpanded(newValue)
+    // Persist to localStorage so it survives page navigation
+    localStorage.setItem('corama_sidebar_expanded', String(newValue))
   }
 
   return (
