@@ -211,7 +211,7 @@ const LandingPage = () => {
           </nav>
           
           <div className="flex items-center gap-2 sm:gap-4">
-            <a href="/login" className="text-white font-poppins text-xs sm:text-sm hover:text-corama-teal transition-colors">Log In</a>
+            <a href="/login" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white" style={{ width: '96px' }}>Log In</a>
             <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)', width: '96px' }}>Sign up</a>
           </div>
         </div>
