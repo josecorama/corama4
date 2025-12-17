@@ -138,7 +138,7 @@ body {
   overflow: hidden;
 }
 
-/* Card Shine (conical shine) */
+/* Card Shine (conical shine) - masked to bottom portion */
 .feature-card .card-shine {
   border-radius: inherit;
   position: absolute;
@@ -148,6 +148,8 @@ body {
   opacity: 0;
   transition: opacity 0.5s;
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 35%, black 50%, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent 35%, black 50%, black 100%);
 }
 
 .feature-card .card-shine::before {
@@ -175,11 +177,13 @@ body {
   mask-image: radial-gradient(circle at 60% 95%, black 0%, black 15%, transparent 60%);
 }
 
-/* Card Tiles */
+/* Card Tiles - masked to bottom portion */
 .feature-card .card-tiles {
   opacity: 0;
   transition: opacity 0.25s;
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 35%, black 50%, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent 35%, black 50%, black 100%);
 }
 
 .feature-card .card-tile {
@@ -207,13 +211,15 @@ body {
   25%, 82.5% { opacity: 0; }
 }
 
-/* Card Lines */
+/* Card Lines - masked to bottom portion */
 .feature-card .card-line {
   position: absolute;
   inset: 0;
   opacity: 0;
   transition: opacity 0.35s;
   pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, transparent 35%, black 50%, black 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, transparent 35%, black 50%, black 100%);
 }
 
 .feature-card .card-line::before,
@@ -248,9 +254,12 @@ body {
 .line-3::before { bottom: 55%; }
 .line-3::after { right: 22.5%; left: auto; }
 
-/* Card Icon Effect */
+/* Card Icon Effect - parallax transform */
 .feature-card .card-icon {
-  transition: filter 0.35s ease, transform 0.35s ease;
+  --icon-parallax-x: 0px;
+  --icon-parallax-y: 0px;
+  transition: transform 0.15s ease-out;
+  transform: translate(var(--icon-parallax-x), var(--icon-parallax-y));
 }
 
 /* Hover/Active states */
@@ -287,11 +296,8 @@ body {
   transform: scaleY(1);
 }
 
-.feature-card:hover .card-icon,
-.feature-card.is-active .card-icon {
-  filter: brightness(0) saturate(100%) invert(72%) sepia(15%) saturate(1000%) hue-rotate(130deg) brightness(95%) contrast(85%);
-  transform: scale(1.05);
-}
+/* Icon parallax is handled via CSS variables set by JavaScript onMouseMove */
+/* No additional hover transform needed - parallax provides the movement */
 
 /* Respect reduced motion preference - pause SVG animations */
 @media (prefers-reduced-motion: reduce) {

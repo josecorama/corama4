@@ -41,9 +41,45 @@ interface FeatureCardProps {
 }
 
 const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps) => {
+  const cardRef = useRef<HTMLDivElement>(null)
+  
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2 // -1 to 1
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2 // -1 to 1
+    cardRef.current.style.setProperty('--icon-parallax-x', `${x * 8}px`)
+    cardRef.current.style.setProperty('--icon-parallax-y', `${y * 6}px`)
+  }
+  
+  const handleMouseLeave = () => {
+    if (!cardRef.current) return
+    cardRef.current.style.setProperty('--icon-parallax-x', '0px')
+    cardRef.current.style.setProperty('--icon-parallax-y', '0px')
+  }
+  
   return (
-    <div className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full">
-      {/* Animation overlay elements */}
+    <div 
+      ref={cardRef}
+      className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Card content - icon at top with parallax */}
+      <div className="flex justify-center mb-5 sm:mb-6 relative z-10">
+        <img src={icon} alt={title} className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
+      </div>
+      <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center relative z-10">{title}</h3>
+      <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
+        {description}
+      </p>
+      <div className="mt-5 sm:mt-6 text-center relative z-10">
+        <button onClick={onLearnMore} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+          Learn more <ArrowRight size={14} />
+        </button>
+      </div>
+      
+      {/* Animation overlay elements - positioned below icon area */}
       <div className="card-shine"></div>
       <div className="card-background"></div>
       <div className="card-tiles">
@@ -61,20 +97,6 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
       <div className="card-line line-1"></div>
       <div className="card-line line-2"></div>
       <div className="card-line line-3"></div>
-      
-      {/* Card content */}
-      <div className="flex justify-center mb-5 sm:mb-6 relative z-10">
-        <img src={icon} alt={title} className="card-icon w-16 h-16 sm:w-20 sm:h-20" />
-      </div>
-      <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center relative z-10">{title}</h3>
-      <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
-        {description}
-      </p>
-      <div className="mt-5 sm:mt-6 text-center relative z-10">
-        <button onClick={onLearnMore} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-          Learn more <ArrowRight size={14} />
-        </button>
-      </div>
     </div>
   )
 }
@@ -88,6 +110,7 @@ const LandingPage = () => {
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
   const smokeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const wasAboveThresholdRef = useRef(true) // Track if we were above the scroll threshold
+  const smokeStateRef = useRef<'idle' | 'active' | 'return'>('idle') // Ref to track current smoke state for scroll handler
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -151,7 +174,12 @@ const LandingPage = () => {
     }
   }, [currentSection, isScrolling, scrollToSection])
 
-  // Smoke effect trigger - uses scroll position on container
+  // Keep smokeStateRef in sync with smokeState
+  useEffect(() => {
+    smokeStateRef.current = smokeState
+  }, [smokeState])
+
+  // Smoke effect trigger - uses scroll position on container (attached once)
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
@@ -159,34 +187,45 @@ const LandingPage = () => {
     const handleScroll = () => {
       const scrollTop = container.scrollTop
       const isAboveThreshold = scrollTop <= 24
+      const currentSmokeState = smokeStateRef.current
       
-      // Detect threshold crossing
-      if (wasAboveThresholdRef.current && !isAboveThreshold && smokeState === 'idle') {
-        // Scrolled past threshold - trigger smoke out
-        setSmokeState('active')
-        
-        // Clear any existing timeout
-        if (smokeTimeoutRef.current) {
-          clearTimeout(smokeTimeoutRef.current)
+      // Detect threshold crossing - scrolling away from hero
+      if (wasAboveThresholdRef.current && !isAboveThreshold) {
+        if (currentSmokeState === 'idle' || currentSmokeState === 'return') {
+          // Clear any existing timeout
+          if (smokeTimeoutRef.current) {
+            clearTimeout(smokeTimeoutRef.current)
+          }
+          
+          // Trigger smoke out
+          setSmokeState('active')
+          smokeStateRef.current = 'active'
+          
+          // Reset to idle after 4 seconds
+          smokeTimeoutRef.current = setTimeout(() => {
+            setSmokeState('idle')
+            smokeStateRef.current = 'idle'
+          }, 4000)
         }
-        
-        // Reset to idle after 4 seconds
-        smokeTimeoutRef.current = setTimeout(() => {
-          setSmokeState('idle')
-        }, 4000)
-      } else if (!wasAboveThresholdRef.current && isAboveThreshold && smokeState === 'idle') {
-        // Scrolled back above threshold - trigger smoke return
-        setSmokeState('return')
-        
-        // Clear any existing timeout
-        if (smokeTimeoutRef.current) {
-          clearTimeout(smokeTimeoutRef.current)
+      }
+      // Detect threshold crossing - scrolling back to hero
+      else if (!wasAboveThresholdRef.current && isAboveThreshold) {
+        if (currentSmokeState === 'idle' || currentSmokeState === 'active') {
+          // Clear any existing timeout
+          if (smokeTimeoutRef.current) {
+            clearTimeout(smokeTimeoutRef.current)
+          }
+          
+          // Trigger smoke return
+          setSmokeState('return')
+          smokeStateRef.current = 'return'
+          
+          // Reset to idle after animation completes (~2s for reverse)
+          smokeTimeoutRef.current = setTimeout(() => {
+            setSmokeState('idle')
+            smokeStateRef.current = 'idle'
+          }, 2000)
         }
-        
-        // Reset to idle after animation completes (~2s for reverse)
-        smokeTimeoutRef.current = setTimeout(() => {
-          setSmokeState('idle')
-        }, 2000)
       }
       
       wasAboveThresholdRef.current = isAboveThreshold
@@ -200,7 +239,7 @@ const LandingPage = () => {
         clearTimeout(smokeTimeoutRef.current)
       }
     }
-  }, [smokeState])
+  }, []) // Empty dependency array - attach once
 
   // Feature card IntersectionObserver for scroll-triggered animations
   useEffect(() => {
