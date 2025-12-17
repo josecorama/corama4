@@ -2,6 +2,7 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import ThinkingPopup from '../components/ThinkingPopup'
 import { api } from '../services/api'
 
 // SVG asset paths for empty state
@@ -39,6 +40,9 @@ const NoCapabilityStatement = () => {
 
   return (
     <div className="min-h-screen bg-corama-dark">
+      {/* Uploading popup */}
+      <ThinkingPopup isVisible={uploading} text="Uploading" />
+      
       {/* Header spans full width at top */}
       <Header credits={5} />
       

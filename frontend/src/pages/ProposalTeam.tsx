@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import { InlineLoading } from '../components/ThinkingPopup'
 import { api } from '../services/api'
 
 // SVG asset paths
@@ -490,7 +491,7 @@ const ProposalTeam = () => {
                     <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
                     <div className="text-gray-600 font-poppins text-sm overflow-y-auto flex-1">
                       {isLoadingSuggestions ? (
-                        <p className="text-gray-500 italic">Loading AI suggestions...</p>
+                        <InlineLoading text="Thinking" size="medium" />
                       ) : aiSuggestions ? (
                         <ReactMarkdown
                           components={{

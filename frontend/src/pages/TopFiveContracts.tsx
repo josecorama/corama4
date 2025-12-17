@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
+import ThinkingPopup from '../components/ThinkingPopup'
 import { Edit, Printer, RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 
@@ -169,6 +170,9 @@ const TopFiveContracts = () => {
 
     return (
       <div className="min-h-screen bg-corama-dark">
+        {/* Refreshing popup */}
+        <ThinkingPopup isVisible={rerunning} text="Refreshing" />
+        
         {/* Header spans full width at top */}
         <Header credits={5} />
         

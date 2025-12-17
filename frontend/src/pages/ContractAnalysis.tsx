@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import { InlineLoading } from '../components/ThinkingPopup'
 import { api } from '../services/api'
 
 // SVG asset paths
@@ -76,6 +77,15 @@ const ContractAnalysis = () => {
       return () => clearTimeout(timer)
     }
   }, [aiFindings])
+
+  // Auto-trigger AI findings generation when PDF is uploaded
+  const autoGenerateTriggered = useRef(false)
+  useEffect(() => {
+    if (pdfFile && !aiFindings && !isGeneratingFindings && !autoGenerateTriggered.current) {
+      autoGenerateTriggered.current = true
+      handleGenerateFindings()
+    }
+  }, [pdfFile])
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -264,6 +274,10 @@ const ContractAnalysis = () => {
                       </ReactMarkdown>
                     </div>
                   </div>
+                ) : isGeneratingFindings ? (
+                  <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                    <InlineLoading text="Generating" size="large" />
+                  </div>
                 ) : (
                   <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                     <img src={AIFindingsIcon} alt="AI Findings" className="w-40 h-52 mb-3" />
@@ -273,7 +287,7 @@ const ContractAnalysis = () => {
                       className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white disabled:opacity-50"
                       style={{ backgroundColor: '#6bb4b5' }}
                     >
-                      {isGeneratingFindings ? 'Generating...' : 'Generate AI Findings'}
+                      Generate AI Findings
                     </button>
                   </div>
                 )}
