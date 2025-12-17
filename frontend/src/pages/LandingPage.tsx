@@ -283,7 +283,7 @@ const LandingPage = () => {
               <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
               </p>
-              <div className="mt-5 sm:mt-6">
+              <div className="mt-5 sm:mt-6 text-center">
                 <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                   Learn more <ArrowRight size={14} />
                 </button>
@@ -299,7 +299,7 @@ const LandingPage = () => {
               <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
               </p>
-              <div className="mt-5 sm:mt-6">
+              <div className="mt-5 sm:mt-6 text-center">
                 <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                   Learn more <ArrowRight size={14} />
                 </button>
@@ -315,7 +315,7 @@ const LandingPage = () => {
               <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
               </p>
-              <div className="mt-5 sm:mt-6">
+              <div className="mt-5 sm:mt-6 text-center">
                 <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                   Learn more <ArrowRight size={14} />
                 </button>
@@ -331,7 +331,7 @@ const LandingPage = () => {
               <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
               </p>
-              <div className="mt-5 sm:mt-6">
+              <div className="mt-5 sm:mt-6 text-center">
                 <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                   Learn more <ArrowRight size={14} />
                 </button>
@@ -347,7 +347,7 @@ const LandingPage = () => {
               <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
               </p>
-              <div className="mt-5 sm:mt-6">
+              <div className="mt-5 sm:mt-6 text-center">
                 <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                   Learn more <ArrowRight size={14} />
                 </button>
@@ -363,7 +363,7 @@ const LandingPage = () => {
               <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow">
                 Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
               </p>
-              <div className="mt-5 sm:mt-6">
+              <div className="mt-5 sm:mt-6 text-center">
                 <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
                   Learn more <ArrowRight size={14} />
                 </button>
