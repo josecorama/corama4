@@ -1,14 +1,14 @@
 import { ArrowRight, CheckCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-interface HeroStarBurstProps {
-  children: React.ReactNode
+interface SmokyTextProps {
+  text: string
+  className?: string
 }
 
-const HeroStarBurst = ({ children }: HeroStarBurstProps) => {
-  const wrapperRef = useRef<HTMLDivElement>(null)
+const SmokyText = ({ text, className = '' }: SmokyTextProps) => {
+  const wrapperRef = useRef<HTMLSpanElement>(null)
   const triggeredRef = useRef(false)
-  const intervalRef = useRef<number | null>(null)
 
   useEffect(() => {
     const handleScroll = () => {
@@ -17,36 +17,15 @@ const HeroStarBurst = ({ children }: HeroStarBurstProps) => {
         triggeredRef.current = true
         window.removeEventListener('scroll', handleScroll)
         
-                const wrapper = wrapperRef.current
-                if (!wrapper) return
+        const wrapper = wrapperRef.current
+        if (!wrapper) return
         
-                let starsCount = 50
-        let starsCreated = 0
-        const delay = 30
+        wrapper.classList.add('smoke-active')
         
-        intervalRef.current = window.setInterval(() => {
-          if (!wrapper) return
-          
-          const star = document.createElement('i')
-          star.classList.add('hero-star')
-          star.classList.add(Math.floor((Math.random() * 10) % 2) === 0 ? 'small' : 'medium')
-          
-          star.style.left = (Math.random() * 100).toFixed(2) + '%'
-          star.style.top = (Math.random() * 100).toFixed(2) + '%'
-          
-          star.addEventListener('animationend', () => {
-            setTimeout(() => {
-              star.remove()
-            }, 3000 + Math.random() * 2000)
-          }, { once: true })
-          
-          wrapper.appendChild(star)
-          starsCreated++
-          
-          if (starsCreated >= starsCount && intervalRef.current) {
-            window.clearInterval(intervalRef.current)
-          }
-        }, delay)
+        // Remove the class after animation completes to reset text
+        setTimeout(() => {
+          wrapper.classList.remove('smoke-active')
+        }, 4000)
       }
     }
     
@@ -54,16 +33,29 @@ const HeroStarBurst = ({ children }: HeroStarBurstProps) => {
     
     return () => {
       window.removeEventListener('scroll', handleScroll)
-      if (intervalRef.current) {
-        window.clearInterval(intervalRef.current)
-      }
     }
   }, [])
 
+  // Split text into individual letter spans
+  const letters = text.split('').map((char, index) => {
+    if (char === ' ') {
+      return <span key={index}>&nbsp;</span>
+    }
+    return (
+      <span 
+        key={index} 
+        className="smoky-letter"
+        style={{ animationDelay: `${0.8 + index * 0.05}s` }}
+      >
+        {char}
+      </span>
+    )
+  })
+
   return (
-    <div ref={wrapperRef} className="hero-text-wrapper">
-      {children}
-    </div>
+    <span ref={wrapperRef} className={`smoky-text-wrapper ${className}`}>
+      {letters}
+    </span>
   )
 }
 
@@ -201,24 +193,23 @@ const LandingPage = () => {
         <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/40 rounded-full hidden sm:block z-[2]"></div>
         <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-corama-teal/60 rounded-full hidden sm:block z-[2]"></div>
         
-              {/* Layer 10: Content */}
-              <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-                <HeroStarBurst>
-                  <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight relative z-10">
-                    With AI Find<br />Contracts
-                  </h1>
-                  <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed relative z-10">
-                    From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
-                  </p>
-                </HeroStarBurst>
-                <a 
-                  href="/login" 
-                  className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
-                >
-                  Get Started
-                </a>
-              </div>
-            </section>
+                          {/* Layer 10: Content */}
+                          <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
+                            <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight relative z-10">
+                              <SmokyText text="With AI Find" /><br />
+                              <SmokyText text="Contracts" />
+                            </h1>
+                            <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed relative z-10">
+                              From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
+                            </p>
+                            <a 
+                              href="/login" 
+                              className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
+                            >
+                              Get Started
+                            </a>
+                          </div>
+                        </section>
 
       {/* Features Grid */}
       <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
