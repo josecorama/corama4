@@ -419,10 +419,10 @@ const LandingPage = () => {
           <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
-          <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+          <p className="text-[#6bb4b5] font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
-          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base hover:gap-3 transition-all">
+          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-base hover:gap-3 transition-all">
             Learn More <ArrowRight size={18} />
           </button>
         </div>
@@ -464,7 +464,7 @@ const LandingPage = () => {
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-[#0B0B0F] font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
               >
                 Get Started
               </a>
@@ -482,7 +482,7 @@ const LandingPage = () => {
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-[#0B0B0F] font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
+                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
               >
                 Get Started
               </a>
@@ -510,7 +510,7 @@ const LandingPage = () => {
             <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-5 leading-tight">
               Capturing Major State<br />Procurement Wins
             </h2>
-            <p className="text-gray-400 font-poppins text-sm sm:text-base mb-4 max-w-3xl mx-auto px-2 leading-relaxed">
+            <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base mb-4 max-w-3xl mx-auto px-2 leading-relaxed">
               "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
             </p>
             
@@ -546,7 +546,7 @@ const LandingPage = () => {
               <button
                 onClick={scrollToFeatures}
                 style={{ flexShrink: 0 }}
-                className="inline-flex items-center gap-2 text-corama-teal font-poppins text-base hover:gap-3 transition-all whitespace-nowrap px-2"
+                className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-base hover:gap-3 transition-all whitespace-nowrap px-2"
               >
                 Learn More <ArrowRight size={18} />
               </button>
@@ -584,21 +584,21 @@ const LandingPage = () => {
         <footer className="py-6 px-4 sm:px-6 bg-[#0B0B0F] relative">
           <div className="max-w-6xl mx-auto relative z-10">
             <div className="text-center mb-4">
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm leading-relaxed">
+              <p className="text-white font-poppins text-xs sm:text-sm leading-relaxed">
                 222 W. Merchandise Mart Plaza, Suite 1212 c/o 1871 Chicago, IL 60654
               </p>
             </div>
             
             <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-4 text-xs sm:text-sm">
-              <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
-              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
-              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
-              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">FAQ</a>
-              <a href="#" className="text-gray-400 hover:text-corama-teal font-poppins transition-colors">Contact</a>
+              <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
+              <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
+              <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
+              <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">FAQ</a>
+              <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Contact</a>
             </div>
             
             <div className="text-center mb-4">
-              <a href="mailto:info@corama.ai" className="text-gray-400 hover:text-corama-teal font-poppins text-xs sm:text-sm transition-colors">
+              <a href="mailto:info@corama.ai" className="text-white hover:text-corama-teal font-poppins text-xs sm:text-sm transition-colors">
                 Info@corama.ai
               </a>
             </div>
