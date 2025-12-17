@@ -909,6 +909,68 @@ except Exception as e:
     logging.warning("Credit purchase via webhook will use fallback method.")
 
 
+# ============================================================================
+# Proposal Generation Job Store (for SSE streaming progress)
+# ============================================================================
+import threading
+import uuid
+import time as time_module
+
+# In-memory store for proposal generation jobs
+# Structure: {job_id: {status, sections_completed, sections_total, sections, full_proposal, error, events}}
+proposal_generation_jobs = {}
+proposal_jobs_lock = threading.Lock()
+
+def create_proposal_job(draft_id: str, user_id: str) -> str:
+    """Create a new proposal generation job and return its ID"""
+    job_id = str(uuid.uuid4())
+    with proposal_jobs_lock:
+        proposal_generation_jobs[job_id] = {
+            'draft_id': draft_id,
+            'user_id': user_id,
+            'status': 'pending',
+            'sections_completed': [],
+            'sections_total': 8,
+            'sections': {},
+            'full_proposal': None,
+            'error': None,
+            'events': [],
+            'created_at': time_module.time()
+        }
+    return job_id
+
+def update_proposal_job(job_id: str, **kwargs):
+    """Update a proposal job with new data"""
+    with proposal_jobs_lock:
+        if job_id in proposal_generation_jobs:
+            proposal_generation_jobs[job_id].update(kwargs)
+
+def add_job_event(job_id: str, event_type: str, data: dict):
+    """Add an event to the job's event queue"""
+    with proposal_jobs_lock:
+        if job_id in proposal_generation_jobs:
+            proposal_generation_jobs[job_id]['events'].append({
+                'type': event_type,
+                'data': data,
+                'timestamp': time_module.time()
+            })
+
+def get_proposal_job(job_id: str) -> dict:
+    """Get a proposal job by ID"""
+    with proposal_jobs_lock:
+        return proposal_generation_jobs.get(job_id, {}).copy()
+
+def cleanup_old_jobs():
+    """Remove jobs older than 1 hour"""
+    current_time = time_module.time()
+    with proposal_jobs_lock:
+        to_remove = [
+            job_id for job_id, job in proposal_generation_jobs.items()
+            if current_time - job.get('created_at', 0) > 3600
+        ]
+        for job_id in to_remove:
+            del proposal_generation_jobs[job_id]
+
 # Firebase Storage Helper Function
 def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type: str = None) -> str:
     """
@@ -13042,10 +13104,7 @@ def proposal_result_page():
 
 @app.route('/api/generate_proposal_sections', methods=['POST'])
 def generate_proposal_sections():
-    """Generate all 8 proposal sections using parallel AI prompts"""
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    import json
-    
+    """Start proposal generation job and return job_id immediately for SSE streaming"""
     try:
         data = request.json
         draft_id = data.get('draft_id')
@@ -13062,12 +13121,52 @@ def generate_proposal_sections():
         
         user_id = user["localId"]
         
-        # Get draft data
+        # Get draft data to validate it exists
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
         draft_data = draft_ref.get()
         
         if not draft_data:
             return jsonify({'success': False, 'error': 'Draft not found'}), 404
+        
+        # Create a job and return immediately
+        job_id = create_proposal_job(draft_id, user_id)
+        
+        # Start background thread to do the actual generation
+        thread = threading.Thread(
+            target=run_proposal_generation_job,
+            args=(job_id, draft_id, user_id),
+            daemon=True
+        )
+        thread.start()
+        
+        # Return immediately with job_id
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'message': 'Proposal generation started. Use SSE endpoint to track progress.'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error starting proposal generation: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def run_proposal_generation_job(job_id: str, draft_id: str, user_id: str):
+    """Background worker that generates proposal sections and updates job progress"""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    
+    try:
+        update_proposal_job(job_id, status='running')
+        add_job_event(job_id, 'started', {'message': 'Proposal generation started'})
+        
+        # Get draft data
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        
+        if not draft_data:
+            update_proposal_job(job_id, status='error', error='Draft not found')
+            add_job_event(job_id, 'error', {'message': 'Draft not found'})
+            return
         
         # Get user data for company info
         user_ref = admin_db.reference(f'users/{user_id}')
@@ -13095,7 +13194,7 @@ def generate_proposal_sections():
         
         company_name = user_data.get('company', 'Our Company')
         company_address = user_data.get('address', '[Company Address]')
-        company_email = user_data.get('email', user.get('email', '[Email]'))
+        company_email = user_data.get('email', '[Email]')
         
         # Build pricing summary
         labor_total = sum(item.get('cost', 0) for item in pricing.get('labor', []))
@@ -13608,8 +13707,10 @@ Mark all figures as DRAFT/ESTIMATED. Present pricing professionally and transpar
 This section serves as a roadmap for completing the proposal package.""")
         ]
         
-        # Generate all 8 sections in parallel
+        # Generate all 8 sections in parallel with progress events
         sections = {}
+        completed_sections = []
+        
         with ThreadPoolExecutor(max_workers=8) as executor:
             future_to_section = {
                 executor.submit(generate_section, num, name, prompt): (num, name)
@@ -13624,13 +13725,34 @@ This section serves as a roadmap for completing the proposal package.""")
                         'name': section_name,
                         'content': content
                     }
+                    completed_sections.append(section_num)
                     logging.info(f"✓ Generated Section {section_num}: {section_name}")
+                    
+                    # Emit section_completed event for SSE
+                    add_job_event(job_id, 'section_completed', {
+                        'section_num': section_num,
+                        'section_name': section_name,
+                        'completed_count': len(completed_sections),
+                        'total_sections': 8
+                    })
+                    
+                    # Update job with completed sections list
+                    update_proposal_job(job_id, sections_completed=completed_sections.copy())
+                    
                 except Exception as e:
                     logging.error(f"Error in section {section_num}: {e}")
                     sections[section_num] = {
                         'name': section_name,
                         'content': f"[Error generating this section: {str(e)}]"
                     }
+                    completed_sections.append(section_num)
+                    
+                    # Emit section_error event
+                    add_job_event(job_id, 'section_error', {
+                        'section_num': section_num,
+                        'section_name': section_name,
+                        'error': str(e)
+                    })
         
         # Order sections 1-8
         ordered_sections = [sections.get(i, {'name': f'Section {i}', 'content': '[Not generated]'}) for i in range(1, 9)]
@@ -13707,16 +13829,101 @@ any official use. Please follow these steps:
             }
         })
         
-        return jsonify({
-            'success': True,
+        # Update job with final results
+        update_proposal_job(
+            job_id,
+            status='completed',
+            sections=sections,
+            full_proposal=full_proposal
+        )
+        
+        # Emit done event with final payload
+        add_job_event(job_id, 'done', {
             'sections': ordered_sections,
             'full_proposal': full_proposal,
             'total_sections': len(ordered_sections)
         })
         
+        logging.info(f"Proposal generation job {job_id} completed successfully")
+        
     except Exception as e:
-        logging.error(f"Error generating proposal sections: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        logging.error(f"Error in proposal generation job {job_id}: {e}", exc_info=True)
+        update_proposal_job(job_id, status='error', error=str(e))
+        add_job_event(job_id, 'error', {'message': str(e)})
+
+
+@app.route('/api/generate_proposal_sections/events/<job_id>')
+def proposal_generation_events(job_id):
+    """SSE endpoint for streaming proposal generation progress"""
+    import json
+    
+    def generate_events():
+        """Generator that yields SSE events"""
+        last_event_index = 0
+        max_wait_time = 300  # 5 minutes max
+        start_time = time_module.time()
+        
+        while True:
+            job = get_proposal_job(job_id)
+            
+            if not job:
+                yield f"event: error\ndata: {json.dumps({'message': 'Job not found'})}\n\n"
+                break
+            
+            # Send any new events
+            events = job.get('events', [])
+            while last_event_index < len(events):
+                event = events[last_event_index]
+                event_type = event.get('type', 'message')
+                event_data = event.get('data', {})
+                yield f"event: {event_type}\ndata: {json.dumps(event_data)}\n\n"
+                last_event_index += 1
+            
+            # Check if job is done
+            if job.get('status') in ['completed', 'error']:
+                break
+            
+            # Check timeout
+            if time_module.time() - start_time > max_wait_time:
+                yield f"event: error\ndata: {json.dumps({'message': 'Timeout waiting for job completion'})}\n\n"
+                break
+            
+            # Send keepalive ping every 15 seconds
+            yield ": ping\n\n"
+            
+            # Wait a bit before checking again
+            time_module.sleep(1)
+    
+    response = Response(
+        generate_events(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+    return response
+
+
+@app.route('/api/generate_proposal_sections/status/<job_id>')
+def proposal_generation_status(job_id):
+    """Get current status of a proposal generation job"""
+    job = get_proposal_job(job_id)
+    
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    
+    return jsonify({
+        'success': True,
+        'job_id': job_id,
+        'status': job.get('status'),
+        'sections_completed': job.get('sections_completed', []),
+        'sections_total': job.get('sections_total', 8),
+        'full_proposal': job.get('full_proposal'),
+        'error': job.get('error')
+    })
+
 
 @app.route('/api/download_proposal_pdf', methods=['GET'])
 def download_proposal_docx():

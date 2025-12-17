@@ -524,12 +524,11 @@ class ApiService {
     return res.json();
   }
 
-  // Generate Proposal Sections - Generates all 8 proposal sections using AI
+  // Generate Proposal Sections - Starts job and returns job_id for SSE streaming
   async generateProposalSections(draftId: string): Promise<{
     success: boolean;
-    sections?: Array<{number: number; name: string; content: string}>;
-    full_proposal?: string;
-    total_sections?: number;
+    job_id?: string;
+    message?: string;
     error?: string;
   }> {
     const res = await fetch(`${API_BASE()}/generate_proposal_sections`, {
@@ -545,6 +544,29 @@ class ApiService {
       }
       const errorData = await res.json().catch(() => ({ error: 'Failed to generate proposal' }));
       return { success: false, error: errorData.error || 'Failed to generate proposal' };
+    }
+    return res.json();
+  }
+
+  // Get SSE URL for proposal generation progress
+  getProposalEventsUrl(jobId: string): string {
+    return `${API_BASE()}/generate_proposal_sections/events/${jobId}`;
+  }
+
+  // Get proposal generation job status
+  async getProposalJobStatus(jobId: string): Promise<{
+    success: boolean;
+    job_id?: string;
+    status?: string;
+    sections_completed?: number[];
+    sections_total?: number;
+    full_proposal?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/generate_proposal_sections/status/${jobId}`);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Failed to get job status' }));
+      return { success: false, error: errorData.error || 'Failed to get job status' };
     }
     return res.json();
   }

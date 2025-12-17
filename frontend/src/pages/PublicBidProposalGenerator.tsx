@@ -139,9 +139,6 @@ const PublicBidProposalGenerator = () => {
   
   // Ref to prevent double generation on mount
   const hasStartedGeneration = useRef(false)
-  
-  // Refs for progress animation intervals
-  const progressIntervalsRef = useRef<ReturnType<typeof setInterval>[]>([])
 
   // 8 proposal sections
   const sectionTitles = [
@@ -169,6 +166,108 @@ const PublicBidProposalGenerator = () => {
     }
   }
 
+  // Ref for EventSource cleanup
+  const eventSourceRef = useRef<EventSource | null>(null)
+
+  // Helper function to listen to SSE events for proposal generation
+  const listenToProposalEvents = (jobId: string) => {
+    // Close any existing EventSource
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+    }
+
+    const eventsUrl = api.getProposalEventsUrl(jobId)
+    const eventSource = new EventSource(eventsUrl)
+    eventSourceRef.current = eventSource
+
+    eventSource.addEventListener('section_completed', (event) => {
+      const data = JSON.parse(event.data)
+      const sectionNum = data.section_num // 1-indexed from backend
+      const sectionIndex = sectionNum - 1 // Convert to 0-indexed for array
+      
+      // Update section to completed
+      setSectionProgress(prev => {
+        const newProgress = [...prev]
+        newProgress[sectionIndex] = 100
+        return newProgress
+      })
+      setSectionStatuses(prev => {
+        const newStatuses = [...prev]
+        newStatuses[sectionIndex] = 'completed'
+        return newStatuses
+      })
+      
+      setProgressText(`Generated section ${data.completed_count} of ${data.total_sections}: ${data.section_name}`)
+    })
+
+    eventSource.addEventListener('section_error', (event) => {
+      const data = JSON.parse(event.data)
+      const sectionNum = data.section_num
+      const sectionIndex = sectionNum - 1
+      
+      // Update section to error
+      setSectionStatuses(prev => {
+        const newStatuses = [...prev]
+        newStatuses[sectionIndex] = 'error'
+        return newStatuses
+      })
+    })
+
+    eventSource.addEventListener('done', async () => {
+      eventSource.close()
+      eventSourceRef.current = null
+      
+      // Fetch final job status to get full_proposal
+      const statusResult = await api.getProposalJobStatus(jobId)
+      
+      if (statusResult.success && statusResult.full_proposal) {
+        setFullProposal(statusResult.full_proposal)
+      }
+      
+      setGenerationComplete(true)
+      setProgressText('All 8 sections generated successfully!')
+      setIsGenerating(false)
+    })
+
+    eventSource.addEventListener('error', (event) => {
+      // Check if this is a custom error event with data
+      if (event instanceof MessageEvent && event.data) {
+        const data = JSON.parse(event.data)
+        setError(data.message || 'Error during generation')
+      }
+      eventSource.close()
+      eventSourceRef.current = null
+      setSectionStatuses(Array(8).fill('error'))
+      setProgressText('Error generating proposal')
+      setIsGenerating(false)
+    })
+
+    eventSource.onerror = () => {
+      // Connection error - try to get status from API
+      eventSource.close()
+      eventSourceRef.current = null
+      
+      // Check job status as fallback
+      api.getProposalJobStatus(jobId).then(statusResult => {
+        if (statusResult.status === 'completed' && statusResult.full_proposal) {
+          // Job completed, update UI
+          setFullProposal(statusResult.full_proposal)
+          setGenerationComplete(true)
+          setSectionStatuses(Array(8).fill('completed'))
+          setSectionProgress(Array(8).fill(100))
+          setProgressText('All 8 sections generated successfully!')
+          setIsGenerating(false)
+        } else if (statusResult.status === 'error') {
+          setError(statusResult.error || 'Generation failed')
+          setSectionStatuses(Array(8).fill('error'))
+          setProgressText('Error generating proposal')
+          setIsGenerating(false)
+        }
+        // If still running, the connection just dropped - user can check status manually
+      })
+    }
+  }
+
   // Initialize draft and generate proposal on mount
   useEffect(() => {
     const initializeAndGenerate = async () => {
@@ -190,31 +289,6 @@ const PublicBidProposalGenerator = () => {
       setSectionStatuses(Array(8).fill('generating'))
       setSectionProgress(Array(8).fill(0))
       setProgressText('Initializing proposal draft...')
-      
-      // Clear any existing progress intervals
-      progressIntervalsRef.current.forEach(interval => clearInterval(interval))
-      progressIntervalsRef.current = []
-      
-      // Start progress animations for each section with different speeds
-      // Each section will animate from 0 to ~95% at different rates
-      const sectionDurations = [8000, 10000, 12000, 9000, 11000, 7000, 13000, 6000] // Different durations for each section
-      sectionDurations.forEach((duration, index) => {
-        const stepMs = 100
-        const steps = duration / stepMs
-        const incrementPerStep = 95 / steps // Go up to 95%, final 5% when complete
-        
-        const interval = setInterval(() => {
-          setSectionProgress(prev => {
-            const newProgress = [...prev]
-            if (newProgress[index] < 95) {
-              newProgress[index] = Math.min(95, newProgress[index] + incrementPerStep)
-            }
-            return newProgress
-          })
-        }, stepMs)
-        
-        progressIntervalsRef.current.push(interval)
-      })
 
       try {
         // Step 1: Initialize the draft
@@ -240,47 +314,18 @@ const PublicBidProposalGenerator = () => {
         setDraftId(initResult.draft_id)
         setProgressText('Generating 8 sections in parallel using AI...')
 
-        // Step 2: Generate the proposal sections
+        // Step 2: Start the proposal generation job (returns immediately with job_id)
         const generateResult = await api.generateProposalSections(initResult.draft_id)
 
-        if (!generateResult.success) {
-          throw new Error(generateResult.error || 'Failed to generate proposal')
+        if (!generateResult.success || !generateResult.job_id) {
+          throw new Error(generateResult.error || 'Failed to start proposal generation')
         }
 
-        // Success! Clear progress intervals and complete all sections
-        progressIntervalsRef.current.forEach(interval => clearInterval(interval))
-        progressIntervalsRef.current = []
-        
-        // Animate each section to 100% with staggered completion
-        const completionDelays = [0, 200, 400, 100, 300, 500, 600, 700] // Staggered completion times
-        completionDelays.forEach((delay, index) => {
-          setTimeout(() => {
-            setSectionProgress(prev => {
-              const newProgress = [...prev]
-              newProgress[index] = 100
-              return newProgress
-            })
-            setSectionStatuses(prev => {
-              const newStatuses = [...prev]
-              newStatuses[index] = 'completed'
-              return newStatuses
-            })
-          }, delay)
-        })
-        
-        // Final state update after all animations complete
-        setTimeout(() => {
-          setFullProposal(generateResult.full_proposal || '')
-          setGenerationComplete(true)
-          setProgressText('All 8 sections generated successfully!')
-          setIsGenerating(false)
-        }, 800)
+        // Step 3: Listen to SSE events for realtime progress updates
+        listenToProposalEvents(generateResult.job_id)
 
       } catch (err) {
         console.error('Error generating proposal:', err)
-        // Clear progress intervals on error
-        progressIntervalsRef.current.forEach(interval => clearInterval(interval))
-        progressIntervalsRef.current = []
         setError(err instanceof Error ? err.message : 'Failed to generate proposal')
         setSectionStatuses(Array(8).fill('error'))
         setSectionProgress(Array(8).fill(0))
@@ -290,6 +335,13 @@ const PublicBidProposalGenerator = () => {
     }
 
     initializeAndGenerate()
+    
+    // Cleanup EventSource on unmount
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+      }
+    }
   }, [state])
 
   // Regenerate proposal
@@ -305,70 +357,20 @@ const PublicBidProposalGenerator = () => {
     setSectionStatuses(Array(8).fill('generating'))
     setSectionProgress(Array(8).fill(0))
     setProgressText('Regenerating 8 sections in parallel using AI...')
-    
-    // Clear any existing progress intervals
-    progressIntervalsRef.current.forEach(interval => clearInterval(interval))
-    progressIntervalsRef.current = []
-    
-    // Start progress animations for each section with different speeds
-    const sectionDurations = [8000, 10000, 12000, 9000, 11000, 7000, 13000, 6000]
-    sectionDurations.forEach((duration, index) => {
-      const stepMs = 100
-      const steps = duration / stepMs
-      const incrementPerStep = 95 / steps
-      
-      const interval = setInterval(() => {
-        setSectionProgress(prev => {
-          const newProgress = [...prev]
-          if (newProgress[index] < 95) {
-            newProgress[index] = Math.min(95, newProgress[index] + incrementPerStep)
-          }
-          return newProgress
-        })
-      }, stepMs)
-      
-      progressIntervalsRef.current.push(interval)
-    })
 
     try {
+      // Start the proposal generation job (returns immediately with job_id)
       const generateResult = await api.generateProposalSections(draftId)
 
-      if (!generateResult.success) {
-        throw new Error(generateResult.error || 'Failed to regenerate proposal')
+      if (!generateResult.success || !generateResult.job_id) {
+        throw new Error(generateResult.error || 'Failed to start proposal regeneration')
       }
 
-      // Clear progress intervals and complete all sections
-      progressIntervalsRef.current.forEach(interval => clearInterval(interval))
-      progressIntervalsRef.current = []
-      
-      // Animate each section to 100% with staggered completion
-      const completionDelays = [0, 200, 400, 100, 300, 500, 600, 700]
-      completionDelays.forEach((delay, index) => {
-        setTimeout(() => {
-          setSectionProgress(prev => {
-            const newProgress = [...prev]
-            newProgress[index] = 100
-            return newProgress
-          })
-          setSectionStatuses(prev => {
-            const newStatuses = [...prev]
-            newStatuses[index] = 'completed'
-            return newStatuses
-          })
-        }, delay)
-      })
-      
-      setTimeout(() => {
-        setFullProposal(generateResult.full_proposal || '')
-        setGenerationComplete(true)
-        setProgressText('All 8 sections regenerated successfully!')
-        setIsGenerating(false)
-      }, 800)
+      // Listen to SSE events for realtime progress updates
+      listenToProposalEvents(generateResult.job_id)
 
     } catch (err) {
       console.error('Error regenerating proposal:', err)
-      progressIntervalsRef.current.forEach(interval => clearInterval(interval))
-      progressIntervalsRef.current = []
       setError(err instanceof Error ? err.message : 'Failed to regenerate proposal')
       setSectionStatuses(Array(8).fill('error'))
       setSectionProgress(Array(8).fill(0))
@@ -468,7 +470,7 @@ const PublicBidProposalGenerator = () => {
                   onClick={handleRegenerate}
                   disabled={isGenerating}
                 >
-                  <img src={ReloadIcon} alt="Reload" className={`w-6 h-6 ${isGenerating ? 'animate-spin' : ''}`} />
+                  <img src={ReloadIcon} alt="Reload" className="w-6 h-6" />
                 </button>
                 <button className="hover:opacity-80 transition-opacity" title="Folder">
                   <img src={FolderIcon} alt="Folder" className="w-6 h-6" />
@@ -524,7 +526,7 @@ const PublicBidProposalGenerator = () => {
                   <span className="text-base">Regenerate Proposal</span>
                   <span className="text-xs opacity-80">You can get a second chance</span>
                 </div>
-                <img src={RegenerateProposalIcon} alt="Regenerate" className={`w-8 h-8 ${isGenerating ? 'animate-spin' : ''}`} />
+                <img src={RegenerateProposalIcon} alt="Regenerate" className="w-8 h-8" />
               </button>
 
               <button
