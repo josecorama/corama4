@@ -14425,7 +14425,7 @@ def directory_company_profile(user_id):
 
 # Serve React app - SPA routing
 # Public paths that don't require authentication (landing page and auth pages)
-REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password'}
+REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'faq'}
 
 # React page routes - these will be handled by the SPA
 REACT_PAGE_ROUTES = {
@@ -14433,7 +14433,7 @@ REACT_PAGE_ROUTES = {
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
     'proposal-summary', 'public-bid-proposal-generator', 'landing',
-    'login', 'signup', 'confirm-terms', 'reset-password'
+    'login', 'signup', 'confirm-terms', 'reset-password', 'faq'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
@@ -15065,17 +15065,26 @@ def api_directory():
     
     try:
         # Get directory data from Firebase
+        directory_data = {}
         logging.info(f"[Directory] admin_initialized={admin_initialized}, admin_db={'set' if admin_db else 'None'}")
         if admin_initialized and admin_db:
-            logging.info("[Directory] Using Firebase Admin SDK to read corama_directory")
-            directory_ref = admin_db.reference('corama_directory')
-            directory_data = directory_ref.get() or {}
-            logging.info(f"[Directory] Retrieved {len(directory_data)} entries from Firebase Admin SDK")
+            try:
+                logging.info("[Directory] Using Firebase Admin SDK to read corama_directory")
+                directory_ref = admin_db.reference('corama_directory')
+                directory_data = directory_ref.get() or {}
+                logging.info(f"[Directory] Retrieved {len(directory_data)} entries from Firebase Admin SDK")
+            except Exception as admin_err:
+                logging.warning(f"[Directory] Firebase Admin SDK failed: {admin_err}")
+                directory_data = {}
         else:
             logging.info("[Directory] Firebase Admin SDK not available, using fallback")
             if 'user' in session:
-                logging.info("[Directory] Using user idToken to read corama_directory")
-                directory_data = db.child("corama_directory").get(session['user']['idToken']).val() or {}
+                try:
+                    logging.info("[Directory] Using user idToken to read corama_directory")
+                    directory_data = db.child("corama_directory").get(session['user']['idToken']).val() or {}
+                except Exception as token_err:
+                    logging.warning(f"[Directory] User token read failed: {token_err}")
+                    directory_data = {}
             else:
                 logging.info("[Directory] No user session, returning empty directory")
                 directory_data = {}

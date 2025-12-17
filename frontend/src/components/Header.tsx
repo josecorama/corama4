@@ -56,8 +56,8 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
         
         {/* Right: Main header content */}
         <div className="flex-1 flex items-center justify-between px-4 lg:px-6">
-          {/* Search - hidden on mobile, visible on tablet+ - starts where sidebar ends, stops 7px before credits */}
-          <div className="hidden md:flex flex-1 min-w-0" style={{ marginRight: '7px' }}>
+          {/* Search - hidden on mobile, visible on tablet+ - starts where sidebar ends, stops 16px before credits */}
+          <div className="hidden md:flex flex-1 min-w-0" style={{ marginRight: '16px' }}>
             <div className="relative w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input

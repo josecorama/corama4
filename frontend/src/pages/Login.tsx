@@ -186,7 +186,7 @@ const Login = () => {
 
       {/* Footer */}
       <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent py-5 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-400 font-poppins">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
           <div className="text-center sm:text-left">
             222 W. Merchandise Mart Plaza<br />
             Suite 1212 c/o 1871 Chicago, IL 60654
