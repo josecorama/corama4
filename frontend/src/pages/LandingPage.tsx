@@ -1,105 +1,5 @@
 import { ArrowRight, CheckCircle } from 'lucide-react'
-import { useEffect, useRef, useState, useCallback } from 'react'
-
-const WavesBackground = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const wavesRef = useRef<Array<{ x: number; y: number; radius: number; maxRadius: number }>>([])
-  const animationRef = useRef<number | null>(null)
-  const frameCountRef = useRef(0)
-
-  const waveColor = { r: 154, g: 199, b: 202 }
-  const expansionSpeed = 0.8
-  const spawnRate = 150
-
-  const resize = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = window.innerWidth * dpr
-    canvas.height = window.innerHeight * dpr
-    canvas.style.width = `${window.innerWidth}px`
-    canvas.style.height = `${window.innerHeight}px`
-    const ctx = canvas.getContext('2d')
-    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  }, [])
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    resize()
-    window.addEventListener('resize', resize)
-
-    const animate = () => {
-      const width = window.innerWidth
-      const height = window.innerHeight
-      const centerX = width / 2
-      const centerY = height * 0.75
-
-      ctx.clearRect(0, 0, width, height)
-
-      frameCountRef.current++
-      if (frameCountRef.current % spawnRate === 0) {
-        const maxRadius = Math.max(width, height) / 1.1
-        wavesRef.current.push({ x: centerX, y: centerY, radius: 0, maxRadius })
-      }
-
-      for (let i = wavesRef.current.length - 1; i >= 0; i--) {
-        const wave = wavesRef.current[i]
-        const fadeOut = 1 - (wave.radius / wave.maxRadius)
-        const finalOpacity = fadeOut * 0.15
-
-        if (finalOpacity > 0) {
-          ctx.beginPath()
-          ctx.arc(wave.x, wave.y, wave.radius, 0, Math.PI * 2)
-          const colorString = `rgba(${waveColor.r}, ${waveColor.g}, ${waveColor.b}, ${finalOpacity})`
-          ctx.shadowBlur = 12
-          ctx.shadowColor = colorString
-          ctx.lineWidth = 1.0
-          ctx.globalCompositeOperation = 'lighter'
-          ctx.strokeStyle = colorString
-          ctx.stroke()
-          ctx.shadowBlur = 0
-          ctx.globalCompositeOperation = 'source-over'
-          ctx.closePath()
-        }
-
-        wave.radius += expansionSpeed
-        if (wave.radius >= wave.maxRadius) {
-          wavesRef.current.splice(i, 1)
-        }
-      }
-
-      animationRef.current = requestAnimationFrame(animate)
-    }
-
-    animationRef.current = requestAnimationFrame(animate)
-
-    return () => {
-      window.removeEventListener('resize', resize)
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
-    }
-  }, [resize])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        zIndex: 0,
-        pointerEvents: 'none',
-      }}
-    />
-  )
-}
+import { useEffect, useRef, useState } from 'react'
 
 interface ParallaxIconProps {
   src: string
@@ -186,12 +86,9 @@ const LandingPage = () => {
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
   }
 
-    return (
-      <div className="min-h-screen bg-[#0B0B0F]">
-        {/* Waves Background Animation - visible in all sections except hero */}
-        <WavesBackground />
-      
-        {/* Header */}
+        return (
+        <div className="min-h-screen bg-[#0B0B0F]">
+          {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -212,8 +109,8 @@ const LandingPage = () => {
         </div>
       </header>
 
-            {/* Hero Section - with opaque background to hide waves */}
-            <section className="pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden bg-[#0B0B0F]" style={{ position: 'relative', zIndex: 1 }}>
+                        {/* Hero Section */}
+                  <section className="pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
         {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
         <div className="absolute inset-0 pointer-events-none z-0">
           {/* Main teal glow - top left, tilted ellipse effect */}
