@@ -1,6 +1,72 @@
 import { ArrowRight, CheckCircle } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+interface HeroStarBurstProps {
+  children: React.ReactNode
+}
+
+const HeroStarBurst = ({ children }: HeroStarBurstProps) => {
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const triggeredRef = useRef(false)
+  const intervalRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (triggeredRef.current) return
+      if (window.scrollY > 24) {
+        triggeredRef.current = true
+        window.removeEventListener('scroll', handleScroll)
+        
+                const wrapper = wrapperRef.current
+                if (!wrapper) return
+        
+                let starsCount = 50
+        let starsCreated = 0
+        const delay = 30
+        
+        intervalRef.current = window.setInterval(() => {
+          if (!wrapper) return
+          
+          const star = document.createElement('i')
+          star.classList.add('hero-star')
+          star.classList.add(Math.floor((Math.random() * 10) % 2) === 0 ? 'small' : 'medium')
+          
+          star.style.left = (Math.random() * 100).toFixed(2) + '%'
+          star.style.top = (Math.random() * 100).toFixed(2) + '%'
+          
+          star.addEventListener('animationend', () => {
+            setTimeout(() => {
+              star.remove()
+            }, 3000 + Math.random() * 2000)
+          }, { once: true })
+          
+          wrapper.appendChild(star)
+          starsCreated++
+          
+          if (starsCreated >= starsCount && intervalRef.current) {
+            window.clearInterval(intervalRef.current)
+          }
+        }, delay)
+      }
+    }
+    
+    window.addEventListener('scroll', handleScroll)
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (intervalRef.current) {
+        window.clearInterval(intervalRef.current)
+      }
+    }
+  }, [])
+
+  return (
+    <div ref={wrapperRef} className="hero-text-wrapper">
+      {children}
+    </div>
+  )
+}
+
 interface ParallaxIconProps {
   src: string
   alt: string
@@ -135,22 +201,24 @@ const LandingPage = () => {
         <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/40 rounded-full hidden sm:block z-[2]"></div>
         <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-corama-teal/60 rounded-full hidden sm:block z-[2]"></div>
         
-        {/* Layer 10: Content */}
-        <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-          <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
-            With AI Find<br />Contracts
-          </h1>
-          <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
-            From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
-          </p>
-          <a 
-            href="/login" 
-            className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
-          >
-            Get Started
-          </a>
-        </div>
-      </section>
+              {/* Layer 10: Content */}
+              <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
+                <HeroStarBurst>
+                  <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight relative z-10">
+                    With AI Find<br />Contracts
+                  </h1>
+                  <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed relative z-10">
+                    From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
+                  </p>
+                </HeroStarBurst>
+                <a 
+                  href="/login" 
+                  className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
+                >
+                  Get Started
+                </a>
+              </div>
+            </section>
 
       {/* Features Grid */}
       <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">

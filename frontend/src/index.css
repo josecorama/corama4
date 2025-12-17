@@ -226,3 +226,54 @@ body {
   filter: brightness(0) saturate(100%) invert(72%) sepia(15%) saturate(1000%) hue-rotate(130deg) brightness(95%) contrast(85%);
   transform: scale(1.05);
 }
+
+/* Hero Star Animation Styles */
+.hero-text-wrapper {
+  position: relative;
+}
+
+.hero-star {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  animation: starFadeIn 0.8s ease-out forwards, starTwinkle 2s ease-in-out infinite;
+}
+
+.hero-star::before {
+  content: '';
+  display: block;
+  background: #6BB4B5;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px rgba(107, 180, 181, 0.6);
+}
+
+.hero-star.small::before {
+  width: 3px;
+  height: 3px;
+}
+
+.hero-star.medium::before {
+  width: 5px;
+  height: 5px;
+  box-shadow: 0 0 8px 3px rgba(107, 180, 181, 0.7);
+}
+
+@keyframes starFadeIn {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes starTwinkle {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
