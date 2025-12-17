@@ -59,6 +59,41 @@ const SmokyText = ({ text, className = '' }: SmokyTextProps) => {
   )
 }
 
+interface ParallaxSectionProps {
+  children: React.ReactNode
+}
+
+const ParallaxSection = ({ children }: ParallaxSectionProps) => {
+  const sectionRef = useRef<HTMLDivElement>(null)
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!sectionRef.current) return
+    const rect = sectionRef.current.getBoundingClientRect()
+    const xNorm = ((e.clientX - rect.left) / rect.width - 0.5) * 2
+    const yNorm = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+    sectionRef.current.style.setProperty('--parallax-x', String(xNorm))
+    sectionRef.current.style.setProperty('--parallax-y', String(yNorm))
+  }
+
+  const handleMouseLeave = () => {
+    if (!sectionRef.current) return
+    sectionRef.current.style.setProperty('--parallax-x', '0')
+    sectionRef.current.style.setProperty('--parallax-y', '0')
+  }
+
+  return (
+    <div 
+      ref={sectionRef}
+      className="parallax-section"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ '--parallax-x': '0', '--parallax-y': '0' } as React.CSSProperties}
+    >
+      {children}
+    </div>
+  )
+}
+
 interface ParallaxIconProps {
   src: string
   alt: string
@@ -452,38 +487,40 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Scope of Work Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
-        {/* Soft teal glow background */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
-        </div>
+            {/* Scope of Work Section */}
+            <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+              {/* Soft teal glow background */}
+              <div className="absolute inset-0 pointer-events-none z-0">
+                <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
+              </div>
         
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
-              <img 
-                src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=800" 
-                alt="Work Station" 
-                className="w-full h-56 sm:h-72 lg:h-80 object-cover"
-                onError={(e) => { e.currentTarget.src = 'https://placehold.co/800x400/0b2c48/6bb4b5?text=Work+Station' }}
-              />
-            </div>
-            <div className="text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
-                Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
-              </p>
-              <a 
-                href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
-              >
-                Get Started
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+              <div className="max-w-6xl mx-auto relative z-10">
+                <ParallaxSection>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
+                    <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
+                      <img 
+                        src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=800" 
+                        alt="Work Station" 
+                        className="parallax-image w-full h-56 sm:h-72 lg:h-80 object-cover"
+                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/800x400/0b2c48/6bb4b5?text=Work+Station' }}
+                      />
+                    </div>
+                    <div className="parallax-text text-center md:text-left">
+                      <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
+                      <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
+                        Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
+                      </p>
+                      <a 
+                        href="/login" 
+                        className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
+                      >
+                        Get Started
+                      </a>
+                    </div>
+                  </div>
+                </ParallaxSection>
+              </div>
+            </section>
 
       {/* Revolution Section */}
       <section className="py-16 sm:py-24 px-4 sm:px-6 relative">

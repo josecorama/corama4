@@ -332,3 +332,41 @@ body {
     animation: none;
   }
 }
+
+/* Parallax Section Styles */
+.parallax-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.parallax-image {
+  transition: transform 0.15s ease-out;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 12px),
+    calc(var(--parallax-y, 0) * 8px),
+    0
+  );
+}
+
+.parallax-text {
+  transition: transform 0.15s ease-out;
+  transform: translate3d(
+    calc(var(--parallax-x, 0) * 24px),
+    calc(var(--parallax-y, 0) * 16px),
+    0
+  );
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .parallax-section:hover .parallax-image,
+  .parallax-section:hover .parallax-text {
+    will-change: transform;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parallax-image,
+  .parallax-text {
+    transform: none !important;
+  }
+}
