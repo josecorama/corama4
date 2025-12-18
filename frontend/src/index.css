@@ -84,6 +84,31 @@ body {
   scrollbar-width: none;  /* Firefox */
 }
 
+/* Custom scrollbar for AI Assistant chat */
+.ai-chat-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ai-chat-scrollbar::-webkit-scrollbar-track {
+  background: #EAEAEA;
+  border-radius: 4px;
+}
+
+.ai-chat-scrollbar::-webkit-scrollbar-thumb {
+  background: #6BB4B5;
+  border-radius: 4px;
+}
+
+.ai-chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #5aa3a4;
+}
+
+/* Firefox scrollbar styling for AI Assistant */
+.ai-chat-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #6BB4B5 #EAEAEA;
+}
+
 /* Orbital animation is now handled by SVG animateMotion in LandingPage.tsx */
 /* This ensures spheres follow the exact orbit paths from orbit.svg */
 

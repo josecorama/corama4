@@ -392,7 +392,7 @@ const PublicBidProposalGenerator = () => {
         <Sidebar onGoBack={handleGoBack} />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-4 overflow-y-auto flex flex-col">
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-3 flex-shrink-0">
               <h1 className="text-corama-teal font-poppins font-bold text-xl lg:text-2xl">Public Bid Proposal Generator</h1>

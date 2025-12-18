@@ -326,13 +326,13 @@ const ContractAnalysis = () => {
         <Sidebar />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-4 lg:p-5 overflow-hidden flex flex-col">
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-3 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Contract Analysis</h1>
               
-              {/* Progress Circles - All empty until step is complete, then show check with animation */}
-              <div className="flex justify-center gap-4">
+                            {/* Progress Circles - All empty until step is complete, then show check with animation */}
+                            <div className="flex justify-center gap-4 mb-8">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (

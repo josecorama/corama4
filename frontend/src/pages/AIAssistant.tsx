@@ -394,7 +394,7 @@ const AIAssistant = () => {
 
             {/* Chat Area - flex-1 to take remaining space, with scrollable messages */}
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 sm:space-y-4 pr-2">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 sm:space-y-4 pr-2 ai-chat-scrollbar">
                 {messages.map((message) => (
                   <div 
                     key={message.id} 
