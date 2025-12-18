@@ -156,13 +156,13 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
             const isActive = location.pathname === item.path
             const isCapabilityBuilder = item.path === '/capability-builder'
             return (
-              <div key={item.path} className="relative" style={{ height: '51px' }}>
+              <div key={item.path} className="relative lg:pr-4" style={{ height: '51px' }}>
                 {isActive && (
                   <img 
                     src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
                     alt="" 
                     className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
-                    style={{ width: isExpanded ? '258px' : '91px' }}
+                    style={{ width: isExpanded ? '258px' : '68px' }}
                     aria-hidden="true"
                   />
                 )}
@@ -196,13 +196,13 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
           
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
-            <div className="relative mt-2" style={{ height: '51px' }}>
+            <div className="relative mt-2 lg:pr-4" style={{ height: '51px' }}>
               {!isExpanded && (
                 <img 
                   src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
                   alt="" 
                   className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
-                  style={{ width: '91px' }}
+                  style={{ width: '68px' }}
                   aria-hidden="true"
                 />
               )}

@@ -11638,9 +11638,28 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                         best_matched_indices = matched_indices[:]
                 
                 if best_matched_indices:
-                    # Extract bounding boxes for matched words
+                    # Gap-filling: fill short gaps between matched indices on the same line
+                    # This handles tokenization mismatches that cause "spotty" highlights
+                    filled_indices = set(best_matched_indices)
+                    sorted_indices = sorted(best_matched_indices)
+                    
+                    for i in range(len(sorted_indices) - 1):
+                        curr_idx = sorted_indices[i]
+                        next_idx = sorted_indices[i + 1]
+                        gap = next_idx - curr_idx - 1
+                        
+                        # Fill gaps of up to 3 words if they're on the same line
+                        if gap > 0 and gap <= 3:
+                            curr_word = page_words_normalized[curr_idx][1]
+                            next_word = page_words_normalized[next_idx][1]
+                            # Check if same line (similar y-coordinate, within 8 points)
+                            if abs(curr_word[1] - next_word[1]) < 8:
+                                for fill_idx in range(curr_idx + 1, next_idx):
+                                    filled_indices.add(fill_idx)
+                    
+                    # Extract bounding boxes for matched words (including filled gaps)
                     matched_rects = []
-                    for idx in best_matched_indices:
+                    for idx in sorted(filled_indices):
                         pw = page_words_normalized[idx][1]
                         matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
                     
