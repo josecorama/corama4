@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import Dither from '../components/Dither'
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
 const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', 'testimonial-footer']
@@ -126,143 +127,6 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
         </button>
       </div>
     </div>
-  )
-}
-
-// Dither Background component
-interface DitherProps {
-  waveColor?: [number, number, number]
-  disableAnimation?: boolean
-  enableMouseInteraction?: boolean
-  mouseRadius?: number
-  colorNum?: number
-  waveAmplitude?: number
-  waveFrequency?: number
-  waveSpeed?: number
-}
-
-const Dither = ({
-  waveColor = [143, 186, 188],
-  disableAnimation = false,
-  enableMouseInteraction = true,
-  mouseRadius = 0.3,
-  colorNum = 4,
-  waveAmplitude = 0.3,
-  waveFrequency = 3,
-  waveSpeed = 0.02
-}: DitherProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const requestRef = useRef<number>()
-  const timeRef = useRef(0)
-  const mouseRef = useRef({ x: 0.5, y: 0.5 })
-
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const bayerMatrix = [
-      [0, 8, 2, 10],
-      [12, 4, 14, 6],
-      [3, 11, 1, 9],
-      [15, 7, 13, 5]
-    ]
-
-    const resizeCanvas = () => {
-      canvas.width = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-    }
-
-    const dither = (value: number, x: number, y: number) => {
-      const threshold = bayerMatrix[y % 4][x % 4] / 16
-      const quantized = Math.floor(value * colorNum) / colorNum
-      const nextLevel = Math.min(1, quantized + 1 / colorNum)
-      return value - quantized > threshold * (nextLevel - quantized) ? nextLevel : quantized
-    }
-
-    const draw = () => {
-      if (!ctx || !canvas) return
-
-      const imageData = ctx.createImageData(canvas.width, canvas.height)
-      const data = imageData.data
-
-      for (let y = 0; y < canvas.height; y++) {
-        for (let x = 0; x < canvas.width; x++) {
-          const nx = x / canvas.width
-          const ny = y / canvas.height
-
-          let wave = 0
-          if (!disableAnimation) {
-            wave = Math.sin(nx * waveFrequency * Math.PI + timeRef.current) * waveAmplitude
-            wave += Math.sin(ny * waveFrequency * Math.PI + timeRef.current * 0.7) * waveAmplitude * 0.5
-          }
-
-          let mouseEffect = 0
-          if (enableMouseInteraction) {
-            const dx = nx - mouseRef.current.x
-            const dy = ny - mouseRef.current.y
-            const dist = Math.sqrt(dx * dx + dy * dy)
-            mouseEffect = Math.max(0, 1 - dist / mouseRadius) * 0.3
-          }
-
-          const gradient = ny * 0.6 + 0.2
-          let intensity = gradient + wave + mouseEffect
-          intensity = Math.max(0, Math.min(1, intensity))
-
-          const ditheredIntensity = dither(intensity, x, y)
-
-          const idx = (y * canvas.width + x) * 4
-          data[idx] = Math.floor(waveColor[0] * ditheredIntensity)
-          data[idx + 1] = Math.floor(waveColor[1] * ditheredIntensity)
-          data[idx + 2] = Math.floor(waveColor[2] * ditheredIntensity)
-          data[idx + 3] = Math.floor(255 * ditheredIntensity * 0.4)
-        }
-      }
-
-      ctx.putImageData(imageData, 0, 0)
-    }
-
-    const animate = () => {
-      if (!disableAnimation) {
-        timeRef.current += waveSpeed
-      }
-      draw()
-      requestRef.current = requestAnimationFrame(animate)
-    }
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect()
-      mouseRef.current = {
-        x: (e.clientX - rect.left) / rect.width,
-        y: (e.clientY - rect.top) / rect.height
-      }
-    }
-
-    resizeCanvas()
-    window.addEventListener('resize', resizeCanvas)
-    if (enableMouseInteraction) {
-      canvas.addEventListener('mousemove', handleMouseMove)
-    }
-
-    requestRef.current = requestAnimationFrame(animate)
-
-    return () => {
-      window.removeEventListener('resize', resizeCanvas)
-      canvas.removeEventListener('mousemove', handleMouseMove)
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current)
-      }
-    }
-  }, [waveColor, disableAnimation, enableMouseInteraction, mouseRadius, colorNum, waveAmplitude, waveFrequency, waveSpeed])
-
-  return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-auto"
-      style={{ zIndex: 0 }}
-    />
   )
 }
 
@@ -482,14 +346,16 @@ const LandingPage = () => {
   return (
     <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
       {/* Dither Background - covers entire page */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
         <Dither 
-          waveColor={[143, 186, 188]}
+          waveColor={[0.56, 0.73, 0.74]}
           waveAmplitude={0.3}
           waveFrequency={3}
-          waveSpeed={0.02}
+          waveSpeed={0.05}
           enableMouseInteraction={true}
           mouseRadius={0.3}
+          colorNum={4}
+          pixelSize={2}
         />
       </div>
       
