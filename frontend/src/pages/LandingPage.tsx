@@ -125,25 +125,6 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
           Learn more <ArrowRight size={14} />
         </button>
       </div>
-      
-      {/* Animation overlay elements - positioned below icon area */}
-      <div className="card-shine"></div>
-      <div className="card-background"></div>
-      <div className="card-tiles">
-        <div className="card-tile tile-1"></div>
-        <div className="card-tile tile-2"></div>
-        <div className="card-tile tile-3"></div>
-        <div className="card-tile tile-4"></div>
-        <div className="card-tile tile-5"></div>
-        <div className="card-tile tile-6"></div>
-        <div className="card-tile tile-7"></div>
-        <div className="card-tile tile-8"></div>
-        <div className="card-tile tile-9"></div>
-        <div className="card-tile tile-10"></div>
-      </div>
-      <div className="card-line line-1"></div>
-      <div className="card-line line-2"></div>
-      <div className="card-line line-3"></div>
     </div>
   )
 }
@@ -328,81 +309,8 @@ const LandingPage = () => {
           />
         </div>
         
-        {/* Layer 3: Decorative stars with twinkling glow */}
-        {/* Star top-center (above title) */}
-        <div className="absolute top-[18%] left-[32%] pointer-events-none z-[3] hidden sm:block animate-twinkle">
-          <img src="/static/app/landing/star2-img.svg" alt="" aria-hidden="true" className="w-[16px] h-auto drop-shadow-[0_0_8px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star mid-left */}
-        <div className="absolute top-[32%] left-[18%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '0.5s' }}>
-          <img src="/static/app/landing/star-img.svg" alt="" aria-hidden="true" className="w-[28px] h-auto drop-shadow-[0_0_10px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star mid-right (larger) */}
-        <div className="absolute top-[28%] right-[12%] pointer-events-none z-[3] hidden lg:block animate-twinkle" style={{ animationDelay: '1s' }}>
-          <img src="/static/app/landing/star3-img.svg" alt="" aria-hidden="true" className="w-[32px] h-auto drop-shadow-[0_0_12px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star bottom-left (near button) */}
-        <div className="absolute bottom-[28%] left-[28%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '1.5s' }}>
-          <img src="/static/app/landing/star4-img.svg" alt="" aria-hidden="true" className="w-[20px] h-auto drop-shadow-[0_0_8px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star bottom-right */}
-        <div className="absolute bottom-[32%] right-[25%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '2s' }}>
-          <img src="/static/app/landing/star5-img.svg" alt="" aria-hidden="true" className="w-[24px] h-auto drop-shadow-[0_0_10px_rgba(107,180,181,0.8)]" />
-        </div>
-        
-        {/* Layer 4: Star glow layer (between stars and spheres) */}
-        <div className="absolute inset-0 pointer-events-none z-[4]" aria-hidden="true" />
-        
-        {/* Layer 5: Animated 3D Spheres on orbital paths using inline SVG */}
-        <div className="absolute inset-0 pointer-events-none z-[5] flex items-center justify-center hidden sm:flex">
-          <svg 
-            viewBox="0 0 1710 963" 
-            className="w-[140%] max-w-[2000px] h-auto"
-            aria-hidden="true"
-          >
-            {/* Left sphere - clockwise on inner orbit, starts offset by 30s */}
-            <g>
-              <image 
-                href="/static/app/landing/sphere.svg" 
-                width="130" 
-                height="130"
-                x="-65"
-                y="-65"
-              >
-                <animateMotion
-                  dur="60s"
-                  repeatCount="indefinite"
-                  rotate="0"
-                  begin="-30s"
-                  path="M854.687 332.754C955.771 357.1 1042.76 396.043 1101.69 439.305C1131.16 460.936 1153.59 483.632 1167.26 506.103C1180.94 528.572 1185.84 550.78 1180.33 571.475C1174.82 592.171 1159.39 609.483 1136.12 623.054C1112.85 636.626 1081.77 646.434 1045.03 652.119C971.554 663.491 875.561 658.361 774.477 634.015C673.393 609.668 586.402 570.725 527.473 527.464C498.007 505.832 475.577 483.136 461.902 460.665C448.228 438.196 443.327 415.988 448.837 395.293C454.347 374.598 469.771 357.285 493.04 343.714C516.312 330.142 547.396 320.335 584.134 314.649C657.61 303.278 753.603 308.407 854.687 332.754Z"
-                />
-              </image>
-            </g>
-            {/* Right sphere - counter-clockwise on outer orbit (reverse direction) - 25% smaller */}
-            <g>
-              <image 
-                href="/static/app/landing/sphere.svg" 
-                width="120" 
-                height="120"
-                x="-60"
-                y="-60"
-              >
-                <animateMotion
-                  dur="60s"
-                  repeatCount="indefinite"
-                  rotate="0"
-                  keyPoints="1;0"
-                  keyTimes="0;1"
-                  calcMode="linear"
-                  path="M895.085 181.027C1097.71 229.83 1272.11 307.898 1390.27 394.644C1449.36 438.017 1494.36 483.546 1521.81 528.651C1549.26 573.754 1559.13 618.398 1548.05 660.043C1536.96 701.687 1505.93 736.479 1459.22 763.72C1412.51 790.963 1350.15 810.632 1276.48 822.033C1129.15 844.834 936.707 834.546 734.08 785.742C531.453 736.939 357.054 658.871 238.891 572.125C179.808 528.751 134.805 483.223 107.355 438.118C79.9069 393.015 70.0295 348.371 81.1172 306.727C92.2051 265.082 123.232 230.29 169.942 203.048C216.655 175.806 279.017 156.137 352.683 144.736C500.013 121.935 692.458 132.223 895.085 181.027Z"
-                />
-              </image>
-            </g>
-          </svg>
-        </div>
-        
         {/* Layer 10: Content */}
-        <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             With AI Find<br />
             Contracts
@@ -433,50 +341,6 @@ const LandingPage = () => {
           <div className="absolute top-0 -left-32 w-[700px] h-[450px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
           {/* Bottom-right teal glow */}
           <div className="absolute bottom-0 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(26,58,74,0.12)_40%,transparent_70%)] -rotate-6"></div>
-        </div>
-        
-        {/* Decorative stars with twinkling effect - positioned closer to cards (75% bigger) */}
-        {/* Left side stars - closer to the cards */}
-        <div className="absolute left-[8%] sm:left-[10%] lg:left-[12%] top-1/2 -translate-y-1/2 hidden lg:block">
-          {/* Small star 1 - top left */}
-          <img 
-            src="/static/app/landing/StarCardLeft1.svg" 
-            alt="" 
-            className="absolute -top-12 left-2 w-7 h-7 animate-twinkle"
-            style={{ animationDelay: '0s' }}
-          />
-          {/* Small star 2 - left of big star */}
-          <img 
-            src="/static/app/landing/StarCardLeft2.svg" 
-            alt="" 
-            className="absolute top-2 -left-4 w-5 h-5 animate-twinkle"
-            style={{ animationDelay: '0.5s' }}
-          />
-          {/* Big star - main left star */}
-          <img 
-            src="/static/app/landing/BigStarCardLeft.svg" 
-            alt="" 
-            className="w-[70px] h-[70px] animate-twinkle"
-            style={{ animationDelay: '1s' }}
-          />
-        </div>
-        
-        {/* Right side stars - closer to the cards */}
-        <div className="absolute right-[8%] sm:right-[10%] lg:right-[12%] bottom-[15%] lg:bottom-[18%] hidden lg:block">
-          {/* Small star - above big star */}
-          <img 
-            src="/static/app/landing/StarCardRight.svg" 
-            alt="" 
-            className="absolute -top-10 right-2 w-7 h-7 animate-twinkle"
-            style={{ animationDelay: '0.3s' }}
-          />
-          {/* Big star - main right star */}
-          <img 
-            src="/static/app/landing/BigStarCardRight.svg" 
-            alt="" 
-            className="w-[70px] h-[70px] animate-twinkle"
-            style={{ animationDelay: '0.8s' }}
-          />
         </div>
         
         <div className="max-w-6xl mx-auto relative z-10">
@@ -592,34 +456,6 @@ const LandingPage = () => {
           <div className="absolute top-1/4 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
           <div className="absolute bottom-1/4 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
         </div>
-        
-        {/* Twinkling stars for Mission section */}
-        <img 
-          src="/static/app/landing/left-star-img.svg" 
-          alt="" 
-          className="absolute top-16 left-[8%] w-8 h-8 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '0s' }}
-        />
-        <img 
-          src="/static/app/landing/left-big-star-img.svg" 
-          alt="" 
-          className="absolute top-[38%] left-[5%] w-12 h-12 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '0.5s' }}
-        />
-        
-        {/* Twinkling stars for Vision section */}
-        <img 
-          src="/static/app/landing/right-star-img.svg" 
-          alt="" 
-          className="absolute top-[55%] right-[8%] w-8 h-8 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '1s' }}
-        />
-        <img 
-          src="/static/app/landing/right-big-star-img.svg" 
-          alt="" 
-          className="absolute bottom-16 right-[5%] w-12 h-12 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '1.5s' }}
-        />
         
         {/* Mission */}
         <div className="max-w-6xl mx-auto relative z-10 mb-24">
