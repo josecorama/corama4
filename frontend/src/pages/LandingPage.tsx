@@ -222,7 +222,7 @@ const RadarAnimation = () => {
       if (Math.random() > 0.4) {
         createRadarBlip()
       }
-      targetTimeoutId = setTimeout(targetLoop, 300)
+      targetTimeoutId = setTimeout(targetLoop, 150)
     }
     
     targetLoop()
