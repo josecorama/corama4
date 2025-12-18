@@ -11560,14 +11560,31 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                 return re.sub(r'[^\w]', '', w.lower())
             
             # Check if two normalized tokens match, including multi-token matching
-            # (e.g., PDF "300pm" matches quote "3:00" + "p.m.")
-            def tokens_match(page_token, quote_token, next_quote_token=None):
+            # Handles both directions:
+            # - PDF "300pm" matches quote "3:00" + "p.m." (PDF joins tokens)
+            # - PDF "3" + "00" + "pm" matches quote "300pm" (PDF splits tokens)
+            def tokens_match(page_token, quote_token, next_quote_token=None, page_words_norm=None, page_idx=None):
                 if page_token == quote_token:
-                    return 1  # Single token match
-                # Multi-token: check if page_token == quote_token + next_quote_token
+                    return (1, 1)  # (quote tokens consumed, page tokens consumed)
+                # Case 1: PDF joins tokens - page_token == quote_token + next_quote_token
                 if next_quote_token and page_token == quote_token + next_quote_token:
-                    return 2  # Consumed 2 quote tokens
-                return 0
+                    return (2, 1)  # Consumed 2 quote tokens, 1 page token
+                # Case 2: PDF splits tokens - check if quote_token starts with page_token
+                if page_words_norm and page_idx is not None and quote_token.startswith(page_token) and len(page_token) > 0:
+                    # Try to accumulate page tokens to match the quote token
+                    accumulated = page_token
+                    tokens_used = 1
+                    check_idx = page_idx + 1
+                    while check_idx < len(page_words_norm) and len(accumulated) < len(quote_token):
+                        next_page_token = page_words_norm[check_idx][0]
+                        accumulated += next_page_token
+                        tokens_used += 1
+                        check_idx += 1
+                        if accumulated == quote_token:
+                            return (1, tokens_used)  # Consumed 1 quote token, multiple page tokens
+                        if not quote_token.startswith(accumulated):
+                            break  # No longer a prefix match
+                return (0, 0)
             
             quote_words_normalized = [normalize_word(w) for w in words]
             
@@ -11597,12 +11614,17 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                         quote_token = quote_words_normalized[quote_idx]
                         next_quote = quote_words_normalized[quote_idx + 1] if quote_idx + 1 < len(quote_words_normalized) else None
                         
-                        match_count = tokens_match(page_token, quote_token, next_quote)
+                        quote_consumed, page_consumed = tokens_match(
+                            page_token, quote_token, next_quote, 
+                            page_words_normalized, page_idx
+                        )
                         
-                        if match_count > 0:
-                            matched_indices.append(page_idx)
-                            quote_idx += match_count
-                            page_idx += 1
+                        if quote_consumed > 0:
+                            # Add all consumed page indices to matched_indices
+                            for i in range(page_consumed):
+                                matched_indices.append(page_idx + i)
+                            quote_idx += quote_consumed
+                            page_idx += page_consumed
                             total_skips = 0  # Reset skip counter on match
                         else:
                             # Skip this page word
@@ -11834,17 +11856,19 @@ You must respond with a JSON object containing two parts:
    - "id": Unique identifier (f1, f2, f3, etc.)
    - "type": One of "overview", "requirement", "deadline", "compliance", "evaluation", "recommendation", "risk"
    - "title": Short title (max 50 chars)
-   - "quote": EXACT text snippet from the contract (15-40 words) that supports this finding. Must be verbatim from the document.
+   - "quote": EXACT text snippet from the contract (40-80 words) that supports this finding. Must be verbatim from the document. Include enough context for the quote to be uniquely identifiable.
    - "page_hint": Page number where this quote appears (1-indexed, based on PAGE markers)
    - "rationale": Brief explanation of why this is important (1-2 sentences)
    - "severity": "high", "medium", or "low" (for risks/requirements)
 
 IMPORTANT RULES:
 1. The "quote" field MUST contain exact text from the contract document. Do not paraphrase or summarize - copy the exact words.
-2. For "deadline" type findings: The quote MUST include the ACTUAL DATE AND TIME (e.g., "3:00 p.m. Thursday, May 30, 2024"). 
+2. For "deadline" type findings: 
+   - The quote MUST include the ACTUAL DATE AND TIME (e.g., "3:00 p.m. Thursday, May 30, 2024")
+   - Include the FULL sentence with location/address if present (e.g., "Proposals will be accepted in the Office of Budget and Management Purchasing Department Room 210, Municipal Center, West, 300 South Seventh Street, Springfield, IL, 62701, until: 3:00 p.m. Thursday, May 30, 2024")
    - Do NOT use generic phrases like "the date and time stated" or "as specified in the solicitation"
    - If you cannot find a specific date/time, do not create a deadline finding
-   - The quote should include the complete deadline sentence with the actual date/time values
+   - Create SEPARATE deadline findings for EACH different date in the contract (e.g., pre-bid meeting date, Q&A deadline, submission deadline, award date)
 
 Respond ONLY with valid JSON, no other text."""
 
