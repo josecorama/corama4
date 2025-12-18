@@ -160,7 +160,7 @@ const RadarAnimation = () => {
   const targetsContainerRef = useRef<HTMLDivElement>(null)
   
   const SCAN_DURATION = 10000
-  const WAKE_OFFSET = -650
+  const WAKE_OFFSET = -750
   
   const createRadarBlip = useCallback(() => {
     if (!targetsContainerRef.current) return
