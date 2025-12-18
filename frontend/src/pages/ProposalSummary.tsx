@@ -394,89 +394,143 @@ const ProposalSummary = () => {
                           </div>
                         </div>
 
-                                                {/* Labor Costs Section - All existing items at top, add row at bottom */}
-                                    <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-                                      <h3 className="text-white font-poppins font-semibold text-base mb-2">Labor Costs</h3>
+                                                                                    {/* Labor Costs Section - Each row has headers, inputs, button, and trash icon */}
+                                                <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
+                                                  <h3 className="text-white font-poppins font-semibold text-base mb-2">Labor Costs</h3>
               
-                                      {/* Column Headers */}
-                                      <div className="grid grid-cols-4 gap-2 mb-1" style={{ marginRight: '132px' }}>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Role</span>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Hours</span>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Rate ($/hr)</span>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
-                                      </div>
+                                                  {/* Existing labor cost items - each with its own headers */}
+                                                  {laborCosts.map((item, index) => (
+                                                    <div key={item.id} className="mb-3">
+                                                      {/* Column Headers */}
+                                                      <div className="flex items-end gap-2 mb-1">
+                                                        <div className="grid grid-cols-4 gap-2 flex-1">
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Role</span>
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Hours</span>
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Rate ($/hr)</span>
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                        </div>
+                                                        <div style={{ width: '100px' }}></div>
+                                                        <div style={{ width: '28px' }}></div>
+                                                      </div>
+                                                      {/* Input Row */}
+                                                      <div className="flex items-center gap-2">
+                                                        <div className="grid grid-cols-4 gap-2 flex-1">
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.role} readOnly />
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.hours} readOnly />
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.rate} readOnly />
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={formatCurrency(item.cost)} readOnly />
+                                                        </div>
+                                                        <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
+                                                          <span>Edit Role</span>
+                                                          <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                        </button>
+                                                        <button onClick={() => setLaborCosts(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80">
+                                                          <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  ))}
               
-                                      {/* Existing labor cost items */}
-                                      {laborCosts.map((item, index) => (
-                                        <div key={item.id} className="flex items-center gap-2 mb-2">
-                                          <div className="grid grid-cols-4 gap-2 flex-1">
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.role} readOnly />
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.hours} readOnly />
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.rate} readOnly />
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={formatCurrency(item.cost)} readOnly />
-                                          </div>
-                                          <button onClick={() => setLaborCosts(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80">
-                                            <img src={RemoveIcon} alt="Delete" className="w-5 h-5" />
-                                          </button>
-                                        </div>
-                                      ))}
-              
-                                      {/* Add new role row */}
-                                      <div className="flex items-center gap-2">
-                                        <div className="grid grid-cols-4 gap-2 flex-1">
-                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="Project Manager" value={laborRole} onChange={e => setLaborRole(e.target.value)} />
-                                          <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="40" value={laborHours} onChange={e => setLaborHours(e.target.value)} />
-                                          <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
-                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
-                                        </div>
-                                        <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
-                                          <span>Add Role</span>
-                                          <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
-                                        </button>
-                                      </div>
-                                    </div>
+                                                  {/* Add new role row - with its own headers */}
+                                                  <div>
+                                                    {/* Column Headers */}
+                                                    <div className="flex items-end gap-2 mb-1">
+                                                      <div className="grid grid-cols-4 gap-2 flex-1">
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Role</span>
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Hours</span>
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Rate ($/hr)</span>
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                      </div>
+                                                      <div style={{ width: '100px' }}></div>
+                                                      <div style={{ width: '28px' }}></div>
+                                                    </div>
+                                                    {/* Input Row */}
+                                                    <div className="flex items-center gap-2">
+                                                      <div className="grid grid-cols-4 gap-2 flex-1">
+                                                        <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="Project Manager" value={laborRole} onChange={e => setLaborRole(e.target.value)} />
+                                                        <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="40" value={laborHours} onChange={e => setLaborHours(e.target.value)} />
+                                                        <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
+                                                        <input type="text" className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
+                                                      </div>
+                                                      <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
+                                                        <span>Add Role</span>
+                                                        <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                      </button>
+                                                      <button className="p-1 opacity-30">
+                                                        <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                </div>
 
-                                                {/* Materials & Equipment Section - All existing items at top, add row at bottom */}
-                                    <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-                                      <h3 className="text-white font-poppins font-semibold text-base mb-2">Materials & Equipment</h3>
+                                                                                    {/* Materials & Equipment Section - Each row has headers, inputs, button, and trash icon */}
+                                                <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
+                                                  <h3 className="text-white font-poppins font-semibold text-base mb-2">Materials & Equipment</h3>
               
-                                      {/* Column Headers */}
-                                      <div className="grid grid-cols-4 gap-2 mb-1" style={{ marginRight: '132px' }}>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Item</span>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Quantity</span>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Unit Cost</span>
-                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
-                                      </div>
+                                                  {/* Existing material items - each with its own headers */}
+                                                  {materials.map((item, index) => (
+                                                    <div key={item.id} className="mb-3">
+                                                      {/* Column Headers */}
+                                                      <div className="flex items-end gap-2 mb-1">
+                                                        <div className="grid grid-cols-4 gap-2 flex-1">
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Item</span>
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Quantity</span>
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Unit Cost</span>
+                                                          <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                        </div>
+                                                        <div style={{ width: '100px' }}></div>
+                                                        <div style={{ width: '28px' }}></div>
+                                                      </div>
+                                                      {/* Input Row */}
+                                                      <div className="flex items-center gap-2">
+                                                        <div className="grid grid-cols-4 gap-2 flex-1">
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.item} readOnly />
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.quantity} readOnly />
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.unit_cost} readOnly />
+                                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={formatCurrency(item.cost)} readOnly />
+                                                        </div>
+                                                        <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
+                                                          <span>Edit Item</span>
+                                                          <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                        </button>
+                                                        <button onClick={() => setMaterials(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80">
+                                                          <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                  ))}
               
-                                      {/* Existing material items */}
-                                      {materials.map((item, index) => (
-                                        <div key={item.id} className="flex items-center gap-2 mb-2">
-                                          <div className="grid grid-cols-4 gap-2 flex-1">
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.item} readOnly />
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.quantity} readOnly />
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={item.unit_cost} readOnly />
-                                            <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" value={formatCurrency(item.cost)} readOnly />
-                                          </div>
-                                          <button onClick={() => setMaterials(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80">
-                                            <img src={RemoveIcon} alt="Delete" className="w-5 h-5" />
-                                          </button>
-                                        </div>
-                                      ))}
-              
-                                      {/* Add new item row */}
-                                      <div className="flex items-center gap-2">
-                                        <div className="grid grid-cols-4 gap-2 flex-1">
-                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="Laptop" value={materialItem} onChange={e => setMaterialItem(e.target.value)} />
-                                          <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="5" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)} />
-                                          <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
-                                          <input type="text" className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
-                                        </div>
-                                        <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
-                                          <span>Add Item</span>
-                                          <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
-                                        </button>
-                                      </div>
-                                    </div>
+                                                  {/* Add new item row - with its own headers */}
+                                                  <div>
+                                                    {/* Column Headers */}
+                                                    <div className="flex items-end gap-2 mb-1">
+                                                      <div className="grid grid-cols-4 gap-2 flex-1">
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Item</span>
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Quantity</span>
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Unit Cost</span>
+                                                        <span className="font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                      </div>
+                                                      <div style={{ width: '100px' }}></div>
+                                                      <div style={{ width: '28px' }}></div>
+                                                    </div>
+                                                    {/* Input Row */}
+                                                    <div className="flex items-center gap-2">
+                                                      <div className="grid grid-cols-4 gap-2 flex-1">
+                                                        <input type="text" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="Laptop" value={materialItem} onChange={e => setMaterialItem(e.target.value)} />
+                                                        <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="5" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)} />
+                                                        <input type="number" className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm" placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
+                                                        <input type="text" className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
+                                                      </div>
+                                                      <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
+                                                        <span>Add Item</span>
+                                                        <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                      </button>
+                                                      <button className="p-1 opacity-30">
+                                                        <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                      </button>
+                                                    </div>
+                                                  </div>
+                                                </div>
 
             {/* Bottom Row: Margin & Risk + Proposal Summary - double horizontal space */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-3 flex-shrink-0">

@@ -459,23 +459,27 @@ const ProposalTeam = () => {
                         <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
                         <img src={CheckSvg} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
                       </div>
-                    ) : step === 2 && teamMembers.length > 0 ? (
-                      // Step 2 complete when team members added - show Lottie check animation only when first triggered
-                      <div className="relative">
-                        <div 
-                          className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
-                            showSecondCheckAnimation ? 'animate-ping' : ''
-                          }`} 
-                        />
-                        <div className="w-14 h-14 relative z-10">
-                          <Lottie 
-                            animationData={checkAnimation} 
-                            loop={false}
-                            autoplay={showSecondCheckAnimation}
-                          />
-                        </div>
-                      </div>
-                    ) : (
+                                        ) : step === 2 && teamMembers.length > 0 ? (
+                                          // Step 2 complete when team members added - show Lottie animation when first triggered, then static Check.svg
+                                          <div className="relative">
+                                            <div 
+                                              className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                                                showSecondCheckAnimation ? 'animate-ping' : ''
+                                              }`} 
+                                            />
+                                            {showSecondCheckAnimation ? (
+                                              <div className="w-14 h-14 relative z-10">
+                                                <Lottie 
+                                                  animationData={checkAnimation} 
+                                                  loop={false}
+                                                  autoplay={true}
+                                                />
+                                              </div>
+                                            ) : (
+                                              <img src={CheckSvg} alt="Step 2 Complete" className="w-14 h-14 relative z-10" />
+                                            )}
+                                          </div>
+                                        ) : (
                       // Empty check for incomplete steps
                       <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
