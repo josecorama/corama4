@@ -285,12 +285,12 @@ body {
 
 /* Radar Animation Styles */
 :root {
-  --radar-cyan-main: #8FBABC;
-  --radar-grad-mid: #6BB4B5;
-  --radar-grad-end: #99C8CA;
-  --radar-line-color: rgba(143, 186, 188, 0.25);
-  --radar-scanner-tail: rgba(0, 242, 255, 0);
-  --radar-scanner-head: rgba(143, 186, 188, 0.9);
+  --radar-cyan-main: #0B2C48;
+  --radar-grad-mid: #081F33;
+  --radar-grad-end: #0E3A5C;
+  --radar-line-color: rgba(11, 44, 72, 0.25);
+  --radar-scanner-tail: rgba(11, 44, 72, 0);
+  --radar-scanner-head: rgba(11, 44, 72, 0.9);
   --radar-scan-speed: 10s;
   --radar-diameter: 90vmin;
 }
@@ -333,12 +333,12 @@ body {
   position: relative;
   border-radius: 50%;
   border: 1px solid var(--radar-line-color);
-  box-shadow: 0 0 60px rgba(143, 186, 188, 0.1);
+  box-shadow: 0 0 60px rgba(11, 44, 72, 0.1);
   background: 
     repeating-radial-gradient(transparent 0, transparent 19%, var(--radar-line-color) 20%),
     linear-gradient(transparent 49.8%, var(--radar-line-color) 50%, transparent 50.2%),
     linear-gradient(90deg, transparent 49.8%, var(--radar-line-color) 50%, transparent 50.2%),
-    radial-gradient(circle, rgba(107, 180, 181, 0.15) 51%, rgba(153, 200, 202, 0.25) 100%);
+    radial-gradient(circle, rgba(11, 44, 72, 0.15) 51%, rgba(11, 44, 72, 0.25) 100%);
 }
 
 .radar-circle::after {
