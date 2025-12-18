@@ -11483,15 +11483,52 @@ def extract_text_with_pages(pdf_path):
 
 def search_text_in_pdf(pdf_path, quote, page_hint=None):
     """Search for text in PDF and return bounding box coordinates for the FULL quote.
-    Returns a SINGLE best match with all its quads grouped together."""
+    Returns a SINGLE best match with all its quads grouped together.
+    Uses prefix+suffix matching to capture full quotes including dates/times at the end."""
     import fitz
     import re
+    
+    def get_rects_from_quads(quads):
+        """Extract rectangle coordinates from quad objects."""
+        rects = []
+        for quad in quads:
+            rect = quad.rect
+            rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
+        return rects
+    
+    def compute_bounding_box(rects):
+        """Compute bounding box that encompasses all rectangles."""
+        if not rects:
+            return None
+        all_x0 = min(r[0] for r in rects)
+        all_y0 = min(r[1] for r in rects)
+        all_x1 = max(r[2] for r in rects)
+        all_y1 = max(r[3] for r in rects)
+        return [all_x0, all_y0, all_x1, all_y1]
+    
+    def make_result(page_num, page_width, page_height, all_rects):
+        """Create a result dictionary from rectangles."""
+        bbox = compute_bounding_box(all_rects)
+        if not bbox:
+            return None
+        return {
+            'page': page_num,
+            'left': (bbox[0] / page_width) * 100,
+            'top': (bbox[1] / page_height) * 100,
+            'width': ((bbox[2] - bbox[0]) / page_width) * 100,
+            'height': ((bbox[3] - bbox[1]) / page_height) * 100,
+            'rect_raw': bbox,
+            'all_rects': all_rects
+        }
     
     try:
         doc = fitz.open(pdf_path)
         
         # Normalize the quote for searching (collapse whitespace, handle line breaks)
         normalized_quote = ' '.join(quote.split())
+        
+        # Log the quote being searched for debugging
+        logging.info(f"Searching for quote ({len(normalized_quote)} chars): {normalized_quote[:100]}...")
         
         # If page_hint provided, search that page first
         pages_to_search = list(range(len(doc)))
@@ -11507,65 +11544,58 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
             text_instances = page.search_for(normalized_quote, quads=True)
             
             if text_instances:
-                # Collect all quads for this match (multi-line text returns multiple quads)
-                all_rects = []
-                for quad in text_instances:
-                    rect = quad.rect
-                    all_rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
-                
-                # Compute bounding box that encompasses all quads
-                all_x0 = min(r[0] for r in all_rects)
-                all_y0 = min(r[1] for r in all_rects)
-                all_x1 = max(r[2] for r in all_rects)
-                all_y1 = max(r[3] for r in all_rects)
-                
+                all_rects = get_rects_from_quads(text_instances)
                 logging.info(f"Found full quote match on page {page_num + 1}: {len(all_rects)} quads")
                 doc.close()
-                
-                # Return a single result with all rects grouped
-                return [{
-                    'page': page_num,
-                    'left': (all_x0 / page_width) * 100,
-                    'top': (all_y0 / page_height) * 100,
-                    'width': ((all_x1 - all_x0) / page_width) * 100,
-                    'height': ((all_y1 - all_y0) / page_height) * 100,
-                    'rect_raw': [all_x0, all_y0, all_x1, all_y1],
-                    'all_rects': all_rects  # Keep all rects for multi-line highlighting
-                }]
+                return [make_result(page_num, page_width, page_height, all_rects)]
             
-            # Fallback: try searching for progressively shorter prefixes
-            # Use longer prefixes first for more distinctive matches
-            for prefix_len in [150, 100, 75, 50, 30]:
+            # Fallback: try prefix + suffix matching to capture full quote
+            # This helps when full quote search fails due to line breaks or formatting
+            for prefix_len in [150, 100, 75, 50]:
                 if len(normalized_quote) > prefix_len:
-                    search_text = normalized_quote[:prefix_len]
-                    text_instances = page.search_for(search_text, quads=True)
+                    prefix_text = normalized_quote[:prefix_len]
+                    prefix_hits = page.search_for(prefix_text, quads=True)
                     
-                    if text_instances:
-                        # Take only the first match to avoid duplicates
-                        # For multi-line text, all quads belong to the same match
-                        all_rects = []
-                        for quad in text_instances:
-                            rect = quad.rect
-                            all_rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
+                    if prefix_hits:
+                        prefix_rects = get_rects_from_quads(prefix_hits)
                         
-                        # Compute bounding box
-                        all_x0 = min(r[0] for r in all_rects)
-                        all_y0 = min(r[1] for r in all_rects)
-                        all_x1 = max(r[2] for r in all_rects)
-                        all_y1 = max(r[3] for r in all_rects)
+                        # Try to find suffix on the same page to extend the highlight
+                        # This captures dates/times that are often at the end of quotes
+                        suffix_rects = []
+                        for suffix_len in [60, 40, 30, 20]:
+                            if len(normalized_quote) > suffix_len:
+                                suffix_text = normalized_quote[-suffix_len:]
+                                suffix_hits = page.search_for(suffix_text, quads=True)
+                                
+                                if suffix_hits:
+                                    suffix_rects = get_rects_from_quads(suffix_hits)
+                                    # Check if suffix is below or to the right of prefix (same text block)
+                                    prefix_bbox = compute_bounding_box(prefix_rects)
+                                    suffix_bbox = compute_bounding_box(suffix_rects)
+                                    
+                                    if prefix_bbox and suffix_bbox:
+                                        # Suffix should be after prefix (below or to the right)
+                                        if suffix_bbox[1] >= prefix_bbox[1] - 20:  # Allow some tolerance
+                                            logging.info(f"Found prefix+suffix match on page {page_num + 1}")
+                                            # Union prefix and suffix rectangles
+                                            all_rects = prefix_rects + suffix_rects
+                                            doc.close()
+                                            return [make_result(page_num, page_width, page_height, all_rects)]
                         
+                        # If no suffix found, just use prefix
                         logging.info(f"Found partial quote match ({prefix_len} chars) on page {page_num + 1}")
                         doc.close()
-                        
-                        return [{
-                            'page': page_num,
-                            'left': (all_x0 / page_width) * 100,
-                            'top': (all_y0 / page_height) * 100,
-                            'width': ((all_x1 - all_x0) / page_width) * 100,
-                            'height': ((all_y1 - all_y0) / page_height) * 100,
-                            'rect_raw': [all_x0, all_y0, all_x1, all_y1],
-                            'all_rects': all_rects
-                        }]
+                        return [make_result(page_num, page_width, page_height, prefix_rects)]
+            
+            # Last resort: try very short prefix (30 chars)
+            if len(normalized_quote) > 30:
+                short_prefix = normalized_quote[:30]
+                short_hits = page.search_for(short_prefix, quads=True)
+                if short_hits:
+                    all_rects = get_rects_from_quads(short_hits)
+                    logging.info(f"Found short prefix match (30 chars) on page {page_num + 1}")
+                    doc.close()
+                    return [make_result(page_num, page_width, page_height, all_rects)]
         
         doc.close()
     except Exception as e:
