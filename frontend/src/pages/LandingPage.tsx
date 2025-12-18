@@ -129,6 +129,145 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   )
 }
 
+// Squares Background component
+interface SquaresProps {
+  direction?: 'diagonal' | 'up' | 'right' | 'down' | 'left'
+  speed?: number
+  borderColor?: string
+  squareSize?: number
+  hoverFillColor?: string
+}
+
+const Squares = ({ 
+  direction = 'diagonal', 
+  speed = 0.5, 
+  borderColor = 'rgba(143, 186, 188, 0.3)',
+  squareSize = 40,
+  hoverFillColor = 'rgba(143, 186, 188, 0.1)'
+}: SquaresProps) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const requestRef = useRef<number>()
+  const numSquaresX = useRef<number>(0)
+  const numSquaresY = useRef<number>(0)
+  const gridOffset = useRef({ x: 0, y: 0 })
+  const hoveredSquare = useRef<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const resizeCanvas = () => {
+      canvas.width = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+      numSquaresX.current = Math.ceil(canvas.width / squareSize) + 1
+      numSquaresY.current = Math.ceil(canvas.height / squareSize) + 1
+    }
+
+    const drawGrid = () => {
+      if (!ctx || !canvas) return
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+      const offsetX = gridOffset.current.x % squareSize
+      const offsetY = gridOffset.current.y % squareSize
+
+      for (let i = -1; i < numSquaresX.current; i++) {
+        for (let j = -1; j < numSquaresY.current; j++) {
+          const x = i * squareSize + offsetX
+          const y = j * squareSize + offsetY
+
+          const isHovered = 
+            hoveredSquare.current &&
+            Math.floor((hoveredSquare.current.x - offsetX) / squareSize) === i &&
+            Math.floor((hoveredSquare.current.y - offsetY) / squareSize) === j
+
+          if (isHovered) {
+            ctx.fillStyle = hoverFillColor
+            ctx.fillRect(x, y, squareSize, squareSize)
+          }
+
+          ctx.strokeStyle = borderColor
+          ctx.lineWidth = 0.5
+          ctx.strokeRect(x, y, squareSize, squareSize)
+        }
+      }
+    }
+
+    const updateAnimation = () => {
+      const effectiveSpeed = speed * 0.5
+
+      switch (direction) {
+        case 'right':
+          gridOffset.current.x += effectiveSpeed
+          break
+        case 'left':
+          gridOffset.current.x -= effectiveSpeed
+          break
+        case 'up':
+          gridOffset.current.y -= effectiveSpeed
+          break
+        case 'down':
+          gridOffset.current.y += effectiveSpeed
+          break
+        case 'diagonal':
+        default:
+          gridOffset.current.x += effectiveSpeed
+          gridOffset.current.y += effectiveSpeed
+          break
+      }
+
+      if (Math.abs(gridOffset.current.x) > squareSize) {
+        gridOffset.current.x = gridOffset.current.x % squareSize
+      }
+      if (Math.abs(gridOffset.current.y) > squareSize) {
+        gridOffset.current.y = gridOffset.current.y % squareSize
+      }
+
+      drawGrid()
+      requestRef.current = requestAnimationFrame(updateAnimation)
+    }
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      hoveredSquare.current = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+      }
+    }
+
+    const handleMouseLeave = () => {
+      hoveredSquare.current = null
+    }
+
+    resizeCanvas()
+    window.addEventListener('resize', resizeCanvas)
+    canvas.addEventListener('mousemove', handleMouseMove)
+    canvas.addEventListener('mouseleave', handleMouseLeave)
+
+    requestRef.current = requestAnimationFrame(updateAnimation)
+
+    return () => {
+      window.removeEventListener('resize', resizeCanvas)
+      canvas.removeEventListener('mousemove', handleMouseMove)
+      canvas.removeEventListener('mouseleave', handleMouseLeave)
+      if (requestRef.current) {
+        cancelAnimationFrame(requestRef.current)
+      }
+    }
+  }, [direction, speed, borderColor, squareSize, hoverFillColor])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="absolute inset-0 w-full h-full pointer-events-auto"
+      style={{ zIndex: 0 }}
+    />
+  )
+}
+
 // RadarAnimation component for Hero section
 const RadarAnimation = () => {
   const particlesContainerRef = useRef<HTMLDivElement>(null)
@@ -343,7 +482,18 @@ const LandingPage = () => {
   }
 
   return (
-    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
+      {/* Squares Background - covers entire page */}
+      <div className="absolute inset-0 z-0">
+        <Squares 
+          direction="diagonal"
+          speed={0.5}
+          borderColor="rgba(143, 186, 188, 0.3)"
+          squareSize={40}
+          hoverFillColor="rgba(143, 186, 188, 0.1)"
+        />
+      </div>
+      
       {/* Header - Fixed at top */}
       <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
