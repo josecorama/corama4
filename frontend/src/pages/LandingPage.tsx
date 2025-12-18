@@ -1,6 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback } from 'react'
-import Dither from '../components/Dither'
+import Waves from '../components/Waves'
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
 const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', 'testimonial-footer']
@@ -345,17 +345,20 @@ const LandingPage = () => {
 
   return (
     <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
-      {/* Dither Background - covers entire page */}
+      {/* Waves Background - covers entire page */}
       <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
-        <Dither
-          waveColor={[0.043, 0.173, 0.282]}
-          disableAnimation={false}
-          enableMouseInteraction={true}
-          mouseRadius={0.3}
-          colorNum={4}
-          waveAmplitude={0.3}
-          waveFrequency={3}
-          waveSpeed={0.05}
+        <Waves
+          lineColor="#0B2C48"
+          backgroundColor="rgba(11, 44, 72, 0.2)"
+          waveSpeedX={0.02}
+          waveSpeedY={0.01}
+          waveAmpX={40}
+          waveAmpY={20}
+          friction={0.9}
+          tension={0.01}
+          maxCursorMove={120}
+          xGap={12}
+          yGap={36}
         />
       </div>
       
