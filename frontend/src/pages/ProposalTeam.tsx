@@ -963,11 +963,11 @@ const ProposalTeam = () => {
             <div className="flex-shrink-0 pt-4 flex justify-center">
               <button
                 onClick={handleContinue}
-                className="flex items-center gap-2 px-8 py-3 rounded-full font-poppins text-base font-semibold hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#99C8CA', color: 'white' }}
+                className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold hover:opacity-90 transition-opacity overflow-hidden"
+                style={{ backgroundColor: '#99C8CA', color: 'white', width: '414px', height: '48px' }}
               >
-                Continue
-                <img src={ContinueIcon} alt="" className="w-6 h-6" />
+                <span className="text-center">Continue</span>
+                <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
           </main>

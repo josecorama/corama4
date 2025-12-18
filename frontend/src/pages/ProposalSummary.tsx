@@ -498,11 +498,11 @@ const ProposalSummary = () => {
                 
                 <button
                   onClick={handleAddLaborRole}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: '#99C8CA' }}
+                  className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden"
+                  style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}
                 >
-                  Add Role
-                  <img src={AddIcon} alt="" className="w-4 h-4" />
+                  <span>Add Role</span>
+                  <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                 </button>
                 
                 <button
@@ -615,11 +615,11 @@ const ProposalSummary = () => {
                 
                 <button
                   onClick={handleAddMaterial}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: '#99C8CA' }}
+                  className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden"
+                  style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}
                 >
-                  Add Item
-                  <img src={AddIcon} alt="" className="w-4 h-4" />
+                  <span>Add Item</span>
+                  <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                 </button>
                 
                 <button
@@ -711,11 +711,11 @@ const ProposalSummary = () => {
               <button
                 onClick={handleSaveSummary}
                 disabled={isSaving}
-                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: '#99C8CA' }}
+                className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 overflow-hidden"
+                style={{ backgroundColor: '#99C8CA', width: '200px', height: '40px' }}
               >
                 <span>{isSaving ? 'Saving...' : 'Save Summary'}</span>
-                <img src={ContinueIcon} alt="" className="w-5 h-5" />
+                <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
 
               <button
@@ -739,11 +739,11 @@ const ProposalSummary = () => {
                     totalBidAmount
                   } 
                 })}
-                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#99C8CA' }}
+                className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden"
+                style={{ backgroundColor: '#99C8CA', width: '260px', height: '40px' }}
               >
                 <span>Generate Final Proposal</span>
-                <span className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">$</span>
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">$</span>
               </button>
             </div>
           </main>
