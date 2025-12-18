@@ -347,15 +347,15 @@ const LandingPage = () => {
     <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
       {/* Dither Background - covers entire page */}
       <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
-        <Dither 
-          waveColor={[0.143 * 0.56, 0.143 * 0.73, 0.143 * 0.74]}
-          waveAmplitude={0.42}
-          waveFrequency={3}
-          waveSpeed={0.07}
+        <Dither
+          waveColor={[0.5, 0.5, 0.5]}
+          disableAnimation={false}
           enableMouseInteraction={true}
           mouseRadius={0.3}
           colorNum={4}
-          pixelSize={2}
+          waveAmplitude={0.3}
+          waveFrequency={3}
+          waveSpeed={0.05}
         />
       </div>
       
