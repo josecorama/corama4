@@ -442,10 +442,21 @@ const ContractAnalysis = () => {
                     </div>
                     
                     {/* Findings as paragraphs with hyperlinks to PDF locations */}
-                    {structuredFindings.length > 0 && (
+                    {/* Filter out Strategic Recommendations and Risk Assessment since they're suggestions, not contract content */}
+                    {structuredFindings.filter(f => 
+                      !f.type.toLowerCase().includes('strategic') && 
+                      !f.type.toLowerCase().includes('recommendation') && 
+                      !f.type.toLowerCase().includes('risk assessment')
+                    ).length > 0 && (
                       <div className="space-y-4 border-t border-gray-200 pt-4">
                         <p className="text-xs text-gray-500 font-poppins font-semibold uppercase tracking-wide">Source References</p>
-                        {structuredFindings.map((finding) => {
+                        {structuredFindings
+                          .filter(f => 
+                            !f.type.toLowerCase().includes('strategic') && 
+                            !f.type.toLowerCase().includes('recommendation') && 
+                            !f.type.toLowerCase().includes('risk assessment')
+                          )
+                          .map((finding) => {
                           const coord = manifest[finding.id]
                           const hasLocation = coord && !coord.not_found && coord.width > 0
                           return (

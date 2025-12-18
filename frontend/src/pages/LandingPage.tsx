@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback } from 'react'
+import Waves from '../components/Waves'
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
 const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', 'testimonial-footer']
@@ -164,6 +165,108 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   )
 }
 
+// Radar Animation Component
+const RadarAnimation = () => {
+  const particlesContainerRef = useRef<HTMLDivElement>(null)
+  const targetsContainerRef = useRef<HTMLDivElement>(null)
+  const lastTickRef = useRef<number>(-1)
+  const startTimeRef = useRef<number>(Date.now())
+  
+  const SCAN_DURATION = 10000
+  const TICKS_PER_REVOLUTION = 24
+  const BLIP_TRAIL_OFFSET = 0.08
+  
+  const createRadarBlip = useCallback((tickProgress: number) => {
+    if (!targetsContainerRef.current) return
+    
+    const blip = document.createElement('div')
+    blip.className = 'radar-blip'
+    
+    const theta = ((tickProgress - BLIP_TRAIL_OFFSET) * Math.PI * 2) - (Math.PI / 2)
+    
+    const r = 12 + Math.random() * 36
+    const variance = (Math.random() - 0.5) * 0.03
+    const finalTheta = theta + variance
+    
+    const x = 50 + r * Math.cos(finalTheta)
+    const y = 50 + r * Math.sin(finalTheta)
+    
+    blip.style.left = `${x}%`
+    blip.style.top = `${y}%`
+    
+    targetsContainerRef.current.appendChild(blip)
+    setTimeout(() => blip.remove(), 4000)
+  }, [])
+  
+  const createSynchronizedParticle = useCallback((progress: number) => {
+    if (!particlesContainerRef.current) return
+    
+    const p = document.createElement('div')
+    p.className = 'radar-particle'
+    
+    const trailOffset = BLIP_TRAIL_OFFSET + (Math.random() * 0.04)
+    const theta = ((progress - trailOffset) * Math.PI * 2) - (Math.PI / 2)
+    
+    const r = Math.random() * 90
+    
+    const x = 50 + r * Math.cos(theta)
+    const y = 50 + r * Math.sin(theta)
+    
+    const s = Math.random() * 3 + 1
+    
+    p.style.width = `${s}px`
+    p.style.height = `${s}px`
+    p.style.left = `${x}%`
+    p.style.top = `${y}%`
+    
+    particlesContainerRef.current.appendChild(p)
+    setTimeout(() => p.remove(), 5000)
+  }, [])
+  
+  useEffect(() => {
+    let animationId: number
+    let particleIntervalId: ReturnType<typeof setInterval>
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTimeRef.current
+      const progress = (elapsed % SCAN_DURATION) / SCAN_DURATION
+      const currentTick = Math.floor(progress * TICKS_PER_REVOLUTION)
+      
+      if (currentTick !== lastTickRef.current) {
+        lastTickRef.current = currentTick
+        if (Math.random() > 0.3) {
+          createRadarBlip(progress)
+        }
+      }
+      
+      animationId = requestAnimationFrame(animate)
+    }
+    
+    animate()
+    particleIntervalId = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current
+      const progress = (elapsed % SCAN_DURATION) / SCAN_DURATION
+      createSynchronizedParticle(progress)
+    }, 20)
+    
+    return () => {
+      cancelAnimationFrame(animationId)
+      clearInterval(particleIntervalId)
+    }
+  }, [createRadarBlip, createSynchronizedParticle])
+  
+  return (
+    <>
+      <div ref={particlesContainerRef} className="radar-particles-container" />
+      <div className="radar-background">
+        <div className="radar-circle">
+          <div ref={targetsContainerRef} className="radar-targets-container" />
+        </div>
+      </div>
+    </>
+  )
+}
+
 const LandingPage = () => {
   const [currentSection, setCurrentSection] = useState(0)
   const [isScrolling, setIsScrolling] = useState(false)
@@ -324,97 +427,26 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('hero')}`}
       >
-        {/* Layer 1: Orbital lines (orbit.svg) - vertically centered */}
-        <div className="absolute inset-0 pointer-events-none z-[1] flex items-center justify-center">
-          <img 
-            src="/static/app/landing/orbit.svg" 
-            alt="" 
-            aria-hidden="true"
-            className="w-[140%] max-w-[2000px] h-auto"
+        {/* Layer 1: Waves Background Animation */}
+        <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
+          <Waves
+            lineColor="#0B2C48"
+            backgroundColor="rgba(11, 44, 72, 0.2)"
+            waveSpeedX={0.02}
+            waveSpeedY={0.01}
+            waveAmpX={40}
+            waveAmpY={20}
+            friction={0.9}
+            tension={0.01}
+            maxCursorMove={120}
+            xGap={12}
+            yGap={36}
           />
         </div>
         
-        {/* Layer 2: Center gradient glow (spectrum/degradate.svg) */}
-        <div className="absolute inset-0 pointer-events-none z-[2] flex items-center justify-center">
-          <img 
-            src="/static/app/landing/degradate.svg" 
-            alt="" 
-            aria-hidden="true"
-            className="w-[60%] max-w-[800px] h-auto opacity-50"
-          />
-        </div>
-        
-        {/* Layer 3: Decorative stars with twinkling glow */}
-        {/* Star top-center (above title) */}
-        <div className="absolute top-[18%] left-[32%] pointer-events-none z-[3] hidden sm:block animate-twinkle">
-          <img src="/static/app/landing/star2-img.svg" alt="" aria-hidden="true" className="w-[16px] h-auto drop-shadow-[0_0_8px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star mid-left */}
-        <div className="absolute top-[32%] left-[18%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '0.5s' }}>
-          <img src="/static/app/landing/star-img.svg" alt="" aria-hidden="true" className="w-[28px] h-auto drop-shadow-[0_0_10px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star mid-right (larger) */}
-        <div className="absolute top-[28%] right-[12%] pointer-events-none z-[3] hidden lg:block animate-twinkle" style={{ animationDelay: '1s' }}>
-          <img src="/static/app/landing/star3-img.svg" alt="" aria-hidden="true" className="w-[32px] h-auto drop-shadow-[0_0_12px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star bottom-left (near button) */}
-        <div className="absolute bottom-[28%] left-[28%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '1.5s' }}>
-          <img src="/static/app/landing/star4-img.svg" alt="" aria-hidden="true" className="w-[20px] h-auto drop-shadow-[0_0_8px_rgba(107,180,181,0.8)]" />
-        </div>
-        {/* Star bottom-right */}
-        <div className="absolute bottom-[32%] right-[25%] pointer-events-none z-[3] hidden sm:block animate-twinkle" style={{ animationDelay: '2s' }}>
-          <img src="/static/app/landing/star5-img.svg" alt="" aria-hidden="true" className="w-[24px] h-auto drop-shadow-[0_0_10px_rgba(107,180,181,0.8)]" />
-        </div>
-        
-        {/* Layer 4: Star glow layer (between stars and spheres) */}
-        <div className="absolute inset-0 pointer-events-none z-[4]" aria-hidden="true" />
-        
-        {/* Layer 5: Animated 3D Spheres on orbital paths using inline SVG */}
-        <div className="absolute inset-0 pointer-events-none z-[5] flex items-center justify-center hidden sm:flex">
-          <svg 
-            viewBox="0 0 1710 963" 
-            className="w-[140%] max-w-[2000px] h-auto"
-            aria-hidden="true"
-          >
-            {/* Left sphere - clockwise on inner orbit, starts offset by 30s */}
-            <g>
-              <image 
-                href="/static/app/landing/sphere.svg" 
-                width="130" 
-                height="130"
-                x="-65"
-                y="-65"
-              >
-                <animateMotion
-                  dur="60s"
-                  repeatCount="indefinite"
-                  rotate="0"
-                  begin="-30s"
-                  path="M854.687 332.754C955.771 357.1 1042.76 396.043 1101.69 439.305C1131.16 460.936 1153.59 483.632 1167.26 506.103C1180.94 528.572 1185.84 550.78 1180.33 571.475C1174.82 592.171 1159.39 609.483 1136.12 623.054C1112.85 636.626 1081.77 646.434 1045.03 652.119C971.554 663.491 875.561 658.361 774.477 634.015C673.393 609.668 586.402 570.725 527.473 527.464C498.007 505.832 475.577 483.136 461.902 460.665C448.228 438.196 443.327 415.988 448.837 395.293C454.347 374.598 469.771 357.285 493.04 343.714C516.312 330.142 547.396 320.335 584.134 314.649C657.61 303.278 753.603 308.407 854.687 332.754Z"
-                />
-              </image>
-            </g>
-            {/* Right sphere - counter-clockwise on outer orbit (reverse direction) - 25% smaller */}
-            <g>
-              <image 
-                href="/static/app/landing/sphere.svg" 
-                width="120" 
-                height="120"
-                x="-60"
-                y="-60"
-              >
-                <animateMotion
-                  dur="60s"
-                  repeatCount="indefinite"
-                  rotate="0"
-                  keyPoints="1;0"
-                  keyTimes="0;1"
-                  calcMode="linear"
-                  path="M895.085 181.027C1097.71 229.83 1272.11 307.898 1390.27 394.644C1449.36 438.017 1494.36 483.546 1521.81 528.651C1549.26 573.754 1559.13 618.398 1548.05 660.043C1536.96 701.687 1505.93 736.479 1459.22 763.72C1412.51 790.963 1350.15 810.632 1276.48 822.033C1129.15 844.834 936.707 834.546 734.08 785.742C531.453 736.939 357.054 658.871 238.891 572.125C179.808 528.751 134.805 483.223 107.355 438.118C79.9069 393.015 70.0295 348.371 81.1172 306.727C92.2051 265.082 123.232 230.29 169.942 203.048C216.655 175.806 279.017 156.137 352.683 144.736C500.013 121.935 692.458 132.223 895.085 181.027Z"
-                />
-              </image>
-            </g>
-          </svg>
+        {/* Layer 2: Radar Animation */}
+        <div className="absolute inset-0 z-[1] pointer-events-none">
+          <RadarAnimation />
         </div>
         
         {/* Layer 10: Content */}
