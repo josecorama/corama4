@@ -93,7 +93,8 @@ void main() {
     float effect = 1.0 - smoothstep(0.0, mouseRadius, dist);
     f -= 0.5 * effect;
   }
-  vec3 col = mix(vec3(0.0), waveColor, f);
+  // Use waveColor as intensity multiplier - all visible points will be waveColor
+  vec3 col = waveColor * f;
   gl_FragColor = vec4(col, 1.0);
 }
 `
