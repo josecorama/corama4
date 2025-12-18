@@ -11504,11 +11504,10 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
             page_height = page.rect.height
             
             # Try to search for the full quote first using quads for multi-line support
-            # Use hit_max=1 to get only the first/best match
-            text_instances = page.search_for(normalized_quote, quads=True, hit_max=1)
+            text_instances = page.search_for(normalized_quote, quads=True)
             
             if text_instances:
-                # Collect all quads for this single match
+                # Collect all quads for this match (multi-line text returns multiple quads)
                 all_rects = []
                 for quad in text_instances:
                     rect = quad.rect
@@ -11536,18 +11535,20 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
             
             # Fallback: try searching for progressively shorter prefixes
             # Use longer prefixes first for more distinctive matches
-            for prefix_len in [150, 100, 75, 50]:
+            for prefix_len in [150, 100, 75, 50, 30]:
                 if len(normalized_quote) > prefix_len:
                     search_text = normalized_quote[:prefix_len]
-                    # Use hit_max=1 to avoid matching common phrases multiple times
-                    text_instances = page.search_for(search_text, quads=True, hit_max=1)
+                    text_instances = page.search_for(search_text, quads=True)
                     
                     if text_instances:
+                        # Take only the first match to avoid duplicates
+                        # For multi-line text, all quads belong to the same match
                         all_rects = []
                         for quad in text_instances:
                             rect = quad.rect
                             all_rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
                         
+                        # Compute bounding box
                         all_x0 = min(r[0] for r in all_rects)
                         all_y0 = min(r[1] for r in all_rects)
                         all_x1 = max(r[2] for r in all_rects)
