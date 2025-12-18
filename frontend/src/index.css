@@ -292,7 +292,7 @@ body {
   --radar-scanner-tail: rgba(153, 200, 202, 0);
   --radar-scanner-head: rgba(153, 200, 202, 0.9);
   --radar-scan-speed: 10s;
-  --radar-diameter: 90vmin;
+  --radar-diameter: 81vmin;
 }
 
 .radar-particles-container {
@@ -392,6 +392,6 @@ body {
 
 @media (max-width: 768px) {
   :root {
-    --radar-diameter: 95vw;
+    --radar-diameter: 85.5vw;
   }
 }
