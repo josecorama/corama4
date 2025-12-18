@@ -178,13 +178,11 @@ const ContractAnalysis = () => {
   }, [aiFindings])
 
   // Auto-trigger AI findings generation when PDF is uploaded
-  const autoGenerateTriggered = useRef(false)
   useEffect(() => {
-    if (pdfFile && !aiFindings && !isGeneratingFindings && !autoGenerateTriggered.current) {
-      autoGenerateTriggered.current = true
+    if (pdfFile && !aiFindings && !isGeneratingFindings) {
       handleGenerateFindings()
     }
-  }, [pdfFile])
+  }, [pdfFile]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
