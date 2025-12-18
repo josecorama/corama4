@@ -53,6 +53,26 @@ body {
   animation: float 3s ease-in-out infinite;
 }
 
+/* Message bubble pop animation */
+@keyframes messagePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) translateY(20px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.05) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-message-pop {
+  animation: messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 /* Hide scrollbar for Chrome, Safari and Opera */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;

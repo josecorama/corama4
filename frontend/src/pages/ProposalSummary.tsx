@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
+import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
@@ -51,12 +52,30 @@ const ProposalSummary = () => {
   const step1Complete = true
   const step2Complete = true
   
-  // Animation states for check icons (first checkmark animation is now in ContractAnalysis)
-  const [showThirdCheckAnimation, setShowThirdCheckAnimation] = useState(false)
-  const [step3Complete, setStep3Complete] = useState(false)
+    // Animation states for check icons (first checkmark animation is now in ContractAnalysis)
+    const [showThirdCheckAnimation, setShowThirdCheckAnimation] = useState(false)
+    const [step3Complete, setStep3Complete] = useState(false)
   
-  // Track if animations have been shown (to prevent re-triggering)
-  const thirdAnimationShown = useRef(false)
+    // Track if animations have been shown (to prevent re-triggering)
+    const thirdAnimationShown = useRef(false)
+  
+    // Track if this is the first visit to prevent Lottie re-triggering on page entry
+    const [animationsAlreadyShown, setAnimationsAlreadyShown] = useState(() => {
+      // Check sessionStorage to see if we've already shown animations
+      return sessionStorage.getItem('proposalSummaryAnimationsShown') === 'true'
+    })
+  
+    // Mark animations as shown after first render
+    useEffect(() => {
+      if (!animationsAlreadyShown) {
+        // Set a small delay to allow animations to play once
+        const timer = setTimeout(() => {
+          sessionStorage.setItem('proposalSummaryAnimationsShown', 'true')
+          setAnimationsAlreadyShown(true)
+        }, 1500)
+        return () => clearTimeout(timer)
+      }
+    }, [])
   
   // Contract ID with sessionStorage fallback
   const [contractId, setContractId] = useState<string | null>(null)
@@ -355,49 +374,65 @@ const ProposalSummary = () => {
             <div className="text-center mb-2 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
-                {/* Progress Circles - First two always checked, third when profit/risk filled */}
-                <div className="flex justify-center gap-4">
-                  {[1, 2, 3].map((step) => {
-                    const isComplete = (step === 1 && step1Complete) || (step === 2 && step2Complete) || (step === 3 && step3Complete)
-                    const showAnimation = step === 3 && showThirdCheckAnimation
+                                {/* Progress Circles - First two always checked, third when profit/risk filled */}
+                                <div className="flex justify-center gap-4">
+                                  {[1, 2, 3].map((step) => {
+                                    const isComplete = (step === 1 && step1Complete) || (step === 2 && step2Complete) || (step === 3 && step3Complete)
+                                    const showAnimation = step === 3 && showThirdCheckAnimation
+                                    // Only autoplay if this is the first visit OR if it's the third step animation
+                                    const shouldAutoplay = !animationsAlreadyShown || showAnimation
                     
-                    return (
-                      <div key={step} className="relative">
-                        {isComplete ? (
-                          <div className="relative">
-                            <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
-                              showAnimation ? 'animate-ping' : ''
-                            }`} />
-                            <div className="w-12 h-12 relative z-10">
-                              <Lottie 
-                                animationData={checkAnimation} 
-                                loop={false}
-                                autoplay={true}
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-12 h-12" />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
+                                    return (
+                                      <div key={step} className="relative">
+                                        {isComplete ? (
+                                          <div className="relative">
+                                            <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                                              showAnimation ? 'animate-ping' : ''
+                                            }`} />
+                                            <div className="w-12 h-12 relative z-10">
+                                              <Lottie 
+                                                animationData={checkAnimation} 
+                                                loop={false}
+                                                autoplay={shouldAutoplay}
+                                              />
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-12 h-12" />
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
             </div>
 
-            {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
-            <div className="bg-white rounded-2xl border border-white p-4 mb-3 flex-shrink-0">
-              <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
-              <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
-                {isLoadingStrategy ? (
-                  <InlineLoading text="Thinking" size="small" />
-                ) : aiStrategy ? (
-                  <p>{aiStrategy}</p>
-                ) : (
-                  <InlineLoading text="Thinking" size="small" />
-                )}
-              </div>
-            </div>
+                        {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
+                        <div className="bg-white rounded-2xl border border-white p-4 mb-3 flex-shrink-0">
+                          <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
+                          <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
+                            {isLoadingStrategy ? (
+                              <InlineLoading text="Thinking" size="small" />
+                            ) : aiStrategy ? (
+                              <ReactMarkdown
+                                components={{
+                                  p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                                  ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                  ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                  li: ({children}) => <li className="ml-2">{children}</li>,
+                                  strong: ({children}) => <strong className="font-bold">{children}</strong>,
+                                  em: ({children}) => <em className="italic">{children}</em>,
+                                  h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                                  h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                                  h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                }}
+                              >
+                                {aiStrategy}
+                              </ReactMarkdown>
+                            ) : (
+                              <InlineLoading text="Thinking" size="small" />
+                            )}
+                          </div>
+                        </div>
 
             {/* Labor Costs Section */}
             <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>

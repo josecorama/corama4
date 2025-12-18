@@ -52,6 +52,14 @@ export const InlineLoading: React.FC<InlineLoadingProps> = ({ text = 'Thinking',
 
   return (
     <div className="flex flex-col items-center justify-center py-4">
+      {/* Text with animated ellipsis - now above the animation */}
+      <div className={`${darkMode ? 'text-white' : 'text-gray-600'} font-poppins font-semibold ${sizeClasses[size].text} mb-2`}>
+        {text}
+        <span className="inline-block">
+          <span className="animate-ellipsis">...</span>
+        </span>
+      </div>
+      
       {/* Animated Lottie logo */}
       <div className={sizeClasses[size].container}>
         <Lottie 
@@ -59,14 +67,6 @@ export const InlineLoading: React.FC<InlineLoadingProps> = ({ text = 'Thinking',
           loop={true}
           autoplay={true}
         />
-      </div>
-      
-      {/* Text with animated ellipsis */}
-      <div className={`${darkMode ? 'text-white' : 'text-gray-600'} font-poppins font-semibold ${sizeClasses[size].text} mt-2`}>
-        {text}
-        <span className="inline-block">
-          <span className="animate-ellipsis">...</span>
-        </span>
       </div>
     </div>
   )

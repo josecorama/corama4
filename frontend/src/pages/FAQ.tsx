@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 interface FAQItem {
   question: string
@@ -34,8 +34,15 @@ const faqData: FAQItem[] = [
 
 const FAQ = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const [contentHeights, setContentHeights] = useState<Record<number, number>>({})
+  const contentRefs = useRef<Record<number, HTMLDivElement | null>>({})
 
   const toggleCard = (index: number) => {
+    // Measure content height before toggling
+    if (openIndex !== index && contentRefs.current[index]) {
+      const height = contentRefs.current[index]?.scrollHeight || 0
+      setContentHeights(prev => ({ ...prev, [index]: height }))
+    }
     setOpenIndex(openIndex === index ? null : index)
   }
 
@@ -75,116 +82,142 @@ const FAQ = () => {
             Frequently Asked Questions
           </h1>
 
-          {/* FAQ Grid - 2 columns */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
-            {/* Left Column: Q1, Q2, Q3 */}
-            <div className="flex flex-col gap-6 relative">
-              {[0, 1, 2].map((idx) => (
-                <div 
-                  key={idx}
-                  className="relative transition-all duration-300"
-                  style={{ zIndex: getZIndex(idx, 'left') }}
-                >
-                  <div 
-                    className={`bg-white rounded-2xl shadow-lg transition-all duration-300 overflow-hidden ${
-                      openIndex === idx ? 'shadow-2xl' : ''
-                    }`}
-                    style={{ 
-                      width: '500px', 
-                      maxWidth: '100%',
-                      minHeight: openIndex === idx ? 'auto' : '100px',
-                      height: openIndex === idx ? 'auto' : '100px'
-                    }}
-                  >
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer p-6"
-                      onClick={() => toggleCard(idx)}
-                      style={{ height: '100px' }}
-                    >
-                      <button className="flex-shrink-0">
-                        {openIndex === idx ? (
-                          <img src="/static/app/landing/Close.svg" alt="Close" className="w-5 h-5" />
-                        ) : (
-                          <img src="/static/app/landing/Open.svg" alt="Open" className="w-5 h-5" />
-                        )}
-                      </button>
-                      <h3 
-                        className="font-poppins font-bold text-base sm:text-lg"
-                        style={{ color: '#1B1139' }}
-                      >
-                        {faqData[idx].question}
-                      </h3>
-                    </div>
+                    {/* FAQ Grid - 2 columns */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
+                      {/* Left Column: Q1, Q2, Q3 */}
+                      <div className="flex flex-col gap-6 relative">
+                        {[0, 1, 2].map((idx) => (
+                          <div 
+                            key={idx}
+                            className="relative transition-all duration-300 group"
+                            style={{ zIndex: getZIndex(idx, 'left') }}
+                          >
+                            <div 
+                              className={`bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ease-out ${
+                                openIndex === idx ? 'shadow-2xl' : ''
+                              }`}
+                              style={{ 
+                                width: '500px', 
+                                maxWidth: '100%',
+                                transform: openIndex !== idx ? 'translateY(0)' : undefined,
+                              }}
+                            >
+                              <div 
+                                className="flex items-center gap-4 cursor-pointer p-6 transition-transform duration-200 hover:-translate-y-0.5"
+                                onClick={() => toggleCard(idx)}
+                                style={{ height: '100px' }}
+                              >
+                                <button 
+                                  className="flex-shrink-0 transition-transform duration-300"
+                                  style={{ 
+                                    transform: openIndex === idx ? 'rotate(0deg)' : 'rotate(0deg)',
+                                    transitionTimingFunction: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)'
+                                  }}
+                                >
+                                  {openIndex === idx ? (
+                                    <img src="/static/app/landing/Close.svg" alt="Close" className="w-5 h-5" />
+                                  ) : (
+                                    <img src="/static/app/landing/Open.svg" alt="Open" className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" style={{ transitionTimingFunction: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)' }} />
+                                  )}
+                                </button>
+                                <h3 
+                                  className="font-poppins font-bold text-base sm:text-lg"
+                                  style={{ color: '#1B1139' }}
+                                >
+                                  {faqData[idx].question}
+                                </h3>
+                              </div>
                     
-                    {openIndex === idx && (
-                      <div className="px-6 pb-6 pl-[52px]">
-                        <p 
-                          className="font-poppins text-sm leading-relaxed"
-                          style={{ color: '#363049' }}
-                        >
-                          {faqData[idx].answer}
-                        </p>
+                              {/* Expandable content with smooth animation */}
+                              <div 
+                                ref={(el) => { contentRefs.current[idx] = el }}
+                                className="overflow-hidden transition-all duration-300 ease-out"
+                                style={{ 
+                                  maxHeight: openIndex === idx ? `${contentHeights[idx] || 200}px` : '0px',
+                                  opacity: openIndex === idx ? 1 : 0,
+                                }}
+                              >
+                                <div className="px-6 pb-6 pl-[52px]">
+                                  <p 
+                                    className="font-poppins text-sm leading-relaxed"
+                                    style={{ color: '#363049' }}
+                                  >
+                                    {faqData[idx].answer}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
 
-            {/* Right Column: Q4, Q5, Q6 */}
-            <div className="flex flex-col gap-6 relative">
-              {[3, 4, 5].map((idx) => (
-                <div 
-                  key={idx}
-                  className="relative transition-all duration-300"
-                  style={{ zIndex: getZIndex(idx, 'right') }}
-                >
-                  <div 
-                    className={`bg-white rounded-2xl shadow-lg transition-all duration-300 overflow-hidden ${
-                      openIndex === idx ? 'shadow-2xl' : ''
-                    }`}
-                    style={{ 
-                      width: '500px', 
-                      maxWidth: '100%',
-                      minHeight: openIndex === idx ? 'auto' : '100px',
-                      height: openIndex === idx ? 'auto' : '100px'
-                    }}
-                  >
-                    <div 
-                      className="flex items-center gap-4 cursor-pointer p-6"
-                      onClick={() => toggleCard(idx)}
-                      style={{ height: '100px' }}
-                    >
-                      <button className="flex-shrink-0">
-                        {openIndex === idx ? (
-                          <img src="/static/app/landing/Close.svg" alt="Close" className="w-5 h-5" />
-                        ) : (
-                          <img src="/static/app/landing/Open.svg" alt="Open" className="w-5 h-5" />
-                        )}
-                      </button>
-                      <h3 
-                        className="font-poppins font-bold text-base sm:text-lg"
-                        style={{ color: '#1B1139' }}
-                      >
-                        {faqData[idx].question}
-                      </h3>
-                    </div>
+                      {/* Right Column: Q4, Q5, Q6 */}
+                      <div className="flex flex-col gap-6 relative">
+                        {[3, 4, 5].map((idx) => (
+                          <div 
+                            key={idx}
+                            className="relative transition-all duration-300 group"
+                            style={{ zIndex: getZIndex(idx, 'right') }}
+                          >
+                            <div 
+                              className={`bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 ease-out ${
+                                openIndex === idx ? 'shadow-2xl' : ''
+                              }`}
+                              style={{ 
+                                width: '500px', 
+                                maxWidth: '100%',
+                                transform: openIndex !== idx ? 'translateY(0)' : undefined,
+                              }}
+                            >
+                              <div 
+                                className="flex items-center gap-4 cursor-pointer p-6 transition-transform duration-200 hover:-translate-y-0.5"
+                                onClick={() => toggleCard(idx)}
+                                style={{ height: '100px' }}
+                              >
+                                <button 
+                                  className="flex-shrink-0 transition-transform duration-300"
+                                  style={{ 
+                                    transform: openIndex === idx ? 'rotate(0deg)' : 'rotate(0deg)',
+                                    transitionTimingFunction: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)'
+                                  }}
+                                >
+                                  {openIndex === idx ? (
+                                    <img src="/static/app/landing/Close.svg" alt="Close" className="w-5 h-5" />
+                                  ) : (
+                                    <img src="/static/app/landing/Open.svg" alt="Open" className="w-5 h-5 group-hover:scale-110 transition-transform duration-300" style={{ transitionTimingFunction: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)' }} />
+                                  )}
+                                </button>
+                                <h3 
+                                  className="font-poppins font-bold text-base sm:text-lg"
+                                  style={{ color: '#1B1139' }}
+                                >
+                                  {faqData[idx].question}
+                                </h3>
+                              </div>
                     
-                    {openIndex === idx && (
-                      <div className="px-6 pb-6 pl-[52px]">
-                        <p 
-                          className="font-poppins text-sm leading-relaxed"
-                          style={{ color: '#363049' }}
-                        >
-                          {faqData[idx].answer}
-                        </p>
+                              {/* Expandable content with smooth animation */}
+                              <div 
+                                ref={(el) => { contentRefs.current[idx] = el }}
+                                className="overflow-hidden transition-all duration-300 ease-out"
+                                style={{ 
+                                  maxHeight: openIndex === idx ? `${contentHeights[idx] || 200}px` : '0px',
+                                  opacity: openIndex === idx ? 1 : 0,
+                                }}
+                              >
+                                <div className="px-6 pb-6 pl-[52px]">
+                                  <p 
+                                    className="font-poppins text-sm leading-relaxed"
+                                    style={{ color: '#363049' }}
+                                  >
+                                    {faqData[idx].answer}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+                    </div>
         </div>
       </div>
 
