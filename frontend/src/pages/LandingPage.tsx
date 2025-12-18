@@ -289,27 +289,7 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('hero')}`}
       >
-        {/* Layer 1: Orbital lines (orbit.svg) - vertically centered */}
-        <div className="absolute inset-0 pointer-events-none z-[1] flex items-center justify-center">
-          <img 
-            src="/static/app/landing/orbit.svg" 
-            alt="" 
-            aria-hidden="true"
-            className="w-[140%] max-w-[2000px] h-auto"
-          />
-        </div>
-        
-        {/* Layer 2: Center gradient glow (spectrum/degradate.svg) */}
-        <div className="absolute inset-0 pointer-events-none z-[2] flex items-center justify-center">
-          <img 
-            src="/static/app/landing/degradate.svg" 
-            alt="" 
-            aria-hidden="true"
-            className="w-[60%] max-w-[800px] h-auto opacity-50"
-          />
-        </div>
-        
-        {/* Layer 10: Content */}
+        {/* Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             With AI Find<br />
