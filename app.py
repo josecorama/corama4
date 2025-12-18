@@ -11551,51 +11551,110 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                 doc.close()
                 return [make_result(page_num, page_width, page_height, all_rects)]
             
-            # Fallback: try overlapping word windows to capture the full quote
-            # This ensures we never cut words in half and fills in the middle gap
+            # Fallback: Use word-sequence matching with page.get_text("words")
+            # This handles line breaks and formatting differences much better than search_for()
             words = normalized_quote.split()
             
-            # Use overlapping word windows to capture the entire quote
-            # Window size and step determine how much overlap we have
-            window_size = 10  # Search for 10 words at a time
-            step = 6  # Move 6 words forward each time (4 word overlap)
+            # Normalize words for matching (lowercase, strip punctuation for comparison)
+            def normalize_word(w):
+                return re.sub(r'[^\w]', '', w.lower())
             
-            all_window_rects = []
-            found_any = False
+            quote_words_normalized = [normalize_word(w) for w in words]
             
-            # Search overlapping windows across the entire quote
-            for start_idx in range(0, len(words), step):
-                end_idx = min(start_idx + window_size, len(words))
-                if end_idx - start_idx < 3:  # Skip very short windows
-                    continue
+            # Get all words from the page with their bounding boxes
+            # Each word is (x0, y0, x1, y1, "word", block_no, line_no, word_no)
+            page_words = page.get_text("words")
+            
+            if page_words:
+                # Normalize page words for matching
+                page_words_normalized = [(normalize_word(pw[4]), pw) for pw in page_words]
+                
+                # Find the best contiguous match of quote words in page words
+                best_match_start = -1
+                best_match_length = 0
+                
+                for start_idx in range(len(page_words_normalized)):
+                    match_length = 0
+                    quote_idx = 0
+                    page_idx = start_idx
                     
-                window_text = ' '.join(words[start_idx:end_idx])
-                window_hits = page.search_for(window_text, quads=True)
-                
-                if window_hits:
-                    window_rects = get_rects_from_quads(window_hits)
-                    all_window_rects.extend(window_rects)
-                    found_any = True
-            
-            if found_any and all_window_rects:
-                # Deduplicate overlapping rectangles
-                unique_rects = []
-                for rect in all_window_rects:
-                    is_duplicate = False
-                    for existing in unique_rects:
-                        # Check if rectangles are nearly identical (within 2 points)
-                        if (abs(rect[0] - existing[0]) < 2 and 
-                            abs(rect[1] - existing[1]) < 2 and
-                            abs(rect[2] - existing[2]) < 2 and 
-                            abs(rect[3] - existing[3]) < 2):
-                            is_duplicate = True
+                    while quote_idx < len(quote_words_normalized) and page_idx < len(page_words_normalized):
+                        if page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
+                            match_length += 1
+                            quote_idx += 1
+                            page_idx += 1
+                        elif match_length > 0:
+                            # Allow small gaps (e.g., for punctuation differences)
+                            # Try skipping one page word
+                            page_idx += 1
+                            if page_idx < len(page_words_normalized) and page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
+                                match_length += 1
+                                quote_idx += 1
+                                page_idx += 1
+                            else:
+                                break
+                        else:
                             break
-                    if not is_duplicate:
-                        unique_rects.append(rect)
+                    
+                    # Require at least 60% of quote words to match
+                    if match_length > best_match_length and match_length >= len(quote_words_normalized) * 0.6:
+                        best_match_start = start_idx
+                        best_match_length = match_length
                 
-                logging.info(f"Found overlapping window match on page {page_num + 1}: {len(unique_rects)} unique rects from {len(all_window_rects)} total")
-                doc.close()
-                return [make_result(page_num, page_width, page_height, unique_rects)]
+                if best_match_start >= 0:
+                    # Extract bounding boxes for matched words
+                    matched_rects = []
+                    quote_idx = 0
+                    page_idx = best_match_start
+                    
+                    while quote_idx < len(quote_words_normalized) and page_idx < len(page_words_normalized):
+                        if page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
+                            pw = page_words_normalized[page_idx][1]
+                            matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
+                            quote_idx += 1
+                            page_idx += 1
+                        elif len(matched_rects) > 0:
+                            # Skip non-matching page word
+                            page_idx += 1
+                            if page_idx < len(page_words_normalized) and page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
+                                pw = page_words_normalized[page_idx][1]
+                                matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
+                                quote_idx += 1
+                                page_idx += 1
+                            else:
+                                break
+                        else:
+                            break
+                    
+                    if matched_rects:
+                        # Group rectangles by line (similar y-coordinates) for cleaner highlighting
+                        line_rects = []
+                        current_line = [matched_rects[0]]
+                        
+                        for rect in matched_rects[1:]:
+                            # If y-coordinate is similar (within 5 points), same line
+                            if abs(rect[1] - current_line[-1][1]) < 5:
+                                current_line.append(rect)
+                            else:
+                                # Merge current line into one rectangle
+                                line_x0 = min(r[0] for r in current_line)
+                                line_y0 = min(r[1] for r in current_line)
+                                line_x1 = max(r[2] for r in current_line)
+                                line_y1 = max(r[3] for r in current_line)
+                                line_rects.append([line_x0, line_y0, line_x1, line_y1])
+                                current_line = [rect]
+                        
+                        # Don't forget the last line
+                        if current_line:
+                            line_x0 = min(r[0] for r in current_line)
+                            line_y0 = min(r[1] for r in current_line)
+                            line_x1 = max(r[2] for r in current_line)
+                            line_y1 = max(r[3] for r in current_line)
+                            line_rects.append([line_x0, line_y0, line_x1, line_y1])
+                        
+                        logging.info(f"Found word-sequence match on page {page_num + 1}: {len(matched_rects)} words, {len(line_rects)} lines")
+                        doc.close()
+                        return [make_result(page_num, page_width, page_height, line_rects)]
             
             # Fallback: try decreasing word counts for prefix matching
             for word_count in [40, 30, 20, 15, 10, 7, 5]:

@@ -140,7 +140,7 @@ const GetMoreCredits = () => {
           <Sidebar />
         
           <div className="flex-1 flex flex-col min-w-0">
-            <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+            <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
             {/* Page Title */}
             <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8">Get More Credits</h1>
 

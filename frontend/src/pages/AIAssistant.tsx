@@ -329,7 +329,7 @@ const AIAssistant = () => {
           <Sidebar />
         
           <div className="flex-1 flex flex-col min-w-0">
-            <main className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col overflow-hidden">
+            <main className="flex-1 p-3 sm:p-4 lg:p-12 flex flex-col overflow-hidden">
             {/* Page Title */}
             <div className="mb-4 lg:mb-6">
               <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl">

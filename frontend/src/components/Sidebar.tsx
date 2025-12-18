@@ -135,8 +135,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
           />
           <button
             onClick={toggleExpanded}
-            className="relative flex items-center h-[51px] px-4 transition-all hover:opacity-80 gap-3"
-            style={{ paddingLeft: '16px' }}
+            className="relative flex items-center h-[51px] transition-all hover:opacity-80"
+            style={{ paddingLeft: '16px', paddingRight: '48px', gap: '8px' }}
             aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             <img 
@@ -146,7 +146,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
               aria-hidden="true"
             />
             {isExpanded && (
-              <span className="font-poppins text-sm text-white whitespace-nowrap">Hide Side Bar</span>
+              <span className="font-poppins text-sm text-white whitespace-nowrap">Collapse Menu</span>
             )}
           </button>
         </div>
