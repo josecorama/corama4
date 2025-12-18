@@ -11551,11 +11551,14 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                 doc.close()
                 return [make_result(page_num, page_width, page_height, all_rects)]
             
-            # Fallback: try prefix + suffix matching to capture full quote
-            # This helps when full quote search fails due to line breaks or formatting
-            for prefix_len in [150, 100, 75, 50]:
-                if len(normalized_quote) > prefix_len:
-                    prefix_text = normalized_quote[:prefix_len]
+            # Fallback: try word-boundary-aware prefix + suffix matching
+            # This ensures we never cut words in half (e.g., "crit" instead of "criteria")
+            words = normalized_quote.split()
+            
+            # Try decreasing word counts for prefix matching
+            for word_count in [40, 30, 20, 15, 10, 7, 5]:
+                if len(words) >= word_count:
+                    prefix_text = ' '.join(words[:word_count])
                     prefix_hits = page.search_for(prefix_text, quads=True)
                     
                     if prefix_hits:
@@ -11564,9 +11567,9 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                         # Try to find suffix on the same page to extend the highlight
                         # This captures dates/times that are often at the end of quotes
                         suffix_rects = []
-                        for suffix_len in [60, 40, 30, 20]:
-                            if len(normalized_quote) > suffix_len:
-                                suffix_text = normalized_quote[-suffix_len:]
+                        for suffix_word_count in [15, 10, 7, 5, 3]:
+                            if len(words) >= suffix_word_count and suffix_word_count < len(words) - word_count:
+                                suffix_text = ' '.join(words[-suffix_word_count:])
                                 suffix_hits = page.search_for(suffix_text, quads=True)
                                 
                                 if suffix_hits:
@@ -11578,24 +11581,24 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                                     if prefix_bbox and suffix_bbox:
                                         # Suffix should be after prefix (below or to the right)
                                         if suffix_bbox[1] >= prefix_bbox[1] - 20:  # Allow some tolerance
-                                            logging.info(f"Found prefix+suffix match on page {page_num + 1}")
+                                            logging.info(f"Found prefix+suffix match on page {page_num + 1} ({word_count} + {suffix_word_count} words)")
                                             # Union prefix and suffix rectangles
                                             all_rects = prefix_rects + suffix_rects
                                             doc.close()
                                             return [make_result(page_num, page_width, page_height, all_rects)]
                         
-                        # If no suffix found, just use prefix
-                        logging.info(f"Found partial quote match ({prefix_len} chars) on page {page_num + 1}")
+                        # If no suffix found, just use prefix (complete words)
+                        logging.info(f"Found partial quote match ({word_count} words) on page {page_num + 1}")
                         doc.close()
                         return [make_result(page_num, page_width, page_height, prefix_rects)]
             
-            # Last resort: try very short prefix (30 chars)
-            if len(normalized_quote) > 30:
-                short_prefix = normalized_quote[:30]
+            # Last resort: try very short prefix (3 words minimum)
+            if len(words) >= 3:
+                short_prefix = ' '.join(words[:3])
                 short_hits = page.search_for(short_prefix, quads=True)
                 if short_hits:
                     all_rects = get_rects_from_quads(short_hits)
-                    logging.info(f"Found short prefix match (30 chars) on page {page_num + 1}")
+                    logging.info(f"Found short prefix match (3 words) on page {page_num + 1}")
                     doc.close()
                     return [make_result(page_num, page_width, page_height, all_rects)]
         
