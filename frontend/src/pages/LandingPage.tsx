@@ -431,7 +431,7 @@ const LandingPage = () => {
       {/* Scrollable container - takes remaining height below header */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-[1]"
+        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-[1] snap-y snap-mandatory"
         style={{ 
           scrollBehavior: 'smooth',
           scrollbarWidth: 'none', /* Firefox */
@@ -442,7 +442,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('hero')}
         data-section="hero"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('hero')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('hero')}`}
       >
         {/* Radar Animation - only in hero section */}
         <div className="absolute inset-0 z-[1] pointer-events-none">
@@ -473,7 +473,7 @@ const LandingPage = () => {
         id="features" 
         ref={setSectionRef('features')}
         data-section="features"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('features')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features')}`}
       >
         {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -573,7 +573,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('scope-revolution')}
         data-section="scope-revolution"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('scope-revolution')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
       >
         {/* Soft teal glow background */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -633,7 +633,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('mission-vision')}
         data-section="mission-vision"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('mission-vision')}`}
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('mission-vision')}`}
       >
         {/* Soft teal glow background */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -741,7 +741,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('testimonial-footer')}
         data-section="testimonial-footer"
-        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-between ${getSectionClass('testimonial-footer')}`}
+        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-between snap-start ${getSectionClass('testimonial-footer')}`}
       >
         {/* Main content */}
         <div className="flex-1 flex flex-col justify-center">
