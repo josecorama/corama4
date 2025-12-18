@@ -11677,29 +11677,60 @@ Respond ONLY with valid JSON, no other text."""
                     {"role": "system", "content": "You are an expert government contract analyst. Always respond with valid JSON only."},
                     {"role": "user", "content": structured_prompt}
                 ],
-                max_tokens=3000,
-                temperature=0.3
+                max_tokens=4000,
+                temperature=0.3,
+                response_format={"type": "json_object"}
             )
             
             ai_response = response.choices[0].message.content
             
-            # Parse the JSON response
+            # Parse the JSON response with robust handling
             try:
-                # Clean up response if it has markdown code blocks
-                if ai_response.startswith('```'):
-                    ai_response = ai_response.split('```')[1]
-                    if ai_response.startswith('json'):
-                        ai_response = ai_response[4:]
+                # Strip whitespace first
                 ai_response = ai_response.strip()
                 
+                # Clean up response if it has markdown code blocks
+                if '```' in ai_response:
+                    # Extract content between code blocks
+                    parts = ai_response.split('```')
+                    for part in parts:
+                        part = part.strip()
+                        if part.startswith('json'):
+                            part = part[4:].strip()
+                        if part.startswith('{'):
+                            ai_response = part
+                            break
+                
+                # Extract JSON object if there's surrounding text
+                if not ai_response.startswith('{'):
+                    start_idx = ai_response.find('{')
+                    if start_idx != -1:
+                        ai_response = ai_response[start_idx:]
+                
+                if not ai_response.endswith('}'):
+                    end_idx = ai_response.rfind('}')
+                    if end_idx != -1:
+                        ai_response = ai_response[:end_idx + 1]
+                
                 parsed_response = json.loads(ai_response)
+                
+                # Handle case where json.loads returns a string (double-encoded JSON)
+                if isinstance(parsed_response, str) and parsed_response.startswith('{'):
+                    parsed_response = json.loads(parsed_response)
+                
                 markdown_summary = parsed_response.get('markdown_summary', '')
                 structured_findings = parsed_response.get('findings', [])
-            except json.JSONDecodeError as e:
-                logging.warning(f"Failed to parse structured response, falling back to markdown: {e}")
-                # Fallback to treating the whole response as markdown
-                markdown_summary = ai_response
-                structured_findings = []
+                
+                logging.info(f"Successfully parsed AI response: {len(structured_findings)} findings")
+                
+            except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                logging.error(f"Failed to parse structured response: {e}")
+                logging.error(f"AI response preview: {ai_response[:500] if ai_response else 'None'}")
+                # Return error instead of showing raw JSON
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to parse AI response. Please try again.'
+                }), 500
             
             # Search for quotes in PDF and get coordinates
             manifest = {}
