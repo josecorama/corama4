@@ -348,10 +348,10 @@ const LandingPage = () => {
       {/* Dither Background - covers entire page */}
       <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
         <Dither 
-          waveColor={[0.56, 0.73, 0.74]}
-          waveAmplitude={0.3}
-          waveFrequency={3}
-          waveSpeed={0.05}
+          waveColor={[0.2, 0.26, 0.26]}
+          waveAmplitude={0.15}
+          waveFrequency={1.5}
+          waveSpeed={0.03}
           enableMouseInteraction={true}
           mouseRadius={0.3}
           colorNum={4}
