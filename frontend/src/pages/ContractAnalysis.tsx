@@ -366,7 +366,7 @@ const ContractAnalysis = () => {
               {/* Right Card - AI Findings */}
               <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
                 <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <h2 className="text-gray-800 font-poppins font-semibold text-lg">AI Findings</h2>
+                  <h2 className="text-gray-800 font-poppins font-semibold text-lg">Contract Insights</h2>
                   {annotatedPdfUrl && (
                     <a
                       href={annotatedPdfUrl}

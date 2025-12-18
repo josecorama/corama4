@@ -11626,8 +11626,9 @@ def contract_analysis_findings():
             for page_info in pages_text:
                 combined_text += f"\n\n--- PAGE {page_info['page'] + 1} ---\n\n{page_info['text']}"
             
-            # Truncate to avoid token explosion (keep first ~15000 chars)
-            max_chars = 15000
+            # Truncate to avoid token explosion (keep first ~60000 chars to cover more pages)
+            # GPT-4o-mini can handle ~128k tokens, so ~60k chars is safe
+            max_chars = 60000
             if len(combined_text) > max_chars:
                 combined_text = combined_text[:max_chars] + "\n\n[Document truncated for analysis...]"
             
@@ -11792,9 +11793,25 @@ Respond ONLY with valid JSON, no other text."""
 
 @app.route('/api/contract-analysis/annotated/<filename>', methods=['GET'])
 def serve_annotated_pdf(filename):
-    """Serve annotated PDF files"""
+    """Serve annotated PDF files for download"""
     annotated_dir = os.path.join(os.path.dirname(__file__), 'annotated_pdfs')
-    return send_from_directory(annotated_dir, filename, mimetype='application/pdf')
+    # Ensure directory exists
+    if not os.path.exists(annotated_dir):
+        os.makedirs(annotated_dir, exist_ok=True)
+        return jsonify({'error': 'Annotated PDF not found'}), 404
+    
+    file_path = os.path.join(annotated_dir, filename)
+    if not os.path.exists(file_path):
+        logging.error(f"Annotated PDF not found: {file_path}")
+        return jsonify({'error': 'Annotated PDF not found'}), 404
+    
+    return send_from_directory(
+        annotated_dir, 
+        filename, 
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name='annotated_contract.pdf'
+    )
 
 @app.route('/api/team-suggestions', methods=['POST'])
 def team_suggestions():
