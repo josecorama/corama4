@@ -11482,10 +11482,10 @@ def extract_text_with_pages(pdf_path):
     return pages_text
 
 def search_text_in_pdf(pdf_path, quote, page_hint=None):
-    """Search for text in PDF and return bounding box coordinates for the FULL quote"""
+    """Search for text in PDF and return bounding box coordinates for the FULL quote.
+    Returns a SINGLE best match with all its quads grouped together."""
     import fitz
     import re
-    results = []
     
     try:
         doc = fitz.open(pdf_path)
@@ -11500,68 +11500,81 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
         
         for page_num in pages_to_search:
             page = doc[page_num]
+            page_width = page.rect.width
+            page_height = page.rect.height
             
             # Try to search for the full quote first using quads for multi-line support
-            text_instances = page.search_for(normalized_quote, quads=True)
+            # Use hit_max=1 to get only the first/best match
+            text_instances = page.search_for(normalized_quote, quads=True, hit_max=1)
             
             if text_instances:
-                page_width = page.rect.width
-                page_height = page.rect.height
-                
-                # Each quad represents a line of the matched text
+                # Collect all quads for this single match
+                all_rects = []
                 for quad in text_instances:
-                    # Get bounding rect from quad
                     rect = quad.rect
-                    results.append({
-                        'page': page_num,
-                        'left': (rect.x0 / page_width) * 100,
-                        'top': (rect.y0 / page_height) * 100,
-                        'width': ((rect.x1 - rect.x0) / page_width) * 100,
-                        'height': ((rect.y1 - rect.y0) / page_height) * 100,
-                        'rect_raw': [rect.x0, rect.y0, rect.x1, rect.y1]
-                    })
+                    all_rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
                 
-                if results:
-                    logging.info(f"Found full quote match on page {page_num + 1}: {len(results)} rects")
-                    break
+                # Compute bounding box that encompasses all quads
+                all_x0 = min(r[0] for r in all_rects)
+                all_y0 = min(r[1] for r in all_rects)
+                all_x1 = max(r[2] for r in all_rects)
+                all_y1 = max(r[3] for r in all_rects)
+                
+                logging.info(f"Found full quote match on page {page_num + 1}: {len(all_rects)} quads")
+                doc.close()
+                
+                # Return a single result with all rects grouped
+                return [{
+                    'page': page_num,
+                    'left': (all_x0 / page_width) * 100,
+                    'top': (all_y0 / page_height) * 100,
+                    'width': ((all_x1 - all_x0) / page_width) * 100,
+                    'height': ((all_y1 - all_y0) / page_height) * 100,
+                    'rect_raw': [all_x0, all_y0, all_x1, all_y1],
+                    'all_rects': all_rects  # Keep all rects for multi-line highlighting
+                }]
             
             # Fallback: try searching for progressively shorter prefixes
-            if not results:
-                for prefix_len in [100, 75, 50, 30]:
-                    if len(normalized_quote) > prefix_len:
-                        search_text = normalized_quote[:prefix_len]
-                        text_instances = page.search_for(search_text, quads=True)
+            # Use longer prefixes first for more distinctive matches
+            for prefix_len in [150, 100, 75, 50]:
+                if len(normalized_quote) > prefix_len:
+                    search_text = normalized_quote[:prefix_len]
+                    # Use hit_max=1 to avoid matching common phrases multiple times
+                    text_instances = page.search_for(search_text, quads=True, hit_max=1)
+                    
+                    if text_instances:
+                        all_rects = []
+                        for quad in text_instances:
+                            rect = quad.rect
+                            all_rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
                         
-                        if text_instances:
-                            page_width = page.rect.width
-                            page_height = page.rect.height
-                            
-                            for quad in text_instances:
-                                rect = quad.rect
-                                results.append({
-                                    'page': page_num,
-                                    'left': (rect.x0 / page_width) * 100,
-                                    'top': (rect.y0 / page_height) * 100,
-                                    'width': ((rect.x1 - rect.x0) / page_width) * 100,
-                                    'height': ((rect.y1 - rect.y0) / page_height) * 100,
-                                    'rect_raw': [rect.x0, rect.y0, rect.x1, rect.y1]
-                                })
-                            
-                            if results:
-                                logging.info(f"Found partial quote match ({prefix_len} chars) on page {page_num + 1}")
-                                break
-                
-                if results:
-                    break
+                        all_x0 = min(r[0] for r in all_rects)
+                        all_y0 = min(r[1] for r in all_rects)
+                        all_x1 = max(r[2] for r in all_rects)
+                        all_y1 = max(r[3] for r in all_rects)
+                        
+                        logging.info(f"Found partial quote match ({prefix_len} chars) on page {page_num + 1}")
+                        doc.close()
+                        
+                        return [{
+                            'page': page_num,
+                            'left': (all_x0 / page_width) * 100,
+                            'top': (all_y0 / page_height) * 100,
+                            'width': ((all_x1 - all_x0) / page_width) * 100,
+                            'height': ((all_y1 - all_y0) / page_height) * 100,
+                            'rect_raw': [all_x0, all_y0, all_x1, all_y1],
+                            'all_rects': all_rects
+                        }]
         
         doc.close()
     except Exception as e:
         logging.error(f"Error searching text in PDF: {e}")
     
-    return results
+    return []
 
 def create_annotated_pdf(pdf_path, findings_with_coords, output_path):
-    """Create annotated PDF with highlights and popup comments"""
+    """Create annotated PDF with highlights and popup comments.
+    Creates ONE highlight and ONE comment per finding (not per rectangle)."""
     import fitz
     
     try:
@@ -11571,32 +11584,48 @@ def create_annotated_pdf(pdf_path, findings_with_coords, output_path):
             if not finding.get('coordinates'):
                 continue
             
-            for coord in finding['coordinates']:
-                page_num = coord['page']
-                if page_num >= len(doc):
-                    continue
-                
-                page = doc[page_num]
+            # Get the first coordinate for this finding (we now return only one per finding)
+            coord = finding['coordinates'][0] if finding['coordinates'] else None
+            if not coord:
+                continue
+            
+            page_num = coord['page']
+            if page_num >= len(doc):
+                continue
+            
+            page = doc[page_num]
+            
+            # Get all rectangles for multi-line highlighting
+            all_rects = coord.get('all_rects', [])
+            if not all_rects:
                 rect_raw = coord.get('rect_raw')
-                
                 if rect_raw:
-                    rect = fitz.Rect(rect_raw)
-                    
-                    # Add highlight annotation
-                    highlight = page.add_highlight_annot(rect)
-                    highlight.set_colors(stroke=(1, 1, 0))  # Yellow highlight
-                    highlight.update()
-                    
-                    # Add popup comment with the finding rationale
-                    comment_text = f"{finding.get('title', 'Finding')}\n\n{finding.get('rationale', '')}"
-                    # Add text annotation (popup note) near the highlight
-                    text_annot = page.add_text_annot(
-                        fitz.Point(rect.x1 + 5, rect.y0),
-                        comment_text,
-                        icon="Comment"
-                    )
-                    text_annot.set_info(title=finding.get('type', 'AI Finding').upper())
-                    text_annot.update()
+                    all_rects = [rect_raw]
+            
+            if not all_rects:
+                continue
+            
+            # Add highlight annotations for each rectangle (multi-line support)
+            first_rect = None
+            for rect_raw in all_rects:
+                rect = fitz.Rect(rect_raw)
+                if first_rect is None:
+                    first_rect = rect
+                
+                highlight = page.add_highlight_annot(rect)
+                highlight.set_colors(stroke=(1, 1, 0))  # Yellow highlight
+                highlight.update()
+            
+            # Add ONLY ONE popup comment per finding (not per rectangle)
+            if first_rect:
+                comment_text = f"{finding.get('title', 'Finding')}\n\n{finding.get('rationale', '')}"
+                text_annot = page.add_text_annot(
+                    fitz.Point(first_rect.x1 + 5, first_rect.y0),
+                    comment_text,
+                    icon="Comment"
+                )
+                text_annot.set_info(title=finding.get('type', 'AI Finding').upper())
+                text_annot.update()
         
         # Save the annotated PDF
         doc.save(output_path)
