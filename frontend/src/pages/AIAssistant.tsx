@@ -90,11 +90,9 @@ Pick a specific task:
 - Develop Strategy (3 credits)
 - Create Outline (2 credits)
 
-Ready to build the full proposal?
-I can guide you step-by-step from start to finish.
+Ready to build the full proposal? I can guide you step-by-step from start to finish.
 
-Start Guided Process
-Analyze the contract with AI annotations -> Build your team -> Develop pricing strategy -> Generate comprehensive proposal`
+To start building it, simply type "Start Guided Process" in the chat. This will direct you to the Contract Analysis page, where you'll be able to begin the step-by-step process for creating your proposal.`
 }
 
 const AIAssistant = () => {
