@@ -582,7 +582,7 @@ const LandingPage = () => {
         
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-6xl mx-auto relative z-10 mb-24 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 mb-8 parallax-section"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
@@ -687,7 +687,7 @@ const LandingPage = () => {
         />
         
         {/* Mission */}
-        <div className="max-w-6xl mx-auto relative z-10 mb-24">
+        <div className="max-w-6xl mx-auto relative z-10 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="order-2 md:order-1 flex items-center justify-center">
               <img 
@@ -741,7 +741,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('testimonial-footer')}
         data-section="testimonial-footer"
-        className={`min-h-[calc(100vh-80px)] px-2 sm:px-4 relative flex flex-col justify-between pb-8 ${getSectionClass('testimonial-footer')}`}
+        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-between ${getSectionClass('testimonial-footer')}`}
       >
         {/* Main content */}
         <div className="flex-1 flex flex-col justify-center">
@@ -776,7 +776,7 @@ const LandingPage = () => {
                   src="/static/app/landing/hexagons.png"
                   alt=""
                   aria-hidden="true"
-                  className="relative z-10 w-full h-auto translate-y-[50px]"
+                  className="relative z-10 w-full h-auto translate-y-[20px]"
                   style={{ maxWidth: '100%' }}
                 />
               </div>
@@ -811,7 +811,7 @@ const LandingPage = () => {
                   src="/static/app/landing/hexagons.png"
                   alt=""
                   aria-hidden="true"
-                  className="relative z-10 w-full h-auto translate-y-[50px] scale-x-[-1]"
+                  className="relative z-10 w-full h-auto translate-y-[20px] scale-x-[-1]"
                   style={{ maxWidth: '100%' }}
                 />
               </div>
