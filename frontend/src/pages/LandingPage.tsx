@@ -96,6 +96,30 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
+      {/* Card Shine Effect */}
+      <div className="card-shine">
+        <div className="card-background"></div>
+      </div>
+      
+      {/* Card Tiles Effect */}
+      <div className="card-tiles">
+        <div className="card-tile tile-1"></div>
+        <div className="card-tile tile-2"></div>
+        <div className="card-tile tile-3"></div>
+        <div className="card-tile tile-4"></div>
+        <div className="card-tile tile-5"></div>
+        <div className="card-tile tile-6"></div>
+        <div className="card-tile tile-7"></div>
+        <div className="card-tile tile-8"></div>
+        <div className="card-tile tile-9"></div>
+        <div className="card-tile tile-10"></div>
+      </div>
+      
+      {/* Card Lines Effect */}
+      <div className="card-line line-1"></div>
+      <div className="card-line line-2"></div>
+      <div className="card-line line-3"></div>
+      
       {/* Card content - icon at top with parallax layers */}
       <div className="flex justify-center mb-5 sm:mb-6 relative z-10" style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}>
         <div className="relative w-16 h-16 sm:w-20 sm:h-20">
