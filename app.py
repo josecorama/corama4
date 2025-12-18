@@ -11482,7 +11482,7 @@ def extract_text_with_pages(pdf_path):
     return pages_text
 
 def search_text_in_pdf(pdf_path, quote, page_hint=None):
-    """Search for text in PDF and return bounding box coordinates"""
+    """Search for text in PDF and return bounding box coordinates for the FULL quote"""
     import fitz
     import re
     results = []
@@ -11492,8 +11492,6 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
         
         # Normalize the quote for searching (collapse whitespace, handle line breaks)
         normalized_quote = ' '.join(quote.split())
-        # Take first 50 chars for more reliable matching
-        search_text = normalized_quote[:50] if len(normalized_quote) > 50 else normalized_quote
         
         # If page_hint provided, search that page first
         pages_to_search = list(range(len(doc)))
@@ -11502,15 +11500,18 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
         
         for page_num in pages_to_search:
             page = doc[page_num]
-            # Search for the text
-            text_instances = page.search_for(search_text, quads=False)
+            
+            # Try to search for the full quote first using quads for multi-line support
+            text_instances = page.search_for(normalized_quote, quads=True)
             
             if text_instances:
-                for rect in text_instances:
-                    # Convert to percentage coordinates for react-pdf-viewer
-                    page_width = page.rect.width
-                    page_height = page.rect.height
-                    
+                page_width = page.rect.width
+                page_height = page.rect.height
+                
+                # Each quad represents a line of the matched text
+                for quad in text_instances:
+                    # Get bounding rect from quad
+                    rect = quad.rect
                     results.append({
                         'page': page_num,
                         'left': (rect.x0 / page_width) * 100,
@@ -11520,7 +11521,36 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                         'rect_raw': [rect.x0, rect.y0, rect.x1, rect.y1]
                     })
                 
-                # Return first match if found
+                if results:
+                    logging.info(f"Found full quote match on page {page_num + 1}: {len(results)} rects")
+                    break
+            
+            # Fallback: try searching for progressively shorter prefixes
+            if not results:
+                for prefix_len in [100, 75, 50, 30]:
+                    if len(normalized_quote) > prefix_len:
+                        search_text = normalized_quote[:prefix_len]
+                        text_instances = page.search_for(search_text, quads=True)
+                        
+                        if text_instances:
+                            page_width = page.rect.width
+                            page_height = page.rect.height
+                            
+                            for quad in text_instances:
+                                rect = quad.rect
+                                results.append({
+                                    'page': page_num,
+                                    'left': (rect.x0 / page_width) * 100,
+                                    'top': (rect.y0 / page_height) * 100,
+                                    'width': ((rect.x1 - rect.x0) / page_width) * 100,
+                                    'height': ((rect.y1 - rect.y0) / page_height) * 100,
+                                    'rect_raw': [rect.x0, rect.y0, rect.x1, rect.y1]
+                                })
+                            
+                            if results:
+                                logging.info(f"Found partial quote match ({prefix_len} chars) on page {page_num + 1}")
+                                break
+                
                 if results:
                     break
         
@@ -11621,16 +11651,21 @@ def contract_analysis_findings():
             if not pages_text:
                 return jsonify({'success': False, 'error': 'Could not extract text from PDF. The document may be image-only or scanned.'}), 400
             
-            # Combine text with page markers for AI context
+            # Combine text with page markers for AI context using per-page budgeting
+            # This ensures ALL pages are represented, not just the first few
+            total_pages = len(pages_text)
+            max_total_chars = 80000  # Increased limit for better coverage
+            chars_per_page = max_total_chars // total_pages if total_pages > 0 else max_total_chars
+            
             combined_text = ""
             for page_info in pages_text:
-                combined_text += f"\n\n--- PAGE {page_info['page'] + 1} ---\n\n{page_info['text']}"
+                page_text = page_info['text']
+                # Truncate each page to its budget, keeping the beginning of each page
+                if len(page_text) > chars_per_page:
+                    page_text = page_text[:chars_per_page] + "... [page truncated]"
+                combined_text += f"\n\n--- PAGE {page_info['page'] + 1} ---\n\n{page_text}"
             
-            # Truncate to avoid token explosion (keep first ~60000 chars to cover more pages)
-            # GPT-4o-mini can handle ~128k tokens, so ~60k chars is safe
-            max_chars = 60000
-            if len(combined_text) > max_chars:
-                combined_text = combined_text[:max_chars] + "\n\n[Document truncated for analysis...]"
+            logging.info(f"Contract analysis: {total_pages} pages, {len(combined_text)} chars total, ~{chars_per_page} chars/page budget")
             
             # Call OpenAI to analyze the contract with structured output
             api_key = os.getenv('OPENAI_API_KEY')
