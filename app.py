@@ -11551,11 +11551,53 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                 doc.close()
                 return [make_result(page_num, page_width, page_height, all_rects)]
             
-            # Fallback: try word-boundary-aware prefix + suffix matching
-            # This ensures we never cut words in half (e.g., "crit" instead of "criteria")
+            # Fallback: try overlapping word windows to capture the full quote
+            # This ensures we never cut words in half and fills in the middle gap
             words = normalized_quote.split()
             
-            # Try decreasing word counts for prefix matching
+            # Use overlapping word windows to capture the entire quote
+            # Window size and step determine how much overlap we have
+            window_size = 10  # Search for 10 words at a time
+            step = 6  # Move 6 words forward each time (4 word overlap)
+            
+            all_window_rects = []
+            found_any = False
+            
+            # Search overlapping windows across the entire quote
+            for start_idx in range(0, len(words), step):
+                end_idx = min(start_idx + window_size, len(words))
+                if end_idx - start_idx < 3:  # Skip very short windows
+                    continue
+                    
+                window_text = ' '.join(words[start_idx:end_idx])
+                window_hits = page.search_for(window_text, quads=True)
+                
+                if window_hits:
+                    window_rects = get_rects_from_quads(window_hits)
+                    all_window_rects.extend(window_rects)
+                    found_any = True
+            
+            if found_any and all_window_rects:
+                # Deduplicate overlapping rectangles
+                unique_rects = []
+                for rect in all_window_rects:
+                    is_duplicate = False
+                    for existing in unique_rects:
+                        # Check if rectangles are nearly identical (within 2 points)
+                        if (abs(rect[0] - existing[0]) < 2 and 
+                            abs(rect[1] - existing[1]) < 2 and
+                            abs(rect[2] - existing[2]) < 2 and 
+                            abs(rect[3] - existing[3]) < 2):
+                            is_duplicate = True
+                            break
+                    if not is_duplicate:
+                        unique_rects.append(rect)
+                
+                logging.info(f"Found overlapping window match on page {page_num + 1}: {len(unique_rects)} unique rects from {len(all_window_rects)} total")
+                doc.close()
+                return [make_result(page_num, page_width, page_height, unique_rects)]
+            
+            # Fallback: try decreasing word counts for prefix matching
             for word_count in [40, 30, 20, 15, 10, 7, 5]:
                 if len(words) >= word_count:
                     prefix_text = ' '.join(words[:word_count])
@@ -11563,31 +11605,6 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                     
                     if prefix_hits:
                         prefix_rects = get_rects_from_quads(prefix_hits)
-                        
-                        # Try to find suffix on the same page to extend the highlight
-                        # This captures dates/times that are often at the end of quotes
-                        suffix_rects = []
-                        for suffix_word_count in [15, 10, 7, 5, 3]:
-                            if len(words) >= suffix_word_count and suffix_word_count < len(words) - word_count:
-                                suffix_text = ' '.join(words[-suffix_word_count:])
-                                suffix_hits = page.search_for(suffix_text, quads=True)
-                                
-                                if suffix_hits:
-                                    suffix_rects = get_rects_from_quads(suffix_hits)
-                                    # Check if suffix is below or to the right of prefix (same text block)
-                                    prefix_bbox = compute_bounding_box(prefix_rects)
-                                    suffix_bbox = compute_bounding_box(suffix_rects)
-                                    
-                                    if prefix_bbox and suffix_bbox:
-                                        # Suffix should be after prefix (below or to the right)
-                                        if suffix_bbox[1] >= prefix_bbox[1] - 20:  # Allow some tolerance
-                                            logging.info(f"Found prefix+suffix match on page {page_num + 1} ({word_count} + {suffix_word_count} words)")
-                                            # Union prefix and suffix rectangles
-                                            all_rects = prefix_rects + suffix_rects
-                                            doc.close()
-                                            return [make_result(page_num, page_width, page_height, all_rects)]
-                        
-                        # If no suffix found, just use prefix (complete words)
                         logging.info(f"Found partial quote match ({word_count} words) on page {page_num + 1}")
                         doc.close()
                         return [make_result(page_num, page_width, page_height, prefix_rects)]

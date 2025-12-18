@@ -14,6 +14,7 @@ const RightArrowIcon = '/static/app/team-builder/RightArrow.svg'
 const RemoveIcon = '/static/app/team-builder/Remove.svg'
 const AddIcon = '/static/app/team-builder/Add.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
+const GenerateFinalProposalIcon = '/static/app/proposal-summary/GenerateFinalProposal.svg'
 
 interface ProposalSummaryState {
   contractName?: string
@@ -743,7 +744,7 @@ const ProposalSummary = () => {
                 style={{ backgroundColor: '#99C8CA', width: '260px', height: '40px' }}
               >
                 <span>Generate Final Proposal</span>
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">$</span>
+                <img src={GenerateFinalProposalIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
           </main>
