@@ -503,11 +503,11 @@ const ContractAnalysis = () => {
               <button
                 onClick={handleContinue}
                 disabled={!aiFindings}
-                className="relative flex items-center justify-between px-8 py-3 rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity min-w-[200px]"
-                style={{ backgroundColor: '#99C8CA', color: '#1a2744' }}
+                className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity overflow-hidden"
+                style={{ backgroundColor: '#99C8CA', color: 'white', width: '414px', height: '48px' }}
               >
-                <span className="flex-1 text-center">Continue</span>
-                <img src={ContinueIcon} alt="" className="h-full absolute right-3 top-1/2 -translate-y-1/2" style={{ height: 'calc(100% - 8px)' }} />
+                <span className="text-center">Continue</span>
+                <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
           </main>
