@@ -161,7 +161,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                 {!isActive && (
                   <div 
                     className="absolute top-0 left-0 bottom-0 bg-corama-darker opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                    style={{ width: isExpanded ? '258px' : '76px', borderRadius: '15px' }}
+                    style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
                     aria-hidden="true"
                   />
                 )}
