@@ -129,6 +129,98 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   )
 }
 
+// RadarAnimation component for Hero section
+const RadarAnimation = () => {
+  const particlesContainerRef = useRef<HTMLDivElement>(null)
+  const targetsContainerRef = useRef<HTMLDivElement>(null)
+  
+  const SCAN_DURATION = 10000
+  const WAKE_OFFSET = -650
+  
+  const createRadarBlip = useCallback(() => {
+    if (!targetsContainerRef.current) return
+    
+    const blip = document.createElement('div')
+    blip.className = 'radar-blip'
+    
+    const pastTime = Date.now() + WAKE_OFFSET
+    const progress = (pastTime % SCAN_DURATION) / SCAN_DURATION
+    const theta = (progress * Math.PI * 2) - (Math.PI / 2)
+    
+    const r = 12 + Math.random() * 36
+    const variance = (Math.random() - 0.5) * 0.05
+    const finalTheta = theta + variance
+    
+    const x = 50 + r * Math.cos(finalTheta)
+    const y = 50 + r * Math.sin(finalTheta)
+    
+    blip.style.left = `${x}%`
+    blip.style.top = `${y}%`
+    
+    targetsContainerRef.current.appendChild(blip)
+    setTimeout(() => blip.remove(), 4000)
+  }, [])
+  
+  const createSynchronizedParticle = useCallback(() => {
+    if (!particlesContainerRef.current) return
+    
+    const p = document.createElement('div')
+    p.className = 'radar-particle'
+    
+    const randomOffset = WAKE_OFFSET - (Math.random() * 400)
+    const pastTime = Date.now() + randomOffset
+    
+    const progress = (pastTime % SCAN_DURATION) / SCAN_DURATION
+    const theta = (progress * Math.PI * 2) - (Math.PI / 2)
+    
+    const r = Math.random() * 90
+    
+    const x = 50 + r * Math.cos(theta)
+    const y = 50 + r * Math.sin(theta)
+    
+    const s = Math.random() * 3 + 1
+    
+    p.style.width = `${s}px`
+    p.style.height = `${s}px`
+    p.style.left = `${x}%`
+    p.style.top = `${y}%`
+    
+    particlesContainerRef.current.appendChild(p)
+    setTimeout(() => p.remove(), 5000)
+  }, [])
+  
+  useEffect(() => {
+    let targetTimeoutId: ReturnType<typeof setTimeout>
+    let particleIntervalId: ReturnType<typeof setInterval>
+    
+    const targetLoop = () => {
+      if (Math.random() > 0.4) {
+        createRadarBlip()
+      }
+      targetTimeoutId = setTimeout(targetLoop, 150)
+    }
+    
+    targetLoop()
+    particleIntervalId = setInterval(createSynchronizedParticle, 20)
+    
+    return () => {
+      clearTimeout(targetTimeoutId)
+      clearInterval(particleIntervalId)
+    }
+  }, [createRadarBlip, createSynchronizedParticle])
+  
+  return (
+    <>
+      <div ref={particlesContainerRef} className="radar-particles-container" />
+      <div className="radar-background">
+        <div className="radar-circle">
+          <div ref={targetsContainerRef} className="radar-targets-container" />
+        </div>
+      </div>
+    </>
+  )
+}
+
 const LandingPage = () => {
   const [currentSection, setCurrentSection] = useState(0)
   const [isScrolling, setIsScrolling] = useState(false)
@@ -289,6 +381,9 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center ${getSectionClass('hero')}`}
       >
+        {/* Radar Animation Background */}
+        <RadarAnimation />
+        
         {/* Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
