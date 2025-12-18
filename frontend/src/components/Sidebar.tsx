@@ -162,7 +162,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                     src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
                     alt="" 
                     className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
-                    style={{ width: isExpanded ? 'calc(100% - 16px)' : '91px' }}
+                    style={{ width: isExpanded ? '258px' : '91px' }}
                     aria-hidden="true"
                   />
                 )}
@@ -211,7 +211,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                 className="relative flex items-center h-full px-4 text-white transition-all hover:opacity-90"
                 style={{
                   background: isExpanded ? 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' : 'transparent',
-                  width: isExpanded ? 'calc(100% - 16px)' : '100%',
+                  width: isExpanded ? '258px' : '100%',
                   borderRadius: isExpanded ? '0 9999px 9999px 0' : '0',
                   gap: '8px'
                 }}

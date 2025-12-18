@@ -11551,13 +11551,23 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                 doc.close()
                 return [make_result(page_num, page_width, page_height, all_rects)]
             
-            # Fallback: Use word-sequence matching with page.get_text("words")
-            # This handles line breaks and formatting differences much better than search_for()
+            # Fallback: Use bounded-skip ordered subsequence matching with page.get_text("words")
+            # This handles line breaks, block boundaries, and formatting differences
             words = normalized_quote.split()
             
             # Normalize words for matching (lowercase, strip punctuation for comparison)
             def normalize_word(w):
                 return re.sub(r'[^\w]', '', w.lower())
+            
+            # Check if two normalized tokens match, including multi-token matching
+            # (e.g., PDF "300pm" matches quote "3:00" + "p.m.")
+            def tokens_match(page_token, quote_token, next_quote_token=None):
+                if page_token == quote_token:
+                    return 1  # Single token match
+                # Multi-token: check if page_token == quote_token + next_quote_token
+                if next_quote_token and page_token == quote_token + next_quote_token:
+                    return 2  # Consumed 2 quote tokens
+                return 0
             
             quote_words_normalized = [normalize_word(w) for w in words]
             
@@ -11569,62 +11579,48 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                 # Normalize page words for matching
                 page_words_normalized = [(normalize_word(pw[4]), pw) for pw in page_words]
                 
-                # Find the best contiguous match of quote words in page words
+                # Bounded-skip ordered subsequence matching
+                # Allow skipping page words but cap total skips to avoid false positives
                 best_match_start = -1
                 best_match_length = 0
+                best_matched_indices = []
                 
                 for start_idx in range(len(page_words_normalized)):
-                    match_length = 0
+                    matched_indices = []  # Track which page word indices were matched
                     quote_idx = 0
                     page_idx = start_idx
+                    total_skips = 0
+                    max_skips = max(30, len(quote_words_normalized))  # Allow generous skipping for line breaks
                     
-                    while quote_idx < len(quote_words_normalized) and page_idx < len(page_words_normalized):
-                        if page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
-                            match_length += 1
-                            quote_idx += 1
+                    while quote_idx < len(quote_words_normalized) and page_idx < len(page_words_normalized) and total_skips <= max_skips:
+                        page_token = page_words_normalized[page_idx][0]
+                        quote_token = quote_words_normalized[quote_idx]
+                        next_quote = quote_words_normalized[quote_idx + 1] if quote_idx + 1 < len(quote_words_normalized) else None
+                        
+                        match_count = tokens_match(page_token, quote_token, next_quote)
+                        
+                        if match_count > 0:
+                            matched_indices.append(page_idx)
+                            quote_idx += match_count
                             page_idx += 1
-                        elif match_length > 0:
-                            # Allow small gaps (e.g., for punctuation differences)
-                            # Try skipping one page word
-                            page_idx += 1
-                            if page_idx < len(page_words_normalized) and page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
-                                match_length += 1
-                                quote_idx += 1
-                                page_idx += 1
-                            else:
-                                break
+                            total_skips = 0  # Reset skip counter on match
                         else:
-                            break
+                            # Skip this page word
+                            page_idx += 1
+                            total_skips += 1
                     
-                    # Require at least 60% of quote words to match
-                    if match_length > best_match_length and match_length >= len(quote_words_normalized) * 0.6:
+                    # Require at least 50% of quote words to match
+                    if len(matched_indices) > best_match_length and len(matched_indices) >= len(quote_words_normalized) * 0.5:
                         best_match_start = start_idx
-                        best_match_length = match_length
+                        best_match_length = len(matched_indices)
+                        best_matched_indices = matched_indices[:]
                 
-                if best_match_start >= 0:
+                if best_matched_indices:
                     # Extract bounding boxes for matched words
                     matched_rects = []
-                    quote_idx = 0
-                    page_idx = best_match_start
-                    
-                    while quote_idx < len(quote_words_normalized) and page_idx < len(page_words_normalized):
-                        if page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
-                            pw = page_words_normalized[page_idx][1]
-                            matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
-                            quote_idx += 1
-                            page_idx += 1
-                        elif len(matched_rects) > 0:
-                            # Skip non-matching page word
-                            page_idx += 1
-                            if page_idx < len(page_words_normalized) and page_words_normalized[page_idx][0] == quote_words_normalized[quote_idx]:
-                                pw = page_words_normalized[page_idx][1]
-                                matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
-                                quote_idx += 1
-                                page_idx += 1
-                            else:
-                                break
-                        else:
-                            break
+                    for idx in best_matched_indices:
+                        pw = page_words_normalized[idx][1]
+                        matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
                     
                     if matched_rects:
                         # Group rectangles by line (similar y-coordinates) for cleaner highlighting
@@ -11632,8 +11628,8 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                         current_line = [matched_rects[0]]
                         
                         for rect in matched_rects[1:]:
-                            # If y-coordinate is similar (within 5 points), same line
-                            if abs(rect[1] - current_line[-1][1]) < 5:
+                            # If y-coordinate is similar (within 8 points), same line
+                            if abs(rect[1] - current_line[-1][1]) < 8:
                                 current_line.append(rect)
                             else:
                                 # Merge current line into one rectangle
@@ -11652,7 +11648,7 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
                             line_y1 = max(r[3] for r in current_line)
                             line_rects.append([line_x0, line_y0, line_x1, line_y1])
                         
-                        logging.info(f"Found word-sequence match on page {page_num + 1}: {len(matched_rects)} words, {len(line_rects)} lines")
+                        logging.info(f"Found word-sequence match on page {page_num + 1}: {len(matched_rects)} words matched, {len(line_rects)} lines")
                         doc.close()
                         return [make_result(page_num, page_width, page_height, line_rects)]
             
