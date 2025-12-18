@@ -156,13 +156,22 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
             const isActive = location.pathname === item.path
             const isCapabilityBuilder = item.path === '/capability-builder'
             return (
-              <div key={item.path} className="relative lg:pr-4" style={{ height: '51px' }}>
+              <div key={item.path} className="relative group" style={{ height: '51px' }}>
+                {/* Hover background layer - controlled width, only shows on hover when not active */}
+                {!isActive && (
+                  <div 
+                    className="absolute top-0 left-0 bottom-0 bg-corama-darker opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                    style={{ width: isExpanded ? '258px' : '76px' }}
+                    aria-hidden="true"
+                  />
+                )}
+                {/* Active highlight - use object-right when collapsed to preserve rounded edge */}
                 {isActive && (
                   <img 
                     src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
                     alt="" 
-                    className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
-                    style={{ width: isExpanded ? '258px' : '68px' }}
+                    className={`absolute top-0 left-0 bottom-0 h-full object-cover ${isExpanded ? 'object-left' : 'object-right'}`}
+                    style={{ width: isExpanded ? '258px' : '76px' }}
                     aria-hidden="true"
                   />
                 )}
@@ -172,7 +181,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                   className={`relative flex items-center h-full px-4 transition-all ${
                     isActive 
                       ? 'text-white' 
-                      : 'text-gray-300 hover:bg-corama-darker hover:text-white'
+                      : 'text-gray-300 group-hover:text-white'
                   }`}
                   style={{ gap: '8px' }}
                 >
@@ -196,13 +205,14 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
           
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
-            <div className="relative mt-2 lg:pr-4" style={{ height: '51px' }}>
+            <div className="relative mt-2 group" style={{ height: '51px' }}>
+              {/* Collapsed state: use object-right to preserve rounded edge */}
               {!isExpanded && (
                 <img 
                   src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
                   alt="" 
-                  className="absolute top-0 left-0 bottom-0 h-full object-cover object-left"
-                  style={{ width: '68px' }}
+                  className="absolute top-0 left-0 bottom-0 h-full object-cover object-right"
+                  style={{ width: '76px' }}
                   aria-hidden="true"
                 />
               )}
@@ -211,7 +221,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                 className="relative flex items-center h-full px-4 text-white transition-all hover:opacity-90"
                 style={{
                   background: isExpanded ? 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' : 'transparent',
-                  width: isExpanded ? '258px' : '100%',
+                  width: isExpanded ? '258px' : '76px',
                   borderRadius: isExpanded ? '0 9999px 9999px 0' : '0',
                   gap: '8px'
                 }}
