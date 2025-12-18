@@ -118,9 +118,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
           ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        {/* Vertical separator line: runs down the sidebar right edge from top, 32px from edge */}
+        {/* Vertical separator line: 16px from the Highlight SVG end (258px + 16px = 274px from left, so right-4 = 16px from right edge of 290px sidebar) */}
         <div
-          className="hidden lg:block absolute right-8 top-0 bottom-0 w-px bg-white"
+          className="hidden lg:block absolute right-4 top-0 bottom-0 w-px bg-white"
           aria-hidden="true"
         />
         

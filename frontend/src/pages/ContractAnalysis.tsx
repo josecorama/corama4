@@ -422,52 +422,8 @@ const ContractAnalysis = () => {
                 
                 {aiFindings ? (
                   <div className="flex-1 min-h-0 overflow-y-auto">
-                    {/* Clickable Structured Findings */}
-                    {structuredFindings.length > 0 && (
-                      <div className="mb-4 space-y-2">
-                        <p className="text-xs text-gray-500 font-poppins mb-2">Click a finding to navigate to its location in the PDF:</p>
-                        {structuredFindings.map((finding) => {
-                          const coord = manifest[finding.id]
-                          const hasLocation = coord && !coord.not_found && coord.width > 0
-                          return (
-                            <button
-                              key={finding.id}
-                              onClick={() => hasLocation && handleFindingClick(finding.id)}
-                              disabled={!hasLocation}
-                              className={`w-full text-left p-2 rounded-lg border transition-all ${
-                                activeFindingId === finding.id
-                                  ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300'
-                                  : hasLocation
-                                    ? 'border-gray-200 hover:border-corama-teal hover:bg-gray-50 cursor-pointer'
-                                    : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                              }`}
-                            >
-                              <div className="flex items-start gap-2">
-                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase ${
-                                  finding.type === 'risk' ? 'bg-red-100 text-red-700' :
-                                  finding.type === 'deadline' ? 'bg-orange-100 text-orange-700' :
-                                  finding.type === 'requirement' ? 'bg-blue-100 text-blue-700' :
-                                  finding.type === 'compliance' ? 'bg-purple-100 text-purple-700' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}>
-                                  {finding.type}
-                                </span>
-                                {hasLocation && (
-                                  <span className="text-xs text-gray-400">Page {coord.page + 1}</span>
-                                )}
-                              </div>
-                              <p className="font-poppins text-sm font-medium text-gray-800 mt-1">{finding.title}</p>
-                              {finding.quote && (
-                                <p className="font-poppins text-xs text-gray-500 mt-1 italic line-clamp-2">"{finding.quote}"</p>
-                              )}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    )}
-                    
                     {/* Markdown Summary */}
-                    <div className="font-poppins text-sm text-gray-700">
+                    <div className="font-poppins text-sm text-gray-700 mb-4">
                       <ReactMarkdown
                         components={{
                           p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -484,8 +440,37 @@ const ContractAnalysis = () => {
                         {aiFindings}
                       </ReactMarkdown>
                     </div>
+                    
+                    {/* Findings as paragraphs with hyperlinks to PDF locations */}
+                    {structuredFindings.length > 0 && (
+                      <div className="space-y-4 border-t border-gray-200 pt-4">
+                        <p className="text-xs text-gray-500 font-poppins font-semibold uppercase tracking-wide">Source References</p>
+                        {structuredFindings.map((finding) => {
+                          const coord = manifest[finding.id]
+                          const hasLocation = coord && !coord.not_found && coord.width > 0
+                          return (
+                            <div key={finding.id} className="font-poppins">
+                              <p className="text-sm font-semibold text-gray-800 mb-1">{finding.title}</p>
+                              <p className="text-sm text-gray-600 mb-1">{finding.rationale}</p>
+                              {hasLocation && (
+                                <button
+                                  onClick={() => handleFindingClick(finding.id)}
+                                  className={`text-sm font-medium transition-colors ${
+                                    activeFindingId === finding.id
+                                      ? 'text-yellow-600 underline'
+                                      : 'text-corama-teal hover:text-corama-teal/80 hover:underline'
+                                  }`}
+                                >
+                                  View in PDF (Page {coord.page + 1}) →
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                   </div>
-                ) : isGeneratingFindings ? (
+                ): isGeneratingFindings ? (
                   <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                     <InlineLoading text="Generating" size="large" />
                   </div>
