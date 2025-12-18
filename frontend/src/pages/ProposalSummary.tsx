@@ -7,6 +7,7 @@ import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
+import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
 
 // SVG asset paths
@@ -374,17 +375,28 @@ const ProposalSummary = () => {
             <div className="text-center mb-2 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
-                                {/* Progress Circles - First two always checked, third when profit/risk filled */}
+                                {/* Progress Circles - Static checks for steps 1 & 2 (completed on previous pages), animated check for step 3 */}
                                 <div className="flex justify-center gap-4">
                                   {[1, 2, 3].map((step) => {
                                     const isComplete = (step === 1 && step1Complete) || (step === 2 && step2Complete) || (step === 3 && step3Complete)
                                     const showAnimation = step === 3 && showThirdCheckAnimation
-                                    // Only autoplay if this is the first visit OR if it's the third step animation
-                                    const shouldAutoplay = !animationsAlreadyShown || showAnimation
                     
                                     return (
                                       <div key={step} className="relative">
-                                        {isComplete ? (
+                                        {step === 1 && step1Complete ? (
+                                          // Step 1 complete - show static Check.svg (completed on Contract Analysis page)
+                                          <div className="relative">
+                                            <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
+                                            <img src={CheckSvg} alt="Step 1 Complete" className="w-12 h-12 relative z-10" />
+                                          </div>
+                                        ) : step === 2 && step2Complete ? (
+                                          // Step 2 complete - show static Check.svg (completed on Team Building page)
+                                          <div className="relative">
+                                            <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
+                                            <img src={CheckSvg} alt="Step 2 Complete" className="w-12 h-12 relative z-10" />
+                                          </div>
+                                        ) : step === 3 && isComplete ? (
+                                          // Step 3 complete - show Lottie animation only when first triggered on this page
                                           <div className="relative">
                                             <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
                                               showAnimation ? 'animate-ping' : ''
@@ -393,7 +405,7 @@ const ProposalSummary = () => {
                                               <Lottie 
                                                 animationData={checkAnimation} 
                                                 loop={false}
-                                                autoplay={shouldAutoplay}
+                                                autoplay={showAnimation}
                                               />
                                             </div>
                                           </div>

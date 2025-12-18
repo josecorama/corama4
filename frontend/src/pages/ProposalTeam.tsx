@@ -7,6 +7,7 @@ import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
+import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
 
 // SVG asset paths
@@ -448,24 +449,18 @@ const ProposalTeam = () => {
             <div className="text-center mb-4 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Build Your Team</h1>
               
-              {/* Progress Circles - Check for step 1, animated check for step 2 when team member added, empty for step 3 */}
+              {/* Progress Circles - Static check for step 1 (completed on previous page), animated check for step 2 when team member added, empty for step 3 */}
               <div className="flex justify-center gap-4">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (
-                      // Step 1 complete - show Lottie check animation with glow
+                      // Step 1 complete - show static Check.svg (completed on previous page, no animation)
                       <div className="relative">
                         <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
-                        <div className="w-14 h-14 relative z-10">
-                          <Lottie 
-                            animationData={checkAnimation} 
-                            loop={false}
-                            autoplay={true}
-                          />
-                        </div>
+                        <img src={CheckSvg} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
                       </div>
                     ) : step === 2 && teamMembers.length > 0 ? (
-                      // Step 2 complete when team members added - show Lottie check animation
+                      // Step 2 complete when team members added - show Lottie check animation only when first triggered
                       <div className="relative">
                         <div 
                           className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
@@ -476,7 +471,7 @@ const ProposalTeam = () => {
                           <Lottie 
                             animationData={checkAnimation} 
                             loop={false}
-                            autoplay={true}
+                            autoplay={showSecondCheckAnimation}
                           />
                         </div>
                       </div>
