@@ -285,12 +285,12 @@ body {
 
 /* Radar Animation Styles */
 :root {
-  --radar-cyan-main: #0B2C48;
-  --radar-grad-mid: #081F33;
-  --radar-grad-end: #0E3A5C;
-  --radar-line-color: rgba(11, 44, 72, 0.25);
-  --radar-scanner-tail: rgba(11, 44, 72, 0);
-  --radar-scanner-head: rgba(11, 44, 72, 0.9);
+  --radar-cyan-main: #99C8CA;
+  --radar-grad-mid: #6BB4B5;
+  --radar-grad-end: #BFE3E5;
+  --radar-line-color: rgba(153, 200, 202, 0.25);
+  --radar-scanner-tail: rgba(153, 200, 202, 0);
+  --radar-scanner-head: rgba(153, 200, 202, 0.9);
   --radar-scan-speed: 10s;
   --radar-diameter: 90vmin;
 }
@@ -304,15 +304,16 @@ body {
 
 .radar-particle {
   position: absolute;
-  background: #fff;
+  background: #99C8CA;
   border-radius: 50%;
   opacity: 0;
+  box-shadow: 0 0 4px rgba(153, 200, 202, 0.6);
   animation: wakeParticle 5s ease-out forwards;
 }
 
 @keyframes wakeParticle {
   0% { opacity: 0; transform: scale(0.5); }
-  5% { opacity: 0.3; transform: scale(1); }
+  5% { opacity: 0.5; transform: scale(1.2); }
   100% { opacity: 0; transform: scale(0.5); }
 }
 
@@ -332,13 +333,16 @@ body {
   height: 100%;
   position: relative;
   border-radius: 50%;
-  border: 1px solid var(--radar-line-color);
-  box-shadow: 0 0 60px rgba(11, 44, 72, 0.1);
+  border: 2px solid var(--radar-line-color);
+  box-shadow: 
+    0 0 80px rgba(153, 200, 202, 0.2),
+    0 0 40px rgba(153, 200, 202, 0.1),
+    inset 0 0 60px rgba(11, 44, 72, 0.5);
   background: 
     repeating-radial-gradient(transparent 0, transparent 19%, var(--radar-line-color) 20%),
     linear-gradient(transparent 49.8%, var(--radar-line-color) 50%, transparent 50.2%),
     linear-gradient(90deg, transparent 49.8%, var(--radar-line-color) 50%, transparent 50.2%),
-    radial-gradient(circle, rgba(11, 44, 72, 0.15) 51%, rgba(11, 44, 72, 0.25) 100%);
+    radial-gradient(circle, rgba(11, 44, 72, 0.6) 0%, rgba(11, 44, 72, 0.4) 50%, rgba(11, 44, 72, 0.2) 100%);
 }
 
 .radar-circle::after {
@@ -364,11 +368,14 @@ body {
 
 .radar-blip {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  background: #fff;
+  width: 10px;
+  height: 10px;
+  background: #BFE3E5;
   border-radius: 50%;
-  box-shadow: 0 0 8px var(--radar-cyan-main), 0 0 16px var(--radar-cyan-main);
+  box-shadow: 
+    0 0 6px var(--radar-cyan-main), 
+    0 0 12px var(--radar-cyan-main),
+    0 0 20px rgba(153, 200, 202, 0.5);
   transform: translate(-50%, -50%);
   animation: wakeBlip 4s ease-out forwards;
 }
