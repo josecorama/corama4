@@ -394,7 +394,8 @@ const AIAssistant = () => {
 
             {/* Chat Area - flex-1 to take remaining space, with scrollable messages */}
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 sm:space-y-4 pr-2 ai-chat-scrollbar">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden ai-chat-scrollbar">
+              <div className="space-y-3 sm:space-y-4 pr-2">
                 {messages.map((message) => (
                   <div 
                     key={message.id} 
@@ -442,25 +443,26 @@ const AIAssistant = () => {
                   </div>
                 ))}
                 {/* Show thinking text while waiting for AI response */}
-                {isProcessing && (
-                  <div 
-                    className="flex justify-start animate-message-pop"
-                    style={{ 
-                      transformOrigin: 'bottom left',
-                      animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
-                    }}
-                  >
-                    <div className="max-w-full sm:max-w-xl lg:max-w-2xl">
-                      <p className="text-gray-400 font-poppins text-xs mb-1">{formatTime()}</p>
-                      <div className="rounded-xl sm:rounded-2xl p-3 sm:p-4 bg-white text-gray-800">
-                        <p className="font-poppins text-xs sm:text-sm">
-                          Thinking<span className="animate-ellipsis">...</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+                              {isProcessing && (
+                                <div 
+                                  className="flex justify-start animate-message-pop"
+                                  style={{ 
+                                    transformOrigin: 'bottom left',
+                                    animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                                  }}
+                                >
+                                  <div className="max-w-full sm:max-w-xl lg:max-w-2xl">
+                                    <p className="text-gray-400 font-poppins text-xs mb-1">{formatTime()}</p>
+                                    <div className="rounded-xl sm:rounded-2xl p-3 sm:p-4 bg-white text-gray-800">
+                                      <p className="font-poppins text-xs sm:text-sm">
+                                        Thinking<span className="animate-ellipsis">...</span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            </div>
 
               {/* Input Area - sticky at bottom */}
               <div className="flex-shrink-0 pt-3 sm:pt-4">
