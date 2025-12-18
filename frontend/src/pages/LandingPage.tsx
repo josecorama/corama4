@@ -129,28 +129,32 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   )
 }
 
-// Squares Background component
-interface SquaresProps {
-  direction?: 'diagonal' | 'up' | 'right' | 'down' | 'left'
-  speed?: number
-  borderColor?: string
-  squareSize?: number
-  hoverFillColor?: string
+// Dither Background component
+interface DitherProps {
+  waveColor?: [number, number, number]
+  disableAnimation?: boolean
+  enableMouseInteraction?: boolean
+  mouseRadius?: number
+  colorNum?: number
+  waveAmplitude?: number
+  waveFrequency?: number
+  waveSpeed?: number
 }
 
-const Squares = ({ 
-  direction = 'diagonal', 
-  speed = 0.5, 
-  borderColor = 'rgba(143, 186, 188, 0.3)',
-  squareSize = 40,
-  hoverFillColor = 'rgba(143, 186, 188, 0.1)'
-}: SquaresProps) => {
+const Dither = ({
+  waveColor = [143, 186, 188],
+  disableAnimation = false,
+  enableMouseInteraction = true,
+  mouseRadius = 0.3,
+  colorNum = 4,
+  waveAmplitude = 0.3,
+  waveFrequency = 3,
+  waveSpeed = 0.02
+}: DitherProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const requestRef = useRef<number>()
-  const numSquaresX = useRef<number>(0)
-  const numSquaresY = useRef<number>(0)
-  const gridOffset = useRef({ x: 0, y: 0 })
-  const hoveredSquare = useRef<{ x: number; y: number } | null>(null)
+  const timeRef = useRef(0)
+  const mouseRef = useRef({ x: 0.5, y: 0.5 })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -159,105 +163,99 @@ const Squares = ({
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    const bayerMatrix = [
+      [0, 8, 2, 10],
+      [12, 4, 14, 6],
+      [3, 11, 1, 9],
+      [15, 7, 13, 5]
+    ]
+
     const resizeCanvas = () => {
       canvas.width = canvas.offsetWidth
       canvas.height = canvas.offsetHeight
-      numSquaresX.current = Math.ceil(canvas.width / squareSize) + 1
-      numSquaresY.current = Math.ceil(canvas.height / squareSize) + 1
     }
 
-    const drawGrid = () => {
+    const dither = (value: number, x: number, y: number) => {
+      const threshold = bayerMatrix[y % 4][x % 4] / 16
+      const quantized = Math.floor(value * colorNum) / colorNum
+      const nextLevel = Math.min(1, quantized + 1 / colorNum)
+      return value - quantized > threshold * (nextLevel - quantized) ? nextLevel : quantized
+    }
+
+    const draw = () => {
       if (!ctx || !canvas) return
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      const imageData = ctx.createImageData(canvas.width, canvas.height)
+      const data = imageData.data
 
-      const offsetX = gridOffset.current.x % squareSize
-      const offsetY = gridOffset.current.y % squareSize
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const nx = x / canvas.width
+          const ny = y / canvas.height
 
-      for (let i = -1; i < numSquaresX.current; i++) {
-        for (let j = -1; j < numSquaresY.current; j++) {
-          const x = i * squareSize + offsetX
-          const y = j * squareSize + offsetY
-
-          const isHovered = 
-            hoveredSquare.current &&
-            Math.floor((hoveredSquare.current.x - offsetX) / squareSize) === i &&
-            Math.floor((hoveredSquare.current.y - offsetY) / squareSize) === j
-
-          if (isHovered) {
-            ctx.fillStyle = hoverFillColor
-            ctx.fillRect(x, y, squareSize, squareSize)
+          let wave = 0
+          if (!disableAnimation) {
+            wave = Math.sin(nx * waveFrequency * Math.PI + timeRef.current) * waveAmplitude
+            wave += Math.sin(ny * waveFrequency * Math.PI + timeRef.current * 0.7) * waveAmplitude * 0.5
           }
 
-          ctx.strokeStyle = borderColor
-          ctx.lineWidth = 0.5
-          ctx.strokeRect(x, y, squareSize, squareSize)
+          let mouseEffect = 0
+          if (enableMouseInteraction) {
+            const dx = nx - mouseRef.current.x
+            const dy = ny - mouseRef.current.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            mouseEffect = Math.max(0, 1 - dist / mouseRadius) * 0.3
+          }
+
+          const gradient = ny * 0.6 + 0.2
+          let intensity = gradient + wave + mouseEffect
+          intensity = Math.max(0, Math.min(1, intensity))
+
+          const ditheredIntensity = dither(intensity, x, y)
+
+          const idx = (y * canvas.width + x) * 4
+          data[idx] = Math.floor(waveColor[0] * ditheredIntensity)
+          data[idx + 1] = Math.floor(waveColor[1] * ditheredIntensity)
+          data[idx + 2] = Math.floor(waveColor[2] * ditheredIntensity)
+          data[idx + 3] = Math.floor(255 * ditheredIntensity * 0.4)
         }
       }
+
+      ctx.putImageData(imageData, 0, 0)
     }
 
-    const updateAnimation = () => {
-      const effectiveSpeed = speed * 0.5
-
-      switch (direction) {
-        case 'right':
-          gridOffset.current.x += effectiveSpeed
-          break
-        case 'left':
-          gridOffset.current.x -= effectiveSpeed
-          break
-        case 'up':
-          gridOffset.current.y -= effectiveSpeed
-          break
-        case 'down':
-          gridOffset.current.y += effectiveSpeed
-          break
-        case 'diagonal':
-        default:
-          gridOffset.current.x += effectiveSpeed
-          gridOffset.current.y += effectiveSpeed
-          break
+    const animate = () => {
+      if (!disableAnimation) {
+        timeRef.current += waveSpeed
       }
-
-      if (Math.abs(gridOffset.current.x) > squareSize) {
-        gridOffset.current.x = gridOffset.current.x % squareSize
-      }
-      if (Math.abs(gridOffset.current.y) > squareSize) {
-        gridOffset.current.y = gridOffset.current.y % squareSize
-      }
-
-      drawGrid()
-      requestRef.current = requestAnimationFrame(updateAnimation)
+      draw()
+      requestRef.current = requestAnimationFrame(animate)
     }
 
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect()
-      hoveredSquare.current = {
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+      mouseRef.current = {
+        x: (e.clientX - rect.left) / rect.width,
+        y: (e.clientY - rect.top) / rect.height
       }
-    }
-
-    const handleMouseLeave = () => {
-      hoveredSquare.current = null
     }
 
     resizeCanvas()
     window.addEventListener('resize', resizeCanvas)
-    canvas.addEventListener('mousemove', handleMouseMove)
-    canvas.addEventListener('mouseleave', handleMouseLeave)
+    if (enableMouseInteraction) {
+      canvas.addEventListener('mousemove', handleMouseMove)
+    }
 
-    requestRef.current = requestAnimationFrame(updateAnimation)
+    requestRef.current = requestAnimationFrame(animate)
 
     return () => {
       window.removeEventListener('resize', resizeCanvas)
       canvas.removeEventListener('mousemove', handleMouseMove)
-      canvas.removeEventListener('mouseleave', handleMouseLeave)
       if (requestRef.current) {
         cancelAnimationFrame(requestRef.current)
       }
     }
-  }, [direction, speed, borderColor, squareSize, hoverFillColor])
+  }, [waveColor, disableAnimation, enableMouseInteraction, mouseRadius, colorNum, waveAmplitude, waveFrequency, waveSpeed])
 
   return (
     <canvas
@@ -483,14 +481,15 @@ const LandingPage = () => {
 
   return (
     <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
-      {/* Squares Background - covers entire page */}
+      {/* Dither Background - covers entire page */}
       <div className="absolute inset-0 z-0">
-        <Squares 
-          direction="diagonal"
-          speed={0.5}
-          borderColor="rgba(143, 186, 188, 0.3)"
-          squareSize={40}
-          hoverFillColor="rgba(143, 186, 188, 0.1)"
+        <Dither 
+          waveColor={[143, 186, 188]}
+          waveAmplitude={0.3}
+          waveFrequency={3}
+          waveSpeed={0.02}
+          enableMouseInteraction={true}
+          mouseRadius={0.3}
         />
       </div>
       
