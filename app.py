@@ -11518,7 +11518,9 @@ def search_text_in_pdf(pdf_path, quote, page_hint=None):
             'width': ((bbox[2] - bbox[0]) / page_width) * 100,
             'height': ((bbox[3] - bbox[1]) / page_height) * 100,
             'rect_raw': bbox,
-            'all_rects': all_rects
+            'all_rects': all_rects,
+            'page_width': page_width,  # Include for frontend multi-rect rendering
+            'page_height': page_height
         }
     
     try:
@@ -11762,7 +11764,12 @@ You must respond with a JSON object containing two parts:
    - "rationale": Brief explanation of why this is important (1-2 sentences)
    - "severity": "high", "medium", or "low" (for risks/requirements)
 
-IMPORTANT: The "quote" field MUST contain exact text from the contract document. Do not paraphrase or summarize - copy the exact words.
+IMPORTANT RULES:
+1. The "quote" field MUST contain exact text from the contract document. Do not paraphrase or summarize - copy the exact words.
+2. For "deadline" type findings: The quote MUST include the ACTUAL DATE AND TIME (e.g., "3:00 p.m. Thursday, May 30, 2024"). 
+   - Do NOT use generic phrases like "the date and time stated" or "as specified in the solicitation"
+   - If you cannot find a specific date/time, do not create a deadline finding
+   - The quote should include the complete deadline sentence with the actual date/time values
 
 Respond ONLY with valid JSON, no other text."""
 

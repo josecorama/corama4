@@ -29,6 +29,9 @@ interface FindingCoordinate {
   width: number
   height: number
   not_found?: boolean
+  all_rects?: number[][] // Array of [x0, y0, x1, y1] for multi-line highlighting
+  page_width?: number
+  page_height?: number
 }
 
 interface StructuredFinding {
@@ -112,30 +115,68 @@ const ContractAnalysis = () => {
   const { jumpToPage } = pageNavigationPluginInstance
   
   // Render highlights function for the highlight plugin
+  // Uses all_rects for multi-line highlighting when available
   const renderHighlights = useCallback((props: RenderHighlightsProps) => {
     const pageHighlights = Object.entries(manifest)
       .filter(([_, coord]) => coord.page === props.pageIndex && !coord.not_found && coord.width > 0)
     
     return (
       <div>
-        {pageHighlights.map(([findingId, coord]) => (
-          <div
-            key={findingId}
-            data-finding-id={findingId}
-            className={`absolute transition-all duration-300 ${
-              activeFindingId === findingId 
-                ? 'bg-yellow-400/60 ring-2 ring-yellow-500' 
-                : 'bg-yellow-300/40 hover:bg-yellow-400/50'
-            }`}
-            style={props.getCssProperties({
-              pageIndex: coord.page,
-              left: coord.left,
-              top: coord.top,
-              width: coord.width,
-              height: coord.height,
-            }, props.rotation)}
-          />
-        ))}
+        {pageHighlights.map(([findingId, coord]) => {
+          const isActive = activeFindingId === findingId
+          const highlightClass = `absolute transition-all duration-300 ${
+            isActive 
+              ? 'bg-yellow-400/60 ring-2 ring-yellow-500' 
+              : 'bg-yellow-300/40 hover:bg-yellow-400/50'
+          }`
+          
+          // If we have all_rects, render multiple rectangles for better multi-line highlighting
+          // Otherwise fall back to the single bounding box
+          if (coord.all_rects && coord.all_rects.length > 0 && coord.page_width && coord.page_height) {
+            return (
+              <div key={findingId} data-finding-id={findingId}>
+                {coord.all_rects.map((rect, idx) => {
+                  // Convert PDF coordinates to percentages
+                  // rect is [x0, y0, x1, y1] in PDF points
+                  const left = (rect[0] / coord.page_width!) * 100
+                  const top = (rect[1] / coord.page_height!) * 100
+                  const width = ((rect[2] - rect[0]) / coord.page_width!) * 100
+                  const height = ((rect[3] - rect[1]) / coord.page_height!) * 100
+                  
+                  return (
+                    <div
+                      key={`${findingId}-${idx}`}
+                      className={highlightClass}
+                      style={props.getCssProperties({
+                        pageIndex: coord.page,
+                        left,
+                        top,
+                        width,
+                        height,
+                      }, props.rotation)}
+                    />
+                  )
+                })}
+              </div>
+            )
+          }
+          
+          // Fallback to single bounding box
+          return (
+            <div
+              key={findingId}
+              data-finding-id={findingId}
+              className={highlightClass}
+              style={props.getCssProperties({
+                pageIndex: coord.page,
+                left: coord.left,
+                top: coord.top,
+                width: coord.width,
+                height: coord.height,
+              }, props.rotation)}
+            />
+          )
+        })}
       </div>
     )
   }, [manifest, activeFindingId])
