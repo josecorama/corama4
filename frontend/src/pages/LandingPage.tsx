@@ -741,7 +741,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('testimonial-footer')}
         data-section="testimonial-footer"
-        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative bg-[#0B0B0F] flex flex-col justify-between ${getSectionClass('testimonial-footer')}`}
+        className={`min-h-[calc(100vh-80px)] px-2 sm:px-4 relative flex flex-col justify-between pb-8 ${getSectionClass('testimonial-footer')}`}
       >
         {/* Main content */}
         <div className="flex-1 flex flex-col justify-center">
@@ -820,7 +820,7 @@ const LandingPage = () => {
         </div>
 
         {/* Footer - at bottom of section */}
-        <footer className="py-6 px-4 sm:px-6 bg-[#0B0B0F] relative">
+        <footer className="py-6 px-4 sm:px-6 relative">
           <div className="max-w-6xl mx-auto relative z-10">
             <div className="text-center mb-4">
               <p className="text-white font-poppins text-xs sm:text-sm leading-relaxed">
