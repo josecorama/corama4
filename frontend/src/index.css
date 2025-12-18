@@ -337,12 +337,12 @@ body {
   box-shadow: 
     0 0 80px rgba(153, 200, 202, 0.2),
     0 0 40px rgba(153, 200, 202, 0.1),
-    inset 0 0 60px rgba(11, 44, 72, 0.5);
+    inset 0 0 60px rgba(11, 44, 72, 0.25);
   background: 
     repeating-radial-gradient(transparent 0, transparent 19%, var(--radar-line-color) 20%),
     linear-gradient(transparent 49.8%, var(--radar-line-color) 50%, transparent 50.2%),
     linear-gradient(90deg, transparent 49.8%, var(--radar-line-color) 50%, transparent 50.2%),
-    radial-gradient(circle, rgba(11, 44, 72, 0.6) 0%, rgba(11, 44, 72, 0.4) 50%, rgba(11, 44, 72, 0.2) 100%);
+    radial-gradient(circle, rgba(11, 44, 72, 0.3) 0%, rgba(11, 44, 72, 0.2) 50%, rgba(11, 44, 72, 0.1) 100%);
 }
 
 .radar-circle::after {
