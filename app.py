@@ -11782,23 +11782,14 @@ Respond ONLY with valid JSON, no other text."""
                 annotated_path = os.path.join(tempfile.gettempdir(), annotated_filename)
                 
                 if create_annotated_pdf(tmp_path, findings_with_coords, annotated_path):
-                    # Upload to Firebase Storage or serve from temp
-                    try:
-                        # Try to upload to Firebase Storage
-                        annotated_pdf_url = upload_to_firebase_storage(
-                            annotated_path,
-                            f"annotated_contracts/{annotated_filename}",
-                            content_type='application/pdf'
-                        )
-                    except Exception as upload_error:
-                        logging.warning(f"Failed to upload annotated PDF to Firebase: {upload_error}")
-                        # Store locally and serve via endpoint
-                        annotated_pdf_url = f"/api/contract-analysis/annotated/{annotated_filename}"
-                        # Keep the file for serving
-                        import shutil
-                        annotated_dir = os.path.join(os.path.dirname(__file__), 'annotated_pdfs')
-                        os.makedirs(annotated_dir, exist_ok=True)
-                        shutil.copy(annotated_path, os.path.join(annotated_dir, annotated_filename))
+                    # Always store locally and serve via same-origin endpoint for reliable downloads
+                    # (Cross-origin downloads from Firebase Storage cause redirect issues)
+                    import shutil
+                    annotated_dir = os.path.join(os.path.dirname(__file__), 'annotated_pdfs')
+                    os.makedirs(annotated_dir, exist_ok=True)
+                    shutil.copy(annotated_path, os.path.join(annotated_dir, annotated_filename))
+                    annotated_pdf_url = f"/api/contract-analysis/annotated/{annotated_filename}"
+                    logging.info(f"Annotated PDF saved locally: {annotated_filename}")
                     
                     # Clean up temp annotated file
                     if os.path.exists(annotated_path):
