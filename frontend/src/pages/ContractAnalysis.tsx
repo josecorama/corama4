@@ -295,16 +295,16 @@ const ContractAnalysis = () => {
               </div>
             </div>
 
-            {/* Continue Button - Fixed at bottom right */}
-            <div className="flex-shrink-0 flex justify-end">
+            {/* Continue Button - Centered horizontally */}
+            <div className="flex-shrink-0 flex justify-center">
               <button
                 onClick={handleContinue}
                 disabled={!aiFindings}
-                className="flex items-center gap-2 px-8 py-3 rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
+                className="relative flex items-center justify-between px-8 py-3 rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity min-w-[200px]"
                 style={{ backgroundColor: '#99C8CA', color: '#1a2744' }}
               >
-                Continue
-                <img src={ContinueIcon} alt="" className="w-6 h-6" />
+                <span className="flex-1 text-center">Continue</span>
+                <img src={ContinueIcon} alt="" className="h-full absolute right-3 top-1/2 -translate-y-1/2" style={{ height: 'calc(100% - 8px)' }} />
               </button>
             </div>
           </main>
