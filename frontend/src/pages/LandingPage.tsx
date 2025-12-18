@@ -158,22 +158,23 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
 const RadarAnimation = () => {
   const particlesContainerRef = useRef<HTMLDivElement>(null)
   const targetsContainerRef = useRef<HTMLDivElement>(null)
+  const lastTickRef = useRef<number>(-1)
+  const startTimeRef = useRef<number>(Date.now())
   
   const SCAN_DURATION = 10000
-  const WAKE_OFFSET = -950
+  const TICKS_PER_REVOLUTION = 24
+  const BLIP_TRAIL_OFFSET = 0.08
   
-  const createRadarBlip = useCallback(() => {
+  const createRadarBlip = useCallback((tickProgress: number) => {
     if (!targetsContainerRef.current) return
     
     const blip = document.createElement('div')
     blip.className = 'radar-blip'
     
-    const pastTime = Date.now() + WAKE_OFFSET
-    const progress = (pastTime % SCAN_DURATION) / SCAN_DURATION
-    const theta = (progress * Math.PI * 2) - (Math.PI / 2)
+    const theta = ((tickProgress - BLIP_TRAIL_OFFSET) * Math.PI * 2) - (Math.PI / 2)
     
     const r = 12 + Math.random() * 36
-    const variance = (Math.random() - 0.5) * 0.05
+    const variance = (Math.random() - 0.5) * 0.03
     const finalTheta = theta + variance
     
     const x = 50 + r * Math.cos(finalTheta)
@@ -186,17 +187,14 @@ const RadarAnimation = () => {
     setTimeout(() => blip.remove(), 4000)
   }, [])
   
-  const createSynchronizedParticle = useCallback(() => {
+  const createSynchronizedParticle = useCallback((progress: number) => {
     if (!particlesContainerRef.current) return
     
     const p = document.createElement('div')
     p.className = 'radar-particle'
     
-    const randomOffset = WAKE_OFFSET - (Math.random() * 400)
-    const pastTime = Date.now() + randomOffset
-    
-    const progress = (pastTime % SCAN_DURATION) / SCAN_DURATION
-    const theta = (progress * Math.PI * 2) - (Math.PI / 2)
+    const trailOffset = BLIP_TRAIL_OFFSET + (Math.random() * 0.04)
+    const theta = ((progress - trailOffset) * Math.PI * 2) - (Math.PI / 2)
     
     const r = Math.random() * 90
     
@@ -215,21 +213,33 @@ const RadarAnimation = () => {
   }, [])
   
   useEffect(() => {
-    let targetTimeoutId: ReturnType<typeof setTimeout>
+    let animationId: number
     let particleIntervalId: ReturnType<typeof setInterval>
     
-    const targetLoop = () => {
-      if (Math.random() > 0.4) {
-        createRadarBlip()
+    const animate = () => {
+      const elapsed = Date.now() - startTimeRef.current
+      const progress = (elapsed % SCAN_DURATION) / SCAN_DURATION
+      const currentTick = Math.floor(progress * TICKS_PER_REVOLUTION)
+      
+      if (currentTick !== lastTickRef.current) {
+        lastTickRef.current = currentTick
+        if (Math.random() > 0.3) {
+          createRadarBlip(progress)
+        }
       }
-      targetTimeoutId = setTimeout(targetLoop, 150)
+      
+      animationId = requestAnimationFrame(animate)
     }
     
-    targetLoop()
-    particleIntervalId = setInterval(createSynchronizedParticle, 20)
+    animate()
+    particleIntervalId = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current
+      const progress = (elapsed % SCAN_DURATION) / SCAN_DURATION
+      createSynchronizedParticle(progress)
+    }, 20)
     
     return () => {
-      clearTimeout(targetTimeoutId)
+      cancelAnimationFrame(animationId)
       clearInterval(particleIntervalId)
     }
   }, [createRadarBlip, createSynchronizedParticle])
