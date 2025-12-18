@@ -11461,9 +11461,131 @@ Provide your analysis as a JSON array with objects containing 'category' and 'te
         logging.error(f"Error analyzing contract: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def extract_text_with_pages(pdf_path):
+    """Extract text from PDF with page-level information using PyMuPDF"""
+    import fitz
+    pages_text = []
+    try:
+        doc = fitz.open(pdf_path)
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            text = page.get_text()
+            pages_text.append({
+                'page': page_num,
+                'text': text,
+                'width': page.rect.width,
+                'height': page.rect.height
+            })
+        doc.close()
+    except Exception as e:
+        logging.error(f"Error extracting text with pages: {e}")
+    return pages_text
+
+def search_text_in_pdf(pdf_path, quote, page_hint=None):
+    """Search for text in PDF and return bounding box coordinates"""
+    import fitz
+    import re
+    results = []
+    
+    try:
+        doc = fitz.open(pdf_path)
+        
+        # Normalize the quote for searching (collapse whitespace, handle line breaks)
+        normalized_quote = ' '.join(quote.split())
+        # Take first 50 chars for more reliable matching
+        search_text = normalized_quote[:50] if len(normalized_quote) > 50 else normalized_quote
+        
+        # If page_hint provided, search that page first
+        pages_to_search = list(range(len(doc)))
+        if page_hint is not None and 0 <= page_hint < len(doc):
+            pages_to_search = [page_hint] + [p for p in pages_to_search if p != page_hint]
+        
+        for page_num in pages_to_search:
+            page = doc[page_num]
+            # Search for the text
+            text_instances = page.search_for(search_text, quads=False)
+            
+            if text_instances:
+                for rect in text_instances:
+                    # Convert to percentage coordinates for react-pdf-viewer
+                    page_width = page.rect.width
+                    page_height = page.rect.height
+                    
+                    results.append({
+                        'page': page_num,
+                        'left': (rect.x0 / page_width) * 100,
+                        'top': (rect.y0 / page_height) * 100,
+                        'width': ((rect.x1 - rect.x0) / page_width) * 100,
+                        'height': ((rect.y1 - rect.y0) / page_height) * 100,
+                        'rect_raw': [rect.x0, rect.y0, rect.x1, rect.y1]
+                    })
+                
+                # Return first match if found
+                if results:
+                    break
+        
+        doc.close()
+    except Exception as e:
+        logging.error(f"Error searching text in PDF: {e}")
+    
+    return results
+
+def create_annotated_pdf(pdf_path, findings_with_coords, output_path):
+    """Create annotated PDF with highlights and popup comments"""
+    import fitz
+    
+    try:
+        doc = fitz.open(pdf_path)
+        
+        for finding in findings_with_coords:
+            if not finding.get('coordinates'):
+                continue
+            
+            for coord in finding['coordinates']:
+                page_num = coord['page']
+                if page_num >= len(doc):
+                    continue
+                
+                page = doc[page_num]
+                rect_raw = coord.get('rect_raw')
+                
+                if rect_raw:
+                    rect = fitz.Rect(rect_raw)
+                    
+                    # Add highlight annotation
+                    highlight = page.add_highlight_annot(rect)
+                    highlight.set_colors(stroke=(1, 1, 0))  # Yellow highlight
+                    highlight.update()
+                    
+                    # Add popup comment with the finding rationale
+                    comment_text = f"{finding.get('title', 'Finding')}\n\n{finding.get('rationale', '')}"
+                    # Add text annotation (popup note) near the highlight
+                    text_annot = page.add_text_annot(
+                        fitz.Point(rect.x1 + 5, rect.y0),
+                        comment_text,
+                        icon="Comment"
+                    )
+                    text_annot.set_info(title=finding.get('type', 'AI Finding').upper())
+                    text_annot.update()
+        
+        # Save the annotated PDF
+        doc.save(output_path)
+        doc.close()
+        return True
+    except Exception as e:
+        logging.error(f"Error creating annotated PDF: {e}")
+        return False
+
 @app.route('/api/contract-analysis/findings', methods=['POST'])
 def contract_analysis_findings():
-    """Generate AI findings from uploaded contract PDF for Contract Analysis page"""
+    """Generate AI findings from uploaded contract PDF for Contract Analysis page
+    
+    Returns structured findings with:
+    - findings: Markdown text for display
+    - structured_findings: JSON array with quotes, page hints, and coordinates
+    - annotated_pdf_url: URL to download annotated PDF (if generated)
+    - manifest: Mapping of finding_id to page/coordinates for click-to-navigate
+    """
     ensure_session_from_auth()
     
     try:
@@ -11485,76 +11607,178 @@ def contract_analysis_findings():
         
         # Save file temporarily
         import tempfile
+        import json
+        import uuid
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
             file.save(tmp_file.name)
             tmp_path = tmp_file.name
         
         try:
-            # Extract text from PDF using existing function
-            pdf_text = extract_text_from_pdf(tmp_path)
+            # Extract text with page information
+            pages_text = extract_text_with_pages(tmp_path)
             
-            if not pdf_text or len(pdf_text.strip()) < 50:
+            if not pages_text:
                 return jsonify({'success': False, 'error': 'Could not extract text from PDF. The document may be image-only or scanned.'}), 400
+            
+            # Combine text with page markers for AI context
+            combined_text = ""
+            for page_info in pages_text:
+                combined_text += f"\n\n--- PAGE {page_info['page'] + 1} ---\n\n{page_info['text']}"
             
             # Truncate to avoid token explosion (keep first ~15000 chars)
             max_chars = 15000
-            if len(pdf_text) > max_chars:
-                pdf_text = pdf_text[:max_chars] + "\n\n[Document truncated for analysis...]"
+            if len(combined_text) > max_chars:
+                combined_text = combined_text[:max_chars] + "\n\n[Document truncated for analysis...]"
             
-            # Call OpenAI to analyze the contract
+            # Call OpenAI to analyze the contract with structured output
             api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
             
-            client = OpenAI(api_key=api_key, timeout=60.0)
+            client = OpenAI(api_key=api_key, timeout=90.0)
             
-            prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights for a business considering whether to bid on this opportunity.
+            # New prompt that requests structured JSON output with quotes
+            structured_prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights.
 
 CONTRACT NAME: {contract_name}
 
-CONTRACT DOCUMENT TEXT:
-{pdf_text}
+CONTRACT DOCUMENT TEXT (with page markers):
+{combined_text}
 
-Provide a comprehensive analysis with the following sections:
+You must respond with a JSON object containing two parts:
 
-**Contract Overview**
-Summarize what this contract is about, the issuing agency, and the scope of work.
+1. "markdown_summary": A comprehensive markdown-formatted analysis with these sections:
+   - **Contract Overview**: What this contract is about, issuing agency, scope of work
+   - **Key Requirements**: Main deliverables, qualifications, requirements
+   - **Important Deadlines**: Proposal due dates, performance periods, milestones
+   - **Compliance Requirements**: Certifications, registrations, SAM, NAICS codes, set-asides
+   - **Evaluation Criteria**: How proposals will be evaluated
+   - **Strategic Recommendations**: 3-5 actionable recommendations
+   - **Risk Assessment**: Potential risks or challenges
 
-**Key Requirements**
-List the main deliverables, qualifications, and requirements specified in the contract.
+2. "findings": An array of specific findings, each with:
+   - "id": Unique identifier (f1, f2, f3, etc.)
+   - "type": One of "overview", "requirement", "deadline", "compliance", "evaluation", "recommendation", "risk"
+   - "title": Short title (max 50 chars)
+   - "quote": EXACT text snippet from the contract (15-40 words) that supports this finding. Must be verbatim from the document.
+   - "page_hint": Page number where this quote appears (1-indexed, based on PAGE markers)
+   - "rationale": Brief explanation of why this is important (1-2 sentences)
+   - "severity": "high", "medium", or "low" (for risks/requirements)
 
-**Important Deadlines**
-Identify any deadlines mentioned (proposal due dates, performance periods, milestones).
+IMPORTANT: The "quote" field MUST contain exact text from the contract document. Do not paraphrase or summarize - copy the exact words.
 
-**Compliance Requirements**
-Note any certifications, registrations, or compliance requirements (SAM, NAICS codes, set-asides, etc.).
-
-**Evaluation Criteria**
-If mentioned, summarize how proposals will be evaluated.
-
-**Strategic Recommendations**
-Provide 3-5 actionable recommendations for a business considering this opportunity.
-
-**Risk Assessment**
-Identify potential risks or challenges with this contract.
-
-Keep your response focused and actionable. Use markdown formatting for readability."""
+Respond ONLY with valid JSON, no other text."""
 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an expert government contract analyst providing strategic insights."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": "You are an expert government contract analyst. Always respond with valid JSON only."},
+                    {"role": "user", "content": structured_prompt}
                 ],
-                max_tokens=2000,
-                temperature=0.7
+                max_tokens=3000,
+                temperature=0.3
             )
             
-            findings = response.choices[0].message.content
+            ai_response = response.choices[0].message.content
+            
+            # Parse the JSON response
+            try:
+                # Clean up response if it has markdown code blocks
+                if ai_response.startswith('```'):
+                    ai_response = ai_response.split('```')[1]
+                    if ai_response.startswith('json'):
+                        ai_response = ai_response[4:]
+                ai_response = ai_response.strip()
+                
+                parsed_response = json.loads(ai_response)
+                markdown_summary = parsed_response.get('markdown_summary', '')
+                structured_findings = parsed_response.get('findings', [])
+            except json.JSONDecodeError as e:
+                logging.warning(f"Failed to parse structured response, falling back to markdown: {e}")
+                # Fallback to treating the whole response as markdown
+                markdown_summary = ai_response
+                structured_findings = []
+            
+            # Search for quotes in PDF and get coordinates
+            manifest = {}
+            findings_with_coords = []
+            
+            for finding in structured_findings:
+                finding_id = finding.get('id', str(uuid.uuid4())[:8])
+                quote = finding.get('quote', '')
+                page_hint = finding.get('page_hint')
+                
+                # Convert page_hint from 1-indexed to 0-indexed
+                if page_hint:
+                    page_hint = page_hint - 1
+                
+                coordinates = []
+                if quote:
+                    coordinates = search_text_in_pdf(tmp_path, quote, page_hint)
+                
+                finding_with_coords = {
+                    **finding,
+                    'coordinates': coordinates
+                }
+                findings_with_coords.append(finding_with_coords)
+                
+                # Build manifest for frontend click-to-navigate
+                if coordinates:
+                    manifest[finding_id] = {
+                        'page': coordinates[0]['page'],
+                        'left': coordinates[0]['left'],
+                        'top': coordinates[0]['top'],
+                        'width': coordinates[0]['width'],
+                        'height': coordinates[0]['height']
+                    }
+                else:
+                    # No coordinates found, just provide page hint
+                    manifest[finding_id] = {
+                        'page': page_hint if page_hint is not None else 0,
+                        'left': 0,
+                        'top': 0,
+                        'width': 0,
+                        'height': 0,
+                        'not_found': True
+                    }
+            
+            # Create annotated PDF
+            annotated_pdf_url = None
+            if findings_with_coords:
+                annotated_filename = f"annotated_{uuid.uuid4().hex[:8]}.pdf"
+                annotated_path = os.path.join(tempfile.gettempdir(), annotated_filename)
+                
+                if create_annotated_pdf(tmp_path, findings_with_coords, annotated_path):
+                    # Upload to Firebase Storage or serve from temp
+                    try:
+                        # Try to upload to Firebase Storage
+                        annotated_pdf_url = upload_to_firebase_storage(
+                            annotated_path,
+                            f"annotated_contracts/{annotated_filename}",
+                            content_type='application/pdf'
+                        )
+                    except Exception as upload_error:
+                        logging.warning(f"Failed to upload annotated PDF to Firebase: {upload_error}")
+                        # Store locally and serve via endpoint
+                        annotated_pdf_url = f"/api/contract-analysis/annotated/{annotated_filename}"
+                        # Keep the file for serving
+                        import shutil
+                        annotated_dir = os.path.join(os.path.dirname(__file__), 'annotated_pdfs')
+                        os.makedirs(annotated_dir, exist_ok=True)
+                        shutil.copy(annotated_path, os.path.join(annotated_dir, annotated_filename))
+                    
+                    # Clean up temp annotated file
+                    if os.path.exists(annotated_path):
+                        os.remove(annotated_path)
             
             return jsonify({
                 'success': True,
-                'findings': findings
+                'findings': markdown_summary,
+                'structured_findings': findings_with_coords,
+                'manifest': manifest,
+                'annotated_pdf_url': annotated_pdf_url,
+                'page_count': len(pages_text)
             })
             
         finally:
@@ -11565,6 +11789,12 @@ Keep your response focused and actionable. Use markdown formatting for readabili
     except Exception as e:
         logging.error(f"Error in contract analysis findings: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/contract-analysis/annotated/<filename>', methods=['GET'])
+def serve_annotated_pdf(filename):
+    """Serve annotated PDF files"""
+    annotated_dir = os.path.join(os.path.dirname(__file__), 'annotated_pdfs')
+    return send_from_directory(annotated_dir, filename, mimetype='application/pdf')
 
 @app.route('/api/team-suggestions', methods=['POST'])
 def team_suggestions():

@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Lottie from 'lottie-react'
@@ -9,10 +9,42 @@ import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
 
+// PDF Viewer imports
+import { Viewer, Worker } from '@react-pdf-viewer/core'
+import { highlightPlugin, Trigger, RenderHighlightsProps } from '@react-pdf-viewer/highlight'
+import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation'
+import '@react-pdf-viewer/core/lib/styles/index.css'
+import '@react-pdf-viewer/highlight/lib/styles/index.css'
+
 // SVG asset paths
 const UploadContractPDFIcon = '/static/app/contract-analysis/UploadContractPDF.svg'
 const AIFindingsIcon = '/static/app/contract-analysis/AIFindings.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
+
+// Types for structured findings
+interface FindingCoordinate {
+  page: number
+  left: number
+  top: number
+  width: number
+  height: number
+  not_found?: boolean
+}
+
+interface StructuredFinding {
+  id: string
+  type: string
+  title: string
+  quote: string
+  page_hint: number
+  rationale: string
+  severity?: string
+  coordinates?: FindingCoordinate[]
+}
+
+interface FindingManifest {
+  [key: string]: FindingCoordinate
+}
 
 // Generate a unique ID for contracts that don't have one
 const generateContractId = () => {
@@ -62,12 +94,78 @@ const ContractAnalysis = () => {
   const [headerKey, setHeaderKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  // New state for structured findings and click-to-navigate
+  const [structuredFindings, setStructuredFindings] = useState<StructuredFinding[]>([])
+  const [manifest, setManifest] = useState<FindingManifest>({})
+  const [annotatedPdfUrl, setAnnotatedPdfUrl] = useState<string | null>(null)
+  const [activeFindingId, setActiveFindingId] = useState<string | null>(null)
+  
   // Animation state for first checkmark - triggers when AI findings load
   const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(false)
   const firstAnimationShown = useRef(false)
 
   // Track if step 1 is complete (findings generated)
   const step1Complete = !!aiFindings
+  
+  // PDF viewer plugins
+  const pageNavigationPluginInstance = pageNavigationPlugin()
+  const { jumpToPage } = pageNavigationPluginInstance
+  
+  // Render highlights function for the highlight plugin
+  const renderHighlights = useCallback((props: RenderHighlightsProps) => {
+    const pageHighlights = Object.entries(manifest)
+      .filter(([_, coord]) => coord.page === props.pageIndex && !coord.not_found && coord.width > 0)
+    
+    return (
+      <div>
+        {pageHighlights.map(([findingId, coord]) => (
+          <div
+            key={findingId}
+            data-finding-id={findingId}
+            className={`absolute transition-all duration-300 ${
+              activeFindingId === findingId 
+                ? 'bg-yellow-400/60 ring-2 ring-yellow-500' 
+                : 'bg-yellow-300/40 hover:bg-yellow-400/50'
+            }`}
+            style={props.getCssProperties({
+              pageIndex: coord.page,
+              left: coord.left,
+              top: coord.top,
+              width: coord.width,
+              height: coord.height,
+            }, props.rotation)}
+          />
+        ))}
+      </div>
+    )
+  }, [manifest, activeFindingId])
+  
+  const highlightPluginInstance = highlightPlugin({
+    renderHighlights,
+    trigger: Trigger.None,
+  })
+  
+  // Click-to-navigate handler
+  const handleFindingClick = useCallback((findingId: string) => {
+    const coord = manifest[findingId]
+    if (!coord) return
+    
+    setActiveFindingId(findingId)
+    
+    // Jump to the page
+    jumpToPage(coord.page)
+    
+    // After a short delay, scroll to the highlight element
+    setTimeout(() => {
+      const highlightElement = document.querySelector(`[data-finding-id="${findingId}"]`)
+      if (highlightElement) {
+        highlightElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 300)
+    
+    // Clear active state after animation
+    setTimeout(() => setActiveFindingId(null), 2000)
+  }, [manifest, jumpToPage])
   
   // Trigger first checkmark animation when AI findings are loaded
   useEffect(() => {
@@ -137,6 +235,18 @@ const ContractAnalysis = () => {
       
       if (response.success && response.findings) {
         setAiFindings(response.findings)
+        
+        // Store structured findings and manifest for click-to-navigate
+        if (response.structured_findings) {
+          setStructuredFindings(response.structured_findings)
+        }
+        if (response.manifest) {
+          setManifest(response.manifest)
+        }
+        if (response.annotated_pdf_url) {
+          setAnnotatedPdfUrl(response.annotated_pdf_url)
+        }
+        
         // Force Header to refresh credits
         setHeaderKey(k => k + 1)
       } else {
@@ -218,11 +328,15 @@ const ContractAnalysis = () => {
                 
                 {pdfUrl ? (
                   <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
-                    <iframe 
-                      src={pdfUrl} 
-                      className="w-full h-full"
-                      title="Contract PDF"
-                    />
+                    <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                      <Viewer
+                        fileUrl={pdfUrl}
+                        plugins={[
+                          highlightPluginInstance,
+                          pageNavigationPluginInstance,
+                        ]}
+                      />
+                    </Worker>
                   </div>
                 ) : (
                   <div 
@@ -253,10 +367,67 @@ const ContractAnalysis = () => {
 
               {/* Right Card - AI Findings */}
               <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
-                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-3 flex-shrink-0">AI Findings</h2>
+                <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                  <h2 className="text-gray-800 font-poppins font-semibold text-lg">AI Findings</h2>
+                  {annotatedPdfUrl && (
+                    <a
+                      href={annotatedPdfUrl}
+                      download="annotated_contract.pdf"
+                      className="px-3 py-1 rounded-full font-poppins text-xs font-semibold text-white hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: '#6bb4b5' }}
+                    >
+                      Download Annotated PDF
+                    </a>
+                  )}
+                </div>
                 
                 {aiFindings ? (
                   <div className="flex-1 min-h-0 overflow-y-auto">
+                    {/* Clickable Structured Findings */}
+                    {structuredFindings.length > 0 && (
+                      <div className="mb-4 space-y-2">
+                        <p className="text-xs text-gray-500 font-poppins mb-2">Click a finding to navigate to its location in the PDF:</p>
+                        {structuredFindings.map((finding) => {
+                          const coord = manifest[finding.id]
+                          const hasLocation = coord && !coord.not_found && coord.width > 0
+                          return (
+                            <button
+                              key={finding.id}
+                              onClick={() => hasLocation && handleFindingClick(finding.id)}
+                              disabled={!hasLocation}
+                              className={`w-full text-left p-2 rounded-lg border transition-all ${
+                                activeFindingId === finding.id
+                                  ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300'
+                                  : hasLocation
+                                    ? 'border-gray-200 hover:border-corama-teal hover:bg-gray-50 cursor-pointer'
+                                    : 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                              }`}
+                            >
+                              <div className="flex items-start gap-2">
+                                <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold uppercase ${
+                                  finding.type === 'risk' ? 'bg-red-100 text-red-700' :
+                                  finding.type === 'deadline' ? 'bg-orange-100 text-orange-700' :
+                                  finding.type === 'requirement' ? 'bg-blue-100 text-blue-700' :
+                                  finding.type === 'compliance' ? 'bg-purple-100 text-purple-700' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}>
+                                  {finding.type}
+                                </span>
+                                {hasLocation && (
+                                  <span className="text-xs text-gray-400">Page {coord.page + 1}</span>
+                                )}
+                              </div>
+                              <p className="font-poppins text-sm font-medium text-gray-800 mt-1">{finding.title}</p>
+                              {finding.quote && (
+                                <p className="font-poppins text-xs text-gray-500 mt-1 italic line-clamp-2">"{finding.quote}"</p>
+                              )}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Markdown Summary */}
                     <div className="font-poppins text-sm text-gray-700">
                       <ReactMarkdown
                         components={{

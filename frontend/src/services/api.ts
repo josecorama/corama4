@@ -347,7 +347,40 @@ class ApiService {
   }
 
   // Contract Analysis - Generate AI findings from PDF
-  async generateContractAnalysis(formData: FormData): Promise<{success: boolean, findings?: string, error?: string}> {
+  async generateContractAnalysis(formData: FormData): Promise<{
+    success: boolean;
+    findings?: string;
+    structured_findings?: Array<{
+      id: string;
+      type: string;
+      title: string;
+      quote: string;
+      page_hint: number;
+      rationale: string;
+      severity?: string;
+      coordinates?: Array<{
+        page: number;
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+        rect_raw?: number[];
+      }>;
+    }>;
+    manifest?: {
+      [key: string]: {
+        page: number;
+        left: number;
+        top: number;
+        width: number;
+        height: number;
+        not_found?: boolean;
+      };
+    };
+    annotated_pdf_url?: string;
+    page_count?: number;
+    error?: string;
+  }> {
     const res = await fetch(`${API_BASE()}/contract-analysis/findings`, {
       method: 'POST',
       body: formData
