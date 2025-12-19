@@ -294,7 +294,8 @@ Remember: Generate SUBSTANTIVE, READY-TO-USE content. The goal is a proposal tha
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"Error generating section {section_num}: {e}")
-        return f"[Error generating {section_name}: {str(e)}. Please regenerate this section.]"
+        # Re-raise so the caller can emit section_error event
+        raise
 
 
 def get_section_prompts(company_name: str, company_address: str, team_summary: str, pricing_summary: str) -> list:
@@ -628,7 +629,7 @@ any official use. Please follow these steps:
 def find_and_process_jobs(db, openai_client):
     """Find queued jobs and process one at a time"""
     try:
-        # Query for queued jobs
+        # Query for all jobs
         jobs_ref = db.reference('proposal_jobs')
         all_jobs = jobs_ref.get() or {}
         
@@ -636,15 +637,21 @@ def find_and_process_jobs(db, openai_client):
             if shutdown_requested:
                 break
             
-            if job_data.get('status') != 'queued':
-                continue
+            status = job_data.get('status')
             
-            # Check if lease has expired (for jobs that were claimed but worker died)
-            lease_expires = job_data.get('lease_expires_at', 0)
-            if job_data.get('status') == 'running' and lease_expires < time.time():
-                logger.info(f"Found abandoned job {job_id}, attempting to reclaim")
-                # Reset to queued so we can claim it
-                jobs_ref.child(job_id).update({'status': 'queued'})
+            # Check if this is an abandoned job (running but lease expired)
+            if status == 'running':
+                lease_expires = job_data.get('lease_expires_at', 0)
+                if lease_expires < time.time():
+                    logger.info(f"Found abandoned job {job_id} (lease expired), resetting to queued")
+                    jobs_ref.child(job_id).update({'status': 'queued'})
+                    status = 'queued'  # Update local status so we can try to claim it
+                else:
+                    continue  # Job is actively being processed by another worker
+            
+            # Skip jobs that aren't queued
+            if status != 'queued':
+                continue
             
             # Try to claim the job
             if claim_job(db, job_id):
