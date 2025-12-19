@@ -192,7 +192,7 @@ const PublicBidProposalGenerator = () => {
         return newStatuses
       })
       
-      setProgressText(`Generating section ${data.completed_count} of ${data.total_sections}: ${data.section_name}`)
+      setProgressText(`${data.completed_count}/${data.total_sections} sections complete`)
     })
 
     eventSource.addEventListener('section_error', (event) => {
