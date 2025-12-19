@@ -403,10 +403,10 @@ const ProposalSummary = () => {
                                                                 <div key={item.id} className="mb-3">
                                                                   {/* Column Headers */}
                                                                                                                                     <div className="flex items-end mb-1 gap-2">
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Role</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Hours</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Rate ($/hr)</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Role</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Hours</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
                                                                                                                                       <div style={{ width: '100px' }}></div>
                                                                                                                                       <div style={{ width: '28px' }}></div>
                                                                                                                                     </div>
@@ -431,10 +431,10 @@ const ProposalSummary = () => {
                                                               <div>
                                                                 {/* Column Headers */}
                                                                                                                                 <div className="flex items-end mb-1 gap-2">
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Role</span>
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Hours</span>
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Rate ($/hr)</span>
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Role</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Hours</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
                                                                                                                                   <div style={{ width: '120px' }}></div>
                                                                                                                                   <div style={{ width: '28px' }}></div>
                                                                                                                                 </div>
@@ -464,10 +464,10 @@ const ProposalSummary = () => {
                                                                 <div key={item.id} className="mb-3">
                                                                   {/* Column Headers */}
                                                                                                                                     <div className="flex items-end mb-1 gap-2">
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Item</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Quantity</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Unit Cost</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Item</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Quantity</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Unit Cost</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
                                                                                                                                       <div style={{ width: '120px' }}></div>
                                                                                                                                       <div style={{ width: '28px' }}></div>
                                                                                                                                     </div>
@@ -492,10 +492,10 @@ const ProposalSummary = () => {
                                                               <div>
                                                                 {/* Column Headers */}
                                                                                                                                 <div className="flex items-end mb-1 gap-2">
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Item</span>
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Quantity</span>
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Unit Cost</span>
-                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#b6cfd1' }}>Cost</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Item</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Quantity</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Unit Cost</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
                                                                                                                                   <div style={{ width: '120px' }}></div>
                                                                                                                                   <div style={{ width: '28px' }}></div>
                                                                                                                                 </div>
@@ -523,7 +523,7 @@ const ProposalSummary = () => {
                 <h3 className="text-white font-poppins font-semibold text-base mb-2">Margin & Risk Adjustments</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#b6cfd1' }}>Profit Margin (%)</label>
+                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>Profit Margin (%)</label>
                     <input
                       type="number"
                       className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
@@ -533,7 +533,7 @@ const ProposalSummary = () => {
                     />
                   </div>
                   <div>
-                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#b6cfd1' }}>Risk Reserve (%)</label>
+                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>Risk Reserve (%)</label>
                     <input
                       type="number"
                       className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"

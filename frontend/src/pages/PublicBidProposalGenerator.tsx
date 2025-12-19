@@ -448,7 +448,7 @@ const PublicBidProposalGenerator = () => {
             </div>
 
             {/* Preview Area with Toolbar */}
-            <div className="flex-1 min-h-[400px] mb-8 flex flex-col rounded-2xl overflow-hidden border-2" style={{ borderColor: '#333c4d', maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+            <div className="flex-1 min-h-[400px] mb-12 flex flex-col rounded-2xl overflow-hidden border-2 mx-auto" style={{ borderColor: '#333c4d', maxWidth: '800px', width: '100%' }}>
               {/* Toolbar */}
               <div className="p-3 flex justify-center gap-16 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
                 <button 
@@ -510,7 +510,7 @@ const PublicBidProposalGenerator = () => {
             </div>
 
             {/* Bottom Action Buttons */}
-            <div className="flex flex-col sm:flex-row justify-center gap-6 mb-6 flex-shrink-0" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+            <div className="flex flex-col sm:flex-row justify-center gap-8 mb-8 flex-shrink-0 mx-auto" style={{ maxWidth: '800px', width: '100%' }}>
               <button
                 onClick={handleRegenerate}
                 disabled={isGenerating}
@@ -539,7 +539,7 @@ const PublicBidProposalGenerator = () => {
             </div>
 
             {/* Dashboard Button */}
-            <div className="flex justify-center flex-shrink-0 mb-4" style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+            <div className="flex justify-center flex-shrink-0 mb-8 mx-auto" style={{ maxWidth: '800px', width: '100%' }}>
               <button
                 onClick={handleDashboard}
                 className="flex items-center justify-center gap-3 px-8 py-3 rounded-2xl font-poppins font-semibold text-white hover:opacity-90 transition-opacity border-2 border-white"
