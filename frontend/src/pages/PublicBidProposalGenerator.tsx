@@ -447,8 +447,9 @@ const PublicBidProposalGenerator = () => {
               </ol>
             </div>
 
-            {/* Preview Area with Toolbar */}
-            <div className="flex-1 min-h-[400px] mb-12 flex flex-col rounded-2xl overflow-hidden border-2 mx-auto" style={{ borderColor: '#333c4d', maxWidth: '800px', width: '100%' }}>
+            {/* Preview Area with Toolbar - wrapped in flex container for proper centering */}
+            <div className="w-full flex justify-center mb-12">
+              <div className="flex-1 min-h-[400px] flex flex-col rounded-2xl overflow-hidden border-2" style={{ borderColor: '#333c4d', maxWidth: '800px', width: '100%' }}>
               {/* Toolbar */}
               <div className="p-3 flex justify-center gap-16 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
                 <button 
@@ -473,7 +474,7 @@ const PublicBidProposalGenerator = () => {
               </div>
 
               {/* Content Area - Shows generated proposal */}
-              <div className="bg-white flex-1 p-4 overflow-y-auto">
+              <div className="bg-white flex-1 p-4 overflow-y-auto overflow-x-hidden">
               {isGenerating ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
@@ -483,7 +484,7 @@ const PublicBidProposalGenerator = () => {
                   </div>
                 </div>
               ) : generationComplete && fullProposal ? (
-                <div className="font-mono text-sm text-gray-800 whitespace-pre-wrap">
+                <div className="font-mono text-sm text-gray-800 whitespace-pre-wrap break-all">
                   {fullProposal}
                 </div>
               ) : error ? (
@@ -507,6 +508,7 @@ const PublicBidProposalGenerator = () => {
                 </div>
               )}
               </div>
+            </div>
             </div>
 
             {/* Bottom Action Buttons */}
