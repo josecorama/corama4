@@ -12229,6 +12229,62 @@ def get_proposal_summary():
         logging.error(f"Error getting proposal summary: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def normalize_ai_findings_to_text(ai_findings) -> str:
+    """Normalize ai_findings to a string, handling both string and dict/list inputs.
+    
+    The frontend sometimes passes ai_findings as a dict (from structured findings)
+    instead of a string. This function handles both cases.
+    """
+    if ai_findings is None:
+        return ''
+    
+    if isinstance(ai_findings, str):
+        return ai_findings
+    
+    if isinstance(ai_findings, dict):
+        # Try to extract text content from common keys
+        for key in ['text', 'content', 'full_text', 'findings', 'summary', 'markdown']:
+            if key in ai_findings and isinstance(ai_findings[key], str):
+                return ai_findings[key]
+        
+        # If it's a structured findings dict, try to build a text summary
+        if 'findings' in ai_findings and isinstance(ai_findings['findings'], list):
+            parts = []
+            for finding in ai_findings['findings']:
+                if isinstance(finding, dict):
+                    title = finding.get('title', finding.get('type', ''))
+                    text = finding.get('text', finding.get('rationale', finding.get('content', '')))
+                    if title or text:
+                        parts.append(f"**{title}**\n{text}" if title else text)
+            if parts:
+                return '\n\n'.join(parts)
+        
+        # Fallback: convert dict to JSON string
+        import json
+        return json.dumps(ai_findings, indent=2)
+    
+    if isinstance(ai_findings, list):
+        # Handle list of findings
+        parts = []
+        for item in ai_findings:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                title = item.get('title', item.get('type', ''))
+                text = item.get('text', item.get('rationale', item.get('content', '')))
+                if title or text:
+                    parts.append(f"**{title}**\n{text}" if title else text)
+        if parts:
+            return '\n\n'.join(parts)
+        
+        # Fallback: convert list to JSON string
+        import json
+        return json.dumps(ai_findings, indent=2)
+    
+    # Fallback for any other type
+    return str(ai_findings)
+
+
 @app.route('/api/initialize-proposal-draft', methods=['POST'])
 def initialize_proposal_draft():
     """Initialize a proposal draft from React flow data for use with generate_proposal_sections.
@@ -12245,13 +12301,17 @@ def initialize_proposal_draft():
         data = request.get_json()
         contract_id = data.get('contract_id', '')
         contract_name = data.get('contract_name', '')
-        ai_findings = data.get('ai_findings', '')
-        ai_suggestions = data.get('ai_suggestions', '')
+        ai_findings_raw = data.get('ai_findings', '')
+        ai_suggestions_raw = data.get('ai_suggestions', '')
         ai_strategy = data.get('ai_strategy', '')
         team_members = data.get('team_members', [])
         labor_costs = data.get('labor_costs', [])
         materials = data.get('materials', [])
         margin_risk = data.get('margin_risk', {})
+        
+        # Normalize ai_findings and ai_suggestions to strings
+        ai_findings = normalize_ai_findings_to_text(ai_findings_raw)
+        ai_suggestions = normalize_ai_findings_to_text(ai_suggestions_raw)
         
         if not contract_id:
             return jsonify({'success': False, 'error': 'Missing contract_id'}), 400
@@ -12482,9 +12542,13 @@ def generate_proposal_strategy():
         data = request.get_json()
         contract_id = data.get('contract_id', '')
         contract_name = data.get('contract_name', 'Contract')
-        ai_findings = data.get('ai_findings', '')
-        ai_suggestions = data.get('ai_suggestions', '')
+        ai_findings_raw = data.get('ai_findings', '')
+        ai_suggestions_raw = data.get('ai_suggestions', '')
         team_members = data.get('team_members', [])
+        
+        # Normalize ai_findings and ai_suggestions to strings
+        ai_findings = normalize_ai_findings_to_text(ai_findings_raw)
+        ai_suggestions = normalize_ai_findings_to_text(ai_suggestions_raw)
         
         if not ai_findings:
             return jsonify({'success': False, 'error': 'AI findings are required to generate strategy'}), 400
