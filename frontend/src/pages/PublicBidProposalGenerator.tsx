@@ -45,8 +45,8 @@ interface SectionCardProps {
 const SectionCard = ({ number, title, progress, status }: SectionCardProps) => {
   const getStatusColor = () => {
     switch (status) {
-      case 'generating': return '#99C8CA'
-      case 'completed': return '#27ae60'
+      case 'generating': return '#6BB4B5'
+      case 'completed': return '#6BB4B5'
       case 'error': return '#e74c3c'
       default: return '#1a2332'
     }
@@ -97,23 +97,18 @@ const SectionCard = ({ number, title, progress, status }: SectionCardProps) => {
         <span className="text-white font-poppins text-sm font-medium leading-tight block">
           {number}. {title}
         </span>
-        <span className={`text-xs font-poppins ${
-          status === 'completed' ? 'text-green-400' : 
-          status === 'error' ? 'text-red-400' : 
-          status === 'generating' ? 'text-corama-teal' : 
-          'text-gray-400'
-        }`}>
+        <span className={`text-xs font-poppins`} style={{
+          color: status === 'completed' ? '#6BB4B5' : 
+                 status === 'error' ? '#e74c3c' : 
+                 status === 'generating' ? '#6BB4B5' : 
+                 '#9ca3af'
+        }}>
           {status === 'completed' ? 'Completed' : 
            status === 'error' ? 'Error' : 
            status === 'generating' ? 'Generating...' : 
            'Pending'}
         </span>
       </div>
-      
-      {/* Menu dots */}
-      <button className="text-white opacity-70 hover:opacity-100 flex-shrink-0">
-        <span className="text-lg">...</span>
-      </button>
     </div>
   )
 }
@@ -197,7 +192,7 @@ const PublicBidProposalGenerator = () => {
         return newStatuses
       })
       
-      setProgressText(`Generated section ${data.completed_count} of ${data.total_sections}: ${data.section_name}`)
+      setProgressText(`Generating section ${data.completed_count} of ${data.total_sections}: ${data.section_name}`)
     })
 
     eventSource.addEventListener('section_error', (event) => {
@@ -395,8 +390,8 @@ const PublicBidProposalGenerator = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-3 flex-shrink-0">
-              <h1 className="text-corama-teal font-poppins font-bold text-xl lg:text-2xl">Public Bid Proposal Generator</h1>
-              <p className="text-gray-400 font-poppins text-sm">AI-powered 8-section proposal generation</p>
+              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Public Bid Proposal Generator</h1>
+              <p className="text-white font-poppins text-sm">AI-powered 8-section proposal generation</p>
             </div>
 
             {/* Important Disclaimer */}
