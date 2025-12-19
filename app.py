@@ -910,66 +910,139 @@ except Exception as e:
 
 
 # ============================================================================
-# Proposal Generation Job Store (for SSE streaming progress)
+# Proposal Generation Job Store (Firebase-based for production stability)
+# ============================================================================
+# This implementation stores job state in Firebase Realtime Database instead of
+# in-memory dictionaries. This allows:
+# 1. Job state to survive worker crashes/restarts
+# 2. SSE connections to work across any Gunicorn worker
+# 3. Background worker process to handle generation outside HTTP lifecycle
 # ============================================================================
 import threading
 import uuid
 import time as time_module
 
-# In-memory store for proposal generation jobs
-# Structure: {job_id: {status, sections_completed, sections_total, sections, full_proposal, error, events}}
-proposal_generation_jobs = {}
-proposal_jobs_lock = threading.Lock()
-
 def create_proposal_job(draft_id: str, user_id: str) -> str:
-    """Create a new proposal generation job and return its ID"""
+    """Create a new proposal generation job in Firebase and return its ID.
+    
+    The job is created with status='queued' so the background worker can pick it up.
+    """
+    if not admin_initialized or not admin_db:
+        raise RuntimeError("Firebase not initialized - cannot create proposal job")
+    
     job_id = str(uuid.uuid4())
-    with proposal_jobs_lock:
-        proposal_generation_jobs[job_id] = {
-            'draft_id': draft_id,
-            'user_id': user_id,
-            'status': 'pending',
-            'sections_completed': [],
-            'sections_total': 8,
-            'sections': {},
-            'full_proposal': None,
-            'error': None,
-            'events': [],
-            'created_at': time_module.time()
-        }
-    return job_id
+    job_data = {
+        'draft_id': draft_id,
+        'user_id': user_id,
+        'status': 'queued',  # Worker will pick this up
+        'sections_completed': [],
+        'sections_total': 8,
+        'sections': {},
+        'full_proposal': None,
+        'error': None,
+        'events': {},  # Will use push() for events
+        'created_at': time_module.time(),
+        'claimed_by': None,
+        'lease_expires_at': 0
+    }
+    
+    try:
+        job_ref = admin_db.reference(f'proposal_jobs/{job_id}')
+        job_ref.set(job_data)
+        logging.info(f"Created proposal job {job_id} in Firebase with status=queued")
+        return job_id
+    except Exception as e:
+        logging.error(f"Failed to create proposal job in Firebase: {e}")
+        raise
 
 def update_proposal_job(job_id: str, **kwargs):
-    """Update a proposal job with new data"""
-    with proposal_jobs_lock:
-        if job_id in proposal_generation_jobs:
-            proposal_generation_jobs[job_id].update(kwargs)
+    """Update a proposal job in Firebase with new data"""
+    if not admin_initialized or not admin_db:
+        logging.error("Firebase not initialized - cannot update proposal job")
+        return
+    
+    try:
+        job_ref = admin_db.reference(f'proposal_jobs/{job_id}')
+        job_ref.update(kwargs)
+    except Exception as e:
+        logging.error(f"Failed to update proposal job {job_id}: {e}")
 
 def add_job_event(job_id: str, event_type: str, data: dict):
-    """Add an event to the job's event queue"""
-    with proposal_jobs_lock:
-        if job_id in proposal_generation_jobs:
-            proposal_generation_jobs[job_id]['events'].append({
-                'type': event_type,
-                'data': data,
-                'timestamp': time_module.time()
-            })
+    """Add an event to the job's event log in Firebase.
+    
+    Events are stored with monotonic sequence numbers for ordering.
+    """
+    if not admin_initialized or not admin_db:
+        logging.error("Firebase not initialized - cannot add job event")
+        return
+    
+    try:
+        # Get current event count for sequence number
+        events_ref = admin_db.reference(f'proposal_jobs/{job_id}/events')
+        
+        event_data = {
+            'type': event_type,
+            'data': data,
+            'timestamp': time_module.time()
+        }
+        
+        # Use push() to generate unique key with automatic ordering
+        events_ref.push(event_data)
+    except Exception as e:
+        logging.error(f"Failed to add event for job {job_id}: {e}")
 
 def get_proposal_job(job_id: str) -> dict:
-    """Get a proposal job by ID"""
-    with proposal_jobs_lock:
-        return proposal_generation_jobs.get(job_id, {}).copy()
+    """Get a proposal job from Firebase by ID"""
+    if not admin_initialized or not admin_db:
+        logging.error("Firebase not initialized - cannot get proposal job")
+        return {}
+    
+    try:
+        job_ref = admin_db.reference(f'proposal_jobs/{job_id}')
+        job_data = job_ref.get()
+        
+        if not job_data:
+            return {}
+        
+        # Convert events from Firebase format to list format for SSE compatibility
+        events_dict = job_data.get('events', {})
+        if isinstance(events_dict, dict):
+            # Sort events by their Firebase push key (which is chronologically ordered)
+            events_list = []
+            for key in sorted(events_dict.keys()):
+                event = events_dict[key]
+                events_list.append(event)
+            job_data['events'] = events_list
+        elif not isinstance(events_dict, list):
+            job_data['events'] = []
+        
+        # Convert sections_completed from dict to list if needed
+        sections_completed = job_data.get('sections_completed', [])
+        if isinstance(sections_completed, dict):
+            job_data['sections_completed'] = list(sections_completed.values())
+        
+        return job_data
+    except Exception as e:
+        logging.error(f"Failed to get proposal job {job_id}: {e}")
+        return {}
 
 def cleanup_old_jobs():
-    """Remove jobs older than 1 hour"""
-    current_time = time_module.time()
-    with proposal_jobs_lock:
-        to_remove = [
-            job_id for job_id, job in proposal_generation_jobs.items()
-            if current_time - job.get('created_at', 0) > 3600
-        ]
-        for job_id in to_remove:
-            del proposal_generation_jobs[job_id]
+    """Remove jobs older than 1 hour from Firebase"""
+    if not admin_initialized or not admin_db:
+        return
+    
+    try:
+        current_time = time_module.time()
+        jobs_ref = admin_db.reference('proposal_jobs')
+        all_jobs = jobs_ref.get() or {}
+        
+        for job_id, job_data in all_jobs.items():
+            created_at = job_data.get('created_at', 0)
+            if current_time - created_at > 3600:  # 1 hour
+                jobs_ref.child(job_id).delete()
+                logging.info(f"Cleaned up old proposal job {job_id}")
+    except Exception as e:
+        logging.error(f"Failed to cleanup old jobs: {e}")
 
 # Firebase Storage Helper Function
 def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type: str = None) -> str:
@@ -13593,7 +13666,13 @@ def proposal_result_page():
 
 @app.route('/api/generate_proposal_sections', methods=['POST'])
 def generate_proposal_sections():
-    """Start proposal generation job and return job_id immediately for SSE streaming"""
+    """Start proposal generation job and return job_id immediately for SSE streaming.
+    
+    This endpoint creates a job in Firebase with status='queued'.
+    The separate proposal_worker.py process picks up queued jobs and processes them.
+    This architecture prevents Gunicorn worker crashes by moving long-running
+    GPT-4 calls out of the HTTP request lifecycle.
+    """
     try:
         data = request.json
         draft_id = data.get('draft_id')
@@ -13617,22 +13696,15 @@ def generate_proposal_sections():
         if not draft_data:
             return jsonify({'success': False, 'error': 'Draft not found'}), 404
         
-        # Create a job and return immediately
+        # Create a job in Firebase with status='queued'
+        # The background worker (proposal_worker.py) will pick it up and process it
         job_id = create_proposal_job(draft_id, user_id)
         
-        # Start background thread to do the actual generation
-        thread = threading.Thread(
-            target=run_proposal_generation_job,
-            args=(job_id, draft_id, user_id),
-            daemon=True
-        )
-        thread.start()
-        
-        # Return immediately with job_id
+        # Return immediately with job_id - worker will handle generation
         return jsonify({
             'success': True,
             'job_id': job_id,
-            'message': 'Proposal generation started. Use SSE endpoint to track progress.'
+            'message': 'Proposal generation queued. Use SSE endpoint to track progress.'
         })
         
     except Exception as e:
@@ -13640,707 +13712,10 @@ def generate_proposal_sections():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-def run_proposal_generation_job(job_id: str, draft_id: str, user_id: str):
-    """Background worker that generates proposal sections and updates job progress"""
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    
-    try:
-        update_proposal_job(job_id, status='running')
-        add_job_event(job_id, 'started', {'message': 'Proposal generation started'})
-        
-        # Get draft data
-        draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
-        draft_data = draft_ref.get()
-        
-        if not draft_data:
-            update_proposal_job(job_id, status='error', error='Draft not found')
-            add_job_event(job_id, 'error', {'message': 'Draft not found'})
-            return
-        
-        # Get user data for company info
-        user_ref = admin_db.reference(f'users/{user_id}')
-        user_data = user_ref.get() or {}
-        
-        # Get capability statement if available
-        capability_statement = ""
-        try:
-            cs_ref = admin_db.reference(f'capability_statements/{user_id}')
-            cs_data = cs_ref.get()
-            if cs_data:
-                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
-        except Exception as cs_error:
-            logging.warning(f"Could not fetch capability statement: {cs_error}")
-        
-        # Extract data from draft
-        annotations = draft_data.get('annotations', [])
-        pricing = draft_data.get('pricing', {})
-        team_members = draft_data.get('team_members', [])
-        
-        # Build contract context
-        requirements_text = '\n'.join([f"- {ann.get('text', '')}" for ann in annotations if 'requirement' in ann.get('category', '').lower()])
-        scope_text = ' '.join([ann.get('text', '') for ann in annotations if 'scope' in ann.get('category', '').lower()])
-        all_annotations_text = '\n'.join([f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
-        
-        company_name = user_data.get('company', 'Our Company')
-        company_address = user_data.get('address', '[Company Address]')
-        company_email = user_data.get('email', '[Email]')
-        
-        # Build pricing summary
-        labor_total = sum(item.get('cost', 0) for item in pricing.get('labor', []))
-        material_total = sum(item.get('cost', 0) for item in pricing.get('materials', []))
-        subtotal = labor_total + material_total
-        margin_pct = pricing.get('margin_pct', 15)
-        risk_pct = pricing.get('risk_pct', 5)
-        margin_amount = subtotal * (margin_pct / 100)
-        risk_amount = subtotal * (risk_pct / 100)
-        total_bid = subtotal + margin_amount + risk_amount
-        
-        pricing_summary = f"""
-Labor Costs: ${labor_total:,.2f}
-Material Costs: ${material_total:,.2f}
-Subtotal: ${subtotal:,.2f}
-Margin ({margin_pct}%): ${margin_amount:,.2f}
-Risk Reserve ({risk_pct}%): ${risk_amount:,.2f}
-Total Bid Amount: ${total_bid:,.2f}
-
-Labor Breakdown:
-""" + '\n'.join([f"- {item.get('role', 'Role')}: {item.get('hours', 0)} hours @ ${item.get('rate', 0)}/hr = ${item.get('cost', 0):,.2f}" for item in pricing.get('labor', [])])
-        
-        # Build team summary
-        team_summary = '\n'.join([f"- {member.get('name', 'Team Member')}: {member.get('role', 'Role')} - {member.get('experience', 'Experience')}" for member in team_members]) or "Team to be determined based on contract requirements."
-        
-        # Define the 8 section prompts
-        def generate_section(section_num, section_name, prompt):
-            """Generate a single section using OpenAI"""
-            try:
-                response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": f"""You are an expert government contract proposal writer with 20+ years of experience winning federal, state, and local government contracts. Generate Section {section_num}: {section_name} for a comprehensive public procurement proposal.
-
-CRITICAL REQUIREMENTS FOR SUBSTANTIVE CONTENT:
-1. Write THOROUGH, DETAILED content that is ready for professional use
-2. Each section should be comprehensive and substantive - aim for the word count specified in the prompt
-3. Use specific, concrete language rather than generic statements
-4. Include detailed explanations, methodologies, and approaches
-5. Reference the specific contract requirements and tailor content accordingly
-6. Write in formal government contracting language with professional tone
-
-FORMATTING RULES:
-- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
-- Use clear section headings in UPPERCASE
-- Use numbered lists where appropriate (1., 2., 3.)
-- Write in professional paragraph form with detailed explanations
-- Include appropriate placeholders [IN BRACKETS] only where specific company data is truly missing
-- Structure content with clear subheadings for easy navigation
-
-COMPANY INFORMATION:
-Company Name: {company_name}
-Company Address: {company_address}
-Company Email: {company_email}
-
-CAPABILITY STATEMENT (Use this to inform technical capabilities and past performance):
-{capability_statement[:4000] if capability_statement else 'Company capabilities to be detailed based on specific contract requirements.'}
-
-CONTRACT REQUIREMENTS AND ANNOTATIONS (Reference these specifically in your response):
-{all_annotations_text[:5000]}
-
-TEAM MEMBERS (Include these in staffing and management sections):
-{team_summary}
-
-PRICING INFORMATION (Use for cost proposal section):
-{pricing_summary}
-
-Remember: Generate SUBSTANTIVE, READY-TO-USE content. The goal is a proposal that requires minimal editing before submission."""},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.4,
-                    max_tokens=4000
-                )
-                return response.choices[0].message.content
-            except Exception as e:
-                logging.error(f"Error generating section {section_num}: {e}")
-                return f"[Error generating {section_name}: {str(e)}. Please regenerate this section.]"
-        
-        # Define the 8 prompts based on PromptBidding.md structure - Enhanced for substantive content
-        section_prompts = [
-            (1, "Cover Letter & Executive Summary", f"""Generate a comprehensive, ready-to-use Cover Letter and Executive Summary section. TARGET LENGTH: 1,200-1,500 words.
-
-COVER PAGE INFORMATION:
-Include a formal cover page with: Solicitation reference, Title of the opportunity, Contracting Agency, Company name ({company_name}), Submission date, and "DRAFT - FOR INTERNAL REVIEW ONLY" notice.
-
-COVER LETTER/TRANSMITTAL LETTER (300-400 words):
-Write a compelling, formal transmittal letter that:
-1. Opens with a strong statement of interest and commitment to the solicitation
-2. Introduces {company_name} with specific credentials and relevant experience
-3. Highlights 2-3 key differentiators that make the company uniquely qualified
-4. Expresses understanding of the agency's mission and how this contract supports it
-5. Includes commitment to performance, schedule, and budget
-6. Closes with contact information and signature block for "[Authorized Representative, Title]"
-
-EXECUTIVE SUMMARY (800-1,100 words):
-Write a compelling executive summary that:
-
-1. UNDERSTANDING OF REQUIREMENTS
-   - Demonstrate deep understanding of the solicitation's objectives
-   - Reference specific requirements from the contract annotations
-   - Show awareness of the agency's challenges and priorities
-
-2. PROPOSED SOLUTION OVERVIEW
-   - Provide a clear, compelling description of the proposed approach
-   - Explain how the solution addresses each major requirement
-   - Highlight innovative aspects and value-added features
-
-3. KEY DIFFERENTIATORS AND COMPETITIVE ADVANTAGES
-   - Identify 4-5 specific reasons why {company_name} is the best choice
-   - Reference relevant past performance and capabilities
-   - Emphasize unique qualifications, certifications, or methodologies
-
-4. VALUE PROPOSITION
-   - Articulate the tangible benefits to the agency
-   - Explain cost-effectiveness and return on investment
-   - Describe risk mitigation and quality assurance approaches
-
-5. KEY PERSONNEL HIGHLIGHTS
-   - Briefly introduce the project leadership team
-   - Highlight relevant experience and qualifications
-
-Write with confidence and specificity. This should read as a polished, professional proposal."""),
-
-            (2, "Administrative & Compliance Information", f"""Generate a thorough Administrative & Compliance Information section. TARGET LENGTH: 800-1,000 words.
-
-1. OFFEROR IDENTIFICATION AND CONTACT INFORMATION
-   - Legal Entity Name: {company_name}
-   - Business Address: {company_address}
-   - Primary Contact: [Name, Title, Phone, Email]
-   - Authorized Representative: [Name, Title]
-   - DUNS/UEI Number: [TO BE PROVIDED]
-   - CAGE Code: [TO BE PROVIDED]
-   - Tax Identification Number: [TO BE PROVIDED]
-
-2. BUSINESS CLASSIFICATION AND STATUS
-   - Business Type: [Corporation/LLC/Partnership/Sole Proprietorship]
-   - State of Incorporation: [State]
-   - Year Established: [Year]
-   - Small Business Status: [Indicate applicable categories: Small Business, Woman-Owned, Veteran-Owned, HUBZone, 8(a), etc.]
-   - NAICS Codes: [List primary and secondary codes relevant to this solicitation]
-   - Size Standard Compliance: [Confirm compliance with applicable size standards]
-
-3. REGISTRATIONS AND CERTIFICATIONS
-   - SAM.gov Registration: [Active/Registration Number/Expiration Date]
-   - State Business Licenses: [List applicable state registrations]
-   - Professional Certifications: [List relevant certifications - ISO, CMMI, etc.]
-   - Security Clearances: [If applicable, describe facility and personnel clearances]
-
-4. REPRESENTATIONS AND CERTIFICATIONS SUMMARY
-   Provide affirmative statements for:
-   - FAR 52.204-8 Annual Representations and Certifications
-   - Organizational Conflict of Interest: No conflicts exist
-   - Debarment and Suspension: Not debarred or suspended
-   - Tax Compliance: Current on all federal tax obligations
-   - Equal Employment Opportunity: Full compliance with EEO requirements
-   - Drug-Free Workplace: Maintains drug-free workplace policy
-   - Anti-Kickback Act: Full compliance
-   - Lobbying Restrictions: No federal funds used for lobbying
-
-5. INSURANCE AND BONDING
-   - General Liability Insurance: [Coverage amount]
-   - Professional Liability Insurance: [Coverage amount]
-   - Workers' Compensation: [Compliant with state requirements]
-   - Bonding Capacity: [If applicable]
-
-Mark items requiring verification with [TO BE VERIFIED] but provide complete structure."""),
-
-            (3, "Technical Approach", f"""Generate a comprehensive, detailed Technical Approach section. TARGET LENGTH: 2,000-2,500 words. This is the most critical section - make it thorough and specific.
-
-1. UNDERSTANDING OF REQUIREMENTS (400-500 words)
-   Begin by demonstrating thorough understanding of the solicitation:
-   - Summarize the agency's objectives and desired outcomes
-   - Identify and discuss key technical requirements from the annotations
-   - Acknowledge challenges and constraints
-   - Show understanding of performance standards and success criteria
-   - Reference specific sections or requirements from the solicitation
-
-2. TECHNICAL SOLUTION AND METHODOLOGY (600-800 words)
-   Describe the proposed technical approach in detail:
-   - Overall solution architecture and design philosophy
-   - Specific methodologies, frameworks, and best practices to be employed
-   - Technology stack, tools, and systems to be used
-   - How the solution addresses each major requirement
-   - Innovation and value-added features
-   - Integration with existing agency systems (if applicable)
-   - Scalability and flexibility of the proposed solution
-
-3. WORK PLAN AND IMPLEMENTATION APPROACH (500-600 words)
-   Provide a detailed implementation plan:
-   - Project phases with clear objectives for each phase
-   - Key activities and tasks within each phase
-   - Timeline and schedule (use realistic estimates)
-   - Dependencies and critical path items
-   - Transition and knowledge transfer approach
-   - Change management methodology
-
-4. DELIVERABLES AND ACCEPTANCE CRITERIA (300-400 words)
-   List and describe all deliverables:
-   - For each deliverable: description, format, delivery schedule
-   - Quality standards for deliverables
-   - Review and acceptance process
-   - Documentation requirements
-
-5. COMPLIANCE MATRIX SUMMARY (200-300 words)
-   Demonstrate compliance with key requirements:
-   - Map major solicitation requirements to proposed solution elements
-   - Identify any exceptions or deviations (if none, state full compliance)
-   - Reference applicable standards and regulations
-
-Write with technical depth and specificity. Reference the contract requirements provided and tailor the approach accordingly."""),
-
-            (4, "Management & Staffing Plan", f"""Generate a comprehensive Management & Staffing Plan section. TARGET LENGTH: 1,500-1,800 words.
-
-1. PROJECT MANAGEMENT APPROACH (400-500 words)
-   Describe the management methodology in detail:
-   - Project management framework (Agile, Waterfall, Hybrid - justify the choice)
-   - Governance structure and decision-making processes
-   - Communication plan: frequency, methods, stakeholders, escalation procedures
-   - Status reporting: format, frequency, distribution
-   - Issue and risk management processes
-   - Change control procedures
-   - Quality management integration
-   - Tools and systems for project management
-
-2. ORGANIZATIONAL STRUCTURE (300-400 words)
-   Describe the project organization:
-   - Organizational chart description (describe hierarchy and relationships)
-   - Reporting relationships and lines of authority
-   - Interface with agency personnel
-   - Subcontractor management structure (if applicable)
-   - Corporate support and oversight
-
-3. KEY PERSONNEL (500-600 words)
-   Provide detailed descriptions of key team members:
-{team_summary}
-
-   For each key person, include:
-   - Name and proposed role
-   - Relevant qualifications and certifications
-   - Years of experience in similar roles
-   - Specific relevant project experience
-   - Percentage of time dedicated to this contract
-   - Backup/succession plan
-
-   If team members are not yet identified, provide detailed position descriptions with required qualifications.
-
-4. STAFFING PLAN AND RESOURCE ALLOCATION (300-400 words)
-   - Total staffing levels by phase and labor category
-   - Full-time equivalent (FTE) breakdown
-   - Skill mix and expertise areas
-   - Recruitment and retention strategies
-   - Training and professional development
-   - Contingency staffing plans
-   - Ramp-up and ramp-down approach
-
-Write with specificity about roles, responsibilities, and management processes."""),
-
-            (5, "Corporate Experience & Past Performance", f"""Generate a comprehensive Corporate Experience & Past Performance section. TARGET LENGTH: 1,500-1,800 words.
-
-1. CORPORATE OVERVIEW (300-400 words)
-   Provide a compelling company profile:
-   - Company history and founding
-   - Mission and core values
-   - Areas of expertise and specialization
-   - Geographic presence and capabilities
-   - Key differentiators in the market
-   - Awards, recognitions, and achievements
-   - Growth trajectory and stability indicators
-
-2. CORE COMPETENCIES (200-300 words)
-   Detail the company's core capabilities:
-   - Technical competencies relevant to this contract
-   - Management and operational capabilities
-   - Quality assurance expertise
-   - Innovation and continuous improvement track record
-
-3. PAST PERFORMANCE EXAMPLES (800-1,000 words)
-   Provide 3-4 detailed past performance references. For each, include:
-
-   PAST PERFORMANCE EXAMPLE 1:
-   - Contract Name/Title: [Name or description]
-   - Contracting Agency/Client: [Agency name]
-   - Contract Number: [TO BE PROVIDED]
-   - Contract Type: [FFP/T&M/Cost-Plus]
-   - Contract Value: $[Amount]
-   - Period of Performance: [Start Date] to [End Date]
-   - Point of Contact: [Name, Title, Phone, Email - TO BE PROVIDED]
-   - Scope of Work: [Detailed description of work performed]
-   - Key Accomplishments: [Specific achievements, metrics, outcomes]
-   - Relevance to Current Solicitation: [Explain how this experience applies]
-
-   [Repeat structure for Examples 2, 3, and 4]
-
-   Base these on the capability statement provided. Use realistic placeholders where specific data is not available.
-
-4. RELEVANCE MAPPING (200-300 words)
-   - Summarize how past experience directly qualifies the company for this contract
-   - Identify lessons learned and how they will be applied
-   - Demonstrate pattern of successful performance
-
-Write with confidence and specificity. Make the past performance compelling and relevant."""),
-
-            (6, "Quality Assurance, Risk Management & Small Business Participation", f"""Generate a comprehensive section covering Quality Assurance, Risk Management, and Small Business Participation. TARGET LENGTH: 1,400-1,700 words.
-
-1. QUALITY ASSURANCE AND QUALITY CONTROL (500-600 words)
-   Describe a robust QA/QC program:
-   
-   QA/QC PHILOSOPHY AND APPROACH:
-   - Quality management philosophy and commitment
-   - Quality management system description (ISO 9001 or equivalent)
-   - Continuous improvement methodology
-   
-   QUALITY CONTROL PROCEDURES:
-   - Inspection and testing protocols
-   - Documentation and record-keeping requirements
-   - Non-conformance identification and correction
-   - Root cause analysis procedures
-   
-   QUALITY ASSURANCE ACTIVITIES:
-   - Quality audits and reviews (internal and external)
-   - Performance metrics and KPIs
-   - Customer satisfaction measurement
-   - Corrective and preventive action processes
-   
-   QUALITY PERSONNEL:
-   - Quality manager role and responsibilities
-   - Quality team structure
-   - Training and certification requirements
-
-2. RISK MANAGEMENT (500-600 words)
-   Present a comprehensive risk management approach:
-   
-   RISK MANAGEMENT METHODOLOGY:
-   - Risk identification process
-   - Risk assessment and prioritization criteria
-   - Risk monitoring and reporting procedures
-   
-   KEY RISKS AND MITIGATION STRATEGIES:
-   Identify 5-7 specific risks relevant to this contract:
-   
-   Risk 1: [Technical/Schedule/Cost/Performance Risk]
-   - Description: [Detailed description]
-   - Likelihood: [High/Medium/Low]
-   - Impact: [High/Medium/Low]
-   - Mitigation Strategy: [Specific actions to reduce risk]
-   - Contingency Plan: [Actions if risk materializes]
-   
-   [Continue for additional risks]
-   
-   RISK REGISTER AND TRACKING:
-   - Risk register maintenance
-   - Regular risk reviews
-   - Escalation procedures
-
-3. SMALL BUSINESS PARTICIPATION PLAN (400-500 words)
-   If applicable, describe small business participation:
-   
-   SMALL BUSINESS SUBCONTRACTING GOALS:
-   - Overall small business goal: [Percentage]
-   - Small Disadvantaged Business: [Percentage]
-   - Woman-Owned Small Business: [Percentage]
-   - HUBZone Small Business: [Percentage]
-   - Veteran-Owned Small Business: [Percentage]
-   - Service-Disabled Veteran-Owned: [Percentage]
-   
-   SUBCONTRACTING APPROACH:
-   - Identification of subcontracting opportunities
-   - Outreach and recruitment of small business partners
-   - Mentor-protégé relationships (if applicable)
-   - Small business development and capacity building
-   
-   MONITORING AND REPORTING:
-   - Tracking mechanisms for small business participation
-   - Reporting requirements and frequency
-   - Good faith effort documentation
-
-Write with specificity and demonstrate commitment to quality and risk management."""),
-
-            (7, "Price/Cost Proposal (High-Level Draft)", f"""Generate a comprehensive Price/Cost Proposal section. TARGET LENGTH: 1,000-1,200 words.
-
-IMPORTANT DISCLAIMER (Include at the top):
-"DRAFT PRICING NOTICE: All prices, rates, and cost estimates in this section are preliminary draft values for internal review purposes only. These figures are subject to adjustment, validation, and formal approval before any official submission. This is NOT a final pricing commitment or binding offer."
-
-1. PRICING SUMMARY AND TOTAL PRICE (200-250 words)
-   Present the overall pricing structure:
-   
-{pricing_summary}
-
-   TOTAL PROPOSED PRICE: $[Total Amount] (DRAFT ESTIMATE)
-   
-   Provide a brief narrative explaining the pricing approach and how it represents best value to the government.
-
-2. DETAILED COST BREAKDOWN (300-400 words)
-   
-   DIRECT LABOR COSTS:
-   - Labor categories, hours, and rates
-   - Basis for labor estimates
-   - Labor escalation factors (if multi-year)
-   
-   MATERIALS AND EQUIPMENT:
-   - Direct materials costs
-   - Equipment purchases or rentals
-   - Software licenses
-   
-   OTHER DIRECT COSTS (ODCs):
-   - Travel costs (trips, per diem, transportation)
-   - Subcontractor costs
-   - Other allowable direct costs
-   
-   INDIRECT COSTS:
-   - Fringe benefits rate and basis
-   - Overhead rate and basis
-   - General & Administrative (G&A) rate and basis
-   
-   PROFIT/FEE:
-   - Proposed profit percentage
-   - Basis for profit determination
-
-3. PRICING ASSUMPTIONS AND BASIS OF ESTIMATE (250-300 words)
-   Document key assumptions:
-   - Scope assumptions
-   - Schedule assumptions
-   - Labor productivity assumptions
-   - Material pricing assumptions
-   - Inflation/escalation assumptions
-   - Government-furnished property/information assumptions
-   
-   BASIS OF ESTIMATE:
-   - Historical data used
-   - Vendor quotes obtained
-   - Engineering estimates
-   - Analogous pricing references
-
-4. VALUE PROPOSITION AND COST REALISM (200-250 words)
-   Explain why this pricing represents best value:
-   - Cost-effectiveness compared to alternatives
-   - Efficiency measures incorporated
-   - Value-added services included
-   - Total cost of ownership considerations
-   - Return on investment for the agency
-
-Mark all figures as DRAFT/ESTIMATED. Present pricing professionally and transparently."""),
-
-            (8, "Attachments & Supporting Documentation Index", f"""Generate a comprehensive Attachments & Supporting Documentation Index section. TARGET LENGTH: 600-800 words.
-
-1. ATTACHMENT INDEX AND DESCRIPTIONS
-   List all attachments with detailed descriptions:
-
-   ATTACHMENT A: CAPABILITY STATEMENT
-   - Description: Comprehensive overview of company capabilities, past performance, and qualifications
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT B: KEY PERSONNEL RESUMES
-   - Description: Detailed resumes for all key personnel identified in the Management Plan
-   - Contents: [List names and positions]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT C: PAST PERFORMANCE QUESTIONNAIRES (PPQs)
-   - Description: Completed PPQs from references for contracts cited in Past Performance section
-   - Number of PPQs: [Number]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT D: CERTIFICATIONS AND LICENSES
-   - Description: Copies of relevant professional certifications, business licenses, and registrations
-   - Contents: [List specific certifications]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT E: TECHNICAL DIAGRAMS AND CHARTS
-   - Description: Visual representations of technical approach, organizational structure, and project schedule
-   - Contents: [List specific diagrams]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT F: SUBCONTRACTOR LETTERS OF COMMITMENT
-   - Description: Letters from subcontractors confirming participation and commitment
-   - Number of Letters: [Number]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT G: FINANCIAL STATEMENTS
-   - Description: Audited financial statements demonstrating financial capability
-   - Years Covered: [Years]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT H: INSURANCE CERTIFICATES
-   - Description: Certificates of insurance for required coverage types
-   - Coverage Types: [List types]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-
-2. DOCUMENT PREPARATION CHECKLIST
-   - List of all required documents per solicitation instructions
-   - Format requirements (page limits, font, margins)
-   - Electronic submission requirements
-   - Hard copy requirements (if applicable)
-   - Binding and packaging instructions
-
-3. SUBMISSION INSTRUCTIONS AND NOTES
-   - Submission deadline and time zone
-   - Submission method (electronic portal, email, physical delivery)
-   - Required number of copies
-   - Marking and labeling requirements
-   - Points of contact for submission questions
-
-This section serves as a roadmap for completing the proposal package.""")
-        ]
-        
-        # Generate all 8 sections in parallel with progress events
-        sections = {}
-        completed_sections = []
-        
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            future_to_section = {
-                executor.submit(generate_section, num, name, prompt): (num, name)
-                for num, name, prompt in section_prompts
-            }
-            
-            for future in as_completed(future_to_section):
-                section_num, section_name = future_to_section[future]
-                try:
-                    content = future.result()
-                    sections[section_num] = {
-                        'name': section_name,
-                        'content': content
-                    }
-                    completed_sections.append(section_num)
-                    logging.info(f"✓ Generated Section {section_num}: {section_name}")
-                    
-                    # Emit section_completed event for SSE
-                    add_job_event(job_id, 'section_completed', {
-                        'section_num': section_num,
-                        'section_name': section_name,
-                        'completed_count': len(completed_sections),
-                        'total_sections': 8
-                    })
-                    
-                    # Update job with completed sections list
-                    update_proposal_job(job_id, sections_completed=completed_sections.copy())
-                    
-                except Exception as e:
-                    logging.error(f"Error in section {section_num}: {e}")
-                    sections[section_num] = {
-                        'name': section_name,
-                        'content': f"[Error generating this section: {str(e)}]"
-                    }
-                    completed_sections.append(section_num)
-                    
-                    # Emit section_error event
-                    add_job_event(job_id, 'section_error', {
-                        'section_num': section_num,
-                        'section_name': section_name,
-                        'error': str(e)
-                    })
-        
-        # Order sections 1-8
-        ordered_sections = [sections.get(i, {'name': f'Section {i}', 'content': '[Not generated]'}) for i in range(1, 9)]
-        
-        # Build the full proposal document
-        disclaimer = """
-================================================================================
-                    DRAFT - FOR INTERNAL REVIEW ONLY
-================================================================================
-
-DISCLAIMER - DRAFT DOCUMENT
-
-This document is an automatically generated draft proposal produced by an 
-AI-assisted tool. It is NOT a final, complete, or legally binding offer. 
-The content may be incomplete, inaccurate, or inconsistent. It MUST be 
-thoroughly reviewed, edited, and approved by qualified human personnel 
-before being used for any official submission or external communication.
-
-================================================================================
-"""
-        
-        full_proposal = disclaimer + "\n\n"
-        for i, section in enumerate(ordered_sections, 1):
-            full_proposal += f"\n\n{'='*80}\nSECTION {i}: {section['name'].upper()}\n{'='*80}\n\n"
-            full_proposal += section['content']
-        
-        # Add instructions at the end
-        instructions = """
-
-================================================================================
-                    INSTRUCTIONS FOR USING THIS DRAFT
-================================================================================
-
-This AI-generated draft proposal requires careful review and refinement before 
-any official use. Please follow these steps:
-
-1. READ EACH SECTION CAREFULLY
-   - Review all 8 sections for accuracy and completeness
-   - Verify all facts, figures, and claims
-
-2. CORRECT AND REFINE
-   - Replace all placeholders marked with [brackets]
-   - Insert missing details and specific data
-   - Validate all pricing and compliance statements
-   - Adjust language to match your company's voice
-
-3. VERIFY COMPLIANCE
-   - Check alignment with actual solicitation instructions
-   - Ensure all evaluation criteria are addressed
-   - Verify format requirements are met
-
-4. INTERNAL APPROVAL
-   - Obtain necessary legal/compliance approvals
-   - Get management sign-off on pricing
-   - Verify technical accuracy with subject matter experts
-
-5. FINALIZE FOR SUBMISSION
-   - Download and edit in your word processor
-   - Apply your company's proposal template
-   - Perform final compliance check
-   - Submit before the deadline
-
-================================================================================
-"""
-        full_proposal += instructions
-        
-        # Save the generated proposal to the draft
-        draft_ref.update({
-            'generated_proposal': {
-                'sections': ordered_sections,
-                'full_text': full_proposal,
-                'generated_at': datetime.now().isoformat(),
-                'status': 'draft'
-            }
-        })
-        
-        # Update job with final results
-        update_proposal_job(
-            job_id,
-            status='completed',
-            sections=sections,
-            full_proposal=full_proposal
-        )
-        
-        # Emit done event with final payload
-        add_job_event(job_id, 'done', {
-            'sections': ordered_sections,
-            'full_proposal': full_proposal,
-            'total_sections': len(ordered_sections)
-        })
-        
-        logging.info(f"Proposal generation job {job_id} completed successfully")
-        
-    except Exception as e:
-        logging.error(f"Error in proposal generation job {job_id}: {e}", exc_info=True)
-        update_proposal_job(job_id, status='error', error=str(e))
-        add_job_event(job_id, 'error', {'message': str(e)})
-
-
+# NOTE: The run_proposal_generation_job function has been moved to proposal_worker.py
+# This decouples long-running GPT-4 calls from Gunicorn HTTP workers to prevent
+# worker timeouts and memory exhaustion under production load.
+# See proposal_worker.py for the background worker implementation.
 @app.route('/api/generate_proposal_sections/events/<job_id>')
 def proposal_generation_events(job_id):
     """SSE endpoint for streaming proposal generation progress"""
