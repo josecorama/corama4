@@ -8,28 +8,28 @@ const teamMembers = [
     role: 'Co-Founder',
     description: 'Visionary entrepreneur dedicated to empowering small businesses through innovative AI-powered solutions for government contracting.',
     imageUrl: '/static/app/about/adrian2.png',
-    linkedinUrl: '#'
+    linkedinUrl: 'https://www.linkedin.com/in/adrian-rodriguez-corama/'
   },
   {
     name: 'Jaime Di Paulo',
     role: 'Co-Founder',
     description: "Technology leader driving Contract Radar Maximizer's AI and machine learning innovations to transform the government contracting landscape.",
     imageUrl: '/static/app/about/jaime2.png',
-    linkedinUrl: '#'
+    linkedinUrl: 'https://www.linkedin.com/in/jaime-di-paulo/'
   },
   {
     name: 'Mario Ornelas',
     role: 'AI Software Engineer',
     description: "Developing the intelligent systems that power Contract Radar Maximizer's next-generation automation, analytics, and AI-driven decision tools.",
     imageUrl: '/static/app/about/mario2.png',
-    linkedinUrl: '#'
+    linkedinUrl: 'https://www.linkedin.com/in/mario-ornelas/'
   },
   {
     name: 'Armando Delgado',
     role: 'Product Engineer',
     description: 'Experience-focused engineer designing secure and intuitive user interfaces by combining UI/UX and cybersecurity backgrounds.',
     imageUrl: '/static/app/about/armando2.png',
-    linkedinUrl: '#'
+    linkedinUrl: 'https://www.linkedin.com/in/armando-delgado/'
   }
 ]
 
@@ -189,20 +189,22 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
           {role}
         </div>
 
-        {/* Description */}
-        <p
-          className="text-xs leading-relaxed font-medium mb-5"
-          style={{ color: '#0B2C48' }}
-        >
-          {description}
-        </p>
+        {/* Description - flex-1 to take remaining space and push button to bottom */}
+        <div className="flex-1 flex items-start">
+          <p
+            className="text-xs leading-relaxed font-medium"
+            style={{ color: '#0B2C48' }}
+          >
+            {description}
+          </p>
+        </div>
 
-        {/* LinkedIn button */}
+        {/* LinkedIn button - always at bottom */}
         <a
           href={linkedinUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-auto mb-5 flex items-center justify-center space-x-2 py-2.5 px-5 rounded-xl text-sm font-semibold w-full max-w-[200px] transition-all duration-300 hover:scale-105"
+          className="mb-5 flex items-center justify-center space-x-2 py-2.5 px-5 rounded-xl text-sm font-semibold w-full max-w-[200px] transition-all duration-300 hover:scale-105 flex-shrink-0"
           style={{
             backgroundColor: 'white',
             color: '#0077B5',
