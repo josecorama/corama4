@@ -18,6 +18,7 @@ import ConfirmTerms from './pages/ConfirmTerms'
 import ResetPassword from './pages/ResetPassword'
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import FAQ from './pages/FAQ'
+import AboutUs from './pages/AboutUs'
 
 function App() {
   return (
@@ -41,8 +42,9 @@ function App() {
         <Route path="/contract-analysis" element={<ContractAnalysis />} />
         <Route path="/proposal-team" element={<ProposalTeam />} />
         <Route path="/proposal-summary" element={<ProposalSummary />} />
-        <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
-      </Routes>
+              <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
+              <Route path="/about" element={<AboutUs />} />
+            </Routes>
     </Router>
   )
 }
