@@ -1026,6 +1026,53 @@ def get_proposal_job(job_id: str) -> dict:
         logging.error(f"Failed to get proposal job {job_id}: {e}")
         return {}
 
+def get_proposal_job_lite(job_id: str) -> dict:
+    """Get minimal proposal job data from Firebase for SSE streaming.
+    
+    This lightweight version only fetches status and events to prevent OOM
+    in the SSE endpoint. Large payloads (sections, full_proposal) are excluded.
+    The frontend should use the /status endpoint to fetch full results after completion.
+    """
+    if not admin_initialized or not admin_db:
+        logging.error("Firebase not initialized - cannot get proposal job")
+        return {}
+    
+    try:
+        # Fetch only the fields we need for SSE streaming
+        job_ref = admin_db.reference(f'proposal_jobs/{job_id}')
+        
+        # Get status separately (lightweight)
+        status = job_ref.child('status').get()
+        if status is None:
+            return {}
+        
+        # Get events separately
+        events_dict = job_ref.child('events').get() or {}
+        
+        # Convert events from Firebase format to list format for SSE compatibility
+        events_list = []
+        if isinstance(events_dict, dict):
+            # Sort events by their Firebase push key (which is chronologically ordered)
+            for key in sorted(events_dict.keys()):
+                event = events_dict[key]
+                # Strip large payloads from events to keep SSE lightweight
+                if isinstance(event, dict) and 'data' in event:
+                    event_data = event.get('data', {})
+                    if isinstance(event_data, dict):
+                        # Remove large fields from event data
+                        event_data.pop('full_proposal', None)
+                        event_data.pop('sections', None)
+                        event['data'] = event_data
+                events_list.append(event)
+        
+        return {
+            'status': status,
+            'events': events_list
+        }
+    except Exception as e:
+        logging.error(f"Failed to get proposal job lite {job_id}: {e}")
+        return {}
+
 def cleanup_old_jobs():
     """Remove jobs older than 1 hour from Firebase"""
     if not admin_initialized or not admin_db:
@@ -13933,13 +13980,14 @@ def proposal_generation_events(job_id):
         start_time = time_module.time()
         
         while True:
-            job = get_proposal_job(job_id)
+            # Use lightweight version to prevent OOM - only fetches status and events
+            job = get_proposal_job_lite(job_id)
             
             if not job:
                 yield f"event: error\ndata: {json.dumps({'message': 'Job not found'})}\n\n"
                 break
             
-            # Send any new events
+            # Send any new events (large payloads already stripped by get_proposal_job_lite)
             events = job.get('events', [])
             while last_event_index < len(events):
                 event = events[last_event_index]

@@ -883,11 +883,11 @@ any official use. Please follow these steps:
         # Mark job as completed
         complete_job(db, job_id, full_proposal, ordered_sections)
         
-        # Emit done event
+        # Emit done event - IMPORTANT: Do NOT include large payloads (sections, full_proposal)
+        # to prevent OOM in the SSE endpoint. Frontend fetches results via /status endpoint.
         add_event(db, job_id, 'done', {
-            'sections': ordered_sections,
-            'full_proposal': full_proposal,
-            'total_sections': len(ordered_sections)
+            'total_sections': len(ordered_sections),
+            'message': 'Proposal generation completed successfully'
         }, event_seq)
         
         logger.info(f"Job {job_id} completed successfully with {len(ordered_sections)} sections")

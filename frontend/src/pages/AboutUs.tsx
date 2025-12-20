@@ -9,28 +9,28 @@ const teamMembers = [
     role: 'Co-Founder',
     description: 'Visionary entrepreneur dedicated to empowering small businesses through innovative AI-powered solutions for government contracting.',
     imageUrl: '/static/app/about/adrian2.png',
-    linkedinUrl: 'https://www.linkedin.com/in/adrian-rodriguez-corama/'
+    linkedinUrl: 'https://www.linkedin.com/in/adrianerodriguez/'
   },
   {
     name: 'Jaime Di Paulo',
     role: 'Co-Founder',
     description: "Technology leader driving Contract Radar Maximizer's AI and machine learning innovations to transform the government contracting landscape.",
     imageUrl: '/static/app/about/jaime2.png',
-    linkedinUrl: 'https://www.linkedin.com/in/jaime-di-paulo/'
+    linkedinUrl: 'https://www.linkedin.com/in/jaime-di-paulo-zozaya-738a7217/'
   },
   {
     name: 'Mario Ornelas',
     role: 'AI Software Engineer',
     description: "Developing the intelligent systems that power Contract Radar Maximizer's next-generation automation, analytics, and AI-driven decision tools.",
     imageUrl: '/static/app/about/mario2.png',
-    linkedinUrl: 'https://www.linkedin.com/in/mario-ornelas/'
+    linkedinUrl: 'https://www.linkedin.com/in/mario-adrian-ornelas-cortes-724589304'
   },
   {
     name: 'Armando Delgado',
     role: 'Product Engineer',
     description: 'Experience-focused engineer designing secure and intuitive user interfaces by combining UI/UX and cybersecurity backgrounds.',
     imageUrl: '/static/app/about/armando2.png',
-    linkedinUrl: 'https://www.linkedin.com/in/armando-delgado/'
+    linkedinUrl: 'https://www.linkedin.com/in/jos%C3%A9-armando-delgado-l%C3%B3pez-00a993315'
   }
 ]
 
