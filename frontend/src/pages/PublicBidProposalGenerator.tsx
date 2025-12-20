@@ -161,106 +161,97 @@ const PublicBidProposalGenerator = () => {
     }
   }
 
-  // Ref for EventSource cleanup
-  const eventSourceRef = useRef<EventSource | null>(null)
+  // Ref for polling interval cleanup
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Helper function to listen to SSE events for proposal generation
-  const listenToProposalEvents = (jobId: string) => {
-    // Close any existing EventSource
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
+  // Helper function to poll job status for proposal generation progress
+  const pollProposalStatus = (jobId: string) => {
+    // Clear any existing polling interval
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current)
     }
 
-    const eventsUrl = api.getProposalEventsUrl(jobId)
-    const eventSource = new EventSource(eventsUrl)
-    eventSourceRef.current = eventSource
+    // Poll every 2.5 seconds for progress updates
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResult = await api.getProposalJobStatus(jobId)
+        
+        if (!statusResult.success) {
+          // Job not found or error fetching
+          clearInterval(pollInterval)
+          pollingIntervalRef.current = null
+          setError(statusResult.error || 'Failed to get job status')
+          setSectionStatuses(Array(8).fill('error'))
+          setProgressText('Error generating proposal')
+          setIsGenerating(false)
+          return
+        }
 
-    eventSource.addEventListener('section_completed', (event) => {
-      const data = JSON.parse(event.data)
-      const sectionNum = data.section_num // 1-indexed from backend
-      const sectionIndex = sectionNum - 1 // Convert to 0-indexed for array
-      
-      // Update section to completed
-      setSectionProgress(prev => {
-        const newProgress = [...prev]
-        newProgress[sectionIndex] = 100
-        return newProgress
-      })
-      setSectionStatuses(prev => {
-        const newStatuses = [...prev]
-        newStatuses[sectionIndex] = 'completed'
-        return newStatuses
-      })
-      
-      setProgressText(`${data.completed_count}/${data.total_sections} sections complete`)
-    })
+        // Update section progress based on sections_completed array
+        const sectionsCompleted = statusResult.sections_completed || []
+        const totalSections = statusResult.sections_total || 8
+        
+        // Update UI for completed sections
+        setSectionStatuses(prev => {
+          const newStatuses = [...prev]
+          sectionsCompleted.forEach((sectionNum: number) => {
+            const sectionIndex = sectionNum - 1 // Convert 1-indexed to 0-indexed
+            if (sectionIndex >= 0 && sectionIndex < 8) {
+              newStatuses[sectionIndex] = 'completed'
+            }
+          })
+          return newStatuses
+        })
+        
+        setSectionProgress(prev => {
+          const newProgress = [...prev]
+          sectionsCompleted.forEach((sectionNum: number) => {
+            const sectionIndex = sectionNum - 1
+            if (sectionIndex >= 0 && sectionIndex < 8) {
+              newProgress[sectionIndex] = 100
+            }
+          })
+          return newProgress
+        })
+        
+        setProgressText(`${sectionsCompleted.length}/${totalSections} sections complete`)
 
-    eventSource.addEventListener('section_error', (event) => {
-      const data = JSON.parse(event.data)
-      const sectionNum = data.section_num
-      const sectionIndex = sectionNum - 1
-      
-      // Update section to error
-      setSectionStatuses(prev => {
-        const newStatuses = [...prev]
-        newStatuses[sectionIndex] = 'error'
-        return newStatuses
-      })
-    })
-
-    eventSource.addEventListener('done', async () => {
-      eventSource.close()
-      eventSourceRef.current = null
-      
-      // Fetch final job status to get full_proposal
-      const statusResult = await api.getProposalJobStatus(jobId)
-      
-      if (statusResult.success && statusResult.full_proposal) {
-        setFullProposal(statusResult.full_proposal)
-      }
-      
-      setGenerationComplete(true)
-      setProgressText('All 8 sections generated successfully!')
-      setIsGenerating(false)
-    })
-
-    eventSource.addEventListener('error', (event) => {
-      // Check if this is a custom error event with data
-      if (event instanceof MessageEvent && event.data) {
-        const data = JSON.parse(event.data)
-        setError(data.message || 'Error during generation')
-      }
-      eventSource.close()
-      eventSourceRef.current = null
-      setSectionStatuses(Array(8).fill('error'))
-      setProgressText('Error generating proposal')
-      setIsGenerating(false)
-    })
-
-    eventSource.onerror = () => {
-      // Connection error - try to get status from API
-      eventSource.close()
-      eventSourceRef.current = null
-      
-      // Check job status as fallback
-      api.getProposalJobStatus(jobId).then(statusResult => {
-        if (statusResult.status === 'completed' && statusResult.full_proposal) {
-          // Job completed, update UI
-          setFullProposal(statusResult.full_proposal)
+        // Check if job is completed
+        if (statusResult.status === 'completed') {
+          clearInterval(pollInterval)
+          pollingIntervalRef.current = null
+          
+          if (statusResult.full_proposal) {
+            setFullProposal(statusResult.full_proposal)
+          }
+          
           setGenerationComplete(true)
           setSectionStatuses(Array(8).fill('completed'))
           setSectionProgress(Array(8).fill(100))
           setProgressText('All 8 sections generated successfully!')
           setIsGenerating(false)
-        } else if (statusResult.status === 'error') {
+          return
+        }
+
+        // Check if job failed
+        if (statusResult.status === 'error') {
+          clearInterval(pollInterval)
+          pollingIntervalRef.current = null
           setError(statusResult.error || 'Generation failed')
           setSectionStatuses(Array(8).fill('error'))
           setProgressText('Error generating proposal')
           setIsGenerating(false)
+          return
         }
-        // If still running, the connection just dropped - user can check status manually
-      })
-    }
+
+        // Job still running, continue polling
+      } catch (err) {
+        console.error('Error polling job status:', err)
+        // Don't stop polling on network errors, just log and continue
+      }
+    }, 2500) // Poll every 2.5 seconds
+
+    pollingIntervalRef.current = pollInterval
   }
 
   // Initialize draft and generate proposal on mount
@@ -316,8 +307,8 @@ const PublicBidProposalGenerator = () => {
           throw new Error(generateResult.error || 'Failed to start proposal generation')
         }
 
-        // Step 3: Listen to SSE events for realtime progress updates
-        listenToProposalEvents(generateResult.job_id)
+        // Step 3: Start polling for progress updates (replaces SSE to avoid Gunicorn timeouts)
+        pollProposalStatus(generateResult.job_id)
 
       } catch (err) {
         console.error('Error generating proposal:', err)
@@ -331,10 +322,10 @@ const PublicBidProposalGenerator = () => {
 
     initializeAndGenerate()
     
-    // Cleanup EventSource on unmount
+    // Cleanup polling interval on unmount
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
       }
     }
   }, [state])
@@ -361,8 +352,8 @@ const PublicBidProposalGenerator = () => {
         throw new Error(generateResult.error || 'Failed to start proposal regeneration')
       }
 
-      // Listen to SSE events for realtime progress updates
-      listenToProposalEvents(generateResult.job_id)
+      // Start polling for progress updates (replaces SSE to avoid Gunicorn timeouts)
+      pollProposalStatus(generateResult.job_id)
 
     } catch (err) {
       console.error('Error regenerating proposal:', err)
