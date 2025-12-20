@@ -571,8 +571,8 @@ const CapabilityBuilder = () => {
 
   return (
     <div className="min-h-screen bg-corama-dark">
-      {/* Thinking popup for data extraction */}
-      <ThinkingPopup isVisible={uploading || importingUrl} />
+      {/* Extracting popup for data extraction */}
+      <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
       
       {/* Header spans full width at top */}
       <Header credits={5} />
