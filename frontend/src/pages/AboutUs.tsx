@@ -223,12 +223,12 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
 
 const AboutUs = () => {
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#192C46' }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#192c46' }}>
       <Header credits={5} />
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden" style={{ backgroundColor: '#192c46' }}>
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: '#192c46' }}>
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col" style={{ backgroundColor: '#192c46' }}>
             {/* Header Section */}
             <div className="w-full text-center mb-16">
               <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
