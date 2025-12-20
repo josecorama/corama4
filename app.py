@@ -11857,9 +11857,150 @@ def create_annotated_pdf(pdf_path, findings_with_coords, output_path):
         logging.error(f"Error creating annotated PDF: {e}")
         return False
 
+# ============================================================================
+# CONTRACT ANALYSIS ASYNC JOB ENDPOINTS
+# ============================================================================
+
+@app.route('/api/contract-analysis/jobs', methods=['POST'])
+def create_contract_analysis_job():
+    """Create a new contract analysis job (async processing via background worker)
+    
+    This endpoint:
+    1. Uploads the PDF to Firebase Storage
+    2. Creates a job entry in Firebase Realtime Database
+    3. Returns immediately with job_id for polling
+    
+    The background worker will pick up the job and process it.
+    """
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        user_id = session['user']['localId']
+        
+        # Check for uploaded file
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No PDF file uploaded'}), 400
+        
+        file = request.files['file']
+        contract_name = request.form.get('contractName', 'Contract')
+        
+        if file.filename == '':
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+        
+        if not file.filename.lower().endswith('.pdf'):
+            return jsonify({'success': False, 'error': 'Only PDF files are supported'}), 400
+        
+        # Generate unique job ID
+        import uuid
+        job_id = str(uuid.uuid4())
+        
+        # Upload PDF to Firebase Storage
+        storage_path = f'contract_analysis/{user_id}/{job_id}.pdf'
+        
+        try:
+            from firebase_admin import storage
+            bucket = storage.bucket()
+            blob = bucket.blob(storage_path)
+            blob.upload_from_file(file, content_type='application/pdf')
+            logging.info(f"Uploaded PDF to Firebase Storage: {storage_path}")
+        except Exception as upload_error:
+            logging.error(f"Failed to upload PDF to Firebase Storage: {upload_error}")
+            return jsonify({'success': False, 'error': 'Failed to upload PDF'}), 500
+        
+        # Create job entry in Firebase Realtime Database
+        job_data = {
+            'user_id': user_id,
+            'storage_path': storage_path,
+            'contract_name': contract_name,
+            'status': 'queued',
+            'created_at': time.time(),
+            'progress': 'Waiting for worker...'
+        }
+        
+        try:
+            job_ref = admin_database.reference(f'contract_analysis_jobs/{job_id}')
+            job_ref.set(job_data)
+            logging.info(f"Created contract analysis job: {job_id}")
+        except Exception as db_error:
+            logging.error(f"Failed to create job in Firebase: {db_error}")
+            return jsonify({'success': False, 'error': 'Failed to create job'}), 500
+        
+        return jsonify({
+            'success': True,
+            'job_id': job_id,
+            'message': 'Contract analysis job created. Poll /api/contract-analysis/jobs/{job_id} for status.'
+        })
+        
+    except Exception as e:
+        logging.error(f"Error creating contract analysis job: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/contract-analysis/jobs/<job_id>', methods=['GET'])
+def get_contract_analysis_job(job_id):
+    """Get the status and results of a contract analysis job"""
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        user_id = session['user']['localId']
+        
+        # Get job from Firebase
+        job_ref = admin_database.reference(f'contract_analysis_jobs/{job_id}')
+        job_data = job_ref.get()
+        
+        if not job_data:
+            return jsonify({'success': False, 'error': 'Job not found'}), 404
+        
+        # Verify job belongs to user
+        if job_data.get('user_id') != user_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        response = {
+            'success': True,
+            'job_id': job_id,
+            'status': job_data.get('status'),
+            'progress': job_data.get('progress'),
+            'created_at': job_data.get('created_at'),
+            'started_at': job_data.get('started_at'),
+            'completed_at': job_data.get('completed_at')
+        }
+        
+        # Include results if completed
+        if job_data.get('status') == 'completed':
+            result = job_data.get('result', {})
+            response['result'] = {
+                'markdown_summary': result.get('markdown_summary', ''),
+                'findings': result.get('findings', []),
+                'total_pages': result.get('total_pages', 0)
+            }
+        
+        # Include error if failed
+        if job_data.get('status') == 'error':
+            response['error'] = job_data.get('error')
+        
+        return jsonify(response)
+        
+    except Exception as e:
+        logging.error(f"Error getting contract analysis job: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# CONTRACT ANALYSIS SYNC ENDPOINT (Legacy - may timeout on large PDFs)
+# ============================================================================
+
 @app.route('/api/contract-analysis/findings', methods=['POST'])
 def contract_analysis_findings():
     """Generate AI findings from uploaded contract PDF for Contract Analysis page
+    
+    WARNING: This synchronous endpoint may timeout on large PDFs.
+    Consider using /api/contract-analysis/jobs for async processing.
     
     Returns structured findings with:
     - findings: Markdown text for display

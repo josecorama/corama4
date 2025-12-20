@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """
-Proposal Generation Background Worker
+Background Worker for Proposal Generation and Contract Analysis
 
 This worker runs as a separate process from the Flask application.
-It polls Firebase for queued proposal generation jobs and processes them
-with controlled concurrency (1 job at a time, 8 parallel sections per job).
+It polls Firebase for queued jobs and processes them with controlled concurrency.
+
+Supported job types:
+1. Proposal Generation (proposal_jobs) - 8 parallel sections per job
+2. Contract Analysis (contract_analysis_jobs) - PDF analysis with OpenAI
 
 This architecture prevents Gunicorn worker crashes by:
 1. Moving long-running GPT-4 calls out of HTTP request lifecycle
@@ -24,9 +27,19 @@ import time
 import uuid
 import logging
 import signal
+import tempfile
+import requests
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
+
+# PDF processing imports
+try:
+    import fitz  # PyMuPDF
+    PYMUPDF_AVAILABLE = True
+except ImportError:
+    PYMUPDF_AVAILABLE = False
+    logging.warning("PyMuPDF not available - contract analysis will be limited")
 
 # Load environment variables
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -384,6 +397,265 @@ Include:
     ]
 
 
+# ============================================================================
+# CONTRACT ANALYSIS JOB PROCESSING
+# ============================================================================
+
+def extract_text_with_pages_worker(pdf_path: str) -> list:
+    """Extract text from PDF with page information using PyMuPDF"""
+    if not PYMUPDF_AVAILABLE:
+        logger.error("PyMuPDF not available for PDF extraction")
+        return []
+    
+    pages_text = []
+    try:
+        doc = fitz.open(pdf_path)
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            text = page.get_text()
+            pages_text.append({
+                'page': page_num,
+                'text': text
+            })
+        doc.close()
+        logger.info(f"Extracted text from {len(pages_text)} pages")
+        return pages_text
+    except Exception as e:
+        logger.error(f"Error extracting PDF text: {e}")
+        return []
+
+
+def download_pdf_from_firebase(storage_path: str) -> str:
+    """Download PDF from Firebase Storage to a temp file"""
+    try:
+        from firebase_admin import storage
+        bucket = storage.bucket()
+        blob = bucket.blob(storage_path)
+        
+        # Create temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            tmp_path = tmp_file.name
+        
+        blob.download_to_filename(tmp_path)
+        logger.info(f"Downloaded PDF from Firebase: {storage_path} -> {tmp_path}")
+        return tmp_path
+    except Exception as e:
+        logger.error(f"Error downloading PDF from Firebase: {e}")
+        raise
+
+
+def process_contract_analysis_job(db, openai_client, job_id: str, job_data: dict):
+    """
+    Process a contract analysis job.
+    Downloads PDF, extracts text, calls OpenAI, and stores results.
+    """
+    logger.info(f"Processing contract analysis job {job_id}")
+    
+    try:
+        # Update job status to running
+        job_ref = db.reference(f'contract_analysis_jobs/{job_id}')
+        job_ref.update({
+            'status': 'running',
+            'started_at': time.time(),
+            'progress': 'Downloading PDF...'
+        })
+        
+        user_id = job_data.get('user_id')
+        storage_path = job_data.get('storage_path')
+        contract_name = job_data.get('contract_name', 'Contract')
+        
+        if not storage_path:
+            raise ValueError("No storage_path provided in job data")
+        
+        # Download PDF from Firebase Storage
+        job_ref.update({'progress': 'Extracting text from PDF...'})
+        tmp_path = download_pdf_from_firebase(storage_path)
+        
+        try:
+            # Extract text with page information
+            pages_text = extract_text_with_pages_worker(tmp_path)
+            
+            if not pages_text:
+                raise ValueError("Could not extract text from PDF. The document may be image-only or scanned.")
+            
+            # Combine text with page markers using per-page budgeting
+            total_pages = len(pages_text)
+            max_total_chars = 80000
+            chars_per_page = max_total_chars // total_pages if total_pages > 0 else max_total_chars
+            
+            combined_text = ""
+            for page_info in pages_text:
+                page_text = page_info['text']
+                if len(page_text) > chars_per_page:
+                    page_text = page_text[:chars_per_page] + "... [page truncated]"
+                combined_text += f"\n\n--- PAGE {page_info['page'] + 1} ---\n\n{page_text}"
+            
+            logger.info(f"Contract analysis: {total_pages} pages, {len(combined_text)} chars total")
+            
+            # Update progress
+            job_ref.update({'progress': 'Analyzing contract with AI...'})
+            
+            # Call OpenAI to analyze the contract
+            structured_prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights.
+
+CONTRACT NAME: {contract_name}
+
+CONTRACT DOCUMENT TEXT (with page markers):
+{combined_text}
+
+You must respond with a JSON object containing two parts:
+
+1. "markdown_summary": A comprehensive markdown-formatted analysis with these sections:
+   - **Contract Overview**: What this contract is about, issuing agency, scope of work
+   - **Key Requirements**: Main deliverables, qualifications, requirements
+   - **Important Deadlines**: Proposal due dates, performance periods, milestones
+   - **Compliance Requirements**: Certifications, registrations, SAM, NAICS codes, set-asides
+   - **Evaluation Criteria**: How proposals will be evaluated
+   - **Strategic Recommendations**: 3-5 actionable recommendations
+   - **Risk Assessment**: Potential risks or challenges
+
+2. "findings": An array of specific findings, each with:
+   - "id": Unique identifier (f1, f2, f3, etc.)
+   - "type": One of "overview", "requirement", "deadline", "compliance", "evaluation", "recommendation", "risk"
+   - "title": Short title (max 50 chars)
+   - "quote": EXACT text snippet from the contract (40-80 words) that supports this finding
+   - "page_hint": Page number where this quote appears (1-indexed)
+   - "rationale": Brief explanation of why this is important (1-2 sentences)
+   - "severity": "high", "medium", or "low"
+
+IMPORTANT: The "quote" field MUST contain exact text from the contract document.
+
+Respond ONLY with valid JSON, no other text."""
+
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contract analyst. Always respond with valid JSON only."},
+                    {"role": "user", "content": structured_prompt}
+                ],
+                max_tokens=4000,
+                temperature=0.3,
+                response_format={"type": "json_object"}
+            )
+            
+            ai_response = response.choices[0].message.content
+            
+            # Parse the JSON response
+            ai_response = ai_response.strip()
+            if '```' in ai_response:
+                parts = ai_response.split('```')
+                for part in parts:
+                    part = part.strip()
+                    if part.startswith('json'):
+                        part = part[4:].strip()
+                    if part.startswith('{'):
+                        ai_response = part
+                        break
+            
+            parsed_response = json.loads(ai_response)
+            
+            # Update job with results
+            job_ref.update({
+                'status': 'completed',
+                'completed_at': time.time(),
+                'progress': 'Complete',
+                'result': {
+                    'markdown_summary': parsed_response.get('markdown_summary', ''),
+                    'findings': parsed_response.get('findings', []),
+                    'total_pages': total_pages
+                }
+            })
+            
+            logger.info(f"Contract analysis job {job_id} completed successfully")
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+                
+    except Exception as e:
+        logger.error(f"Error processing contract analysis job {job_id}: {e}", exc_info=True)
+        try:
+            job_ref = db.reference(f'contract_analysis_jobs/{job_id}')
+            job_ref.update({
+                'status': 'error',
+                'error': str(e),
+                'failed_at': time.time()
+            })
+        except Exception as update_error:
+            logger.error(f"Failed to update job status: {update_error}")
+
+
+def claim_contract_analysis_job(db, job_id: str) -> bool:
+    """Attempt to claim a contract analysis job"""
+    job_ref = db.reference(f'contract_analysis_jobs/{job_id}')
+    
+    def claim_transaction(current_data):
+        if current_data is None:
+            return None
+        if current_data.get('status') != 'queued':
+            return None
+        lease_expires = current_data.get('lease_expires_at', 0)
+        if lease_expires > time.time():
+            return None
+        
+        current_data['status'] = 'running'
+        current_data['claimed_by'] = WORKER_ID
+        current_data['lease_expires_at'] = time.time() + LEASE_DURATION
+        current_data['started_at'] = time.time()
+        return current_data
+    
+    try:
+        result = job_ref.transaction(claim_transaction)
+        if result and result.get('claimed_by') == WORKER_ID:
+            logger.info(f"Successfully claimed contract analysis job {job_id}")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"Error claiming contract analysis job {job_id}: {e}")
+        return False
+
+
+def find_and_process_contract_analysis_jobs(db, openai_client):
+    """Find queued contract analysis jobs and process one"""
+    try:
+        jobs_ref = db.reference('contract_analysis_jobs')
+        all_jobs = jobs_ref.get() or {}
+        
+        for job_id, job_data in all_jobs.items():
+            if shutdown_requested:
+                break
+            
+            status = job_data.get('status')
+            
+            # Check for abandoned jobs
+            if status == 'running':
+                lease_expires = job_data.get('lease_expires_at', 0)
+                if lease_expires < time.time():
+                    logger.info(f"Found abandoned contract analysis job {job_id}, resetting to queued")
+                    jobs_ref.child(job_id).update({'status': 'queued'})
+                    status = 'queued'
+                else:
+                    continue
+            
+            if status != 'queued':
+                continue
+            
+            if claim_contract_analysis_job(db, job_id):
+                process_contract_analysis_job(db, openai_client, job_id, job_data)
+                return True
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"Error finding contract analysis jobs: {e}", exc_info=True)
+        return False
+
+
+# ============================================================================
+# PROPOSAL GENERATION JOB PROCESSING
+# ============================================================================
+
 def process_job(db, openai_client, job_id: str, job_data: dict):
     """
     Process a single proposal generation job.
@@ -686,15 +958,40 @@ def cleanup_stale_jobs(db):
         logger.error(f"Error cleaning up stale jobs: {e}")
 
 
+def cleanup_stale_contract_analysis_jobs(db):
+    """Clean up contract analysis jobs that have been running too long"""
+    try:
+        jobs_ref = db.reference('contract_analysis_jobs')
+        all_jobs = jobs_ref.get() or {}
+        
+        current_time = time.time()
+        stale_threshold = LEASE_DURATION * 2  # 20 minutes
+        
+        for job_id, job_data in all_jobs.items():
+            if job_data.get('status') == 'running':
+                started_at = job_data.get('started_at', 0)
+                if current_time - started_at > stale_threshold:
+                    logger.warning(f"Marking stale contract analysis job {job_id} as failed")
+                    jobs_ref.child(job_id).update({
+                        'status': 'error',
+                        'error': 'Worker timeout - job was abandoned',
+                        'failed_at': current_time
+                    })
+                    
+    except Exception as e:
+        logger.error(f"Error cleaning up stale contract analysis jobs: {e}")
+
+
 def main():
-    """Main worker loop"""
+    """Main worker loop - processes both proposal and contract analysis jobs"""
     global shutdown_requested
     
     # Set up signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     
-    logger.info(f"Starting proposal worker {WORKER_ID}")
+    logger.info(f"Starting background worker {WORKER_ID}")
+    logger.info("Supported job types: proposal_jobs, contract_analysis_jobs")
     
     # Initialize services
     try:
@@ -710,13 +1007,21 @@ def main():
     # Main loop
     while not shutdown_requested:
         try:
-            # Process one job if available
-            job_processed = find_and_process_jobs(db, openai_client)
+            job_processed = False
+            
+            # Try to process a proposal job first
+            if not job_processed:
+                job_processed = find_and_process_jobs(db, openai_client)
+            
+            # Try to process a contract analysis job
+            if not job_processed:
+                job_processed = find_and_process_contract_analysis_jobs(db, openai_client)
             
             # Periodically clean up stale jobs (every 10 iterations)
             cleanup_counter += 1
             if cleanup_counter >= 10:
                 cleanup_stale_jobs(db)
+                cleanup_stale_contract_analysis_jobs(db)
                 cleanup_counter = 0
             
             # If no job was processed, wait before polling again

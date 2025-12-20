@@ -100,7 +100,7 @@ const ContractAnalysis = () => {
   // New state for structured findings and click-to-navigate
   const [structuredFindings, setStructuredFindings] = useState<StructuredFinding[]>([])
   const [manifest, setManifest] = useState<FindingManifest>({})
-  const [annotatedPdfUrl, setAnnotatedPdfUrl] = useState<string | null>(null)
+  const [annotatedPdfUrl, _setAnnotatedPdfUrl] = useState<string | null>(null)
   const [activeFindingId, setActiveFindingId] = useState<string | null>(null)
   
   // Animation state for first checkmark - triggers when AI findings load
@@ -257,6 +257,19 @@ const ContractAnalysis = () => {
     event.preventDefault()
   }
 
+  // State for async job progress
+  const [jobProgress, setJobProgress] = useState<string>('')
+  const jobPollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (jobPollingRef.current) {
+        clearInterval(jobPollingRef.current)
+      }
+    }
+  }, [])
+
   const handleGenerateFindings = async () => {
     if (!pdfFile) {
       alert('Please upload a contract PDF first')
@@ -264,38 +277,99 @@ const ContractAnalysis = () => {
     }
 
     setIsGeneratingFindings(true)
+    setJobProgress('Uploading PDF...')
+    
     try {
-      // Call backend API to analyze the PDF
+      // Create async job for contract analysis
       const formData = new FormData()
       formData.append('file', pdfFile)
       formData.append('contractName', contractName)
       
-      const response = await api.generateContractAnalysis(formData)
+      const createResponse = await api.createContractAnalysisJob(formData)
       
-      if (response.success && response.findings) {
-        setAiFindings(response.findings)
-        
-        // Store structured findings and manifest for click-to-navigate
-        if (response.structured_findings) {
-          setStructuredFindings(response.structured_findings)
-        }
-        if (response.manifest) {
-          setManifest(response.manifest)
-        }
-        if (response.annotated_pdf_url) {
-          setAnnotatedPdfUrl(response.annotated_pdf_url)
-        }
-        
-        // Force Header to refresh credits
-        setHeaderKey(k => k + 1)
-      } else {
-        alert(response.error || 'Failed to generate AI findings. Please try again.')
+      if (!createResponse.success || !createResponse.job_id) {
+        throw new Error(createResponse.error || 'Failed to create analysis job')
       }
+      
+      const jobId = createResponse.job_id
+      setJobProgress('Processing contract...')
+      
+      // Poll for job completion
+      const pollJob = async (): Promise<void> => {
+        try {
+          const statusResponse = await api.getContractAnalysisJob(jobId)
+          
+          if (!statusResponse.success) {
+            throw new Error(statusResponse.error || 'Failed to get job status')
+          }
+          
+          // Update progress message
+          if (statusResponse.progress) {
+            setJobProgress(statusResponse.progress)
+          }
+          
+          if (statusResponse.status === 'completed') {
+            // Job completed successfully
+            if (jobPollingRef.current) {
+              clearInterval(jobPollingRef.current)
+              jobPollingRef.current = null
+            }
+            
+            const result = statusResponse.result
+            if (result) {
+              setAiFindings(result.markdown_summary || '')
+              
+              if (result.findings) {
+                setStructuredFindings(result.findings)
+                // Build manifest from findings
+                const newManifest: FindingManifest = {}
+                result.findings.forEach((finding: StructuredFinding) => {
+                  if (finding.coordinates && finding.coordinates.length > 0) {
+                    newManifest[finding.id] = finding.coordinates[0]
+                  }
+                })
+                setManifest(newManifest)
+              }
+            }
+            
+            // Force Header to refresh credits
+            setHeaderKey(k => k + 1)
+            setIsGeneratingFindings(false)
+            setJobProgress('')
+            
+          } else if (statusResponse.status === 'error') {
+            // Job failed
+            if (jobPollingRef.current) {
+              clearInterval(jobPollingRef.current)
+              jobPollingRef.current = null
+            }
+            throw new Error(statusResponse.error || 'Contract analysis failed')
+            
+          }
+          // If status is 'queued' or 'running', continue polling
+          
+        } catch (pollError) {
+          console.error('Error polling job:', pollError)
+          if (jobPollingRef.current) {
+            clearInterval(jobPollingRef.current)
+            jobPollingRef.current = null
+          }
+          setIsGeneratingFindings(false)
+          setJobProgress('')
+          alert(pollError instanceof Error ? pollError.message : 'Failed to get analysis results')
+        }
+      }
+      
+      // Start polling every 2 seconds
+      jobPollingRef.current = setInterval(pollJob, 2000)
+      // Also poll immediately
+      pollJob()
+      
     } catch (error) {
       console.error('Error generating findings:', error)
-      alert('Failed to generate AI findings. Please try again.')
-    } finally {
       setIsGeneratingFindings(false)
+      setJobProgress('')
+      alert(error instanceof Error ? error.message : 'Failed to generate AI findings. Please try again.')
     }
   }
 
@@ -481,11 +555,11 @@ const ContractAnalysis = () => {
                       </div>
                     )}
                   </div>
-                ): isGeneratingFindings ? (
-                  <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                    <InlineLoading text="Generating" size="large" />
-                  </div>
-                ) : (
+                                ): isGeneratingFindings ? (
+                                  <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                                    <InlineLoading text={jobProgress || 'Processing'} size="large" />
+                                  </div>
+                                ) : (
                   <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                     <img src={AIFindingsIcon} alt="Contract Insights" style={{ height: '356px' }} className="mb-3" />
                     <p className="text-gray-500 font-poppins text-sm">Upload a PDF to generate insights</p>

@@ -346,7 +346,72 @@ class ApiService {
     return res.json();
   }
 
-  // Contract Analysis - Generate AI findings from PDF
+  // Contract Analysis - Create async job for PDF analysis (recommended for large PDFs)
+  async createContractAnalysisJob(formData: FormData): Promise<{
+    success: boolean;
+    job_id?: string;
+    message?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/contract-analysis/jobs`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to create analysis job' }));
+      return { success: false, error: errorData.error || 'Failed to create analysis job' };
+    }
+    return res.json();
+  }
+
+  // Contract Analysis - Get job status and results
+  async getContractAnalysisJob(jobId: string): Promise<{
+    success: boolean;
+    job_id?: string;
+    status?: 'queued' | 'running' | 'completed' | 'error';
+    progress?: string;
+    created_at?: number;
+    started_at?: number;
+    completed_at?: number;
+    result?: {
+      markdown_summary: string;
+      findings: Array<{
+        id: string;
+        type: string;
+        title: string;
+        quote: string;
+        page_hint: number;
+        rationale: string;
+        severity?: string;
+        coordinates?: Array<{
+          page: number;
+          left: number;
+          top: number;
+          width: number;
+          height: number;
+        }>;
+      }>;
+      total_pages: number;
+    };
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/contract-analysis/jobs/${jobId}`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to get job status' }));
+      return { success: false, error: errorData.error || 'Failed to get job status' };
+    }
+    return res.json();
+  }
+
+  // Contract Analysis - Generate AI findings from PDF (sync - may timeout on large PDFs)
   async generateContractAnalysis(formData: FormData): Promise<{
     success: boolean;
     findings?: string;
