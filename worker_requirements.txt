@@ -1,11 +1,14 @@
-# Requirements for proposal_worker.py
+# Requirements for proposal_worker.py (handles both proposal generation and contract analysis)
 # Versions matched from main requirements.txt
 
 # Firebase Admin SDK for job queue and state management
 firebase-admin==6.5.0
 
-# OpenAI for GPT-4 proposal generation
+# OpenAI for GPT-4 proposal generation and contract analysis
 openai==1.35.13
+
+# PDF processing for contract analysis
+PyMuPDF==1.24.5
 
 # Environment variable loading
 python-dotenv==1.0.1
