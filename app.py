@@ -14547,7 +14547,7 @@ def directory_company_profile(user_id):
 
 # Serve React app - SPA routing
 # Public paths that don't require authentication (landing page and auth pages)
-REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'faq'}
+REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'faq', 'about-us'}
 
 # React page routes - these will be handled by the SPA
 REACT_PAGE_ROUTES = {
@@ -14555,7 +14555,8 @@ REACT_PAGE_ROUTES = {
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
     'proposal-summary', 'public-bid-proposal-generator', 'landing',
-    'login', 'signup', 'confirm-terms', 'reset-password', 'faq'
+    'login', 'signup', 'confirm-terms', 'reset-password', 'faq',
+    'about', 'about-us'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
