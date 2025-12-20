@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 // Team member data
 const teamMembers = [
@@ -221,21 +220,27 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
 }
 
 const AboutUsPublic = () => {
-  const navigate = useNavigate()
-
   return (
-    <div className="min-h-screen bg-black flex flex-col">
-      {/* Simple header with back button */}
-      <header className="w-full p-4 flex items-center">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-white hover:opacity-80 transition-opacity font-poppins"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 12H5M12 19l-7-7 7-7"/>
-          </svg>
-          <span>Back to Home</span>
-        </button>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#0b0b0e' }}>
+      {/* Header - Same as LandingPage */}
+      <header className="h-20 flex-shrink-0 backdrop-blur-sm z-50" style={{ backgroundColor: 'rgba(11, 11, 14, 0.9)' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2">
+            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" />
+          </a>
+          
+          <nav className="hidden md:flex items-center gap-4 lg:gap-8">
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
+            <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">Support</a>
+            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">FAQ</a>
+            <a href="/about-us" className="text-white font-poppins text-sm transition-colors">About Us</a>
+          </nav>
+          
+          <div className="flex items-center gap-2 sm:gap-4">
+            <a href="/login" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white" style={{ width: '96px' }}>Log In</a>
+            <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)', width: '96px' }}>Sign up</a>
+          </div>
+        </div>
       </header>
 
       {/* Main content */}
