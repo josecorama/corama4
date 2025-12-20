@@ -222,6 +222,22 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
 }
 
 const AboutUs = () => {
+  // Override body background color for this page only
+  useEffect(() => {
+    const originalBodyBg = document.body.style.backgroundColor
+    const originalHtmlBg = document.documentElement.style.backgroundColor
+    
+    // Set the page-specific background color
+    document.body.style.backgroundColor = '#192c46'
+    document.documentElement.style.backgroundColor = '#192c46'
+    
+    // Restore original background on unmount
+    return () => {
+      document.body.style.backgroundColor = originalBodyBg
+      document.documentElement.style.backgroundColor = originalHtmlBg
+    }
+  }, [])
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#192c46' }}>
       <Header credits={5} />
