@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react'
-import Header from '../components/Header'
-import Sidebar from '../components/Sidebar'
+import { useNavigate } from 'react-router-dom'
 
 // Team member data
 const teamMembers = [
@@ -219,43 +218,53 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
   )
 }
 
-const AboutUs = () => {
-  return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#192c46' }}>
-      <Header credits={5} />
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
-            {/* Header Section */}
-            <div className="w-full text-center mb-16">
-              <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
-                Meet the Team
-              </h2>
-              <p className="text-lg text-white max-w-3xl mx-auto font-light leading-relaxed font-poppins">
-                Meet the visionary leaders behind Contract Radar Maximizer's
-                mission to revolutionize government contracting for small businesses.
-              </p>
-            </div>
+const AboutUsPublic = () => {
+  const navigate = useNavigate()
 
-            {/* Team Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center">
-              {teamMembers.map((member) => (
-                <TeamMemberCard
-                  key={member.name}
-                  name={member.name}
-                  role={member.role}
-                  description={member.description}
-                  imageUrl={member.imageUrl}
-                  linkedinUrl={member.linkedinUrl}
-                />
-              ))}
-            </div>
-          </main>
+  return (
+    <div className="min-h-screen bg-black flex flex-col">
+      {/* Simple header with back button */}
+      <header className="w-full p-4 flex items-center">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-white hover:opacity-80 transition-opacity font-poppins"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          <span>Back to Home</span>
+        </button>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 p-3 sm:p-4 lg:p-12 flex flex-col items-center justify-center">
+        {/* Header Section */}
+        <div className="w-full text-center mb-16">
+          <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
+            Meet the Team
+          </h2>
+          <p className="text-lg text-white max-w-3xl mx-auto font-light leading-relaxed font-poppins">
+            Meet the visionary leaders behind Contract Radar Maximizer's
+            mission to revolutionize government contracting for small businesses.
+          </p>
         </div>
-      </div>
+
+        {/* Team Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center">
+          {teamMembers.map((member) => (
+            <TeamMemberCard
+              key={member.name}
+              name={member.name}
+              role={member.role}
+              description={member.description}
+              imageUrl={member.imageUrl}
+              linkedinUrl={member.linkedinUrl}
+            />
+          ))}
+        </div>
+      </main>
     </div>
   )
 }
 
-export default AboutUs
+export default AboutUsPublic

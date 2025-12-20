@@ -19,6 +19,7 @@ import ResetPassword from './pages/ResetPassword'
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import FAQ from './pages/FAQ'
 import AboutUs from './pages/AboutUs'
+import AboutUsPublic from './pages/AboutUsPublic'
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
         <Route path="/faq" element={<FAQ />} />
+        <Route path="/about-us" element={<AboutUsPublic />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/capability-builder" element={<CapabilityBuilder />} />
         <Route path="/top-five-contracts" element={<TopFiveContracts />} />
