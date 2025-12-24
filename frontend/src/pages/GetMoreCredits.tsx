@@ -149,7 +149,7 @@ const GetMoreCredits = () => {
               {creditPacks.map((pack, index) => (
                 <div
                   key={index}
-                  className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient hover:bg-white text-white hover:text-corama-dark border-2 border-transparent hover:border-corama-teal transition-all duration-200 flex flex-col h-full"
+                  className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient-original hover:bg-white text-white hover:text-corama-dark border-2 border-transparent hover:border-corama-teal transition-all duration-200 flex flex-col h-full"
                 >
                   <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400 group-hover:text-gray-600 text-center">
                     {pack.credits} Credits

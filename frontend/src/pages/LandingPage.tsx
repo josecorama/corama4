@@ -1,13 +1,324 @@
 import { ArrowRight, CheckCircle } from 'lucide-react'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
+
+interface ScrollFloatProps {
+  text: string
+  className?: string
+  animationDuration?: number
+  ease?: string
+  scrollStart?: string
+  scrollEnd?: string
+  stagger?: number
+}
+
+const ScrollFloat = ({ 
+  text, 
+  className = '',
+  animationDuration = 1,
+  ease = 'back.inOut(2)',
+  scrollStart = 'center bottom+=50%',
+  scrollEnd = 'bottom bottom-=40%',
+  stagger = 0.03
+}: ScrollFloatProps) => {
+  const containerRef = useRef<HTMLSpanElement>(null)
+
+  const splitText = useMemo(() => {
+    return text.split('').map((char, index) => (
+      <span className="scroll-float-char" key={index}>
+        {char === ' ' ? '\u00A0' : char}
+      </span>
+    ))
+  }, [text])
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const charElements = el.querySelectorAll('.scroll-float-char')
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        charElements,
+        {
+          willChange: 'opacity, transform',
+          opacity: 0,
+          yPercent: 120,
+          scaleY: 2.3,
+          scaleX: 0.7,
+          transformOrigin: '50% 0%'
+        },
+        {
+          duration: animationDuration,
+          ease: ease,
+          opacity: 1,
+          yPercent: 0,
+          scaleY: 1,
+          scaleX: 1,
+          stagger: stagger,
+          scrollTrigger: {
+            trigger: el,
+            start: scrollStart,
+            end: scrollEnd,
+            scrub: true
+          }
+        }
+      )
+    })
+
+    return () => ctx.revert()
+  }, [animationDuration, ease, scrollStart, scrollEnd, stagger])
+
+  return (
+    <span ref={containerRef} className={`scroll-float ${className}`}>
+      {splitText}
+    </span>
+  )
+}
+
+interface SmokyTextProps {
+  text: string
+  className?: string
+}
+
+const SmokyText = ({ text, className = '' }: SmokyTextProps) => {
+  const wrapperRef = useRef<HTMLSpanElement>(null)
+  const triggeredRef = useRef(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (triggeredRef.current) return
+      if (window.scrollY > 24) {
+        triggeredRef.current = true
+        window.removeEventListener('scroll', handleScroll)
+        
+        const wrapper = wrapperRef.current
+        if (!wrapper) return
+        
+        wrapper.classList.add('smoke-active')
+        
+        // Remove the class after animation completes to reset text
+        setTimeout(() => {
+          wrapper.classList.remove('smoke-active')
+        }, 4000)
+      }
+    }
+    
+    window.addEventListener('scroll', handleScroll)
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+    }
+  }, [])
+
+  // Split text into individual letter spans
+  const letters = text.split('').map((char, index) => {
+    if (char === ' ') {
+      return <span key={index}>&nbsp;</span>
+    }
+    return (
+      <span 
+        key={index} 
+        className="smoky-letter"
+        style={{ animationDelay: `${0.8 + index * 0.05}s` }}
+      >
+        {char}
+      </span>
+    )
+  })
+
+  return (
+    <span ref={wrapperRef} className={`smoky-text-wrapper ${className}`}>
+      {letters}
+    </span>
+  )
+}
+
+interface ParallaxSectionProps {
+  children: React.ReactNode
+}
+
+const ParallaxSection = ({ children }: ParallaxSectionProps) => {
+  const sectionRef = useRef<HTMLDivElement>(null)
+  const hasTriggeredRef = useRef(false)
+
+  useEffect(() => {
+    const section = sectionRef.current
+    if (!section) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasTriggeredRef.current) {
+            hasTriggeredRef.current = true
+            // Trigger a "kick" animation when entering viewport
+            section.style.setProperty('--parallax-x', '0.5')
+            section.style.setProperty('--parallax-y', '-0.3')
+            setTimeout(() => {
+              section.style.setProperty('--parallax-x', '-0.3')
+              section.style.setProperty('--parallax-y', '0.2')
+            }, 200)
+            setTimeout(() => {
+              section.style.setProperty('--parallax-x', '0')
+              section.style.setProperty('--parallax-y', '0')
+            }, 400)
+          }
+        })
+      },
+      { threshold: 0.3 }
+    )
+
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [])
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!sectionRef.current) return
+    const rect = sectionRef.current.getBoundingClientRect()
+    const xNorm = ((e.clientX - rect.left) / rect.width - 0.5) * 2
+    const yNorm = ((e.clientY - rect.top) / rect.height - 0.5) * 2
+    sectionRef.current.style.setProperty('--parallax-x', String(xNorm))
+    sectionRef.current.style.setProperty('--parallax-y', String(yNorm))
+  }
+
+  const handleMouseLeave = () => {
+    if (!sectionRef.current) return
+    sectionRef.current.style.setProperty('--parallax-x', '0')
+    sectionRef.current.style.setProperty('--parallax-y', '0')
+  }
+
+  return (
+    <div 
+      ref={sectionRef}
+      className="parallax-section"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ '--parallax-x': '0', '--parallax-y': '0' } as React.CSSProperties}
+    >
+      {children}
+    </div>
+  )
+}
+
+interface ParallaxIconProps {
+  src: string
+  alt: string
+}
+
+const ParallaxIcon = ({ src, alt }: ParallaxIconProps) => {
+  const iconRef = useRef<HTMLImageElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const [isHovered, setIsHovered] = useState(false)
+  const animationRef = useRef<number | null>(null)
+  const progressRef = useRef(0)
+
+  const applyParallaxEffect = (x: number, y: number) => {
+    if (!iconRef.current) return
+    const tiltY = (x - 0.5) * 30
+    const depthX = 20
+    const depthY = 10
+    const moveX = (x - 0.5) * depthX
+    const moveY = (y - 0.5) * depthY
+    iconRef.current.style.transform = `translate(${moveX}px, ${moveY}px) rotateY(${tiltY}deg)`
+  }
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    const x = (e.clientX - rect.left) / rect.width
+    const y = (e.clientY - rect.top) / rect.height
+    setIsHovered(true)
+    applyParallaxEffect(x, y)
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    if (iconRef.current) {
+      iconRef.current.style.transform = 'translate(0px, 0px) rotateY(0deg)'
+    }
+  }
+
+  useEffect(() => {
+    const animate = () => {
+      if (isHovered) return
+      progressRef.current += 0.005
+      const x = Math.sin(progressRef.current) * 0.3 + 0.5
+      const y = 0.5
+      applyParallaxEffect(x, y)
+      if (progressRef.current < Math.PI * 4) {
+        animationRef.current = requestAnimationFrame(animate)
+      }
+    }
+    
+    if (!isHovered) {
+      animationRef.current = requestAnimationFrame(animate)
+    }
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [isHovered])
+
+  return (
+    <div 
+      ref={cardRef}
+      className="flex justify-center mb-5 sm:mb-6"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ perspective: '1000px' }}
+    >
+      <img 
+        ref={iconRef}
+        src={src} 
+        alt={alt} 
+        className="card-icon w-16 h-16 sm:w-20 sm:h-20"
+        style={{ transition: 'transform 0.1s ease-out' }}
+      />
+    </div>
+  )
+}
 
 const LandingPage = () => {
   const scrollToFeatures = () => {
     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
   }
 
+  // Scroll-triggered activation for feature cards
+  useEffect(() => {
+    const cards = document.querySelectorAll('.feature-card')
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const card = entry.target as HTMLElement
+            // Add is-active class with a staggered delay based on card index
+            const index = Array.from(cards).indexOf(card)
+            setTimeout(() => {
+              card.classList.add('is-active')
+              // Remove the class after 2 seconds to allow hover to work again
+              setTimeout(() => {
+                card.classList.remove('is-active')
+              }, 2000)
+            }, index * 150)
+          }
+        })
+      },
+      { threshold: 0.3 }
+    )
+
+    cards.forEach((card) => observer.observe(card))
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <div className="min-h-screen bg-[#0B0B0F]">
-      {/* Header */}
+        <div className="min-h-screen bg-[#0B0B0F]">
+          {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -28,8 +339,8 @@ const LandingPage = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
+                        {/* Hero Section */}
+                  <section className="pt-24 sm:pt-32 pb-16 sm:pb-24 px-4 sm:px-6 relative overflow-hidden">
         {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
         <div className="absolute inset-0 pointer-events-none z-0">
           {/* Main teal glow - top left, tilted ellipse effect */}
@@ -54,22 +365,23 @@ const LandingPage = () => {
         <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-white/40 rounded-full hidden sm:block z-[2]"></div>
         <div className="absolute bottom-1/3 left-1/3 w-1 h-1 bg-corama-teal/60 rounded-full hidden sm:block z-[2]"></div>
         
-        {/* Layer 10: Content */}
-        <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-          <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
-            With AI Find<br />Contracts
-          </h1>
-          <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
-            From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
-          </p>
-          <a 
-            href="/login" 
-            className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
-          >
-            Get Started
-          </a>
-        </div>
-      </section>
+                          {/* Layer 10: Content */}
+                          <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
+                            <h1 className="font-poppins font-black text-4xl sm:text-5xl md:text-7xl text-white mb-4 sm:mb-6 leading-tight tracking-tight relative z-10">
+                              <SmokyText text="With AI Find" /><br />
+                              <SmokyText text="Contracts" />
+                            </h1>
+                            <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed relative z-10">
+                              From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
+                            </p>
+                            <a 
+                              href="/login" 
+                              className="inline-flex items-center gap-2 bg-[#0B0B0F] border-2 border-corama-teal text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-corama-teal hover:text-[#0B0B0F] transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)] hover:shadow-[0_0_40px_rgba(107,180,181,0.5)]"
+                            >
+                              Get Started
+                            </a>
+                          </div>
+                        </section>
 
       {/* Features Grid */}
       <section id="features" className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
@@ -106,124 +418,246 @@ const LandingPage = () => {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
             {/* Feature 1 - Smart Contract Matching */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="flex justify-center mb-5 sm:mb-6">
-                <img src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" className="w-16 h-16 sm:w-20 sm:h-20" />
+            <div className="feature-card bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)] flex flex-col h-full">
+              {/* Animation layers */}
+              <div className="card-shine"></div>
+              <div className="card-background">
+                <div className="card-tiles">
+                  <div className="card-tile tile-1"></div>
+                  <div className="card-tile tile-2"></div>
+                  <div className="card-tile tile-3"></div>
+                  <div className="card-tile tile-4"></div>
+                  <div className="card-tile tile-5"></div>
+                  <div className="card-tile tile-6"></div>
+                  <div className="card-tile tile-7"></div>
+                  <div className="card-tile tile-8"></div>
+                  <div className="card-tile tile-9"></div>
+                  <div className="card-tile tile-10"></div>
+                </div>
+                <div className="card-line line-1"></div>
+                <div className="card-line line-2"></div>
+                <div className="card-line line-3"></div>
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
-                Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
-              </p>
-              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Get Started <ArrowRight size={14} />
-              </a>
+              {/* Card content */}
+              <div className="card-content flex flex-col flex-grow">
+                                <ParallaxIcon src="/static/app/landing/SmartContractMatching.svg" alt="Smart Contract Matching" />
+                <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Contract Matching</h3>
+                <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
+                  Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience.
+                </p>
+                <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Get Started <ArrowRight size={14} />
+                </a>
+              </div>
             </div>
 
             {/* Feature 2 - Automated Proposal Generation */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="flex justify-center mb-5 sm:mb-6">
-                <img src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" className="w-16 h-16 sm:w-20 sm:h-20" />
+            <div className="feature-card bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)] flex flex-col h-full">
+              {/* Animation layers */}
+              <div className="card-shine"></div>
+              <div className="card-background">
+                <div className="card-tiles">
+                  <div className="card-tile tile-1"></div>
+                  <div className="card-tile tile-2"></div>
+                  <div className="card-tile tile-3"></div>
+                  <div className="card-tile tile-4"></div>
+                  <div className="card-tile tile-5"></div>
+                  <div className="card-tile tile-6"></div>
+                  <div className="card-tile tile-7"></div>
+                  <div className="card-tile tile-8"></div>
+                  <div className="card-tile tile-9"></div>
+                  <div className="card-tile tile-10"></div>
+                </div>
+                <div className="card-line line-1"></div>
+                <div className="card-line line-2"></div>
+                <div className="card-line line-3"></div>
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
-                Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
-              </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              {/* Card content */}
+              <div className="card-content flex flex-col flex-grow">
+                                <ParallaxIcon src="/static/app/landing/AutomatedProposalGeneration.svg" alt="Automated Proposal Generation" />
+                <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Automated Proposal Generation</h3>
+                <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
+                  Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements.
+                </p>
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn More <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 3 - Compliance Intelligence */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="flex justify-center mb-5 sm:mb-6">
-                <img src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" className="w-16 h-16 sm:w-20 sm:h-20" />
+            <div className="feature-card bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)] flex flex-col h-full">
+              {/* Animation layers */}
+              <div className="card-shine"></div>
+              <div className="card-background">
+                <div className="card-tiles">
+                  <div className="card-tile tile-1"></div>
+                  <div className="card-tile tile-2"></div>
+                  <div className="card-tile tile-3"></div>
+                  <div className="card-tile tile-4"></div>
+                  <div className="card-tile tile-5"></div>
+                  <div className="card-tile tile-6"></div>
+                  <div className="card-tile tile-7"></div>
+                  <div className="card-tile tile-8"></div>
+                  <div className="card-tile tile-9"></div>
+                  <div className="card-tile tile-10"></div>
+                </div>
+                <div className="card-line line-1"></div>
+                <div className="card-line line-2"></div>
+                <div className="card-line line-3"></div>
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
-                Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
-              </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              {/* Card content */}
+              <div className="card-content flex flex-col flex-grow">
+                                <ParallaxIcon src="/static/app/landing/ComplianceIntelligence.svg" alt="Compliance Intelligence" />
+                <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Compliance Intelligence</h3>
+                <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
+                  Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically.
+                </p>
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn More <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 4 - Win Probability Scoring */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="flex justify-center mb-5 sm:mb-6">
-                <img src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" className="w-16 h-16 sm:w-20 sm:h-20" />
+            <div className="feature-card bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)] flex flex-col h-full">
+              {/* Animation layers */}
+              <div className="card-shine"></div>
+              <div className="card-background">
+                <div className="card-tiles">
+                  <div className="card-tile tile-1"></div>
+                  <div className="card-tile tile-2"></div>
+                  <div className="card-tile tile-3"></div>
+                  <div className="card-tile tile-4"></div>
+                  <div className="card-tile tile-5"></div>
+                  <div className="card-tile tile-6"></div>
+                  <div className="card-tile tile-7"></div>
+                  <div className="card-tile tile-8"></div>
+                  <div className="card-tile tile-9"></div>
+                  <div className="card-tile tile-10"></div>
+                </div>
+                <div className="card-line line-1"></div>
+                <div className="card-line line-2"></div>
+                <div className="card-line line-3"></div>
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
-                Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
-              </p>
-              <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Get Started <ArrowRight size={14} />
-              </a>
+              {/* Card content */}
+              <div className="card-content flex flex-col flex-grow">
+                                <ParallaxIcon src="/static/app/landing/WinProbabilityScoring.svg" alt="Win Probability Scoring" />
+                <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Win Probability Scoring</h3>
+                <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
+                  Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy.
+                </p>
+                <a href="/login" className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Get Started <ArrowRight size={14} />
+                </a>
+              </div>
             </div>
 
             {/* Feature 5 - Intelligent Market Research */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="flex justify-center mb-5 sm:mb-6">
-                <img src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" className="w-16 h-16 sm:w-20 sm:h-20" />
+            <div className="feature-card bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)] flex flex-col h-full">
+              {/* Animation layers */}
+              <div className="card-shine"></div>
+              <div className="card-background">
+                <div className="card-tiles">
+                  <div className="card-tile tile-1"></div>
+                  <div className="card-tile tile-2"></div>
+                  <div className="card-tile tile-3"></div>
+                  <div className="card-tile tile-4"></div>
+                  <div className="card-tile tile-5"></div>
+                  <div className="card-tile tile-6"></div>
+                  <div className="card-tile tile-7"></div>
+                  <div className="card-tile tile-8"></div>
+                  <div className="card-tile tile-9"></div>
+                  <div className="card-tile tile-10"></div>
+                </div>
+                <div className="card-line line-1"></div>
+                <div className="card-line line-2"></div>
+                <div className="card-line line-3"></div>
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
-                Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
-              </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              {/* Card content */}
+              <div className="card-content flex flex-col flex-grow">
+                                <ParallaxIcon src="/static/app/landing/IntelligentMarketResearch.svg" alt="Intelligent Market Research" />
+                <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Intelligent Market Research</h3>
+                <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
+                  Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically.
+                </p>
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn More <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
 
             {/* Feature 6 - Smart Deadline Management */}
-            <div className="bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)]">
-              <div className="flex justify-center mb-5 sm:mb-6">
-                <img src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" className="w-16 h-16 sm:w-20 sm:h-20" />
+            <div className="feature-card bg-gradient-to-br from-[#0f1a24]/80 via-[#0d1620]/60 to-[#0B0B0F]/40 border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group shadow-[0_0_50px_rgba(107,180,181,0.12)] hover:shadow-[0_0_70px_rgba(107,180,181,0.2)] flex flex-col h-full">
+              {/* Animation layers */}
+              <div className="card-shine"></div>
+              <div className="card-background">
+                <div className="card-tiles">
+                  <div className="card-tile tile-1"></div>
+                  <div className="card-tile tile-2"></div>
+                  <div className="card-tile tile-3"></div>
+                  <div className="card-tile tile-4"></div>
+                  <div className="card-tile tile-5"></div>
+                  <div className="card-tile tile-6"></div>
+                  <div className="card-tile tile-7"></div>
+                  <div className="card-tile tile-8"></div>
+                  <div className="card-tile tile-9"></div>
+                  <div className="card-tile tile-10"></div>
+                </div>
+                <div className="card-line line-1"></div>
+                <div className="card-line line-2"></div>
+                <div className="card-line line-3"></div>
               </div>
-              <h3 className="font'poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
-              <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6">
-                Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
-              </p>
-              <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-                Learn More <ArrowRight size={14} />
-              </button>
+              {/* Card content */}
+              <div className="card-content flex flex-col flex-grow">
+                                <ParallaxIcon src="/static/app/landing/SmartDeadlineManagement.svg" alt="Smart Deadline Management" />
+                <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4">Smart Deadline Management</h3>
+                <p className="text-gray-400 font-poppins text-sm leading-relaxed mb-5 sm:mb-6 flex-grow">
+                  Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management.
+                </p>
+                <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+                  Learn More <ArrowRight size={14} />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Scope of Work Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
-        {/* Soft teal glow background */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
-        </div>
+            {/* Scope of Work Section */}
+            <section className="py-16 sm:py-24 px-4 sm:px-6 relative overflow-hidden">
+              {/* Soft teal glow background */}
+              <div className="absolute inset-0 pointer-events-none z-0">
+                <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
+              </div>
         
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
-              <img 
-                src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=800" 
-                alt="Work Station" 
-                className="w-full h-56 sm:h-72 lg:h-80 object-cover"
-                onError={(e) => { e.currentTarget.src = 'https://placehold.co/800x400/0b2c48/6bb4b5?text=Work+Station' }}
-              />
-            </div>
-            <div className="text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
-                Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
-              </p>
-              <a 
-                href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
-              >
-                Get Started
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+              <div className="max-w-6xl mx-auto relative z-10">
+                <ParallaxSection>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
+                    <div className="bg-gradient-to-br from-[#0f1a24] via-[#0d1620] to-[#0B0B0F] border border-corama-teal/20 rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(107,180,181,0.1)]">
+                      <img 
+                        src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=800" 
+                        alt="Work Station" 
+                        className="parallax-image w-full h-56 sm:h-72 lg:h-80 object-cover"
+                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/800x400/0b2c48/6bb4b5?text=Work+Station' }}
+                      />
+                    </div>
+                    <div className="parallax-text text-center md:text-left">
+                      <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
+                      <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
+                        Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
+                      </p>
+                      <a 
+                        href="/login" 
+                        className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
+                      >
+                        Get Started
+                      </a>
+                    </div>
+                  </div>
+                </ParallaxSection>
+              </div>
+            </section>
 
       {/* Revolution Section */}
       <section className="py-16 sm:py-24 px-4 sm:px-6 relative">
@@ -233,9 +667,11 @@ const LandingPage = () => {
         </div>
         
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
-            Revolutionizing Government<br />Contracting for Small<br />Businesses
-          </h2>
+                    <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+                      <ScrollFloat text="Revolutionizing Government" /><br />
+                      <ScrollFloat text="Contracting for Small" /><br />
+                      <ScrollFloat text="Businesses" />
+                    </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
@@ -272,7 +708,7 @@ const LandingPage = () => {
               </div>
             </div>
             <div className="order-1 md:order-2 text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
+              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6"><ScrollFloat text="Mission" /></h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
               </p>
@@ -297,7 +733,7 @@ const LandingPage = () => {
         <div className="max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
             <div className="text-center md:text-left">
-              <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
+              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6"><ScrollFloat text="Vision" /></h2>
               <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
                 To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
               </p>
@@ -328,9 +764,10 @@ const LandingPage = () => {
       {/* Capturing Major State Procurement Wins Section */}
       <section className="pt-12 sm:pt-16 pb-4 sm:pb-6 px-2 sm:px-4 relative bg-[#0B0B0F]">
         <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-          <h2 className="font'poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
-            Capturing Major State<br />Procurement Wins
-          </h2>
+                    <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+                      <ScrollFloat text="Capturing Major State" /><br />
+                      <ScrollFloat text="Procurement Wins" />
+                    </h2>
           <p className="text-gray-400 font-poppins text-base sm:text-lg mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
             "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
           </p>

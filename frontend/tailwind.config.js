@@ -17,6 +17,9 @@ export default {
         'poppins': ['Poppins', 'sans-serif'],
         'inter': ['Inter', 'sans-serif'],
       },
+      padding: {
+        '6': '2.5rem',
+      },
     },
   },
   plugins: [],

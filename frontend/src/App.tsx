@@ -15,7 +15,7 @@ import PublicBidProposalGenerator from './pages/PublicBidProposalGenerator'
 
 function App() {
   return (
-    <Router basename="/">
+    <Router basename="/app">
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/dashboard" element={<Dashboard />} />
