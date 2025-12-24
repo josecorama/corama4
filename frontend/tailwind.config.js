@@ -17,6 +17,18 @@ export default {
         'poppins': ['Poppins', 'sans-serif'],
         'inter': ['Inter', 'sans-serif'],
       },
+      padding: {
+        '6': '2.5rem',
+      },
+      animation: {
+        'twinkle': 'twinkle 3s ease-in-out infinite',
+      },
+      keyframes: {
+        twinkle: {
+          '0%, 100%': { opacity: '0.3', transform: 'scale(1)' },
+          '50%': { opacity: '1', transform: 'scale(1.1)' },
+        },
+      },
     },
   },
   plugins: [],

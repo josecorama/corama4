@@ -56,15 +56,15 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
         
         {/* Right: Main header content */}
         <div className="flex-1 flex items-center justify-between px-4 lg:px-6">
-          {/* Search - hidden on mobile, visible on tablet+ */}
-          <div className="hidden md:block flex-1 max-w-md lg:max-w-2xl">
-            <div className="relative">
+          {/* Search - hidden on mobile, visible on tablet+ - starts where sidebar ends, stops 16px before credits */}
+          <div className="hidden md:flex flex-1 min-w-0" style={{ marginRight: '16px' }}>
+            <div className="relative w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
                 placeholder="SEARCH IN CORAMA"
                 className="w-full rounded-full py-2 lg:py-2.5 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-sm"
-                style={{ backgroundColor: '#192c46', border: '1px solid #3c5772' }}
+                style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid rgb(60, 87, 114)' }}
               />
             </div>
           </div>

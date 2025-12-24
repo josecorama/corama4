@@ -1,16 +1,53 @@
-import { useState, useRef, useMemo, useEffect } from 'react'
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import { InlineLoading } from '../components/ThinkingPopup'
+import checkAnimation from '../assets/CheckAnimation.json'
+import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
+
+// PDF Viewer imports
+import { Viewer, Worker } from '@react-pdf-viewer/core'
+import { highlightPlugin, Trigger, RenderHighlightsProps } from '@react-pdf-viewer/highlight'
+import { pageNavigationPlugin } from '@react-pdf-viewer/page-navigation'
+import '@react-pdf-viewer/core/lib/styles/index.css'
+import '@react-pdf-viewer/highlight/lib/styles/index.css'
 
 // SVG asset paths
 const UploadContractPDFIcon = '/static/app/contract-analysis/UploadContractPDF.svg'
 const AIFindingsIcon = '/static/app/contract-analysis/AIFindings.svg'
-const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
-const CheckIcon = '/static/app/contract-analysis/Check.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
+
+// Types for structured findings
+interface FindingCoordinate {
+  page: number
+  left: number
+  top: number
+  width: number
+  height: number
+  not_found?: boolean
+  all_rects?: number[][] // Array of [x0, y0, x1, y1] for multi-line highlighting
+  page_width?: number
+  page_height?: number
+}
+
+interface StructuredFinding {
+  id: string
+  type: string
+  title: string
+  quote: string
+  page_hint: number
+  rationale: string
+  severity?: string
+  coordinates?: FindingCoordinate[]
+}
+
+interface FindingManifest {
+  [key: string]: FindingCoordinate
+}
 
 // Generate a unique ID for contracts that don't have one
 const generateContractId = () => {
@@ -60,12 +97,116 @@ const ContractAnalysis = () => {
   const [headerKey, setHeaderKey] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  // New state for structured findings and click-to-navigate
+  const [structuredFindings, setStructuredFindings] = useState<StructuredFinding[]>([])
+  const [manifest, setManifest] = useState<FindingManifest>({})
+  const [annotatedPdfUrl, setAnnotatedPdfUrl] = useState<string | null>(null)
+  const [activeFindingId, setActiveFindingId] = useState<string | null>(null)
+  
   // Animation state for first checkmark - triggers when AI findings load
   const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(false)
   const firstAnimationShown = useRef(false)
 
   // Track if step 1 is complete (findings generated)
   const step1Complete = !!aiFindings
+  
+  // PDF viewer plugins
+  const pageNavigationPluginInstance = pageNavigationPlugin()
+  const { jumpToPage } = pageNavigationPluginInstance
+  
+  // Render highlights function for the highlight plugin
+  // Uses all_rects for multi-line highlighting when available
+  const renderHighlights = useCallback((props: RenderHighlightsProps) => {
+    const pageHighlights = Object.entries(manifest)
+      .filter(([_, coord]) => coord.page === props.pageIndex && !coord.not_found && coord.width > 0)
+    
+    return (
+      <div>
+        {pageHighlights.map(([findingId, coord]) => {
+          const isActive = activeFindingId === findingId
+          const highlightClass = `absolute transition-all duration-300 ${
+            isActive 
+              ? 'bg-yellow-400/60 ring-2 ring-yellow-500' 
+              : 'bg-yellow-300/40 hover:bg-yellow-400/50'
+          }`
+          
+          // If we have all_rects, render multiple rectangles for better multi-line highlighting
+          // Otherwise fall back to the single bounding box
+          if (coord.all_rects && coord.all_rects.length > 0 && coord.page_width && coord.page_height) {
+            return (
+              <div key={findingId} data-finding-id={findingId}>
+                {coord.all_rects.map((rect, idx) => {
+                  // Convert PDF coordinates to percentages
+                  // rect is [x0, y0, x1, y1] in PDF points
+                  const left = (rect[0] / coord.page_width!) * 100
+                  const top = (rect[1] / coord.page_height!) * 100
+                  const width = ((rect[2] - rect[0]) / coord.page_width!) * 100
+                  const height = ((rect[3] - rect[1]) / coord.page_height!) * 100
+                  
+                  return (
+                    <div
+                      key={`${findingId}-${idx}`}
+                      className={highlightClass}
+                      style={props.getCssProperties({
+                        pageIndex: coord.page,
+                        left,
+                        top,
+                        width,
+                        height,
+                      }, props.rotation)}
+                    />
+                  )
+                })}
+              </div>
+            )
+          }
+          
+          // Fallback to single bounding box
+          return (
+            <div
+              key={findingId}
+              data-finding-id={findingId}
+              className={highlightClass}
+              style={props.getCssProperties({
+                pageIndex: coord.page,
+                left: coord.left,
+                top: coord.top,
+                width: coord.width,
+                height: coord.height,
+              }, props.rotation)}
+            />
+          )
+        })}
+      </div>
+    )
+  }, [manifest, activeFindingId])
+  
+  const highlightPluginInstance = highlightPlugin({
+    renderHighlights,
+    trigger: Trigger.None,
+  })
+  
+  // Click-to-navigate handler
+  const handleFindingClick = useCallback((findingId: string) => {
+    const coord = manifest[findingId]
+    if (!coord) return
+    
+    setActiveFindingId(findingId)
+    
+    // Jump to the page
+    jumpToPage(coord.page)
+    
+    // After a short delay, scroll to the highlight element
+    setTimeout(() => {
+      const highlightElement = document.querySelector(`[data-finding-id="${findingId}"]`)
+      if (highlightElement) {
+        highlightElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 300)
+    
+    // Clear active state after animation
+    setTimeout(() => setActiveFindingId(null), 2000)
+  }, [manifest, jumpToPage])
   
   // Trigger first checkmark animation when AI findings are loaded
   useEffect(() => {
@@ -76,6 +217,13 @@ const ContractAnalysis = () => {
       return () => clearTimeout(timer)
     }
   }, [aiFindings])
+
+  // Auto-trigger AI findings generation when PDF is uploaded
+  useEffect(() => {
+    if (pdfFile && !aiFindings && !isGeneratingFindings) {
+      handleGenerateFindings()
+    }
+  }, [pdfFile]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -126,6 +274,18 @@ const ContractAnalysis = () => {
       
       if (response.success && response.findings) {
         setAiFindings(response.findings)
+        
+        // Store structured findings and manifest for click-to-navigate
+        if (response.structured_findings) {
+          setStructuredFindings(response.structured_findings)
+        }
+        if (response.manifest) {
+          setManifest(response.manifest)
+        }
+        if (response.annotated_pdf_url) {
+          setAnnotatedPdfUrl(response.annotated_pdf_url)
+        }
+        
         // Force Header to refresh credits
         setHeaderKey(k => k + 1)
       } else {
@@ -166,32 +326,32 @@ const ContractAnalysis = () => {
         <Sidebar />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-4 lg:p-5 overflow-hidden flex flex-col">
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-3 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Contract Analysis</h1>
               
-              {/* Progress Circles - All empty until step is complete, then show check with animation */}
-              <div className="flex justify-center gap-4">
+                            {/* Progress Circles - All empty until step is complete, then show check with animation */}
+                            <div className="flex justify-center gap-4 mb-8">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (
-                      // Step 1 complete - show check with bounce/ping animation when findings load
+                      // Step 1 complete - show Lottie check animation
                       <div className="relative">
                         <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
                           showFirstCheckAnimation ? 'animate-ping' : ''
                         }`} />
-                        <img 
-                          src={CheckIcon} 
-                          alt="Step 1 Complete" 
-                          className={`w-14 h-14 relative z-10 ${
-                            showFirstCheckAnimation ? 'animate-bounce' : ''
-                          }`} 
-                        />
+                        <div className="w-14 h-14 relative z-10">
+                          <Lottie 
+                            animationData={checkAnimation} 
+                            loop={false}
+                            autoplay={true}
+                          />
+                        </div>
                       </div>
                     ) : (
                       // All other steps show empty check (no numbers)
-                      <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
+                      <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
                   </div>
                 ))}
@@ -207,11 +367,15 @@ const ContractAnalysis = () => {
                 
                 {pdfUrl ? (
                   <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
-                    <iframe 
-                      src={pdfUrl} 
-                      className="w-full h-full"
-                      title="Contract PDF"
-                    />
+                    <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+                      <Viewer
+                        fileUrl={pdfUrl}
+                        plugins={[
+                          highlightPluginInstance,
+                          pageNavigationPluginInstance,
+                        ]}
+                      />
+                    </Worker>
                   </div>
                 ) : (
                   <div 
@@ -220,7 +384,7 @@ const ContractAnalysis = () => {
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                   >
-                    <img src={UploadContractPDFIcon} alt="Upload Contract" className="w-48 h-36 mb-3" />
+                    <img src={UploadContractPDFIcon} alt="Upload Contract" style={{ height: '308px' }} className="mb-3" />
                     <p className="text-gray-500 font-poppins text-sm">Click or drag to upload PDF</p>
                   </div>
                 )}
@@ -242,11 +406,24 @@ const ContractAnalysis = () => {
 
               {/* Right Card - AI Findings */}
               <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
-                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-3 flex-shrink-0">AI Findings</h2>
+                <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                  <h2 className="text-gray-800 font-poppins font-semibold text-lg">Contract Insights</h2>
+                  {annotatedPdfUrl && (
+                    <a
+                      href={annotatedPdfUrl}
+                      download="annotated_contract.pdf"
+                      className="px-3 py-1 rounded-full font-poppins text-xs font-semibold text-white hover:opacity-90 transition-opacity"
+                      style={{ backgroundColor: '#6bb4b5' }}
+                    >
+                      Download Annotated PDF
+                    </a>
+                  )}
+                </div>
                 
                 {aiFindings ? (
                   <div className="flex-1 min-h-0 overflow-y-auto">
-                    <div className="font-poppins text-sm text-gray-700">
+                    {/* Markdown Summary */}
+                    <div className="font-poppins text-sm text-gray-700 mb-4">
                       <ReactMarkdown
                         components={{
                           p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -263,33 +440,70 @@ const ContractAnalysis = () => {
                         {aiFindings}
                       </ReactMarkdown>
                     </div>
+                    
+                    {/* Findings as paragraphs with hyperlinks to PDF locations */}
+                    {/* Filter out Strategic Recommendations and Risk Assessment since they're suggestions, not contract content */}
+                    {structuredFindings.filter(f => 
+                      !f.type.toLowerCase().includes('strategic') && 
+                      !f.type.toLowerCase().includes('recommendation') && 
+                      !f.type.toLowerCase().includes('risk assessment')
+                    ).length > 0 && (
+                      <div className="space-y-4 border-t border-gray-200 pt-4">
+                        <p className="text-xs text-gray-500 font-poppins font-semibold uppercase tracking-wide">Source References</p>
+                        {structuredFindings
+                          .filter(f => 
+                            !f.type.toLowerCase().includes('strategic') && 
+                            !f.type.toLowerCase().includes('recommendation') && 
+                            !f.type.toLowerCase().includes('risk assessment')
+                          )
+                          .map((finding) => {
+                          const coord = manifest[finding.id]
+                          const hasLocation = coord && !coord.not_found && coord.width > 0
+                          return (
+                            <div key={finding.id} className="font-poppins">
+                              <p className="text-sm font-semibold text-gray-800 mb-1">{finding.title}</p>
+                              <p className="text-sm text-gray-600 mb-1">{finding.rationale}</p>
+                              {hasLocation && (
+                                <button
+                                  onClick={() => handleFindingClick(finding.id)}
+                                  className={`text-sm font-medium transition-colors ${
+                                    activeFindingId === finding.id
+                                      ? 'text-yellow-600 underline'
+                                      : 'text-corama-teal hover:text-corama-teal/80 hover:underline'
+                                  }`}
+                                >
+                                  View in PDF (Page {coord.page + 1}) →
+                                </button>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ): isGeneratingFindings ? (
+                  <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
+                    <InlineLoading text="Generating" size="large" />
                   </div>
                 ) : (
                   <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                    <img src={AIFindingsIcon} alt="AI Findings" className="w-40 h-52 mb-3" />
-                    <button
-                      onClick={handleGenerateFindings}
-                      disabled={isGeneratingFindings || !pdfFile}
-                      className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white disabled:opacity-50"
-                      style={{ backgroundColor: '#6bb4b5' }}
-                    >
-                      {isGeneratingFindings ? 'Generating...' : 'Generate AI Findings'}
-                    </button>
+                    <img src={AIFindingsIcon} alt="Contract Insights" style={{ height: '356px' }} className="mb-3" />
+                    <p className="text-gray-500 font-poppins text-sm">Upload a PDF to generate insights</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Continue Button - Fixed at bottom right */}
-            <div className="flex-shrink-0 flex justify-end">
+            {/* Continue Button - Centered horizontally */}
+            <div className="flex-shrink-0 flex justify-center">
               <button
                 onClick={handleContinue}
                 disabled={!aiFindings}
-                className="flex items-center gap-2 px-8 py-3 rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#99C8CA', color: '#1a2744' }}
+                className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity overflow-hidden"
+                style={{ backgroundColor: '#99C8CA', color: 'white', width: '414px', height: '48px' }}
               >
-                Continue
-                <img src={ContinueIcon} alt="" className="w-6 h-6" />
+                <span className="text-center">Continue</span>
+                <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
           </main>

@@ -37,12 +37,53 @@ interface Message {
   visibleContent?: string
 }
 
-// Action patterns for flexible matching
+// Action patterns for flexible matching (contract-related actions only)
 const ACTION_PATTERNS: Record<string, string[]> = {
-  analyze_contract: ['analyze contract', 'analyze', 'analysis'],
-  check_compliance: ['check compliance', 'compliance', 'compliant'],
-  develop_strategy: ['develop strategy', 'strategy', 'strategic'],
-  create_outline: ['create outline', 'outline', 'proposal outline'],
+  analyze_contract: ['analyze contract', 'contract analysis'],
+  check_compliance: ['check compliance', 'compliance check'],
+  develop_strategy: ['develop strategy', 'strategy development'],
+  create_outline: ['create outline', 'proposal outline'],
+}
+
+// Detect if user is asking about their capability statement (CS)
+// Uses keyword combination detection for flexible matching
+function isCapabilityStatementQuery(text: string): boolean {
+  const normalized = text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
+  
+  // Check for "capability statement" mention
+  const hasCapabilityStatement = normalized.includes('capability statement') || 
+                                  normalized.includes('capabilitystatement')
+  
+  // Check for "cs" as a standalone word (not part of another word like "costs")
+  const hasCSMention = /\bcs\b/.test(normalized) && 
+                       (normalized.includes('my cs') || 
+                        normalized.includes('the cs') || 
+                        normalized.includes('our cs') ||
+                        normalized.includes('analyze cs') ||
+                        normalized.includes('review cs') ||
+                        normalized.includes('check cs'))
+  
+  // Analysis/review verbs
+  const analysisVerbs = ['analyze', 'analyse', 'review', 'evaluate', 'assess', 'check', 'improve', 'strengthen', 'feedback', 'critique', 'look at', 'examine']
+  const hasAnalysisVerb = analysisVerbs.some(verb => normalized.includes(verb))
+  
+  // Company/business context
+  const hasCompanyContext = normalized.includes('my company') || 
+                            normalized.includes('my business') || 
+                            normalized.includes('our company') ||
+                            normalized.includes('am i') ||
+                            normalized.includes('do i qualify') ||
+                            normalized.includes('my qualifications') ||
+                            normalized.includes('my strengths') ||
+                            normalized.includes('my weaknesses')
+  
+  // Return true if:
+  // 1. Mentions "capability statement" with an analysis verb
+  // 2. Mentions "cs" in proper context with an analysis verb
+  // 3. Asks about company qualifications/fit (implies CS analysis)
+  return (hasCapabilityStatement && hasAnalysisVerb) || 
+         (hasCSMention && hasAnalysisVerb) ||
+         (hasCompanyContext && hasAnalysisVerb && !normalized.includes('contract'))
 }
 
 // Get action key from user input with flexible matching
@@ -90,11 +131,9 @@ Pick a specific task:
 - Develop Strategy (3 credits)
 - Create Outline (2 credits)
 
-Ready to build the full proposal?
-I can guide you step-by-step from start to finish.
+Ready to build the full proposal? I can guide you step-by-step from start to finish.
 
-Start Guided Process
-Analyze the contract with AI annotations -> Build your team -> Develop pricing strategy -> Generate comprehensive proposal`
+To start building it, simply type "Start Guided Process" in the chat. This will direct you to the Contract Analysis page, where you'll be able to begin the step-by-step process for creating your proposal.`
 }
 
 const AIAssistant = () => {
@@ -272,6 +311,22 @@ const AIAssistant = () => {
         return
       }
 
+      // Check if this is a capability statement (CS) analysis query
+      // Route to /ai_assistant_enhanced which has CS analysis logic
+      if (isCapabilityStatementQuery(userInput)) {
+        try {
+          const response = await api.sendMessage(userInput, undefined, 'general')
+          addAiMessage(response.response)
+          // Force Header to refresh credits
+          setHeaderKey(k => k + 1)
+        } catch (error) {
+          console.error('CS analysis error:', error)
+          addAiMessage('Sorry, I encountered an error analyzing your capability statement. Please try again later.')
+        }
+        setIsProcessing(false)
+        return
+      }
+
       // Check if this is one of the action commands using flexible matching
       const actionKey = getActionKeyFromInput(userInput)
       
@@ -317,31 +372,39 @@ const AIAssistant = () => {
   }
 
     return (
-      <div className="min-h-screen bg-corama-dark">
+      <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
         {/* Header spans full width at top */}
         <Header key={headerKey} credits={5} />
         
         {/* Sidebar + Content row below header */}
-        <div className="flex">
+        <div className="flex flex-1 overflow-hidden">
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
           <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
           
           <Sidebar />
         
-          <div className="flex-1 flex flex-col min-w-0">
-            <main className="flex-1 p-3 sm:p-4 lg:p-6 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <main className="flex-1 p-3 sm:p-4 lg:p-12 flex flex-col overflow-hidden">
             {/* Page Title */}
-            <div className="mb-4 lg:mb-6">
+            <div className="mb-4 lg:mb-6 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl">
                 <span className="text-corama-teal">AI BID ASSISTANT FOR </span>{contractName}
               </h1>
             </div>
 
-            {/* Chat Area */}
-            <div className="flex-1 flex flex-col min-h-0">
-              <div ref={chatContainerRef} className="flex-1 overflow-y-auto space-y-3 sm:space-y-4 mb-3 sm:mb-4">
+            {/* Chat Area - flex-1 to take remaining space, with scrollable messages */}
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden ai-chat-scrollbar">
+              <div className="space-y-3 sm:space-y-4 pr-2">
                 {messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div 
+                    key={message.id} 
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} animate-message-pop`}
+                    style={{ 
+                      transformOrigin: message.sender === 'user' ? 'bottom right' : 'bottom left',
+                      animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                    }}
+                  >
                     <div className={`max-w-full sm:max-w-xl lg:max-w-2xl ${message.sender === 'user' ? 'order-2' : ''}`}>
                       <p className={`text-gray-400 font-poppins text-xs mb-1 ${message.sender === 'user' ? 'text-right' : ''}`}>{message.timestamp}</p>
                       <div
@@ -379,10 +442,30 @@ const AIAssistant = () => {
                     </div>
                   </div>
                 ))}
-              </div>
+                {/* Show thinking text while waiting for AI response */}
+                              {isProcessing && (
+                                <div 
+                                  className="flex justify-start animate-message-pop"
+                                  style={{ 
+                                    transformOrigin: 'bottom left',
+                                    animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+                                  }}
+                                >
+                                  <div className="max-w-full sm:max-w-xl lg:max-w-2xl">
+                                    <p className="text-gray-400 font-poppins text-xs mb-1">{formatTime()}</p>
+                                    <div className="rounded-xl sm:rounded-2xl p-3 sm:p-4 bg-white text-gray-800">
+                                      <p className="font-poppins text-xs sm:text-sm">
+                                        Thinking<span className="animate-ellipsis">...</span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            </div>
 
-              {/* Input Area */}
-              <div className="mt-auto flex-shrink-0">
+              {/* Input Area - sticky at bottom */}
+              <div className="flex-shrink-0 pt-3 sm:pt-4">
                 <div className="relative">
                   <input
                     type="text"

@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import { InlineLoading } from '../components/ThinkingPopup'
+import checkAnimation from '../assets/CheckAnimation.json'
+import EmptyCheckSvg from '../assets/EmptyCheck.svg'
+import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
 
 // SVG asset paths
-const CheckIcon = '/static/app/contract-analysis/Check.svg'
-const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 const FromCORAMADirectoryIcon = '/static/app/team-builder/FromCORAMADirectory.svg'
 const ManualEntryIcon = '/static/app/team-builder/ManualEntry.svg'
@@ -441,40 +444,44 @@ const ProposalTeam = () => {
         <Sidebar onGoBack={handleGoBack} />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-4 lg:p-5 overflow-hidden flex flex-col">
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-4 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Build Your Team</h1>
               
-              {/* Progress Circles - Check for step 1, animated check for step 2 when team member added, empty for step 3 */}
-              <div className="flex justify-center gap-4">
+                            {/* Progress Circles - Static check for step 1 (completed on previous page), animated check for step 2 when team member added, empty for step 3 */}
+                            <div className="flex justify-center gap-4 mb-8">
                 {[1, 2, 3].map((step) => (
                   <div key={step} className="relative">
                     {step === 1 && step1Complete ? (
-                      // Step 1 complete - show check with glow
+                      // Step 1 complete - show static Check.svg (completed on previous page, no animation)
                       <div className="relative">
                         <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
-                        <img src={CheckIcon} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
+                        <img src={CheckSvg} alt="Step 1 Complete" className="w-14 h-14 relative z-10" />
                       </div>
-                    ) : step === 2 && teamMembers.length > 0 ? (
-                      // Step 2 complete when team members added - show check with animation on first add
-                      <div className="relative">
-                        <div 
-                          className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
-                            showSecondCheckAnimation ? 'animate-ping' : ''
-                          }`} 
-                        />
-                        <img 
-                          src={CheckIcon} 
-                          alt="Step 2 Complete" 
-                          className={`w-14 h-14 relative z-10 ${
-                            showSecondCheckAnimation ? 'animate-bounce' : ''
-                          }`} 
-                        />
-                      </div>
-                    ) : (
+                                        ) : step === 2 && teamMembers.length > 0 ? (
+                                          // Step 2 complete when team members added - show Lottie animation when first triggered, then static Check.svg
+                                          <div className="relative">
+                                            <div 
+                                              className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                                                showSecondCheckAnimation ? 'animate-ping' : ''
+                                              }`} 
+                                            />
+                                            {showSecondCheckAnimation ? (
+                                              <div className="w-14 h-14 relative z-10">
+                                                <Lottie 
+                                                  animationData={checkAnimation} 
+                                                  loop={false}
+                                                  autoplay={true}
+                                                />
+                                              </div>
+                                            ) : (
+                                              <img src={CheckSvg} alt="Step 2 Complete" className="w-14 h-14 relative z-10" />
+                                            )}
+                                          </div>
+                                        ) : (
                       // Empty check for incomplete steps
-                      <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-14 h-14" />
+                      <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-14 h-14" />
                     )}
                   </div>
                 ))}
@@ -490,7 +497,7 @@ const ProposalTeam = () => {
                     <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
                     <div className="text-gray-600 font-poppins text-sm overflow-y-auto flex-1">
                       {isLoadingSuggestions ? (
-                        <p className="text-gray-500 italic">Loading AI suggestions...</p>
+                        <InlineLoading text="Thinking" size="medium" />
                       ) : aiSuggestions ? (
                         <ReactMarkdown
                           components={{
@@ -955,11 +962,11 @@ const ProposalTeam = () => {
             <div className="flex-shrink-0 pt-4 flex justify-center">
               <button
                 onClick={handleContinue}
-                className="flex items-center gap-2 px-8 py-3 rounded-full font-poppins text-base font-semibold hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#99C8CA', color: 'white' }}
+                className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold hover:opacity-90 transition-opacity overflow-hidden"
+                style={{ backgroundColor: '#99C8CA', color: 'white', width: '414px', height: '48px' }}
               >
-                Continue
-                <img src={ContinueIcon} alt="" className="w-6 h-6" />
+                <span className="text-center">Continue</span>
+                <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
           </main>

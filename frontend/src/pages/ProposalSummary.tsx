@@ -1,17 +1,20 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import Lottie from 'lottie-react'
+import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
+import { InlineLoading } from '../components/ThinkingPopup'
+import checkAnimation from '../assets/CheckAnimation.json'
+import EmptyCheckSvg from '../assets/EmptyCheck.svg'
+import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
 
 // SVG asset paths
-const CheckIcon = '/static/app/contract-analysis/Check.svg'
-const EmptyCheckIcon = '/static/app/contract-analysis/EmptyCheck.svg'
-const LeftArrowIcon = '/static/app/team-builder/LeftArrow.svg'
-const RightArrowIcon = '/static/app/team-builder/RightArrow.svg'
 const RemoveIcon = '/static/app/team-builder/Remove.svg'
 const AddIcon = '/static/app/team-builder/Add.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
+const GenerateFinalProposalIcon = '/static/app/proposal-summary/GenerateFinalProposal.svg'
 
 interface ProposalSummaryState {
   contractName?: string
@@ -48,12 +51,30 @@ const ProposalSummary = () => {
   const step1Complete = true
   const step2Complete = true
   
-  // Animation states for check icons (first checkmark animation is now in ContractAnalysis)
-  const [showThirdCheckAnimation, setShowThirdCheckAnimation] = useState(false)
-  const [step3Complete, setStep3Complete] = useState(false)
+    // Animation states for check icons (first checkmark animation is now in ContractAnalysis)
+    const [showThirdCheckAnimation, setShowThirdCheckAnimation] = useState(false)
+    const [step3Complete, setStep3Complete] = useState(false)
   
-  // Track if animations have been shown (to prevent re-triggering)
-  const thirdAnimationShown = useRef(false)
+    // Track if animations have been shown (to prevent re-triggering)
+    const thirdAnimationShown = useRef(false)
+  
+    // Track if this is the first visit to prevent Lottie re-triggering on page entry
+    const [animationsAlreadyShown, setAnimationsAlreadyShown] = useState(() => {
+      // Check sessionStorage to see if we've already shown animations
+      return sessionStorage.getItem('proposalSummaryAnimationsShown') === 'true'
+    })
+  
+    // Mark animations as shown after first render
+    useEffect(() => {
+      if (!animationsAlreadyShown) {
+        // Set a small delay to allow animations to play once
+        const timer = setTimeout(() => {
+          sessionStorage.setItem('proposalSummaryAnimationsShown', 'true')
+          setAnimationsAlreadyShown(true)
+        }, 1500)
+        return () => clearTimeout(timer)
+      }
+    }, [])
   
   // Contract ID with sessionStorage fallback
   const [contractId, setContractId] = useState<string | null>(null)
@@ -66,17 +87,15 @@ const ProposalSummary = () => {
   const [aiStrategy, setAiStrategy] = useState<string>('')
   const [isLoadingStrategy, setIsLoadingStrategy] = useState(true)
   
-  // Labor Costs state
-  const [laborCosts, setLaborCosts] = useState<LaborCostItem[]>([])
-  const [currentLaborIndex, setCurrentLaborIndex] = useState(0)
-  const [laborRole, setLaborRole] = useState('')
+    // Labor Costs state
+    const [laborCosts, setLaborCosts] = useState<LaborCostItem[]>([])
+    const [laborRole, setLaborRole] = useState('')
   const [laborHours, setLaborHours] = useState('')
   const [laborRate, setLaborRate] = useState('')
   
-  // Materials & Equipment state
-  const [materials, setMaterials] = useState<MaterialItem[]>([])
-  const [currentMaterialIndex, setCurrentMaterialIndex] = useState(0)
-  const [materialItem, setMaterialItem] = useState('')
+    // Materials & Equipment state
+    const [materials, setMaterials] = useState<MaterialItem[]>([])
+    const [materialItem, setMaterialItem] = useState('')
   const [materialQuantity, setMaterialQuantity] = useState('')
   const [materialUnitCost, setMaterialUnitCost] = useState('')
   
@@ -213,35 +232,13 @@ const ProposalSummary = () => {
       cost: hours * rate
     }
     
-    setLaborCosts(prev => [...prev, newItem])
-    setCurrentLaborIndex(laborCosts.length)
-    setLaborRole('')
+        setLaborCosts(prev => [...prev, newItem])
+        setLaborRole('')
     setLaborHours('')
     setLaborRate('')
   }
   
-  const handleDeleteLaborRole = () => {
-    if (laborCosts.length === 0) return
-    
-    setLaborCosts(prev => prev.filter((_, i) => i !== currentLaborIndex))
-    if (currentLaborIndex >= laborCosts.length - 1 && currentLaborIndex > 0) {
-      setCurrentLaborIndex(prev => prev - 1)
-    }
-  }
-  
-  const handlePrevLabor = () => {
-    if (currentLaborIndex > 0) {
-      setCurrentLaborIndex(prev => prev - 1)
-    }
-  }
-  
-  const handleNextLabor = () => {
-    if (currentLaborIndex < laborCosts.length - 1) {
-      setCurrentLaborIndex(prev => prev + 1)
-    }
-  }
-  
-  // Materials handlers
+      // Materials handlers
   const handleAddMaterial = () => {
     if (!materialItem) return
     
@@ -256,35 +253,13 @@ const ProposalSummary = () => {
       cost: quantity * unitCost
     }
     
-    setMaterials(prev => [...prev, newItem])
-    setCurrentMaterialIndex(materials.length)
-    setMaterialItem('')
+        setMaterials(prev => [...prev, newItem])
+        setMaterialItem('')
     setMaterialQuantity('')
     setMaterialUnitCost('')
   }
   
-  const handleDeleteMaterial = () => {
-    if (materials.length === 0) return
-    
-    setMaterials(prev => prev.filter((_, i) => i !== currentMaterialIndex))
-    if (currentMaterialIndex >= materials.length - 1 && currentMaterialIndex > 0) {
-      setCurrentMaterialIndex(prev => prev - 1)
-    }
-  }
-  
-  const handlePrevMaterial = () => {
-    if (currentMaterialIndex > 0) {
-      setCurrentMaterialIndex(prev => prev - 1)
-    }
-  }
-  
-  const handleNextMaterial = () => {
-    if (currentMaterialIndex < materials.length - 1) {
-      setCurrentMaterialIndex(prev => prev + 1)
-    }
-  }
-  
-  // Save summary handler
+      // Save summary handler
   const handleSaveSummary = async () => {
     if (!contractId) {
       setSaveMessage('No contract ID available. Please go back and select a contract.')
@@ -328,16 +303,12 @@ const ProposalSummary = () => {
     navigate('/proposal-team', { state: locationState })
   }
   
-  // Format currency
-  const formatCurrency = (amount: number) => {
-    return amount.toFixed(2) + '$'
-  }
-  
-  // Get current labor item for display
-  const currentLabor = laborCosts[currentLaborIndex]
-  const currentMaterial = materials[currentMaterialIndex]
+    // Format currency
+    const formatCurrency = (amount: number) => {
+      return amount.toFixed(2) + '$'
+    }
 
-  return (
+    return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
       <Header credits={5} />
       
@@ -347,297 +318,212 @@ const ProposalSummary = () => {
         <Sidebar onGoBack={handleGoBack} />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <main className="flex-1 p-3 sm:p-3 lg:p-4 overflow-hidden flex flex-col">
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-2 flex-shrink-0">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
-                {/* Progress Circles - First two always checked, third when profit/risk filled */}
-                <div className="flex justify-center gap-4">
-                  {[1, 2, 3].map((step) => {
-                    const isComplete = (step === 1 && step1Complete) || (step === 2 && step2Complete) || (step === 3 && step3Complete)
-                    const showAnimation = step === 3 && showThirdCheckAnimation
+                                                                {/* Progress Circles - Static checks for steps 1 & 2 (completed on previous pages), animated check for step 3 */}
+                                                                <div className="flex justify-center gap-4 mb-8">
+                                  {[1, 2, 3].map((step) => {
+                                    const isComplete = (step === 1 && step1Complete) || (step === 2 && step2Complete) || (step === 3 && step3Complete)
+                                    const showAnimation = step === 3 && showThirdCheckAnimation
                     
-                    return (
-                      <div key={step} className="relative">
-                        {isComplete ? (
-                          <div className="relative">
-                            <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
-                              showAnimation ? 'animate-ping' : ''
-                            }`} />
-                            <img 
-                              src={CheckIcon} 
-                              alt={`Step ${step} Complete`} 
-                              className={`w-12 h-12 relative z-10 ${
-                                showAnimation ? 'animate-bounce' : ''
-                              }`} 
-                            />
+                                    return (
+                                      <div key={step} className="relative">
+                                        {step === 1 && step1Complete ? (
+                                          // Step 1 complete - show static Check.svg (completed on Contract Analysis page)
+                                          <div className="relative">
+                                            <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
+                                            <img src={CheckSvg} alt="Step 1 Complete" className="w-12 h-12 relative z-10" />
+                                          </div>
+                                        ) : step === 2 && step2Complete ? (
+                                          // Step 2 complete - show static Check.svg (completed on Team Building page)
+                                          <div className="relative">
+                                            <div className="absolute inset-0 rounded-full bg-corama-teal/50 blur-md" />
+                                            <img src={CheckSvg} alt="Step 2 Complete" className="w-12 h-12 relative z-10" />
+                                          </div>
+                                        ) : step === 3 && isComplete ? (
+                                          // Step 3 complete - show Lottie animation only when first triggered on this page
+                                          <div className="relative">
+                                            <div className={`absolute inset-0 rounded-full bg-corama-teal/50 blur-md ${
+                                              showAnimation ? 'animate-ping' : ''
+                                            }`} />
+                                            <div className="w-12 h-12 relative z-10">
+                                              <Lottie 
+                                                animationData={checkAnimation} 
+                                                loop={false}
+                                                autoplay={showAnimation}
+                                              />
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <img src={EmptyCheckSvg} alt={`Step ${step}`} className="w-12 h-12" />
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+            </div>
+
+                                                {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
+                                                <div className="bg-white rounded-2xl border border-white p-4 mb-8 flex-shrink-0">
+                          <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
+                          <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
+                            {isLoadingStrategy ? (
+                              <InlineLoading text="Thinking" size="small" />
+                            ) : aiStrategy ? (
+                              <ReactMarkdown
+                                components={{
+                                  p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                                  ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                  ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                  li: ({children}) => <li className="ml-2">{children}</li>,
+                                  strong: ({children}) => <strong className="font-bold">{children}</strong>,
+                                  em: ({children}) => <em className="italic">{children}</em>,
+                                  h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
+                                  h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
+                                  h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                }}
+                              >
+                                {aiStrategy}
+                              </ReactMarkdown>
+                            ) : (
+                              <InlineLoading text="Thinking" size="small" />
+                            )}
                           </div>
-                        ) : (
-                          <img src={EmptyCheckIcon} alt={`Step ${step}`} className="w-12 h-12" />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-            </div>
+                        </div>
 
-            {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
-            <div className="bg-white rounded-2xl border border-white p-4 mb-3 flex-shrink-0">
-              <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
-              <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
-                {isLoadingStrategy ? (
-                  <p className="text-gray-500 italic">Generating AI strategy...</p>
-                ) : aiStrategy ? (
-                  <p>{aiStrategy}</p>
-                ) : (
-                  <p className="text-gray-500 italic">Generating AI strategy...</p>
-                )}
-              </div>
-            </div>
+                                                                                                                                    {/* Labor Costs Section - Each row has headers, inputs, button, and trash icon */}
+                                                                                                <div className="rounded-2xl border border-white p-3 mb-8 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
+                                                  <h3 className="text-white font-poppins font-semibold text-base mb-2">Labor Costs</h3>
+              
+                                                                                                  {/* Existing labor cost items - each with its own headers */}
+                                                              {laborCosts.map((item, index) => (
+                                                                <div key={item.id} className="mb-3">
+                                                                  {/* Column Headers */}
+                                                                                                                                    <div className="flex items-end mb-1 gap-2">
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Role</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Hours</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                                                                                      <div style={{ width: '100px' }}></div>
+                                                                                                                                      <div style={{ width: '28px' }}></div>
+                                                                                                                                    </div>
+                                                                                                                                    {/* Input Row */}
+                                                                                                                                    <div className="flex items-center gap-2">
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.role} readOnly />
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.hours} readOnly />
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.rate} readOnly />
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency(item.cost)} readOnly />
+                                                                                                                                      <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
+                                                                                                                                        <span>Edit Role</span>
+                                                                                                                                        <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                                                                                                      </button>
+                                                                                                                                      <button onClick={() => setLaborCosts(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80 flex-shrink-0">
+                                                                                                                                        <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                                                                                                      </button>
+                                                                                                                                    </div>
+                                                                </div>
+                                                              ))}
+              
+                                                              {/* Add new role row - with its own headers */}
+                                                              <div>
+                                                                {/* Column Headers */}
+                                                                                                                                <div className="flex items-end mb-1 gap-2">
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Role</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Hours</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                                                                                  <div style={{ width: '120px' }}></div>
+                                                                                                                                  <div style={{ width: '28px' }}></div>
+                                                                                                                                </div>
+                                                                                                                                {/* Input Row */}
+                                                                                                                                <div className="flex items-center gap-2">
+                                                                                                                                  <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="Project Manager"value={laborRole} onChange={e => setLaborRole(e.target.value)} />
+                                                                                                                                  <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="40" value={laborHours} onChange={e => setLaborHours(e.target.value)} />
+                                                                                                                                  <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
+                                                                                                                                  <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
+                                                                                                                                  <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}>
+                                                                                                                                    <span className="mr-6">Add Role</span>
+                                                                                                                                    <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                                                                                                  </button>
+                                                                                                                                  <button className="p-1 opacity-30 flex-shrink-0">
+                                                                                                                                    <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                                                                                                  </button>
+                                                                                                                                </div>
+                                                              </div>
+                                                            </div>
 
-            {/* Labor Costs Section */}
-            <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-white font-poppins font-semibold text-base">Labor Costs</h3>
-                <div className="flex items-center gap-2">
-                  {laborCosts.length > 0 && (
-                    <span className="text-white font-poppins text-sm">{currentLaborIndex + 1} of {laborCosts.length}</span>
-                  )}
-                  <div className="flex gap-1">
-                    <button 
-                      onClick={handlePrevLabor}
-                      disabled={currentLaborIndex === 0 || laborCosts.length === 0}
-                      className="p-1 hover:opacity-80 disabled:opacity-30"
-                    >
-                      <img src={LeftArrowIcon} alt="Previous" className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={handleNextLabor}
-                      disabled={currentLaborIndex >= laborCosts.length - 1 || laborCosts.length === 0}
-                      className="p-1 hover:opacity-80 disabled:opacity-30"
-                    >
-                      <img src={RightArrowIcon} alt="Next" className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+                                                                                                                                    {/* Materials & Equipment Section - Each row has headers, inputs, button, and trash icon */}
+                                                                                                <div className="rounded-2xl border border-white p-3 mb-8 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
+                                                  <h3 className="text-white font-poppins font-semibold text-base mb-2">Materials & Equipment</h3>
               
-              {/* Column Headers */}
-              <div className="grid grid-cols-4 gap-2 mb-1">
-                <span className="text-corama-teal font-poppins text-sm">Role</span>
-                <span className="text-corama-teal font-poppins text-sm">Hours</span>
-                <span className="text-corama-teal font-poppins text-sm">Rate ($/hr)</span>
-                <span className="text-corama-teal font-poppins text-sm">Cost</span>
-              </div>
+                                                                                                  {/* Existing material items - each with its own headers */}
+                                                              {materials.map((item, index) => (
+                                                                <div key={item.id} className="mb-3">
+                                                                  {/* Column Headers */}
+                                                                                                                                    <div className="flex items-end mb-1 gap-2">
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Item</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Quantity</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Unit Cost</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                                                                                      <div style={{ width: '120px' }}></div>
+                                                                                                                                      <div style={{ width: '28px' }}></div>
+                                                                                                                                    </div>
+                                                                                                                                    {/* Input Row */}
+                                                                                                                                    <div className="flex items-center gap-2">
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.item} readOnly />
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.quantity} readOnly />
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.unit_cost} readOnly />
+                                                                                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency(item.cost)} readOnly />
+                                                                                                                                      <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}>
+                                                                                                                                        <span className="mr-6">Edit Item</span>
+                                                                                                                                        <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                                                                                                      </button>
+                                                                                                                                      <button onClick={() => setMaterials(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80 flex-shrink-0">
+                                                                                                                                        <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                                                                                                      </button>
+                                                                                                                                    </div>
+                                                                </div>
+                                                              ))}
               
-              {/* Input Row or Display Row */}
-              <div className="flex items-center gap-2">
-                <div className="grid grid-cols-4 gap-2 flex-1">
-                  {currentLabor ? (
-                    <>
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={currentLabor.role}
-                        readOnly
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={currentLabor.hours}
-                        readOnly
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={currentLabor.rate}
-                        readOnly
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={formatCurrency(currentLabor.cost)}
-                        readOnly
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        placeholder="Project Manager"
-                        value={laborRole}
-                        onChange={e => setLaborRole(e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        placeholder="40"
-                        value={laborHours}
-                        onChange={e => setLaborHours(e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        placeholder="75"
-                        value={laborRate}
-                        onChange={e => setLaborRate(e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm"
-                        value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))}
-                        readOnly
-                      />
-                    </>
-                  )}
-                </div>
-                
-                <button
-                  onClick={handleAddLaborRole}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: '#99C8CA' }}
-                >
-                  Add Role
-                  <img src={AddIcon} alt="" className="w-4 h-4" />
-                </button>
-                
-                <button
-                  onClick={handleDeleteLaborRole}
-                  disabled={laborCosts.length === 0}
-                  className="p-1 hover:opacity-80 disabled:opacity-30"
-                >
-                  <img src={RemoveIcon} alt="Delete" className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Materials & Equipment Section */}
-            <div className="rounded-2xl border border-white p-3 mb-3 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-white font-poppins font-semibold text-base">Materials & Equipment</h3>
-                <div className="flex items-center gap-2">
-                  {materials.length > 0 && (
-                    <span className="text-white font-poppins text-sm">{currentMaterialIndex + 1} of {materials.length}</span>
-                  )}
-                  <div className="flex gap-1">
-                    <button 
-                      onClick={handlePrevMaterial}
-                      disabled={currentMaterialIndex === 0 || materials.length === 0}
-                      className="p-1 hover:opacity-80 disabled:opacity-30"
-                    >
-                      <img src={LeftArrowIcon} alt="Previous" className="w-5 h-5" />
-                    </button>
-                    <button 
-                      onClick={handleNextMaterial}
-                      disabled={currentMaterialIndex >= materials.length - 1 || materials.length === 0}
-                      className="p-1 hover:opacity-80 disabled:opacity-30"
-                    >
-                      <img src={RightArrowIcon} alt="Next" className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Column Headers */}
-              <div className="grid grid-cols-4 gap-2 mb-1">
-                <span className="text-corama-teal font-poppins text-sm">Item</span>
-                <span className="text-corama-teal font-poppins text-sm">Quantity</span>
-                <span className="text-corama-teal font-poppins text-sm">Unit Cost</span>
-                <span className="text-corama-teal font-poppins text-sm">Cost</span>
-              </div>
-              
-              {/* Input Row or Display Row */}
-              <div className="flex items-center gap-2">
-                <div className="grid grid-cols-4 gap-2 flex-1">
-                  {currentMaterial ? (
-                    <>
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={currentMaterial.item}
-                        readOnly
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={currentMaterial.quantity}
-                        readOnly
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={currentMaterial.unit_cost}
-                        readOnly
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        value={formatCurrency(currentMaterial.cost)}
-                        readOnly
-                      />
-                    </>
-                  ) : (
-                    <>
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        placeholder="Laptop"
-                        value={materialItem}
-                        onChange={e => setMaterialItem(e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        placeholder="5"
-                        value={materialQuantity}
-                        onChange={e => setMaterialQuantity(e.target.value)}
-                      />
-                      <input
-                        type="number"
-                        className="rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
-                        placeholder="1200"
-                        value={materialUnitCost}
-                        onChange={e => setMaterialUnitCost(e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        className="rounded-lg px-2 py-1.5 bg-gray-200 text-gray-600 outline-none font-poppins text-sm"
-                        value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))}
-                        readOnly
-                      />
-                    </>
-                  )}
-                </div>
-                
-                <button
-                  onClick={handleAddMaterial}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: '#99C8CA' }}
-                >
-                  Add Item
-                  <img src={AddIcon} alt="" className="w-4 h-4" />
-                </button>
-                
-                <button
-                  onClick={handleDeleteMaterial}
-                  disabled={materials.length === 0}
-                  className="p-1 hover:opacity-80 disabled:opacity-30"
-                >
-                  <img src={RemoveIcon} alt="Delete" className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
+                                                              {/* Add new item row - with its own headers */}
+                                                              <div>
+                                                                {/* Column Headers */}
+                                                                                                                                <div className="flex items-end mb-1 gap-2">
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Item</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Quantity</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Unit Cost</span>
+                                                                                                                                  <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                                                                                  <div style={{ width: '120px' }}></div>
+                                                                                                                                  <div style={{ width: '28px' }}></div>
+                                                                                                                                </div>
+                                                                                                                                {/* Input Row */}
+                                                                                                                                <div className="flex items-center gap-2">
+                                                                                                                                  <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="Laptop"value={materialItem} onChange={e => setMaterialItem(e.target.value)} />
+                                                                                                                                  <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="5" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)} />
+                                                                                                                                  <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
+                                                                                                                                  <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
+                                                                                                                                  <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}>
+                                                                                                                                    <span className="mr-6">Add Item</span>
+                                                                                                                                    <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
+                                                                                                                                  </button>
+                                                                                                                                  <button className="p-1 opacity-30 flex-shrink-0">
+                                                                                                                                    <img src={RemoveIcon} alt="Delete" className="w-6 h-6" />
+                                                                                                                                  </button>
+                                                                                                                                </div>
+                                                              </div>
+                                                            </div>
 
             {/* Bottom Row: Margin & Risk + Proposal Summary - double horizontal space */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-3 flex-shrink-0">
               {/* Margin & Risk Adjustments */}
               <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#333c4d' }}>
-                <h3 className="text-corama-teal font-poppins font-semibold text-base mb-2">Margin & Risk Adjustments</h3>
+                <h3 className="text-white font-poppins font-semibold text-base mb-2">Margin & Risk Adjustments</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-corama-teal font-poppins text-sm mb-1 block">Profit Margin (%)</label>
+                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>Profit Margin (%)</label>
                     <input
                       type="number"
                       className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
@@ -647,7 +533,7 @@ const ProposalSummary = () => {
                     />
                   </div>
                   <div>
-                    <label className="text-corama-teal font-poppins text-sm mb-1 block">Risk Reserve (%)</label>
+                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>Risk Reserve (%)</label>
                     <input
                       type="number"
                       className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
@@ -659,9 +545,9 @@ const ProposalSummary = () => {
                 </div>
               </div>
 
-              {/* Proposal Summary - Two column layout */}
-              <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#333c4d' }}>
-                <h3 className="text-white font-poppins font-semibold text-base mb-2 text-center">Proposal Summary</h3>
+                            {/* Proposal Summary - Two column layout */}
+                            <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#2f4161' }}>
+                              <h3 className="text-white font-poppins font-semibold text-base mb-2 text-center">Proposal Summary</h3>
                 <div className="grid grid-cols-2 gap-x-4 text-sm">
                   {/* Left Column */}
                   <div className="flex flex-col gap-1">
@@ -706,14 +592,14 @@ const ProposalSummary = () => {
 
             {/* Bottom Buttons */}
             <div className="flex justify-between gap-4 flex-shrink-0">
-              <button
-                onClick={handleSaveSummary}
-                disabled={isSaving}
-                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                style={{ backgroundColor: '#99C8CA' }}
-              >
+                            <button
+                              onClick={handleSaveSummary}
+                              disabled={isSaving}
+                              className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 overflow-hidden"
+                              style={{ backgroundColor: '#99C8CA', width: '388px', height: '32px' }}
+                            >
                 <span>{isSaving ? 'Saving...' : 'Save Summary'}</span>
-                <img src={ContinueIcon} alt="" className="w-5 h-5" />
+                <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
 
               <button
@@ -737,11 +623,11 @@ const ProposalSummary = () => {
                     totalBidAmount
                   } 
                 })}
-                className="flex items-center justify-center gap-2 px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
-                style={{ backgroundColor: '#99C8CA' }}
-              >
-                <span>Generate Final Proposal</span>
-                <span className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold">$</span>
+                                                            className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden"
+                                                            style={{ backgroundColor: '#27456e', width: '388px', height: '32px' }}
+                            >
+                              <span>Generate Final Proposal</span>
+                <img src={GenerateFinalProposalIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
           </main>

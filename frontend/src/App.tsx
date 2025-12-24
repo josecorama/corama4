@@ -12,12 +12,27 @@ import ContractAnalysis from './pages/ContractAnalysis'
 import ProposalTeam from './pages/ProposalTeam'
 import ProposalSummary from './pages/ProposalSummary'
 import PublicBidProposalGenerator from './pages/PublicBidProposalGenerator'
+import Login from './pages/Login'
+import Signup from './pages/Signup'
+import ConfirmTerms from './pages/ConfirmTerms'
+import ResetPassword from './pages/ResetPassword'
+import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
+import FAQ from './pages/FAQ'
+import AboutUs from './pages/AboutUs'
+import AboutUsPublic from './pages/AboutUsPublic'
 
 function App() {
   return (
     <Router basename="/">
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/confirm-terms" element={<ConfirmTerms />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
+        <Route path="/faq" element={<FAQ />} />
+        <Route path="/about-us" element={<AboutUsPublic />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/capability-builder" element={<CapabilityBuilder />} />
         <Route path="/top-five-contracts" element={<TopFiveContracts />} />
@@ -29,8 +44,9 @@ function App() {
         <Route path="/contract-analysis" element={<ContractAnalysis />} />
         <Route path="/proposal-team" element={<ProposalTeam />} />
         <Route path="/proposal-summary" element={<ProposalSummary />} />
-        <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
-      </Routes>
+              <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
+              <Route path="/about" element={<AboutUs />} />
+            </Routes>
     </Router>
   )
 }

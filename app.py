@@ -1,43 +1,54 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file, send_from_directory, session, make_response, flash, abort
+from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file, send_from_directory, session, make_response, flash, abort, Response
 import os
 import re
 import io
-from docx import Document
 import sys
+import ast
+import csv
+import json
+import time
 import logging
+import secrets
+import hashlib
+import threading
+import uuid
+import shutil
+from datetime import datetime, timedelta
+from pathlib import Path
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import secrets
+import numpy as np
 import pandas as pd
+from PIL import Image
+from docx import Document
 import fitz  # PyMuPDF
-from openai import OpenAI
 from fpdf import FPDF
-from datetime import datetime, timedelta
-from werkzeug.utils import secure_filename 
+from openai import OpenAI
+import openai
+import tiktoken
+import pyrebase
+import stripe
+import requests
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
+from sklearn.metrics.pairwise import cosine_similarity
+from rank_bm25 import BM25Okapi
+from pdf2docx import parse
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk import ne_chunk, pos_tag
-from PIL import Image
-import time  
-import pyrebase 
-import stripe 
-import numpy as np
-import shutil
-from sklearn.metrics.pairwise import cosine_similarity
-import ast
-import csv
-import json
-import threading
-import uuid
+
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
-#from RAG.Capability_statement_embedding import generate_embeddings as generate_capability_embeddings
-#from RAG.vector_store import VectorStore, load_embeddings, initialize_vector_stores
-#from RAG.matcher import find_matches
-from dotenv import load_dotenv
+from cs_processor import CSQueryHandler
+from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
@@ -52,25 +63,6 @@ env_path = os.path.join(base_dir, '.env')
 
 load_dotenv(env_path, override=False)
 
-#New Imports:
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-
-
-from pdf2docx import parse
-from pathlib import Path
-from rank_bm25 import BM25Okapi
-import json 
-
-#Qdrant
-from cs_processor import CSQueryHandler
-from qdrant_client import QdrantClient, models
-from capability_statement_preprocessing import process_pdfs
-import hashlib
-import openai
-import tiktoken
-import requests  # ✅ Fix: Ensure requests is imported
 
 
 
@@ -110,17 +102,661 @@ job_lock = threading.Lock()
 @app.route("/healthz")
 def health_check():
     return {"status": "ok"}, 200
+
+
+# Admin endpoint to clear all caches
+@app.route("/api/admin/clear-caches", methods=['POST'])
+def admin_clear_caches():
+    """Admin endpoint to clear all in-memory caches.
     
+    This endpoint requires admin authentication via a secret key.
+    Use this when you need to force refresh cached data without restarting the app.
+    """
+    admin_key = request.headers.get('X-Admin-Key') or request.json.get('admin_key') if request.is_json else None
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    
+    if not expected_key:
+        logging.warning("[Admin] ADMIN_SECRET_KEY not configured")
+        return jsonify({"error": "Admin functionality not configured"}), 503
+    
+    if admin_key != expected_key:
+        logging.warning("[Admin] Invalid admin key attempt")
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    clear_all_caches()
+    save_ai_naics_cache()
+    
+    return jsonify({
+        "success": True,
+        "message": "All caches cleared successfully",
+        "caches_cleared": [
+            "AI_NAICS_CACHE",
+            "AI_CATEGORY_CACHE", 
+            "AI_GOODS_SUBCATEGORY_CACHE",
+            "AI_CONSTRUCTION_SUBCATEGORY_CACHE",
+            "QDRANT_ANALYTICS_CACHE",
+            "QDRANT_CONTRACTS_CACHE"
+        ]
+    }), 200
+
+
+# ============================================================================
+# AUTH API ENDPOINTS (for React frontend)
+# ============================================================================
+
+def verify_recaptcha(token):
+    """Verify reCAPTCHA token with Google's API.
+    
+    Returns True if verification passes, False otherwise.
+    If no token is provided (e.g., script not loaded yet), skip verification.
+    
+    Set RECAPTCHA_ENABLED=false in .env to disable verification for testing.
+    """
+    # Check if reCAPTCHA is disabled for testing
+    recaptcha_enabled = os.getenv("RECAPTCHA_ENABLED", "true").lower() != "false"
+    if not recaptcha_enabled:
+        app.logger.info("[reCAPTCHA] Verification disabled via RECAPTCHA_ENABLED=false")
+        return True
+    
+    if not token:
+        app.logger.warning("[reCAPTCHA] No token provided, skipping verification")
+        return True  # Skip verification if no token (script may not have loaded)
+    
+    secret_key = os.getenv("RECAPTCHA_SECRET_KEY")
+    if not secret_key:
+        app.logger.warning("[reCAPTCHA] RECAPTCHA_SECRET_KEY not configured, skipping verification")
+        return True  # Skip verification if not configured
+    
+    try:
+        import requests
+        response = requests.post(
+            'https://www.google.com/recaptcha/api/siteverify',
+            data={
+                'secret': secret_key,
+                'response': token
+            },
+            timeout=10
+        )
+        result = response.json()
+        
+        if result.get('success'):
+            score = result.get('score', 0)
+            app.logger.info(f"[reCAPTCHA] Verification passed with score: {score}")
+            # For reCAPTCHA v3, score >= 0.5 is generally considered human
+            return score >= 0.3  # Be lenient for now
+        else:
+            app.logger.warning(f"[reCAPTCHA] Verification failed: {result.get('error-codes', [])}")
+            return False
+    except Exception as e:
+        app.logger.error(f"[reCAPTCHA] Verification error: {e}")
+        return True  # Fail open to not block users if Google is down
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def api_auth_login():
+    """API endpoint for React login page.
+    
+    Expects JSON: { email, password, recaptcha_token }
+    Returns JSON: { success, redirect, error }
+    """
+    session.clear()
+    
+    data = request.get_json() or {}
+    email = data.get('email')
+    password = data.get('password')
+    recaptcha_token = data.get('recaptcha_token')
+    
+    if not email or not password:
+        return jsonify({"success": False, "error": "Email and password are required"}), 400
+    
+    # Verify reCAPTCHA
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    app.logger.info(f"[Auth API] Login attempt for email: {email}")
+    
+    try:
+        # Authenticate user with Firebase
+        user = auth.sign_in_with_email_and_password(email, password)
+        local_id = user['localId']
+        refreshed_user = auth.refresh(user['refreshToken'])
+
+        # Set session data for the authenticated user
+        session['user'] = {
+            'localId': local_id,
+            'idToken': refreshed_user['idToken'],
+            'email': email,
+            'refreshToken': refreshed_user['refreshToken']
+        }
+
+        # Retrieve user data from Firebase
+        user_data = db.child("users").child(local_id).get(refreshed_user['idToken']).val()
+        
+        # Handle case where user exists in Firebase Auth but not in database
+        if user_data is None:
+            app.logger.warning(f"User {email} exists in Firebase Auth but not in database. Creating default user data.")
+            default_user_data = {
+                "email": email,
+                "account_type": "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS",
+                "subscription_end_date": "9999-12-31",
+                "is_stripe_customer": False,
+                "first_name": email.split('@')[0],
+                "last_name": "",
+                "company": "",
+                "username": email.split('@')[0],
+                "credits_balance": 100,
+                "credits_used": 0,
+                "last_credit_update": datetime.now().isoformat(),
+                "credit_purchase_history": []
+            }
+            
+            db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
+            user_data = default_user_data
+            app.logger.info(f"Created default user data for {email}")
+
+        session['is_subscriber'] = True
+        session['is_logged_in'] = True
+        app.logger.info(f"[Auth API] User logged in successfully: {email}")
+        
+        return jsonify({
+            "success": True,
+            "redirect": "/dashboard",
+            "user": {
+                "email": email,
+                "first_name": user_data.get('first_name', ''),
+                "last_name": user_data.get('last_name', ''),
+                "company": user_data.get('company', '')
+            }
+        })
+    
+    except Exception as e:
+        app.logger.error(f"[Auth API] Login error for {email}: {e}")
+        
+        error_message = "Login failed. Check your email or password and try again."
+        error_str = str(e).upper()
+        
+        if 'EMAIL_NOT_FOUND' in error_str:
+            error_message = "This email is not registered. Please sign up first."
+        elif 'INVALID_PASSWORD' in error_str or 'INVALID_LOGIN_CREDENTIALS' in error_str:
+            error_message = "Incorrect email or password. Please try again."
+        elif 'USER_DISABLED' in error_str:
+            error_message = "This account has been disabled. Contact support for assistance."
+        elif 'INVALID_EMAIL' in error_str:
+            error_message = "Invalid email format. Please check your email address."
+        elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_str:
+            error_message = "Too many failed login attempts. Please try again later."
+        
+        return jsonify({"success": False, "error": error_message}), 401
+
+
+@app.route('/api/auth/signup', methods=['POST'])
+def api_auth_signup():
+    """API endpoint for React signup page.
+    
+    Expects JSON: { first_name, last_name, company, email, username, password, recaptcha_token }
+    Returns JSON: { success, next, error }
+    """
+    data = request.get_json() or {}
+    
+    first_name = data.get('first_name')
+    last_name = data.get('last_name')
+    company = data.get('company')
+    email = data.get('email')
+    password = data.get('password')
+    username = data.get('username')
+    recaptcha_token = data.get('recaptcha_token')
+    
+    account_type = 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS'
+    subscription_end_date = '9999-12-31'  # Permanent free access
+    
+    if not email or not password:
+        return jsonify({"success": False, "error": "Email and password are required"}), 400
+    
+    if not first_name or not last_name:
+        return jsonify({"success": False, "error": "First name and last name are required"}), 400
+    
+    # Verify reCAPTCHA
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    app.logger.info(f"[Auth API] Signup attempt for email: {email}")
+    
+    try:
+        # Create Firebase User
+        user = auth.create_user_with_email_and_password(email, password)
+        user_id = user.get('localId')
+        user_logged_in = auth.sign_in_with_email_and_password(email, password)
+        
+        app.logger.info(f"[Auth API] Firebase user created: {user_id}")
+        
+        # Send Welcome Email (non-blocking)
+        import threading
+        email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+        email_thread.daemon = True
+        email_thread.start()
+        app.logger.info("[Auth API] Welcome email thread started")
+        
+        # Store User Data in Session
+        session['user_data'] = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "company": company,
+            "email": email,
+            "username": username,
+            "account_type": account_type,
+            "subscription_end_date": subscription_end_date,
+            "user_id": user_id
+        }
+        
+        # Store User Authentication in Session
+        session['user'] = {
+            'localId': user_id,
+            'idToken': user_logged_in['idToken'],
+            'email': email,
+            'refreshToken': user_logged_in['refreshToken']
+        }
+        
+        # Store User Data in Firebase Database
+        db.child("users").child(user_id).set({
+            "first_name": first_name,
+            "last_name": last_name,
+            "company": company,
+            "email": email,
+            "username": username,
+            "account_type": account_type,
+            "subscription_end_date": subscription_end_date,
+            "uploads_dir": create_user_directory(user_id),
+            "credits_balance": 100,
+            "credits_used": 0,
+            "directory_listed": False
+        }, user_logged_in['idToken'])
+        
+        app.logger.info(f"[Auth API] User data stored in Firebase for {email}")
+        
+        return jsonify({
+            "success": True,
+            "next": "/confirm-terms"
+        })
+    
+    except Exception as e:
+        app.logger.error(f"[Auth API] Signup error for {email}: {e}")
+        
+        error_message = "An unexpected error occurred. Please try again."
+        error_str = str(e).upper()
+        
+        if 'EMAIL_EXISTS' in error_str:
+            error_message = "This email is already registered. Please log in instead."
+        elif 'INVALID_EMAIL' in error_str:
+            error_message = "Invalid email format. Please check your email address."
+        elif 'WEAK_PASSWORD' in error_str:
+            error_message = "Password is too weak. Please choose a stronger password (minimum 6 characters)."
+        elif 'INVALID_PASSWORD' in error_str:
+            error_message = "Invalid password format. Please check your password."
+        elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_str:
+            error_message = "Too many failed attempts. Please try again later."
+        
+        return jsonify({"success": False, "error": error_message}), 400
+
+
+@app.route('/api/auth/confirm-terms', methods=['POST'])
+def api_auth_confirm_terms():
+    """API endpoint for React confirm terms page.
+    
+    Expects JSON: { confirm_terms: true }
+    Returns JSON: { success, redirect, error }
+    """
+    data = request.get_json() or {}
+    
+    if not data.get('confirm_terms'):
+        return jsonify({"success": False, "error": "You must agree to the terms to proceed"}), 400
+    
+    user_data = session.get('user_data')
+    user_auth = session.get('user')
+    
+    if not user_data:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    if not user_auth:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    try:
+        user_id = user_data.get('user_id')
+        if not user_id:
+            return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+        
+        db.child("users").child(user_id).update({
+            "account_type": user_data['account_type'],
+            "subscription_end_date": "9999-12-31",
+            "terms_accepted": True,
+            "terms_accepted_date": datetime.now().isoformat()
+        }, user_auth['idToken'])
+        
+        session['is_subscriber'] = True
+        session['is_logged_in'] = True
+        
+        app.logger.info(f"[Auth API] Terms accepted for user {user_id}")
+        
+        return jsonify({
+            "success": True,
+            "redirect": "/dashboard"
+        })
+    
+    except Exception as e:
+        app.logger.error(f"[Auth API] Confirm terms error: {e}")
+        return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
+
+
+def send_email_smtp(to_email, subject, html_body):
+    """Unified email sending function using SMTP.
+    
+    This function sends emails via Gmail SMTP. It's used for all transactional emails
+    including welcome emails and password reset emails.
+    
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        html_body: HTML content of the email
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    import socket
+    
+    sender_email = os.getenv('EMAIL_GOOGLE_USER')
+    sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    
+    if not sender_email or not sender_password:
+        app.logger.error(f"[Email] Credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+        return False, "Email service not configured"
+    
+    try:
+        # Create MIME message
+        msg = MIMEMultipart("alternative")
+        msg['Subject'] = subject
+        msg['From'] = sender_email
+        msg['To'] = to_email
+        
+        # Attach HTML part
+        mime_text = MIMEText(html_body, "html")
+        msg.attach(mime_text)
+        
+        # Set socket timeout
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(15)
+        
+        try:
+            app.logger.info(f"[Email] Connecting to smtp.gmail.com:465...")
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
+                app.logger.info(f"[Email] Connected, attempting login...")
+                server.login(sender_email, sender_password)
+                app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                server.sendmail(sender_email, to_email, msg.as_string())
+                app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                return True, None
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+            
+    except socket.timeout as e:
+        app.logger.error(f"[Email] SMTP timeout sending to {to_email}: {e}")
+        return False, "Email service timeout"
+    except smtplib.SMTPAuthenticationError as e:
+        app.logger.error(f"[Email] SMTP authentication failed: {e}")
+        return False, "Email authentication failed"
+    except Exception as e:
+        app.logger.error(f"[Email] Error sending to {to_email}: {type(e).__name__}: {e}")
+        return False, str(e)
+
+
+def send_password_reset_email(to_email, reset_link):
+    """Send password reset email with the reset link.
+    
+    Args:
+        to_email: Recipient email address
+        reset_link: The password reset link
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    subject = "Reset Your CORAMA Password"
+    
+    html_body = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
+        <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+          <h2 style="color: #7AB8B9; text-align: center;">Reset Your Password</h2>
+          <p>Hi,</p>
+          <p>We received a request to reset your password for your CORAMA account.</p>
+          <p>Click the button below to set a new password:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="{reset_link}" style="background-color: #7AB8B9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
+          </div>
+          <p style="font-size: 0.9em; color: #666;">This link will expire in 1 hour for security reasons.</p>
+          <p style="font-size: 0.9em; color: #666;">If you didn't request a password reset, you can safely ignore this email.</p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+          <p style="text-align: center; font-size: 0.85em; color: #aaa;">&copy; 2025 CORAMA - Contract Radar Maximizer</p>
+        </div>
+      </body>
+    </html>
+    """
+    
+    return send_email_smtp(to_email, subject, html_body)
+
+
+@app.route('/api/auth/reset-password', methods=['POST'])
+def api_auth_reset_password():
+    """API endpoint for React password reset page.
+    
+    Uses Firebase Admin SDK to generate a password reset link, then sends it
+    via our own SMTP service for consistent branding and deliverability.
+    
+    Expects JSON: { email, recaptcha_token }
+    Returns JSON: { success, message, error }
+    """
+    data = request.get_json() or {}
+    email = data.get('email')
+    recaptcha_token = data.get('recaptcha_token')
+    
+    if not email:
+        return jsonify({"success": False, "error": "Email is required"}), 400
+    
+    # Verify reCAPTCHA
+    if not verify_recaptcha(recaptcha_token):
+        return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    try:
+        # Import firebase_admin auth module
+        from firebase_admin import auth as admin_auth
+        
+        # Get the base URL for the reset link
+        # In production, this should be the actual domain
+        base_url = os.getenv('APP_BASE_URL', 'https://corama.ai')
+        
+        # Generate password reset link using Firebase Admin SDK
+        # The link will point to our custom reset confirmation page
+        action_code_settings = admin_auth.ActionCodeSettings(
+            url=f"{base_url}/reset-password/confirm",
+            handle_code_in_app=True
+        )
+        
+        reset_link = admin_auth.generate_password_reset_link(email, action_code_settings)
+        app.logger.info(f"[Auth API] Generated password reset link for {email}")
+        
+        # Send the reset email via our SMTP service
+        success, error = send_password_reset_email(email, reset_link)
+        
+        if success:
+            app.logger.info(f"[Auth API] Password reset email sent to {email}")
+            return jsonify({
+                "success": True,
+                "message": "A password reset link has been sent to your email."
+            })
+        else:
+            app.logger.error(f"[Auth API] Failed to send password reset email to {email}: {error}")
+            # Still return success to user to prevent email enumeration
+            # but log the actual error
+            return jsonify({
+                "success": True,
+                "message": "If an account exists with this email, a password reset link has been sent."
+            })
+            
+    except admin_auth.UserNotFoundError:
+        # Don't reveal if user exists - return success anyway
+        app.logger.info(f"[Auth API] Password reset requested for non-existent email: {email}")
+        return jsonify({
+            "success": True,
+            "message": "If an account exists with this email, a password reset link has been sent."
+        })
+    except Exception as e:
+        app.logger.error(f"[Auth API] Password reset error for {email}: {e}")
+        # Return generic success to prevent email enumeration
+        return jsonify({
+            "success": True,
+            "message": "If an account exists with this email, a password reset link has been sent."
+        })
+
+
+@app.route('/api/auth/logout', methods=['POST'])
+def api_auth_logout():
+    """API endpoint for logout.
+    
+    Returns JSON: { success, redirect }
+    """
+    session.clear()
+    app.logger.info("[Auth API] User logged out")
+    return jsonify({
+        "success": True,
+        "redirect": "/login"
+    })
+
+
+@app.route('/api/auth/recaptcha-site-key', methods=['GET'])
+def api_auth_recaptcha_site_key():
+    """API endpoint to get reCAPTCHA site key for React frontend.
+    
+    Returns JSON: { site_key }
+    """
+    site_key = os.getenv("RECAPTCHA_SITE_KEY", "")
+    return jsonify({"site_key": site_key})
+
+
+@app.route('/api/auth/verify-reset-code', methods=['POST'])
+def api_auth_verify_reset_code():
+    """API endpoint to verify a password reset code (oobCode) is valid.
+    
+    Expects JSON: { oob_code }
+    Returns JSON: { valid, error }
+    """
+    data = request.get_json() or {}
+    oob_code = data.get('oob_code')
+    
+    if not oob_code:
+        return jsonify({"valid": False, "error": "Reset code is required"}), 400
+    
+    try:
+        # Use Firebase REST API to verify the oobCode
+        # This checks if the code is valid without consuming it
+        api_key = os.getenv('FIREBASE_WEB_API_KEY') or os.getenv('FIREBASE_API_KEY')
+        if not api_key:
+            app.logger.error("[Auth API] Firebase API key not configured")
+            return jsonify({"valid": False, "error": "Server configuration error"}), 500
+        
+        # Verify the reset code using Firebase Identity Toolkit
+        verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key={api_key}"
+        response = requests.post(verify_url, json={"oobCode": oob_code})
+        
+        if response.status_code == 200:
+            app.logger.info(f"[Auth API] Reset code verified successfully")
+            return jsonify({"valid": True})
+        else:
+            error_data = response.json()
+            error_message = error_data.get('error', {}).get('message', 'Invalid reset code')
+            app.logger.warning(f"[Auth API] Reset code verification failed: {error_message}")
+            return jsonify({"valid": False, "error": "Invalid or expired reset link."})
+            
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error verifying reset code: {e}")
+        return jsonify({"valid": False, "error": "Failed to verify reset link."}), 500
+
+
+@app.route('/api/auth/confirm-reset-password', methods=['POST'])
+def api_auth_confirm_reset_password():
+    """API endpoint to confirm password reset with new password.
+    
+    Expects JSON: { oob_code, new_password }
+    Returns JSON: { success, error }
+    """
+    data = request.get_json() or {}
+    oob_code = data.get('oob_code')
+    new_password = data.get('new_password')
+    
+    if not oob_code:
+        return jsonify({"success": False, "error": "Reset code is required"}), 400
+    if not new_password:
+        return jsonify({"success": False, "error": "New password is required"}), 400
+    if len(new_password) < 8:
+        return jsonify({"success": False, "error": "Password must be at least 8 characters"}), 400
+    
+    try:
+        # Use Firebase REST API to confirm the password reset
+        api_key = os.getenv('FIREBASE_WEB_API_KEY') or os.getenv('FIREBASE_API_KEY')
+        if not api_key:
+            app.logger.error("[Auth API] Firebase API key not configured")
+            return jsonify({"success": False, "error": "Server configuration error"}), 500
+        
+        # Confirm password reset using Firebase Identity Toolkit
+        reset_url = f"https://identitytoolkit.googleapis.com/v1/accounts:resetPassword?key={api_key}"
+        response = requests.post(reset_url, json={
+            "oobCode": oob_code,
+            "newPassword": new_password
+        })
+        
+        if response.status_code == 200:
+            app.logger.info(f"[Auth API] Password reset confirmed successfully")
+            return jsonify({"success": True})
+        else:
+            error_data = response.json()
+            error_message = error_data.get('error', {}).get('message', 'Failed to reset password')
+            app.logger.warning(f"[Auth API] Password reset confirmation failed: {error_message}")
+            
+            # Provide user-friendly error messages
+            if 'EXPIRED' in error_message or 'INVALID' in error_message:
+                return jsonify({"success": False, "error": "This reset link has expired. Please request a new one."})
+            elif 'WEAK_PASSWORD' in error_message:
+                return jsonify({"success": False, "error": "Password is too weak. Please use a stronger password."})
+            else:
+                return jsonify({"success": False, "error": "Failed to reset password. Please try again."})
+            
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error confirming password reset: {e}")
+        return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
+
+
+# ============================================================================
+# END AUTH API ENDPOINTS
+# ============================================================================
+
 
 # ALLOWED EXTENTIONS
 ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'png', 'jpeg'}
 
-# Initialize NLTK downloads
-nltk.download('punkt')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('maxent_ne_chunker')
-nltk.download('words')
-nltk.download('stopwords')
+# Initialize NLTK downloads (only download if not already present)
+def ensure_nltk_data():
+    """Download NLTK data only if not already present."""
+    nltk_packages = [
+        ('tokenizers/punkt', 'punkt'),
+        ('taggers/averaged_perceptron_tagger', 'averaged_perceptron_tagger'),
+        ('chunkers/maxent_ne_chunker', 'maxent_ne_chunker'),
+        ('corpora/words', 'words'),
+        ('corpora/stopwords', 'stopwords')
+    ]
+    for path, package in nltk_packages:
+        try:
+            nltk.data.find(path)
+        except LookupError:
+            logging.info(f"Downloading NLTK package: {package}")
+            nltk.download(package, quiet=True)
+
+ensure_nltk_data()
 
 
 
@@ -129,20 +765,6 @@ app.config['UPLOAD_LOGO_FOLDER'] = 'static/uploads_logo'
 app.config['PDF_FOLDER'] = 'static/uploads'
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
 app.config['UPLOAD_PICTURE_FOLDER'] = 'static/uploads_pictures'
-
-
-
-
-
-# Load environment variables from '.env' file (override=True ensures .env takes precedence)
-load_dotenv(override=False)
-
-
-
-
-
-
-
 # FIREBASE Configuration - Handle missing service account gracefully
 service_account_json_path = os.getenv('SERVICE_ACCOUNT_JSON')
 if service_account_json_path:
@@ -234,42 +856,50 @@ try:
     
     firebase_creds_json = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
     
-    if firebase_creds_json:
-        try:
-            # Parse JSON string from environment variable
-            service_account_dict = json.loads(firebase_creds_json)
-            cred = credentials.Certificate(service_account_dict)
-            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': database_url,
-                'storageBucket': storage_bucket
-            })
-            admin_db = admin_database
-            admin_initialized = True
-            logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
-            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
-        except json.JSONDecodeError as e:
-            logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
-            logging.warning("Credit purchase via webhook will use fallback method.")
-    else:
-        service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
-        
-        if os.path.exists(service_account_path):
-            cred = credentials.Certificate(service_account_path)
-            storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
-            firebase_admin.initialize_app(cred, {
-                'databaseURL': database_url,
-                'storageBucket': storage_bucket
-            })
-            admin_db = admin_database
-            admin_initialized = True
-            logging.info("✅ Firebase Admin SDK initialized successfully from file")
-            logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
+    # Check if Firebase Admin is already initialized (handles debug reloader / multi-worker)
+    try:
+        existing_app = firebase_admin.get_app()
+        admin_db = admin_database
+        admin_initialized = True
+        logging.info("✅ Firebase Admin SDK already initialized (reusing existing app)")
+    except ValueError:
+        # App not initialized yet, proceed with initialization
+        if firebase_creds_json:
+            try:
+                # Parse JSON string from environment variable
+                service_account_dict = json.loads(firebase_creds_json)
+                cred = credentials.Certificate(service_account_dict)
+                storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
+                firebase_admin.initialize_app(cred, {
+                    'databaseURL': database_url,
+                    'storageBucket': storage_bucket
+                })
+                admin_db = admin_database
+                admin_initialized = True
+                logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
+                logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
+            except json.JSONDecodeError as e:
+                logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+                logging.warning("Credit purchase via webhook will use fallback method.")
         else:
-            logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
-            logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
-            logging.warning(f"   - File path: {service_account_path} (does not exist)")
-            logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
+            service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
+            
+            if os.path.exists(service_account_path):
+                cred = credentials.Certificate(service_account_path)
+                storage_bucket = os.getenv('STORAGE_BUCKET', 'corama-c911e.appspot.com')
+                firebase_admin.initialize_app(cred, {
+                    'databaseURL': database_url,
+                    'storageBucket': storage_bucket
+                })
+                admin_db = admin_database
+                admin_initialized = True
+                logging.info("✅ Firebase Admin SDK initialized successfully from file")
+                logging.info(f"✅ Firebase Admin SDK storage bucket: {storage_bucket}")
+            else:
+                logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
+                logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
+                logging.warning(f"   - File path: {service_account_path} (does not exist)")
+                logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
         
 except ImportError:
     logging.warning("⚠️ firebase-admin package not installed. Run: pip install firebase-admin")
@@ -278,6 +908,141 @@ except Exception as e:
     logging.error(f"❌ Failed to initialize Firebase Admin SDK: {e}")
     logging.warning("Credit purchase via webhook will use fallback method.")
 
+
+# ============================================================================
+# Proposal Generation Job Store (Firebase-based for production stability)
+# ============================================================================
+# This implementation stores job state in Firebase Realtime Database instead of
+# in-memory dictionaries. This allows:
+# 1. Job state to survive worker crashes/restarts
+# 2. SSE connections to work across any Gunicorn worker
+# 3. Background worker process to handle generation outside HTTP lifecycle
+# ============================================================================
+import threading
+import uuid
+import time as time_module
+
+def create_proposal_job(draft_id: str, user_id: str) -> str:
+    """Create a new proposal generation job in Firebase and return its ID.
+    
+    The job is created with status='queued' so the background worker can pick it up.
+    """
+    if not admin_initialized or not admin_db:
+        raise RuntimeError("Firebase not initialized - cannot create proposal job")
+    
+    job_id = str(uuid.uuid4())
+    job_data = {
+        'draft_id': draft_id,
+        'user_id': user_id,
+        'status': 'queued',  # Worker will pick this up
+        'sections_completed': [],
+        'sections_total': 8,
+        'sections': {},
+        'full_proposal': None,
+        'error': None,
+        'events': {},  # Will use push() for events
+        'created_at': time_module.time(),
+        'claimed_by': None,
+        'lease_expires_at': 0
+    }
+    
+    try:
+        job_ref = admin_db.reference(f'proposal_jobs/{job_id}')
+        job_ref.set(job_data)
+        logging.info(f"Created proposal job {job_id} in Firebase with status=queued")
+        return job_id
+    except Exception as e:
+        logging.error(f"Failed to create proposal job in Firebase: {e}")
+        raise
+
+def update_proposal_job(job_id: str, **kwargs):
+    """Update a proposal job in Firebase with new data"""
+    if not admin_initialized or not admin_db:
+        logging.error("Firebase not initialized - cannot update proposal job")
+        return
+    
+    try:
+        job_ref = admin_db.reference(f'proposal_jobs/{job_id}')
+        job_ref.update(kwargs)
+    except Exception as e:
+        logging.error(f"Failed to update proposal job {job_id}: {e}")
+
+def add_job_event(job_id: str, event_type: str, data: dict):
+    """Add an event to the job's event log in Firebase.
+    
+    Events are stored with monotonic sequence numbers for ordering.
+    """
+    if not admin_initialized or not admin_db:
+        logging.error("Firebase not initialized - cannot add job event")
+        return
+    
+    try:
+        # Get current event count for sequence number
+        events_ref = admin_db.reference(f'proposal_jobs/{job_id}/events')
+        
+        event_data = {
+            'type': event_type,
+            'data': data,
+            'timestamp': time_module.time()
+        }
+        
+        # Use push() to generate unique key with automatic ordering
+        events_ref.push(event_data)
+    except Exception as e:
+        logging.error(f"Failed to add event for job {job_id}: {e}")
+
+def get_proposal_job(job_id: str) -> dict:
+    """Get a proposal job from Firebase by ID"""
+    if not admin_initialized or not admin_db:
+        logging.error("Firebase not initialized - cannot get proposal job")
+        return {}
+    
+    try:
+        job_ref = admin_db.reference(f'proposal_jobs/{job_id}')
+        job_data = job_ref.get()
+        
+        if not job_data:
+            return {}
+        
+        # Convert events from Firebase format to list format for SSE compatibility
+        events_dict = job_data.get('events', {})
+        if isinstance(events_dict, dict):
+            # Sort events by their Firebase push key (which is chronologically ordered)
+            events_list = []
+            for key in sorted(events_dict.keys()):
+                event = events_dict[key]
+                events_list.append(event)
+            job_data['events'] = events_list
+        elif not isinstance(events_dict, list):
+            job_data['events'] = []
+        
+        # Convert sections_completed from dict to list if needed
+        sections_completed = job_data.get('sections_completed', [])
+        if isinstance(sections_completed, dict):
+            job_data['sections_completed'] = list(sections_completed.values())
+        
+        return job_data
+    except Exception as e:
+        logging.error(f"Failed to get proposal job {job_id}: {e}")
+        return {}
+
+def cleanup_old_jobs():
+    """Remove jobs older than 1 hour from Firebase"""
+    if not admin_initialized or not admin_db:
+        return
+    
+    try:
+        current_time = time_module.time()
+        jobs_ref = admin_db.reference('proposal_jobs')
+        all_jobs = jobs_ref.get() or {}
+        
+        for job_id, job_data in all_jobs.items():
+            created_at = job_data.get('created_at', 0)
+            if current_time - created_at > 3600:  # 1 hour
+                jobs_ref.child(job_id).delete()
+                logging.info(f"Cleaned up old proposal job {job_id}")
+    except Exception as e:
+        logging.error(f"Failed to cleanup old jobs: {e}")
 
 # Firebase Storage Helper Function
 def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type: str = None) -> str:
@@ -405,12 +1170,62 @@ load_ai_naics_cache()
 # In-memory cache for AI-predicted categories (keyed by hash_value)
 AI_CATEGORY_CACHE = {}
 
+# In-memory caches for AI-predicted subcategories
+AI_GOODS_SUBCATEGORY_CACHE = {}
+AI_CONSTRUCTION_SUBCATEGORY_CACHE = {}
+
 # Qdrant analytics cache with signature-based invalidation
 # This allows detecting changes in Qdrant without expensive rescans
 QDRANT_ANALYTICS_CACHE = None
 QDRANT_ANALYTICS_SIGNATURE = None
 QDRANT_CONTRACTS_CACHE = None  # Cache for all contracts
 QDRANT_CONTRACTS_SIGNATURE = None
+
+# Centralized Qdrant client instance (lazy initialization)
+_qdrant_client = None
+
+def get_qdrant_client(timeout=30):
+    """Get a centralized Qdrant client instance.
+    
+    This function provides a single point of configuration for the Qdrant client,
+    avoiding repeated instantiation throughout the codebase.
+    
+    Args:
+        timeout: Connection timeout in seconds (default 30)
+    
+    Returns:
+        QdrantClient instance or None if connection fails
+    """
+    global _qdrant_client
+    if _qdrant_client is None:
+        try:
+            _qdrant_client = QdrantClient(
+                url=os.getenv('QDRANT_URL'),
+                api_key=os.getenv('QDRANT_API_KEY'),
+                timeout=timeout
+            )
+            logging.info("[Qdrant] Centralized client initialized successfully")
+        except Exception as e:
+            logging.error(f"[Qdrant] Failed to initialize centralized client: {e}")
+            return None
+    return _qdrant_client
+
+def clear_all_caches():
+    """Clear all in-memory caches. Useful for admin operations or testing."""
+    global AI_NAICS_CACHE, AI_CATEGORY_CACHE, AI_GOODS_SUBCATEGORY_CACHE
+    global AI_CONSTRUCTION_SUBCATEGORY_CACHE, QDRANT_ANALYTICS_CACHE
+    global QDRANT_ANALYTICS_SIGNATURE, QDRANT_CONTRACTS_CACHE, QDRANT_CONTRACTS_SIGNATURE
+    
+    AI_NAICS_CACHE = {}
+    AI_CATEGORY_CACHE = {}
+    AI_GOODS_SUBCATEGORY_CACHE = {}
+    AI_CONSTRUCTION_SUBCATEGORY_CACHE = {}
+    QDRANT_ANALYTICS_CACHE = None
+    QDRANT_ANALYTICS_SIGNATURE = None
+    QDRANT_CONTRACTS_CACHE = None
+    QDRANT_CONTRACTS_SIGNATURE = None
+    
+    logging.info("[Cache] All in-memory caches cleared")
 
 def get_qdrant_collection_signature():
     """Get a cheap signature for the Qdrant collection to detect changes.
@@ -419,13 +1234,10 @@ def get_qdrant_collection_signature():
     This is much cheaper than scanning all contracts.
     """
     try:
-        from qdrant_client import QdrantClient
-        qdrant_client = QdrantClient(
-            url=os.getenv('Qdrant_URL'),
-            api_key=os.getenv('QDRANT_API_KEY'),
-            timeout=5
-        )
-        collection_info = qdrant_client.get_collection("government_contracts")
+        client = get_qdrant_client(timeout=5)
+        if client is None:
+            return None
+        collection_info = client.get_collection("government_contracts")
         return str(collection_info.points_count)
     except Exception as e:
         logging.warning(f"[Qdrant] Failed to get collection signature: {e}")
@@ -3280,11 +4092,12 @@ def process_files_cs_feedback(user_uploads_dir, max_rows=300):
 
 #2/25 update
 #LANDING PAGE ROUTE FUNCTION 
-# UPDATED: Now redirects to React landing page for all users
+# UPDATED: Now serves React landing page directly at root
 @app.route('/', methods=['GET'])
 def Landingpage():
-    """Redirect to React landing page - old Jinja2 landing page is deprecated"""
-    return redirect('/app')
+    """Serve React landing page directly - clean URLs without /app prefix"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 #ABOUT US PAGE  ROUTE FUNCTION
@@ -3789,99 +4602,14 @@ def Viewcontractdetails():
 
 
 
-#login
- 
-# UPDATED 2/25 
-@app.route('/login', methods=['GET', 'POST'])
+# Login page - now served by React SPA
+# The old template-based login has been replaced with React frontend
+# Authentication is handled by /api/auth/login endpoint
+@app.route('/login', methods=['GET'])
 def Login():
-    session.clear()  # Clear any existing session data
-
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        app.logger.info("✅ FREE ACCESS - Skipping reCAPTCHA validation for Contract Radar Maximizer free users")
-        app.logger.info(f"🔐 Login attempt for email: {email}")
-        
-        try:
-            # Authenticate user with Firebase
-            user = auth.sign_in_with_email_and_password(email, password)
-            local_id = user['localId']
-            refreshed_user = auth.refresh(user['refreshToken'])
-
-            # Set session data for the authenticated user
-            session['user'] = {
-                'localId': local_id,
-                'idToken': refreshed_user['idToken'],
-                'email': email,
-                'refreshToken': refreshed_user['refreshToken']
-            }
-
-            # Retrieve user data from Firebase
-            user_data = db.child("users").child(local_id).get(refreshed_user['idToken']).val()
-            
-            # Handle case where user exists in Firebase Auth but not in database
-            if user_data is None:
-                app.logger.warning(f"User {email} exists in Firebase Auth but not in database. Creating default user data.")
-                default_user_data = {
-                    "email": email,
-                    "account_type": "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS",
-                    "subscription_end_date": "9999-12-31",
-                    "is_stripe_customer": False,
-                    "first_name": email.split('@')[0],
-                    "last_name": "",
-                    "company": "",
-                    "username": email.split('@')[0],
-                    "credits_balance": 100,
-                    "credits_used": 0,
-                    "last_credit_update": datetime.now().isoformat(),
-                    "credit_purchase_history": []
-                }
-                
-                db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
-                user_data = default_user_data
-                app.logger.info(f"Created default user data for {email}")
-            
-            account_type = user_data.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
-            subscription_end_date = user_data.get('subscription_end_date', '9999-12-31')
-            is_stripe_customer = user_data.get('is_stripe_customer', False)  
-            stripe_customer_id = user_data.get('stripe_customer_id', None)
-
-            app.logger.info(f"Retrieved account_type: {account_type}, subscription_end_date: {subscription_end_date}, is_stripe_customer: {is_stripe_customer}")
-
-            session['is_subscriber'] = True  # Grant full access to all users
-            session['is_logged_in'] = True
-            app.logger.info(f"✅ User logged in successfully - FREE ACCESS granted to {email}")
-            return redirect('/app/dashboard')
-        
-        except Exception as e:
-            app.logger.error(f"❌ Login error for {email}: {e}")
-            app.logger.error(f"Login error type: {type(e)}")
-            app.logger.error(f"Login error args: {e.args if hasattr(e, 'args') else 'No args'}")
-            
-            error_message = "Login failed. Check your email or password and try again."
-            if 'EMAIL_NOT_FOUND' in str(e):
-                error_message = "This email is not registered. Please sign up first."
-                app.logger.info(f"✅ EMAIL_NOT_FOUND error handled for {email}")
-            elif 'INVALID_PASSWORD' in str(e) or 'INVALID_LOGIN_CREDENTIALS' in str(e):
-                error_message = "Incorrect email or password. Please try again."
-                app.logger.info(f"✅ INVALID_LOGIN_CREDENTIALS error handled for {email}")
-            elif 'USER_DISABLED' in str(e):
-                error_message = "This account has been disabled. Contact support for assistance."
-                app.logger.info(f"✅ USER_DISABLED error handled for {email}")
-            elif 'INVALID_EMAIL' in str(e):
-                error_message = "Invalid email format. Please check your email address."
-                app.logger.info(f"✅ INVALID_EMAIL error handled for {email}")
-            elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in str(e):
-                error_message = "Too many failed login attempts. Please try again later."
-                app.logger.info(f"✅ TOO_MANY_ATTEMPTS error handled for {email}")
-            else:
-                app.logger.error(f"❌ Unhandled login error for {email}: {str(e)}")
-                error_message = f"Login failed: {str(e)}"
-            
-            return render_template('login.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-    
-    return render_template('login.html', RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
+    """Serve React SPA for login page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 
@@ -4048,191 +4776,25 @@ app.logger.info(f"🔍 Loaded RECAPTCHA_SITE_KEY: {RECAPTCHA_SITE_KEY if RECAPTC
 app.logger.info(f"🔍 Firebase Initialized: {'✔ Successful' if firebase else '❌ Failed'}")
 
 
-@app.route('/signup', methods=['GET', 'POST'])
+# Signup page - now served by React SPA
+# The old template-based signup has been replaced with React frontend
+# User registration is handled by /api/auth/signup endpoint
+@app.route('/signup', methods=['GET'])
 def Signup():
-    if request.method == 'POST':
-        app.logger.info("📌 Received a POST request on /signup")
+    """Serve React SPA for signup page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
-        # ✅ Log Incoming Form Data
-        app.logger.debug(f"📩 Form Data Received: {request.form}")
 
-        app.logger.info("✅ FREE ACCESS - Skipping reCAPTCHA validation for Contract Radar Maximizer free users")
-
-        # ✅ Get User Data from Form
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        company = request.form.get('company')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        username = request.form.get('username')
-        account_type = request.form.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS')
-        billing_period = request.form.get('billing_period', 'free')
-        subscription_end_date = '9999-12-31'  # Permanent free access
-        join_directory = request.form.get('join_directory') == 'on'  # Checkbox value
-
-        app.logger.debug(f"📌 User Info: {first_name} {last_name} | {email} | {company}")
-
-        if not email or not password:
-            app.logger.error("❌ ERROR: Email or Password missing!")
-            return render_template('signup.html', error="Please provide both email and password.", RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-        try:
-            # ✅ Create Firebase User
-            app.logger.info(f"👤 Creating user in Firebase: {email}")
-            user = auth.create_user_with_email_and_password(email, password)
-            user_id = user.get('localId')
-            user_logged_in = auth.sign_in_with_email_and_password(email, password)
-
-            app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
-
-            # ✅ Send Welcome Email (non-blocking)
-            app.logger.info("📨 Starting welcome email in background thread...")
-            import threading
-            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
-            email_thread.daemon = True
-            email_thread.start()
-            app.logger.info("📨 Welcome email thread started, continuing with signup...")
-
-            # ✅ Store User Data in Session (including user_id for confirm_terms)
-            session['user_data'] = {
-                "first_name": first_name,
-                "last_name": last_name,
-                "company": company,
-                "email": email,
-                "username": username,
-                "account_type": account_type,
-                "billing_period": billing_period,
-                "subscription_end_date": subscription_end_date,
-                "user_id": user_id
-            }
-            
-            # ✅ Store User Authentication in Session (for confirm_terms idToken)
-            session['user'] = {
-                'localId': user_id,
-                'idToken': user_logged_in['idToken'],
-                'email': email,
-                'refreshToken': user_logged_in['refreshToken']
-            }
-
-            app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
-            app.logger.debug(f"💾 User Auth Stored: localId={user_id}, email={email}")
-
-            # ✅ Store User Data in Firebase Database
-            db.child("users").child(user_id).set({
-                "first_name": first_name,
-                "last_name": last_name,
-                "company": company,
-                "email": email,
-                "username": username,
-                "account_type": account_type,
-                "subscription_end_date": subscription_end_date,
-                "uploads_dir": create_user_directory(user_id),
-                "credits_balance": 100,
-                "credits_used": 0,
-                "directory_listed": join_directory
-            }, user_logged_in['idToken'])
-            
-            if join_directory:
-                try:
-                    db.child("corama_directory").child(user_id).set({
-                        "company": company,
-                        "contact_name": f"{first_name} {last_name}",
-                        "email": email,
-                        "services": "",  # To be filled in directory profile
-                        "description": "",  # To be filled in directory profile
-                        "phone": "",  # To be filled in directory profile
-                        "website": "",  # To be filled in directory profile
-                        "listed": True,
-                        "created_at": datetime.now().isoformat()
-                    }, user_logged_in['idToken'])
-                    app.logger.info(f"✅ User {user_id} added to CORAMA Directory")
-                except Exception as e:
-                    app.logger.error(f"❌ Failed to add user to directory: {e}")
-
-            app.logger.info("✅ User successfully added to Firebase Database!")
-
-            return redirect(url_for('confirm_terms'))
-
-        except Exception as e:
-            app.logger.exception(f"❌ ERROR: Signup failed for email {email}: {e}")
-            app.logger.error(f"❌ ERROR TYPE: {type(e)}")
-            app.logger.error(f"❌ ERROR ARGS: {e.args if hasattr(e, 'args') else 'No args'}")
-            app.logger.error(f"❌ ERROR STRING: {str(e)}")
-
-            error_message = "An unexpected error occurred. Please try again."
-
-            error_str = str(e).upper()
-            if 'EMAIL_EXISTS' in error_str:
-                error_message = "This email is already registered. Please log in instead."
-                app.logger.info(f"✅ EMAIL_EXISTS error handled for {email}")
-            elif 'INVALID_EMAIL' in error_str:
-                error_message = "Invalid email format. Please check your email address."
-                app.logger.info(f"✅ INVALID_EMAIL error handled for {email}")
-            elif 'WEAK_PASSWORD' in error_str:
-                error_message = "Password is too weak. Please choose a stronger password (minimum 6 characters)."
-                app.logger.info(f"✅ WEAK_PASSWORD error handled for {email}")
-            elif 'INVALID_PASSWORD' in error_str:
-                error_message = "Invalid password format. Please check your password."
-                app.logger.info(f"✅ INVALID_PASSWORD error handled for {email}")
-            elif 'TOO_MANY_ATTEMPTS_TRY_LATER' in error_str:
-                error_message = "Too many failed attempts. Please try again later."
-                app.logger.info(f"✅ TOO_MANY_ATTEMPTS error handled for {email}")
-            else:
-                app.logger.error(f"❌ UNHANDLED SIGNUP ERROR for {email}: {str(e)}")
-                if "400 Client Error" in str(e):
-                    error_message = "Account creation failed. Please check your information and try again."
-                else:
-                    error_message = "An unexpected error occurred during signup. Please try again."
-
-            return render_template('signup.html', error=error_message, RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-    return render_template('signup.html', RECAPTCHA_SITE_KEY=RECAPTCHA_SITE_KEY)
-
-#UPDATED 3/13/25
-@app.route('/confirm_terms', methods=['GET', 'POST'])
+# Confirm terms page - now served by React SPA
+# The old template-based confirm_terms has been replaced with React frontend
+# Terms confirmation is handled by /api/auth/confirm-terms endpoint
+@app.route('/confirm-terms', methods=['GET'])
+@app.route('/confirm_terms', methods=['GET'])  # Keep old URL for backwards compatibility
 def confirm_terms():
-    if request.method == 'POST':
-        if not request.form.get('confirm_terms'):
-            app.logger.warning("⚠️ User attempted to proceed without agreeing to terms")
-            return render_template('confirm_terms.html', error="You must agree to the Automatic Renewal Terms and Conditions to proceed.")
-        
-        # Retrieve user data from session
-        user_data = session.get('user_data')
-        user_auth = session.get('user')
-
-        if not user_data:
-            app.logger.error("❌ No user_data in session, redirecting to signup")
-            return redirect(url_for('Signup'))
-        
-        if not user_auth:
-            app.logger.error("❌ No user auth in session, redirecting to signup")
-            return redirect(url_for('Signup'))
-
-        try:
-            user_id = user_data.get('user_id')
-            if not user_id:
-                app.logger.error("❌ No user_id in session data")
-                return render_template('confirm_terms.html', error="Session expired. Please sign up again.")
-            
-            db.child("users").child(user_id).update({
-                "account_type": user_data['account_type'],
-                "subscription_end_date": "9999-12-31",
-                "terms_accepted": True,
-                "terms_accepted_date": datetime.now().isoformat()
-            }, user_auth['idToken'])
-            
-            app.logger.info(f"✅ FREE ACCESS granted to user {user_id} - Terms accepted, redirecting to React app")
-            return redirect('/app/dashboard')
-
-        except KeyError as e:
-            app.logger.error(f"❌ Missing session key in confirm_terms: {e}")
-            return render_template('confirm_terms.html', error=f"Session error: {e}. Please sign up again.")
-        except Exception as e:
-            app.logger.exception(f"❌ Error in confirm_terms for user: {e}")
-            return render_template('confirm_terms.html', error="An error occurred. Please try again.")
-
-    # Render the terms confirmation page on GET
-    return render_template('confirm_terms.html')
+    """Serve React SPA for confirm terms page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 #updated 3/4/25
@@ -5334,19 +5896,6 @@ def Businessplan():
 
 
 
-
-
-#FAQ ROUTE FUNCTION 
-@app.route('/faq', methods=['GET']) 
-def Faq():
-    if 'user' not in session:
-        return render_template('faq.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('faq.html')
 
 
 #TERMS OF USE ROUTE FUNCTION
@@ -8112,7 +8661,7 @@ def upload_document():
         if not user_data or 'uploads_dir' not in user_data:
             return jsonify({"error": "User uploads directory not found"}), 400
             
-        skip_credits = True  # TODO: Set to False to re-enable credit checks after Firebase is fixed
+        skip_credits = False  # Credit checks re-enabled
         
         if not skip_credits:
             # Initialize credit manager and check credits
@@ -8825,20 +9374,15 @@ def generate_docx():
     return send_file(buffer, as_attachment=True, download_name=f'{contract_name}_response.docx', mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
 
-@app.route('/reset_password', methods=['GET', 'POST'])
+# Reset password page - now served by React SPA
+# The old template-based reset_password has been replaced with React frontend
+# Password reset is handled by /api/auth/reset-password endpoint
+@app.route('/reset-password', methods=['GET'])
+@app.route('/reset_password', methods=['GET'])  # Keep old URL for backwards compatibility
 def reset_password():
-    if request.method == 'POST':
-        email = request.form.get('email')  # Get the email from the form
-        try:
-            auth.send_password_reset_email(email)
-            # Provide feedback that the email has been sent
-            return render_template('reset_password.html', 
-                                   message="A password reset link has been sent to your email.")
-        except Exception as e:
-            print(f"Error sending password reset email: {e}")
-            error_message = "Failed to send password reset email. Please check the email address."
-            return render_template('reset_password.html', error=error_message)
-    return render_template('reset_password.html')
+    """Serve React SPA for reset password page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 # Static route to serve the PDF file
 @app.route('/static/uploads/<filename>')
@@ -10990,9 +11534,339 @@ Provide your analysis as a JSON array with objects containing 'category' and 'te
         logging.error(f"Error analyzing contract: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def extract_text_with_pages(pdf_path):
+    """Extract text from PDF with page-level information using PyMuPDF"""
+    import fitz
+    pages_text = []
+    try:
+        doc = fitz.open(pdf_path)
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            text = page.get_text()
+            pages_text.append({
+                'page': page_num,
+                'text': text,
+                'width': page.rect.width,
+                'height': page.rect.height
+            })
+        doc.close()
+    except Exception as e:
+        logging.error(f"Error extracting text with pages: {e}")
+    return pages_text
+
+def search_text_in_pdf(pdf_path, quote, page_hint=None):
+    """Search for text in PDF and return bounding box coordinates for the FULL quote.
+    Returns a SINGLE best match with all its quads grouped together.
+    Uses prefix+suffix matching to capture full quotes including dates/times at the end."""
+    import fitz
+    import re
+    
+    def get_rects_from_quads(quads):
+        """Extract rectangle coordinates from quad objects."""
+        rects = []
+        for quad in quads:
+            rect = quad.rect
+            rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
+        return rects
+    
+    def compute_bounding_box(rects):
+        """Compute bounding box that encompasses all rectangles."""
+        if not rects:
+            return None
+        all_x0 = min(r[0] for r in rects)
+        all_y0 = min(r[1] for r in rects)
+        all_x1 = max(r[2] for r in rects)
+        all_y1 = max(r[3] for r in rects)
+        return [all_x0, all_y0, all_x1, all_y1]
+    
+    def make_result(page_num, page_width, page_height, all_rects):
+        """Create a result dictionary from rectangles."""
+        bbox = compute_bounding_box(all_rects)
+        if not bbox:
+            return None
+        return {
+            'page': page_num,
+            'left': (bbox[0] / page_width) * 100,
+            'top': (bbox[1] / page_height) * 100,
+            'width': ((bbox[2] - bbox[0]) / page_width) * 100,
+            'height': ((bbox[3] - bbox[1]) / page_height) * 100,
+            'rect_raw': bbox,
+            'all_rects': all_rects,
+            'page_width': page_width,  # Include for frontend multi-rect rendering
+            'page_height': page_height
+        }
+    
+    try:
+        doc = fitz.open(pdf_path)
+        
+        # Normalize the quote for searching (collapse whitespace, handle line breaks)
+        normalized_quote = ' '.join(quote.split())
+        
+        # Log the quote being searched for debugging
+        logging.info(f"Searching for quote ({len(normalized_quote)} chars): {normalized_quote[:100]}...")
+        
+        # If page_hint provided, search that page first
+        pages_to_search = list(range(len(doc)))
+        if page_hint is not None and 0 <= page_hint < len(doc):
+            pages_to_search = [page_hint] + [p for p in pages_to_search if p != page_hint]
+        
+        for page_num in pages_to_search:
+            page = doc[page_num]
+            page_width = page.rect.width
+            page_height = page.rect.height
+            
+            # Try to search for the full quote first using quads for multi-line support
+            text_instances = page.search_for(normalized_quote, quads=True)
+            
+            if text_instances:
+                all_rects = get_rects_from_quads(text_instances)
+                logging.info(f"Found full quote match on page {page_num + 1}: {len(all_rects)} quads")
+                doc.close()
+                return [make_result(page_num, page_width, page_height, all_rects)]
+            
+            # Fallback: Use bounded-skip ordered subsequence matching with page.get_text("words")
+            # This handles line breaks, block boundaries, and formatting differences
+            words = normalized_quote.split()
+            
+            # Normalize words for matching (lowercase, strip punctuation for comparison)
+            def normalize_word(w):
+                return re.sub(r'[^\w]', '', w.lower())
+            
+            # Check if two normalized tokens match, including multi-token matching
+            # Handles both directions:
+            # - PDF "300pm" matches quote "3:00" + "p.m." (PDF joins tokens)
+            # - PDF "3" + "00" + "pm" matches quote "300pm" (PDF splits tokens)
+            def tokens_match(page_token, quote_token, next_quote_token=None, page_words_norm=None, page_idx=None):
+                if page_token == quote_token:
+                    return (1, 1)  # (quote tokens consumed, page tokens consumed)
+                # Case 1: PDF joins tokens - page_token == quote_token + next_quote_token
+                if next_quote_token and page_token == quote_token + next_quote_token:
+                    return (2, 1)  # Consumed 2 quote tokens, 1 page token
+                # Case 2: PDF splits tokens - check if quote_token starts with page_token
+                if page_words_norm and page_idx is not None and quote_token.startswith(page_token) and len(page_token) > 0:
+                    # Try to accumulate page tokens to match the quote token
+                    accumulated = page_token
+                    tokens_used = 1
+                    check_idx = page_idx + 1
+                    while check_idx < len(page_words_norm) and len(accumulated) < len(quote_token):
+                        next_page_token = page_words_norm[check_idx][0]
+                        accumulated += next_page_token
+                        tokens_used += 1
+                        check_idx += 1
+                        if accumulated == quote_token:
+                            return (1, tokens_used)  # Consumed 1 quote token, multiple page tokens
+                        if not quote_token.startswith(accumulated):
+                            break  # No longer a prefix match
+                return (0, 0)
+            
+            quote_words_normalized = [normalize_word(w) for w in words]
+            
+            # Get all words from the page with their bounding boxes
+            # Each word is (x0, y0, x1, y1, "word", block_no, line_no, word_no)
+            page_words = page.get_text("words")
+            
+            if page_words:
+                # Normalize page words for matching
+                page_words_normalized = [(normalize_word(pw[4]), pw) for pw in page_words]
+                
+                # Bounded-skip ordered subsequence matching
+                # Allow skipping page words but cap total skips to avoid false positives
+                best_match_start = -1
+                best_match_length = 0
+                best_matched_indices = []
+                
+                for start_idx in range(len(page_words_normalized)):
+                    matched_indices = []  # Track which page word indices were matched
+                    quote_idx = 0
+                    page_idx = start_idx
+                    total_skips = 0
+                    max_skips = max(30, len(quote_words_normalized))  # Allow generous skipping for line breaks
+                    
+                    while quote_idx < len(quote_words_normalized) and page_idx < len(page_words_normalized) and total_skips <= max_skips:
+                        page_token = page_words_normalized[page_idx][0]
+                        quote_token = quote_words_normalized[quote_idx]
+                        next_quote = quote_words_normalized[quote_idx + 1] if quote_idx + 1 < len(quote_words_normalized) else None
+                        
+                        quote_consumed, page_consumed = tokens_match(
+                            page_token, quote_token, next_quote, 
+                            page_words_normalized, page_idx
+                        )
+                        
+                        if quote_consumed > 0:
+                            # Add all consumed page indices to matched_indices
+                            for i in range(page_consumed):
+                                matched_indices.append(page_idx + i)
+                            quote_idx += quote_consumed
+                            page_idx += page_consumed
+                            total_skips = 0  # Reset skip counter on match
+                        else:
+                            # Skip this page word
+                            page_idx += 1
+                            total_skips += 1
+                    
+                    # Require at least 50% of quote words to match
+                    if len(matched_indices) > best_match_length and len(matched_indices) >= len(quote_words_normalized) * 0.5:
+                        best_match_start = start_idx
+                        best_match_length = len(matched_indices)
+                        best_matched_indices = matched_indices[:]
+                
+                if best_matched_indices:
+                    # Gap-filling: fill short gaps between matched indices on the same line
+                    # This handles tokenization mismatches that cause "spotty" highlights
+                    filled_indices = set(best_matched_indices)
+                    sorted_indices = sorted(best_matched_indices)
+                    
+                    for i in range(len(sorted_indices) - 1):
+                        curr_idx = sorted_indices[i]
+                        next_idx = sorted_indices[i + 1]
+                        gap = next_idx - curr_idx - 1
+                        
+                        # Fill gaps of up to 3 words if they're on the same line
+                        if gap > 0 and gap <= 3:
+                            curr_word = page_words_normalized[curr_idx][1]
+                            next_word = page_words_normalized[next_idx][1]
+                            # Check if same line (similar y-coordinate, within 8 points)
+                            if abs(curr_word[1] - next_word[1]) < 8:
+                                for fill_idx in range(curr_idx + 1, next_idx):
+                                    filled_indices.add(fill_idx)
+                    
+                    # Extract bounding boxes for matched words (including filled gaps)
+                    matched_rects = []
+                    for idx in sorted(filled_indices):
+                        pw = page_words_normalized[idx][1]
+                        matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
+                    
+                    if matched_rects:
+                        # Group rectangles by line (similar y-coordinates) for cleaner highlighting
+                        line_rects = []
+                        current_line = [matched_rects[0]]
+                        
+                        for rect in matched_rects[1:]:
+                            # If y-coordinate is similar (within 8 points), same line
+                            if abs(rect[1] - current_line[-1][1]) < 8:
+                                current_line.append(rect)
+                            else:
+                                # Merge current line into one rectangle
+                                line_x0 = min(r[0] for r in current_line)
+                                line_y0 = min(r[1] for r in current_line)
+                                line_x1 = max(r[2] for r in current_line)
+                                line_y1 = max(r[3] for r in current_line)
+                                line_rects.append([line_x0, line_y0, line_x1, line_y1])
+                                current_line = [rect]
+                        
+                        # Don't forget the last line
+                        if current_line:
+                            line_x0 = min(r[0] for r in current_line)
+                            line_y0 = min(r[1] for r in current_line)
+                            line_x1 = max(r[2] for r in current_line)
+                            line_y1 = max(r[3] for r in current_line)
+                            line_rects.append([line_x0, line_y0, line_x1, line_y1])
+                        
+                        logging.info(f"Found word-sequence match on page {page_num + 1}: {len(matched_rects)} words matched, {len(line_rects)} lines")
+                        doc.close()
+                        return [make_result(page_num, page_width, page_height, line_rects)]
+            
+            # Fallback: try decreasing word counts for prefix matching
+            for word_count in [40, 30, 20, 15, 10, 7, 5]:
+                if len(words) >= word_count:
+                    prefix_text = ' '.join(words[:word_count])
+                    prefix_hits = page.search_for(prefix_text, quads=True)
+                    
+                    if prefix_hits:
+                        prefix_rects = get_rects_from_quads(prefix_hits)
+                        logging.info(f"Found partial quote match ({word_count} words) on page {page_num + 1}")
+                        doc.close()
+                        return [make_result(page_num, page_width, page_height, prefix_rects)]
+            
+            # Last resort: try very short prefix (3 words minimum)
+            if len(words) >= 3:
+                short_prefix = ' '.join(words[:3])
+                short_hits = page.search_for(short_prefix, quads=True)
+                if short_hits:
+                    all_rects = get_rects_from_quads(short_hits)
+                    logging.info(f"Found short prefix match (3 words) on page {page_num + 1}")
+                    doc.close()
+                    return [make_result(page_num, page_width, page_height, all_rects)]
+        
+        doc.close()
+    except Exception as e:
+        logging.error(f"Error searching text in PDF: {e}")
+    
+    return []
+
+def create_annotated_pdf(pdf_path, findings_with_coords, output_path):
+    """Create annotated PDF with highlights and popup comments.
+    Creates ONE highlight and ONE comment per finding (not per rectangle)."""
+    import fitz
+    
+    try:
+        doc = fitz.open(pdf_path)
+        
+        for finding in findings_with_coords:
+            if not finding.get('coordinates'):
+                continue
+            
+            # Get the first coordinate for this finding (we now return only one per finding)
+            coord = finding['coordinates'][0] if finding['coordinates'] else None
+            if not coord:
+                continue
+            
+            page_num = coord['page']
+            if page_num >= len(doc):
+                continue
+            
+            page = doc[page_num]
+            
+            # Get all rectangles for multi-line highlighting
+            all_rects = coord.get('all_rects', [])
+            if not all_rects:
+                rect_raw = coord.get('rect_raw')
+                if rect_raw:
+                    all_rects = [rect_raw]
+            
+            if not all_rects:
+                continue
+            
+            # Add highlight annotations for each rectangle (multi-line support)
+            first_rect = None
+            for rect_raw in all_rects:
+                rect = fitz.Rect(rect_raw)
+                if first_rect is None:
+                    first_rect = rect
+                
+                highlight = page.add_highlight_annot(rect)
+                highlight.set_colors(stroke=(1, 1, 0))  # Yellow highlight
+                highlight.update()
+            
+            # Add ONLY ONE popup comment per finding (not per rectangle)
+            if first_rect:
+                comment_text = f"{finding.get('title', 'Finding')}\n\n{finding.get('rationale', '')}"
+                text_annot = page.add_text_annot(
+                    fitz.Point(first_rect.x1 + 5, first_rect.y0),
+                    comment_text,
+                    icon="Comment"
+                )
+                text_annot.set_info(title=finding.get('type', 'AI Finding').upper())
+                text_annot.update()
+        
+        # Save the annotated PDF
+        doc.save(output_path)
+        doc.close()
+        return True
+    except Exception as e:
+        logging.error(f"Error creating annotated PDF: {e}")
+        return False
+
 @app.route('/api/contract-analysis/findings', methods=['POST'])
 def contract_analysis_findings():
-    """Generate AI findings from uploaded contract PDF for Contract Analysis page"""
+    """Generate AI findings from uploaded contract PDF for Contract Analysis page
+    
+    Returns structured findings with:
+    - findings: Markdown text for display
+    - structured_findings: JSON array with quotes, page hints, and coordinates
+    - annotated_pdf_url: URL to download annotated PDF (if generated)
+    - manifest: Mapping of finding_id to page/coordinates for click-to-navigate
+    """
     ensure_session_from_auth()
     
     try:
@@ -11014,76 +11888,213 @@ def contract_analysis_findings():
         
         # Save file temporarily
         import tempfile
+        import json
+        import uuid
+        
         with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
             file.save(tmp_file.name)
             tmp_path = tmp_file.name
         
         try:
-            # Extract text from PDF using existing function
-            pdf_text = extract_text_from_pdf(tmp_path)
+            # Extract text with page information
+            pages_text = extract_text_with_pages(tmp_path)
             
-            if not pdf_text or len(pdf_text.strip()) < 50:
+            if not pages_text:
                 return jsonify({'success': False, 'error': 'Could not extract text from PDF. The document may be image-only or scanned.'}), 400
             
-            # Truncate to avoid token explosion (keep first ~15000 chars)
-            max_chars = 15000
-            if len(pdf_text) > max_chars:
-                pdf_text = pdf_text[:max_chars] + "\n\n[Document truncated for analysis...]"
+            # Combine text with page markers for AI context using per-page budgeting
+            # This ensures ALL pages are represented, not just the first few
+            total_pages = len(pages_text)
+            max_total_chars = 80000  # Increased limit for better coverage
+            chars_per_page = max_total_chars // total_pages if total_pages > 0 else max_total_chars
             
-            # Call OpenAI to analyze the contract
+            combined_text = ""
+            for page_info in pages_text:
+                page_text = page_info['text']
+                # Truncate each page to its budget, keeping the beginning of each page
+                if len(page_text) > chars_per_page:
+                    page_text = page_text[:chars_per_page] + "... [page truncated]"
+                combined_text += f"\n\n--- PAGE {page_info['page'] + 1} ---\n\n{page_text}"
+            
+            logging.info(f"Contract analysis: {total_pages} pages, {len(combined_text)} chars total, ~{chars_per_page} chars/page budget")
+            
+            # Call OpenAI to analyze the contract with structured output
             api_key = os.getenv('OPENAI_API_KEY')
             if not api_key:
                 return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
             
-            client = OpenAI(api_key=api_key, timeout=60.0)
+            client = OpenAI(api_key=api_key, timeout=90.0)
             
-            prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights for a business considering whether to bid on this opportunity.
+            # New prompt that requests structured JSON output with quotes
+            structured_prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights.
 
 CONTRACT NAME: {contract_name}
 
-CONTRACT DOCUMENT TEXT:
-{pdf_text}
+CONTRACT DOCUMENT TEXT (with page markers):
+{combined_text}
 
-Provide a comprehensive analysis with the following sections:
+You must respond with a JSON object containing two parts:
 
-**Contract Overview**
-Summarize what this contract is about, the issuing agency, and the scope of work.
+1. "markdown_summary": A comprehensive markdown-formatted analysis with these sections:
+   - **Contract Overview**: What this contract is about, issuing agency, scope of work
+   - **Key Requirements**: Main deliverables, qualifications, requirements
+   - **Important Deadlines**: Proposal due dates, performance periods, milestones
+   - **Compliance Requirements**: Certifications, registrations, SAM, NAICS codes, set-asides
+   - **Evaluation Criteria**: How proposals will be evaluated
+   - **Strategic Recommendations**: 3-5 actionable recommendations
+   - **Risk Assessment**: Potential risks or challenges
 
-**Key Requirements**
-List the main deliverables, qualifications, and requirements specified in the contract.
+2. "findings": An array of specific findings, each with:
+   - "id": Unique identifier (f1, f2, f3, etc.)
+   - "type": One of "overview", "requirement", "deadline", "compliance", "evaluation", "recommendation", "risk"
+   - "title": Short title (max 50 chars)
+   - "quote": EXACT text snippet from the contract (40-80 words) that supports this finding. Must be verbatim from the document. Include enough context for the quote to be uniquely identifiable.
+   - "page_hint": Page number where this quote appears (1-indexed, based on PAGE markers)
+   - "rationale": Brief explanation of why this is important (1-2 sentences)
+   - "severity": "high", "medium", or "low" (for risks/requirements)
 
-**Important Deadlines**
-Identify any deadlines mentioned (proposal due dates, performance periods, milestones).
+IMPORTANT RULES:
+1. The "quote" field MUST contain exact text from the contract document. Do not paraphrase or summarize - copy the exact words.
+2. For "deadline" type findings: 
+   - The quote MUST include the ACTUAL DATE AND TIME (e.g., "3:00 p.m. Thursday, May 30, 2024")
+   - Include the FULL sentence with location/address if present (e.g., "Proposals will be accepted in the Office of Budget and Management Purchasing Department Room 210, Municipal Center, West, 300 South Seventh Street, Springfield, IL, 62701, until: 3:00 p.m. Thursday, May 30, 2024")
+   - Do NOT use generic phrases like "the date and time stated" or "as specified in the solicitation"
+   - If you cannot find a specific date/time, do not create a deadline finding
+   - Create SEPARATE deadline findings for EACH different date in the contract (e.g., pre-bid meeting date, Q&A deadline, submission deadline, award date)
 
-**Compliance Requirements**
-Note any certifications, registrations, or compliance requirements (SAM, NAICS codes, set-asides, etc.).
-
-**Evaluation Criteria**
-If mentioned, summarize how proposals will be evaluated.
-
-**Strategic Recommendations**
-Provide 3-5 actionable recommendations for a business considering this opportunity.
-
-**Risk Assessment**
-Identify potential risks or challenges with this contract.
-
-Keep your response focused and actionable. Use markdown formatting for readability."""
+Respond ONLY with valid JSON, no other text."""
 
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "You are an expert government contract analyst providing strategic insights."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": "You are an expert government contract analyst. Always respond with valid JSON only."},
+                    {"role": "user", "content": structured_prompt}
                 ],
-                max_tokens=2000,
-                temperature=0.7
+                max_tokens=4000,
+                temperature=0.3,
+                response_format={"type": "json_object"}
             )
             
-            findings = response.choices[0].message.content
+            ai_response = response.choices[0].message.content
+            
+            # Parse the JSON response with robust handling
+            try:
+                # Strip whitespace first
+                ai_response = ai_response.strip()
+                
+                # Clean up response if it has markdown code blocks
+                if '```' in ai_response:
+                    # Extract content between code blocks
+                    parts = ai_response.split('```')
+                    for part in parts:
+                        part = part.strip()
+                        if part.startswith('json'):
+                            part = part[4:].strip()
+                        if part.startswith('{'):
+                            ai_response = part
+                            break
+                
+                # Extract JSON object if there's surrounding text
+                if not ai_response.startswith('{'):
+                    start_idx = ai_response.find('{')
+                    if start_idx != -1:
+                        ai_response = ai_response[start_idx:]
+                
+                if not ai_response.endswith('}'):
+                    end_idx = ai_response.rfind('}')
+                    if end_idx != -1:
+                        ai_response = ai_response[:end_idx + 1]
+                
+                parsed_response = json.loads(ai_response)
+                
+                # Handle case where json.loads returns a string (double-encoded JSON)
+                if isinstance(parsed_response, str) and parsed_response.startswith('{'):
+                    parsed_response = json.loads(parsed_response)
+                
+                markdown_summary = parsed_response.get('markdown_summary', '')
+                structured_findings = parsed_response.get('findings', [])
+                
+                logging.info(f"Successfully parsed AI response: {len(structured_findings)} findings")
+                
+            except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                logging.error(f"Failed to parse structured response: {e}")
+                logging.error(f"AI response preview: {ai_response[:500] if ai_response else 'None'}")
+                # Return error instead of showing raw JSON
+                return jsonify({
+                    'success': False,
+                    'error': 'Failed to parse AI response. Please try again.'
+                }), 500
+            
+            # Search for quotes in PDF and get coordinates
+            manifest = {}
+            findings_with_coords = []
+            
+            for finding in structured_findings:
+                finding_id = finding.get('id', str(uuid.uuid4())[:8])
+                quote = finding.get('quote', '')
+                page_hint = finding.get('page_hint')
+                
+                # Convert page_hint from 1-indexed to 0-indexed
+                if page_hint:
+                    page_hint = page_hint - 1
+                
+                coordinates = []
+                if quote:
+                    coordinates = search_text_in_pdf(tmp_path, quote, page_hint)
+                
+                finding_with_coords = {
+                    **finding,
+                    'coordinates': coordinates
+                }
+                findings_with_coords.append(finding_with_coords)
+                
+                # Build manifest for frontend click-to-navigate
+                if coordinates:
+                    manifest[finding_id] = {
+                        'page': coordinates[0]['page'],
+                        'left': coordinates[0]['left'],
+                        'top': coordinates[0]['top'],
+                        'width': coordinates[0]['width'],
+                        'height': coordinates[0]['height']
+                    }
+                else:
+                    # No coordinates found, just provide page hint
+                    manifest[finding_id] = {
+                        'page': page_hint if page_hint is not None else 0,
+                        'left': 0,
+                        'top': 0,
+                        'width': 0,
+                        'height': 0,
+                        'not_found': True
+                    }
+            
+            # Create annotated PDF
+            annotated_pdf_url = None
+            if findings_with_coords:
+                annotated_filename = f"annotated_{uuid.uuid4().hex[:8]}.pdf"
+                annotated_path = os.path.join(tempfile.gettempdir(), annotated_filename)
+                
+                if create_annotated_pdf(tmp_path, findings_with_coords, annotated_path):
+                    # Always store locally and serve via same-origin endpoint for reliable downloads
+                    # (Cross-origin downloads from Firebase Storage cause redirect issues)
+                    import shutil
+                    annotated_dir = os.path.join(os.path.dirname(__file__), 'annotated_pdfs')
+                    os.makedirs(annotated_dir, exist_ok=True)
+                    shutil.copy(annotated_path, os.path.join(annotated_dir, annotated_filename))
+                    annotated_pdf_url = f"/api/contract-analysis/annotated/{annotated_filename}"
+                    logging.info(f"Annotated PDF saved locally: {annotated_filename}")
+                    
+                    # Clean up temp annotated file
+                    if os.path.exists(annotated_path):
+                        os.remove(annotated_path)
             
             return jsonify({
                 'success': True,
-                'findings': findings
+                'findings': markdown_summary,
+                'structured_findings': findings_with_coords,
+                'manifest': manifest,
+                'annotated_pdf_url': annotated_pdf_url,
+                'page_count': len(pages_text)
             })
             
         finally:
@@ -11094,6 +12105,28 @@ Keep your response focused and actionable. Use markdown formatting for readabili
     except Exception as e:
         logging.error(f"Error in contract analysis findings: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/contract-analysis/annotated/<filename>', methods=['GET'])
+def serve_annotated_pdf(filename):
+    """Serve annotated PDF files for download"""
+    annotated_dir = os.path.join(os.path.dirname(__file__), 'annotated_pdfs')
+    # Ensure directory exists
+    if not os.path.exists(annotated_dir):
+        os.makedirs(annotated_dir, exist_ok=True)
+        return jsonify({'error': 'Annotated PDF not found'}), 404
+    
+    file_path = os.path.join(annotated_dir, filename)
+    if not os.path.exists(file_path):
+        logging.error(f"Annotated PDF not found: {file_path}")
+        return jsonify({'error': 'Annotated PDF not found'}), 404
+    
+    return send_from_directory(
+        annotated_dir, 
+        filename, 
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name='annotated_contract.pdf'
+    )
 
 @app.route('/api/team-suggestions', methods=['POST'])
 def team_suggestions():
@@ -11196,6 +12229,62 @@ def get_proposal_summary():
         logging.error(f"Error getting proposal summary: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+def normalize_ai_findings_to_text(ai_findings) -> str:
+    """Normalize ai_findings to a string, handling both string and dict/list inputs.
+    
+    The frontend sometimes passes ai_findings as a dict (from structured findings)
+    instead of a string. This function handles both cases.
+    """
+    if ai_findings is None:
+        return ''
+    
+    if isinstance(ai_findings, str):
+        return ai_findings
+    
+    if isinstance(ai_findings, dict):
+        # Try to extract text content from common keys
+        for key in ['text', 'content', 'full_text', 'findings', 'summary', 'markdown']:
+            if key in ai_findings and isinstance(ai_findings[key], str):
+                return ai_findings[key]
+        
+        # If it's a structured findings dict, try to build a text summary
+        if 'findings' in ai_findings and isinstance(ai_findings['findings'], list):
+            parts = []
+            for finding in ai_findings['findings']:
+                if isinstance(finding, dict):
+                    title = finding.get('title', finding.get('type', ''))
+                    text = finding.get('text', finding.get('rationale', finding.get('content', '')))
+                    if title or text:
+                        parts.append(f"**{title}**\n{text}" if title else text)
+            if parts:
+                return '\n\n'.join(parts)
+        
+        # Fallback: convert dict to JSON string
+        import json
+        return json.dumps(ai_findings, indent=2)
+    
+    if isinstance(ai_findings, list):
+        # Handle list of findings
+        parts = []
+        for item in ai_findings:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                title = item.get('title', item.get('type', ''))
+                text = item.get('text', item.get('rationale', item.get('content', '')))
+                if title or text:
+                    parts.append(f"**{title}**\n{text}" if title else text)
+        if parts:
+            return '\n\n'.join(parts)
+        
+        # Fallback: convert list to JSON string
+        import json
+        return json.dumps(ai_findings, indent=2)
+    
+    # Fallback for any other type
+    return str(ai_findings)
+
+
 @app.route('/api/initialize-proposal-draft', methods=['POST'])
 def initialize_proposal_draft():
     """Initialize a proposal draft from React flow data for use with generate_proposal_sections.
@@ -11212,13 +12301,17 @@ def initialize_proposal_draft():
         data = request.get_json()
         contract_id = data.get('contract_id', '')
         contract_name = data.get('contract_name', '')
-        ai_findings = data.get('ai_findings', '')
-        ai_suggestions = data.get('ai_suggestions', '')
+        ai_findings_raw = data.get('ai_findings', '')
+        ai_suggestions_raw = data.get('ai_suggestions', '')
         ai_strategy = data.get('ai_strategy', '')
         team_members = data.get('team_members', [])
         labor_costs = data.get('labor_costs', [])
         materials = data.get('materials', [])
         margin_risk = data.get('margin_risk', {})
+        
+        # Normalize ai_findings and ai_suggestions to strings
+        ai_findings = normalize_ai_findings_to_text(ai_findings_raw)
+        ai_suggestions = normalize_ai_findings_to_text(ai_suggestions_raw)
         
         if not contract_id:
             return jsonify({'success': False, 'error': 'Missing contract_id'}), 400
@@ -11449,9 +12542,13 @@ def generate_proposal_strategy():
         data = request.get_json()
         contract_id = data.get('contract_id', '')
         contract_name = data.get('contract_name', 'Contract')
-        ai_findings = data.get('ai_findings', '')
-        ai_suggestions = data.get('ai_suggestions', '')
+        ai_findings_raw = data.get('ai_findings', '')
+        ai_suggestions_raw = data.get('ai_suggestions', '')
         team_members = data.get('team_members', [])
+        
+        # Normalize ai_findings and ai_suggestions to strings
+        ai_findings = normalize_ai_findings_to_text(ai_findings_raw)
+        ai_suggestions = normalize_ai_findings_to_text(ai_suggestions_raw)
         
         if not ai_findings:
             return jsonify({'success': False, 'error': 'AI findings are required to generate strategy'}), 400
@@ -12633,10 +13730,13 @@ def proposal_result_page():
 
 @app.route('/api/generate_proposal_sections', methods=['POST'])
 def generate_proposal_sections():
-    """Generate all 8 proposal sections using parallel AI prompts"""
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-    import json
+    """Start proposal generation job and return job_id immediately for SSE streaming.
     
+    This endpoint creates a job in Firebase with status='queued'.
+    The separate proposal_worker.py process picks up queued jobs and processes them.
+    This architecture prevents Gunicorn worker crashes by moving long-running
+    GPT-4 calls out of the HTTP request lifecycle.
+    """
     try:
         data = request.json
         draft_id = data.get('draft_id')
@@ -12653,661 +13753,105 @@ def generate_proposal_sections():
         
         user_id = user["localId"]
         
-        # Get draft data
+        # Get draft data to validate it exists
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
         draft_data = draft_ref.get()
         
         if not draft_data:
             return jsonify({'success': False, 'error': 'Draft not found'}), 404
         
-        # Get user data for company info
-        user_ref = admin_db.reference(f'users/{user_id}')
-        user_data = user_ref.get() or {}
+        # Create a job in Firebase with status='queued'
+        # The background worker (proposal_worker.py) will pick it up and process it
+        job_id = create_proposal_job(draft_id, user_id)
         
-        # Get capability statement if available
-        capability_statement = ""
-        try:
-            cs_ref = admin_db.reference(f'capability_statements/{user_id}')
-            cs_data = cs_ref.get()
-            if cs_data:
-                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
-        except Exception as cs_error:
-            logging.warning(f"Could not fetch capability statement: {cs_error}")
-        
-        # Extract data from draft
-        annotations = draft_data.get('annotations', [])
-        pricing = draft_data.get('pricing', {})
-        team_members = draft_data.get('team_members', [])
-        
-        # Build contract context
-        requirements_text = '\n'.join([f"- {ann.get('text', '')}" for ann in annotations if 'requirement' in ann.get('category', '').lower()])
-        scope_text = ' '.join([ann.get('text', '') for ann in annotations if 'scope' in ann.get('category', '').lower()])
-        all_annotations_text = '\n'.join([f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
-        
-        company_name = user_data.get('company', 'Our Company')
-        company_address = user_data.get('address', '[Company Address]')
-        company_email = user_data.get('email', user.get('email', '[Email]'))
-        
-        # Build pricing summary
-        labor_total = sum(item.get('cost', 0) for item in pricing.get('labor', []))
-        material_total = sum(item.get('cost', 0) for item in pricing.get('materials', []))
-        subtotal = labor_total + material_total
-        margin_pct = pricing.get('margin_pct', 15)
-        risk_pct = pricing.get('risk_pct', 5)
-        margin_amount = subtotal * (margin_pct / 100)
-        risk_amount = subtotal * (risk_pct / 100)
-        total_bid = subtotal + margin_amount + risk_amount
-        
-        pricing_summary = f"""
-Labor Costs: ${labor_total:,.2f}
-Material Costs: ${material_total:,.2f}
-Subtotal: ${subtotal:,.2f}
-Margin ({margin_pct}%): ${margin_amount:,.2f}
-Risk Reserve ({risk_pct}%): ${risk_amount:,.2f}
-Total Bid Amount: ${total_bid:,.2f}
-
-Labor Breakdown:
-""" + '\n'.join([f"- {item.get('role', 'Role')}: {item.get('hours', 0)} hours @ ${item.get('rate', 0)}/hr = ${item.get('cost', 0):,.2f}" for item in pricing.get('labor', [])])
-        
-        # Build team summary
-        team_summary = '\n'.join([f"- {member.get('name', 'Team Member')}: {member.get('role', 'Role')} - {member.get('experience', 'Experience')}" for member in team_members]) or "Team to be determined based on contract requirements."
-        
-        # Define the 8 section prompts
-        def generate_section(section_num, section_name, prompt):
-            """Generate a single section using OpenAI"""
-            try:
-                response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-                    model="gpt-4",
-                    messages=[
-                        {"role": "system", "content": f"""You are an expert government contract proposal writer with 20+ years of experience winning federal, state, and local government contracts. Generate Section {section_num}: {section_name} for a comprehensive public procurement proposal.
-
-CRITICAL REQUIREMENTS FOR SUBSTANTIVE CONTENT:
-1. Write THOROUGH, DETAILED content that is ready for professional use
-2. Each section should be comprehensive and substantive - aim for the word count specified in the prompt
-3. Use specific, concrete language rather than generic statements
-4. Include detailed explanations, methodologies, and approaches
-5. Reference the specific contract requirements and tailor content accordingly
-6. Write in formal government contracting language with professional tone
-
-FORMATTING RULES:
-- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
-- Use clear section headings in UPPERCASE
-- Use numbered lists where appropriate (1., 2., 3.)
-- Write in professional paragraph form with detailed explanations
-- Include appropriate placeholders [IN BRACKETS] only where specific company data is truly missing
-- Structure content with clear subheadings for easy navigation
-
-COMPANY INFORMATION:
-Company Name: {company_name}
-Company Address: {company_address}
-Company Email: {company_email}
-
-CAPABILITY STATEMENT (Use this to inform technical capabilities and past performance):
-{capability_statement[:4000] if capability_statement else 'Company capabilities to be detailed based on specific contract requirements.'}
-
-CONTRACT REQUIREMENTS AND ANNOTATIONS (Reference these specifically in your response):
-{all_annotations_text[:5000]}
-
-TEAM MEMBERS (Include these in staffing and management sections):
-{team_summary}
-
-PRICING INFORMATION (Use for cost proposal section):
-{pricing_summary}
-
-Remember: Generate SUBSTANTIVE, READY-TO-USE content. The goal is a proposal that requires minimal editing before submission."""},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.4,
-                    max_tokens=4000
-                )
-                return response.choices[0].message.content
-            except Exception as e:
-                logging.error(f"Error generating section {section_num}: {e}")
-                return f"[Error generating {section_name}: {str(e)}. Please regenerate this section.]"
-        
-        # Define the 8 prompts based on PromptBidding.md structure - Enhanced for substantive content
-        section_prompts = [
-            (1, "Cover Letter & Executive Summary", f"""Generate a comprehensive, ready-to-use Cover Letter and Executive Summary section. TARGET LENGTH: 1,200-1,500 words.
-
-COVER PAGE INFORMATION:
-Include a formal cover page with: Solicitation reference, Title of the opportunity, Contracting Agency, Company name ({company_name}), Submission date, and "DRAFT - FOR INTERNAL REVIEW ONLY" notice.
-
-COVER LETTER/TRANSMITTAL LETTER (300-400 words):
-Write a compelling, formal transmittal letter that:
-1. Opens with a strong statement of interest and commitment to the solicitation
-2. Introduces {company_name} with specific credentials and relevant experience
-3. Highlights 2-3 key differentiators that make the company uniquely qualified
-4. Expresses understanding of the agency's mission and how this contract supports it
-5. Includes commitment to performance, schedule, and budget
-6. Closes with contact information and signature block for "[Authorized Representative, Title]"
-
-EXECUTIVE SUMMARY (800-1,100 words):
-Write a compelling executive summary that:
-
-1. UNDERSTANDING OF REQUIREMENTS
-   - Demonstrate deep understanding of the solicitation's objectives
-   - Reference specific requirements from the contract annotations
-   - Show awareness of the agency's challenges and priorities
-
-2. PROPOSED SOLUTION OVERVIEW
-   - Provide a clear, compelling description of the proposed approach
-   - Explain how the solution addresses each major requirement
-   - Highlight innovative aspects and value-added features
-
-3. KEY DIFFERENTIATORS AND COMPETITIVE ADVANTAGES
-   - Identify 4-5 specific reasons why {company_name} is the best choice
-   - Reference relevant past performance and capabilities
-   - Emphasize unique qualifications, certifications, or methodologies
-
-4. VALUE PROPOSITION
-   - Articulate the tangible benefits to the agency
-   - Explain cost-effectiveness and return on investment
-   - Describe risk mitigation and quality assurance approaches
-
-5. KEY PERSONNEL HIGHLIGHTS
-   - Briefly introduce the project leadership team
-   - Highlight relevant experience and qualifications
-
-Write with confidence and specificity. This should read as a polished, professional proposal."""),
-
-            (2, "Administrative & Compliance Information", f"""Generate a thorough Administrative & Compliance Information section. TARGET LENGTH: 800-1,000 words.
-
-1. OFFEROR IDENTIFICATION AND CONTACT INFORMATION
-   - Legal Entity Name: {company_name}
-   - Business Address: {company_address}
-   - Primary Contact: [Name, Title, Phone, Email]
-   - Authorized Representative: [Name, Title]
-   - DUNS/UEI Number: [TO BE PROVIDED]
-   - CAGE Code: [TO BE PROVIDED]
-   - Tax Identification Number: [TO BE PROVIDED]
-
-2. BUSINESS CLASSIFICATION AND STATUS
-   - Business Type: [Corporation/LLC/Partnership/Sole Proprietorship]
-   - State of Incorporation: [State]
-   - Year Established: [Year]
-   - Small Business Status: [Indicate applicable categories: Small Business, Woman-Owned, Veteran-Owned, HUBZone, 8(a), etc.]
-   - NAICS Codes: [List primary and secondary codes relevant to this solicitation]
-   - Size Standard Compliance: [Confirm compliance with applicable size standards]
-
-3. REGISTRATIONS AND CERTIFICATIONS
-   - SAM.gov Registration: [Active/Registration Number/Expiration Date]
-   - State Business Licenses: [List applicable state registrations]
-   - Professional Certifications: [List relevant certifications - ISO, CMMI, etc.]
-   - Security Clearances: [If applicable, describe facility and personnel clearances]
-
-4. REPRESENTATIONS AND CERTIFICATIONS SUMMARY
-   Provide affirmative statements for:
-   - FAR 52.204-8 Annual Representations and Certifications
-   - Organizational Conflict of Interest: No conflicts exist
-   - Debarment and Suspension: Not debarred or suspended
-   - Tax Compliance: Current on all federal tax obligations
-   - Equal Employment Opportunity: Full compliance with EEO requirements
-   - Drug-Free Workplace: Maintains drug-free workplace policy
-   - Anti-Kickback Act: Full compliance
-   - Lobbying Restrictions: No federal funds used for lobbying
-
-5. INSURANCE AND BONDING
-   - General Liability Insurance: [Coverage amount]
-   - Professional Liability Insurance: [Coverage amount]
-   - Workers' Compensation: [Compliant with state requirements]
-   - Bonding Capacity: [If applicable]
-
-Mark items requiring verification with [TO BE VERIFIED] but provide complete structure."""),
-
-            (3, "Technical Approach", f"""Generate a comprehensive, detailed Technical Approach section. TARGET LENGTH: 2,000-2,500 words. This is the most critical section - make it thorough and specific.
-
-1. UNDERSTANDING OF REQUIREMENTS (400-500 words)
-   Begin by demonstrating thorough understanding of the solicitation:
-   - Summarize the agency's objectives and desired outcomes
-   - Identify and discuss key technical requirements from the annotations
-   - Acknowledge challenges and constraints
-   - Show understanding of performance standards and success criteria
-   - Reference specific sections or requirements from the solicitation
-
-2. TECHNICAL SOLUTION AND METHODOLOGY (600-800 words)
-   Describe the proposed technical approach in detail:
-   - Overall solution architecture and design philosophy
-   - Specific methodologies, frameworks, and best practices to be employed
-   - Technology stack, tools, and systems to be used
-   - How the solution addresses each major requirement
-   - Innovation and value-added features
-   - Integration with existing agency systems (if applicable)
-   - Scalability and flexibility of the proposed solution
-
-3. WORK PLAN AND IMPLEMENTATION APPROACH (500-600 words)
-   Provide a detailed implementation plan:
-   - Project phases with clear objectives for each phase
-   - Key activities and tasks within each phase
-   - Timeline and schedule (use realistic estimates)
-   - Dependencies and critical path items
-   - Transition and knowledge transfer approach
-   - Change management methodology
-
-4. DELIVERABLES AND ACCEPTANCE CRITERIA (300-400 words)
-   List and describe all deliverables:
-   - For each deliverable: description, format, delivery schedule
-   - Quality standards for deliverables
-   - Review and acceptance process
-   - Documentation requirements
-
-5. COMPLIANCE MATRIX SUMMARY (200-300 words)
-   Demonstrate compliance with key requirements:
-   - Map major solicitation requirements to proposed solution elements
-   - Identify any exceptions or deviations (if none, state full compliance)
-   - Reference applicable standards and regulations
-
-Write with technical depth and specificity. Reference the contract requirements provided and tailor the approach accordingly."""),
-
-            (4, "Management & Staffing Plan", f"""Generate a comprehensive Management & Staffing Plan section. TARGET LENGTH: 1,500-1,800 words.
-
-1. PROJECT MANAGEMENT APPROACH (400-500 words)
-   Describe the management methodology in detail:
-   - Project management framework (Agile, Waterfall, Hybrid - justify the choice)
-   - Governance structure and decision-making processes
-   - Communication plan: frequency, methods, stakeholders, escalation procedures
-   - Status reporting: format, frequency, distribution
-   - Issue and risk management processes
-   - Change control procedures
-   - Quality management integration
-   - Tools and systems for project management
-
-2. ORGANIZATIONAL STRUCTURE (300-400 words)
-   Describe the project organization:
-   - Organizational chart description (describe hierarchy and relationships)
-   - Reporting relationships and lines of authority
-   - Interface with agency personnel
-   - Subcontractor management structure (if applicable)
-   - Corporate support and oversight
-
-3. KEY PERSONNEL (500-600 words)
-   Provide detailed descriptions of key team members:
-{team_summary}
-
-   For each key person, include:
-   - Name and proposed role
-   - Relevant qualifications and certifications
-   - Years of experience in similar roles
-   - Specific relevant project experience
-   - Percentage of time dedicated to this contract
-   - Backup/succession plan
-
-   If team members are not yet identified, provide detailed position descriptions with required qualifications.
-
-4. STAFFING PLAN AND RESOURCE ALLOCATION (300-400 words)
-   - Total staffing levels by phase and labor category
-   - Full-time equivalent (FTE) breakdown
-   - Skill mix and expertise areas
-   - Recruitment and retention strategies
-   - Training and professional development
-   - Contingency staffing plans
-   - Ramp-up and ramp-down approach
-
-Write with specificity about roles, responsibilities, and management processes."""),
-
-            (5, "Corporate Experience & Past Performance", f"""Generate a comprehensive Corporate Experience & Past Performance section. TARGET LENGTH: 1,500-1,800 words.
-
-1. CORPORATE OVERVIEW (300-400 words)
-   Provide a compelling company profile:
-   - Company history and founding
-   - Mission and core values
-   - Areas of expertise and specialization
-   - Geographic presence and capabilities
-   - Key differentiators in the market
-   - Awards, recognitions, and achievements
-   - Growth trajectory and stability indicators
-
-2. CORE COMPETENCIES (200-300 words)
-   Detail the company's core capabilities:
-   - Technical competencies relevant to this contract
-   - Management and operational capabilities
-   - Quality assurance expertise
-   - Innovation and continuous improvement track record
-
-3. PAST PERFORMANCE EXAMPLES (800-1,000 words)
-   Provide 3-4 detailed past performance references. For each, include:
-
-   PAST PERFORMANCE EXAMPLE 1:
-   - Contract Name/Title: [Name or description]
-   - Contracting Agency/Client: [Agency name]
-   - Contract Number: [TO BE PROVIDED]
-   - Contract Type: [FFP/T&M/Cost-Plus]
-   - Contract Value: $[Amount]
-   - Period of Performance: [Start Date] to [End Date]
-   - Point of Contact: [Name, Title, Phone, Email - TO BE PROVIDED]
-   - Scope of Work: [Detailed description of work performed]
-   - Key Accomplishments: [Specific achievements, metrics, outcomes]
-   - Relevance to Current Solicitation: [Explain how this experience applies]
-
-   [Repeat structure for Examples 2, 3, and 4]
-
-   Base these on the capability statement provided. Use realistic placeholders where specific data is not available.
-
-4. RELEVANCE MAPPING (200-300 words)
-   - Summarize how past experience directly qualifies the company for this contract
-   - Identify lessons learned and how they will be applied
-   - Demonstrate pattern of successful performance
-
-Write with confidence and specificity. Make the past performance compelling and relevant."""),
-
-            (6, "Quality Assurance, Risk Management & Small Business Participation", f"""Generate a comprehensive section covering Quality Assurance, Risk Management, and Small Business Participation. TARGET LENGTH: 1,400-1,700 words.
-
-1. QUALITY ASSURANCE AND QUALITY CONTROL (500-600 words)
-   Describe a robust QA/QC program:
-   
-   QA/QC PHILOSOPHY AND APPROACH:
-   - Quality management philosophy and commitment
-   - Quality management system description (ISO 9001 or equivalent)
-   - Continuous improvement methodology
-   
-   QUALITY CONTROL PROCEDURES:
-   - Inspection and testing protocols
-   - Documentation and record-keeping requirements
-   - Non-conformance identification and correction
-   - Root cause analysis procedures
-   
-   QUALITY ASSURANCE ACTIVITIES:
-   - Quality audits and reviews (internal and external)
-   - Performance metrics and KPIs
-   - Customer satisfaction measurement
-   - Corrective and preventive action processes
-   
-   QUALITY PERSONNEL:
-   - Quality manager role and responsibilities
-   - Quality team structure
-   - Training and certification requirements
-
-2. RISK MANAGEMENT (500-600 words)
-   Present a comprehensive risk management approach:
-   
-   RISK MANAGEMENT METHODOLOGY:
-   - Risk identification process
-   - Risk assessment and prioritization criteria
-   - Risk monitoring and reporting procedures
-   
-   KEY RISKS AND MITIGATION STRATEGIES:
-   Identify 5-7 specific risks relevant to this contract:
-   
-   Risk 1: [Technical/Schedule/Cost/Performance Risk]
-   - Description: [Detailed description]
-   - Likelihood: [High/Medium/Low]
-   - Impact: [High/Medium/Low]
-   - Mitigation Strategy: [Specific actions to reduce risk]
-   - Contingency Plan: [Actions if risk materializes]
-   
-   [Continue for additional risks]
-   
-   RISK REGISTER AND TRACKING:
-   - Risk register maintenance
-   - Regular risk reviews
-   - Escalation procedures
-
-3. SMALL BUSINESS PARTICIPATION PLAN (400-500 words)
-   If applicable, describe small business participation:
-   
-   SMALL BUSINESS SUBCONTRACTING GOALS:
-   - Overall small business goal: [Percentage]
-   - Small Disadvantaged Business: [Percentage]
-   - Woman-Owned Small Business: [Percentage]
-   - HUBZone Small Business: [Percentage]
-   - Veteran-Owned Small Business: [Percentage]
-   - Service-Disabled Veteran-Owned: [Percentage]
-   
-   SUBCONTRACTING APPROACH:
-   - Identification of subcontracting opportunities
-   - Outreach and recruitment of small business partners
-   - Mentor-protégé relationships (if applicable)
-   - Small business development and capacity building
-   
-   MONITORING AND REPORTING:
-   - Tracking mechanisms for small business participation
-   - Reporting requirements and frequency
-   - Good faith effort documentation
-
-Write with specificity and demonstrate commitment to quality and risk management."""),
-
-            (7, "Price/Cost Proposal (High-Level Draft)", f"""Generate a comprehensive Price/Cost Proposal section. TARGET LENGTH: 1,000-1,200 words.
-
-IMPORTANT DISCLAIMER (Include at the top):
-"DRAFT PRICING NOTICE: All prices, rates, and cost estimates in this section are preliminary draft values for internal review purposes only. These figures are subject to adjustment, validation, and formal approval before any official submission. This is NOT a final pricing commitment or binding offer."
-
-1. PRICING SUMMARY AND TOTAL PRICE (200-250 words)
-   Present the overall pricing structure:
-   
-{pricing_summary}
-
-   TOTAL PROPOSED PRICE: $[Total Amount] (DRAFT ESTIMATE)
-   
-   Provide a brief narrative explaining the pricing approach and how it represents best value to the government.
-
-2. DETAILED COST BREAKDOWN (300-400 words)
-   
-   DIRECT LABOR COSTS:
-   - Labor categories, hours, and rates
-   - Basis for labor estimates
-   - Labor escalation factors (if multi-year)
-   
-   MATERIALS AND EQUIPMENT:
-   - Direct materials costs
-   - Equipment purchases or rentals
-   - Software licenses
-   
-   OTHER DIRECT COSTS (ODCs):
-   - Travel costs (trips, per diem, transportation)
-   - Subcontractor costs
-   - Other allowable direct costs
-   
-   INDIRECT COSTS:
-   - Fringe benefits rate and basis
-   - Overhead rate and basis
-   - General & Administrative (G&A) rate and basis
-   
-   PROFIT/FEE:
-   - Proposed profit percentage
-   - Basis for profit determination
-
-3. PRICING ASSUMPTIONS AND BASIS OF ESTIMATE (250-300 words)
-   Document key assumptions:
-   - Scope assumptions
-   - Schedule assumptions
-   - Labor productivity assumptions
-   - Material pricing assumptions
-   - Inflation/escalation assumptions
-   - Government-furnished property/information assumptions
-   
-   BASIS OF ESTIMATE:
-   - Historical data used
-   - Vendor quotes obtained
-   - Engineering estimates
-   - Analogous pricing references
-
-4. VALUE PROPOSITION AND COST REALISM (200-250 words)
-   Explain why this pricing represents best value:
-   - Cost-effectiveness compared to alternatives
-   - Efficiency measures incorporated
-   - Value-added services included
-   - Total cost of ownership considerations
-   - Return on investment for the agency
-
-Mark all figures as DRAFT/ESTIMATED. Present pricing professionally and transparently."""),
-
-            (8, "Attachments & Supporting Documentation Index", f"""Generate a comprehensive Attachments & Supporting Documentation Index section. TARGET LENGTH: 600-800 words.
-
-1. ATTACHMENT INDEX AND DESCRIPTIONS
-   List all attachments with detailed descriptions:
-
-   ATTACHMENT A: CAPABILITY STATEMENT
-   - Description: Comprehensive overview of company capabilities, past performance, and qualifications
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT B: KEY PERSONNEL RESUMES
-   - Description: Detailed resumes for all key personnel identified in the Management Plan
-   - Contents: [List names and positions]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT C: PAST PERFORMANCE QUESTIONNAIRES (PPQs)
-   - Description: Completed PPQs from references for contracts cited in Past Performance section
-   - Number of PPQs: [Number]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT D: CERTIFICATIONS AND LICENSES
-   - Description: Copies of relevant professional certifications, business licenses, and registrations
-   - Contents: [List specific certifications]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT E: TECHNICAL DIAGRAMS AND CHARTS
-   - Description: Visual representations of technical approach, organizational structure, and project schedule
-   - Contents: [List specific diagrams]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT F: SUBCONTRACTOR LETTERS OF COMMITMENT
-   - Description: Letters from subcontractors confirming participation and commitment
-   - Number of Letters: [Number]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT G: FINANCIAL STATEMENTS
-   - Description: Audited financial statements demonstrating financial capability
-   - Years Covered: [Years]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-   
-   ATTACHMENT H: INSURANCE CERTIFICATES
-   - Description: Certificates of insurance for required coverage types
-   - Coverage Types: [List types]
-   - Status: [TO BE ATTACHED]
-   - Responsible Party: [Name/Title]
-
-2. DOCUMENT PREPARATION CHECKLIST
-   - List of all required documents per solicitation instructions
-   - Format requirements (page limits, font, margins)
-   - Electronic submission requirements
-   - Hard copy requirements (if applicable)
-   - Binding and packaging instructions
-
-3. SUBMISSION INSTRUCTIONS AND NOTES
-   - Submission deadline and time zone
-   - Submission method (electronic portal, email, physical delivery)
-   - Required number of copies
-   - Marking and labeling requirements
-   - Points of contact for submission questions
-
-This section serves as a roadmap for completing the proposal package.""")
-        ]
-        
-        # Generate all 8 sections in parallel
-        sections = {}
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            future_to_section = {
-                executor.submit(generate_section, num, name, prompt): (num, name)
-                for num, name, prompt in section_prompts
-            }
-            
-            for future in as_completed(future_to_section):
-                section_num, section_name = future_to_section[future]
-                try:
-                    content = future.result()
-                    sections[section_num] = {
-                        'name': section_name,
-                        'content': content
-                    }
-                    logging.info(f"✓ Generated Section {section_num}: {section_name}")
-                except Exception as e:
-                    logging.error(f"Error in section {section_num}: {e}")
-                    sections[section_num] = {
-                        'name': section_name,
-                        'content': f"[Error generating this section: {str(e)}]"
-                    }
-        
-        # Order sections 1-8
-        ordered_sections = [sections.get(i, {'name': f'Section {i}', 'content': '[Not generated]'}) for i in range(1, 9)]
-        
-        # Build the full proposal document
-        disclaimer = """
-================================================================================
-                    DRAFT - FOR INTERNAL REVIEW ONLY
-================================================================================
-
-DISCLAIMER - DRAFT DOCUMENT
-
-This document is an automatically generated draft proposal produced by an 
-AI-assisted tool. It is NOT a final, complete, or legally binding offer. 
-The content may be incomplete, inaccurate, or inconsistent. It MUST be 
-thoroughly reviewed, edited, and approved by qualified human personnel 
-before being used for any official submission or external communication.
-
-================================================================================
-"""
-        
-        full_proposal = disclaimer + "\n\n"
-        for i, section in enumerate(ordered_sections, 1):
-            full_proposal += f"\n\n{'='*80}\nSECTION {i}: {section['name'].upper()}\n{'='*80}\n\n"
-            full_proposal += section['content']
-        
-        # Add instructions at the end
-        instructions = """
-
-================================================================================
-                    INSTRUCTIONS FOR USING THIS DRAFT
-================================================================================
-
-This AI-generated draft proposal requires careful review and refinement before 
-any official use. Please follow these steps:
-
-1. READ EACH SECTION CAREFULLY
-   - Review all 8 sections for accuracy and completeness
-   - Verify all facts, figures, and claims
-
-2. CORRECT AND REFINE
-   - Replace all placeholders marked with [brackets]
-   - Insert missing details and specific data
-   - Validate all pricing and compliance statements
-   - Adjust language to match your company's voice
-
-3. VERIFY COMPLIANCE
-   - Check alignment with actual solicitation instructions
-   - Ensure all evaluation criteria are addressed
-   - Verify format requirements are met
-
-4. INTERNAL APPROVAL
-   - Obtain necessary legal/compliance approvals
-   - Get management sign-off on pricing
-   - Verify technical accuracy with subject matter experts
-
-5. FINALIZE FOR SUBMISSION
-   - Download and edit in your word processor
-   - Apply your company's proposal template
-   - Perform final compliance check
-   - Submit before the deadline
-
-================================================================================
-"""
-        full_proposal += instructions
-        
-        # Save the generated proposal to the draft
-        draft_ref.update({
-            'generated_proposal': {
-                'sections': ordered_sections,
-                'full_text': full_proposal,
-                'generated_at': datetime.now().isoformat(),
-                'status': 'draft'
-            }
-        })
-        
+        # Return immediately with job_id - worker will handle generation
         return jsonify({
             'success': True,
-            'sections': ordered_sections,
-            'full_proposal': full_proposal,
-            'total_sections': len(ordered_sections)
+            'job_id': job_id,
+            'message': 'Proposal generation queued. Use SSE endpoint to track progress.'
         })
         
     except Exception as e:
-        logging.error(f"Error generating proposal sections: {e}", exc_info=True)
+        logging.error(f"Error starting proposal generation: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# NOTE: The run_proposal_generation_job function has been moved to proposal_worker.py
+# This decouples long-running GPT-4 calls from Gunicorn HTTP workers to prevent
+# worker timeouts and memory exhaustion under production load.
+# See proposal_worker.py for the background worker implementation.
+@app.route('/api/generate_proposal_sections/events/<job_id>')
+def proposal_generation_events(job_id):
+    """SSE endpoint for streaming proposal generation progress"""
+    import json
+    
+    def generate_events():
+        """Generator that yields SSE events"""
+        last_event_index = 0
+        max_wait_time = 300  # 5 minutes max
+        start_time = time_module.time()
+        
+        while True:
+            job = get_proposal_job(job_id)
+            
+            if not job:
+                yield f"event: error\ndata: {json.dumps({'message': 'Job not found'})}\n\n"
+                break
+            
+            # Send any new events
+            events = job.get('events', [])
+            while last_event_index < len(events):
+                event = events[last_event_index]
+                event_type = event.get('type', 'message')
+                event_data = event.get('data', {})
+                yield f"event: {event_type}\ndata: {json.dumps(event_data)}\n\n"
+                last_event_index += 1
+            
+            # Check if job is done
+            if job.get('status') in ['completed', 'error']:
+                break
+            
+            # Check timeout
+            if time_module.time() - start_time > max_wait_time:
+                yield f"event: error\ndata: {json.dumps({'message': 'Timeout waiting for job completion'})}\n\n"
+                break
+            
+            # Send keepalive ping every 15 seconds
+            yield ": ping\n\n"
+            
+            # Wait a bit before checking again
+            time_module.sleep(1)
+    
+    response = Response(
+        generate_events(),
+        mimetype='text/event-stream',
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+    return response
+
+
+@app.route('/api/generate_proposal_sections/status/<job_id>')
+def proposal_generation_status(job_id):
+    """Get current status of a proposal generation job"""
+    job = get_proposal_job(job_id)
+    
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    
+    return jsonify({
+        'success': True,
+        'job_id': job_id,
+        'status': job.get('status'),
+        'sections_completed': job.get('sections_completed', []),
+        'sections_total': job.get('sections_total', 8),
+        'full_proposal': job.get('full_proposal'),
+        'error': job.get('error')
+    })
+
 
 @app.route('/api/download_proposal_pdf', methods=['GET'])
 def download_proposal_docx():
@@ -14002,28 +14546,49 @@ def directory_company_profile(user_id):
 # =============================================================================
 
 # Serve React app - SPA routing
-# Public paths that don't require authentication (landing page)
-REACT_PUBLIC_PATHS = {'', 'landing'}
+# Public paths that don't require authentication (landing page and auth pages)
+REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'faq', 'about-us'}
 
+# React page routes - these will be handled by the SPA
+REACT_PAGE_ROUTES = {
+    'dashboard', 'capability-builder', 'top-five-contracts', 'ai-assistant',
+    'get-more-credits', 'corama-directory', 'edit-directory-profile',
+    'no-capability-statement', 'contract-analysis', 'proposal-team',
+    'proposal-summary', 'public-bid-proposal-generator', 'landing',
+    'login', 'signup', 'confirm-terms', 'reset-password', 'faq',
+    'about', 'about-us'
+}
+
+# Backwards compatibility: redirect /app/* to /* (clean URLs)
 @app.route('/app/')
 @app.route('/app/<path:path>')
-def serve_react_app(path=''):
-    """Serve the React frontend application"""
-    app_dir = os.path.join(app.static_folder, 'app')
+def serve_react_app_legacy(path=''):
+    """Redirect old /app/* URLs to new clean URLs for backwards compatibility"""
+    if path:
+        return redirect(f'/{path}', code=301)
+    return redirect('/', code=301)
+
+# Serve React SPA for clean URLs (e.g., /dashboard, /top-five-contracts)
+@app.route('/<path:path>')
+def serve_react_spa(path):
+    """Serve React SPA for page routes, let Flask handle everything else"""
+    # Check if this is a React page route
+    # Extract the first segment of the path (e.g., 'dashboard' from 'dashboard/something')
+    first_segment = path.split('/')[0] if path else ''
     
-    # Serve static assets (js, css, images) without auth check
-    # Use isfile() instead of exists() to avoid matching directories
-    file_path = os.path.join(app_dir, path) if path else None
-    if path and file_path and os.path.isfile(file_path):
-        return send_from_directory(app_dir, path)
+    if first_segment in REACT_PAGE_ROUTES:
+        app_dir = os.path.join(app.static_folder, 'app')
+        
+        # Check authentication for non-public paths
+        if first_segment not in REACT_PUBLIC_PATHS and 'user' not in session:
+            return redirect(url_for('Login'))
+        
+        # Serve index.html for React routes (SPA handles client-side routing)
+        return send_from_directory(app_dir, 'index.html')
     
-    # Allow public paths (landing page) without authentication
-    # All other React routes require authentication
-    if path not in REACT_PUBLIC_PATHS and 'user' not in session:
-        return redirect(url_for('Login'))
-    
-    # Serve index.html for all React routes (SPA)
-    return send_from_directory(app_dir, 'index.html')
+    # For any other path, return 404 (let Flask's default 404 handler take over)
+    # This ensures /api/*, /static/*, /login, /signup, etc. are not intercepted
+    abort(404)
 
 
 # API: Get current user info
@@ -14623,13 +15188,28 @@ def api_directory():
     
     try:
         # Get directory data from Firebase
+        directory_data = {}
+        logging.info(f"[Directory] admin_initialized={admin_initialized}, admin_db={'set' if admin_db else 'None'}")
         if admin_initialized and admin_db:
-            directory_ref = admin_db.reference('corama_directory')
-            directory_data = directory_ref.get() or {}
+            try:
+                logging.info("[Directory] Using Firebase Admin SDK to read corama_directory")
+                directory_ref = admin_db.reference('corama_directory')
+                directory_data = directory_ref.get() or {}
+                logging.info(f"[Directory] Retrieved {len(directory_data)} entries from Firebase Admin SDK")
+            except Exception as admin_err:
+                logging.warning(f"[Directory] Firebase Admin SDK failed: {admin_err}")
+                directory_data = {}
         else:
+            logging.info("[Directory] Firebase Admin SDK not available, using fallback")
             if 'user' in session:
-                directory_data = db.child("corama_directory").get(session['user']['idToken']).val() or {}
+                try:
+                    logging.info("[Directory] Using user idToken to read corama_directory")
+                    directory_data = db.child("corama_directory").get(session['user']['idToken']).val() or {}
+                except Exception as token_err:
+                    logging.warning(f"[Directory] User token read failed: {token_err}")
+                    directory_data = {}
             else:
+                logging.info("[Directory] No user session, returning empty directory")
                 directory_data = {}
         
         all_companies = []

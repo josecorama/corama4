@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
+import { InlineLoading } from '../components/ThinkingPopup'
 import { Edit, Printer, RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 
@@ -36,10 +37,10 @@ const TopFiveContracts = () => {
   const [selectedStates, setSelectedStates] = useState<string[]>(['all', 'IL', 'IN'])
   const [noFilterResults, setNoFilterResults] = useState(false)
 
-  // Redirect to dashboard if user has no matches at all
+  // Redirect to no-capability-statement page if user has no matches at all
   useEffect(() => {
     if (!loading && hasMatches === false) {
-      navigate('/dashboard')
+      navigate('/no-capability-statement')
     }
   }, [loading, hasMatches, navigate])
 
@@ -180,7 +181,7 @@ const TopFiveContracts = () => {
           <Sidebar />
         
           <div className="flex-1 flex flex-col min-w-0">
-            <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+            <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
               {/* Page Title and Action Buttons */}
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Contracts</h1>
@@ -205,7 +206,11 @@ const TopFiveContracts = () => {
 
                         {loading || rerunning || hasMatches === null ? (
                           <div className="flex items-center justify-center h-64">
-                            <p className="text-gray-400 font-poppins">{rerunning ? 'Refreshing matches...' : 'Loading top contracts...'}</p>
+                            {rerunning ? (
+                              <InlineLoading text="Refreshing" size="large" darkMode={true} />
+                            ) : (
+                              <InlineLoading text="Loading" size="large" darkMode={true} />
+                            )}
                           </div>
                         ) : hasMatches === false ? (
               <div className="flex items-center justify-center h-64">
@@ -328,14 +333,14 @@ const TopFiveContracts = () => {
 
               {/* Bottom Action Buttons */}
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8">
-                <button className="flex items-center gap-3 card-gradient text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
+                <button className="flex items-center gap-3 card-gradient-original text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
                   <Edit size={20} />
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">Edit Profile</p>
                     <p className="text-xs sm:text-sm text-gray-400">Click to edit your registration.</p>
                   </div>
                 </button>
-                <button className="flex items-center gap-3 card-gradient text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
+                <button className="flex items-center gap-3 card-gradient-original text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
                   <Printer size={20} />
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">Print Results</p>

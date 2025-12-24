@@ -1,0 +1,32 @@
+# Requirements for proposal_worker.py
+# Versions matched from main requirements.txt
+
+# Firebase Admin SDK for job queue and state management
+firebase-admin==6.5.0
+
+# OpenAI for GPT-4 proposal generation
+openai==1.35.13
+
+# Environment variable loading
+python-dotenv==1.0.1
+
+# Dependencies required by firebase-admin and openai
+certifi==2024.7.4
+charset-normalizer==3.3.2
+google-auth>=2.0.0
+google-cloud-firestore>=2.0.0
+google-cloud-storage>=2.0.0
+httpx==0.27.0
+idna==3.7
+requests==2.32.3
+urllib3==1.26.19
+anyio==4.4.0
+distro==1.9.0
+h11==0.14.0
+httpcore==1.0.5
+pydantic==2.8.2
+pydantic_core==2.20.1
+sniffio==1.3.1
+tqdm==4.66.4
+typing_extensions==4.12.2
+annotated-types==0.7.0

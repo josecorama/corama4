@@ -132,7 +132,7 @@ const Dashboard = () => {
         <Sidebar />
         
         <div className="flex-1 flex flex-col min-w-0">
-          <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
             <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>

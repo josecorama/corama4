@@ -140,7 +140,7 @@ const GetMoreCredits = () => {
           <Sidebar />
         
           <div className="flex-1 flex flex-col min-w-0">
-            <main className="flex-1 p-3 sm:p-4 lg:p-6 overflow-x-hidden">
+            <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
             {/* Page Title */}
             <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8">Get More Credits</h1>
 
@@ -149,7 +149,7 @@ const GetMoreCredits = () => {
               {creditPacks.map((pack, index) => (
                 <div
                   key={index}
-                  className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient hover:bg-white text-white hover:text-corama-dark border-2 border-transparent hover:border-corama-teal transition-all duration-200 flex flex-col h-full"
+                  className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient-original hover:bg-white text-white hover:text-corama-dark border-2 border-transparent hover:border-corama-teal transition-all duration-200 flex flex-col h-full"
                 >
                   <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400 group-hover:text-gray-600 text-center">
                     {pack.credits} Credits
