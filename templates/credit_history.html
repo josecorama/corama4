@@ -89,8 +89,66 @@
     
     <div class="container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">
         <div style="text-align: center; margin-bottom: 3rem;">
-            <h1 style="color: #2c3e50; margin-bottom: 0.5rem;">💎 Credit Management</h1>
-            <p style="color: #7f8c8d; font-size: 1.1rem;">Track your credit usage and purchase history</p>
+            <h1 style="color: #2c3e50; margin-bottom: 0.5rem;">💎 Usage & Limits Dashboard</h1>
+            <p style="color: #7f8c8d; font-size: 1.1rem;">Track your credit usage and billing cycle</p>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; padding: 2rem; margin-bottom: 2rem; color: white; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div>
+                    <h2 style="margin: 0 0 0.5rem 0; font-size: 1.5rem;">Current Billing Cycle</h2>
+                    <p style="margin: 0; opacity: 0.9; font-size: 1.1rem;">{{ cycle_start }} – {{ cycle_end }}</p>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 0.9rem; opacity: 0.9; margin-bottom: 0.25rem;">Available Credits</div>
+                    <div style="font-size: 3rem; font-weight: bold;">{{ current_credits }}</div>
+                </div>
+            </div>
+            <div style="background: rgba(255,255,255,0.2); border-radius: 12px; padding: 0.75rem; backdrop-filter: blur(10px);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <span style="font-size: 0.9rem; opacity: 0.95;">Total Usage</span>
+                    <span style="font-weight: 600;">{{ credits_used }} / {{ current_credits + credits_used }} credits</span>
+                </div>
+                <div class="progress-bar" style="background: rgba(255,255,255,0.3);">
+                    <div class="progress-fill" style="background: linear-gradient(90deg, #48bb78, #38a169); width: {{ (credits_used / (current_credits + credits_used) * 100) if (current_credits + credits_used) > 0 else 0 }}%;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 2rem;">
+            <h3 style="color: #2c3e50; margin-top: 0; margin-bottom: 1.5rem;">📊 Cycle Usage Breakdown</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #667eea20, #764ba220); border-radius: 12px; border-left: 4px solid #667eea;">
+                    <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem; font-weight: 600;">Gift Credits</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: #667eea;">{{ gift_credits }}</div>
+                    <div style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.25rem;">Welcome bonus</div>
+                </div>
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #3498db20, #2980b920); border-radius: 12px; border-left: 4px solid #3498db;">
+                    <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem; font-weight: 600;">Purchased Credits</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: #3498db;">{{ purchased_credits }}</div>
+                    <div style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.25rem;">Additional credits</div>
+                </div>
+                <div style="padding: 1.5rem; background: linear-gradient(135deg, #27ae6020, #1e8a4f20); border-radius: 12px; border-left: 4px solid #27ae60;">
+                    <div style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 0.5rem; font-weight: 600;">Available Now</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: #27ae60;">{{ current_credits }}</div>
+                    <div style="font-size: 0.85rem; color: #95a5a6; margin-top: 0.25rem;">Ready to use</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="background: linear-gradient(135deg, #f093fb20, #f5576c20); border-radius: 12px; padding: 2rem; margin-bottom: 2rem; border: 2px dashed #f093fb;">
+            <div style="text-align: center;">
+                <h3 style="color: #2c3e50; margin-top: 0; margin-bottom: 1rem;">✨ Earn More Credits</h3>
+                <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Get bonus credits by referring friends or completing special tasks</p>
+                <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                    <a href="{{ url_for('purchase_credits') }}" style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 0.875rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); transition: all 0.3s ease; display: inline-block;">
+                        💳 Purchase Credits
+                    </a>
+                    <a href="{{ url_for('Contact') }}" style="background: white; color: #667eea; padding: 0.875rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 600; border: 2px solid #667eea; transition: all 0.3s ease; display: inline-block;">
+                        🎁 Contact for Referral Program
+                    </a>
+                </div>
+            </div>
         </div>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">

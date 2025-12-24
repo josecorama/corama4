@@ -543,37 +543,41 @@ THE USER IS GOING TO INPUT THEIR OWN company description YOU NEED TO TRANSFORM
 #CS BUILDER
 @app.route('/generate_description', methods=['POST'])
 def generate_description():
-    data = request.json
-    company_name = data.get('companyName', 'your company')
-    company_description = data.get('companyDescription', '')
+    try:
+        data = request.json
+        company_name = data.get('companyName', 'your company')
+        company_description = data.get('companyDescription', '')
 
-    # Check if enough information is provided
-    if not company_description or len(company_description.strip()) < 5:  # Check for empty or insufficient description
-        missing_info_message = (
-            "Please provide this information in the previous box to generate your company description:\n"
-            "Founding Date: When did you start your business?\n"
-            "Founders: Who started the business?\n"
-            "Describe what you do: What products or services do you offer?\n"
-            "What makes your products or services special?"
+        # Check if enough information is provided
+        if not company_description or len(company_description.strip()) < 5:  # Check for empty or insufficient description
+            missing_info_message = (
+                "Please provide this information in the previous box to generate your company description:\n"
+                "Founding Date: When did you start your business?\n"
+                "Founders: Who started the business?\n"
+                "Describe what you do: What products or services do you offer?\n"
+                "What makes your products or services special?"
+            )
+            return jsonify({'description': missing_info_message})
+
+        # If company description is provided, ask GPT to revise it
+        messages = [
+            {"role": "system", "content": GPTSystemPrompt},
+            {"role": "user", "content": f"Revise the following company description based on this description:\n\n"
+                                        f"Existing Description: {company_description}\n\n"
+                                        f"Company Name: {company_name}\n"}
+        ]
+
+        completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages,
+            max_tokens=150
         )
-        return jsonify({'description': missing_info_message})
-
-    # If company description is provided, ask GPT to revise it
-    messages = [
-        {"role": "system", "content": GPTSystemPrompt},
-        {"role": "user", "content": f"Revise the following company description based on this description:\n\n"
-                                    f"Existing Description: {company_description}\n\n"
-                                    f"Company Name: {company_name}\n"}
-    ]
-
-    completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=messages,
-        max_tokens=150
-    )
-    
-    description = completion.choices[0].message.content.strip()
-    return jsonify({'description': description})
+        
+        description = completion.choices[0].message.content.strip()
+        return jsonify({'description': description})
+    except Exception as e:
+        app.logger.error(f"Error in generate_description: {e}")
+        return jsonify({'error': 'AI service is temporarily unavailable. Please try again later or refine your description manually.'}), 500
 
 # Initialize logging
 logging.basicConfig(level=logging.INFO)
@@ -1712,7 +1716,7 @@ def send_welcome_email(email, display_name):
 
         app.logger.debug("📧 Styled HTML email composed successfully.")
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10) as server:
             app.logger.debug("🔐 Connecting to SMTP server...")
             server.login(sender_email, sender_password)
             app.logger.debug("🔐 SMTP login successful.")
@@ -1770,13 +1774,19 @@ def Signup():
 
             app.logger.info(f"✅ Firebase user created successfully! User ID: {user_id}")
 
-            # ✅ Send Welcome Email
-            app.logger.info("📨 Calling send_welcome_email function...")
-            send_welcome_email(email, email)
-            app.logger.info("📨 send_welcome_email function execution completed.")
+            # ✅ Send Welcome Email (non-blocking - don't fail signup if email fails)
+            try:
+                app.logger.info("📨 Attempting to send welcome email...")
+                import threading
+                email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
+                email_thread.start()
+                app.logger.info("📨 Welcome email queued for sending.")
+            except Exception as email_error:
+                app.logger.warning(f"⚠️ Could not send welcome email: {email_error}")
 
             # ✅ Store User Data in Session
             session['user_data'] = {
+                "user_id": user_id,
                 "first_name": first_name,
                 "last_name": last_name,
                 "company": company,
@@ -1786,6 +1796,9 @@ def Signup():
                 "billing_period": billing_period,
                 "subscription_end_date": subscription_end_date
             }
+            
+            # ✅ Store User Session for Authentication
+            session['user'] = user_logged_in
 
             app.logger.debug(f"💾 Session Data Stored: {session['user_data']}")
 
@@ -2264,6 +2277,8 @@ def ai_assistant_room():
     has_capability_statement = False
     capability_statement_filename = None
     company_name = None
+    capability_statements = []
+    capability_statement_count = 0
     
     try:
         if admin_initialized and admin_db:
@@ -2353,7 +2368,31 @@ def ai_assistant_room():
         logging.error(f"Error fetching credit balance for AI Assistant: {e}")
         current_credits = 0
     
-    return render_template('ai_assistant_room.html', 
+    # Also load capability statements saved from the Capability Builder
+    try:
+        if db:
+            saved_caps = db.child('users').child(user_id).child('capability_statements').get().val()
+            if saved_caps:
+                from datetime import datetime
+                for cap_id, cap_data in saved_caps.items():
+                    capability_statements.append({
+                        'company': cap_data.get('company_name', 'Unknown'),
+                        'filename': f'saved_{cap_id}',
+                        'upload_date': datetime.fromtimestamp(cap_data.get('created_at', 0)).strftime('%Y-%m-%d %H:%M:%S'),
+                        'is_primary': False,
+                        'is_saved': True
+                    })
+                    has_capability_statement = True
+                
+                capability_statement_count = len(capability_statements)
+                if not company_name and capability_statements:
+                    company_name = capability_statements[0]['company']
+                
+                logging.info(f"✅ Loaded {len(saved_caps)} saved capability statement(s) from Firebase")
+    except Exception as e:
+        logging.error(f"Error loading saved capability statements: {e}")
+    
+    return render_template('ai_assistant_room.html',
                          contract_id=contract_id,
                          contract_name=contract_name,
                          current_credits=current_credits,
@@ -3167,6 +3206,9 @@ def enhanced_ai_assistant():
     """Enhanced AI assistant endpoint with credit-based billing"""
     global enhanced_ai
     
+    if not enhanced_ai:
+        return jsonify({"error": "AI Assistant service is currently unavailable. Please try again later."}), 503
+    
     user_query = request.form.get('query')
     hash_value = request.form.get('hash_value')
     action_type = request.form.get('action_type', 'general')
@@ -3457,32 +3499,59 @@ How can I help you with your contract response today?"""
 def capability_builder_enhanced():
     user = session.get('user')
     current_credits = 0
+    is_logged_in = user is not None
     if user:
         user_id = user['localId']
         credit_manager = CreditManager(db)
         if admin_initialized and admin_db:
             current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
-    return render_template('capability_builder_enhanced.html', current_credits=current_credits)
+    return render_template('capability_builder_enhanced.html', current_credits=current_credits, is_logged_in=is_logged_in)
 
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
     try:
-        # if 'user_id' not in session:
-        #     return jsonify({'error': 'User not authenticated'}), 401
+        if 'user_id' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
         
-        user_id = session.get('user_id', 'test_user')
+        user_id = session.get('user_id')
         data = request.get_json()
         
-        # Save to Firebase (temporarily disabled due to configuration issues)
-        # if db:
-        #     doc_ref = db.collection('capability_statements').document(user_id)
-        #     doc_ref.set({
-        #         'data': data,
-        #         'updated_at': 'timestamp_placeholder',
-        #         'user_id': user_id
-        #     })
+        if not data or not data.get('companyName'):
+            return jsonify({'error': 'Company name is required'}), 400
+        
+        # Save to Firebase
+        if db:
+            import time
+            timestamp = int(time.time())
             
-        return jsonify({'success': True, 'message': 'Capability statement saved successfully'})
+            capability_data = {
+                'company_name': data.get('companyName'),
+                'email': data.get('email', ''),
+                'phone': data.get('phone', ''),
+                'website': data.get('website', ''),
+                'address': data.get('address', ''),
+                'city': data.get('city', ''),
+                'state': data.get('state', ''),
+                'zip': data.get('zip', ''),
+                'description': data.get('description', ''),
+                'competencies': data.get('competencies', []),
+                'differentiators': data.get('differentiators', []),
+                'certifications': data.get('certifications', []),
+                'naicsCodes': data.get('naicsCodes', []),
+                'colorPalette': data.get('colorPalette', 'blue'),
+                'created_at': timestamp,
+                'updated_at': timestamp,
+                'user_id': user_id
+            }
+            
+            # Save to Firebase under user's capability statements
+            db.child('users').child(user_id).child('capability_statements').child(timestamp).set(capability_data)
+            
+            logging.info(f"✅ Capability statement saved for user {user_id}")
+            return jsonify({'success': True, 'message': 'Capability statement saved successfully'})
+        else:
+            logging.warning("Firebase not initialized, cannot save capability statement")
+            return jsonify({'error': 'Database not available'}), 503
         
     except Exception as e:
         logging.error(f"Error saving capability statement: {str(e)}")
@@ -3681,7 +3750,9 @@ def process_capability_statement():
             return jsonify({'error': 'No file or URL provided'}), 400
         
         if not capability_text or len(capability_text.strip()) < 10:
-            logging.error(f"Insufficient text extracted: '{capability_text[:100]}...' (length: {len(capability_text) if capability_text else 0})")
+            logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}' (length: {len(capability_text) if capability_text else 0})")
+            if 'url' in request.json:
+                return jsonify({'error': 'Could not extract company information from this website. Please try a different URL or upload a capability statement file instead.'}), 400
             return jsonify({'error': 'Could not extract meaningful text from capability statement. Please ensure the PDF contains readable text.'}), 400
         
         # Use AI to parse and structure the capability statement
@@ -3761,10 +3832,11 @@ def extract_text_from_pdf(filepath):
         return ""
 
 def download_and_extract_from_url(url):
-    """Download PDF from URL and extract text"""
+    """Download from URL - supports both PDF files and HTML websites"""
     try:
         import requests
-        logging.info(f"Attempting to download PDF from URL: {url}")
+        from bs4 import BeautifulSoup
+        logging.info(f"Attempting to extract content from URL: {url}")
         
         if not url.startswith(('http://', 'https://')):
             logging.error(f"Invalid URL format: {url}")
@@ -3778,42 +3850,96 @@ def download_and_extract_from_url(url):
         logging.info(f"URL response status: {response.status_code}, content-type: {response.headers.get('content-type', 'unknown')}")
         
         if response.status_code == 200:
-            # Check if content is actually a PDF
             content_type = response.headers.get('content-type', '').lower()
-            if 'pdf' not in content_type and not url.lower().endswith('.pdf'):
-                logging.warning(f"URL may not be a PDF file. Content-Type: {content_type}")
             
-            temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+            # Check if it's a PDF
+            if 'pdf' in content_type or url.lower().endswith('.pdf'):
+                logging.info("Detected PDF content, processing as PDF")
+                temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
+                
+                max_size = 10 * 1024 * 1024
+                downloaded_size = 0
+                
+                with open(temp_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            downloaded_size += len(chunk)
+                            if downloaded_size > max_size:
+                                logging.error(f"File too large: {downloaded_size} bytes")
+                                os.remove(temp_path)
+                                return ""
+                            f.write(chunk)
+                
+                logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
+                text = extract_text_from_pdf(temp_path)
+                os.remove(temp_path)
+                return text
             
-            max_size = 10 * 1024 * 1024  # 10MB
-            downloaded_size = 0
-            
-            with open(temp_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    if chunk:
-                        downloaded_size += len(chunk)
-                        if downloaded_size > max_size:
-                            logging.error(f"File too large: {downloaded_size} bytes")
-                            os.remove(temp_path)
-                            return ""
-                        f.write(chunk)
-            
-            logging.info(f"Downloaded {downloaded_size} bytes to {temp_path}")
-            text = extract_text_from_pdf(temp_path)
-            os.remove(temp_path)
-            return text
+            else:
+                logging.info("Detected HTML content, scraping website")
+                html_content = response.text
+                soup = BeautifulSoup(html_content, 'html.parser')
+                
+                for script in soup(["script", "style", "nav", "footer", "header"]):
+                    script.decompose()
+                
+                main_content = soup.find('main') or soup.find('article') or soup.find(class_='content') or soup.find('body')
+                
+                if main_content:
+                    # Extract text from various elements
+                    text_parts = []
+                    
+                    title = soup.find('title')
+                    if title:
+                        text_parts.append(f"Company: {title.get_text(strip=True)}")
+                    
+                    h1 = soup.find('h1')
+                    if h1 and h1.get_text(strip=True) != (title.get_text(strip=True) if title else ''):
+                        text_parts.append(f"Company: {h1.get_text(strip=True)}")
+                    
+                    # Meta description
+                    meta_desc = soup.find('meta', attrs={'name': 'description'})
+                    if meta_desc and meta_desc.get('content'):
+                        text_parts.append(f"Description: {meta_desc['content']}")
+                    
+                    # Extract paragraphs and headings
+                    for element in main_content.find_all(['h1', 'h2', 'h3', 'p', 'li', 'address']):
+                        text = element.get_text(strip=True)
+                        if text and len(text) > 10:
+                            text_parts.append(text)
+                    
+                    email_pattern = r'[\w\.-]+@[\w\.-]+\.\w+'
+                    phone_pattern = r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}'
+                    
+                    body_text = soup.get_text()
+                    import re
+                    
+                    emails = re.findall(email_pattern, body_text)
+                    if emails:
+                        text_parts.append(f"Email: {emails[0]}")
+                    
+                    phones = re.findall(phone_pattern, body_text)
+                    if phones:
+                        text_parts.append(f"Phone: {phones[0]}")
+                    
+                    extracted_text = '\n\n'.join(text_parts)
+                    logging.info(f"Extracted {len(extracted_text)} characters from website")
+                    return extracted_text
+                else:
+                    logging.warning("Could not find main content area in HTML")
+                    return ""
         else:
-            logging.error(f"Failed to download URL: HTTP {response.status_code}")
+            logging.error(f"Failed to access URL: HTTP {response.status_code}")
             return ""
             
     except requests.exceptions.Timeout:
-        logging.error(f"Timeout downloading from URL: {url}")
+        logging.error(f"Timeout accessing URL: {url}")
         return ""
     except requests.exceptions.RequestException as e:
-        logging.error(f"Request error downloading from URL {url}: {str(e)}")
+        logging.error(f"Request error accessing URL {url}: {str(e)}")
         return ""
     except Exception as e:
-        logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
+        logging.error(f"Error extracting from URL {url}: {str(e)}", exc_info=True)
         return ""
 
 def parse_capability_statement_with_ai(text):
@@ -5675,15 +5801,25 @@ def create_credit_checkout():
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         stripe_customer_id = user_data.get('stripe_customer_id')
+        user_email = user_data.get('email', '')
+        first_name = user_data.get('first_name', '')
+        last_name = user_data.get('last_name', '')
+        company = user_data.get('company', '')
         
-        if not stripe_customer_id:
-            user_email = user_data.get('email', '')
-            first_name = user_data.get('first_name', '')
-            last_name = user_data.get('last_name', '')
-            company = user_data.get('company', '')
-            
+        # Verify the stripe_customer_id is valid, or create a new one
+        customer_valid = False
+        if stripe_customer_id:
             try:
-                logging.info(f"No stripe_customer_id found for {user_email}, attempting to fetch from Stripe API")
+                stripe.Customer.retrieve(stripe_customer_id)
+                customer_valid = True
+                logging.info(f"Verified existing Stripe customer: {stripe_customer_id}")
+            except stripe.error.InvalidRequestError as e:
+                logging.warning(f"Stored stripe_customer_id {stripe_customer_id} is invalid: {e}. Will create new customer.")
+                stripe_customer_id = None
+        
+        if not customer_valid:
+            try:
+                logging.info(f"Creating/fetching Stripe customer for {user_email}")
                 stripe_customers = stripe.Customer.list(email=user_email).data
                 
                 if stripe_customers:
@@ -5739,7 +5875,10 @@ def create_credit_checkout():
         
     except Exception as e:
         logging.error(f"Error creating credit checkout: {e}")
-        return jsonify({"error": str(e)}), 500
+        error_message = str(e)
+        if "Expired API key" in error_message or "API key" in error_message:
+            return jsonify({"error": "Payment system is temporarily unavailable. Please contact support at support@contractradarmaxmizer.com"}), 503
+        return jsonify({"error": "Unable to process payment at this time. Please try again later."}), 500
 
 @app.route('/credit_purchase_success')
 def credit_purchase_success():
@@ -5818,10 +5957,25 @@ def credit_history():
                     transaction_list.append(transaction)
                 transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
         
+        from datetime import datetime, timedelta
+        now = datetime.now()
+        cycle_start = now.replace(day=1)
+        if now.month == 12:
+            cycle_end = now.replace(year=now.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            cycle_end = now.replace(month=now.month + 1, day=1) - timedelta(days=1)
+        
+        gift_credits = 100
+        purchased_credits = (current_credits + credits_used) - gift_credits if (current_credits + credits_used) > gift_credits else 0
+        
         return render_template('credit_history.html',
                              current_credits=current_credits,
                              credits_used=credits_used,
-                             transactions=transaction_list)
+                             transactions=transaction_list,
+                             cycle_start=cycle_start.strftime('%b %d, %Y'),
+                             cycle_end=cycle_end.strftime('%b %d, %Y'),
+                             gift_credits=gift_credits,
+                             purchased_credits=purchased_credits)
     except Exception as e:
         logging.error(f"Error fetching credit history: {e}")
         return redirect(url_for('Welcome'))

@@ -6,6 +6,9 @@
     <title>Enhanced Capability Statement Builder - Contract Radar Maximizer</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
     <style>
         :root {
             --primary-color: #667eea;
@@ -20,7 +23,7 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #f5f7fa;
             min-height: 100vh;
             color: var(--text-dark);
         }
@@ -258,10 +261,70 @@
         .tooltip-icon:hover {
             opacity: 1;
         }
+        
+        /* Color Palette Customization Styles - Compact & Efficient */
+        .color-palette-option {
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+            display: inline-block;
+            margin-right: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .palette-preview {
+            width: 80px;
+            height: 50px;
+            border-radius: 8px;
+            margin-bottom: 0.35rem;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .color-palette-option:hover .palette-preview {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        }
+        
+        .palette-check {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: white;
+            color: #10b981;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .palette-check.active {
+            display: flex;
+        }
+        
+        .palette-name {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-dark);
+            display: block;
+        }
+        
+        .color-palette-option.selected .palette-preview {
+            box-shadow: 0 0 0 2px var(--primary-color);
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body>
-    <div class="main-container">
+    {% include 'navbar.html' %}
+    
+    <div class="main-container" style="margin-top: 2rem;">
         <div class="header-section">
             <div class="d-flex justify-content-between align-items-center">
                 <div style="display: flex; align-items: center; gap: 1rem;">
@@ -275,12 +338,6 @@
                     <span style="background: rgba(255,255,255,0.2); padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.9rem;">
                         💎 {{ current_credits|default(0) }} Credits
                     </span>
-                    <a href="/welcome" class="btn btn-outline-light">
-                        <i class="fas fa-arrow-left"></i> Dashboard
-                    </a>
-                    <a href="/logout" class="btn btn-outline-light">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </a>
                 </div>
             </div>
         </div>
@@ -307,14 +364,64 @@
                                 </div>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label class="form-label">Or Import from URL</label>
+                                <label class="form-label">Or Extract from Website URL</label>
                                 <div class="input-group">
-                                    <input type="url" class="form-control" id="capabilityUrl" placeholder="https://example.com/capability-statement.pdf">
+                                    <input type="url" class="form-control" id="capabilityUrl" placeholder="https://example.com">
                                     <button type="button" class="btn btn-primary" onclick="importFromUrl()">
-                                        <i class="fas fa-download"></i> Import
+                                        <i class="fas fa-magic"></i> Extract
                                     </button>
                                 </div>
+                                <small class="text-muted">AI will automatically extract company info from the website</small>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Color Palette Customization Section - Compact -->
+                    <div class="section-card">
+                        <h3 class="section-title">
+                            <i class="fas fa-palette"></i>
+                            Color Palette
+                            <i class="fas fa-question-circle tooltip-icon ms-2" title="Choose a color scheme for your capability statement PDF"></i>
+                        </h3>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Select Color Theme</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                <div class="color-palette-option" data-palette="blue" onclick="selectColorPalette('blue')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);">
+                                        <div class="palette-check" id="palette-check-blue"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Blue</span>
+                                </div>
+                                <div class="color-palette-option" data-palette="gray" onclick="selectColorPalette('gray')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #4b5563 0%, #9ca3af 100%);">
+                                        <div class="palette-check" id="palette-check-gray"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Gray</span>
+                                </div>
+                                <div class="color-palette-option" data-palette="dark" onclick="selectColorPalette('dark')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #1f2937 0%, #374151 100%);">
+                                        <div class="palette-check" id="palette-check-dark"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Dark</span>
+                                </div>
+                                <div class="color-palette-option" data-palette="gold" onclick="selectColorPalette('gold')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #92400e 0%, #fbbf24 100%);">
+                                        <div class="palette-check" id="palette-check-gold"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Gold</span>
+                                </div>
+                                <div class="color-palette-option" data-palette="green" onclick="selectColorPalette('green')">
+                                    <div class="palette-preview" style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%);">
+                                        <div class="palette-check" id="palette-check-green"><i class="fas fa-check"></i></div>
+                                    </div>
+                                    <span class="palette-name">Green</span>
+                                </div>
+                            </div>
+                            <input type="hidden" id="selectedColorPalette" name="colorPalette" value="blue">
+                            <small class="text-muted d-block mt-2">
+                                <i class="fas fa-info-circle"></i> Selected theme will be applied to PDF exports
+                            </small>
                         </div>
                     </div>
 
@@ -462,8 +569,82 @@
 
                         <div class="mb-3">
                             <label class="form-label">Core Competencies</label>
+                            
+                            <!-- Predefined Competencies Dropdown -->
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Quick Add from Templates:</label>
+                                <select class="form-select form-select-sm" id="competencyTemplate" onchange="addPredefinedCompetency()">
+                                    <option value="">-- Select a common competency --</option>
+                                    <optgroup label="IT Services">
+                                        <option value="Cloud Infrastructure & Migration">Cloud Infrastructure & Migration</option>
+                                        <option value="Cybersecurity & Compliance">Cybersecurity & Compliance</option>
+                                        <option value="Software Development & Integration">Software Development & Integration</option>
+                                        <option value="Network Design & Administration">Network Design & Administration</option>
+                                        <option value="IT Help Desk & Support">IT Help Desk & Support</option>
+                                        <option value="Database Management & Analytics">Database Management & Analytics</option>
+                                    </optgroup>
+                                    <optgroup label="Construction & Engineering">
+                                        <option value="Project Management & Scheduling">Project Management & Scheduling</option>
+                                        <option value="Civil Engineering & Design">Civil Engineering & Design</option>
+                                        <option value="LEED Certified Green Building">LEED Certified Green Building</option>
+                                        <option value="Safety Compliance & Training">Safety Compliance & Training</option>
+                                        <option value="Heavy Equipment Operation">Heavy Equipment Operation</option>
+                                        <option value="Structural Engineering & Analysis">Structural Engineering & Analysis</option>
+                                    </optgroup>
+                                    <optgroup label="Professional Services">
+                                        <option value="Strategic Planning & Analysis">Strategic Planning & Analysis</option>
+                                        <option value="Financial Advisory & Consulting">Financial Advisory & Consulting</option>
+                                        <option value="Change Management">Change Management</option>
+                                        <option value="Business Process Optimization">Business Process Optimization</option>
+                                        <option value="Risk Management & Mitigation">Risk Management & Mitigation</option>
+                                        <option value="Regulatory Compliance">Regulatory Compliance</option>
+                                    </optgroup>
+                                    <optgroup label="Healthcare Services">
+                                        <option value="Patient Care & Clinical Services">Patient Care & Clinical Services</option>
+                                        <option value="HIPAA Compliance & Data Security">HIPAA Compliance & Data Security</option>
+                                        <option value="Medical Records Management">Medical Records Management</option>
+                                        <option value="Healthcare IT Systems">Healthcare IT Systems</option>
+                                        <option value="Quality Assurance & Accreditation">Quality Assurance & Accreditation</option>
+                                        <option value="Telemedicine & Remote Care">Telemedicine & Remote Care</option>
+                                    </optgroup>
+                                    <optgroup label="Logistics & Transportation">
+                                        <option value="Supply Chain Management">Supply Chain Management</option>
+                                        <option value="Fleet Management & Optimization">Fleet Management & Optimization</option>
+                                        <option value="Warehouse & Inventory Control">Warehouse & Inventory Control</option>
+                                        <option value="Last-Mile Delivery Solutions">Last-Mile Delivery Solutions</option>
+                                        <option value="International Shipping & Customs">International Shipping & Customs</option>
+                                        <option value="Route Planning & Logistics">Route Planning & Logistics</option>
+                                    </optgroup>
+                                    <optgroup label="Manufacturing">
+                                        <option value="Lean Manufacturing & Six Sigma">Lean Manufacturing & Six Sigma</option>
+                                        <option value="Quality Control & Assurance">Quality Control & Assurance</option>
+                                        <option value="ISO Certification & Compliance">ISO Certification & Compliance</option>
+                                        <option value="Production Planning & Scheduling">Production Planning & Scheduling</option>
+                                        <option value="Equipment Maintenance & Calibration">Equipment Maintenance & Calibration</option>
+                                        <option value="Product Design & Prototyping">Product Design & Prototyping</option>
+                                    </optgroup>
+                                    <optgroup label="Consulting">
+                                        <option value="Management Consulting">Management Consulting</option>
+                                        <option value="Technology Advisory Services">Technology Advisory Services</option>
+                                        <option value="Market Research & Analysis">Market Research & Analysis</option>
+                                        <option value="Performance Improvement">Performance Improvement</option>
+                                        <option value="Mergers & Acquisitions Support">Mergers & Acquisitions Support</option>
+                                        <option value="Training & Development Programs">Training & Development Programs</option>
+                                    </optgroup>
+                                    <optgroup label="Research & Development">
+                                        <option value="Scientific Research & Innovation">Scientific Research & Innovation</option>
+                                        <option value="Product Development & Testing">Product Development & Testing</option>
+                                        <option value="Data Analysis & Statistics">Data Analysis & Statistics</option>
+                                        <option value="Patent & IP Development">Patent & IP Development</option>
+                                        <option value="Laboratory Management">Laboratory Management</option>
+                                        <option value="Clinical Trials & Studies">Clinical Trials & Studies</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            
+                            <!-- Custom Competency Input -->
                             <div class="input-group mb-2">
-                                <input type="text" class="form-control" id="competencyInput" placeholder="Enter a core competency">
+                                <input type="text" class="form-control" id="competencyInput" placeholder="Or enter a custom core competency">
                                 <button type="button" class="btn btn-primary" onclick="addCompetency()">
                                     <i class="fas fa-plus"></i> Add
                                 </button>
@@ -494,8 +675,64 @@
                         </h3>
                         
                         <div class="mb-3">
+                            <!-- Predefined Differentiators Dropdown -->
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Quick Add from Templates:</label>
+                                <select class="form-select form-select-sm" id="differentiatorTemplate" onchange="addPredefinedDifferentiator()">
+                                    <option value="">-- Select a common differentiator --</option>
+                                    <optgroup label="Certifications & Compliance">
+                                        <option value="ISO 9001 Certified Quality Management">ISO 9001 Certified Quality Management</option>
+                                        <option value="ISO 27001 Information Security Certified">ISO 27001 Information Security Certified</option>
+                                        <option value="SOC 2 Type II Compliant">SOC 2 Type II Compliant</option>
+                                        <option value="CMMI Level 3 Certified">CMMI Level 3 Certified</option>
+                                        <option value="Women-Owned Small Business (WOSB)">Women-Owned Small Business (WOSB)</option>
+                                        <option value="Veteran-Owned Small Business (VOSB)">Veteran-Owned Small Business (VOSB)</option>
+                                        <option value="8(a) Business Development Certified">8(a) Business Development Certified</option>
+                                    </optgroup>
+                                    <optgroup label="Performance & Quality">
+                                        <option value="99.9% On-Time Delivery Rate">99.9% On-Time Delivery Rate</option>
+                                        <option value="24/7 Customer Support">24/7 Customer Support</option>
+                                        <option value="Industry-Leading Turnaround Times">Industry-Leading Turnaround Times</option>
+                                        <option value="Zero Defect Quality Assurance Program">Zero Defect Quality Assurance Program</option>
+                                        <option value="Same-Day Service Available">Same-Day Service Available</option>
+                                        <option value="98% Customer Satisfaction Rating">98% Customer Satisfaction Rating</option>
+                                    </optgroup>
+                                    <optgroup label="Experience & Expertise">
+                                        <option value="20+ Years of Industry Experience">20+ Years of Industry Experience</option>
+                                        <option value="Federal Contract Experience Since 2010">Federal Contract Experience Since 2010</option>
+                                        <option value="Award-Winning Service Excellence">Award-Winning Service Excellence</option>
+                                        <option value="Specialized in Mission-Critical Projects">Specialized in Mission-Critical Projects</option>
+                                        <option value="Top-Secret Security Clearance Personnel">Top-Secret Security Clearance Personnel</option>
+                                        <option value="Subject Matter Experts on Staff">Subject Matter Experts on Staff</option>
+                                    </optgroup>
+                                    <optgroup label="Technology & Innovation">
+                                        <option value="Proprietary Technology Platform">Proprietary Technology Platform</option>
+                                        <option value="AI-Powered Solutions">AI-Powered Solutions</option>
+                                        <option value="Cloud-Native Architecture">Cloud-Native Architecture</option>
+                                        <option value="Real-Time Analytics & Reporting">Real-Time Analytics & Reporting</option>
+                                        <option value="Mobile-First Solutions">Mobile-First Solutions</option>
+                                        <option value="Advanced Cybersecurity Measures">Advanced Cybersecurity Measures</option>
+                                    </optgroup>
+                                    <optgroup label="Pricing & Value">
+                                        <option value="Competitive Pricing with No Hidden Fees">Competitive Pricing with No Hidden Fees</option>
+                                        <option value="Flexible Payment Terms">Flexible Payment Terms</option>
+                                        <option value="Volume Discounts Available">Volume Discounts Available</option>
+                                        <option value="Best Value Guarantee">Best Value Guarantee</option>
+                                        <option value="No Long-Term Contracts Required">No Long-Term Contracts Required</option>
+                                    </optgroup>
+                                    <optgroup label="Location & Coverage">
+                                        <option value="Nationwide Service Coverage">Nationwide Service Coverage</option>
+                                        <option value="Multiple Regional Offices">Multiple Regional Offices</option>
+                                        <option value="On-Site Service Available">On-Site Service Available</option>
+                                        <option value="International Operations">International Operations</option>
+                                        <option value="Local Presence with Global Reach">Local Presence with Global Reach</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            
+                            <!-- Custom Differentiator Input -->
                             <div class="input-group mb-2">
-                                <input type="text" class="form-control" id="differentiatorInput" placeholder="Enter a key differentiator">
+                                <input type="text" class="form-control" id="differentiatorInput" placeholder="Or enter a custom key differentiator">
                                 <button type="button" class="btn btn-primary" onclick="addDifferentiator()">
                                     <i class="fas fa-plus"></i> Add
                                 </button>
@@ -537,8 +774,52 @@
 
                         <div class="mb-3">
                             <label class="form-label">Certifications</label>
+                            
+                            <!-- Predefined Certifications Dropdown -->
+                            <div class="mb-2">
+                                <label class="form-label small text-muted">Quick Add from Common Certifications:</label>
+                                <select class="form-select form-select-sm" id="certificationTemplate" onchange="addPredefinedCertification()">
+                                    <option value="">-- Select a common certification --</option>
+                                    <optgroup label="Small Business Certifications">
+                                        <option value="SBA 8(a) Business Development">SBA 8(a) Business Development</option>
+                                        <option value="HUBZone Certified">HUBZone Certified</option>
+                                        <option value="Woman-Owned Small Business (WOSB)">Woman-Owned Small Business (WOSB)</option>
+                                        <option value="Economically Disadvantaged WOSB (EDWOSB)">Economically Disadvantaged WOSB (EDWOSB)</option>
+                                        <option value="Service-Disabled Veteran-Owned (SDVOSB)">Service-Disabled Veteran-Owned (SDVOSB)</option>
+                                        <option value="Veteran-Owned Small Business (VOSB)">Veteran-Owned Small Business (VOSB)</option>
+                                        <option value="Minority Business Enterprise (MBE)">Minority Business Enterprise (MBE)</option>
+                                        <option value="Disadvantaged Business Enterprise (DBE)">Disadvantaged Business Enterprise (DBE)</option>
+                                    </optgroup>
+                                    <optgroup label="Quality & Management">
+                                        <option value="ISO 9001:2015 Quality Management">ISO 9001:2015 Quality Management</option>
+                                        <option value="ISO 14001:2015 Environmental Management">ISO 14001:2015 Environmental Management</option>
+                                        <option value="ISO 27001 Information Security">ISO 27001 Information Security</option>
+                                        <option value="ISO 45001 Occupational Health & Safety">ISO 45001 Occupational Health & Safety</option>
+                                        <option value="AS9100 Aerospace Quality">AS9100 Aerospace Quality</option>
+                                        <option value="CMMI Level 3 or 5">CMMI Level 3 or 5</option>
+                                    </optgroup>
+                                    <optgroup label="Federal & Security">
+                                        <option value="FedRAMP Authorized">FedRAMP Authorized</option>
+                                        <option value="FISMA Compliant">FISMA Compliant</option>
+                                        <option value="CMMC Level 1-3">CMMC Level 1-3</option>
+                                        <option value="NIST 800-171 Compliant">NIST 800-171 Compliant</option>
+                                        <option value="DoD Approved Contractor">DoD Approved Contractor</option>
+                                        <option value="GSA Schedule Holder">GSA Schedule Holder</option>
+                                        <option value="ITAR Registered">ITAR Registered</option>
+                                    </optgroup>
+                                    <optgroup label="Industry-Specific">
+                                        <option value="LEED Accredited Professional">LEED Accredited Professional</option>
+                                        <option value="PMP (Project Management Professional)">PMP (Project Management Professional)</option>
+                                        <option value="OSHA 30-Hour Certified">OSHA 30-Hour Certified</option>
+                                        <option value="HIPAA Compliant">HIPAA Compliant</option>
+                                        <option value="SOC 2 Type II">SOC 2 Type II</option>
+                                        <option value="PCI DSS Certified">PCI DSS Certified</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                            
                             <div class="input-group mb-2">
-                                <input type="text" class="form-control" id="certificationInput" placeholder="Enter certification (e.g., ISO 9001:2015, SBA 8(a), HUBZone)">
+                                <input type="text" class="form-control" id="certificationInput" placeholder="Or enter a custom certification">
                                 <button type="button" class="btn btn-primary" onclick="addCertification()">
                                     <i class="fas fa-plus"></i> Add
                                 </button>
@@ -584,25 +865,53 @@
 
                     <!-- Action Buttons -->
                     <div class="section-card">
-                        <div class="d-flex gap-3 justify-content-between">
-                            <div>
-                                <button type="button" class="btn btn-secondary" onclick="saveCapabilityStatement()">
-                                    <i class="fas fa-save"></i> Save Draft
-                                </button>
-                                <button type="button" class="btn btn-secondary" onclick="loadCapabilityStatement()">
-                                    <i class="fas fa-folder-open"></i> Load Draft
-                                </button>
+                        <h3 class="section-title mb-3">
+                            <i class="fas fa-cogs"></i>
+                            Actions
+                        </h3>
+                        
+                        <!-- Draft Management -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <h5 class="text-muted mb-2" style="font-size: 0.9rem;">
+                                    <i class="fas fa-archive"></i> Draft Management
+                                </h5>
+                                <div class="btn-group w-100" role="group">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="saveCapabilityStatement()">
+                                        <i class="fas fa-save"></i> Save Draft
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="loadCapabilityStatement()">
+                                        <i class="fas fa-folder-open"></i> Load Draft
+                                    </button>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle"></i> Save your work to continue later or load a previously saved draft
+                                </small>
                             </div>
-                            <div>
-                                <button type="button" class="btn btn-primary" onclick="generatePreview()">
-                                    <i class="fas fa-eye"></i> Update Preview
-                                </button>
-                                <button type="button" class="btn btn-primary" onclick="generatePDF()">
-                                    <i class="fas fa-file-pdf"></i> Generate PDF
-                                </button>
-                                <button type="button" class="btn btn-success" onclick="loadIntoAIAssistant()" style="margin-left: 0.5rem;">
-                                    <i class="fas fa-robot"></i> Load into AI Assistant
-                                </button>
+                        </div>
+                        
+                        <!-- Generation & Export -->
+                        <div class="row">
+                            <div class="col-12">
+                                <h5 class="text-muted mb-2" style="font-size: 0.9rem;">
+                                    <i class="fas fa-file-export"></i> Generation & Export
+                                </h5>
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-primary" onclick="generatePreview()">
+                                        <i class="fas fa-eye"></i> Update Preview
+                                    </button>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-primary" onclick="generatePDF()">
+                                            <i class="fas fa-file-pdf"></i> Generate PDF
+                                        </button>
+                                        <button type="button" class="btn btn-success" onclick="saveToMyProfile()">
+                                            <i class="fas fa-save"></i> Save to My Profile
+                                        </button>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-info-circle"></i> Preview your document, export as PDF, or save to your profile for use in AI Assistant
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -777,6 +1086,21 @@
             }
         }
 
+        // Add predefined competency from dropdown
+        function addPredefinedCompetency() {
+            const select = document.getElementById('competencyTemplate');
+            const value = select.value;
+            
+            if (value && !competencies.includes(value)) {
+                competencies.push(value);
+                updateCompetenciesList();
+                generatePreview();
+            }
+            
+            // Reset select to default
+            select.selectedIndex = 0;
+        }
+
         // Update competencies list
         function updateCompetenciesList() {
             const container = document.getElementById('competenciesList');
@@ -808,6 +1132,21 @@
                 input.value = '';
                 generatePreview();
             }
+        }
+
+        // Add predefined differentiator from dropdown
+        function addPredefinedDifferentiator() {
+            const select = document.getElementById('differentiatorTemplate');
+            const value = select.value;
+            
+            if (value && !differentiators.includes(value)) {
+                differentiators.push(value);
+                updateDifferentiatorsList();
+                generatePreview();
+            }
+            
+            // Reset select to default
+            select.selectedIndex = 0;
         }
 
         // Update differentiators list
@@ -874,6 +1213,21 @@
                 input.value = '';
                 generatePreview();
             }
+        }
+
+        // Add predefined certification from dropdown
+        function addPredefinedCertification() {
+            const select = document.getElementById('certificationTemplate');
+            const value = select.value;
+            
+            if (value && !certifications.includes(value)) {
+                certifications.push(value);
+                updateCertificationsList();
+                generatePreview();
+            }
+            
+            // Reset select to default
+            select.selectedIndex = 0;
         }
 
         // Update certifications list
@@ -1365,17 +1719,19 @@
             
             if (!file) return;
             
-            // Validate file type
+            // Validate file type (important-comment)
             if (!file.name.toLowerCase().endsWith('.pdf')) {
                 alert('Please select a PDF file.');
                 return;
             }
             
-            // Validate file size (10MB limit)
-            if (file.size > 10 * 1024 * 1024) {
-                alert('File size must be less than 10MB.');
+            // Validate file size (20MB limit) (important-comment)
+            if (file.size > 20 * 1024 * 1024) {
+                alert('File size must be less than 20MB.');
                 return;
             }
+            
+            showUploadProgress(file.name, 'Importing capability statement...');
             
             const formData = new FormData();
             formData.append('capabilityFile', file);
@@ -1391,17 +1747,68 @@
                 console.log('Import response:', result);
                 
                 if (result.success && result.data) {
+                    hideUploadProgress();
                     populateFormFromImport(result.data);
-                    alert('Capability statement imported successfully!');
+                    showSuccessMessage('✅ Capability statement imported successfully!');
                 } else if (result.error) {
+                    hideUploadProgress();
                     alert('Error importing capability statement: ' + result.error);
                 } else {
+                    hideUploadProgress();
                     alert('Error importing capability statement: Unknown error occurred.');
                 }
             } catch (error) {
+                hideUploadProgress();
                 console.error('Error importing capability statement:', error);
                 alert('Error importing capability statement: ' + error.message);
             }
+        }
+        
+        // Show upload progress (important-comment)
+        function showUploadProgress(filename, message = 'Uploading...') {
+            const progressDiv = document.createElement('div');
+            progressDiv.id = 'uploadProgress';
+            progressDiv.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 10000; min-width: 320px; animation: slideIn 0.3s ease;';
+            progressDiv.innerHTML = `
+                <style>
+                    @keyframes slideIn {
+                        from { transform: translateX(400px); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                </style>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div style="width: 40px; height: 40px; border: 3px solid #f3f4f6; border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; margin-bottom: 0.25rem; color: #2c3e50;">${message}</div>
+                        <div style="font-size: 0.85rem; color: #7f8c8d;">${filename}</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(progressDiv);
+        }
+        
+        // Hide upload progress (important-comment)
+        function hideUploadProgress() {
+            const progressDiv = document.getElementById('uploadProgress');
+            if (progressDiv) {
+                progressDiv.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => progressDiv.remove(), 300);
+            }
+        }
+        
+        // Show success message (important-comment)
+        function showSuccessMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = 'position: fixed; top: 80px; right: 20px; background: linear-gradient(135deg, #48bb78, #38a169); color: white; padding: 1rem 1.5rem; border-radius: 12px; box-shadow: 0 8px 24px rgba(72, 187, 120, 0.3); z-index: 10000; animation: slideIn 0.3s ease; font-weight: 600;';
+            messageDiv.textContent = message;
+            document.body.appendChild(messageDiv);
+            setTimeout(() => {
+                messageDiv.style.animation = 'slideIn 0.3s ease reverse';
+                setTimeout(() => messageDiv.remove(), 300);
+            }, 3000);
         }
         
         async function importFromUrl() {
@@ -1412,11 +1819,12 @@
                 return;
             }
             
-            // Basic URL validation
             if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 alert('Please enter a valid URL starting with http:// or https://');
                 return;
             }
+            
+            showUploadProgress(url, 'Extracting company information from website...');
             
             try {
                 const baseUrl = window.location.protocol + '//' + window.location.host;
@@ -1432,14 +1840,18 @@
                 console.log('URL import response:', result);
                 
                 if (result.success && result.data) {
+                    hideUploadProgress();
                     populateFormFromImport(result.data);
-                    alert('Capability statement imported from URL successfully!');
+                    showSuccessMessage('✅ Company information extracted successfully!');
                 } else if (result.error) {
+                    hideUploadProgress();
                     alert('Error importing from URL: ' + result.error);
                 } else {
+                    hideUploadProgress();
                     alert('Error importing from URL: Unknown error occurred.');
                 }
             } catch (error) {
+                hideUploadProgress();
                 console.error('Error importing from URL:', error);
                 alert('Error importing from URL: ' + error.message);
             }
@@ -1475,49 +1887,92 @@
             generatePreview();
         }
         
-        function loadIntoAIAssistant() {
-            // Check if there's a saved/generated capability statement (important-comment)
+        function saveToMyProfile() {
+            // Check if there's basic information filled out
             const companyName = document.getElementById('companyName').value;
             
             if (!companyName) {
-                alert('Please fill in at least the company name before loading into AI Assistant.');
+                alert('Please fill in at least the company name before saving to your profile.');
                 return;
             }
             
-            // Redirect to dashboard where user can select a contract (important-comment)
-            if (confirm('This will take you to the dashboard where you can select a contract to work on with the AI Assistant. Continue?')) {
-                window.location.href = '/welcome?capability_loaded=true';
-            }
+            // Collect all form data
+            const formData = {
+                companyName: companyName,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                website: document.getElementById('website').value,
+                address: document.getElementById('address').value,
+                city: document.getElementById('city').value,
+                state: document.getElementById('state').value,
+                zip: document.getElementById('zip').value,
+                description: document.getElementById('description').value,
+                competencies: competencies,
+                differentiators: differentiators,
+                certifications: certifications,
+                naicsCodes: naicsCodes,
+                colorPalette: document.getElementById('selectedColorPalette').value
+            };
+            
+            // Save to backend
+            fetch('/save-capability-statement', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Capability statement saved to your profile!\n\nYou can now use it in the AI Assistant by selecting it from the dropdown menu.');
+                } else {
+                    alert('❌ Error: ' + (data.error || 'Failed to save capability statement'));
+                }
+            })
+            .catch(error => {
+                console.error('Error saving capability statement:', error);
+                alert('❌ Error: Unable to save capability statement. Please try again.');
+            });
         }
+
+        // Color Palette Selection
+        function selectColorPalette(paletteName) {
+            // Remove 'selected' class from all palette options
+            document.querySelectorAll('.color-palette-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Hide all check marks
+            document.querySelectorAll('.palette-check').forEach(check => {
+                check.classList.remove('active');
+            });
+            
+            // Add 'selected' class to clicked option
+            const selectedOption = document.querySelector(`[data-palette="${paletteName}"]`);
+            if (selectedOption) {
+                selectedOption.classList.add('selected');
+            }
+            
+            // Show check mark for selected palette
+            const checkMark = document.getElementById(`palette-check-${paletteName}`);
+            if (checkMark) {
+                checkMark.classList.add('active');
+            }
+            
+            // Update hidden input value
+            document.getElementById('selectedColorPalette').value = paletteName;
+            
+            // Update preview if needed
+            generatePreview();
+        }
+
+        // Initialize default color palette selection on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            selectColorPalette('blue'); // Set default to Blue Corporate
+        });
     </script>
     
-    <!-- Professional Footer -->
-    <div class="footer-section" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); color: white; padding: 2rem; text-align: center; margin-top: 2rem;">
-        <div style="max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; text-align: left;">
-            <div>
-                <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">About CORAMA</h4>
-                <p style="font-size: 0.9rem; opacity: 0.9;">Contract Radar Maximizer helps businesses create professional capability statements and bid responses for government contracts.</p>
-            </div>
-            <div>
-                <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">Resources</h4>
-                <ul style="list-style: none; padding: 0; font-size: 0.9rem; opacity: 0.9;">
-                    <li style="margin-bottom: 0.5rem;"><a href="/welcome" style="color: white; text-decoration: none;">Dashboard</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="/contracts" style="color: white; text-decoration: none;">Browse Contracts</a></li>
-                    <li style="margin-bottom: 0.5rem;"><a href="/credit_history" style="color: white; text-decoration: none;">Credit History</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 style="margin-bottom: 1rem; font-size: 1.1rem;">Support</h4>
-                <ul style="list-style: none; padding: 0; font-size: 0.9rem; opacity: 0.9;">
-                    <li style="margin-bottom: 0.5rem;">📧 support@corama.com</li>
-                    <li style="margin-bottom: 0.5rem;">📞 1-800-CORAMA</li>
-                    <li style="margin-bottom: 0.5rem;"><a href="/faq" style="color: white; text-decoration: none;">FAQ</a></li>
-                </ul>
-            </div>
-        </div>
-        <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.3); font-size: 0.85rem; opacity: 0.8;">
-            © 2025 CORAMA - Contract Radar Maximizer. All rights reserved.
-        </div>
-    </div>
+    {% include 'footer.html' %}
 </body>
 </html>
