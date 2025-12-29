@@ -10003,21 +10003,13 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         fallback = payload.get("notice_type") or payload.get("category") or payload.get("Category") or ""
         if isinstance(fallback, str):
             fallback = fallback.strip()
-        # If fallback is also "Other" or "Unknown", try AI prediction
+        # PHASE 1 HOTFIX: Do NOT call predict_naics_with_description() here!
+        # AI prediction must happen in background worker or during ingestion, not in HTTP request path.
+        # This was causing Gunicorn worker timeouts due to OpenAI API calls for every contract.
         if fallback.lower() in ('other', 'unknown', 'nan', 'none', ''):
-            # Use AI to predict NAICS code and description for Unclassified contracts
-            ai_code, ai_description = predict_naics_with_description(
-                bid_name_value, 
-                organization_value, 
-                hash_value
-            )
-            if ai_code and ai_description:
-                # Update both category and NAICS code with AI prediction
-                category_value = ai_description
-                naics_code_str = ai_code
-            else:
-                # Use keyword-based fallback to avoid "Unclassified" category
-                category_value = fallback_category_from_text(bid_name_value, bid_description_value, organization_value)
+            # Use keyword-based fallback only (no AI) to avoid "Unclassified" category
+            # This is instant and doesn't cause worker timeouts
+            category_value = fallback_category_from_text(bid_name_value, bid_description_value, organization_value)
         else:
             category_value = fallback
     
