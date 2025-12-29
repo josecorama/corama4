@@ -10032,7 +10032,7 @@ def _refresh_dashboard_contracts_cache():
                 limit=BATCH_SIZE,
                 offset=next_offset,
                 with_vectors=False,
-                with_payload=models.PayloadSelectorInclude(include=_DASHBOARD_PAYLOAD_FIELDS)
+                with_payload=_DASHBOARD_PAYLOAD_FIELDS
             )
             
             points, next_offset = scroll_result
