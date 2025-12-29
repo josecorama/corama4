@@ -773,9 +773,21 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
     
     Returns list of dicts with contract info needed for prediction.
     
-    IMPORTANT: Uses with_vectors=False and small batches to prevent OOM.
+    IMPORTANT: Uses PayloadSelectorInclude and with_vectors=False to prevent OOM.
     """
     import hashlib
+    from qdrant_client.http import models as qdrant_models
+    
+    # Fields needed for NAICS enrichment (light payload - excludes ocr_text, embeddings)
+    enrichment_fields = [
+        "bid_name", "Bid Name", "title",
+        "organization", "Organization", "agency",
+        "detail_link", "Detail Link", "source_url",
+        "bid_number", "Bid Number", "contract_number",
+        "naics_code", "NAICS Code", "NAICS_CODE",
+        "naics_description", "NAICS Description", "NAICS_TITLE",
+        "naics_codes_all", "NAICS_CODES_ALL",
+    ]
     
     try:
         # Scroll through contracts and find those needing enrichment
@@ -783,14 +795,12 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
         offset = None
         
         while len(contracts_to_enrich) < batch_size:
-            # NOTE: Using with_payload=True because payload projection (list of fields)
-            # causes Qdrant 400 errors with qdrant-client 1.11.3. Small batch size (100)
-            # and with_vectors=False prevents OOM.
+            # Use PayloadSelectorInclude to fetch only needed fields (excludes ocr_text, embeddings)
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
                 limit=100,
                 offset=offset,
-                with_payload=True,  # Full payload - small batch size prevents OOM
+                with_payload=qdrant_models.PayloadSelectorInclude(include=enrichment_fields),
                 with_vectors=False  # CRITICAL: Prevent OOM by not loading vectors
             )
             
@@ -1129,14 +1139,20 @@ def check_and_queue_naics_backlog(db):
         # This is much faster than counting all contracts
         try:
             qdrant_client = initialize_qdrant()
+            from qdrant_client.http import models as qdrant_models
             
-            # NOTE: Using with_payload=True because payload projection (list of fields)
-            # causes Qdrant 400 errors with qdrant-client 1.11.3. Small batch (10) is fine.
+            # Fields needed for existence check (light payload)
+            existence_check_fields = [
+                "naics_code", "NAICS Code", "NAICS_CODE",
+                "naics_description", "NAICS Description", "NAICS_TITLE",
+            ]
+            
+            # Use PayloadSelectorInclude to fetch only needed fields
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
                 limit=10,  # Just check a small batch
                 offset=None,
-                with_payload=True,  # Full payload - small batch is fine
+                with_payload=qdrant_models.PayloadSelectorInclude(include=existence_check_fields),
                 with_vectors=False
             )
             

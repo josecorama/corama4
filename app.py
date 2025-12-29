@@ -10064,17 +10064,29 @@ def _refresh_dashboard_contracts_cache():
         while True:
             batch_num += 1
             
-            # Use qdrant-client scroll with full payload but small batches
+            # Use qdrant-client scroll with payload projection to reduce memory
             # CRITICAL: with_vectors=False prevents loading 1536-dim vectors into memory
-            # NOTE: Using with_payload=True because payload projection (list of fields) 
-            # causes Qdrant 400 errors with qdrant-client 1.11.3. Small batch size (50)
-            # prevents OOM even with full payloads.
+            # CRITICAL: Use PayloadSelectorInclude to fetch only needed fields (excludes ocr_text, embeddings)
+            from qdrant_client.http import models as qdrant_models
+            
+            # Define fields needed for dashboard display (light payload)
+            dashboard_fields = [
+                "detail_link", "bid_number", "bid_name", "bid_description", "organization",
+                "due_date", "status", "state", "budget", "category", "notice_type",
+                "naics_code", "naics_codes_all", "naics_description", "source",
+                "Detail Link", "Bid Number", "Bid Name", "Bid Description", "Organization",
+                "Due Date", "Status", "State", "Budget", "Category", "NAICS Code",
+                "source_url", "contract_number", "title", "summary", "agency", "budget_estimate",
+                "NAICS_CODE", "NAICS_CODES_ALL", "NAICS_TITLE", "NAICS Description",
+                "Contract Type", "contract_type",
+            ]
+            
             scroll_result = client.scroll(
                 collection_name="government_contracts",
                 limit=BATCH_SIZE,
                 offset=next_offset,
                 with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
-                with_payload=True  # Full payload - small batch size prevents OOM
+                with_payload=qdrant_models.PayloadSelectorInclude(include=dashboard_fields)
             )
             
             points, next_offset = scroll_result
