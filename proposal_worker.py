@@ -773,7 +773,7 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
     
     Returns list of dicts with contract info needed for prediction.
     
-    IMPORTANT: Uses raw dict {"include": [...]} and with_vectors=False to prevent OOM.
+    IMPORTANT: Uses simple list for with_payload and with_vectors=False to prevent OOM.
     """
     import hashlib
     
@@ -788,18 +788,23 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
         "naics_codes_all", "NAICS_CODES_ALL",
     ]
     
+    # DEBUG: Validate list type and contents
+    assert isinstance(enrichment_fields, list), f"enrichment_fields must be list, got {type(enrichment_fields)}"
+    assert all(isinstance(f, str) for f in enrichment_fields), "All enrichment_fields must be strings"
+    logger.debug(f"[NAICS_WORKER] DEBUG: with_payload type={type(enrichment_fields).__name__}, len={len(enrichment_fields)}")
+    
     try:
         # Scroll through contracts and find those needing enrichment
         contracts_to_enrich = []
         offset = None
         
         while len(contracts_to_enrich) < batch_size:
-            # Use raw dict {"include": [...]} for payload projection (excludes ocr_text, embeddings)
+            # Pass list directly to with_payload (Qdrant accepts "array of strings")
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
                 limit=100,
                 offset=offset,
-                with_payload={"include": enrichment_fields},  # Raw dict for proper JSON serialization
+                with_payload=enrichment_fields,  # Pass list directly - Qdrant accepts "array of strings"
                 with_vectors=False  # CRITICAL: Prevent OOM by not loading vectors
             )
             
@@ -1145,12 +1150,12 @@ def check_and_queue_naics_backlog(db):
                 "naics_description", "NAICS Description", "NAICS_TITLE",
             ]
             
-            # Use raw dict {"include": [...]} for payload projection
+            # Pass list directly to with_payload (Qdrant accepts "array of strings")
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
                 limit=10,  # Just check a small batch
                 offset=None,
-                with_payload={"include": existence_check_fields},  # Raw dict for proper JSON serialization
+                with_payload=existence_check_fields,  # Pass list directly - Qdrant accepts "array of strings"
                 with_vectors=False
             )
             
