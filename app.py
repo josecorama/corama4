@@ -9987,12 +9987,9 @@ def _refresh_dashboard_contracts_cache():
     Internal function to refresh the dashboard contracts cache from Qdrant.
     Builds the cache and hash index atomically to avoid race conditions.
     
-    Uses paginated scrolling with batches of 500 to prevent worker timeouts
-    and reduce memory pressure. Only fetches fields needed for dashboard display
-    (not full payloads) to minimize memory usage.
-    
-    Uses raw REST API calls to bypass qdrant-client serialization issues with
-    the with_payload parameter.
+    Uses qdrant-client's scroll method with with_payload=True (full payloads).
+    Fetches in small batches (50) to prevent OOM, and immediately projects
+    payloads into minimal dashboard dict to discard large fields.
     
     Returns:
         Tuple of (success: bool, signature: str or None)
@@ -10000,7 +9997,8 @@ def _refresh_dashboard_contracts_cache():
     global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
     global _dashboard_contracts_signature, _dashboard_refresh_in_progress
     
-    BATCH_SIZE = 500  # Fetch in smaller batches to prevent timeouts
+    # Use smaller batch size with full payloads to prevent OOM
+    BATCH_SIZE = 50
     
     try:
         qdrant_url = os.getenv('QDRANT_URL')
@@ -10010,7 +10008,6 @@ def _refresh_dashboard_contracts_cache():
             logging.error("Qdrant credentials not configured for dashboard")
             return False, None
         
-        # Use qdrant-client for collection info (this works fine)
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         
         # Get collection info for signature
@@ -10018,19 +10015,11 @@ def _refresh_dashboard_contracts_cache():
         points_count = collection_info.points_count
         current_signature = str(points_count)
         
-        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (limited payload fields via REST)...")
+        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (full payload, small batches)...")
         
         # Build new cache in local variables (atomic swap at the end)
         new_cache = []
         new_hash_index = {}
-        
-        # Use raw REST API for scroll to bypass qdrant-client serialization issues
-        # with the with_payload parameter
-        scroll_url = f"{qdrant_url.rstrip('/')}/collections/government_contracts/points/scroll"
-        headers = {
-            "api-key": qdrant_api_key,
-            "Content-Type": "application/json"
-        }
         
         next_offset = None
         batch_num = 0
@@ -10038,50 +10027,27 @@ def _refresh_dashboard_contracts_cache():
         while True:
             batch_num += 1
             
-            # Build request body - use plain list of field names for with_payload
-            # Qdrant accepts: true, array of strings, or {include: [...]} / {exclude: [...]}
-            # Using plain array format as it's the simplest and most widely supported
-            request_body = {
-                "limit": BATCH_SIZE,
-                "with_vectors": False,
-                "with_payload": _DASHBOARD_PAYLOAD_FIELDS  # Plain list of field names
-            }
-            if next_offset is not None:
-                request_body["offset"] = next_offset
+            # Use qdrant-client scroll with with_payload=True
+            # Small batch size (50) prevents OOM even with full payloads
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=BATCH_SIZE,
+                offset=next_offset,
+                with_vectors=False,
+                with_payload=True  # Full payload - we'll project to minimal dict immediately
+            )
             
-            # Debug log the request (first batch only to avoid log spam)
-            if batch_num == 1:
-                import json
-                payload_json = json.dumps(request_body, ensure_ascii=False, separators=(",", ":"))
-                logging.info(f"[Dashboard Cache] First batch request body length: {len(payload_json)} chars")
-                logging.debug(f"[Dashboard Cache] Request body: {payload_json[:500]}...")
-            
-            response = requests.post(scroll_url, headers=headers, json=request_body, timeout=60)
-            
-            if response.status_code != 200:
-                # Log detailed error info for debugging
-                import json
-                payload_json = json.dumps(request_body, ensure_ascii=False, separators=(",", ":"))
-                logging.error(f"[Dashboard Cache] Qdrant REST API error: {response.status_code}")
-                logging.error(f"[Dashboard Cache] Response: {response.text}")
-                logging.error(f"[Dashboard Cache] Request body length: {len(payload_json)}, with_payload type: {type(request_body.get('with_payload'))}")
-                # Log around column 600 area where error occurs
-                if len(payload_json) > 550:
-                    logging.error(f"[Dashboard Cache] JSON chars 500-700: {payload_json[500:700]}")
-                return False, None
-            
-            result = response.json()
-            points = result.get("result", {}).get("points", [])
-            next_offset = result.get("result", {}).get("next_page_offset")
+            points, next_offset = scroll_result
             
             if not points:
                 break
             
-            # Process this batch
+            # Process this batch - immediately project to minimal dashboard dict
+            # This discards large payload fields and keeps memory usage low
             for point in points:
                 contract = qdrant_payload_to_dashboard_contract(
-                    point.get("payload", {}),
-                    point_id=point.get("id"),
+                    point.payload,
+                    point_id=point.id,
                     score=None
                 )
                 new_cache.append(contract)
