@@ -9991,6 +9991,9 @@ def _refresh_dashboard_contracts_cache():
     and reduce memory pressure. Only fetches fields needed for dashboard display
     (not full payloads) to minimize memory usage.
     
+    Uses raw REST API calls to bypass qdrant-client serialization issues with
+    the with_payload parameter.
+    
     Returns:
         Tuple of (success: bool, signature: str or None)
     """
@@ -10007,6 +10010,7 @@ def _refresh_dashboard_contracts_cache():
             logging.error("Qdrant credentials not configured for dashboard")
             return False, None
         
+        # Use qdrant-client for collection info (this works fine)
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         
         # Get collection info for signature
@@ -10014,28 +10018,44 @@ def _refresh_dashboard_contracts_cache():
         points_count = collection_info.points_count
         current_signature = str(points_count)
         
-        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (limited payload fields)...")
+        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (limited payload fields via REST)...")
         
         # Build new cache in local variables (atomic swap at the end)
         new_cache = []
         new_hash_index = {}
         
-        # Paginated scroll - fetch all contracts in batches
-        # Use PayloadSelectorInclude to only fetch fields needed for dashboard (reduces memory significantly)
+        # Use raw REST API for scroll to bypass qdrant-client serialization issues
+        # with the with_payload parameter
+        scroll_url = f"{qdrant_url.rstrip('/')}/collections/government_contracts/points/scroll"
+        headers = {
+            "api-key": qdrant_api_key,
+            "Content-Type": "application/json"
+        }
+        
         next_offset = None
         batch_num = 0
         
         while True:
             batch_num += 1
-            scroll_result = client.scroll(
-                collection_name="government_contracts",
-                limit=BATCH_SIZE,
-                offset=next_offset,
-                with_vectors=False,
-                with_payload={"include": _DASHBOARD_PAYLOAD_FIELDS}
-            )
             
-            points, next_offset = scroll_result
+            # Build request body - Qdrant REST API expects this exact format
+            request_body = {
+                "limit": BATCH_SIZE,
+                "with_vectors": False,
+                "with_payload": {"include": _DASHBOARD_PAYLOAD_FIELDS}
+            }
+            if next_offset is not None:
+                request_body["offset"] = next_offset
+            
+            response = requests.post(scroll_url, headers=headers, json=request_body, timeout=60)
+            
+            if response.status_code != 200:
+                logging.error(f"[Dashboard Cache] Qdrant REST API error: {response.status_code} - {response.text}")
+                return False, None
+            
+            result = response.json()
+            points = result.get("result", {}).get("points", [])
+            next_offset = result.get("result", {}).get("next_page_offset")
             
             if not points:
                 break
@@ -10043,8 +10063,8 @@ def _refresh_dashboard_contracts_cache():
             # Process this batch
             for point in points:
                 contract = qdrant_payload_to_dashboard_contract(
-                    point.payload,
-                    point_id=point.id,
+                    point.get("payload", {}),
+                    point_id=point.get("id"),
                     score=None
                 )
                 new_cache.append(contract)
