@@ -318,11 +318,17 @@ def api_auth_signup():
     if not first_name or not last_name:
         return jsonify({"success": False, "error": "First name and last name are required"}), 400
     
+    # Check if email was verified via 2-step verification
+    verified_email = session.get('verified_email')
+    if not verified_email or verified_email.lower() != email.lower():
+        app.logger.warning(f"[Auth API] Signup attempt without email verification for: {email}")
+        return jsonify({"success": False, "error": "Please verify your email first before signing up."}), 400
+    
     # Verify reCAPTCHA
     if not verify_recaptcha(recaptcha_token):
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
     
-    app.logger.info(f"[Auth API] Signup attempt for email: {email}")
+    app.logger.info(f"[Auth API] Signup attempt for verified email: {email}")
     
     try:
         # Create Firebase User
@@ -775,44 +781,57 @@ def generate_verification_code():
     return ''.join(random.choices(string.digits, k=6))
 
 def send_verification_email(email, code):
-    """Send verification code via Outlook SMTP."""
+    """Send verification code via Gmail SMTP (same as other app emails)."""
+    import socket
+    
+    # Use the same Gmail credentials as other app emails
+    sender_email = os.getenv('EMAIL_GOOGLE_USER')
+    sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    
+    if not sender_email or not sender_password:
+        app.logger.error("[Email Verification] EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS not configured")
+        return False, "Email service not configured."
+    
     try:
-        mail_username = os.getenv('MAIL_USERNAME')
-        mail_password = os.getenv('MAIL_PASSWORD')
-        
-        if not mail_username or not mail_password:
-            app.logger.error("[Email Verification] MAIL_USERNAME or MAIL_PASSWORD not configured")
-            return False, "Email service not configured."
-        
-        msg = MIMEMultipart()
-        msg['From'] = mail_username
-        msg['To'] = email
-        msg['Subject'] = 'Your Corama Verification Code'
-        
-        body = f"""
+        html_body = f"""
         <html>
-        <body style="font-family: Arial, sans-serif; padding: 20px;">
-            <h2 style="color: #446dcd;">Verify Your Email</h2>
-            <p>Your verification code is:</p>
-            <h1 style="color: #446dcd; font-size: 36px; letter-spacing: 5px;">{code}</h1>
-            <p>This code will expire in 10 minutes.</p>
-            <p>If you didn't request this code, please ignore this email.</p>
-            <br>
-            <p>Best regards,<br>The Corama Team</p>
+        <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
+            <div style="max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h2 style="color: #6bb4b5; margin-bottom: 20px;">Verify Your Email</h2>
+                <p style="color: #333; font-size: 16px;">Your verification code is:</p>
+                <h1 style="color: #6bb4b5; font-size: 42px; letter-spacing: 8px; text-align: center; padding: 20px; background: #f0f9f9; border-radius: 8px; margin: 20px 0;">{code}</h1>
+                <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes.</p>
+                <p style="color: #666; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="color: #999; font-size: 12px;">Best regards,<br>The Corama Team</p>
+            </div>
         </body>
         </html>
         """
-        msg.attach(MIMEText(body, 'html'))
         
-        # Connect to Outlook SMTP server
-        server = smtplib.SMTP('smtp.office365.com', 587)
-        server.starttls()
-        server.login(mail_username, mail_password)
-        server.sendmail(mail_username, email, msg.as_string())
-        server.quit()
+        msg = MIMEMultipart("alternative")
+        msg['Subject'] = 'Your Corama Verification Code'
+        msg['From'] = sender_email
+        msg['To'] = email
+        msg.attach(MIMEText(html_body, "html"))
         
-        app.logger.info(f"[Email Verification] Verification code sent to: {email}")
-        return True, None
+        # Set socket timeout
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(15)
+        
+        try:
+            app.logger.info(f"[Email Verification] Connecting to smtp.gmail.com:465...")
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
+                server.login(sender_email, sender_password)
+                server.sendmail(sender_email, email, msg.as_string())
+                app.logger.info(f"[Email Verification] Verification code sent to: {email}")
+                return True, None
+        finally:
+            socket.setdefaulttimeout(old_timeout)
+            
+    except socket.timeout:
+        app.logger.error(f"[Email Verification] SMTP timeout sending to {email}")
+        return False, "Email service timeout. Please try again."
     except smtplib.SMTPAuthenticationError:
         app.logger.error("[Email Verification] SMTP authentication failed")
         return False, "Email service authentication failed."
