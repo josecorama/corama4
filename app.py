@@ -9965,6 +9965,9 @@ def _refresh_dashboard_contracts_cache():
     Internal function to refresh the dashboard contracts cache from Qdrant.
     Builds the cache and hash index atomically to avoid race conditions.
     
+    Dynamically determines the scroll limit based on the collection's points_count
+    to ensure all contracts are fetched regardless of collection size.
+    
     Returns:
         Tuple of (success: bool, signature: str or None)
     """
@@ -9981,14 +9984,18 @@ def _refresh_dashboard_contracts_cache():
         
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         
-        # Get current signature before fetching
-        current_signature = get_qdrant_collection_signature()
+        # Get collection info to determine dynamic limit
+        collection_info = client.get_collection("government_contracts")
+        points_count = collection_info.points_count
+        current_signature = str(points_count)
         
-        # Fetch all contracts from Qdrant using scroll (up to 3000)
-        logging.info("[Dashboard Cache] Fetching contracts from Qdrant...")
+        # Dynamic limit: actual count + 10% buffer for safety, minimum 1000
+        scroll_limit = max(1000, int(points_count * 1.1))
+        
+        logging.info(f"[Dashboard Cache] Fetching contracts from Qdrant (points_count: {points_count}, scroll_limit: {scroll_limit})...")
         scroll_result = client.scroll(
             collection_name="government_contracts",
-            limit=3000,
+            limit=scroll_limit,
             with_vectors=False,
             with_payload=True
         )
