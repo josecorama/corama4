@@ -10024,9 +10024,14 @@ def _refresh_dashboard_contracts_cache():
     Internal function to refresh the dashboard contracts cache from Qdrant.
     Builds the cache and hash index atomically to avoid race conditions.
     
-    Uses qdrant-client's scroll method with with_payload=True (full payloads).
-    Fetches in small batches (50) to prevent OOM, and immediately projects
-    payloads into minimal dashboard dict to discard large fields.
+    CRITICAL FIX: Capped to 50 contracts to prevent OOM crashes.
+    The "scroll all" loop was accumulating 20k+ objects in Flask process memory,
+    causing SIGKILL/OOM even with micro-batches.
+    
+    Settings:
+    - limit=50 (hard cap, no loop)
+    - with_vectors=False (critical for memory)
+    - with_payload=True (safe for 50 items, avoids 400 errors)
     
     Returns:
         Tuple of (success: bool, signature: str or None)
@@ -10034,8 +10039,9 @@ def _refresh_dashboard_contracts_cache():
     global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
     global _dashboard_contracts_signature, _dashboard_refresh_in_progress
     
-    # Use smaller batch size with full payloads to prevent OOM
-    BATCH_SIZE = 50
+    # HARD LIMIT: Only fetch 50 contracts to prevent OOM
+    # Full dataset access will be via Phase 3 cursor-based pagination
+    DASHBOARD_CACHE_LIMIT = 50
     
     try:
         qdrant_url = os.getenv('QDRANT_URL')
@@ -10047,43 +10053,32 @@ def _refresh_dashboard_contracts_cache():
         
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         
-        # Get collection info for signature
+        # Get collection info for signature (total count for reference)
         collection_info = client.get_collection("government_contracts")
         points_count = collection_info.points_count
         current_signature = str(points_count)
         
-        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in micro-batches of 10 (full payload)...")
+        logging.info(f"[Dashboard Cache] Fetching top {DASHBOARD_CACHE_LIMIT} contracts from Qdrant (total in collection: {points_count})...")
         
         # Build new cache in local variables (atomic swap at the end)
         new_cache = []
         new_hash_index = {}
         
-        next_offset = None
-        batch_num = 0
+        # SINGLE FETCH - NO LOOP: Fetch only 50 contracts to prevent OOM
+        # with_payload=True is safe for 50 items (~50MB max) and avoids 400 errors
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=DASHBOARD_CACHE_LIMIT,  # Hard cap at 50
+            offset=None,  # First page only
+            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
+            with_payload=True  # Full payload - safe for 50 items, no serialization issues
+        )
         
-        # MICRO-BATCH STRATEGY: Use limit=10 with full payload for stability
-        # This prevents OOM crashes and eliminates 400 Bad Request serialization errors
-        MICRO_BATCH_SIZE = 10
+        points, _ = scroll_result  # Ignore next_offset - no loop
         
-        while True:
-            batch_num += 1
-            
-            # Micro-batch: limit=10 with full payload to prevent OOM and 400 errors
-            scroll_result = client.scroll(
-                collection_name="government_contracts",
-                limit=MICRO_BATCH_SIZE,  # Micro-batch for stability
-                offset=next_offset,
-                with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
-                with_payload=True  # Full payload - natively supported, no serialization issues
-            )
-            
-            points, next_offset = scroll_result
-            
-            if not points:
-                break
-            
-            # Process this batch - immediately project to minimal dashboard dict
-            # This discards large payload fields and keeps memory usage low
+        if points:
+            # Process contracts - immediately project to minimal dashboard dict
+            # This discards large payload fields (ocr_text, etc.) and keeps memory low
             for point in points:
                 contract = qdrant_payload_to_dashboard_contract(
                     point.payload,
@@ -10094,12 +10089,6 @@ def _refresh_dashboard_contracts_cache():
                 h = contract.get('hash_value')
                 if h:
                     new_hash_index[h] = contract
-            
-            logging.debug(f"[Dashboard Cache] Batch {batch_num}: fetched {len(points)} contracts (total so far: {len(new_cache)})")
-            
-            # If no more pages, we're done
-            if next_offset is None:
-                break
         
         # Atomic swap of globals
         _dashboard_contracts_cache = new_cache
@@ -10107,7 +10096,7 @@ def _refresh_dashboard_contracts_cache():
         _dashboard_contracts_hash_index = new_hash_index
         _dashboard_contracts_signature = current_signature
         
-        logging.info(f"[Dashboard Cache] Cached {_dashboard_contracts_total} contracts in {batch_num} batches (signature: {current_signature}, hash index: {len(new_hash_index)} entries)")
+        logging.info(f"[Dashboard Cache] Cached {_dashboard_contracts_total} contracts (collection total: {points_count}, hash index: {len(new_hash_index)} entries)")
         return True, current_signature
         
     except Exception as e:
