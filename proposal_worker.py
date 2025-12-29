@@ -772,8 +772,21 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
     - OR naics_description is "Other", "Unknown", etc.
     
     Returns list of dicts with contract info needed for prediction.
+    
+    IMPORTANT: Uses payload projection to prevent OOM - only fetches fields needed for NAICS prediction.
     """
     import hashlib
+    
+    # Only fetch fields needed for NAICS prediction (excludes ocr_text, embeddings, etc.)
+    NAICS_ENRICHMENT_FIELDS = [
+        "bid_name", "Bid Name", "title",
+        "organization", "Organization", "agency",
+        "detail_link", "Detail Link", "source_url",
+        "bid_number", "Bid Number", "contract_number",
+        "naics_code", "NAICS Code", "NAICS_CODE",
+        "naics_description", "NAICS Description", "NAICS_TITLE",
+        "naics_codes_all", "NAICS_CODES_ALL",
+    ]
     
     try:
         # Scroll through contracts and find those needing enrichment
@@ -785,8 +798,8 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
                 collection_name="government_contracts",
                 limit=100,
                 offset=offset,
-                with_payload=True,
-                with_vectors=False
+                with_payload=NAICS_ENRICHMENT_FIELDS,  # Payload projection to prevent OOM
+                with_vectors=False  # CRITICAL: Prevent OOM by not loading vectors
             )
             
             points, next_offset = result
@@ -1090,6 +1103,101 @@ def cleanup_stale_naics_enrichment_jobs(db):
                     
     except Exception as e:
         logger.error(f"[NAICS_WORKER] Error cleaning up stale jobs: {e}")
+
+
+def check_and_queue_naics_backlog(db):
+    """
+    Check if there are contracts needing NAICS enrichment and queue a job if needed.
+    
+    This function implements "set and forget" automation:
+    1. Checks if there's already a running/queued NAICS enrichment job
+    2. If not, does a quick existence check for contracts needing enrichment
+    3. If found, creates a new backlog job in Firebase
+    
+    This should be called:
+    - Once at worker startup
+    - Periodically (every 5 minutes) in the main loop
+    
+    Returns True if a job was queued, False otherwise.
+    """
+    import uuid
+    
+    try:
+        # Check if there's already a running or queued job
+        jobs_ref = db.reference('naics_enrichment_jobs')
+        all_jobs = jobs_ref.get() or {}
+        
+        for job_id, job_data in all_jobs.items():
+            status = job_data.get('status', '')
+            if status in ('queued', 'running'):
+                logger.debug(f"[NAICS_BACKLOG] Skipping - job {job_id} already {status}")
+                return False
+        
+        # Quick existence check - just find 1 contract needing enrichment
+        # This is much faster than counting all contracts
+        try:
+            qdrant_client = initialize_qdrant()
+            
+            # Only fetch minimal fields for existence check
+            EXISTENCE_CHECK_FIELDS = [
+                "naics_code", "NAICS Code", "NAICS_CODE",
+                "naics_description", "NAICS Description", "NAICS_TITLE",
+            ]
+            
+            result = qdrant_client.scroll(
+                collection_name="government_contracts",
+                limit=10,  # Just check a small batch
+                offset=None,
+                with_payload=EXISTENCE_CHECK_FIELDS,
+                with_vectors=False
+            )
+            
+            points, _ = result
+            needs_enrichment = False
+            
+            for point in points:
+                payload = point.payload or {}
+                naics_code = payload.get('naics_code') or payload.get('NAICS Code') or ''
+                naics_desc = payload.get('naics_description') or payload.get('NAICS Description') or ''
+                
+                # Check if NAICS code is missing or invalid
+                if not naics_code or str(naics_code).strip().lower() in ('nan', 'none', 'null', ''):
+                    needs_enrichment = True
+                    break
+                # Check if description is invalid
+                if naics_desc and str(naics_desc).strip().lower() in ('other', 'unknown', 'nan', 'none', 'null', ''):
+                    needs_enrichment = True
+                    break
+            
+            if not needs_enrichment:
+                logger.debug("[NAICS_BACKLOG] No contracts need enrichment")
+                return False
+                
+        except Exception as e:
+            logger.warning(f"[NAICS_BACKLOG] Error checking Qdrant: {e}")
+            # If we can't check Qdrant, don't queue a job
+            return False
+        
+        # Queue a new backlog job
+        job_id = f"backlog-{uuid.uuid4().hex[:8]}"
+        job_data = {
+            'status': 'queued',
+            'created_at': time.time(),
+            'batch_size': NAICS_ENRICHMENT_BATCH_SIZE,  # 50
+            'max_contracts': 1000,  # Process up to 1000 contracts per backlog job
+            'requested_by': 'auto_backlog_sweep',
+            'contracts_processed': 0,
+            'contracts_success': 0,
+            'contracts_failed': 0
+        }
+        
+        jobs_ref.child(job_id).set(job_data)
+        logger.info(f"[NAICS_BACKLOG] Queued automatic backlog job {job_id}")
+        return True
+        
+    except Exception as e:
+        logger.error(f"[NAICS_BACKLOG] Error checking/queueing backlog: {e}", exc_info=True)
+        return False
 
 
 # ============================================================================
@@ -1442,7 +1550,17 @@ def main():
         logger.error(f"Failed to initialize services: {e}")
         sys.exit(1)
     
+    # STARTUP SWEEP: Check for contracts needing NAICS enrichment and queue a job if needed
+    # This implements "set and forget" automation - no manual curl needed
+    logger.info("[NAICS_BACKLOG] Running startup sweep for contracts needing enrichment...")
+    try:
+        check_and_queue_naics_backlog(db)
+    except Exception as e:
+        logger.warning(f"[NAICS_BACKLOG] Startup sweep failed (non-fatal): {e}")
+    
     cleanup_counter = 0
+    backlog_check_counter = 0
+    BACKLOG_CHECK_INTERVAL = 60  # Check every 60 iterations (~5 minutes at 5s poll interval)
     
     # Main loop
     while not shutdown_requested:
@@ -1468,6 +1586,16 @@ def main():
                 cleanup_stale_contract_analysis_jobs(db)
                 cleanup_stale_naics_enrichment_jobs(db)
                 cleanup_counter = 0
+            
+            # PERIODIC BACKLOG CHECK: Every ~5 minutes, check if we need to queue a NAICS enrichment job
+            # This ensures new contracts get enriched automatically without manual intervention
+            backlog_check_counter += 1
+            if backlog_check_counter >= BACKLOG_CHECK_INTERVAL:
+                try:
+                    check_and_queue_naics_backlog(db)
+                except Exception as e:
+                    logger.warning(f"[NAICS_BACKLOG] Periodic check failed (non-fatal): {e}")
+                backlog_check_counter = 0
             
             # If no job was processed, wait before polling again
             if not job_processed and not shutdown_requested:

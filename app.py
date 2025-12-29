@@ -10052,7 +10052,7 @@ def _refresh_dashboard_contracts_cache():
         points_count = collection_info.points_count
         current_signature = str(points_count)
         
-        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (full payload, small batches)...")
+        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (payload projection)...")
         
         # Build new cache in local variables (atomic swap at the end)
         new_cache = []
@@ -10064,14 +10064,15 @@ def _refresh_dashboard_contracts_cache():
         while True:
             batch_num += 1
             
-            # Use qdrant-client scroll with with_payload=True
-            # Small batch size (50) prevents OOM even with full payloads
+            # Use qdrant-client scroll with payload projection to reduce memory
+            # CRITICAL: with_vectors=False prevents loading 1536-dim vectors into memory
+            # CRITICAL: with_payload=list fetches only needed fields (excludes ocr_text, embeddings)
             scroll_result = client.scroll(
                 collection_name="government_contracts",
                 limit=BATCH_SIZE,
                 offset=next_offset,
-                with_vectors=False,
-                with_payload=True  # Full payload - we'll project to minimal dict immediately
+                with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
+                with_payload=_DASHBOARD_PAYLOAD_FIELDS  # Only fetch fields needed for dashboard
             )
             
             points, next_offset = scroll_result
@@ -10211,7 +10212,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
 
 def load_all_contracts(client):
     """
-    分页加载集合中所有合同数据，使用 offset 参数实现分页
+    Load all contracts from Qdrant collection using pagination.
+    
+    IMPORTANT: Uses with_vectors=False to prevent OOM crashes.
+    Only fetches payload fields needed for contract display.
     """
     all_contracts = []
     offset = 0
@@ -10219,8 +10223,8 @@ def load_all_contracts(client):
         scroll_result = client.scroll(
             collection_name="government_contracts",
             limit=1000,
-            with_vectors=True,
-            offset=offset  # 使用 offset 分页（请确保你的 qdrant_client 版本支持此参数，否则请升级）
+            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
+            offset=offset
         )
         points = scroll_result[0]
         all_contracts.extend(points)
@@ -10571,12 +10575,15 @@ def Smartsearch():
             return new_payload
 
         def read_contracts_from_qdrant(offset, limit):
-            """Helper to read 'raw' contract data from Qdrant with pagination."""
+            """Helper to read 'raw' contract data from Qdrant with pagination.
+            
+            IMPORTANT: Uses with_vectors=False to prevent OOM crashes.
+            """
             try:
                 scroll_result = client.scroll(
                     collection_name="government_contracts",
                     limit=limit,
-                    with_vectors=True,
+                    with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
                     offset=offset
                 )
                 points = scroll_result[0]
