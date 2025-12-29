@@ -6128,19 +6128,6 @@ def upload_and_process():
         # 
         #    Example (pseudo-code):
         if selected_contract_types or selected_states or not hash_value:
-            # Example: re-run your Qdrant or RAG logic to produce “matches.csv”
-            # (the same steps from your original upload_and_process).
-            # Use OPENAI_API_KEY as primary key for all AI features (including Top 5 enrichment)
-            openai_key = os.getenv('OPENAI_API_KEY')
-            handler = CSQueryHandler(
-                openai_api_key=openai_key,
-                qdrant_url=os.getenv('QDRANT_URL'),
-                qdrant_api_key=os.getenv('QDRANT_API_KEY'),
-                user_upload_dir=user_upload_dir
-            )
-            with open(file_path, 'rb') as pdf_file:
-                results = handler.process_query(pdf_file, contract_types=selected_contract_types, states=selected_states)
-            
             try:
                 app.logger.info(f"Starting Qdrant matching with contract_types: {selected_contract_types}, states: {selected_states}")
                 
