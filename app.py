@@ -10066,10 +10066,9 @@ def _refresh_dashboard_contracts_cache():
             
             # Use qdrant-client scroll with payload projection to reduce memory
             # CRITICAL: with_vectors=False prevents loading 1536-dim vectors into memory
-            # CRITICAL: Use PayloadSelectorInclude to fetch only needed fields (excludes ocr_text, embeddings)
-            from qdrant_client.http import models as qdrant_models
+            # CRITICAL: Use raw dict {"include": [...]} for payload projection (excludes ocr_text, embeddings)
             
-            # Define fields needed for dashboard display (light payload)
+            # Define fields needed for dashboard display (light payload) - clean list of strings
             dashboard_fields = [
                 "detail_link", "bid_number", "bid_name", "bid_description", "organization",
                 "due_date", "status", "state", "budget", "category", "notice_type",
@@ -10086,7 +10085,7 @@ def _refresh_dashboard_contracts_cache():
                 limit=BATCH_SIZE,
                 offset=next_offset,
                 with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
-                with_payload=qdrant_models.PayloadSelectorInclude(include=dashboard_fields)
+                with_payload={"include": dashboard_fields}  # Raw dict for proper JSON serialization
             )
             
             points, next_offset = scroll_result

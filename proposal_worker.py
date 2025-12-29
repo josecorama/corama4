@@ -773,10 +773,9 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
     
     Returns list of dicts with contract info needed for prediction.
     
-    IMPORTANT: Uses PayloadSelectorInclude and with_vectors=False to prevent OOM.
+    IMPORTANT: Uses raw dict {"include": [...]} and with_vectors=False to prevent OOM.
     """
     import hashlib
-    from qdrant_client.http import models as qdrant_models
     
     # Fields needed for NAICS enrichment (light payload - excludes ocr_text, embeddings)
     enrichment_fields = [
@@ -795,12 +794,12 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
         offset = None
         
         while len(contracts_to_enrich) < batch_size:
-            # Use PayloadSelectorInclude to fetch only needed fields (excludes ocr_text, embeddings)
+            # Use raw dict {"include": [...]} for payload projection (excludes ocr_text, embeddings)
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
                 limit=100,
                 offset=offset,
-                with_payload=qdrant_models.PayloadSelectorInclude(include=enrichment_fields),
+                with_payload={"include": enrichment_fields},  # Raw dict for proper JSON serialization
                 with_vectors=False  # CRITICAL: Prevent OOM by not loading vectors
             )
             
@@ -1139,7 +1138,6 @@ def check_and_queue_naics_backlog(db):
         # This is much faster than counting all contracts
         try:
             qdrant_client = initialize_qdrant()
-            from qdrant_client.http import models as qdrant_models
             
             # Fields needed for existence check (light payload)
             existence_check_fields = [
@@ -1147,12 +1145,12 @@ def check_and_queue_naics_backlog(db):
                 "naics_description", "NAICS Description", "NAICS_TITLE",
             ]
             
-            # Use PayloadSelectorInclude to fetch only needed fields
+            # Use raw dict {"include": [...]} for payload projection
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
                 limit=10,  # Just check a small batch
                 offset=None,
-                with_payload=qdrant_models.PayloadSelectorInclude(include=existence_check_fields),
+                with_payload={"include": existence_check_fields},  # Raw dict for proper JSON serialization
                 with_vectors=False
             )
             
