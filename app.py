@@ -10052,7 +10052,7 @@ def _refresh_dashboard_contracts_cache():
         points_count = collection_info.points_count
         current_signature = str(points_count)
         
-        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (payload projection)...")
+        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in micro-batches of 10 (full payload)...")
         
         # Build new cache in local variables (atomic swap at the end)
         new_cache = []
@@ -10061,37 +10061,20 @@ def _refresh_dashboard_contracts_cache():
         next_offset = None
         batch_num = 0
         
-        # Define fields needed for dashboard display (light payload) - clean list of strings
-        # MOVED OUTSIDE LOOP for efficiency and to ensure it's a proper list
-        dashboard_fields = [
-            "detail_link", "bid_number", "bid_name", "bid_description", "organization",
-            "due_date", "status", "state", "budget", "category", "notice_type",
-            "naics_code", "naics_codes_all", "naics_description", "source",
-            "Detail Link", "Bid Number", "Bid Name", "Bid Description", "Organization",
-            "Due Date", "Status", "State", "Budget", "Category", "NAICS Code",
-            "source_url", "contract_number", "title", "summary", "agency", "budget_estimate",
-            "NAICS_CODE", "NAICS_CODES_ALL", "NAICS_TITLE", "NAICS Description",
-            "Contract Type", "contract_type",
-        ]
-        
-        # DEBUG: Validate list type and contents before any scroll calls
-        assert isinstance(dashboard_fields, list), f"dashboard_fields must be list, got {type(dashboard_fields)}"
-        assert all(isinstance(f, str) for f in dashboard_fields), "All dashboard_fields must be strings"
-        logging.info(f"[Dashboard Cache] DEBUG: with_payload type={type(dashboard_fields).__name__}, len={len(dashboard_fields)}, first_5={dashboard_fields[:5]}")
+        # MICRO-BATCH STRATEGY: Use limit=10 with full payload for stability
+        # This prevents OOM crashes and eliminates 400 Bad Request serialization errors
+        MICRO_BATCH_SIZE = 10
         
         while True:
             batch_num += 1
             
-            # Use qdrant-client scroll with payload projection to reduce memory
-            # CRITICAL: with_vectors=False prevents loading 1536-dim vectors into memory
-            # CRITICAL: Pass list directly to with_payload (Qdrant accepts "array of strings")
-            
+            # Micro-batch: limit=10 with full payload to prevent OOM and 400 errors
             scroll_result = client.scroll(
                 collection_name="government_contracts",
-                limit=BATCH_SIZE,
+                limit=MICRO_BATCH_SIZE,  # Micro-batch for stability
                 offset=next_offset,
                 with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
-                with_payload=dashboard_fields  # Pass list directly - Qdrant accepts "array of strings"
+                with_payload=True  # Full payload - natively supported, no serialization issues
             )
             
             points, next_offset = scroll_result

@@ -658,7 +658,7 @@ def find_and_process_contract_analysis_jobs(db, openai_client):
 
 # Configuration for NAICS enrichment
 NAICS_ENRICHMENT_THREAD_POOL_SIZE = 8  # Concurrent AI predictions
-NAICS_ENRICHMENT_BATCH_SIZE = 50  # Contracts per batch
+NAICS_ENRICHMENT_BATCH_SIZE = 10  # Contracts per batch (micro-batch for stability)
 
 def initialize_qdrant():
     """Initialize Qdrant client for NAICS enrichment"""
@@ -777,34 +777,19 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
     """
     import hashlib
     
-    # Fields needed for NAICS enrichment (light payload - excludes ocr_text, embeddings)
-    enrichment_fields = [
-        "bid_name", "Bid Name", "title",
-        "organization", "Organization", "agency",
-        "detail_link", "Detail Link", "source_url",
-        "bid_number", "Bid Number", "contract_number",
-        "naics_code", "NAICS Code", "NAICS_CODE",
-        "naics_description", "NAICS Description", "NAICS_TITLE",
-        "naics_codes_all", "NAICS_CODES_ALL",
-    ]
-    
-    # DEBUG: Validate list type and contents
-    assert isinstance(enrichment_fields, list), f"enrichment_fields must be list, got {type(enrichment_fields)}"
-    assert all(isinstance(f, str) for f in enrichment_fields), "All enrichment_fields must be strings"
-    logger.debug(f"[NAICS_WORKER] DEBUG: with_payload type={type(enrichment_fields).__name__}, len={len(enrichment_fields)}")
-    
     try:
         # Scroll through contracts and find those needing enrichment
+        # MICRO-BATCH STRATEGY: Use limit=10 with full payload for stability
         contracts_to_enrich = []
         offset = None
         
         while len(contracts_to_enrich) < batch_size:
-            # Pass list directly to with_payload (Qdrant accepts "array of strings")
+            # Micro-batch: limit=10 with full payload to prevent OOM and 400 errors
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
-                limit=100,
+                limit=10,  # Micro-batch for stability
                 offset=offset,
-                with_payload=enrichment_fields,  # Pass list directly - Qdrant accepts "array of strings"
+                with_payload=True,  # Full payload - natively supported, no serialization issues
                 with_vectors=False  # CRITICAL: Prevent OOM by not loading vectors
             )
             
@@ -1144,18 +1129,12 @@ def check_and_queue_naics_backlog(db):
         try:
             qdrant_client = initialize_qdrant()
             
-            # Fields needed for existence check (light payload)
-            existence_check_fields = [
-                "naics_code", "NAICS Code", "NAICS_CODE",
-                "naics_description", "NAICS Description", "NAICS_TITLE",
-            ]
-            
-            # Pass list directly to with_payload (Qdrant accepts "array of strings")
+            # Micro-batch: limit=10 with full payload for stability
             result = qdrant_client.scroll(
                 collection_name="government_contracts",
-                limit=10,  # Just check a small batch
+                limit=10,  # Micro-batch for stability
                 offset=None,
-                with_payload=existence_check_fields,  # Pass list directly - Qdrant accepts "array of strings"
+                with_payload=True,  # Full payload - natively supported, no serialization issues
                 with_vectors=False
             )
             
@@ -1190,7 +1169,7 @@ def check_and_queue_naics_backlog(db):
         job_data = {
             'status': 'queued',
             'created_at': time.time(),
-            'batch_size': NAICS_ENRICHMENT_BATCH_SIZE,  # 50
+            'batch_size': NAICS_ENRICHMENT_BATCH_SIZE,  # 10 (micro-batch)
             'max_contracts': 1000,  # Process up to 1000 contracts per backlog job
             'requested_by': 'auto_backlog_sweep',
             'contracts_processed': 0,
