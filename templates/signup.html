@@ -2,520 +2,277 @@
 <body>
     {% include 'navbar.html' %}
     <style>
-        .grecaptcha-badge {
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        
-        /* Light Theme for Signup Page */
-        body {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important;
-            color: #2c3e50 !important;
-            min-height: 100vh;
-        }
-        
-        .signup-container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            padding: 50px 40px;
-            margin-top: 120px;
-            margin-bottom: 60px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        
-        .login-signup-title {
-            color: #446dcd !important;
-            font-family: 'Inter', sans-serif;
-            font-weight: 700;
-            font-size: 2.2rem;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .form-section {
-            margin-bottom: 30px;
-        }
-        
-        .form-section-title {
-            color: #2c3e50;
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 20px;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #e9ecef;
-        }
-        
-        .form-row {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .form-row .form-group {
-            flex: 1;
-            margin-bottom: 0;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-control {
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 16px 20px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-            height: auto;
-        }
-        
-        .form-control:focus {
-            border-color: #446dcd;
-            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
-            background: white;
-            outline: none;
-        }
-        
-        .form-control::placeholder {
-            color: #6c757d;
-            font-weight: 400;
-        }
-        
-        .form-select {
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 16px 20px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: #f8f9fa;
-            height: auto;
-        }
-        
-        .form-select:focus {
-            border-color: #446dcd;
-            box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15);
-            background: white;
-            outline: none;
-        }
-        
-        .password-toggle {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            color: #6c757d;
-            transition: color 0.3s ease;
-            z-index: 10;
-        }
-        
-        .password-toggle:hover {
-            color: #446dcd;
-        }
-        
-        .billing-section {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 25px;
-            border-radius: 15px;
-            border: 2px solid #e9ecef;
-            margin: 25px 0;
-        }
-        
-        .billing-title {
-            color: #2c3e50;
-            font-weight: 700;
-            font-size: 1.2rem;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .billing-option {
-            background: white;
-            border: 2px solid #e9ecef;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 15px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-        
-        .billing-option:hover {
-            border-color: #446dcd;
-            box-shadow: 0 4px 12px rgba(68, 109, 205, 0.1);
-        }
-        
-        .billing-option.selected {
-            border-color: #446dcd;
-            background: linear-gradient(135deg, rgba(68, 109, 205, 0.05) 0%, rgba(75, 182, 211, 0.05) 100%);
-        }
-        
-        .billing-radio {
-            width: 20px;
-            height: 20px;
-            margin-right: 15px;
-            accent-color: #446dcd;
-        }
-        
-        .billing-label {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            margin: 0;
-        }
-        
-        .billing-text {
-            color: #2c3e50;
-            font-size: 1rem;
-            font-weight: 500;
-        }
-        
-        .billing-price {
-            font-weight: 700;
-            color: #27AE60;
-            font-size: 1.1rem;
-        }
-        
-        .btn-signup {
-            background: linear-gradient(135deg, #446dcd 0%, #4bb6d3 100%);
-            border: none;
-            padding: 18px 30px;
-            font-weight: 700;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            color: white;
-            font-size: 1.2rem;
-            width: 100%;
-            margin-top: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .btn-signup:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(68, 109, 205, 0.3);
-            color: white;
-        }
-        
-        .btn-signup:active {
-            transform: translateY(0);
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-            border-radius: 12px;
-            padding: 15px 20px;
-            margin-bottom: 25px;
-            font-weight: 500;
-        }
-        
-        .signup-links {
-            text-align: center;
-            margin-top: 30px;
-        }
-        
-        .signup-links p {
-            margin-bottom: 0;
-            color: #6c757d;
-        }
-        
-        .signup-links a {
-            color: #446dcd;
-            text-decoration: none;
-            font-weight: 600;
-            transition: color 0.3s ease;
-        }
-        
-        .signup-links a:hover {
-            color: #4bb6d3;
-            text-decoration: none;
-        }
-        
-        .trial-badge {
-            background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            display: inline-block;
-            margin-bottom: 20px;
-        }
-        
-        /* Loading state */
-        .btn-signup:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .signup-container {
-                margin: 80px 20px 40px;
-                padding: 40px 25px;
-            }
-            
-            .form-row {
-                flex-direction: column;
-                gap: 0;
-            }
-            
-            .form-row .form-group {
-                margin-bottom: 20px;
-            }
-            
-            .login-signup-title {
-                font-size: 1.8rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .billing-section {
-                padding: 20px 15px;
-            }
-            
-            .billing-option {
-                padding: 15px;
-            }
-        }
+        .grecaptcha-badge { visibility: visible !important; opacity: 1 !important; }
+        body { background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%) !important; color: #2c3e50 !important; min-height: 100vh; }
+        .signup-container { background: white; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); padding: 50px 40px; margin-top: 120px; margin-bottom: 60px; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .login-signup-title { color: #446dcd !important; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 2.2rem; margin-bottom: 30px; text-align: center; }
+        .form-section { margin-bottom: 30px; }
+        .form-section-title { color: #2c3e50; font-weight: 600; font-size: 1.1rem; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 2px solid #e9ecef; }
+        .form-row { display: flex; gap: 15px; margin-bottom: 20px; }
+        .form-row .form-group { flex: 1; margin-bottom: 0; }
+        .form-group { margin-bottom: 20px; }
+        .form-control { border: 2px solid #e9ecef; border-radius: 12px; padding: 16px 20px; font-size: 1rem; transition: all 0.3s ease; background: #f8f9fa; height: auto; }
+        .form-control:focus { border-color: #446dcd; box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15); background: white; outline: none; }
+        .form-control::placeholder { color: #6c757d; font-weight: 400; }
+        .password-toggle { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); cursor: pointer; color: #6c757d; transition: color 0.3s ease; z-index: 10; }
+        .password-toggle:hover { color: #446dcd; }
+        .btn-signup, .btn-verify { background: linear-gradient(135deg, #446dcd 0%, #4bb6d3 100%); border: none; padding: 18px 30px; font-weight: 700; border-radius: 12px; transition: all 0.3s ease; color: white; font-size: 1.2rem; width: 100%; margin-top: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .btn-signup:hover, .btn-verify:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(68, 109, 205, 0.3); color: white; }
+        .btn-signup:active, .btn-verify:active { transform: translateY(0); }
+        .alert-danger { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; border-radius: 12px; padding: 15px 20px; margin-bottom: 25px; font-weight: 500; }
+        .alert-success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; border-radius: 12px; padding: 15px 20px; margin-bottom: 25px; font-weight: 500; }
+        .signup-links { text-align: center; margin-top: 30px; }
+        .signup-links p { margin-bottom: 0; color: #6c757d; }
+        .signup-links a { color: #446dcd; text-decoration: none; font-weight: 600; transition: color 0.3s ease; }
+        .signup-links a:hover { color: #4bb6d3; text-decoration: none; }
+        .trial-badge { background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%); color: white; padding: 8px 16px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; display: inline-block; margin-bottom: 20px; }
+        .btn-signup:disabled, .btn-verify:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
+        .step-indicator { display: flex; justify-content: center; margin-bottom: 30px; }
+        .step { display: flex; align-items: center; color: #6c757d; }
+        .step-number { width: 35px; height: 35px; border-radius: 50%; background: #e9ecef; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-right: 10px; transition: all 0.3s ease; }
+        .step.active .step-number { background: linear-gradient(135deg, #446dcd 0%, #4bb6d3 100%); color: white; }
+        .step.completed .step-number { background: #27AE60; color: white; }
+        .step-text { font-weight: 500; }
+        .step-divider { width: 50px; height: 2px; background: #e9ecef; margin: 0 15px; }
+        .verification-code-container { display: flex; justify-content: center; gap: 10px; margin: 20px 0; }
+        .verification-code-input { width: 50px; height: 60px; text-align: center; font-size: 1.5rem; font-weight: 700; border: 2px solid #e9ecef; border-radius: 12px; background: #f8f9fa; transition: all 0.3s ease; }
+        .verification-code-input:focus { border-color: #446dcd; box-shadow: 0 0 0 0.2rem rgba(68, 109, 205, 0.15); background: white; outline: none; }
+        .resend-link { color: #446dcd; cursor: pointer; text-decoration: underline; font-weight: 500; }
+        .resend-link:hover { color: #4bb6d3; }
+        .resend-link.disabled { color: #6c757d; cursor: not-allowed; text-decoration: none; }
+        .hidden { display: none !important; }
+        @media (max-width: 768px) { .signup-container { margin: 80px 20px 40px; padding: 40px 25px; } .form-row { flex-direction: column; gap: 0; } .form-row .form-group { margin-bottom: 20px; } .login-signup-title { font-size: 1.8rem; } .verification-code-input { width: 40px; height: 50px; font-size: 1.2rem; } }
+        @media (max-width: 576px) { .step-text { display: none; } .step-divider { width: 30px; } }
     </style>
-        
 
     <div class="container">
         <div class="signup-container">
-            <div class="trial-badge">
-                <i class="fas fa-star me-2"></i>Always Free
-            </div>
-            
+            <div class="trial-badge"><i class="fas fa-star me-2"></i>Always Free</div>
             <h1 class="login-signup-title">Create Your Account</h1>
             
-            {% if error %}
-                <div class="alert alert-danger" role="alert">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <strong>Error:</strong> {{ error }}
-                </div>
-            {% endif %}
-            
-            <form method="POST" id="signup-form" action="{{ url_for('Signup') }}">
-                <!-- Personal Information Section -->
-                <div class="form-section">
-                    <div class="form-section-title">
-                        <i class="fas fa-user me-2"></i>Personal Information
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <input type="text" 
-                                   class="form-control" 
-                                   name="first_name" 
-                                   placeholder="First Name" 
-                                   required 
-                                   autofocus
-                                   autocomplete="given-name">
-                        </div>
-                        <div class="form-group">
-                            <input type="text" 
-                                   class="form-control" 
-                                   name="last_name" 
-                                   placeholder="Last Name" 
-                                   required
-                                   autocomplete="family-name">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <input type="text" 
-                               class="form-control" 
-                               name="company" 
-                               placeholder="Company Name" 
-                               required
-                               autocomplete="organization">
-                    </div>
-                </div>
-
-                <!-- Account Details Section -->
-                <div class="form-section">
-                    <div class="form-section-title">
-                        <i class="fas fa-key me-2"></i>Account Details
-                    </div>
-                    
-                    <div class="form-group">
-                        <input type="email" 
-                               class="form-control" 
-                               name="email" 
-                               placeholder="Email Address" 
-                               required
-                               autocomplete="email">
-                    </div>
-                    
-                    <div class="form-group">
-                        <input type="text" 
-                               class="form-control" 
-                               name="username" 
-                               placeholder="Username" 
-                               required
-                               autocomplete="username">
-                    </div>
-                    
-                    <div class="form-group position-relative">
-                        <input type="password" 
-                               class="form-control" 
-                               name="password" 
-                               id="signupPassword" 
-                               placeholder="Create a strong password" 
-                               required
-                               autocomplete="new-password">
-                        <span class="password-toggle" onclick="toggleSignupPasswordVisibility()">
-                            <i id="signupTogglePasswordIcon" class="fas fa-eye"></i>
-                        </span>
-                    </div>
-                </div>
-
-
-                <!-- reCAPTCHA temporarily disabled for free access -->
-                <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response" value="disabled">
-                
-                <button class="btn-signup" type="submit" id="signup-btn">
-                    <span class="btn-text">Get Started Free</span>
-                    <span class="btn-loading d-none">
-                        <i class="fas fa-spinner fa-spin me-2"></i>Creating Account...
-                    </span>
-                </button>
-            </form>
-            
-            <div class="signup-links">
-                <p>Already have an account? <a href="/login">Sign in here</a></p>
+            <div class="step-indicator">
+                <div class="step active" id="step1-indicator"><span class="step-number">1</span><span class="step-text">Verify Email</span></div>
+                <div class="step-divider"></div>
+                <div class="step" id="step2-indicator"><span class="step-number">2</span><span class="step-text">Complete Signup</span></div>
             </div>
+            
+            <div id="message-container">
+                {% if error %}<div class="alert alert-danger" role="alert"><i class="fas fa-exclamation-triangle me-2"></i><strong>Error:</strong> {{ error }}</div>{% endif %}
+            </div>
+            
+            <div id="step1-email-verification">
+                <div class="form-section">
+                    <div class="form-section-title"><i class="fas fa-envelope me-2"></i>Step 1: Verify Your Email</div>
+                    <p class="text-muted mb-4">Enter your email address. We will send you a 6-digit verification code.</p>
+                    <div class="form-group">
+                        <input type="email" class="form-control" id="verification-email" placeholder="Email Address" required autofocus autocomplete="email">
+                    </div>
+                    <button class="btn-verify" type="button" id="send-code-btn" onclick="sendVerificationCode()">
+                        <span class="btn-text">Send Verification Code</span>
+                        <span class="btn-loading d-none"><i class="fas fa-spinner fa-spin me-2"></i>Validating...</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="step1-code-entry" class="hidden">
+                <div class="form-section">
+                    <div class="form-section-title"><i class="fas fa-shield-alt me-2"></i>Enter Verification Code</div>
+                    <p class="text-muted mb-4">We sent a 6-digit code to <strong id="display-email"></strong>.</p>
+                    <div class="verification-code-container">
+                        <input type="text" class="verification-code-input" maxlength="1" data-index="0" oninput="handleCodeInput(this)" onkeydown="handleCodeKeydown(event, this)">
+                        <input type="text" class="verification-code-input" maxlength="1" data-index="1" oninput="handleCodeInput(this)" onkeydown="handleCodeKeydown(event, this)">
+                        <input type="text" class="verification-code-input" maxlength="1" data-index="2" oninput="handleCodeInput(this)" onkeydown="handleCodeKeydown(event, this)">
+                        <input type="text" class="verification-code-input" maxlength="1" data-index="3" oninput="handleCodeInput(this)" onkeydown="handleCodeKeydown(event, this)">
+                        <input type="text" class="verification-code-input" maxlength="1" data-index="4" oninput="handleCodeInput(this)" onkeydown="handleCodeKeydown(event, this)">
+                        <input type="text" class="verification-code-input" maxlength="1" data-index="5" oninput="handleCodeInput(this)" onkeydown="handleCodeKeydown(event, this)">
+                    </div>
+                    <button class="btn-verify" type="button" id="verify-code-btn" onclick="verifyCode()">
+                        <span class="btn-text">Verify Code</span>
+                        <span class="btn-loading d-none"><i class="fas fa-spinner fa-spin me-2"></i>Verifying...</span>
+                    </button>
+                    <div class="text-center mt-3">
+                        <p class="text-muted">Did not receive the code? <span class="resend-link" id="resend-link" onclick="resendCode()">Resend Code</span></p>
+                        <p class="text-muted"><span class="resend-link" onclick="goBackToEmail()">Use a different email</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="step2-signup-form" class="hidden">
+                <form method="POST" id="signup-form" action="{{ url_for('Signup') }}">
+                    <input type="hidden" name="email" id="verified-email-input">
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-user me-2"></i>Personal Information</div>
+                        <div class="form-row">
+                            <div class="form-group"><input type="text" class="form-control" name="first_name" placeholder="First Name" required autocomplete="given-name"></div>
+                            <div class="form-group"><input type="text" class="form-control" name="last_name" placeholder="Last Name" required autocomplete="family-name"></div>
+                        </div>
+                        <div class="form-group"><input type="text" class="form-control" name="company" placeholder="Company Name" required autocomplete="organization"></div>
+                    </div>
+                    <div class="form-section">
+                        <div class="form-section-title"><i class="fas fa-key me-2"></i>Account Details</div>
+                        <div class="form-group"><div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>Email verified: <strong id="verified-email-display"></strong></div></div>
+                        <div class="form-group"><input type="text" class="form-control" name="username" placeholder="Username" required autocomplete="username"></div>
+                        <div class="form-group position-relative">
+                            <input type="password" class="form-control" name="password" id="signupPassword" placeholder="Create a strong password" required autocomplete="new-password">
+                            <span class="password-toggle" onclick="toggleSignupPasswordVisibility()"><i id="signupTogglePasswordIcon" class="fas fa-eye"></i></span>
+                        </div>
+                    </div>
+                    <input type="hidden" id="g-recaptcha-response" name="g-recaptcha-response" value="disabled">
+                    <button class="btn-signup" type="submit" id="signup-btn">
+                        <span class="btn-text">Get Started Free</span>
+                        <span class="btn-loading d-none"><i class="fas fa-spinner fa-spin me-2"></i>Creating Account...</span>
+                    </button>
+                </form>
+            </div>
+            
+            <div class="signup-links"><p>Already have an account? <a href="/login">Sign in here</a></p></div>
         </div>
     </div>
 
-    
-
-
     {% include 'footer.html' %}
     {% include 'scripts.html' %}
+    <script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}" async defer></script>
+    <script>
+let verifiedEmail = '';
+let resendCooldown = 0;
 
+function showMessage(type, message) {
+    const container = document.getElementById('message-container');
+    const icon = type === 'danger' ? 'exclamation-triangle' : 'check-circle';
+    container.innerHTML = '<div class="alert alert-' + type + '" role="alert"><i class="fas fa-' + icon + ' me-2"></i>' + message + '</div>';
+}
 
+function clearMessages() { document.getElementById('message-container').innerHTML = ''; }
 
-
-   <!-- ✅ Load reCAPTCHA API -->
-<script src="https://www.google.com/recaptcha/api.js?render={{ RECAPTCHA_SITE_KEY }}" async defer></script>
-
-
-<script>
-    document.addEventListener("DOMContentLoaded", function () {
-        const form = document.getElementById("signup-form");
-        const submitBtn = document.getElementById("signup-btn");
-        const btnText = submitBtn?.querySelector(".btn-text");
-        const btnLoading = submitBtn?.querySelector(".btn-loading");
+async function sendVerificationCode() {
+    const emailInput = document.getElementById('verification-email');
+    const email = emailInput.value.trim();
+    const btn = document.getElementById('send-code-btn');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoading = btn.querySelector('.btn-loading');
     
-        if (!form) {
-            console.error("❌ Form with ID 'signup-form' not found.");
-            return;
-        }
+    if (!email) { showMessage('danger', 'Please enter your email address.'); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) { showMessage('danger', 'Please enter a valid email address.'); return; }
     
-        form.addEventListener("submit", function (event) {
-            event.preventDefault(); // Stop default submission
-            console.log("🛑 Prevented form submission to inject reCAPTCHA token.");
-            
-            // Show loading state
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                if (btnText) btnText.classList.add("d-none");
-                if (btnLoading) btnLoading.classList.remove("d-none");
-            }
+    btn.disabled = true; btnText.classList.add('d-none'); btnLoading.classList.remove('d-none'); clearMessages();
     
-            grecaptcha.ready(function () {
-                grecaptcha.execute("{{ RECAPTCHA_SITE_KEY }}", { action: "signup" })
-                    .then(function (token) {
-                        console.log("✅ reCAPTCHA Token:", token);
+    try {
+        const response = await fetch('/api/auth/verify-email-domain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: email }) });
+        const data = await response.json();
+        if (data.success) {
+            verifiedEmail = email;
+            document.getElementById('display-email').textContent = email;
+            document.getElementById('step1-email-verification').classList.add('hidden');
+            document.getElementById('step1-code-entry').classList.remove('hidden');
+            document.querySelector('.verification-code-input').focus();
+            showMessage('success', 'Verification code sent! Check your email.');
+            startResendCooldown();
+        } else { showMessage('danger', data.error || 'Failed to send verification code.'); }
+    } catch (error) { console.error('Error:', error); showMessage('danger', 'An error occurred. Please try again.'); }
+    finally { btn.disabled = false; btnText.classList.remove('d-none'); btnLoading.classList.add('d-none'); }
+}
+
+function handleCodeInput(input) {
+    const value = input.value;
+    const index = parseInt(input.dataset.index);
+    input.value = value.replace(/[^0-9]/g, '');
+    if (input.value && index < 5) { const inputs = document.querySelectorAll('.verification-code-input'); inputs[index + 1].focus(); }
+    const inputs = document.querySelectorAll('.verification-code-input');
+    const code = Array.from(inputs).map(i => i.value).join('');
+    if (code.length === 6) { verifyCode(); }
+}
+
+function handleCodeKeydown(event, input) {
+    const index = parseInt(input.dataset.index);
+    if (event.key === 'Backspace' && !input.value && index > 0) { const inputs = document.querySelectorAll('.verification-code-input'); inputs[index - 1].focus(); }
+}
+
+async function verifyCode() {
+    const inputs = document.querySelectorAll('.verification-code-input');
+    const code = Array.from(inputs).map(i => i.value).join('');
+    const btn = document.getElementById('verify-code-btn');
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoading = btn.querySelector('.btn-loading');
     
-                        const recaptchaInput = document.getElementById("g-recaptcha-response");
+    if (code.length !== 6) { showMessage('danger', 'Please enter the complete 6-digit code.'); return; }
+    btn.disabled = true; btnText.classList.add('d-none'); btnLoading.classList.remove('d-none'); clearMessages();
     
-                        if (recaptchaInput) {
-                            recaptchaInput.value = token;
-                            console.log("✅ Token injected. Submitting form...");
-                            form.submit();
-                        } else {
-                            console.error("❌ Missing #g-recaptcha-response input.");
-                            // Reset button state on error
-                            if (submitBtn) {
-                                submitBtn.disabled = false;
-                                if (btnText) btnText.classList.remove("d-none");
-                                if (btnLoading) btnLoading.classList.add("d-none");
-                            }
-                        }
-                    })
-                    .catch(function (error) {
-                        console.error("❌ reCAPTCHA execution failed:", error);
-                        alert("reCAPTCHA validation failed. Please refresh and try again.");
-                        // Reset button state on error
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            if (btnText) btnText.classList.remove("d-none");
-                            if (btnLoading) btnLoading.classList.add("d-none");
-                        }
-                    });
+    try {
+        const response = await fetch('/api/auth/verify-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: verifiedEmail, code: code }) });
+        const data = await response.json();
+        if (data.success && data.verified) {
+            document.getElementById('step1-indicator').classList.remove('active');
+            document.getElementById('step1-indicator').classList.add('completed');
+            document.getElementById('step2-indicator').classList.add('active');
+            document.getElementById('step1-code-entry').classList.add('hidden');
+            document.getElementById('step2-signup-form').classList.remove('hidden');
+            document.getElementById('verified-email-input').value = verifiedEmail;
+            document.getElementById('verified-email-display').textContent = verifiedEmail;
+            showMessage('success', 'Email verified! Complete your registration below.');
+            document.querySelector('input[name="first_name"]').focus();
+        } else { showMessage('danger', data.error || 'Invalid verification code.'); inputs.forEach(i => i.value = ''); inputs[0].focus(); }
+    } catch (error) { console.error('Error:', error); showMessage('danger', 'An error occurred. Please try again.'); }
+    finally { btn.disabled = false; btnText.classList.remove('d-none'); btnLoading.classList.add('d-none'); }
+}
+
+async function resendCode() {
+    if (resendCooldown > 0) return;
+    const resendLink = document.getElementById('resend-link');
+    resendLink.classList.add('disabled');
+    try {
+        const response = await fetch('/api/auth/resend-code', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: verifiedEmail }) });
+        const data = await response.json();
+        if (data.success) { showMessage('success', 'New verification code sent!'); startResendCooldown(); }
+        else { showMessage('danger', data.error || 'Failed to resend code.'); resendLink.classList.remove('disabled'); }
+    } catch (error) { console.error('Error:', error); showMessage('danger', 'An error occurred.'); resendLink.classList.remove('disabled'); }
+}
+
+function startResendCooldown() {
+    resendCooldown = 60;
+    const resendLink = document.getElementById('resend-link');
+    const interval = setInterval(() => {
+        resendCooldown--;
+        if (resendCooldown > 0) { resendLink.textContent = 'Resend Code (' + resendCooldown + 's)'; resendLink.classList.add('disabled'); }
+        else { resendLink.textContent = 'Resend Code'; resendLink.classList.remove('disabled'); clearInterval(interval); }
+    }, 1000);
+}
+
+function goBackToEmail() {
+    document.getElementById('step1-code-entry').classList.add('hidden');
+    document.getElementById('step1-email-verification').classList.remove('hidden');
+    clearMessages();
+    document.querySelectorAll('.verification-code-input').forEach(i => i.value = '');
+}
+
+function toggleSignupPasswordVisibility() {
+    const passwordInput = document.getElementById("signupPassword");
+    const icon = document.getElementById("signupTogglePasswordIcon");
+    if (passwordInput.type === "password") { passwordInput.type = "text"; icon.classList.remove("fa-eye"); icon.classList.add("fa-eye-slash"); }
+    else { passwordInput.type = "password"; icon.classList.remove("fa-eye-slash"); icon.classList.add("fa-eye"); }
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("signup-form");
+    const submitBtn = document.getElementById("signup-btn");
+    const btnText = submitBtn ? submitBtn.querySelector(".btn-text") : null;
+    const btnLoading = submitBtn ? submitBtn.querySelector(".btn-loading") : null;
+    if (!form) return;
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        if (submitBtn) { submitBtn.disabled = true; if (btnText) btnText.classList.add("d-none"); if (btnLoading) btnLoading.classList.remove("d-none"); }
+        grecaptcha.ready(function () {
+            grecaptcha.execute("{{ RECAPTCHA_SITE_KEY }}", { action: "signup" }).then(function (token) {
+                const recaptchaInput = document.getElementById("g-recaptcha-response");
+                if (recaptchaInput) { recaptchaInput.value = token; form.submit(); }
+                else { if (submitBtn) { submitBtn.disabled = false; if (btnText) btnText.classList.remove("d-none"); if (btnLoading) btnLoading.classList.add("d-none"); } }
+            }).catch(function (error) {
+                console.error("reCAPTCHA execution failed:", error);
+                alert("reCAPTCHA validation failed. Please refresh and try again.");
+                if (submitBtn) { submitBtn.disabled = false; if (btnText) btnText.classList.remove("d-none"); if (btnLoading) btnLoading.classList.add("d-none"); }
             });
         });
     });
+});
     </script>
-    
-
-
-
-    
-
-    
-
-     
-
-
-
-
-
-
-
-
-
-    <script>
-        function toggleSignupPasswordVisibility() {
-            const passwordInput = document.getElementById("signupPassword");
-            const icon = document.getElementById("signupTogglePasswordIcon");
-            
-            if (passwordInput.type === "password") {
-                passwordInput.type = "text";
-                icon.classList.remove("fa-eye");
-                icon.classList.add("fa-eye-slash");
-            } else {
-                passwordInput.type = "password";
-                icon.classList.remove("fa-eye-slash");
-                icon.classList.add("fa-eye");
-            }
-        }
-        
-        // Enhanced form submission with loading state
-        document.addEventListener("DOMContentLoaded", function() {
-            const form = document.getElementById("signup-form");
-            const submitBtn = document.getElementById("signup-btn");
-            const btnText = submitBtn.querySelector(".btn-text");
-            const btnLoading = submitBtn.querySelector(".btn-loading");
-            
-            // Handle form submission loading state
-            if (form && submitBtn) {
-                form.addEventListener("submit", function() {
-                    submitBtn.disabled = true;
-                    btnText.classList.add("d-none");
-                    btnLoading.classList.remove("d-none");
-                });
-            }
-        });
-    </script>
-    
 </body>
