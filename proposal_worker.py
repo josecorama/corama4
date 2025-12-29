@@ -653,6 +653,446 @@ def find_and_process_contract_analysis_jobs(db, openai_client):
 
 
 # ============================================================================
+# NAICS ENRICHMENT JOB PROCESSING (Concurrent AI Prediction)
+# ============================================================================
+
+# Configuration for NAICS enrichment
+NAICS_ENRICHMENT_THREAD_POOL_SIZE = 8  # Concurrent AI predictions
+NAICS_ENRICHMENT_BATCH_SIZE = 50  # Contracts per batch
+
+def initialize_qdrant():
+    """Initialize Qdrant client for NAICS enrichment"""
+    from qdrant_client import QdrantClient
+    
+    qdrant_url = os.getenv('QDRANT_URL')
+    qdrant_api_key = os.getenv('QDRANT_API_KEY')
+    
+    if not qdrant_url or not qdrant_api_key:
+        raise RuntimeError("QDRANT_URL and QDRANT_API_KEY must be configured")
+    
+    return QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+
+
+def predict_naics_single(openai_client, contract: dict) -> dict:
+    """
+    Predict NAICS code and description for a single contract using OpenAI.
+    
+    Args:
+        openai_client: OpenAI client instance
+        contract: Dict with 'point_id', 'hash_value', 'bid_name', 'organization'
+    
+    Returns:
+        Dict with 'point_id', 'hash_value', 'naics_code', 'naics_description', 'success'
+    """
+    point_id = contract.get('point_id')
+    hash_value = contract.get('hash_value')
+    bid_name = contract.get('bid_name', '')
+    organization = contract.get('organization', '')
+    
+    try:
+        # Build the prompt
+        system_prompt = (
+            "You are an expert in US federal procurement classification. "
+            "Given a government contract bid name and organization, "
+            "determine the most likely NAICS code and its official description. "
+            "Use official US NAICS 2022 codes and descriptions. "
+            "Return ONLY a JSON object, no extra text."
+        )
+        
+        user_prompt = f"""Contract information:
+Bid Name: {bid_name}
+Organization: {organization}
+
+Requirements:
+- Output a JSON object with exactly these keys:
+  - "code": a single 6-digit NAICS code string (e.g. "332999")
+  - "description": the official NAICS description for that code (e.g. "All Other Miscellaneous Fabricated Metal Product Manufacturing")
+- ALWAYS provide a code and description based on your best guess from the bid name.
+- For cryptic titles like "30--ROD,PISTON" or part numbers, infer the industry from component names.
+- Use the OFFICIAL NAICS description, not a made-up one.
+- Do NOT include any explanation or text outside of the JSON."""
+        
+        response = openai_client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            max_tokens=150,
+            temperature=0.3
+        )
+        
+        content = response.choices[0].message.content.strip()
+        
+        # Parse JSON response
+        import json
+        data = json.loads(content)
+        code = data.get("code", "")
+        description = data.get("description", "")
+        
+        # Validate code is 6 digits
+        if not (isinstance(code, str) and code.isdigit() and len(code) == 6):
+            return {
+                'point_id': point_id,
+                'hash_value': hash_value,
+                'naics_code': None,
+                'naics_description': None,
+                'success': False,
+                'error': f"Invalid NAICS code format: {code}"
+            }
+        
+        logger.debug(f"[NAICS_WORKER] Predicted for '{bid_name[:40]}...': {code} - {description[:50]}...")
+        
+        return {
+            'point_id': point_id,
+            'hash_value': hash_value,
+            'naics_code': code,
+            'naics_description': description,
+            'success': True
+        }
+        
+    except Exception as e:
+        logger.warning(f"[NAICS_WORKER] Error predicting NAICS for point {point_id}: {e}")
+        return {
+            'point_id': point_id,
+            'hash_value': hash_value,
+            'naics_code': None,
+            'naics_description': None,
+            'success': False,
+            'error': str(e)
+        }
+
+
+def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> list:
+    """
+    Fetch contracts from Qdrant that need NAICS enrichment.
+    
+    Contracts need enrichment if:
+    - naics_code is missing/empty/null
+    - OR naics_description is "Other", "Unknown", etc.
+    
+    Returns list of dicts with contract info needed for prediction.
+    """
+    import hashlib
+    
+    try:
+        # Scroll through contracts and find those needing enrichment
+        contracts_to_enrich = []
+        offset = None
+        
+        while len(contracts_to_enrich) < batch_size:
+            result = qdrant_client.scroll(
+                collection_name="government_contracts",
+                limit=100,
+                offset=offset,
+                with_payload=True,
+                with_vectors=False
+            )
+            
+            points, next_offset = result
+            
+            if not points:
+                break
+            
+            for point in points:
+                payload = point.payload or {}
+                
+                # Check if NAICS code is missing
+                naics_code = payload.get('naics_code') or payload.get('NAICS Code') or ''
+                naics_desc = payload.get('naics_description') or payload.get('NAICS Description') or ''
+                
+                # Skip if already has valid NAICS
+                if naics_code and str(naics_code).strip() and str(naics_code).strip().lower() not in ('nan', 'none', 'null', ''):
+                    # Also check if description is valid
+                    if naics_desc and str(naics_desc).strip().lower() not in ('other', 'unknown', 'nan', 'none', 'null', ''):
+                        continue
+                
+                # Get bid name and organization for prediction
+                bid_name = (payload.get('bid_name') or payload.get('Bid Name') or 
+                           payload.get('title') or 'Unknown')
+                organization = (payload.get('organization') or payload.get('Organization') or 
+                               payload.get('agency') or 'Unknown')
+                
+                # Compute hash_value for caching
+                detail_link = payload.get('detail_link') or payload.get('Detail Link') or payload.get('source_url') or ''
+                bid_number = payload.get('bid_number') or payload.get('Bid Number') or payload.get('contract_number') or ''
+                hash_input = f"{detail_link}{bid_number}"
+                hash_value = hashlib.sha256(hash_input.encode()).hexdigest()
+                
+                contracts_to_enrich.append({
+                    'point_id': point.id,
+                    'hash_value': hash_value,
+                    'bid_name': bid_name,
+                    'organization': organization
+                })
+                
+                if len(contracts_to_enrich) >= batch_size:
+                    break
+            
+            offset = next_offset
+            if offset is None:
+                break
+        
+        logger.info(f"[NAICS_WORKER] Found {len(contracts_to_enrich)} contracts needing enrichment")
+        return contracts_to_enrich
+        
+    except Exception as e:
+        logger.error(f"[NAICS_WORKER] Error fetching contracts for enrichment: {e}")
+        return []
+
+
+def update_qdrant_with_naics(qdrant_client, results: list) -> tuple:
+    """
+    Update Qdrant contracts with predicted NAICS codes.
+    
+    Args:
+        qdrant_client: Qdrant client instance
+        results: List of prediction results from predict_naics_single
+    
+    Returns:
+        Tuple of (success_count, failure_count)
+    """
+    from qdrant_client.models import PointStruct
+    
+    success_count = 0
+    failure_count = 0
+    
+    for result in results:
+        if not result.get('success'):
+            failure_count += 1
+            continue
+        
+        try:
+            point_id = result['point_id']
+            naics_code = result['naics_code']
+            naics_description = result['naics_description']
+            
+            # Update the point's payload with NAICS data
+            qdrant_client.set_payload(
+                collection_name="government_contracts",
+                payload={
+                    'naics_code': naics_code,
+                    'naics_description': naics_description,
+                    'naics_enriched_at': time.time(),
+                    'naics_enriched_by': 'background_worker'
+                },
+                points=[point_id]
+            )
+            
+            success_count += 1
+            
+        except Exception as e:
+            logger.warning(f"[NAICS_WORKER] Error updating Qdrant for point {result.get('point_id')}: {e}")
+            failure_count += 1
+    
+    return success_count, failure_count
+
+
+def process_naics_enrichment_job(db, openai_client, job_id: str, job_data: dict):
+    """
+    Process a NAICS enrichment job with concurrent AI predictions.
+    
+    This job:
+    1. Fetches contracts needing NAICS enrichment from Qdrant
+    2. Uses a thread pool to predict NAICS codes concurrently
+    3. Updates Qdrant with the predictions
+    4. Reports progress to Firebase
+    """
+    logger.info(f"[NAICS_WORKER] Processing NAICS enrichment job {job_id}")
+    
+    try:
+        # Update job status
+        job_ref = db.reference(f'naics_enrichment_jobs/{job_id}')
+        job_ref.update({
+            'status': 'running',
+            'started_at': time.time(),
+            'progress': 'Initializing...'
+        })
+        
+        # Get job parameters
+        batch_size = job_data.get('batch_size', NAICS_ENRICHMENT_BATCH_SIZE)
+        max_contracts = job_data.get('max_contracts', 500)  # Limit per job run
+        
+        # Initialize Qdrant
+        qdrant_client = initialize_qdrant()
+        
+        total_processed = 0
+        total_success = 0
+        total_failure = 0
+        
+        while total_processed < max_contracts and not shutdown_requested:
+            # Fetch batch of contracts needing enrichment
+            job_ref.update({'progress': f'Fetching contracts (processed: {total_processed})...'})
+            contracts = fetch_contracts_needing_enrichment(qdrant_client, batch_size)
+            
+            if not contracts:
+                logger.info(f"[NAICS_WORKER] No more contracts need enrichment")
+                break
+            
+            # Process batch with thread pool
+            job_ref.update({'progress': f'Processing batch of {len(contracts)} contracts...'})
+            logger.info(f"[NAICS_WORKER] Processing batch of {len(contracts)} contracts with {NAICS_ENRICHMENT_THREAD_POOL_SIZE} threads")
+            
+            results = []
+            with ThreadPoolExecutor(max_workers=NAICS_ENRICHMENT_THREAD_POOL_SIZE) as executor:
+                # Submit all predictions to thread pool
+                future_to_contract = {
+                    executor.submit(predict_naics_single, openai_client, contract): contract
+                    for contract in contracts
+                }
+                
+                # Collect results as they complete
+                for future in as_completed(future_to_contract):
+                    try:
+                        result = future.result()
+                        results.append(result)
+                    except Exception as e:
+                        contract = future_to_contract[future]
+                        logger.warning(f"[NAICS_WORKER] Thread error for point {contract.get('point_id')}: {e}")
+                        results.append({
+                            'point_id': contract.get('point_id'),
+                            'success': False,
+                            'error': str(e)
+                        })
+            
+            # Update Qdrant with results
+            job_ref.update({'progress': f'Updating Qdrant with {len(results)} predictions...'})
+            success, failure = update_qdrant_with_naics(qdrant_client, results)
+            
+            total_processed += len(contracts)
+            total_success += success
+            total_failure += failure
+            
+            # Update progress
+            job_ref.update({
+                'progress': f'Processed {total_processed} contracts ({total_success} success, {total_failure} failed)',
+                'contracts_processed': total_processed,
+                'contracts_success': total_success,
+                'contracts_failed': total_failure,
+                'last_heartbeat': time.time()
+            })
+            
+            logger.info(f"[NAICS_WORKER] Batch complete: {success} success, {failure} failed (total: {total_processed})")
+        
+        # Mark job as completed
+        job_ref.update({
+            'status': 'completed',
+            'completed_at': time.time(),
+            'progress': f'Completed: {total_success} enriched, {total_failure} failed',
+            'contracts_processed': total_processed,
+            'contracts_success': total_success,
+            'contracts_failed': total_failure
+        })
+        
+        logger.info(f"[NAICS_WORKER] Job {job_id} completed: {total_success} enriched, {total_failure} failed")
+        
+    except Exception as e:
+        logger.error(f"[NAICS_WORKER] Job {job_id} failed: {e}", exc_info=True)
+        try:
+            job_ref = db.reference(f'naics_enrichment_jobs/{job_id}')
+            job_ref.update({
+                'status': 'error',
+                'error': str(e),
+                'failed_at': time.time()
+            })
+        except:
+            pass
+
+
+def claim_naics_enrichment_job(db, job_id: str) -> bool:
+    """Attempt to claim a NAICS enrichment job"""
+    job_ref = db.reference(f'naics_enrichment_jobs/{job_id}')
+    
+    def claim_transaction(current_data):
+        if current_data is None:
+            return None
+        
+        if current_data.get('status') != 'queued':
+            return None
+        
+        lease_expires = current_data.get('lease_expires_at', 0)
+        if lease_expires > time.time():
+            return None
+        
+        current_data['status'] = 'running'
+        current_data['claimed_by'] = WORKER_ID
+        current_data['lease_expires_at'] = time.time() + LEASE_DURATION
+        current_data['started_at'] = time.time()
+        
+        return current_data
+    
+    try:
+        result = job_ref.transaction(claim_transaction)
+        if result and result.get('claimed_by') == WORKER_ID:
+            logger.info(f"[NAICS_WORKER] Claimed job {job_id}")
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"[NAICS_WORKER] Error claiming job {job_id}: {e}")
+        return False
+
+
+def find_and_process_naics_enrichment_jobs(db, openai_client):
+    """Find queued NAICS enrichment jobs and process one"""
+    try:
+        jobs_ref = db.reference('naics_enrichment_jobs')
+        all_jobs = jobs_ref.get() or {}
+        
+        for job_id, job_data in all_jobs.items():
+            if shutdown_requested:
+                break
+            
+            status = job_data.get('status')
+            
+            # Check for abandoned jobs
+            if status == 'running':
+                lease_expires = job_data.get('lease_expires_at', 0)
+                if lease_expires < time.time():
+                    logger.info(f"[NAICS_WORKER] Found abandoned job {job_id}, resetting to queued")
+                    jobs_ref.child(job_id).update({'status': 'queued'})
+                    status = 'queued'
+                else:
+                    continue
+            
+            if status != 'queued':
+                continue
+            
+            if claim_naics_enrichment_job(db, job_id):
+                process_naics_enrichment_job(db, openai_client, job_id, job_data)
+                return True
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"[NAICS_WORKER] Error finding jobs: {e}", exc_info=True)
+        return False
+
+
+def cleanup_stale_naics_enrichment_jobs(db):
+    """Clean up NAICS enrichment jobs that have been running too long"""
+    try:
+        jobs_ref = db.reference('naics_enrichment_jobs')
+        all_jobs = jobs_ref.get() or {}
+        
+        current_time = time.time()
+        stale_threshold = LEASE_DURATION * 2  # 20 minutes
+        
+        for job_id, job_data in all_jobs.items():
+            if job_data.get('status') == 'running':
+                started_at = job_data.get('started_at', 0)
+                if current_time - started_at > stale_threshold:
+                    logger.warning(f"[NAICS_WORKER] Marking stale job {job_id} as failed")
+                    jobs_ref.child(job_id).update({
+                        'status': 'error',
+                        'error': 'Worker timeout - job was abandoned',
+                        'failed_at': current_time
+                    })
+                    
+    except Exception as e:
+        logger.error(f"[NAICS_WORKER] Error cleaning up stale jobs: {e}")
+
+
+# ============================================================================
 # PROPOSAL GENERATION JOB PROCESSING
 # ============================================================================
 
@@ -983,7 +1423,7 @@ def cleanup_stale_contract_analysis_jobs(db):
 
 
 def main():
-    """Main worker loop - processes both proposal and contract analysis jobs"""
+    """Main worker loop - processes proposal, contract analysis, and NAICS enrichment jobs"""
     global shutdown_requested
     
     # Set up signal handlers
@@ -991,7 +1431,7 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     
     logger.info(f"Starting background worker {WORKER_ID}")
-    logger.info("Supported job types: proposal_jobs, contract_analysis_jobs")
+    logger.info("Supported job types: proposal_jobs, contract_analysis_jobs, naics_enrichment_jobs")
     
     # Initialize services
     try:
@@ -1009,7 +1449,7 @@ def main():
         try:
             job_processed = False
             
-            # Try to process a proposal job first
+            # Try to process a proposal job first (highest priority)
             if not job_processed:
                 job_processed = find_and_process_jobs(db, openai_client)
             
@@ -1017,11 +1457,16 @@ def main():
             if not job_processed:
                 job_processed = find_and_process_contract_analysis_jobs(db, openai_client)
             
+            # Try to process a NAICS enrichment job (lower priority, runs when idle)
+            if not job_processed:
+                job_processed = find_and_process_naics_enrichment_jobs(db, openai_client)
+            
             # Periodically clean up stale jobs (every 10 iterations)
             cleanup_counter += 1
             if cleanup_counter >= 10:
                 cleanup_stale_jobs(db)
                 cleanup_stale_contract_analysis_jobs(db)
+                cleanup_stale_naics_enrichment_jobs(db)
                 cleanup_counter = 0
             
             # If no job was processed, wait before polling again

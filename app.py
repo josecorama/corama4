@@ -5334,6 +5334,118 @@ def backfill_naics_api():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/queue_naics_enrichment', methods=['POST'])
+def queue_naics_enrichment_api():
+    """
+    Queue a NAICS enrichment job for background processing.
+    
+    This endpoint creates a job in Firebase that the background worker will pick up
+    and process concurrently using a thread pool. This is the recommended way to
+    enrich contracts with AI-predicted NAICS codes without blocking the web service.
+    
+    Request body (optional):
+    {
+        "batch_size": 50,      // Contracts per batch (default: 50)
+        "max_contracts": 500   // Max contracts to process in this job (default: 500)
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "job_id": "...",
+        "message": "NAICS enrichment job queued"
+    }
+    """
+    import uuid
+    
+    try:
+        # Verify admin access (optional - can be removed if you want any user to trigger)
+        admin_secret = request.headers.get('X-Admin-Secret')
+        expected_secret = os.getenv('ADMIN_SECRET_KEY')
+        if expected_secret and admin_secret != expected_secret:
+            return jsonify({"success": False, "error": "Unauthorized"}), 401
+        
+        data = request.get_json() or {}
+        batch_size = data.get('batch_size', 50)
+        max_contracts = data.get('max_contracts', 500)
+        
+        # Validate parameters
+        if not isinstance(batch_size, int) or batch_size < 1 or batch_size > 100:
+            return jsonify({"success": False, "error": "batch_size must be between 1 and 100"}), 400
+        if not isinstance(max_contracts, int) or max_contracts < 1 or max_contracts > 5000:
+            return jsonify({"success": False, "error": "max_contracts must be between 1 and 5000"}), 400
+        
+        # Create job in Firebase
+        job_id = str(uuid.uuid4())
+        job_data = {
+            'status': 'queued',
+            'created_at': time.time(),
+            'batch_size': batch_size,
+            'max_contracts': max_contracts,
+            'requested_by': session.get('email', 'api'),
+            'contracts_processed': 0,
+            'contracts_success': 0,
+            'contracts_failed': 0
+        }
+        
+        # Use Firebase Admin SDK to create the job
+        try:
+            from firebase_admin import db as admin_db
+            job_ref = admin_db.reference(f'naics_enrichment_jobs/{job_id}')
+            job_ref.set(job_data)
+            app.logger.info(f"[NAICS_ENRICHMENT] Queued job {job_id} (batch_size={batch_size}, max={max_contracts})")
+        except Exception as fb_error:
+            app.logger.error(f"[NAICS_ENRICHMENT] Failed to create job in Firebase: {fb_error}")
+            return jsonify({"success": False, "error": f"Failed to create job: {str(fb_error)}"}), 500
+        
+        return jsonify({
+            "success": True,
+            "job_id": job_id,
+            "message": f"NAICS enrichment job queued (batch_size={batch_size}, max_contracts={max_contracts})",
+            "status_endpoint": f"/api/naics_enrichment_status/{job_id}"
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[NAICS_ENRICHMENT] Error queuing job: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/naics_enrichment_status/<job_id>', methods=['GET'])
+def naics_enrichment_status_api(job_id):
+    """
+    Get the status of a NAICS enrichment job.
+    
+    Returns:
+    {
+        "success": true,
+        "job": {
+            "status": "running|completed|error|queued",
+            "progress": "...",
+            "contracts_processed": N,
+            "contracts_success": N,
+            "contracts_failed": N,
+            ...
+        }
+    }
+    """
+    try:
+        from firebase_admin import db as admin_db
+        job_ref = admin_db.reference(f'naics_enrichment_jobs/{job_id}')
+        job_data = job_ref.get()
+        
+        if not job_data:
+            return jsonify({"success": False, "error": "Job not found"}), 404
+        
+        return jsonify({
+            "success": True,
+            "job": job_data
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[NAICS_ENRICHMENT] Error getting job status: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/dashboard_search', methods=['POST'])
 def dashboard_search():
     """Search contracts for dashboard with real-time filtering and analytics update"""
