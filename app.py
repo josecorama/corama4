@@ -9959,6 +9959,28 @@ _dashboard_contracts_signature = None  # Signature to detect Qdrant changes
 _dashboard_contracts_last_check = 0  # Timestamp of last signature check
 _DASHBOARD_CACHE_TTL_SECONDS = 60  # Check signature at most once per 60 seconds
 
+# Lock and flag for async refresh to prevent concurrent refreshes and serve stale while refreshing
+_dashboard_refresh_lock = threading.Lock()
+_dashboard_refresh_in_progress = False
+
+# Fields to fetch from Qdrant for dashboard (reduces memory usage significantly)
+# These are the only fields needed by qdrant_payload_to_dashboard_contract()
+_DASHBOARD_PAYLOAD_FIELDS = [
+    # Primary fields (snake_case format)
+    "detail_link", "bid_number", "bid_name", "bid_description", "organization",
+    "due_date", "status", "state", "budget", "category", "notice_type",
+    "naics_code", "naics_codes_all", "naics_description", "source",
+    # Title Case with spaces format (some records use this)
+    "Detail Link", "Bid Number", "Bid Name", "Bid Description", "Organization",
+    "Due Date", "Status", "State", "Budget", "Category", "NAICS Code",
+    # Old format fields
+    "source_url", "contract_number", "title", "summary", "agency", "budget_estimate",
+    # NAICS fields
+    "NAICS_CODE", "NAICS_CODES_ALL", "NAICS_TITLE", "NAICS Description",
+    # Contract type for filtering
+    "Contract Type", "contract_type",
+]
+
 
 def _refresh_dashboard_contracts_cache():
     """
@@ -9966,13 +9988,14 @@ def _refresh_dashboard_contracts_cache():
     Builds the cache and hash index atomically to avoid race conditions.
     
     Uses paginated scrolling with batches of 500 to prevent worker timeouts
-    and reduce memory pressure. Continues until all contracts are fetched.
+    and reduce memory pressure. Only fetches fields needed for dashboard display
+    (not full payloads) to minimize memory usage.
     
     Returns:
         Tuple of (success: bool, signature: str or None)
     """
     global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
-    global _dashboard_contracts_signature
+    global _dashboard_contracts_signature, _dashboard_refresh_in_progress
     
     BATCH_SIZE = 500  # Fetch in smaller batches to prevent timeouts
     
@@ -9991,13 +10014,14 @@ def _refresh_dashboard_contracts_cache():
         points_count = collection_info.points_count
         current_signature = str(points_count)
         
-        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE}...")
+        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE} (limited payload fields)...")
         
         # Build new cache in local variables (atomic swap at the end)
         new_cache = []
         new_hash_index = {}
         
         # Paginated scroll - fetch all contracts in batches
+        # Use PayloadSelectorInclude to only fetch fields needed for dashboard (reduces memory significantly)
         next_offset = None
         batch_num = 0
         
@@ -10008,7 +10032,7 @@ def _refresh_dashboard_contracts_cache():
                 limit=BATCH_SIZE,
                 offset=next_offset,
                 with_vectors=False,
-                with_payload=True
+                with_payload=models.PayloadSelectorInclude(include=_DASHBOARD_PAYLOAD_FIELDS)
             )
             
             points, next_offset = scroll_result
@@ -10048,17 +10072,45 @@ def _refresh_dashboard_contracts_cache():
         return False, None
 
 
+def _async_refresh_dashboard_cache():
+    """
+    Background thread function to refresh dashboard cache.
+    Uses lock to prevent concurrent refreshes across threads.
+    """
+    global _dashboard_refresh_in_progress
+    
+    # Try to acquire lock - if another thread is refreshing, skip
+    if not _dashboard_refresh_lock.acquire(blocking=False):
+        logging.debug("[Dashboard Cache] Async refresh skipped - another refresh in progress")
+        return
+    
+    try:
+        _dashboard_refresh_in_progress = True
+        logging.info("[Dashboard Cache] Starting async background refresh...")
+        success, new_signature = _refresh_dashboard_contracts_cache()
+        if success:
+            logging.info(f"[Dashboard Cache] Async refresh completed (signature: {new_signature})")
+        else:
+            logging.warning("[Dashboard Cache] Async refresh failed")
+    finally:
+        _dashboard_refresh_in_progress = False
+        _dashboard_refresh_lock.release()
+
+
 def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
     """
     Fetch contracts from Qdrant for dashboard display with pagination.
     Uses module-level caching with signature-based invalidation.
     
     The cache automatically refreshes when:
-    - First request (cache is None)
-    - Qdrant collection signature changes (new contracts added/deleted)
+    - First request (cache is None) - blocks until cache is populated
+    - Qdrant collection signature changes (new contracts added/deleted) - async refresh, serves stale
     
     Signature is checked at most once per TTL period (60 seconds) to avoid
     excessive Qdrant API calls under load.
+    
+    When cache exists but is stale, serves stale data immediately while
+    triggering a background refresh. This prevents worker timeouts.
     
     Args:
         page: Page number (1-indexed)
@@ -10073,44 +10125,45 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
     import time
     current_time = time.time()
     
-    # Determine if we need to check for cache invalidation
-    needs_refresh = False
-    
+    # Case 1: Cache is empty - must block and initialize
     if _dashboard_contracts_cache is None:
-        # First request - must initialize cache
-        logging.info("[Dashboard Cache] Cache is empty, initializing...")
-        needs_refresh = True
+        logging.info("[Dashboard Cache] Cache is empty, initializing synchronously...")
+        with _dashboard_refresh_lock:
+            # Double-check after acquiring lock (another thread may have initialized)
+            if _dashboard_contracts_cache is None:
+                success, new_signature = _refresh_dashboard_contracts_cache()
+                _dashboard_contracts_last_check = current_time
+                
+                if not success:
+                    _dashboard_contracts_cache = []
+                    _dashboard_contracts_total = 0
+                    _dashboard_contracts_hash_index = {}
+                    return [], 0, 0
+    
+    # Case 2: Cache exists - check if stale and trigger async refresh if needed
     elif current_time - _dashboard_contracts_last_check >= _DASHBOARD_CACHE_TTL_SECONDS:
-        # TTL expired - check if signature changed
         _dashboard_contracts_last_check = current_time
         current_signature = get_qdrant_collection_signature()
         
         if current_signature is not None and current_signature != _dashboard_contracts_signature:
-            logging.info(f"[Dashboard Cache] Signature changed ({_dashboard_contracts_signature} -> {current_signature}), refreshing cache...")
-            needs_refresh = True
+            # Signature changed - trigger async refresh but serve stale data immediately
+            if not _dashboard_refresh_in_progress:
+                logging.info(f"[Dashboard Cache] Signature changed ({_dashboard_contracts_signature} -> {current_signature}), triggering async refresh...")
+                refresh_thread = threading.Thread(target=_async_refresh_dashboard_cache, daemon=True)
+                refresh_thread.start()
+            else:
+                logging.debug("[Dashboard Cache] Signature changed but refresh already in progress")
         else:
             logging.debug(f"[Dashboard Cache] Signature unchanged ({current_signature}), using cached data")
     
-    if needs_refresh:
-        success, new_signature = _refresh_dashboard_contracts_cache()
-        _dashboard_contracts_last_check = current_time
-        
-        if not success:
-            # If refresh failed and we have no cache, return empty
-            if _dashboard_contracts_cache is None:
-                _dashboard_contracts_cache = []
-                _dashboard_contracts_total = 0
-                _dashboard_contracts_hash_index = {}
-                return [], 0, 0
-    
-    # Paginate the cached contracts
+    # Paginate the cached contracts (always returns immediately with current cache)
     total_contracts = _dashboard_contracts_total
     total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
     
     start = (page - 1) * items_per_page
     end = start + items_per_page
     
-    paginated_contracts = _dashboard_contracts_cache[start:end]
+    paginated_contracts = _dashboard_contracts_cache[start:end] if _dashboard_contracts_cache else []
     
     logging.debug(f"[Dashboard Cache] Page {page}/{total_pages}: returning {len(paginated_contracts)} contracts")
     return paginated_contracts, total_contracts, total_pages
