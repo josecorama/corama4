@@ -9965,14 +9965,16 @@ def _refresh_dashboard_contracts_cache():
     Internal function to refresh the dashboard contracts cache from Qdrant.
     Builds the cache and hash index atomically to avoid race conditions.
     
-    Dynamically determines the scroll limit based on the collection's points_count
-    to ensure all contracts are fetched regardless of collection size.
+    Uses paginated scrolling with batches of 500 to prevent worker timeouts
+    and reduce memory pressure. Continues until all contracts are fetched.
     
     Returns:
         Tuple of (success: bool, signature: str or None)
     """
     global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
     global _dashboard_contracts_signature
+    
+    BATCH_SIZE = 500  # Fetch in smaller batches to prevent timeouts
     
     try:
         qdrant_url = os.getenv('QDRANT_URL')
@@ -9984,38 +9986,53 @@ def _refresh_dashboard_contracts_cache():
         
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         
-        # Get collection info to determine dynamic limit
+        # Get collection info for signature
         collection_info = client.get_collection("government_contracts")
         points_count = collection_info.points_count
         current_signature = str(points_count)
         
-        # Dynamic limit: actual count + 10% buffer for safety, minimum 1000
-        scroll_limit = max(1000, int(points_count * 1.1))
+        logging.info(f"[Dashboard Cache] Fetching {points_count} contracts from Qdrant in batches of {BATCH_SIZE}...")
         
-        logging.info(f"[Dashboard Cache] Fetching contracts from Qdrant (points_count: {points_count}, scroll_limit: {scroll_limit})...")
-        scroll_result = client.scroll(
-            collection_name="government_contracts",
-            limit=scroll_limit,
-            with_vectors=False,
-            with_payload=True
-        )
-        
-        points = scroll_result[0]  # scroll returns (points, next_page_offset)
-        
-        # Build new cache in local variables (atomic swap)
+        # Build new cache in local variables (atomic swap at the end)
         new_cache = []
         new_hash_index = {}
         
-        for point in points:
-            contract = qdrant_payload_to_dashboard_contract(
-                point.payload,
-                point_id=point.id,
-                score=None
+        # Paginated scroll - fetch all contracts in batches
+        next_offset = None
+        batch_num = 0
+        
+        while True:
+            batch_num += 1
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=BATCH_SIZE,
+                offset=next_offset,
+                with_vectors=False,
+                with_payload=True
             )
-            new_cache.append(contract)
-            h = contract.get('hash_value')
-            if h:
-                new_hash_index[h] = contract
+            
+            points, next_offset = scroll_result
+            
+            if not points:
+                break
+            
+            # Process this batch
+            for point in points:
+                contract = qdrant_payload_to_dashboard_contract(
+                    point.payload,
+                    point_id=point.id,
+                    score=None
+                )
+                new_cache.append(contract)
+                h = contract.get('hash_value')
+                if h:
+                    new_hash_index[h] = contract
+            
+            logging.debug(f"[Dashboard Cache] Batch {batch_num}: fetched {len(points)} contracts (total so far: {len(new_cache)})")
+            
+            # If no more pages, we're done
+            if next_offset is None:
+                break
         
         # Atomic swap of globals
         _dashboard_contracts_cache = new_cache
@@ -10023,7 +10040,7 @@ def _refresh_dashboard_contracts_cache():
         _dashboard_contracts_hash_index = new_hash_index
         _dashboard_contracts_signature = current_signature
         
-        logging.info(f"[Dashboard Cache] Cached {_dashboard_contracts_total} contracts (signature: {current_signature}, hash index: {len(new_hash_index)} entries)")
+        logging.info(f"[Dashboard Cache] Cached {_dashboard_contracts_total} contracts in {batch_num} batches (signature: {current_signature}, hash index: {len(new_hash_index)} entries)")
         return True, current_signature
         
     except Exception as e:
