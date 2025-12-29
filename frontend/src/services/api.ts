@@ -122,9 +122,23 @@ class ApiService {
     return data.user;
   }
 
-  // Contracts
-  async getContracts(page: number = 1): Promise<{contracts: Contract[], total_pages: number, total_contracts: number, top_categories?: {name: string, count: number, percentage: number}[]}> {
-    const res = await fetch(`${API_BASE()}/contracts?page=${page}`);
+  // Contracts - with cursor-based pagination support
+  async getContracts(
+    page: number = 1, 
+    limit: number = 50, 
+    cursor?: string
+  ): Promise<{
+    contracts: Contract[], 
+    total_pages: number, 
+    total_contracts: number, 
+    next_cursor?: string | null,
+    has_more?: boolean,
+    top_categories?: {name: string, count: number, percentage: number}[]
+  }> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (cursor) params.append('cursor', cursor);
+    
+    const res = await fetch(`${API_BASE()}/contracts?${params}`);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';

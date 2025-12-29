@@ -3562,12 +3562,6 @@ def handle_multiple_file_uploads(files):
 
 
 # CS GENERATION
-@app.route('/form')
-def form():
-    return render_template('form.html')
-
-
-# CS GENERATION
 def remove_non_helvetica_unicode(text):
     # Define the pattern for characters in the Basic Latin (U+0000 to U+007F) and Latin-1 Supplement (U+0080 to U+00FF) Unicode blocks
     helvetica_supported_pattern = re.compile(r'[^\x00-\xFF]+')
@@ -4156,24 +4150,6 @@ def Landingpage():
     return send_from_directory(app_dir, 'index.html')
 
 
-#ABOUT US PAGE  ROUTE FUNCTION
-@app.route('/aboutus', methods=['GET'])
-def Aboutus():
-    if 'user' not in session:
-        return render_template('aboutUs.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-
-
-    return render_template('aboutUs.html')
-
-
-
-
 
 @app.route('/top_five_results')
 def top_five_results():
@@ -4182,386 +4158,9 @@ def top_five_results():
         return redirect(url_for('Login'))
     return redirect('/app/top-five-contracts')
 
-@app.route('/contracts', methods=['GET'])
-def Contracts():
-    try:
-        # ---------------------------------------------------------------------
-        # STEP A: Ensure there's a user in session
-        # ---------------------------------------------------------------------
-        if 'user' not in session:
-            return redirect(url_for('Login'))
 
-        # Extract user info from session
-        user = session['user']
-        user_id = user['localId']
 
-        # ---------------------------------------------------------------------
-        # STEP B: Refresh the Firebase token
-        #        (Same approach used in /smartsearch and /welcome)
-        # ---------------------------------------------------------------------
-        try:
-            user_logged_in = auth.refresh(user['refreshToken'])
-            logging.info(f"Token refreshed successfully for user ID: {user_id}")
-        except Exception as token_error:
-            logging.error(f"Token refresh failed for user ID {user_id}: {token_error}")
-            return render_template('error.html', error="Session expired. Please log in again.")
 
-        # ---------------------------------------------------------------------
-        # STEP C: Retrieve user data from Firebase
-        # ---------------------------------------------------------------------
-        user_data = None
-        for _ in range(2):  # attempt a retry if needed
-            try:
-                user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-                if user_data:
-                    break
-            except Exception as data_error:
-                logging.warning(f"Retrying Firebase fetch for user {user_id}: {data_error}")
-
-        if not user_data:
-            logging.error(f"No user data found in Firebase for user ID {user_id}")
-            return render_template('error.html', error="Error retrieving user data. Contact support.")
-
-        logging.info(f"✅ FREE ACCESS granted to /contracts for user {user_id} - Contract Radar Maximizer is completely free!")
-
-        # ---------------------------------------------------------------------
-        # STEP E: Original Contracts Logic (UNCHANGED)
-        # ---------------------------------------------------------------------
-        user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-        cs_name = None
-        top_matches = []
-        filtered_bids = []
-        unique_categories = set()
-
-        # Attempt to get the name of the uploaded capability statement (PDF)
-        for filename in os.listdir(user_uploads_dir):
-            if filename.lower().endswith('.pdf'):
-                cs_name = filename
-                break
-
-        # Choose the matches file:
-        # Prioritize matches.csv (updated by top-5 capability statement search)
-        # over matches_SMART_SEARCH.csv
-        rag_matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-        smart_search_matches_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-        if os.path.exists(rag_matches_file):
-            matches_file_path = rag_matches_file
-        elif os.path.exists(smart_search_matches_file):
-            matches_file_path = smart_search_matches_file
-        else:
-            matches_file_path = None
-
-        # Load top matches (limit to top 5) if a matches file exists
-        if matches_file_path:
-            try:
-                with open(matches_file_path, 'r', encoding='utf-8') as file:
-                    reader = csv.DictReader(file)
-                    top_matches = sorted(
-                        list(reader),
-                        key=lambda x: float(x.get('Similarity_Score', '0').replace('%', '').strip()),
-                        reverse=True
-                    )[:5]
-            except Exception as e:
-                app.logger.error(f"Error loading matches file: {matches_file_path}. Error: {e}")
-                top_matches = []
-
-        # Load all bids from embedded_bids.csv
-        embedded_bids_file = os.path.join(user_uploads_dir, 'embedded_bids.csv')
-        if os.path.exists(embedded_bids_file):
-            try:
-                with open(embedded_bids_file, 'r', encoding='utf-8') as file:
-                    reader = csv.DictReader(file)
-                    embedded_bids = list(reader)
-                    for bid in embedded_bids:
-                        if bid.get('Category'):
-                            unique_categories.add(bid['Category'])
-                    filtered_bids = embedded_bids
-            except Exception as e:
-                app.logger.error(f"Error loading embedded_bids.csv: {e}", exc_info=True)
-                embedded_bids = []
-
-        # Optionally, apply filters based on URL query parameters
-        budget_filter = request.args.get('budget')
-        category_filter = request.args.get('category')
-        due_date_filter = request.args.get('due_date')
-        match_percentage_filter = request.args.get('match_percentage')
-
-        if budget_filter:
-            min_budget, max_budget = map(float, budget_filter.split('-'))
-            filtered_bids = [
-                bid for bid in filtered_bids
-                if budget_in_range(bid.get('Budget'), min_budget, max_budget)
-            ]
-
-        if category_filter:
-            filtered_bids = [bid for bid in filtered_bids if bid.get('Category') == category_filter]
-
-        if due_date_filter:
-            def is_due_in_range(due_date_str, days):
-                try:
-                    bid_due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-                    end_date = datetime.now() + timedelta(days=days)
-                    return bid_due_date <= end_date
-                except ValueError:
-                    return False
-
-            if due_date_filter == "open_until_contracted":
-                filtered_bids = [bid for bid in filtered_bids if bid.get('Due Date') == "Open Until Contracted"]
-            elif due_date_filter != "all":
-                days = int(due_date_filter)
-                filtered_bids = [bid for bid in filtered_bids if is_due_in_range(bid.get('Due Date'), days)]
-
-        if match_percentage_filter:
-            min_match, max_match = map(float, match_percentage_filter.split('-'))
-            filtered_bids = [
-                bid for bid in filtered_bids
-                if percentage_in_range(bid.get('Match_Percentage', '0'), min_match, max_match)
-            ]
-
-        return render_template(
-            'contracts.html',
-            cs_name=cs_name if cs_name else 'No file uploaded',
-            matches=top_matches,
-            embedded_bids=filtered_bids,
-            categories=sorted(unique_categories)
-        )
-
-    except Exception as e:
-        logging.error(f"Unexpected error in /contracts route: {e}", exc_info=True)
-        return render_template('error.html', error="An unexpected error occurred in /contracts.")
-
-
-
-
-
-
-
-
-#contracts for rag and smart search 
-@app.route('/contractsSmartSearch', methods=['GET'])
-def ContractsSmartSearch():
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-    # Initialize variables for matches and uploaded capability statement
-    cs_name = None
-    top_matches = []
-    filtered_bids = []
-    unique_categories = set()
-
-    # Get the name of the last uploaded capability statement
-    for filename in os.listdir(user_uploads_dir):
-        if filename.endswith('.pdf'):
-            cs_name = filename
-            break
-
-    # Load matches from `matches_SMART_SEARCH.csv` if it exists
-    smart_search_matches_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-    rag_matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-
-    if os.path.exists(smart_search_matches_file):
-        matches_file_path = smart_search_matches_file
-        cs_name = "Smart Search Results"
-    elif os.path.exists(rag_matches_file):
-        matches_file_path = rag_matches_file
-    else:
-        matches_file_path = None
-
-    # Load matches.csv for top matches if a matches file exists
-    if matches_file_path:
-        try:
-            with open(matches_file_path, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                top_matches = sorted(
-                    list(reader),
-                    key=lambda x: float(x.get('Similarity_Score', '0').replace('%', '').strip()),
-                    reverse=True
-                )[:5]  # Limit to top 5 matches
-        except Exception as e:
-            app.logger.error(f"Error loading matches file: {matches_file_path}. Error: {e}")
-            top_matches = []
-
-    # Load all bids from `embedded_bids.csv`
-    embedded_bids_file = os.path.join(user_uploads_dir, 'embedded_bids.csv')
-
-    if os.path.exists(embedded_bids_file):
-        try:
-            with open(embedded_bids_file, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                embedded_bids = list(reader)
-                for bid in embedded_bids:
-                    if bid.get('Category'):
-                        unique_categories.add(bid['Category'])
-                filtered_bids = embedded_bids
-        except Exception as e:
-            app.logger.error(f"Error loading embedded_bids.csv: {e}", exc_info=True)
-            embedded_bids = []
-
-    # Apply filters to embedded bids if requested
-    budget_filter = request.args.get('budget')
-    category_filter = request.args.get('category')
-    due_date_filter = request.args.get('due_date')
-    match_percentage_filter = request.args.get('match_percentage')
-
-    if budget_filter:
-        min_budget, max_budget = map(float, budget_filter.split('-'))
-        filtered_bids = [bid for bid in filtered_bids if budget_in_range(bid.get('Budget'), min_budget, max_budget)]
-
-    if category_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Category') == category_filter]
-
-    if due_date_filter:
-        def is_due_in_range(due_date_str, days):
-            try:
-                bid_due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-                end_date = datetime.now() + timedelta(days=days)
-                return bid_due_date <= end_date
-            except ValueError:
-                return False
-
-        if due_date_filter == "open_until_contracted":
-            filtered_bids = [bid for bid in filtered_bids if bid.get('Due Date') == "Open Until Contracted"]
-        elif due_date_filter != "all":
-            days = int(due_date_filter)
-            filtered_bids = [bid for bid in filtered_bids if is_due_in_range(bid.get('Due Date'), days)]
-
-    if match_percentage_filter:
-        min_match, max_match = map(float, match_percentage_filter.split('-'))
-        filtered_bids = [
-            bid for bid in filtered_bids
-            if percentage_in_range(bid.get('Match_Percentage', '0'), min_match, max_match)
-        ]
-
-    # Render contracts.html with all necessary data
-    return render_template(
-        'contractsSmartSearch.html',
-        cs_name=cs_name if cs_name else 'No file uploaded',
-        matches=top_matches,
-        embedded_bids=filtered_bids,
-        categories=sorted(unique_categories)
-    )
-
-
-
-
-
-
-
-
-
-#contracts for rag and smart search 
-# contracts for RAG and SMART search
-@app.route('/contractsAll', methods=['GET'])
-def ContractsAll():
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-    # Initialize variables for matches and uploaded capability statement
-    cs_name = None
-    top_matches = []
-    filtered_bids = []
-    unique_categories = set()
-    unique_industries = set()
-    unique_organizations = set()
-    unique_departments = set()  # FIXED: Departments were not being populated
-
-    # Get the name of the last uploaded capability statement
-    for filename in os.listdir(user_uploads_dir):
-        if filename.endswith('.pdf'):
-            cs_name = filename
-            break
-
-    # Load all bids from `embedded_bids.csv`
-    embedded_bids_file = os.path.join(user_uploads_dir, 'embedded_bids.csv')
-
-    if os.path.exists(embedded_bids_file):
-        try:
-            with open(embedded_bids_file, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                embedded_bids = list(reader)
-                for bid in embedded_bids:
-                    if bid.get('Category'):
-                        unique_categories.add(bid['Category'])
-                    if bid.get('Industry'):
-                        unique_industries.add(bid['Industry'])
-                    if bid.get('Organization'):
-                        unique_organizations.add(bid['Organization'])
-                    if bid.get('Department'):  # FIXED: Now extracting departments
-                        unique_departments.add(bid['Department'])
-                filtered_bids = embedded_bids
-        except Exception as e:
-            app.logger.error(f"Error loading embedded_bids.csv: {e}", exc_info=True)
-            embedded_bids = []
-
-    # Apply filters to embedded bids if requested
-    budget_filter = request.args.get('budget')
-    category_filter = request.args.get('category')
-    due_date_filter = request.args.get('due_date')
-    match_percentage_filter = request.args.get('match_percentage')
-    industry_filter = request.args.get('industry')
-    organization_filter = request.args.get('organization')
-    department_filter = request.args.get('department')
-
-    if budget_filter:
-        min_budget, max_budget = map(float, budget_filter.split('-'))
-        filtered_bids = [bid for bid in filtered_bids if budget_in_range(bid.get('Budget'), min_budget, max_budget)]
-
-    if category_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Category') == category_filter]
-
-    if due_date_filter:
-        def is_due_in_range(due_date_str, days):
-            try:
-                bid_due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-                end_date = datetime.now() + timedelta(days=days)
-                return bid_due_date <= end_date
-            except ValueError:
-                return False
-
-        if due_date_filter == "open_until_contracted":
-            filtered_bids = [bid for bid in filtered_bids if bid.get('Due Date') == "Open Until Contracted"]
-        elif due_date_filter != "all":
-            days = int(due_date_filter)
-            filtered_bids = [bid for bid in filtered_bids if is_due_in_range(bid.get('Due Date'), days)]
-
-    if match_percentage_filter:
-        min_match, max_match = map(float, match_percentage_filter.split('-'))
-        filtered_bids = [
-            bid for bid in filtered_bids
-            if percentage_in_range(bid.get('Match_Percentage', '0'), min_match, max_match)
-        ]
-
-    if industry_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Industry') == industry_filter]
-
-    if organization_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Organization') == organization_filter]
-
-    if department_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Department') == department_filter]
-
-    # Render contracts.html with all necessary data
-    return render_template(
-        'contractsAll.html',
-        cs_name=cs_name if cs_name else 'No file uploaded',
-        matches=top_matches,
-        embedded_bids=filtered_bids,
-        categories=sorted(unique_categories),
-        industries=sorted(unique_industries),
-        organizations=sorted(unique_organizations),
-        departments=sorted(unique_departments)  # FIXED: Passing the correct variable
-    )
 
 
 
@@ -4595,62 +4194,6 @@ def is_due_in_range(due_date_str, days):
         return False
 
 
-
-
-
-
-#UPDATED ON 2/20
-#Updated on 3/4/2025 with zirong's changes
-@app.route('/viewcontractdetails', methods=['GET'])
-def Viewcontractdetails():
-    hash_value_received = request.args.get('hash_value')
-    contract_details = None
-    user = session.get('user')
-    if not user:
-        return redirect(url_for('Login'))
-    user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
-    user_uploads_dir = os.path.abspath(user_data.get('uploads_dir', 'uploads/'))
-    app.logger.debug(f"用户上传目录: {user_uploads_dir}")
-    matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-    if os.path.exists(matches_file):
-        try:
-            with open(matches_file, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                app.logger.debug(f"CSV 列名: {reader.fieldnames}")
-                found_matches = 0
-                for row in reader:
-                    # 清理键名（以防存在空格问题）
-                    row = {k.strip(): v for k, v in row.items()}
-                    # 提取 Detail_Link 和 Bid_Number（兼容不同的列名）
-                    detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                    bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                    # 生成 hash 值
-                    hash_input = f"{detail_link}{bid_number}"
-                    computed_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                    app.logger.debug(f"计算哈希值: {computed_hash}, 合同编号: {bid_number}")
-                    found_matches += 1
-                    if computed_hash == hash_value_received:
-                        contract_details = row
-                        app.logger.info(f"找到匹配的合同: {bid_number}")
-                        break
-                app.logger.info(f"共检查了 {found_matches} 个合同")
-        except Exception as e:
-            app.logger.error(f"读取 CSV 文件错误: {str(e)}", exc_info=True)
-    else:
-        app.logger.warning(f"Matches 文件不存在: {matches_file}")
-    # 同样可以添加 embedded_bids.csv 的查找逻辑（如果需要）
-    if contract_details:
-        hash_value_received = request.args.get('hash_value')
-        # 确保字段存在，添加缺少的字段
-        for field in ['Bid_Description', 'Bid Description']:
-            if field not in contract_details:
-                app.logger.warning(f"合同缺少 '{field}' 字段")
-                if 'Bid_Description' not in contract_details and 'Bid Description' not in contract_details:
-                    contract_details['Bid Description'] = 'No description available'
-        return render_template('viewcontractdetails.html', contract=contract_details, hash_value_received=hash_value_received)
-    else:
-        app.logger.error(f"未找到哈希值 {hash_value_received} 对应的合同")
-        return "Contract details not found", 404
 
 
 
@@ -4853,97 +4396,6 @@ def confirm_terms():
     return send_from_directory(app_dir, 'index.html')
 
 
-#updated 3/4/25
-@app.route('/signupCSBuilder', methods=['GET', 'POST'])
-def signupCSBuilder():
-    # Clear unrelated session data to ensure clean state
-    session.pop('user', None)
-    session.pop('form_data', None)
-    session.pop('file_paths', None)
-
-    if request.method == 'POST':
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        company = request.form.get('company')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        username = request.form.get('username')
-
-        account_type = "CS_BUILDER_PRODUCT"
-        subscription_end_date = "9999-12-31"
-
-        if not email or not password:
-            return render_template('signupCSBuilder.html', error="Please provide both email and password.")
-
-        try:
-            # Create user in Firebase Auth
-            user = auth.create_user_with_email_and_password(email, password)
-            user_id = user.get('localId')
-            user_logged_in = auth.sign_in_with_email_and_password(email, password)
-
-            data = {
-                "first_name": first_name,
-                "last_name": last_name,
-                "company": company,
-                "email": email,
-                "username": username,
-                "account_type": account_type,
-                "subscription_end_date": subscription_end_date,
-            }
-            db.child("users").child(user_id).set(data, user_logged_in['idToken'])
-
-            stripe_customer = stripe.Customer.create(
-                email=email,
-                description=f"{first_name} {last_name} from {company}"
-            )
-
-            # ✅ Send Welcome Email (non-blocking)
-            app.logger.info("📨 Starting welcome email in background thread...")
-            import threading
-            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
-            email_thread.daemon = True
-            email_thread.start()
-            app.logger.info("📨 Welcome email thread started, continuing with signup...")
-
-            db.child("users").child(user_id).update(
-                {"stripe_customer_id": stripe_customer['id']},
-                user_logged_in['idToken']
-            )
-
-            session['user'] = {
-                'localId': user_id,
-                'idToken': user_logged_in['idToken'],
-                'email': email,
-                'refreshToken': user_logged_in['refreshToken'],
-            }
-
-            logging.info(f"CSBuilder user {user_id} signed up and logged in successfully.")
-            return redirect(url_for('form'))
-
-        except Exception as e:
-            logging.exception(f"SignupCSBuilder error for {email}: {e}")
-
-            error_message = "An unexpected error occurred during signup. Please try again."
-
-            if hasattr(e, 'args') and len(e.args) > 0:
-                try:
-                    error_detail = e.args[0]
-                    if isinstance(error_detail, str) and 'EMAIL_EXISTS' in error_detail:
-                        error_message = "The email you entered is already registered. Please log in instead."
-                    elif isinstance(error_detail, dict):
-                        firebase_error = error_detail.get('error', {}).get('message', '')
-                        if firebase_error == "EMAIL_EXISTS":
-                            error_message = "The email you entered is already registered. Please log in instead."
-                        elif firebase_error == "INVALID_EMAIL":
-                            error_message = "The email format is invalid. Please check your email."
-                        elif firebase_error == "WEAK_PASSWORD":
-                            error_message = "Password is too weak. Please choose a stronger password."
-                except Exception as parse_error:
-                    logging.warning(f"Failed to parse Firebase error: {parse_error}")
-
-            return render_template('signupCSBuilder.html', error=error_message)
-
-    return render_template('signupCSBuilder.html', firebase_config=config)
 
 
 
@@ -4955,55 +4407,44 @@ def get_qdrant_analytics():
     """
     Get analytics for the dashboard.
     
-    PHASE 1 HOTFIX: This function now returns cached analytics or lightweight
-    fallback values immediately. It NEVER loads all contracts in the HTTP request
-    path to prevent Gunicorn worker timeouts.
+    Uses qdrant_client.count() for accurate total contract count.
+    Category distribution uses estimated percentages (accurate counts would
+    require iterating through all contracts which causes OOM).
     
-    Analytics are computed from:
-    - Collection points_count (from Qdrant collection info - very fast)
-    - Cached category distribution (if available)
-    - Placeholder values for detailed stats until background job computes them
-    
-    For full analytics computation, use the background worker or admin endpoint.
+    Returns real total_contracts from Qdrant count() API.
     """
     global QDRANT_ANALYTICS_CACHE, QDRANT_ANALYTICS_SIGNATURE
     
     from datetime import datetime
     
     try:
-        # Get current signature (lightweight - just points_count)
-        current_signature = get_qdrant_collection_signature()
-        
-        # If we have cached analytics, return them immediately
-        # Even if stale, it's better than blocking the request
-        if QDRANT_ANALYTICS_CACHE is not None:
-            # Check if signature changed
-            if (QDRANT_ANALYTICS_SIGNATURE is not None and
-                current_signature is not None and
-                QDRANT_ANALYTICS_SIGNATURE != current_signature):
-                logging.info(f"[Qdrant Analytics] Cache stale (signature: {QDRANT_ANALYTICS_SIGNATURE} -> {current_signature}), but returning cached data to avoid timeout")
-                # Update total_contracts from signature (points_count) for accuracy
-                try:
-                    QDRANT_ANALYTICS_CACHE['total_contracts'] = int(current_signature)
-                except (ValueError, TypeError):
-                    pass
-            else:
-                logging.debug(f"[Qdrant Analytics] Using cached analytics (signature: {current_signature})")
-            return QDRANT_ANALYTICS_CACHE
-        
-        # No cache - return lightweight fallback based on collection info only
-        # This prevents worker timeout on first request
-        logging.info(f"[Qdrant Analytics] No cache, returning lightweight fallback (signature: {current_signature})")
+        # Get real total count using qdrant_client.count() - fast and accurate
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
         total_contracts = 0
-        if current_signature:
-            try:
-                total_contracts = int(current_signature)
-            except (ValueError, TypeError):
-                pass
+        if qdrant_url and qdrant_api_key:
+            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+            # Use count() for accurate total - much faster than loading all contracts
+            count_result = client.count(
+                collection_name="government_contracts",
+                exact=True  # Get exact count, not approximate
+            )
+            total_contracts = count_result.count
+            logging.info(f"[Qdrant Analytics] Real count from Qdrant: {total_contracts}")
+        else:
+            # Fallback to signature if credentials not available
+            current_signature = get_qdrant_collection_signature()
+            if current_signature:
+                try:
+                    total_contracts = int(current_signature)
+                except (ValueError, TypeError):
+                    pass
         
-        # Return placeholder analytics - detailed stats will be computed by background job
-        fallback_result = {
+        # Return analytics with real total count
+        # Category distribution uses estimated percentages (accurate counts would
+        # require iterating through all contracts which causes OOM)
+        result = {
             'total_contracts': total_contracts,
             'win_probability': 70.0,  # Reasonable default
             'open_contracts': int(total_contracts * 0.6),  # Estimate 60% open
@@ -5019,14 +4460,14 @@ def get_qdrant_analytics():
             'status_distribution': {'active': int(total_contracts * 0.6), 'closed': int(total_contracts * 0.4)},
             'top_agencies': {},
             'analysis_date': datetime.now().strftime('%Y-%m-%d'),
-            '_is_placeholder': True  # Flag to indicate this is placeholder data
+            '_real_count': True  # Flag to indicate this uses real count from Qdrant
         }
         
-        # Cache this fallback so subsequent requests are fast
-        QDRANT_ANALYTICS_CACHE = fallback_result
-        QDRANT_ANALYTICS_SIGNATURE = current_signature
+        # Cache this result
+        QDRANT_ANALYTICS_CACHE = result
+        QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
         
-        return fallback_result
+        return result
         
     except Exception as e:
         logging.error(f"Error getting Qdrant analytics: {e}")
@@ -5063,29 +4504,47 @@ def Welcome():
 
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
-    """API endpoint to get contract data for the dashboard with pagination.
+    """API endpoint to get contract data for the dashboard with SERVER-SIDE PAGINATION.
     
-    PHASE 1 HOTFIX: This endpoint now returns quickly (<2s) by:
-    - Only fetching the requested page of contracts (not all)
-    - Using cached analytics for top_categories (not computing from all contracts)
+    Supports cursor-based pagination for efficient browsing of 100k+ contracts:
+    - First request: /api/contracts?limit=50
+    - Subsequent requests: /api/contracts?limit=50&cursor=<next_cursor>
     
-    NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
-    Also includes category analytics for the Top Contract Categories section.
+    Query params:
+    - page: Page number (1-indexed) - for display only
+    - limit: Number of contracts per page (default 50, max 100)
+    - cursor: Qdrant scroll offset token for cursor-based pagination
+    
+    Returns:
+    - contracts: Array of contract objects
+    - total_contracts: Total count from Qdrant (real count, not cache)
+    - current_page: Current page number
+    - total_pages: Total pages available
+    - next_cursor: Offset token for next page (null if no more pages)
+    - has_more: Boolean indicating if more pages exist
+    - top_categories: Category distribution for analytics
     """
     try:
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
-        items_per_page = 10
+        limit = request.args.get('limit', 50, type=int)
+        cursor = request.args.get('cursor', None, type=str)
         
-        # Fetch only the requested page of contracts from Qdrant
-        contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
+        # Validate limit (max 100 to prevent OOM)
+        limit = min(max(limit, 1), 100)
         
-        # PHASE 1 HOTFIX: Use cached analytics instead of loading all contracts
-        # This prevents worker timeouts by avoiding the 10000 contract load
+        # Fetch contracts from Qdrant with server-side pagination
+        contracts, total_contracts, total_pages, next_cursor = get_dashboard_contracts_from_qdrant(
+            page=page,
+            items_per_page=limit,
+            cursor=cursor
+        )
+        
+        # Get analytics with real count from Qdrant
         analytics = get_qdrant_analytics()
         category_distribution = analytics.get('category_distribution', {})
         
-        # Build top_categories from cached analytics
+        # Build top_categories from analytics
         sorted_categories = sorted(category_distribution.items(), key=lambda x: x[1], reverse=True)[:4]
         top_categories = []
         for cat_name, count in sorted_categories:
@@ -5096,13 +4555,15 @@ def get_contracts_api():
                 'percentage': percentage
             })
         
-        logging.info(f"/api/contracts: Returning {len(contracts)} contracts from Qdrant (page {page}/{total_pages})")
+        logging.info(f"/api/contracts: Returning {len(contracts)} contracts (page {page}, limit {limit}, has_more: {next_cursor is not None})")
         
         return jsonify({
             "contracts": contracts,
             "total_contracts": total_contracts,
             "current_page": page,
             "total_pages": total_pages,
+            "next_cursor": next_cursor,
+            "has_more": next_cursor is not None,
             "top_categories": top_categories
         })
     except Exception as e:
@@ -5112,6 +4573,8 @@ def get_contracts_api():
             "total_contracts": 0,
             "current_page": 1,
             "total_pages": 1,
+            "next_cursor": None,
+            "has_more": False,
             "top_categories": [],
             "error": "Failed to load contracts from database"
         })
@@ -5970,33 +5433,6 @@ def proposal_pricing():
 
 
 
-#Trustedpartner ROUTE FUNCTION 
-@app.route('/trustedpartner', methods=['GET']) 
-def Trustedpartner():
-    return render_template('trustedpartner.html')
-
-
-#Finalist ROUTE FUNCTION 
-@app.route('/finalist', methods=['GET']) 
-def Finalist():
-    return render_template('finalist.html')
-
-
-@app.route('/contact', methods=['GET']) 
-def Contact():
-    return render_template('contact.html')
-
-
-
-
-#businessplan ROUTE FUNCTION 
-@app.route('/businessplan', methods=['GET']) 
-def Businessplan():
-    return render_template('businessplan.html')
-
-
-
-
 
 
 #TERMS OF USE ROUTE FUNCTION
@@ -6013,17 +5449,6 @@ def privacy_notice():
     return render_template('privacy_notice.html')
 
 
-#TEAM DETAIL PAGE ROUTE FUNCTION
-@app.route('/businesspartner', methods=['GET']) 
-def Businesspartner():
-    return render_template('businesspartner.html')
-
-
-
-    #TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/businesspartnerdetail', methods=['GET']) 
-def Businesspartnerdetail():
-    return render_template('businesspartnerdetail.html')
 
 
 
@@ -9064,21 +8489,6 @@ def create_proposal_timeline():
         app.logger.error(f"Error creating timeline: {str(e)}")
         return jsonify({"error": f"Timeline creation error: {str(e)}"}), 500
 
-@app.route('/upcoming_deadlines', methods=['GET'])
-def get_upcoming_deadlines():
-    """Get upcoming proposal deadlines for user"""
-    try:
-        user = session['user']
-        user_id = user['localId']
-        
-        days_ahead = request.args.get('days', 7, type=int)
-        deadlines = deadline_manager.get_upcoming_deadlines(user_id, days_ahead)
-        
-        return jsonify({"deadlines": deadlines})
-        
-    except Exception as e:
-        app.logger.error(f"Error getting deadlines: {str(e)}")
-        return jsonify({"error": f"Deadlines error: {str(e)}"}), 500
 
 @app.route('/industry_template', methods=['POST'])
 def get_industry_template():
@@ -9179,10 +8589,6 @@ def tailor_cs_for_contract():
 
 
 
-#SUCCESS PAGE ROUTE FUNCTION 
-@app.route('/success')
-def success():
-    return render_template('success.html')
 
 
 
@@ -9404,38 +8810,6 @@ def download_proposal():
 
 
 
-# Route for displaying the top 5 fitting contracts
-@app.route('/view_matches', methods=['GET'])
-def view_matches():
-    if 'user' not in session:
-        return jsonify({"success": False, "message": "User not logged in."})
-
-    user_id = session['user']['localId']
-    cloud_path = f"matches/{user_id}/matches.csv"
-
-    try:
-        # Step 1: Read the matches.csv file directly from Firebase Storage
-        file_data = storage.child(cloud_path).get()  # Get the file content as bytes
-
-        # Step 2: Convert the file data to a readable format using io.StringIO
-        csv_file = io.StringIO(file_data.decode('utf-8'))  # Decode bytes to string
-
-        # Step 3: Parse the CSV file in memory
-        matches = []
-        reader = csv.DictReader(csv_file)
-        for row in reader:
-            app.logger.info(f"CSV Row Data: {row}")  # Log each row to the console
-            matches.append(row)
-
-        # Step 4: Log the entire matches data to the console
-        app.logger.info(f"Full Matches Data: {matches}")
-
-        # Step 5: Send the matches data to the template for rendering
-        return render_template('your_template.html', matches=matches)
-
-    except Exception as e:
-        app.logger.error(f"Error reading matches.csv: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "message": "Error reading the matches file."})
 
 
 
@@ -10129,76 +9503,76 @@ def _async_refresh_dashboard_cache():
         _dashboard_refresh_lock.release()
 
 
-def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
+def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     """
-    Fetch contracts from Qdrant for dashboard display with pagination.
-    Uses module-level caching with signature-based invalidation.
+    Fetch contracts from Qdrant for dashboard display with SERVER-SIDE PAGINATION.
     
-    The cache automatically refreshes when:
-    - First request (cache is None) - blocks until cache is populated
-    - Qdrant collection signature changes (new contracts added/deleted) - async refresh, serves stale
+    This function queries Qdrant directly on each request instead of using an
+    in-memory cache. This allows browsing all 100k+ contracts while only holding
+    one page (e.g., 50 items) in RAM at a time.
     
-    Signature is checked at most once per TTL period (60 seconds) to avoid
-    excessive Qdrant API calls under load.
+    Pagination is cursor-based using Qdrant's scroll offset tokens:
+    - First page: cursor=None
+    - Subsequent pages: cursor=<offset_token from previous response>
     
-    When cache exists but is stale, serves stale data immediately while
-    triggering a background refresh. This prevents worker timeouts.
+    For backwards compatibility, also supports page numbers (1-indexed) which
+    are converted to sequential scroll calls internally.
     
     Args:
-        page: Page number (1-indexed)
-        items_per_page: Number of contracts per page
+        page: Page number (1-indexed) - used for display, not for Qdrant query
+        items_per_page: Number of contracts per page (default 10)
+        cursor: Qdrant scroll offset token for cursor-based pagination
     
     Returns:
-        Tuple of (contracts_list, total_contracts, total_pages)
+        Tuple of (contracts_list, total_contracts, total_pages, next_cursor)
     """
-    global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
-    global _dashboard_contracts_signature, _dashboard_contracts_last_check
-    
-    import time
-    current_time = time.time()
-    
-    # Case 1: Cache is empty - must block and initialize
-    if _dashboard_contracts_cache is None:
-        logging.info("[Dashboard Cache] Cache is empty, initializing synchronously...")
-        with _dashboard_refresh_lock:
-            # Double-check after acquiring lock (another thread may have initialized)
-            if _dashboard_contracts_cache is None:
-                success, new_signature = _refresh_dashboard_contracts_cache()
-                _dashboard_contracts_last_check = current_time
-                
-                if not success:
-                    _dashboard_contracts_cache = []
-                    _dashboard_contracts_total = 0
-                    _dashboard_contracts_hash_index = {}
-                    return [], 0, 0
-    
-    # Case 2: Cache exists - check if stale and trigger async refresh if needed
-    elif current_time - _dashboard_contracts_last_check >= _DASHBOARD_CACHE_TTL_SECONDS:
-        _dashboard_contracts_last_check = current_time
-        current_signature = get_qdrant_collection_signature()
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
-        if current_signature is not None and current_signature != _dashboard_contracts_signature:
-            # Signature changed - trigger async refresh but serve stale data immediately
-            if not _dashboard_refresh_in_progress:
-                logging.info(f"[Dashboard Cache] Signature changed ({_dashboard_contracts_signature} -> {current_signature}), triggering async refresh...")
-                refresh_thread = threading.Thread(target=_async_refresh_dashboard_cache, daemon=True)
-                refresh_thread.start()
-            else:
-                logging.debug("[Dashboard Cache] Signature changed but refresh already in progress")
-        else:
-            logging.debug(f"[Dashboard Cache] Signature unchanged ({current_signature}), using cached data")
-    
-    # Paginate the cached contracts (always returns immediately with current cache)
-    total_contracts = _dashboard_contracts_total
-    total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
-    
-    start = (page - 1) * items_per_page
-    end = start + items_per_page
-    
-    paginated_contracts = _dashboard_contracts_cache[start:end] if _dashboard_contracts_cache else []
-    
-    logging.debug(f"[Dashboard Cache] Page {page}/{total_pages}: returning {len(paginated_contracts)} contracts")
-    return paginated_contracts, total_contracts, total_pages
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("[Server-Side Pagination] Qdrant credentials not configured")
+            return [], 0, 0, None
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Get total count using count() API - fast and accurate
+        count_result = client.count(
+            collection_name="government_contracts",
+            exact=True
+        )
+        total_contracts = count_result.count
+        total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
+        
+        # Fetch one page of contracts directly from Qdrant
+        # Use scroll with offset token for cursor-based pagination
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=items_per_page,
+            offset=cursor,  # None for first page, offset token for subsequent pages
+            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
+            with_payload=True  # Full payload for this page only
+        )
+        
+        points, next_cursor = scroll_result
+        
+        # Convert Qdrant points to dashboard contract format
+        contracts = []
+        for point in points:
+            contract = qdrant_payload_to_dashboard_contract(
+                point.payload,
+                point_id=point.id,
+                score=None
+            )
+            contracts.append(contract)
+        
+        logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts from Qdrant (total: {total_contracts}, has_more: {next_cursor is not None})")
+        
+        return contracts, total_contracts, total_pages, next_cursor
+        
+    except Exception as e:
+        logging.error(f"[Server-Side Pagination] Error fetching contracts from Qdrant: {e}", exc_info=True)
+        return [], 0, 0, None
 
 
 def load_all_contracts(client):
@@ -10448,435 +9822,8 @@ def process_smartsearch():
 
 
 
-# ---------------------------------------------------------------------------
-# SMART SEARCH
-# ---------------------------------------------------------------------------
-@app.route('/smartsearch', methods=['GET', 'POST'])
-def Smartsearch():
-    try:
-        # ---------------------------------------------------------------------
-        # Step 0: Ensure user is authenticated
-        # ---------------------------------------------------------------------
-        user = auth.current_user
-        if not user:
-            logging.warning("No authenticated user found. Redirecting to login.")
-            return redirect(url_for('Login'))
-
-        user_id = user['localId']
-        logging.info(f"Authenticated user ID: {user_id}")
-
-        # ---------------------------------------------------------------------
-        # Step 1: Refresh the user's token
-        # ---------------------------------------------------------------------
-        try:
-            user_logged_in = auth.refresh(user['refreshToken'])
-            logging.info(f"Token refreshed successfully for user ID: {user_id}")
-        except Exception as token_error:
-            logging.error(f"Token refresh failed for user ID {user_id}: {token_error}")
-            flash("Session issue detected. Please try again.", "error")
-            return redirect(url_for('Smartsearch'))  # or handle as needed
-
-        # ---------------------------------------------------------------------
-        # Step 2: Retrieve user data from Firebase
-        # ---------------------------------------------------------------------
-        user_data = None
-        for _ in range(2):
-            try:
-                user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-                if user_data:
-                    break
-            except Exception as data_error:
-                logging.warning(f"Retrying Firebase fetch for user {user_id}: {data_error}")
-
-        if not user_data:
-            return render_template('error.html', error="Temporary issue retrieving user data. Please try again.")
-
-        email = user_data.get('email', '').strip().lower()
-        company_name = user_data.get('company', 'No Company')
-        first_name = user_data.get('first_name', 'User')
-        logging.info(f"✅ FREE ACCESS granted to /smartsearch for user {user_id} - Contract Radar Maximizer is completely free!")
-
-        # ---------------------------------------------------------------------
-        # Step 4: Pull the user's uploads directory with fallback creation
-        # ---------------------------------------------------------------------
-        user_uploads_dir = user_data.get('uploads_dir')
-        if not user_uploads_dir:
-            try:
-                app.logger.info(f"🔧 Creating missing uploads directory for user {user_id}")
-                user_uploads_dir = create_user_directory(user_id)
-                
-                # Update Firebase with the new uploads directory path
-                db.child("users").child(user_id).update({
-                    "uploads_dir": user_uploads_dir
-                }, user_logged_in['idToken'])
-                
-                app.logger.info(f"✅ Successfully created and updated uploads directory for user {user_id}: {user_uploads_dir}")
-            except Exception as e:
-                app.logger.error(f"❌ Failed to create uploads directory for user {user_id}: {e}")
-                return render_template('error.html', error="Unable to initialize user directory. Please contact support.")
-        
-        if not os.path.exists(user_uploads_dir):
-            app.logger.warning(f"⚠️ Directory path exists in Firebase but not on filesystem: {user_uploads_dir}")
-            try:
-                os.makedirs(user_uploads_dir, exist_ok=True)
-                # Copy embedded CSV file if it exists
-                embedded_csv_file = os.path.join(os.getcwd(), "embedded_bids.csv")
-                if os.path.exists(embedded_csv_file):
-                    shutil.copy(embedded_csv_file, user_uploads_dir)
-                app.logger.info(f"✅ Recreated missing directory: {user_uploads_dir}")
-            except Exception as e:
-                app.logger.error(f"❌ Failed to recreate directory {user_uploads_dir}: {e}")
-                return render_template('error.html', error="Directory initialization failed. Please contact support.")
-
-        # ---------------------------------------------------------------------
-        # NEW: Determine the company_name from capability_statements_processed.csv
-        # ---------------------------------------------------------------------
-        detected_company_name = "Unknown"
-        cs_file = os.path.join(user_uploads_dir, "capability_statements_processed.csv")
-        if os.path.exists(cs_file):
-            try:
-                cs_df = pd.read_csv(cs_file, dtype=str)
-                if "Company" in cs_df.columns and not cs_df.empty:
-                    detected_company_name = cs_df["Company"].iloc[0]
-                    logging.info(f"[SMARTSEARCH] Found company name in CSV: {detected_company_name}")
-            except Exception as e:
-                logging.warning(f"[SMARTSEARCH] Error reading company name from CSV: {e}")
-
-        # ---------------------------------------------------------------------
-        # Step 5: Handle the user’s search query (unchanged logic)
-        #         - If query == '' => show all
-        #         - Else => do embedding-based search
-        # ---------------------------------------------------------------------
-        query = request.args.get('query', '').strip()
-        try:
-            page = int(request.args.get('page', 1))
-        except ValueError:
-            page = 1
-        items_per_page = 50
-
-        # Initialize Qdrant client
-        qdrant_url    = os.getenv('QDRANT_URL')
-        qdrant_api_key = os.getenv('QDRANT_API_KEY')
-        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-
-        def normalize_payload(payload):
-            new_payload = {}
-            for k, v in payload.items():
-                new_payload[k.lower().replace(" ", "_")] = v
-            return new_payload
-
-        def read_contracts_from_qdrant(offset, limit):
-            """Helper to read 'raw' contract data from Qdrant with pagination.
-            
-            IMPORTANT: Uses with_vectors=False to prevent OOM crashes.
-            """
-            try:
-                scroll_result = client.scroll(
-                    collection_name="government_contracts",
-                    limit=limit,
-                    with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
-                    offset=offset
-                )
-                points = scroll_result[0]
-                contracts_list = []
-                for p in points:
-                    payload = p.payload
-                    row = {
-                        'bid_number':      payload.get('contract_number') or payload.get('bid_number') or '',
-                        'bid_name':        payload.get('title') or payload.get('bid_name') or '',
-                        'organization':    payload.get('agency') or payload.get('organization') or '',
-                        'status':          payload.get('status') or 'open',
-                        'available_date':  payload.get('available_date') or payload.get('posted_date') or '',
-                        'due_date':        payload.get('due_date') or '',
-                        'industry':        payload.get('industry') or '',
-                        'category':        payload.get('category') or '',
-                        'budget_estimate': payload.get('budget_estimate') or '',
-                        'department':      payload.get('department') or '',
-                        'state':           payload.get('state') or '',
-                        'duration':        payload.get('duration') or '',
-                        'detail_link':     payload.get('source_url') or payload.get('detail_link') or '#',
-                    }
-                    detail_link  = row['detail_link']
-                    bid_number   = row['bid_number']
-                    hash_input   = f"{detail_link}{bid_number}"
-                    row["hash_value"] = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
-                    contracts_list.append(row)
-                return contracts_list
-            except Exception as e:
-                logging.error(f"Error reading from Qdrant: {e}", exc_info=True)
-                return []
-
-        def generate_query_embedding(query_text):
-            try:
-                response = client_SMART_SEARCH_OPENAI_API_KEY.embeddings.create(
-                    input=[query_text],
-                    model="text-embedding-ada-002"
-                )
-                embedding_data = response.to_dict()
-                return embedding_data["data"][0]["embedding"]
-            except Exception as emb_err:
-                logging.error(f"Error generating embedding: {emb_err}", exc_info=True)
-                return None
-
-        def qdrant_search(vector, top_k=10000):
-            search_result = []
-            if vector is None:
-                return search_result
-            try:
-                hits = client.search(
-                    collection_name="government_contracts",
-                    query_vector=vector,
-                    limit=top_k,
-                    score_threshold=0.70
-                )
-                for hit in hits:
-                    payload = hit.payload
-                    row = {
-                        'bid_number':       payload.get('contract_number') or payload.get('bid_number') or '',
-                        'bid_name':         payload.get('title') or payload.get('bid_name') or '',
-                        'organization':     payload.get('agency') or payload.get('organization') or '',
-                        'status':           payload.get('status') or 'open',
-                        'due_date':         payload.get('due_date') or '',
-                        'category':         payload.get('category') or '',
-                        'industry':         payload.get('industry') or '',
-                        'department':       payload.get('department') or '',
-                        'state':            payload.get('state') or '',
-                        'detail_link':      payload.get('source_url') or payload.get('detail_link') or '#',
-                        'Similarity_Score': hit.score,
-                    }
-                    detail_link = row['detail_link']
-                    bnum        = row['bid_number']
-                    row['hash_value'] = hashlib.sha256(f"{detail_link}{bnum}".encode('utf-8')).hexdigest()
-                    search_result.append(row)
-            except Exception as srch_err:
-                logging.error(f"Error searching in Qdrant: {srch_err}", exc_info=True)
-            return search_result
-
-        # ---------------------------------------------------------------------
-        # If user’s query is empty => Show ALL contracts (unchanged logic)
-        # ---------------------------------------------------------------------
-        if query == "":
-            total_response = client.count(collection_name="government_contracts")
-            total_contracts = total_response.count
-            offset = (page - 1) * items_per_page
-            contracts = read_contracts_from_qdrant(offset, items_per_page)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
-            display_title = "All Contracts"
-
-            # Write them into matches_SMART_SEARCH.csv
-            smartsearch_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-            with open(smartsearch_file, 'w', newline='', encoding='utf-8') as f:
-                fieldnames = [
-                    'Company',
-                    'Bid_Number',
-                    'Bid_Name',
-                    'Bid_Description',
-                    'Status',
-                    'Category',
-                    'Due_Date',
-                    'Detail_Link',
-                    'State',
-                    'Organization',
-                    'Budget',
-                    'Similarity_Score',
-                    'hash_value'
-                ]
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
-
-                for c in contracts:
-                    writer.writerow({
-                        'Company':         detected_company_name,
-                        'Bid_Number':      c['bid_number'],
-                        'Bid_Name':        c['bid_name'],
-                        'Bid_Description': "",
-                        'Status':          c['status'],
-                        'Category':        c['category'],
-                        'Due_Date':        c['due_date'],
-                        'Detail_Link':     c['detail_link'],
-                        'State':           c['state'],
-                        'Organization':    c['organization'],
-                        'Budget':          c.get('budget_estimate', ''),
-                        'Similarity_Score': c.get('Similarity_Score', ''),
-                        'hash_value':      c['hash_value']
-                    })
-
-        # ---------------------------------------------------------------------
-        # Else => Do AI-based search with the user’s query (unchanged logic)
-        # ---------------------------------------------------------------------
-        else:
-            embedding = generate_query_embedding(query)
-            if not embedding:
-                flash("Error generating embedding for search query.", "error")
-                return render_template(
-                    'smartsearch.html', 
-                    company_name=company_name, 
-                    first_name=first_name, 
-                    contracts=[], 
-                    categories_list=[],
-                    industries_list=[],
-                    current_page=page,
-                    total_pages=0,
-                    total_matches=0,
-                    display_title="Error",
-                    query=query
-                )
-
-            search_results = qdrant_search(embedding, top_k=10000)
-            total_contracts = len(search_results)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
-            start = (page - 1) * items_per_page
-            end = start + items_per_page
-            contracts = search_results[start:end]
-            display_title = f"Search Results for '{query}'"
-
-            # Write them to matches_SMART_SEARCH.csv
-            smartsearch_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-            with open(smartsearch_file, 'w', newline='', encoding='utf-8') as f:
-                fieldnames = [
-                    'Company',
-                    'Bid_Number',
-                    'Bid_Name',
-                    'Bid_Description',
-                    'Status',
-                    'Category',
-                    'Due_Date',
-                    'Detail_Link',
-                    'State',
-                    'Organization',
-                    'Budget',
-                    'Similarity_Score',
-                    'hash_value'
-                ]
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
-
-                for c in contracts:
-                    writer.writerow({
-                        'Company':         detected_company_name,
-                        'Bid_Number':      c.get('bid_number', ''),
-                        'Bid_Name':        c.get('bid_name', ''),
-                        'Bid_Description': "",
-                        'Status':          c.get('status', ''),
-                        'Category':        c.get('category', ''),
-                        'Due_Date':        c.get('due_date', ''),
-                        'Detail_Link':     c.get('detail_link', ''),
-                        'State':           c.get('state', ''),
-                        'Organization':    c.get('organization', ''),
-                        'Budget':          c.get('budget_estimate', ''),
-                        'Similarity_Score': c.get('Similarity_Score', ''),
-                        'hash_value':      c.get('hash_value', '')
-                    })
-
-        # ---------------------------------------------------------------------
-        # After building `contracts`, gather categories, industries, etc. (unchanged)
-        # ---------------------------------------------------------------------
-        categories_list = sorted({c['category'] for c in contracts if c['category']})
-        industries_list = sorted({c.get('industry', '') for c in contracts if c.get('industry', '')})
-
-        return render_template(
-            'smartsearch.html',
-            company_name=company_name,
-            first_name=first_name,
-            contracts=contracts,
-            categories_list=categories_list,
-            industries_list=industries_list,
-            current_page=page,
-            total_pages=total_pages,
-            total_matches=total_contracts,
-            display_title=display_title,
-            query=query
-        )
-
-    except Exception as e:
-        logging.error(f"Unexpected error in /smartsearch route: {e}", exc_info=True)
-        return render_template('error.html', error="An unexpected error occurred.")
 
 
-# ---------------------------------------------------------------------------
-# MEMBERSHIP STATUS (unchanged)
-# ---------------------------------------------------------------------------
-@app.route('/membershipstatus', methods=['GET', 'POST'])
-def membershipstatus():
-    try:
-        # Get the authenticated user
-        user = auth.current_user
-        if user:
-            user_id = user['localId']
-            logging.info(f"Authenticated user ID: {user_id}")
-
-            # Refresh user's token
-            try:
-                user_logged_in = auth.refresh(user['refreshToken'])
-                logging.info(f"Token refreshed successfully for user ID: {user_id}")
-            except Exception as token_error:
-                logging.error(f"Token refresh failed for user ID {user_id}: {token_error}")
-                return redirect(url_for('Login'))
-
-            # Retrieve user data from Firebase
-            try:
-                user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-                logging.info(f"User data retrieved for user ID {user_id}: {user_data}")
-            except Exception as data_error:
-                logging.error(f"Failed to retrieve user data for user ID {user_id}: {data_error}")
-                return render_template('error.html', error="Failed to retrieve user data.")
-
-            if user_data:
-                # Extract user details
-                company_name = user_data.get('company', 'No Company')
-                first_name = user_data.get('first_name', 'User')
-                account_type = user_data.get('account_type', 'Not Available')
-                subscription_end_date = user_data.get('subscription_end_date', 'Not Available')
-                stripe_customer_id = user_data.get('stripe_customer_id')
-
-                # If Stripe Customer ID is missing, fetch it from Stripe using the user's email
-                if not stripe_customer_id:
-                    user_email = user_data.get('email', '')
-                    try:
-                        # Fetch the Stripe customer object using email
-                        stripe_customers = stripe.Customer.list(email=user_email).data
-                        if stripe_customers:
-                            stripe_customer = stripe_customers[0]
-                            stripe_customer_id = stripe_customer.id
-                            logging.info(f"Fetched Stripe Customer ID from API: {stripe_customer_id}")
-
-                            # Update Firebase with the retrieved Stripe Customer ID
-                            db.child("users").child(user_id).update({
-                                "stripe_customer_id": stripe_customer_id
-                            }, user_logged_in['idToken'])
-                        else:
-                            logging.warning(f"No Stripe customer found for email: {user_email}")
-                            stripe_customer_id = "No Stripe ID Found"
-                    except Exception as stripe_error:
-                        logging.error(f"Error fetching Stripe Customer ID for email {user_email}: {stripe_error}")
-                        stripe_customer_id = "Error Fetching Stripe ID"
-
-                # Log the Stripe customer ID and other details
-                logging.info(f"Stripe Customer ID for user ID {user_id}: {stripe_customer_id}")
-                logging.info(f"Account type: {account_type}, Subscription end date: {subscription_end_date}")
-
-                # Check allowed account types and render page
-                allowed_account_types = ["CORAMA_ESSENTIALS", "CORAMA_SUPPLY_CHAIN_VISIBILITY", "TRUSTED_PARTNER", "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS", "CONTRACT_RADAR_MAXIMIZER_SUPPLY_CHAIN_VISIBILITY"]
-                if account_type in allowed_account_types:
-                    return render_template(
-                        'membershipstatus.html',
-                        company_name=company_name,
-                        first_name=first_name,
-                        account_type=account_type,
-                        subscription_end_date=subscription_end_date,
-                        stripe_customer_id=stripe_customer_id  # Pass to template
-                    )
-                else:
-                    logging.warning(f"Unauthorized access attempt by user ID: {user_id} with account type: {account_type}")
-                    return redirect('/app/dashboard')
-
-        logging.warning("No authenticated user found. Redirecting to login.")
-        return redirect(url_for('Login'))
-
-    except Exception as e:
-        # Handle unexpected errors
-        logging.error(f"Unexpected error in /membershipstatus route: {e}")
-        return render_template('error.html', error=str(e))
 
 
 # ---------------------------------------------------------------------------
@@ -11144,17 +10091,6 @@ def handle_failed_payment(invoice):
 
 
 
-#demo page
-@app.route('/demo', methods=['GET']) 
-def demoPage():
-    if 'user' not in session:
-        return render_template('demo.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('demo.html')
 
 
 
@@ -14536,13 +13472,6 @@ def ensure_session_from_auth():
         return False
     return True
 
-@app.route('/directory-profile')
-def directory_profile():
-    """Directory profile management page"""
-    if not ensure_session_from_auth():
-        return redirect(url_for('Login'))
-    
-    return render_template('directory_profile.html')
 
 @app.route('/api/get_directory_profile', methods=['GET'])
 def get_directory_profile():
@@ -14895,15 +13824,6 @@ def get_directory_companies():
         app.logger.error(f"Error getting directory companies: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/directory')
-def directory_browse():
-    """Public directory browse page - no login required"""
-    return render_template('directory_browse.html')
-
-@app.route('/directory/company/<user_id>')
-def directory_company_profile(user_id):
-    """Individual company profile page - no login required"""
-    return render_template('directory_company_profile.html', company_user_id=user_id)
 
 
 # =============================================================================

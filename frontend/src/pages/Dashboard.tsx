@@ -23,9 +23,14 @@ const Dashboard = () => {
   const [_totalPages, setTotalPages] = useState(1)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [_loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [_credits, setCredits] = useState(0)
   const [userName, setUserName] = useState('')
+  
+  // Cursor-based pagination state
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
   
   // Filter state
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -35,7 +40,7 @@ const Dashboard = () => {
   // Top categories from backend (calculated from ALL contracts, not just current page)
   const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
 
-  const contractsPerPage = 10
+  const contractsPerPage = 50 // Increased for "Load More" pattern
   const startItem = (currentPage - 1) * contractsPerPage + 1
   const endItem = Math.min(currentPage * contractsPerPage, totalContracts)
 
@@ -57,19 +62,23 @@ const Dashboard = () => {
     }
   }
 
-  const loadContracts = async () => {
-    setLoading(true)
+  const loadContracts = async (append = false, cursor?: string | null) => {
+    if (append) {
+      setLoadingMore(true)
+    } else {
+      setLoading(true)
+    }
     try {
       // Use searchContracts only when there's a query or non-default filters
-      // Otherwise use getContracts (which doesn't require auth)
+      // Otherwise use getContracts with cursor-based pagination
       const hasFilters = searchQuery || contractType !== 'all' || selectedStates.length > 0
       const data = hasFilters
         ? await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
-        : await api.getContracts(currentPage)
+        : await api.getContracts(currentPage, contractsPerPage, cursor || undefined)
       
       // Transform API response to component format
       const transformedContracts: Contract[] = data.contracts.map((c: ApiContract, index: number) => ({
-        id: index + 1,
+        id: append ? contracts.length + index + 1 : index + 1,
         name: c.bid_name,
         category: c.category,
         naicsCode: c.naics_code || 'N/A',
@@ -79,9 +88,19 @@ const Dashboard = () => {
         hashValue: c.hash_value
       }))
       
-      setContracts(transformedContracts)
+      // Append or replace contracts based on pagination mode
+      if (append) {
+        setContracts(prev => [...prev, ...transformedContracts])
+      } else {
+        setContracts(transformedContracts)
+      }
+      
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
+      
+      // Update cursor-based pagination state
+      setNextCursor(data.next_cursor || null)
+      setHasMore(data.has_more || false)
       
       // Use top_categories from backend (calculated from filtered contracts)
       // Sort by count descending to ensure left-to-right order is highest to lowest
@@ -95,7 +114,15 @@ const Dashboard = () => {
       console.error('Failed to load contracts:', error)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
+  }
+  
+  // Load more contracts using cursor-based pagination
+  const loadMoreContracts = async () => {
+    if (!hasMore || loadingMore || !nextCursor) return
+    setCurrentPage(prev => prev + 1)
+    await loadContracts(true, nextCursor)
   }
 
   const handleSearch = (e: React.FormEvent) => {
@@ -322,6 +349,29 @@ const Dashboard = () => {
                           </div>
                         ))}
                       </div>
+
+                      {/* Load More Button - Server-side pagination */}
+                      {hasMore && (
+                        <div className="flex justify-center mt-6">
+                          <button
+                            onClick={loadMoreContracts}
+                            disabled={loadingMore}
+                            className="px-6 py-3 bg-corama-teal text-white font-poppins font-semibold rounded-lg hover:bg-corama-teal/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {loadingMore ? (
+                              <span className="flex items-center gap-2">
+                                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                </svg>
+                                Loading...
+                              </span>
+                            ) : (
+                              `Load More (${contracts.length} of ${totalContracts})`
+                            )}
+                          </button>
+                        </div>
+                      )}
                     </div>
         </main>
         </div>
