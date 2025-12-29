@@ -10,6 +10,9 @@ openai==1.35.13
 # PDF processing for contract analysis
 PyMuPDF==1.24.5
 
+# Qdrant client for NAICS enrichment (fetching contracts needing enrichment)
+qdrant-client==1.11.3
+
 # Environment variable loading
 python-dotenv==1.0.1
 
