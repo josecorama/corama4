@@ -52,11 +52,8 @@ from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
-import dns.resolver  # For MX record lookup in email domain validation
-import random
-import string
 
-# Load environment variables- use override=True to ensure .env values take precedence
+# Load environment variables - use override=True to ensure .env values take precedence
 # over any system environment variables (fixes API key issues)
 load_dotenv(override=False)
 
@@ -318,17 +315,11 @@ def api_auth_signup():
     if not first_name or not last_name:
         return jsonify({"success": False, "error": "First name and last name are required"}), 400
     
-    # Check if email was verified via 2-step verification
-    verified_email = session.get('verified_email')
-    if not verified_email or verified_email.lower() != email.lower():
-        app.logger.warning(f"[Auth API] Signup attempt without email verification for: {email}")
-        return jsonify({"success": False, "error": "Please verify your email first before signing up."}), 400
-    
     # Verify reCAPTCHA
     if not verify_recaptcha(recaptcha_token):
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
     
-    app.logger.info(f"[Auth API] Signup attempt for verified email: {email}")
+    app.logger.info(f"[Auth API] Signup attempt for email: {email}")
     
     try:
         # Create Firebase User
@@ -739,253 +730,6 @@ def api_auth_confirm_reset_password():
         app.logger.error(f"[Auth API] Error confirming password reset: {e}")
         return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
 
-
-# ============================================================================
-# EMAIL VERIFICATION FOR SIGNUP (2-STEP VERIFICATION)
-# ============================================================================
-
-# In-memory storage for verification codes (email -> {code, timestamp, attempts})
-verification_codes = {}
-
-def validate_email_domain(email):
-    """
-    Validate email domain by checking DNS MX records.
-    Returns (is_valid, error_message)
-    """
-    try:
-        domain = email.split('@')[1]
-        # Check MX records
-        try:
-            mx_records = dns.resolver.resolve(domain, 'MX')
-            if mx_records:
-                app.logger.info(f"[Email Validation] MX records found for domain: {domain}")
-                return True, None
-        except dns.resolver.NXDOMAIN:
-            app.logger.warning(f"[Email Validation] Domain does not exist: {domain}")
-            return False, f"The domain '{domain}' does not exist."
-        except dns.resolver.NoAnswer:
-            app.logger.warning(f"[Email Validation] No MX records for domain: {domain}")
-            return False, f"The domain '{domain}' does not have valid email servers."
-        except dns.resolver.NoNameservers:
-            app.logger.warning(f"[Email Validation] No nameservers for domain: {domain}")
-            return False, f"The domain '{domain}' has no valid nameservers."
-        except Exception as e:
-            app.logger.error(f"[Email Validation] DNS lookup error: {e}")
-            return False, "Unable to verify email domain. Please try again."
-    except IndexError:
-        return False, "Invalid email format."
-    return False, "Unable to verify email domain."
-
-def generate_verification_code():
-    """Generate a 6-digit verification code."""
-    return ''.join(random.choices(string.digits, k=6))
-
-def send_verification_email(email, code):
-    """Send verification code via Gmail SMTP (same as other app emails)."""
-    import socket
-    
-    # Use the same Gmail credentials as other app emails
-    sender_email = os.getenv('EMAIL_GOOGLE_USER')
-    sender_password = os.getenv('EMAIL_GOOGLE_PASS')
-    
-    if not sender_email or not sender_password:
-        app.logger.error("[Email Verification] EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS not configured")
-        return False, "Email service not configured."
-    
-    try:
-        html_body = f"""
-        <html>
-        <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f5f5f5;">
-            <div style="max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                <h2 style="color: #6bb4b5; margin-bottom: 20px;">Verify Your Email</h2>
-                <p style="color: #333; font-size: 16px;">Your verification code is:</p>
-                <h1 style="color: #6bb4b5; font-size: 42px; letter-spacing: 8px; text-align: center; padding: 20px; background: #f0f9f9; border-radius: 8px; margin: 20px 0;">{code}</h1>
-                <p style="color: #666; font-size: 14px;">This code will expire in 10 minutes.</p>
-                <p style="color: #666; font-size: 14px;">If you didn't request this code, please ignore this email.</p>
-                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-                <p style="color: #999; font-size: 12px;">Best regards,<br>The Corama Team</p>
-            </div>
-        </body>
-        </html>
-        """
-        
-        msg = MIMEMultipart("alternative")
-        msg['Subject'] = 'Your Corama Verification Code'
-        msg['From'] = sender_email
-        msg['To'] = email
-        msg.attach(MIMEText(html_body, "html"))
-        
-        # Set socket timeout
-        old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(15)
-        
-        try:
-            app.logger.info(f"[Email Verification] Connecting to smtp.gmail.com:465...")
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
-                server.login(sender_email, sender_password)
-                server.sendmail(sender_email, email, msg.as_string())
-                app.logger.info(f"[Email Verification] Verification code sent to: {email}")
-                return True, None
-        finally:
-            socket.setdefaulttimeout(old_timeout)
-            
-    except socket.timeout:
-        app.logger.error(f"[Email Verification] SMTP timeout sending to {email}")
-        return False, "Email service timeout. Please try again."
-    except smtplib.SMTPAuthenticationError:
-        app.logger.error("[Email Verification] SMTP authentication failed")
-        return False, "Email service authentication failed."
-    except Exception as e:
-        app.logger.error(f"[Email Verification] Failed to send email: {e}")
-        return False, "Failed to send verification email. Please try again."
-
-@app.route('/api/auth/verify-email-domain', methods=['POST'])
-def api_auth_verify_email_domain():
-    """
-    Step 1 of signup verification: Validate email domain and send verification code.
-    Expects JSON: { email }
-    """
-    try:
-        data = request.get_json()
-        email = data.get('email', '').strip().lower()
-        
-        if not email:
-            return jsonify({"success": False, "error": "Email is required."}), 400
-        
-        # Basic email format validation
-        import re
-        email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
-        if not re.match(email_regex, email):
-            return jsonify({"success": False, "error": "Invalid email format."}), 400
-        
-        app.logger.info(f"[Auth API] Email domain verification requested for: {email}")
-        
-        # Validate email domain via DNS MX records
-        is_valid, error_msg = validate_email_domain(email)
-        if not is_valid:
-            return jsonify({"success": False, "error": error_msg}), 400
-        
-        # Generate verification code
-        code = generate_verification_code()
-        
-        # Store code with timestamp and attempt counter
-        verification_codes[email] = {
-            'code': code,
-            'timestamp': datetime.now(),
-            'attempts': 0
-        }
-        
-        # Send verification email
-        success, error_msg = send_verification_email(email, code)
-        if not success:
-            return jsonify({"success": False, "error": error_msg}), 500
-        
-        return jsonify({
-            "success": True,
-            "message": "Verification code sent to your email."
-        })
-        
-    except Exception as e:
-        app.logger.error(f"[Auth API] Error in email domain verification: {e}")
-        return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
-
-@app.route('/api/auth/verify-code', methods=['POST'])
-def api_auth_verify_code():
-    """
-    Step 2 of signup verification: Verify the 6-digit code.
-    Expects JSON: { email, code }
-    """
-    try:
-        data = request.get_json()
-        email = data.get('email', '').strip().lower()
-        code = data.get('code', '').strip()
-        
-        if not email or not code:
-            return jsonify({"success": False, "error": "Email and code are required."}), 400
-        
-        app.logger.info(f"[Auth API] Code verification requested for: {email}")
-        
-        # Check if verification code exists
-        if email not in verification_codes:
-            return jsonify({"success": False, "error": "No verification code found. Please request a new code."}), 400
-        
-        stored_data = verification_codes[email]
-        
-        # Check if code has expired (10 minutes)
-        if datetime.now() - stored_data['timestamp'] > timedelta(minutes=10):
-            del verification_codes[email]
-            return jsonify({"success": False, "error": "Verification code has expired. Please request a new code."}), 400
-        
-        # Check attempt limit (max 5 attempts)
-        if stored_data['attempts'] >= 5:
-            del verification_codes[email]
-            return jsonify({"success": False, "error": "Too many failed attempts. Please request a new code."}), 400
-        
-        # Verify code
-        if code != stored_data['code']:
-            verification_codes[email]['attempts'] += 1
-            remaining = 5 - verification_codes[email]['attempts']
-            return jsonify({
-                "success": False,
-                "error": f"Invalid verification code. {remaining} attempts remaining."
-            }), 400
-        
-        # Code is valid - store verified email in session
-        session['verified_email'] = email
-        
-        # Clean up verification code
-        del verification_codes[email]
-        
-        app.logger.info(f"[Auth API] Email verified successfully: {email}")
-        
-        return jsonify({
-            "success": True,
-            "verified": True,
-            "message": "Email verified successfully."
-        })
-        
-    except Exception as e:
-        app.logger.error(f"[Auth API] Error in code verification: {e}")
-        return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
-
-@app.route('/api/auth/resend-code', methods=['POST'])
-def api_auth_resend_code():
-    """
-    Resend verification code.
-    Expects JSON: { email }
-    """
-    try:
-        data = request.get_json()
-        email = data.get('email', '').strip().lower()
-        
-        if not email:
-            return jsonify({"success": False, "error": "Email is required."}), 400
-        
-        app.logger.info(f"[Auth API] Resend code requested for: {email}")
-        
-        # Generate new verification code
-        code = generate_verification_code()
-        
-        # Store code with timestamp and reset attempt counter
-        verification_codes[email] = {
-            'code': code,
-            'timestamp': datetime.now(),
-            'attempts': 0
-        }
-        
-        # Send verification email
-        success, error_msg = send_verification_email(email, code)
-        if not success:
-            return jsonify({"success": False, "error": error_msg}), 500
-        
-        return jsonify({
-            "success": True,
-            "message": "New verification code sent to your email."
-        })
-        
-    except Exception as e:
-        app.logger.error(f"[Auth API] Error resending code: {e}")
-        return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
 
 # ============================================================================
 # END AUTH API ENDPOINTS
@@ -5088,13 +4832,14 @@ app.logger.info(f"🔍 Loaded RECAPTCHA_SITE_KEY: {RECAPTCHA_SITE_KEY if RECAPTC
 app.logger.info(f"🔍 Firebase Initialized: {'✔ Successful' if firebase else '❌ Failed'}")
 
 
-# Signup page - now served by Jinja2 template with 2-step email verification
-# User registration requires email verification before calling /api/auth/signup
+# Signup page - now served by React SPA
+# The old template-based signup has been replaced with React frontend
+# User registration is handled by /api/auth/signup endpoint
 @app.route('/signup', methods=['GET'])
 def Signup():
-    """Serve signup page with 2-step email verification"""
-    return render_template('signup.html', 
-                          RECAPTCHA_SITE_KEY=os.getenv('RECAPTCHA_SITE_KEY', ''))
+    """Serve React SPA for signup page"""
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 # Confirm terms page - now served by React SPA
