@@ -10038,19 +10038,36 @@ def _refresh_dashboard_contracts_cache():
         while True:
             batch_num += 1
             
-            # Build request body - Qdrant REST API expects this exact format
+            # Build request body - use plain list of field names for with_payload
+            # Qdrant accepts: true, array of strings, or {include: [...]} / {exclude: [...]}
+            # Using plain array format as it's the simplest and most widely supported
             request_body = {
                 "limit": BATCH_SIZE,
                 "with_vectors": False,
-                "with_payload": {"include": _DASHBOARD_PAYLOAD_FIELDS}
+                "with_payload": _DASHBOARD_PAYLOAD_FIELDS  # Plain list of field names
             }
             if next_offset is not None:
                 request_body["offset"] = next_offset
             
+            # Debug log the request (first batch only to avoid log spam)
+            if batch_num == 1:
+                import json
+                payload_json = json.dumps(request_body, ensure_ascii=False, separators=(",", ":"))
+                logging.info(f"[Dashboard Cache] First batch request body length: {len(payload_json)} chars")
+                logging.debug(f"[Dashboard Cache] Request body: {payload_json[:500]}...")
+            
             response = requests.post(scroll_url, headers=headers, json=request_body, timeout=60)
             
             if response.status_code != 200:
-                logging.error(f"[Dashboard Cache] Qdrant REST API error: {response.status_code} - {response.text}")
+                # Log detailed error info for debugging
+                import json
+                payload_json = json.dumps(request_body, ensure_ascii=False, separators=(",", ":"))
+                logging.error(f"[Dashboard Cache] Qdrant REST API error: {response.status_code}")
+                logging.error(f"[Dashboard Cache] Response: {response.text}")
+                logging.error(f"[Dashboard Cache] Request body length: {len(payload_json)}, with_payload type: {type(request_body.get('with_payload'))}")
+                # Log around column 600 area where error occurs
+                if len(payload_json) > 550:
+                    logging.error(f"[Dashboard Cache] JSON chars 500-700: {payload_json[500:700]}")
                 return False, None
             
             result = response.json()
