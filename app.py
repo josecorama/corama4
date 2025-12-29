@@ -1262,6 +1262,8 @@ def clear_all_caches():
     global AI_NAICS_CACHE, AI_CATEGORY_CACHE, AI_GOODS_SUBCATEGORY_CACHE
     global AI_CONSTRUCTION_SUBCATEGORY_CACHE, QDRANT_ANALYTICS_CACHE
     global QDRANT_ANALYTICS_SIGNATURE, QDRANT_CONTRACTS_CACHE, QDRANT_CONTRACTS_SIGNATURE
+    global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
+    global _dashboard_contracts_signature, _dashboard_contracts_last_check
     
     AI_NAICS_CACHE = {}
     AI_CATEGORY_CACHE = {}
@@ -1271,6 +1273,13 @@ def clear_all_caches():
     QDRANT_ANALYTICS_SIGNATURE = None
     QDRANT_CONTRACTS_CACHE = None
     QDRANT_CONTRACTS_SIGNATURE = None
+    
+    # Clear dashboard contracts cache (will be refreshed on next request)
+    _dashboard_contracts_cache = None
+    _dashboard_contracts_total = 0
+    _dashboard_contracts_hash_index = None
+    _dashboard_contracts_signature = None
+    _dashboard_contracts_last_check = 0
     
     logging.info("[Cache] All in-memory caches cleared")
 
@@ -9940,18 +9949,92 @@ def get_contracts_from_qdrant_by_ids(point_ids):
         return []
 
 
-# Module-level cache for dashboard contracts
-# TODO: This assumes the Qdrant collection is updated infrequently and isn't huge (< 2000 contracts)
-# For larger or frequently-updated collections, implement proper pagination with scroll tokens
+# Module-level cache for dashboard contracts with signature-based invalidation
+# The cache automatically refreshes when new contracts are added to Qdrant (detected via points_count)
+# TTL prevents checking signature on every request (checks at most once per 60 seconds)
 _dashboard_contracts_cache = None
 _dashboard_contracts_total = 0
 _dashboard_contracts_hash_index = None  # Hash -> contract lookup for fast search matching
+_dashboard_contracts_signature = None  # Signature to detect Qdrant changes
+_dashboard_contracts_last_check = 0  # Timestamp of last signature check
+_DASHBOARD_CACHE_TTL_SECONDS = 60  # Check signature at most once per 60 seconds
+
+
+def _refresh_dashboard_contracts_cache():
+    """
+    Internal function to refresh the dashboard contracts cache from Qdrant.
+    Builds the cache and hash index atomically to avoid race conditions.
+    
+    Returns:
+        Tuple of (success: bool, signature: str or None)
+    """
+    global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
+    global _dashboard_contracts_signature
+    
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured for dashboard")
+            return False, None
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Get current signature before fetching
+        current_signature = get_qdrant_collection_signature()
+        
+        # Fetch all contracts from Qdrant using scroll (up to 3000)
+        logging.info("[Dashboard Cache] Fetching contracts from Qdrant...")
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=3000,
+            with_vectors=False,
+            with_payload=True
+        )
+        
+        points = scroll_result[0]  # scroll returns (points, next_page_offset)
+        
+        # Build new cache in local variables (atomic swap)
+        new_cache = []
+        new_hash_index = {}
+        
+        for point in points:
+            contract = qdrant_payload_to_dashboard_contract(
+                point.payload,
+                point_id=point.id,
+                score=None
+            )
+            new_cache.append(contract)
+            h = contract.get('hash_value')
+            if h:
+                new_hash_index[h] = contract
+        
+        # Atomic swap of globals
+        _dashboard_contracts_cache = new_cache
+        _dashboard_contracts_total = len(new_cache)
+        _dashboard_contracts_hash_index = new_hash_index
+        _dashboard_contracts_signature = current_signature
+        
+        logging.info(f"[Dashboard Cache] Cached {_dashboard_contracts_total} contracts (signature: {current_signature}, hash index: {len(new_hash_index)} entries)")
+        return True, current_signature
+        
+    except Exception as e:
+        logging.error(f"[Dashboard Cache] Error fetching contracts from Qdrant: {e}", exc_info=True)
+        return False, None
 
 
 def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
     """
     Fetch contracts from Qdrant for dashboard display with pagination.
-    Uses module-level caching to avoid repeated Qdrant queries.
+    Uses module-level caching with signature-based invalidation.
+    
+    The cache automatically refreshes when:
+    - First request (cache is None)
+    - Qdrant collection signature changes (new contracts added/deleted)
+    
+    Signature is checked at most once per TTL period (60 seconds) to avoid
+    excessive Qdrant API calls under load.
     
     Args:
         page: Page number (1-indexed)
@@ -9961,58 +10044,40 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
         Tuple of (contracts_list, total_contracts, total_pages)
     """
     global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
+    global _dashboard_contracts_signature, _dashboard_contracts_last_check
     
-    # Initialize cache on first call
+    import time
+    current_time = time.time()
+    
+    # Determine if we need to check for cache invalidation
+    needs_refresh = False
+    
     if _dashboard_contracts_cache is None:
-        try:
-            qdrant_url = os.getenv('QDRANT_URL')
-            qdrant_api_key = os.getenv('QDRANT_API_KEY')
-            
-            if not qdrant_url or not qdrant_api_key:
-                logging.error("Qdrant credentials not configured for dashboard")
+        # First request - must initialize cache
+        logging.info("[Dashboard Cache] Cache is empty, initializing...")
+        needs_refresh = True
+    elif current_time - _dashboard_contracts_last_check >= _DASHBOARD_CACHE_TTL_SECONDS:
+        # TTL expired - check if signature changed
+        _dashboard_contracts_last_check = current_time
+        current_signature = get_qdrant_collection_signature()
+        
+        if current_signature is not None and current_signature != _dashboard_contracts_signature:
+            logging.info(f"[Dashboard Cache] Signature changed ({_dashboard_contracts_signature} -> {current_signature}), refreshing cache...")
+            needs_refresh = True
+        else:
+            logging.debug(f"[Dashboard Cache] Signature unchanged ({current_signature}), using cached data")
+    
+    if needs_refresh:
+        success, new_signature = _refresh_dashboard_contracts_cache()
+        _dashboard_contracts_last_check = current_time
+        
+        if not success:
+            # If refresh failed and we have no cache, return empty
+            if _dashboard_contracts_cache is None:
+                _dashboard_contracts_cache = []
+                _dashboard_contracts_total = 0
+                _dashboard_contracts_hash_index = {}
                 return [], 0, 0
-            
-            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-            
-            # Fetch all contracts from Qdrant using scroll (up to 3000)
-            # Qdrant currently has ~2320 contracts
-            logging.info("🔄 Fetching contracts from Qdrant for dashboard cache...")
-            scroll_result = client.scroll(
-                collection_name="government_contracts",
-                limit=3000,
-                with_vectors=False,
-                with_payload=True
-            )
-            
-            points = scroll_result[0]  # scroll returns (points, next_page_offset)
-            
-            # Map each point to dashboard format (lowercase keys)
-            _dashboard_contracts_cache = []
-            for point in points:
-                contract = qdrant_payload_to_dashboard_contract(
-                    point.payload,
-                    point_id=point.id,
-                    score=None
-                )
-                _dashboard_contracts_cache.append(contract)
-            
-            _dashboard_contracts_total = len(_dashboard_contracts_cache)
-            
-            # Build hash index for fast lookups during search
-            _dashboard_contracts_hash_index = {}
-            for contract in _dashboard_contracts_cache:
-                h = contract.get('hash_value')
-                if h:
-                    _dashboard_contracts_hash_index[h] = contract
-            
-            logging.info(f"✅ Cached {_dashboard_contracts_total} contracts from Qdrant for dashboard (hash index: {len(_dashboard_contracts_hash_index)} entries)")
-            
-        except Exception as e:
-            logging.error(f"Error fetching dashboard contracts from Qdrant: {e}", exc_info=True)
-            _dashboard_contracts_cache = []
-            _dashboard_contracts_total = 0
-            _dashboard_contracts_hash_index = {}
-            return [], 0, 0
     
     # Paginate the cached contracts
     total_contracts = _dashboard_contracts_total
@@ -10023,7 +10088,7 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
     
     paginated_contracts = _dashboard_contracts_cache[start:end]
     
-    logging.info(f"📄 Dashboard page {page}/{total_pages}: returning {len(paginated_contracts)} contracts")
+    logging.debug(f"[Dashboard Cache] Page {page}/{total_pages}: returning {len(paginated_contracts)} contracts")
     return paginated_contracts, total_contracts, total_pages
 
 
