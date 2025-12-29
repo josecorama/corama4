@@ -5088,14 +5088,13 @@ app.logger.info(f"🔍 Loaded RECAPTCHA_SITE_KEY: {RECAPTCHA_SITE_KEY if RECAPTC
 app.logger.info(f"🔍 Firebase Initialized: {'✔ Successful' if firebase else '❌ Failed'}")
 
 
-# Signup page - now served by React SPA
-# The old template-based signup has been replaced with React frontend
-# User registration is handled by /api/auth/signup endpoint
+# Signup page - now served by Jinja2 template with 2-step email verification
+# User registration requires email verification before calling /api/auth/signup
 @app.route('/signup', methods=['GET'])
 def Signup():
-    """Serve React SPA for signup page"""
-    app_dir = os.path.join(app.static_folder, 'app')
-    return send_from_directory(app_dir, 'index.html')
+    """Serve signup page with 2-step email verification"""
+    return render_template('signup.html', 
+                          RECAPTCHA_SITE_KEY=os.getenv('RECAPTCHA_SITE_KEY', ''))
 
 
 # Confirm terms page - now served by React SPA
