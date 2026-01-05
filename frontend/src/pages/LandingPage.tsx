@@ -824,7 +824,7 @@ const LandingPage = () => {
           <div className="max-w-6xl mx-auto relative z-10">
             <div className="text-center mb-4">
               <p className="text-white font-poppins text-xs sm:text-sm leading-relaxed">
-                222 W. Merchandise Mart Plaza, Suite 1212 c/o 1871 Chicago, IL 60654
+                180 North Michigan Avenue Suite 500 Chicago, IL 60601
               </p>
             </div>
             
