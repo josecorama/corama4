@@ -1,0 +1,117 @@
+# Render Blueprint for CORAMA Government Contracts Dashboard
+# This file defines two services:
+# 1. Web Service - Flask app serving the frontend and API
+# 2. Background Worker - Proposal generation worker that processes queued jobs
+
+services:
+  # Web Service - Flask Application
+  - type: web
+    name: corama-web
+    runtime: python
+    buildCommand: |
+      pip install -r requirements.txt
+      cd frontend && npm install && npm run build
+    startCommand: gunicorn app:app --workers 2 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: ENV
+        value: production
+      # Firebase Configuration
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: APP_ID
+        sync: false
+      - key: AUTH_DOMAIN
+        sync: false
+      - key: PROJECT_ID
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: MESSAGING_SENDER_ID
+        sync: false
+      - key: MEASUREMENT_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SERVICE_ACCOUNT_JSON
+        sync: false
+      # OpenAI API Keys
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: BID_RESPONSE_OPENAI_API_KEY
+        sync: false
+      - key: CS_BID_SEARCH_OPENAI_API_KEY
+        sync: false
+      - key: CS_BUILDER_OPENAI_API_KEY
+        sync: false
+      - key: SMART_SEARCH_OPENAI_API_KEY
+        sync: false
+      # Qdrant Vector Database
+      - key: QDRANT_URL
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      # Flask Configuration
+      - key: FLASK_SECRET_KEY
+        sync: false
+      # Email Configuration
+      - key: EMAIL_GOOGLE_USER
+        sync: false
+      - key: EMAIL_GOOGLE_PASS
+        sync: false
+      # reCAPTCHA Configuration
+      - key: RECAPTCHA_SITE_KEY
+        sync: false
+      - key: RECAPTCHA_SECRET_KEY
+        sync: false
+      # Stripe Configuration (if using payments)
+      - key: CORAMA_ESSENTIALS_STRIPE_API_MONTHLY
+        sync: false
+      - key: CORAMA_ESSENTIALS_STRIPE_API_WEEKLY
+        sync: false
+      - key: CORAMA_ESSENTIALS_STRIPE_API_YEARLY
+        sync: false
+      - key: CORAMA_SUPPLY_CHAIN_STRIPE_API_MONTHLY
+        sync: false
+      - key: CORAMA_SUPPLY_CHAIN_STRIPE_API_YEARLY
+        sync: false
+      - key: CORAMA_TRUSTED_PARTNER_STRIPE_API_MONTHLY
+        sync: false
+      - key: CORAMA_TRUSTED_PARTNER_STRIPE_API_YEARLY
+        sync: false
+    healthCheckPath: /health
+
+  # Background Worker - Proposal Generation Worker
+  - type: worker
+    name: corama-proposal-worker
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python proposal_worker.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: ENV
+        value: production
+      # Firebase Configuration (same as web service)
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: APP_ID
+        sync: false
+      - key: AUTH_DOMAIN
+        sync: false
+      - key: PROJECT_ID
+        sync: false
+      - key: STORAGE_BUCKET
+        sync: false
+      - key: MESSAGING_SENDER_ID
+        sync: false
+      - key: MEASUREMENT_ID
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SERVICE_ACCOUNT_JSON
+        sync: false
+      # OpenAI API Key (for proposal generation)
+      - key: OPENAI_API_KEY
+        sync: false
