@@ -31,7 +31,7 @@ function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/confirm-terms" element={<ConfirmTerms />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
+        <Route path="/reset-password-confirm" element={<ResetPasswordConfirm />} />
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="/faq" element={<FAQ />} />
         <Route path="/about-us" element={<AboutUsPublic />} />
