@@ -1060,7 +1060,7 @@ def send_email_smtp(to_email, subject, html_body):
         # Create MIME message
         msg = MIMEMultipart("alternative")
         msg['Subject'] = subject
-        msg['From'] = smtp_user
+        msg['From'] = f"Corama <{smtp_user}>"
         msg['To'] = to_email
         
         # Attach HTML part
