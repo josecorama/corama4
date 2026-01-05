@@ -194,6 +194,55 @@ def verify_recaptcha(token):
 
 
 # ============================================================================
+# DISPOSABLE EMAIL BLOCKING
+# ============================================================================
+
+# Load disposable email domains blocklist at startup
+try:
+    from disposable_email_domains import blocklist as DISPOSABLE_EMAIL_BLOCKLIST
+    app.logger.info(f"[Email Validation] Loaded {len(DISPOSABLE_EMAIL_BLOCKLIST)} disposable email domains")
+except ImportError:
+    app.logger.warning("[Email Validation] disposable-email-domains package not installed, disposable email blocking disabled")
+    DISPOSABLE_EMAIL_BLOCKLIST = set()
+
+# Optional allowlist for domains that should never be blocked (env var: EMAIL_DOMAIN_ALLOWLIST=domain1.com,domain2.com)
+EMAIL_DOMAIN_ALLOWLIST = set(
+    d.strip().lower() for d in os.getenv('EMAIL_DOMAIN_ALLOWLIST', '').split(',') if d.strip()
+)
+
+def is_disposable_email(email: str) -> tuple:
+    """
+    Check if an email address uses a disposable/temporary email domain.
+    
+    Returns:
+        tuple: (is_disposable: bool, domain: str)
+    """
+    if not email or '@' not in email:
+        return False, ''
+    
+    try:
+        # Extract and normalize domain
+        domain = email.split('@')[-1].strip().lower()
+        
+        # Remove trailing dot if present
+        if domain.endswith('.'):
+            domain = domain[:-1]
+        
+        # Check allowlist first (always allow these domains)
+        if domain in EMAIL_DOMAIN_ALLOWLIST:
+            return False, domain
+        
+        # Check against disposable email blocklist (exact match only)
+        if domain in DISPOSABLE_EMAIL_BLOCKLIST:
+            return True, domain
+        
+        return False, domain
+    except Exception as e:
+        app.logger.warning(f"[Email Validation] Error checking disposable email: {e}")
+        return False, ''
+
+
+# ============================================================================
 # OTP EMAIL VERIFICATION SYSTEM
 # ============================================================================
 
@@ -714,6 +763,12 @@ def api_auth_signup():
     # Verify reCAPTCHA
     if not verify_recaptcha(recaptcha_token):
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    # Check for disposable/temporary email domains
+    is_disposable, domain = is_disposable_email(email)
+    if is_disposable:
+        app.logger.warning(f"[EMAIL_BLOCK] domain={domain} reason=disposable ip={request.remote_addr}")
+        return jsonify({"success": False, "error": "Please use a non-temporary email address. Disposable email domains are not allowed."}), 400
     
     app.logger.info(f"[Auth API] Signup attempt for email: {email}")
     
