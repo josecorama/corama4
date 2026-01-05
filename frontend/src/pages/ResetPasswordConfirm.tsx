@@ -1,11 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 
 const ResetPasswordConfirm = () => {
   const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -56,12 +53,6 @@ const ResetPasswordConfirm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    // Validate passwords match
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.')
-      return
-    }
 
     // Validate password strength
     if (password.length < 8) {
@@ -127,9 +118,9 @@ const ResetPasswordConfirm = () => {
                 alt="CORAMA" 
                 className="h-20 mx-auto mb-6"
               />
-              <h1 className="font-poppins text-2xl text-white mb-2">Set New Password</h1>
+              <h1 className="font-poppins text-2xl font-bold text-white mb-2">Reset Password</h1>
               <p className="text-gray-400 font-poppins text-sm">
-                Enter your new password below.
+                Enter your new password<br />to login into your account.
               </p>
             </div>
 
@@ -186,10 +177,10 @@ const ResetPasswordConfirm = () => {
                 )}
 
                 <form onSubmit={handleSubmit}>
-                  <div className="mb-5 relative">
+                  <div className="mb-6">
                     <label className="block text-gray-300 font-poppins text-sm mb-2">New Password</label>
                     <input
-                      type={showPassword ? 'text' : 'password'}
+                      type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter new password"
@@ -197,36 +188,8 @@ const ResetPasswordConfirm = () => {
                       minLength={8}
                       autoFocus
                       autoComplete="new-password"
-                      className="w-full bg-white text-gray-900 rounded-lg px-4 py-3.5 pr-12 font-poppins text-sm border border-gray-300/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all placeholder:text-gray-400"
+                      className="w-full bg-white text-gray-900 rounded-lg px-4 py-3.5 font-poppins text-sm border border-gray-300/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all placeholder:text-gray-400"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-[38px] text-gray-500 hover:text-corama-teal transition-colors"
-                    >
-                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-
-                  <div className="mb-6 relative">
-                    <label className="block text-gray-300 font-poppins text-sm mb-2">Confirm Password</label>
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm new password"
-                      required
-                      minLength={8}
-                      autoComplete="new-password"
-                      className="w-full bg-white text-gray-900 rounded-lg px-4 py-3.5 pr-12 font-poppins text-sm border border-gray-300/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all placeholder:text-gray-400"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-4 top-[38px] text-gray-500 hover:text-corama-teal transition-colors"
-                    >
-                      {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
                   </div>
 
                   <button
@@ -237,12 +200,17 @@ const ResetPasswordConfirm = () => {
                     {loading ? (
                       <>
                         <Loader2 className="animate-spin" size={20} />
-                        Resetting Password...
+                        Saving Password...
                       </>
                     ) : (
-                      'Reset Password'
+                      'Save New Password'
                     )}
                   </button>
+
+                  <div className="text-center mt-6">
+                    <span className="text-gray-400 font-poppins text-sm">Remembered your password? </span>
+                    <a href="/login" className="text-corama-teal hover:text-[#99c8ca] font-poppins text-sm transition-colors">Log in</a>
+                  </div>
                 </form>
               </>
             )}

@@ -730,7 +730,6 @@ def api_auth_signup():
         app.logger.info(f"[Auth API] Generated OTP for {email}")
         
         # Store User Data in Session (for verify-email page)
-        # NOTE: User data is NOT written to Firebase until email is verified
         session['user_data'] = {
             "first_name": first_name,
             "last_name": last_name,
@@ -750,9 +749,25 @@ def api_auth_signup():
             'refreshToken': user_logged_in['refreshToken']
         }
         
-        # NOTE: Firebase DB write is DEFERRED until email verification succeeds
-        # This prevents creating user records for unverified accounts
-        app.logger.info(f"[Auth API] User data stored in session (Firebase write deferred until verification)")
+        # CRITICAL: Write user data to Firebase DB immediately with email_verified=false
+        # This ensures login will properly block unverified users
+        user_db_data = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "company": company,
+            "email": email,
+            "username": username,
+            "account_type": account_type,
+            "subscription_end_date": subscription_end_date,
+            "is_stripe_customer": False,
+            "credits_balance": 100,
+            "credits_used": 0,
+            "last_credit_update": datetime.now().isoformat(),
+            "credit_purchase_history": [],
+            "email_verified": False  # CRITICAL: User must verify email before login
+        }
+        db.child("users").child(user_id).set(user_db_data, user_logged_in['idToken'])
+        app.logger.info(f"[Auth API] User data written to Firebase DB with email_verified=false")
         
         # Store OTP verification data and update cooldown
         try:
