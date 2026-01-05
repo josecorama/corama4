@@ -492,7 +492,7 @@ def send_otp_email(to_email, otp, first_name=None):
     </html>
     """
     
-    return send_email_smtp(to_email, subject, html_body)
+    return send_email(to_email, subject, html_body)
 
 
 def mark_user_email_verified(user_id, id_token=None):
@@ -1047,8 +1047,59 @@ def api_auth_confirm_terms():
         return jsonify({"success": False, "error": "An error occurred. Please try again."}), 500
 
 
+def send_email_resend(to_email, subject, html_body):
+    """Send email using Resend API (HTTPS-based, works in restricted environments).
+    
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        html_body: HTML content of the email
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    resend_api_key = os.getenv('RESEND_API_KEY')
+    from_email = os.getenv('RESEND_FROM_EMAIL', 'CORAMA <noreply@corama.ai>')
+    
+    if not resend_api_key:
+        app.logger.error(f"[Email] Resend API key not configured (RESEND_API_KEY missing)")
+        return False, "Email service not configured"
+    
+    try:
+        app.logger.info(f"[Email] Sending via Resend API to {to_email}...")
+        response = requests.post(
+            'https://api.resend.com/emails',
+            headers={
+                'Authorization': f'Bearer {resend_api_key}',
+                'Content-Type': 'application/json'
+            },
+            json={
+                'from': from_email,
+                'to': [to_email],
+                'subject': subject,
+                'html': html_body
+            },
+            timeout=15
+        )
+        
+        if response.status_code == 200:
+            app.logger.info(f"[Email] Email sent successfully via Resend to {to_email}")
+            return True, None
+        else:
+            error_msg = response.json().get('message', response.text)
+            app.logger.error(f"[Email] Resend API error: {response.status_code} - {error_msg}")
+            return False, f"Resend API error: {error_msg}"
+            
+    except requests.Timeout as e:
+        app.logger.error(f"[Email] Resend API timeout sending to {to_email}: {e}")
+        return False, "Email service timeout"
+    except Exception as e:
+        app.logger.error(f"[Email] Resend error sending to {to_email}: {type(e).__name__}: {e}")
+        return False, str(e)
+
+
 def send_email_smtp(to_email, subject, html_body):
-    """Unified email sending function using SMTP.
+    """Send email using Gmail SMTP.
     
     This function sends emails via Gmail SMTP. It's used for all transactional emails
     including welcome emails and password reset emails.
@@ -1071,17 +1122,14 @@ def send_email_smtp(to_email, subject, html_body):
         return False, "Email service not configured"
     
     try:
-        # Create MIME message
         msg = MIMEMultipart("alternative")
         msg['Subject'] = subject
         msg['From'] = sender_email
         msg['To'] = to_email
         
-        # Attach HTML part
         mime_text = MIMEText(html_body, "html")
         msg.attach(mime_text)
         
-        # Set socket timeout
         old_timeout = socket.getdefaulttimeout()
         socket.setdefaulttimeout(15)
         
@@ -1106,6 +1154,40 @@ def send_email_smtp(to_email, subject, html_body):
     except Exception as e:
         app.logger.error(f"[Email] Error sending to {to_email}: {type(e).__name__}: {e}")
         return False, str(e)
+
+
+def send_email(to_email, subject, html_body):
+    """Unified email sending function with provider fallback.
+    
+    Uses EMAIL_PROVIDER env var to determine which service to use:
+    - 'resend': Use Resend API (HTTPS, works in restricted environments)
+    - 'smtp': Use Gmail SMTP (requires open SMTP ports)
+    - 'auto' (default): Try Resend first if configured, then fall back to SMTP
+    
+    Args:
+        to_email: Recipient email address
+        subject: Email subject line
+        html_body: HTML content of the email
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    provider = os.getenv('EMAIL_PROVIDER', 'auto').lower()
+    
+    if provider == 'resend':
+        return send_email_resend(to_email, subject, html_body)
+    elif provider == 'smtp':
+        return send_email_smtp(to_email, subject, html_body)
+    else:
+        if os.getenv('RESEND_API_KEY'):
+            app.logger.info(f"[Email] Using Resend API (RESEND_API_KEY configured)")
+            return send_email_resend(to_email, subject, html_body)
+        elif os.getenv('EMAIL_GOOGLE_USER') and os.getenv('EMAIL_GOOGLE_PASS'):
+            app.logger.info(f"[Email] Using Gmail SMTP (EMAIL_GOOGLE_USER configured)")
+            return send_email_smtp(to_email, subject, html_body)
+        else:
+            app.logger.error(f"[Email] No email provider configured")
+            return False, "Email service not configured"
 
 
 def send_password_reset_email(to_email, reset_link):
@@ -1140,7 +1222,7 @@ def send_password_reset_email(to_email, reset_link):
     </html>
     """
     
-    return send_email_smtp(to_email, subject, html_body)
+    return send_email(to_email, subject, html_body)
 
 
 @app.route('/api/auth/reset-password', methods=['POST'])
