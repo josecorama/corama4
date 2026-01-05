@@ -1301,15 +1301,31 @@ def api_auth_reset_password():
     try:
         # Import firebase_admin auth module
         from firebase_admin import auth as admin_auth
+        import firebase_admin
+        from urllib.parse import urlparse
         
         # Get the base URL for the reset link
         # In production, this should be the actual domain
         base_url = os.getenv('APP_BASE_URL', 'https://corama.ai')
+        continue_url = f"{base_url}/reset-password/confirm"
+        
+        # Log diagnostic info to help debug UNAUTHORIZED_DOMAIN errors
+        parsed_url = urlparse(continue_url)
+        app.logger.info(f"[Auth API] APP_BASE_URL env var: {os.getenv('APP_BASE_URL', '(not set, using default)')}")
+        app.logger.info(f"[Auth API] Continue URL for reset: {continue_url}")
+        app.logger.info(f"[Auth API] Continue URL hostname: {parsed_url.netloc}")
+        
+        # Log Firebase project info
+        try:
+            firebase_app = firebase_admin.get_app()
+            app.logger.info(f"[Auth API] Firebase project ID: {firebase_app.project_id}")
+        except Exception as fb_err:
+            app.logger.warning(f"[Auth API] Could not get Firebase project info: {fb_err}")
         
         # Generate password reset link using Firebase Admin SDK
         # The link will point to our custom reset confirmation page
         action_code_settings = admin_auth.ActionCodeSettings(
-            url=f"{base_url}/reset-password/confirm",
+            url=continue_url,
             handle_code_in_app=True
         )
         
