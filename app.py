@@ -414,30 +414,107 @@ def send_otp_email(email: str, otp: str) -> bool:
         <!DOCTYPE html>
         <html>
         <head>
-            <style>
-                body {{ font-family: Arial, sans-serif; background-color: #0B0B0F; color: #ffffff; padding: 20px; }}
-                .container {{ max-width: 600px; margin: 0 auto; background-color: #1a1a2e; border-radius: 10px; padding: 40px; }}
-                .logo {{ text-align: center; margin-bottom: 30px; }}
-                .code {{ font-size: 32px; font-weight: bold; text-align: center; letter-spacing: 8px; color: #4CAF50; background-color: #0B0B0F; padding: 20px; border-radius: 8px; margin: 20px 0; }}
-                .message {{ text-align: center; color: #cccccc; line-height: 1.6; }}
-                .footer {{ text-align: center; margin-top: 30px; font-size: 12px; color: #888888; }}
-            </style>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body {{
+                font-family: 'Poppins', sans-serif;
+                background-color: #0F172A;
+                margin: 0;
+                padding: 0;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 40px auto;
+                background-color: #1C4262;
+                border-radius: 12px;
+                padding: 40px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            }}
+            .logo {{
+                text-align: center;
+                margin-bottom: 30px;
+            }}
+            .logo img {{
+                max-width: 180px;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+            }}
+            .code {{
+                font-size: 36px;
+                font-weight: 700;
+                text-align: center;
+                letter-spacing: 10px;
+                color: #6BB4B5;
+                background-color: #15324D;
+                padding: 25px;
+                border-radius: 8px;
+                margin: 30px 0;
+                border: 1px solid #6BB4B5;
+            }}
+            .message {{
+                text-align: center;
+                color: #FFFFFF;
+                line-height: 1.6;
+            }}
+            .welcome-text {{
+                font-weight: 700;
+                font-size: 18px;
+                margin-bottom: 10px;
+                display: block;
+            }}
+            .footer {{
+                text-align: center;
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                font-size: 13px;
+                color: #E0E0E0;
+                line-height: 1.5;
+                font-weight: 400;
+            }}
+            .footer p {{
+                margin: 5px 0;
+            }}
+            .footer a {{
+                color: #6BB4B5;
+                text-decoration: none;
+                font-weight: 600;
+            }}
+            .copyright {{
+                margin-top: 20px;
+                font-size: 11px;
+                opacity: 0.7;
+            }}
+        </style>
         </head>
         <body>
             <div class="container">
                 <div class="logo">
-                    <h1 style="color: #4CAF50;">Corama</h1>
+                    <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
                 </div>
                 <div class="message">
-                    <p>Welcome to Corama! Please verify your email address by entering the code below:</p>
+                    <p class="welcome-text">
+                        Welcome to Corama!<br>
+                        Please verify your email address by entering the code below:
+                    </p>
                 </div>
                 <div class="code">{otp}</div>
                 <div class="message">
                     <p>This code will expire in 15 minutes.</p>
-                    <p>If you didn't create an account with Corama, you can safely ignore this email.</p>
+                    <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">If you didn't create an account with Corama, you can safely ignore this email.</p>
                 </div>
                 <div class="footer">
-                    <p>&copy; 2024 Corama. All rights reserved.</p>
+                    <p style="font-weight: 700; font-size: 14px;">Corama</p>
+                    <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+                    <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                    <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+                    <div class="copyright">
+                        <p>&copy; 2025 Corama. All rights reserved.</p>
+                    </div>
                 </div>
             </div>
         </body>
@@ -1055,22 +1132,130 @@ def send_password_reset_email(to_email, reset_link):
     subject = "Reset Your CORAMA Password"
     
     html_body = f"""
+    <!DOCTYPE html>
     <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
-        <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #7AB8B9; text-align: center;">Reset Your Password</h2>
-          <p>Hi,</p>
-          <p>We received a request to reset your password for your CORAMA account.</p>
-          <p>Click the button below to set a new password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="{reset_link}" style="background-color: #7AB8B9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
-          </div>
-          <p style="font-size: 0.9em; color: #666;">This link will expire in 1 hour for security reasons.</p>
-          <p style="font-size: 0.9em; color: #666;">If you didn't request a password reset, you can safely ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="text-align: center; font-size: 0.85em; color: #aaa;">&copy; 2025 CORAMA - Contract Radar Maximizer</p>
+    <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {{
+            font-family: 'Poppins', sans-serif;
+            background-color: #0F172A;
+            margin: 0;
+            padding: 0;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #1C4262;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            text-align: center;
+        }}
+        .logo {{
+            margin-bottom: 30px;
+        }}
+        .logo img {{
+            max-width: 180px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }}
+        .btn-reset {{
+            display: inline-block;
+            background-color: #6BB4B5;
+            color: #FFFFFF;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 30px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }}
+        .message {{
+            color: #FFFFFF;
+            line-height: 1.6;
+        }}
+        .welcome-text {{
+            font-weight: 700;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: block;
+        }}
+        .link-fallback {{
+            font-size: 12px;
+            color: #AABDD1;
+            margin-top: 20px;
+            word-break: break-all;
+        }}
+        .link-fallback a {{
+            color: #6BB4B5;
+        }}
+        .footer {{
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 13px;
+            color: #E0E0E0;
+            line-height: 1.5;
+            font-weight: 400;
+        }}
+        .footer p {{
+            margin: 5px 0;
+        }}
+        .footer a {{
+            color: #6BB4B5;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .copyright {{
+            margin-top: 20px;
+            font-size: 11px;
+            opacity: 0.7;
+        }}
+    </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="logo">
+                <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+            </div>
+            <div class="message">
+                <p class="welcome-text">
+                    Reset your password
+                </p>
+                <p style="font-weight: 400;">
+                    We received a request to reset your password for your Corama account.<br>
+                    Click the button below to choose a new one:
+                </p>
+            </div>
+            <a href="{reset_link}" class="btn-reset">Reset Password</a>
+            <div class="message">
+                <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
+                    This link will expire in 24 hours.
+                </p>
+                <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
+                    If you didn't request a password reset, you can safely ignore this email. Your password will not change.
+                </p>
+            </div>
+            <div class="link-fallback">
+                <p>Button not working? Copy and paste this link into your browser:</p>
+                <p><a href="{reset_link}">{reset_link}</a></p>
+            </div>
+            <div class="footer">
+                <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+                <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+                <div class="copyright">
+                    <p>&copy; 2025 Corama. All rights reserved.</p>
+                </div>
+            </div>
         </div>
-      </body>
+    </body>
     </html>
     """
     
