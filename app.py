@@ -1318,18 +1318,12 @@ def api_auth_reset_password():
         # Import firebase_admin auth module
         from firebase_admin import auth as admin_auth
         import firebase_admin
-        from urllib.parse import urlparse
+        from urllib.parse import urlparse, parse_qs, urlencode
         
-        # Get the base URL for the reset link
-        # In production, this should be the actual domain
+        # Get the base URL for our custom reset page
         base_url = os.getenv('APP_BASE_URL', 'https://corama.ai')
-        continue_url = f"{base_url}/reset-password/confirm"
         
-        # Log diagnostic info to help debug UNAUTHORIZED_DOMAIN errors
-        parsed_url = urlparse(continue_url)
         app.logger.info(f"[Auth API] APP_BASE_URL env var: {os.getenv('APP_BASE_URL', '(not set, using default)')}")
-        app.logger.info(f"[Auth API] Continue URL for reset: {continue_url}")
-        app.logger.info(f"[Auth API] Continue URL hostname: {parsed_url.netloc}")
         
         # Log Firebase project info
         try:
@@ -1339,14 +1333,29 @@ def api_auth_reset_password():
             app.logger.warning(f"[Auth API] Could not get Firebase project info: {fb_err}")
         
         # Generate password reset link using Firebase Admin SDK
-        # The link will point to our custom reset confirmation page
-        action_code_settings = admin_auth.ActionCodeSettings(
-            url=continue_url,
-            handle_code_in_app=True
-        )
+        # This generates a Firebase-hosted link with an oobCode parameter
+        firebase_reset_link = admin_auth.generate_password_reset_link(email)
+        app.logger.info(f"[Auth API] Generated Firebase reset link for {email}")
+        app.logger.info(f"[Auth API] Firebase link (for debugging): {firebase_reset_link[:100]}...")
         
-        reset_link = admin_auth.generate_password_reset_link(email, action_code_settings)
-        app.logger.info(f"[Auth API] Generated password reset link for {email}")
+        # Extract the oobCode from the Firebase link
+        # Firebase links look like: https://xxx.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=XXX&...
+        parsed_firebase_url = urlparse(firebase_reset_link)
+        query_params = parse_qs(parsed_firebase_url.query)
+        
+        oob_code = query_params.get('oobCode', [None])[0]
+        if not oob_code:
+            app.logger.error(f"[Auth API] Could not extract oobCode from Firebase link")
+            raise Exception("Failed to generate password reset link")
+        
+        app.logger.info(f"[Auth API] Extracted oobCode: {oob_code[:20]}...")
+        
+        # Build our custom Corama reset link that points to our React page
+        # The ResetPasswordConfirm.tsx page expects: ?mode=resetPassword&oobCode=XXX
+        custom_reset_link = f"{base_url}/reset-password-confirm?mode=resetPassword&oobCode={oob_code}"
+        app.logger.info(f"[Auth API] Custom reset link: {custom_reset_link[:80]}...")
+        
+        reset_link = custom_reset_link
         
         # Send the reset email via our SMTP service
         success, error = send_password_reset_email(email, reset_link)
@@ -14715,7 +14724,7 @@ REACT_PAGE_ROUTES = {
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
     'proposal-summary', 'public-bid-proposal-generator', 'landing',
-    'login', 'signup', 'confirm-terms', 'reset-password', 'verify-email', 'faq',
+    'login', 'signup', 'confirm-terms', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq',
     'about', 'about-us'
 }
 
