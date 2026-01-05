@@ -1251,16 +1251,16 @@ def send_password_reset_email(to_email, reset_link):
                 <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
                 <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
                 <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
-                    <div class="copyright">
-                        <p>&copy; 2026 Corama. All rights reserved.</p>
-                    </div>
+                <div class="copyright">
+                    <p>&copy; 2026 Corama. All rights reserved.</p>
                 </div>
             </div>
-        </body>
-        </html>
-        """
+        </div>
+    </body>
+    </html>
+    """
     
-        app.logger.info(f"[Password Reset] Calling send_email_smtp for {to_email}")
+    app.logger.info(f"[Password Reset] Calling send_email_smtp for {to_email}")
     success, error = send_email_smtp(to_email, subject, html_body)
     
     if success:
