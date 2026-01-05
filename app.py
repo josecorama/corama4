@@ -14333,7 +14333,7 @@ REACT_PAGE_ROUTES = {
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
     'proposal-summary', 'public-bid-proposal-generator', 'landing',
-    'login', 'signup', 'confirm-terms', 'reset-password', 'faq',
+    'login', 'signup', 'confirm-terms', 'reset-password', 'verify-email', 'faq',
     'about', 'about-us'
 }
 
