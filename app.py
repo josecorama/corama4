@@ -514,15 +514,15 @@ def send_otp_email(email: str, otp: str) -> bool:
                     <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
                     <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
                     <div class="copyright">
-                        <p>&copy; 2025 Corama. All rights reserved.</p>
+                                <p>&copy; 2026 Corama. All rights reserved.</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
+                </body>
+                </html>
+                """
         
-        # Use existing send_email_smtp function and CHECK the return value
+                # Use existing send_email_smtp function and CHECK the return value
         success, error_msg = send_email_smtp(email, subject, html_body)
         
         if success:
@@ -1251,16 +1251,16 @@ def send_password_reset_email(to_email, reset_link):
                 <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
                 <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
                 <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
-                <div class="copyright">
-                    <p>&copy; 2025 Corama. All rights reserved.</p>
+                    <div class="copyright">
+                        <p>&copy; 2026 Corama. All rights reserved.</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </body>
-    </html>
-    """
+        </body>
+        </html>
+        """
     
-    app.logger.info(f"[Password Reset] Calling send_email_smtp for {to_email}")
+        app.logger.info(f"[Password Reset] Calling send_email_smtp for {to_email}")
     success, error = send_email_smtp(to_email, subject, html_body)
     
     if success:
