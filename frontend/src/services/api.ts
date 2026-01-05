@@ -149,12 +149,20 @@ class ApiService {
     return res.json();
   }
 
-  async searchContracts(
-    query: string, 
-    page: number = 1, 
-    contractType: string = 'all', 
-    states: string[] = []
-  ): Promise<{success: boolean, contracts: Contract[], total_pages: number, total_contracts: number, top_categories?: {name: string, count: number, percentage: number}[]}> {
+    async searchContracts(
+      query: string, 
+      page: number = 1, 
+      contractType: string = 'all', 
+      states: string[] = []
+    ): Promise<{
+      success: boolean, 
+      contracts: Contract[], 
+      total_pages: number, 
+      total_contracts: number, 
+      next_cursor?: string | null,
+      has_more?: boolean,
+      top_categories?: {name: string, count: number, percentage: number}[]
+    }> {
     const res = await fetch(apiUrl('/dashboard_search'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

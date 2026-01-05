@@ -388,9 +388,14 @@ const LandingPage = () => {
     }`
   }
 
-  return (
-    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
-      {/* Header - Fixed at top */}
+    return (
+      <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
+        {/* Waves Background Animation */}
+        <div className="fixed inset-0 z-0 pointer-events-none">
+          <Waves />
+        </div>
+      
+        {/* Header - Fixed at top */}
       <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
