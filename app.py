@@ -141,6 +141,394 @@ def admin_clear_caches():
 
 
 # ============================================================================
+# EMAIL OTP VERIFICATION SYSTEM
+# ============================================================================
+
+# OTP Configuration
+OTP_EXPIRY_MINUTES = 15  # OTP expires after 15 minutes
+OTP_MAX_ATTEMPTS = 5     # Max verification attempts before lockout
+OTP_RATE_LIMIT_WINDOW = 900  # 15 minutes in seconds
+OTP_RATE_LIMIT_MAX_REQUESTS = 3  # Max OTP requests per window
+OTP_COOLDOWN_SECONDS = 60  # Minimum time between OTP requests
+OTP_SIGNING_SECRET = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
+
+
+def generate_otp():
+    """Generate a cryptographically secure 6-digit OTP.
+    
+    Returns:
+        str: A 6-digit OTP string (zero-padded)
+    """
+    otp = secrets.randbelow(1000000)
+    return f"{otp:06d}"
+
+
+def hash_otp(otp, email):
+    """Hash OTP using HMAC-SHA256 for secure storage.
+    
+    Args:
+        otp: The 6-digit OTP string
+        email: User's email (used as part of the hash context)
+        
+    Returns:
+        str: Hex-encoded HMAC hash
+    """
+    import hmac
+    message = f"{email.lower().strip()}:{otp}:email_verification"
+    return hmac.new(
+        OTP_SIGNING_SECRET.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+
+def verify_otp_hash(otp, email, stored_hash):
+    """Verify OTP against stored hash.
+    
+    Args:
+        otp: The OTP to verify
+        email: User's email
+        stored_hash: The stored HMAC hash
+        
+    Returns:
+        bool: True if OTP matches, False otherwise
+    """
+    import hmac
+    computed_hash = hash_otp(otp, email)
+    return hmac.compare_digest(computed_hash, stored_hash)
+
+
+def check_otp_rate_limit(email, ip_address=None):
+    """Check if OTP request is within rate limits.
+    
+    Rate limiting rules:
+    - Max 3 OTP requests per 15-minute window per email
+    - Minimum 60 seconds between requests
+    
+    Args:
+        email: User's email address
+        ip_address: Optional IP address for additional limiting
+        
+    Returns:
+        tuple: (allowed: bool, error_message: str or None, retry_after: int or None)
+    """
+    try:
+        email_key = hashlib.sha256(email.lower().strip().encode()).hexdigest()[:16]
+        rate_limit_path = f"otp_rate_limits/{email_key}"
+        
+        # Get current rate limit data (using admin SDK for unauthenticated access)
+        try:
+            import firebase_admin
+            from firebase_admin import db as admin_db
+            rate_data = admin_db.reference(rate_limit_path).get()
+        except Exception:
+            # Fallback: allow request if we can't check rate limits
+            app.logger.warning(f"[OTP Rate Limit] Could not check rate limits for {email}")
+            return True, None, None
+        
+        current_time = int(time.time())
+        
+        if rate_data:
+            window_start = rate_data.get('window_start', 0)
+            request_count = rate_data.get('request_count', 0)
+            last_request = rate_data.get('last_request', 0)
+            blocked_until = rate_data.get('blocked_until', 0)
+            
+            # Check if currently blocked
+            if blocked_until > current_time:
+                retry_after = blocked_until - current_time
+                return False, "Too many OTP requests. Please try again later.", retry_after
+            
+            # Check cooldown between requests
+            if last_request and (current_time - last_request) < OTP_COOLDOWN_SECONDS:
+                retry_after = OTP_COOLDOWN_SECONDS - (current_time - last_request)
+                return False, f"Please wait {retry_after} seconds before requesting another code.", retry_after
+            
+            # Check if within rate limit window
+            if (current_time - window_start) < OTP_RATE_LIMIT_WINDOW:
+                if request_count >= OTP_RATE_LIMIT_MAX_REQUESTS:
+                    # Block for the remainder of the window
+                    retry_after = OTP_RATE_LIMIT_WINDOW - (current_time - window_start)
+                    return False, "Maximum OTP requests reached. Please try again later.", retry_after
+            else:
+                # Window expired, will reset on update
+                pass
+        
+        return True, None, None
+        
+    except Exception as e:
+        app.logger.error(f"[OTP Rate Limit] Error checking rate limit: {e}")
+        # Fail open to not block legitimate users
+        return True, None, None
+
+
+def update_otp_rate_limit(email):
+    """Update rate limit counters after sending OTP.
+    
+    Args:
+        email: User's email address
+    """
+    try:
+        email_key = hashlib.sha256(email.lower().strip().encode()).hexdigest()[:16]
+        rate_limit_path = f"otp_rate_limits/{email_key}"
+        
+        current_time = int(time.time())
+        
+        try:
+            import firebase_admin
+            from firebase_admin import db as admin_db
+            ref = admin_db.reference(rate_limit_path)
+            rate_data = ref.get() or {}
+        except Exception:
+            app.logger.warning(f"[OTP Rate Limit] Could not update rate limits for {email}")
+            return
+        
+        window_start = rate_data.get('window_start', 0)
+        request_count = rate_data.get('request_count', 0)
+        
+        # Reset window if expired
+        if (current_time - window_start) >= OTP_RATE_LIMIT_WINDOW:
+            window_start = current_time
+            request_count = 0
+        
+        # Update counters
+        ref.set({
+            'window_start': window_start,
+            'request_count': request_count + 1,
+            'last_request': current_time,
+            'blocked_until': rate_data.get('blocked_until', 0)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[OTP Rate Limit] Error updating rate limit: {e}")
+
+
+def store_email_verification(user_id, email, otp):
+    """Store email verification OTP in Firebase.
+    
+    Args:
+        user_id: Firebase user ID
+        email: User's email address
+        otp: The plain OTP (will be hashed before storage)
+        
+    Returns:
+        bool: True if stored successfully, False otherwise
+    """
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        current_time = int(time.time())
+        expires_at = current_time + (OTP_EXPIRY_MINUTES * 60)
+        
+        verification_data = {
+            'otp_hash': hash_otp(otp, email),
+            'email': email.lower().strip(),
+            'created_at': current_time,
+            'expires_at': expires_at,
+            'attempts': 0,
+            'max_attempts': OTP_MAX_ATTEMPTS,
+            'consumed': False
+        }
+        
+        ref = admin_db.reference(f"email_verifications/{user_id}")
+        ref.set(verification_data)
+        
+        app.logger.info(f"[OTP] Stored verification for user {user_id}, expires at {expires_at}")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Error storing verification: {e}")
+        return False
+
+
+def verify_email_otp(user_id, email, otp):
+    """Verify email OTP and mark as consumed if valid.
+    
+    Args:
+        user_id: Firebase user ID
+        email: User's email address
+        otp: The OTP to verify
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        ref = admin_db.reference(f"email_verifications/{user_id}")
+        verification_data = ref.get()
+        
+        if not verification_data:
+            return False, "No verification code found. Please request a new code."
+        
+        current_time = int(time.time())
+        
+        # Check if already consumed
+        if verification_data.get('consumed'):
+            return False, "This code has already been used. Please request a new code."
+        
+        # Check expiration
+        if current_time > verification_data.get('expires_at', 0):
+            return False, "Verification code has expired. Please request a new code."
+        
+        # Check attempts
+        attempts = verification_data.get('attempts', 0)
+        max_attempts = verification_data.get('max_attempts', OTP_MAX_ATTEMPTS)
+        
+        if attempts >= max_attempts:
+            return False, "Too many failed attempts. Please request a new code."
+        
+        # Increment attempts
+        ref.update({'attempts': attempts + 1})
+        
+        # Verify OTP
+        stored_hash = verification_data.get('otp_hash')
+        stored_email = verification_data.get('email', '')
+        
+        if stored_email.lower() != email.lower().strip():
+            return False, "Email mismatch. Please try again."
+        
+        if not verify_otp_hash(otp, email, stored_hash):
+            remaining = max_attempts - (attempts + 1)
+            if remaining > 0:
+                return False, f"Invalid code. {remaining} attempts remaining."
+            else:
+                return False, "Invalid code. No attempts remaining. Please request a new code."
+        
+        # Mark as consumed
+        ref.update({
+            'consumed': True,
+            'consumed_at': current_time
+        })
+        
+        app.logger.info(f"[OTP] Email verified successfully for user {user_id}")
+        return True, None
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Error verifying OTP: {e}")
+        return False, "Verification failed. Please try again."
+
+
+def send_otp_email(to_email, otp, first_name=None):
+    """Send OTP verification email.
+    
+    Args:
+        to_email: Recipient email address
+        otp: The 6-digit OTP
+        first_name: Optional first name for personalization
+        
+    Returns:
+        tuple: (success: bool, error_message: str or None)
+    """
+    name = first_name or "there"
+    subject = "Your CORAMA Verification Code"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+        <table role="presentation" style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td align="center" style="padding: 40px 0;">
+                    <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <!-- Header -->
+                        <tr>
+                            <td style="padding: 40px 40px 20px; text-align: center; background: linear-gradient(135deg, #1c4262 0%, #0f1419 100%); border-radius: 8px 8px 0 0;">
+                                <h1 style="margin: 0; color: #6bb4b5; font-size: 28px; font-weight: 700;">CORAMA</h1>
+                                <p style="margin: 10px 0 0; color: #d1d5db; font-size: 14px;">Contract Radar Maximizer</p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding: 40px;">
+                                <h2 style="margin: 0 0 20px; color: #1f2937; font-size: 24px; font-weight: 600;">Verify Your Email</h2>
+                                <p style="margin: 0 0 20px; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Hi {name},
+                                </p>
+                                <p style="margin: 0 0 30px; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Thank you for signing up for CORAMA! Please use the verification code below to complete your registration:
+                                </p>
+                                
+                                <!-- OTP Code Box -->
+                                <div style="text-align: center; margin: 30px 0;">
+                                    <div style="display: inline-block; background: linear-gradient(135deg, #6bb4b5 0%, #4a9a9b 100%); padding: 20px 40px; border-radius: 8px;">
+                                        <span style="font-size: 36px; font-weight: 700; color: #ffffff; letter-spacing: 8px; font-family: 'Courier New', monospace;">{otp}</span>
+                                    </div>
+                                </div>
+                                
+                                <p style="margin: 30px 0 20px; color: #6b7280; font-size: 14px; line-height: 1.6; text-align: center;">
+                                    This code will expire in <strong>{OTP_EXPIRY_MINUTES} minutes</strong>.
+                                </p>
+                                
+                                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+                                
+                                <p style="margin: 0; color: #9ca3af; font-size: 13px; line-height: 1.6;">
+                                    If you didn't request this code, you can safely ignore this email. Someone may have entered your email address by mistake.
+                                </p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; text-align: center;">
+                                <p style="margin: 0; color: #9ca3af; font-size: 12px;">
+                                    &copy; {datetime.now().year} CORAMA - Contract Radar Maximizer<br>
+                                    222 W. Merchandise Mart Plaza, Suite 1212, Chicago, IL 60654
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+    
+    return send_email_smtp(to_email, subject, html_body)
+
+
+def mark_user_email_verified(user_id, id_token=None):
+    """Mark user's email as verified in Firebase Database.
+    
+    Args:
+        user_id: Firebase user ID
+        id_token: Optional ID token for authenticated update
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        if id_token:
+            db.child("users").child(user_id).update({
+                "email_verified": True,
+                "email_verified_at": datetime.now().isoformat()
+            }, id_token)
+        else:
+            import firebase_admin
+            from firebase_admin import db as admin_db
+            ref = admin_db.reference(f"users/{user_id}")
+            ref.update({
+                "email_verified": True,
+                "email_verified_at": datetime.now().isoformat()
+            })
+        
+        app.logger.info(f"[OTP] User {user_id} marked as email verified")
+        return True
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Error marking user as verified: {e}")
+        return False
+
+
+# ============================================================================
 # AUTH API ENDPOINTS (for React frontend)
 # ============================================================================
 
@@ -247,12 +635,39 @@ def api_auth_login():
                 "credits_balance": 100,
                 "credits_used": 0,
                 "last_credit_update": datetime.now().isoformat(),
-                "credit_purchase_history": []
+                "credit_purchase_history": [],
+                "email_verified": True  # Legacy users are considered verified
             }
             
             db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
             user_data = default_user_data
             app.logger.info(f"Created default user data for {email}")
+
+        # Check if email is verified (new users must verify, legacy users without field are considered verified)
+        email_verified = user_data.get('email_verified', True)  # Default True for legacy users
+        if not email_verified:
+            app.logger.warning(f"[Auth API] Login blocked for unverified email: {email}")
+            
+            # Store minimal session data for verification flow
+            session['user'] = {
+                'localId': local_id,
+                'idToken': refreshed_user['idToken'],
+                'email': email,
+                'refreshToken': refreshed_user['refreshToken']
+            }
+            session['user_data'] = {
+                'email': email,
+                'first_name': user_data.get('first_name', ''),
+                'last_name': user_data.get('last_name', ''),
+                'user_id': local_id
+            }
+            
+            return jsonify({
+                "success": False,
+                "error": "Please verify your email before logging in.",
+                "requires_verification": True,
+                "redirect": "/verify-email"
+            }), 403
 
         session['is_subscriber'] = True
         session['is_logged_in'] = True
@@ -291,10 +706,16 @@ def api_auth_login():
 
 @app.route('/api/auth/signup', methods=['POST'])
 def api_auth_signup():
-    """API endpoint for React signup page.
+    """API endpoint for React signup page with email OTP verification.
     
     Expects JSON: { first_name, last_name, company, email, username, password, recaptcha_token }
-    Returns JSON: { success, next, error }
+    Returns JSON: { success, next, error, requires_verification }
+    
+    Flow:
+    1. Create user in Firebase Auth
+    2. Store user data with email_verified=False
+    3. Generate and send OTP via email
+    4. Redirect to email verification page
     """
     data = request.get_json() or {}
     
@@ -319,6 +740,15 @@ def api_auth_signup():
     if not verify_recaptcha(recaptcha_token):
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
     
+    # Check OTP rate limit before proceeding
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+    rate_allowed, rate_error, retry_after = check_otp_rate_limit(email, ip_address)
+    if not rate_allowed:
+        response = jsonify({"success": False, "error": rate_error})
+        if retry_after:
+            response.headers['Retry-After'] = str(retry_after)
+        return response, 429
+    
     app.logger.info(f"[Auth API] Signup attempt for email: {email}")
     
     try:
@@ -329,14 +759,7 @@ def api_auth_signup():
         
         app.logger.info(f"[Auth API] Firebase user created: {user_id}")
         
-        # Send Welcome Email (non-blocking)
-        import threading
-        email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
-        email_thread.daemon = True
-        email_thread.start()
-        app.logger.info("[Auth API] Welcome email thread started")
-        
-        # Store User Data in Session
+        # Store User Data in Session (for verification flow)
         session['user_data'] = {
             "first_name": first_name,
             "last_name": last_name,
@@ -356,7 +779,7 @@ def api_auth_signup():
             'refreshToken': user_logged_in['refreshToken']
         }
         
-        # Store User Data in Firebase Database
+        # Store User Data in Firebase Database with email_verified=False
         db.child("users").child(user_id).set({
             "first_name": first_name,
             "last_name": last_name,
@@ -368,14 +791,46 @@ def api_auth_signup():
             "uploads_dir": create_user_directory(user_id),
             "credits_balance": 100,
             "credits_used": 0,
-            "directory_listed": False
+            "directory_listed": False,
+            "email_verified": False,  # User must verify email
+            "created_at": datetime.now().isoformat()
         }, user_logged_in['idToken'])
         
         app.logger.info(f"[Auth API] User data stored in Firebase for {email}")
         
+        # Generate and send OTP
+        otp = generate_otp()
+        
+        # Store OTP in Firebase
+        if not store_email_verification(user_id, email, otp):
+            app.logger.error(f"[Auth API] Failed to store OTP for {email}")
+            return jsonify({
+                "success": False, 
+                "error": "Failed to generate verification code. Please try again."
+            }), 500
+        
+        # Send OTP email (non-blocking)
+        def send_otp_async():
+            success, error = send_otp_email(email, otp, first_name)
+            if not success:
+                app.logger.error(f"[Auth API] Failed to send OTP email to {email}: {error}")
+            else:
+                app.logger.info(f"[Auth API] OTP email sent to {email}")
+        
+        email_thread = threading.Thread(target=send_otp_async)
+        email_thread.daemon = True
+        email_thread.start()
+        
+        # Update rate limit counters
+        update_otp_rate_limit(email)
+        
+        app.logger.info(f"[Auth API] OTP generated and email queued for {email}")
+        
         return jsonify({
             "success": True,
-            "next": "/confirm-terms"
+            "next": "/verify-email",
+            "requires_verification": True,
+            "message": "Please check your email for the verification code."
         })
     
     except Exception as e:
@@ -396,6 +851,152 @@ def api_auth_signup():
             error_message = "Too many failed attempts. Please try again later."
         
         return jsonify({"success": False, "error": error_message}), 400
+
+
+@app.route('/api/auth/verify-email', methods=['POST'])
+def api_auth_verify_email():
+    """API endpoint to verify email with OTP code.
+    
+    Expects JSON: { code }
+    Returns JSON: { success, next, error }
+    
+    The user must be in an active session (just signed up).
+    """
+    data = request.get_json() or {}
+    code = data.get('code', '').strip()
+    
+    if not code:
+        return jsonify({"success": False, "error": "Verification code is required"}), 400
+    
+    if len(code) != 6 or not code.isdigit():
+        return jsonify({"success": False, "error": "Invalid code format. Please enter a 6-digit code."}), 400
+    
+    # Get user from session
+    user_auth = session.get('user')
+    user_data = session.get('user_data')
+    
+    if not user_auth or not user_data:
+        return jsonify({
+            "success": False, 
+            "error": "Session expired. Please sign up again."
+        }), 401
+    
+    user_id = user_auth.get('localId')
+    email = user_data.get('email')
+    
+    if not user_id or not email:
+        return jsonify({
+            "success": False, 
+            "error": "Invalid session. Please sign up again."
+        }), 401
+    
+    app.logger.info(f"[Auth API] Email verification attempt for {email}")
+    
+    # Verify OTP
+    success, error = verify_email_otp(user_id, email, code)
+    
+    if not success:
+        app.logger.warning(f"[Auth API] Email verification failed for {email}: {error}")
+        return jsonify({"success": False, "error": error}), 400
+    
+    # Mark user as verified
+    id_token = user_auth.get('idToken')
+    if not mark_user_email_verified(user_id, id_token):
+        app.logger.error(f"[Auth API] Failed to mark user as verified: {email}")
+        return jsonify({
+            "success": False, 
+            "error": "Verification succeeded but failed to update account. Please contact support."
+        }), 500
+    
+    # Send welcome email now that user is verified (non-blocking)
+    first_name = user_data.get('first_name', '')
+    def send_welcome_async():
+        send_welcome_email(email, first_name)
+    
+    email_thread = threading.Thread(target=send_welcome_async)
+    email_thread.daemon = True
+    email_thread.start()
+    
+    app.logger.info(f"[Auth API] Email verified successfully for {email}")
+    
+    return jsonify({
+        "success": True,
+        "next": "/confirm-terms",
+        "message": "Email verified successfully!"
+    })
+
+
+@app.route('/api/auth/resend-otp', methods=['POST'])
+def api_auth_resend_otp():
+    """API endpoint to resend OTP verification code.
+    
+    Expects JSON: {} (uses session data)
+    Returns JSON: { success, message, error }
+    
+    Rate limited to prevent spam.
+    """
+    # Get user from session
+    user_auth = session.get('user')
+    user_data = session.get('user_data')
+    
+    if not user_auth or not user_data:
+        return jsonify({
+            "success": False, 
+            "error": "Session expired. Please sign up again."
+        }), 401
+    
+    user_id = user_auth.get('localId')
+    email = user_data.get('email')
+    first_name = user_data.get('first_name')
+    
+    if not user_id or not email:
+        return jsonify({
+            "success": False, 
+            "error": "Invalid session. Please sign up again."
+        }), 401
+    
+    # Check rate limit
+    ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+    rate_allowed, rate_error, retry_after = check_otp_rate_limit(email, ip_address)
+    
+    if not rate_allowed:
+        response = jsonify({"success": False, "error": rate_error})
+        if retry_after:
+            response.headers['Retry-After'] = str(retry_after)
+        return response, 429
+    
+    app.logger.info(f"[Auth API] Resend OTP request for {email}")
+    
+    # Generate new OTP
+    otp = generate_otp()
+    
+    # Store new OTP (overwrites previous)
+    if not store_email_verification(user_id, email, otp):
+        app.logger.error(f"[Auth API] Failed to store new OTP for {email}")
+        return jsonify({
+            "success": False, 
+            "error": "Failed to generate new code. Please try again."
+        }), 500
+    
+    # Send OTP email (non-blocking)
+    def send_otp_async():
+        success, error = send_otp_email(email, otp, first_name)
+        if not success:
+            app.logger.error(f"[Auth API] Failed to resend OTP email to {email}: {error}")
+        else:
+            app.logger.info(f"[Auth API] OTP email resent to {email}")
+    
+    email_thread = threading.Thread(target=send_otp_async)
+    email_thread.daemon = True
+    email_thread.start()
+    
+    # Update rate limit counters
+    update_otp_rate_limit(email)
+    
+    return jsonify({
+        "success": True,
+        "message": "A new verification code has been sent to your email."
+    })
 
 
 @app.route('/api/auth/confirm-terms', methods=['POST'])
