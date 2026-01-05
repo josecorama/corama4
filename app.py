@@ -52,6 +52,7 @@ from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
+from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 
 # Load environment variables - use override=True to ensure .env values take precedence
 # over any system environment variables (fixes API key issues)
@@ -3532,7 +3533,11 @@ _FALLBACK_CATEGORY_INDEX = 0
 def get_main_category_for_payload(payload):
     """
     Map a contract payload to one of the main categories.
-    Uses NAICS codes first, then compute_category_score, with balanced fallback for zero-score cases.
+    
+    UPDATED: Now delegates to the shared category_mapping module for consistent
+    categorization across both the web app and background worker.
+    
+    Uses NAICS codes first, then keyword matching, with 'Other' as fallback.
     
     This function is designed to be called from both /api/contracts and /dashboard_search.
     
@@ -3540,32 +3545,23 @@ def get_main_category_for_payload(payload):
         payload: Dict with contract data (naics_code, title/bid_name, summary/bid_description, etc.)
     
     Returns:
-        One of MAIN_CATEGORIES strings
+        One of DASHBOARD_CATEGORIES strings
     """
-    global _FALLBACK_CATEGORY_INDEX
+    # Delegate to shared category mapping module for consistency with worker
+    category = shared_map_payload_to_category(payload)
     
-    # 1) Try NAICS code mapping first (most reliable)
-    naics_raw = str(payload.get('naics_code', '') or '')
-    if naics_raw:
-        codes = parse_naics_codes(naics_raw)
-        for code in codes:
-            if code in NAICS_TO_CATEGORY:
-                return NAICS_TO_CATEGORY[code]
-    
-    # 2) Use compute_category_score to find best match based on keywords
-    scores = {cat: compute_category_score(payload, cat) for cat in MAIN_CATEGORIES}
-    best_cat = max(scores, key=scores.get)
-    best_score = scores[best_cat]
-    
-    # 3) If we have a positive score, use the best category
-    if best_score > 0:
-        return best_cat
-    
-    # 4) For zero-score cases, distribute evenly across categories (not just Goods/Supplies)
-    # This prevents any single category from becoming too dominant
-    fallback_cat = MAIN_CATEGORIES[_FALLBACK_CATEGORY_INDEX % len(MAIN_CATEGORIES)]
-    _FALLBACK_CATEGORY_INDEX += 1
-    return fallback_cat
+    # Map any categories not in MAIN_CATEGORIES to the closest match
+    # This ensures backward compatibility with existing code that expects MAIN_CATEGORIES
+    if category in MAIN_CATEGORIES:
+        return category
+    elif category == 'Healthcare':
+        return 'Professional Services'  # Healthcare maps to Professional Services
+    elif category == 'Transportation':
+        return 'Goods/Supplies'  # Transportation maps to Goods/Supplies
+    elif category == 'Other':
+        return 'Goods/Supplies'  # Default fallback
+    else:
+        return 'Professional Services'  # Any other category defaults to Professional Services
 
 def compute_main_category_counts(payloads):
     """

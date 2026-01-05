@@ -61,6 +61,9 @@ from firebase_admin import credentials, db as admin_database
 # Initialize OpenAI
 from openai import OpenAI
 
+# Import shared category mapping module
+from category_mapping import map_payload_to_category, DASHBOARD_CATEGORIES
+
 # Worker configuration
 WORKER_ID = f"worker-{uuid.uuid4().hex[:8]}"
 POLL_INTERVAL = 5  # seconds between polling for new jobs
@@ -1236,8 +1239,8 @@ def calculate_dashboard_stats(db):
         logger.info(f"[STATS_CALC] Total contracts: {total_contracts}")
         
         # Scroll through all contracts to count categories
-        # Only fetch the 'category' field to minimize memory usage
-        category_counts = {}
+        # Use NAICS-based mapping instead of raw category field
+        category_counts = {cat: 0 for cat in DASHBOARD_CATEGORIES}  # Initialize all categories
         status_counts = {'active': 0, 'closed': 0}
         offset = None
         contracts_processed = 0
@@ -1248,7 +1251,7 @@ def calculate_dashboard_stats(db):
                     collection_name="government_contracts",
                     limit=1000,  # Process 1000 at a time
                     offset=offset,
-                    with_payload=True,  # Full payload needed to extract category
+                    with_payload=True,  # Full payload needed for NAICS-based mapping
                     with_vectors=False  # CRITICAL: Don't load vectors
                 )
                 
@@ -1260,10 +1263,9 @@ def calculate_dashboard_stats(db):
                 for point in points:
                     payload = point.payload or {}
                     
-                    # Extract category
-                    category = payload.get('category') or payload.get('Category') or 'Other'
-                    if category in ('nan', 'None', 'null', ''):
-                        category = 'Other'
+                    # Use NAICS-based category mapping instead of raw category field
+                    # This ensures consistent categorization based on NAICS codes and keywords
+                    category = map_payload_to_category(payload)
                     
                     category_counts[category] = category_counts.get(category, 0) + 1
                     
