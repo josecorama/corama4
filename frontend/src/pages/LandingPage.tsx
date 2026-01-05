@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import Waves from '../components/Waves'
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
-const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'mission-vision', 'testimonial-footer']
+const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'footer']
 
 // FeatureCard component with animation elements
 interface FeatureCardProps {
@@ -629,196 +629,12 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Mission + Vision Section (Grouped) */}
+      {/* Footer Section */}
       <section 
-        ref={setSectionRef('mission-vision')}
-        data-section="mission-vision"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('mission-vision')}`}
+        ref={setSectionRef('footer')}
+        data-section="footer"
+        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-end snap-start ${getSectionClass('footer')}`}
       >
-        {/* Soft teal glow background */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-1/4 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
-          <div className="absolute bottom-1/4 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
-        </div>
-        
-        {/* Spiral SVGs behind stars - left side mirrored, right side original */}
-        {/* 25% bigger (375px instead of 300px), positioned at viewport edges */}
-        <img 
-          src="/static/app/landing/Spiral.svg" 
-          alt="" 
-          className="absolute top-[15%] left-0 w-[375px] h-auto hidden lg:block pointer-events-none"
-          style={{ transform: 'scaleX(-1)', opacity: 0.6 }}
-          aria-hidden="true"
-        />
-        <img 
-          src="/static/app/landing/Spiral.svg" 
-          alt="" 
-          className="absolute bottom-[15%] right-0 w-[375px] h-auto hidden lg:block pointer-events-none"
-          style={{ opacity: 0.6 }}
-          aria-hidden="true"
-        />
-        
-        {/* Twinkling stars for Mission section */}
-        <img 
-          src="/static/app/landing/left-star-img.svg" 
-          alt="" 
-          className="absolute top-16 left-[8%] w-8 h-8 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '0s' }}
-        />
-        <img 
-          src="/static/app/landing/left-big-star-img.svg" 
-          alt="" 
-          className="absolute top-[38%] left-[5%] w-12 h-12 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '0.5s' }}
-        />
-        
-        {/* Twinkling stars for Vision section */}
-        <img 
-          src="/static/app/landing/right-star-img.svg" 
-          alt="" 
-          className="absolute top-[55%] right-[8%] w-8 h-8 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '1s' }}
-        />
-        <img 
-          src="/static/app/landing/right-big-star-img.svg" 
-          alt="" 
-          className="absolute bottom-16 right-[5%] w-12 h-12 animate-twinkle hidden lg:block"
-          style={{ animationDelay: '1.5s' }}
-        />
-        
-        {/* Mission */}
-        <div className="max-w-6xl mx-auto relative z-10 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="order-2 md:order-1 flex items-center justify-center">
-              <img 
-                src="/static/app/landing/Mission.svg" 
-                alt="Mission" 
-                className="w-full max-w-[400px] h-auto"
-              />
-            </div>
-            <div className="order-1 md:order-2 text-center md:text-left">
-              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
-                To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
-              </p>
-              <a 
-                href="/login" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
-              >
-                Get Started
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Vision */}
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="text-center md:text-left">
-              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
-                To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
-              </p>
-              <a 
-                href="/login" 
-                className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
-              >
-                Get Started
-              </a>
-            </div>
-            <div className="flex justify-center order-first md:order-last">
-              <img 
-                src="/static/app/landing/Vision.svg" 
-                alt="Vision" 
-                className="w-full max-w-[400px] h-auto"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Capturing Major State Procurement Wins + Footer (Grouped) */}
-      <section 
-        ref={setSectionRef('testimonial-footer')}
-        data-section="testimonial-footer"
-        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-between snap-start ${getSectionClass('testimonial-footer')}`}
-      >
-        {/* Main content */}
-        <div className="flex-1 flex flex-col justify-center">
-          <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-            <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-5 leading-tight">
-              Capturing Major State<br />Procurement Wins
-            </h2>
-            <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base mb-4 max-w-3xl mx-auto px-2 leading-relaxed">
-              "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
-            </p>
-            
-            {/* Learn More BETWEEN HEXAGONS - with soft oval glow */}
-            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
-              {/* Left hexagon group */}
-              <div
-                className="relative flex items-center justify-center hidden sm:flex"
-                style={{ width: '400px', height: '120px', flexShrink: 1 }}
-              >
-                <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                  style={{
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100px',
-                    background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
-                    filter: 'blur(12px)',
-                    opacity: 0.75,
-                  }}
-                />
-                <img
-                  src="/static/app/landing/hexagons.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="relative z-10 w-full h-auto translate-y-[20px]"
-                  style={{ maxWidth: '100%' }}
-                />
-              </div>
-
-              {/* Learn More button */}
-              <button
-                onClick={scrollToFeatures}
-                style={{ flexShrink: 0 }}
-                className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-base hover:gap-3 transition-all whitespace-nowrap px-2"
-              >
-                Learn More <ArrowRight size={18} />
-              </button>
-
-              {/* Right hexagon group (mirrored) */}
-              <div
-                className="relative flex items-center justify-center hidden sm:flex"
-                style={{ width: '400px', height: '120px', flexShrink: 1 }}
-              >
-                <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                  style={{
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100px',
-                    background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
-                    filter: 'blur(12px)',
-                    opacity: 0.75,
-                  }}
-                />
-                <img
-                  src="/static/app/landing/hexagons.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="relative z-10 w-full h-auto translate-y-[20px] scale-x-[-1]"
-                  style={{ maxWidth: '100%' }}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Footer - at bottom of section */}
         <footer className="py-6 px-4 sm:px-6 relative">
           <div className="max-w-6xl mx-auto relative z-10">
@@ -833,13 +649,6 @@ const LandingPage = () => {
               <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
               <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
               <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">FAQ</a>
-              <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Contact</a>
-            </div>
-            
-            <div className="text-center mb-4">
-              <a href="mailto:contact@corama.ai" className="text-white hover:text-corama-teal font-poppins text-xs sm:text-sm transition-colors">
-                contact@corama.ai
-              </a>
             </div>
             
             {/* CORAMA Logo */}
