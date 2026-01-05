@@ -1233,7 +1233,7 @@ def send_password_reset_email(to_email, reset_link):
                     Click the button below to choose a new one:
                 </p>
             </div>
-            <a href="{reset_link}" class="btn-reset">Reset Password</a>
+            <a href="{reset_link}" class="btn-reset" style="display: inline-block; background-color: #6BB4B5; color: #FFFFFF !important; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 30px 0;">Reset Password</a>
             <div class="message">
                 <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
                     This link will expire in 24 hours.
