@@ -782,6 +782,10 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
         # MICRO-BATCH STRATEGY: Use limit=10 with full payload for stability
         contracts_to_enrich = []
         offset = None
+        total_scanned = 0
+        skipped_valid_naics = 0
+        
+        logger.info(f"[NAICS_WORKER] Starting scan for contracts needing enrichment (batch_size={batch_size})")
         
         while len(contracts_to_enrich) < batch_size:
             # Micro-batch: limit=10 with full payload to prevent OOM and 400 errors
@@ -796,20 +800,34 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
             points, next_offset = result
             
             if not points:
+                logger.info(f"[NAICS_WORKER] No more points to scan (total scanned: {total_scanned})")
                 break
+            
+            total_scanned += len(points)
             
             for point in points:
                 payload = point.payload or {}
                 
-                # Check if NAICS code is missing
-                naics_code = payload.get('naics_code') or payload.get('NAICS Code') or ''
-                naics_desc = payload.get('naics_description') or payload.get('NAICS Description') or ''
+                # Check if NAICS code is missing - try multiple field name variants
+                naics_code = payload.get('naics_code') or payload.get('NAICS Code') or payload.get('NAICS_Code') or ''
+                naics_desc = payload.get('naics_description') or payload.get('NAICS Description') or payload.get('category') or ''
                 
-                # Skip if already has valid NAICS
-                if naics_code and str(naics_code).strip() and str(naics_code).strip().lower() not in ('nan', 'none', 'null', ''):
-                    # Also check if description is valid
-                    if naics_desc and str(naics_desc).strip().lower() not in ('other', 'unknown', 'nan', 'none', 'null', ''):
-                        continue
+                # DEBUG: Log first few payloads to understand field structure
+                if total_scanned <= 3:
+                    payload_keys = list(payload.keys())[:10]  # First 10 keys
+                    logger.info(f"[NAICS_WORKER] Sample payload keys (point {point.id}): {payload_keys}")
+                    logger.info(f"[NAICS_WORKER] Sample naics_code='{naics_code}', naics_desc='{naics_desc[:50] if naics_desc else ''}'")
+                
+                # Skip if already has valid NAICS code (6-digit number)
+                naics_code_str = str(naics_code).strip() if naics_code else ''
+                if naics_code_str and naics_code_str.lower() not in ('nan', 'none', 'null', '', 'n/a'):
+                    # Check if it looks like a valid NAICS code (4-6 digits)
+                    if naics_code_str.isdigit() and len(naics_code_str) >= 4:
+                        # Also check if description is valid (not just "Other" or similar)
+                        naics_desc_str = str(naics_desc).strip().lower() if naics_desc else ''
+                        if naics_desc_str and naics_desc_str not in ('other', 'unknown', 'nan', 'none', 'null', '', 'n/a', 'unclassified'):
+                            skipped_valid_naics += 1
+                            continue
                 
                 # Get bid name and organization for prediction
                 bid_name = (payload.get('bid_name') or payload.get('Bid Name') or 
@@ -837,11 +855,11 @@ def fetch_contracts_needing_enrichment(qdrant_client, batch_size: int = 50) -> l
             if offset is None:
                 break
         
-        logger.info(f"[NAICS_WORKER] Found {len(contracts_to_enrich)} contracts needing enrichment")
+        logger.info(f"[NAICS_WORKER] Scan complete: scanned={total_scanned}, skipped_valid={skipped_valid_naics}, found_needing_enrichment={len(contracts_to_enrich)}")
         return contracts_to_enrich
         
     except Exception as e:
-        logger.error(f"[NAICS_WORKER] Error fetching contracts for enrichment: {e}")
+        logger.error(f"[NAICS_WORKER] Error fetching contracts for enrichment: {e}", exc_info=True)
         return []
 
 

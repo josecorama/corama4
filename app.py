@@ -192,12 +192,256 @@ def verify_recaptcha(token):
         return True  # Fail open to not block users if Google is down
 
 
+# ============================================================================
+# OTP EMAIL VERIFICATION SYSTEM
+# ============================================================================
+
+def generate_otp():
+    """Generate a cryptographically secure 6-digit OTP code."""
+    import secrets
+    return str(secrets.randbelow(900000) + 100000)  # 100000-999999
+
+
+def hash_otp(otp: str) -> str:
+    """Hash OTP using HMAC-SHA256 for secure storage (never store in plain text)."""
+    import hmac
+    import hashlib
+    secret_key = os.getenv('OTP_SECRET_KEY', os.getenv('SECRET_KEY', 'default-otp-secret'))
+    return hmac.new(secret_key.encode(), otp.encode(), hashlib.sha256).hexdigest()
+
+
+def verify_otp_hash(otp: str, stored_hash: str) -> bool:
+    """Verify OTP against stored hash using constant-time comparison."""
+    import hmac
+    return hmac.compare_digest(hash_otp(otp), stored_hash)
+
+
+def check_otp_rate_limit(email: str) -> tuple:
+    """
+    Check if user is rate-limited for OTP requests.
+    
+    Rate limits:
+    - Max 3 OTP requests per 15 minutes
+    - 60 second cooldown between requests
+    
+    Returns: (is_allowed: bool, error_message: str or None, seconds_until_retry: int or None)
+    """
+    import time
+    try:
+        # Use Firebase Admin SDK for rate limit data
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        rate_limit_ref = admin_db.reference(f'otp_rate_limits/{email.replace(".", "_dot_").replace("@", "_at_")}')
+        rate_data = rate_limit_ref.get() or {}
+        
+        current_time = time.time()
+        last_request = rate_data.get('last_request', 0)
+        request_count = rate_data.get('request_count', 0)
+        window_start = rate_data.get('window_start', current_time)
+        
+        # Check 60 second cooldown
+        seconds_since_last = current_time - last_request
+        if seconds_since_last < 60:
+            return False, "Please wait before requesting another code", int(60 - seconds_since_last)
+        
+        # Check 15-minute window (900 seconds)
+        if current_time - window_start > 900:
+            # Reset window
+            return True, None, None
+        
+        # Check max 3 requests per window
+        if request_count >= 3:
+            seconds_remaining = int(900 - (current_time - window_start))
+            return False, "Too many OTP requests. Please try again later", seconds_remaining
+        
+        return True, None, None
+        
+    except Exception as e:
+        app.logger.warning(f"[OTP] Rate limit check failed (allowing request): {e}")
+        return True, None, None  # Fail open
+
+
+def update_otp_rate_limit(email: str):
+    """Update rate limit counters after sending OTP."""
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        rate_limit_ref = admin_db.reference(f'otp_rate_limits/{email.replace(".", "_dot_").replace("@", "_at_")}')
+        rate_data = rate_limit_ref.get() or {}
+        
+        current_time = time.time()
+        window_start = rate_data.get('window_start', current_time)
+        
+        # Reset window if expired (15 minutes)
+        if current_time - window_start > 900:
+            rate_limit_ref.set({
+                'last_request': current_time,
+                'request_count': 1,
+                'window_start': current_time
+            })
+        else:
+            rate_limit_ref.update({
+                'last_request': current_time,
+                'request_count': rate_data.get('request_count', 0) + 1
+            })
+            
+    except Exception as e:
+        app.logger.warning(f"[OTP] Failed to update rate limit: {e}")
+
+
+def store_email_verification(email: str, otp: str, user_id: str):
+    """Store hashed OTP in Firebase with 15-minute expiration."""
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        verification_ref = admin_db.reference(f'email_verifications/{user_id}')
+        verification_ref.set({
+            'email': email,
+            'otp_hash': hash_otp(otp),
+            'created_at': time.time(),
+            'expires_at': time.time() + 900,  # 15 minutes
+            'attempts': 0,
+            'verified': False
+        })
+        app.logger.info(f"[OTP] Stored verification for {email}")
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Failed to store verification: {e}")
+        raise
+
+
+def verify_email_otp(user_id: str, otp: str) -> tuple:
+    """
+    Verify OTP code for email verification.
+    
+    Returns: (success: bool, error_message: str or None)
+    """
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        verification_ref = admin_db.reference(f'email_verifications/{user_id}')
+        verification_data = verification_ref.get()
+        
+        if not verification_data:
+            return False, "No verification pending. Please sign up again."
+        
+        # Check if already verified
+        if verification_data.get('verified'):
+            return False, "Email already verified. Please log in."
+        
+        # Check expiration
+        if time.time() > verification_data.get('expires_at', 0):
+            return False, "Verification code expired. Please request a new one."
+        
+        # Check max attempts (5)
+        attempts = verification_data.get('attempts', 0)
+        if attempts >= 5:
+            return False, "Too many failed attempts. Please request a new code."
+        
+        # Increment attempts
+        verification_ref.update({'attempts': attempts + 1})
+        
+        # Verify OTP
+        if not verify_otp_hash(otp, verification_data.get('otp_hash', '')):
+            remaining = 5 - (attempts + 1)
+            return False, f"Invalid code. {remaining} attempts remaining."
+        
+        # Mark as verified
+        verification_ref.update({'verified': True})
+        return True, None
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Verification error: {e}")
+        return False, "Verification failed. Please try again."
+
+
+def send_otp_email(email: str, otp: str):
+    """Send OTP verification email using configured SMTP."""
+    try:
+        subject = "Corama - Verify Your Email"
+        
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; background-color: #0B0B0F; color: #ffffff; padding: 20px; }}
+                .container {{ max-width: 600px; margin: 0 auto; background-color: #1a1a2e; border-radius: 10px; padding: 40px; }}
+                .logo {{ text-align: center; margin-bottom: 30px; }}
+                .code {{ font-size: 32px; font-weight: bold; text-align: center; letter-spacing: 8px; color: #4CAF50; background-color: #0B0B0F; padding: 20px; border-radius: 8px; margin: 20px 0; }}
+                .message {{ text-align: center; color: #cccccc; line-height: 1.6; }}
+                .footer {{ text-align: center; margin-top: 30px; font-size: 12px; color: #888888; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">
+                    <h1 style="color: #4CAF50;">Corama</h1>
+                </div>
+                <div class="message">
+                    <p>Welcome to Corama! Please verify your email address by entering the code below:</p>
+                </div>
+                <div class="code">{otp}</div>
+                <div class="message">
+                    <p>This code will expire in 15 minutes.</p>
+                    <p>If you didn't create an account with Corama, you can safely ignore this email.</p>
+                </div>
+                <div class="footer">
+                    <p>&copy; 2024 Corama. All rights reserved.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Welcome to Corama!
+        
+        Your verification code is: {otp}
+        
+        This code will expire in 15 minutes.
+        
+        If you didn't create an account with Corama, you can safely ignore this email.
+        """
+        
+        # Use existing send_email_smtp function
+        send_email_smtp(email, subject, html_body, text_body)
+        app.logger.info(f"[OTP] Verification email sent to {email}")
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Failed to send verification email: {e}")
+        raise
+
+
+def mark_user_email_verified(user_id: str, id_token: str):
+    """Mark user as email verified in Firebase database."""
+    try:
+        db.child("users").child(user_id).update({
+            "email_verified": True,
+            "email_verified_at": datetime.now().isoformat()
+        }, id_token)
+        app.logger.info(f"[OTP] User {user_id} marked as email verified")
+    except Exception as e:
+        app.logger.error(f"[OTP] Failed to mark user as verified: {e}")
+        raise
+
+
 @app.route('/api/auth/login', methods=['POST'])
 def api_auth_login():
-    """API endpoint for React login page.
+    """API endpoint for React login page with email verification check.
     
     Expects JSON: { email, password, recaptcha_token }
-    Returns JSON: { success, redirect, error }
+    Returns JSON: { success, redirect, error, requires_verification }
+    
+    If user has email_verified=false, returns requires_verification=true
+    and redirects to /verify-email instead of /dashboard.
     """
     session.clear()
     
@@ -247,12 +491,41 @@ def api_auth_login():
                 "credits_balance": 100,
                 "credits_used": 0,
                 "last_credit_update": datetime.now().isoformat(),
-                "credit_purchase_history": []
+                "credit_purchase_history": [],
+                "email_verified": True  # Legacy users are considered verified
             }
             
             db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
             user_data = default_user_data
             app.logger.info(f"Created default user data for {email}")
+
+        # CHECK EMAIL VERIFICATION STATUS
+        # Legacy users without email_verified field are considered verified (backwards compatibility)
+        email_verified = user_data.get('email_verified', True)
+        
+        if not email_verified:
+            app.logger.warning(f"[Auth API] User {email} has not verified their email")
+            
+            # Generate new OTP and send verification email
+            otp = generate_otp()
+            try:
+                store_email_verification(email, otp, local_id)
+                update_otp_rate_limit(email)
+                
+                # Send OTP email (non-blocking)
+                import threading
+                email_thread = threading.Thread(target=send_otp_email, args=(email, otp))
+                email_thread.daemon = True
+                email_thread.start()
+            except Exception as e:
+                app.logger.warning(f"[Auth API] Failed to send verification email: {e}")
+            
+            return jsonify({
+                "success": False,
+                "error": "Please verify your email address before logging in.",
+                "requires_verification": True,
+                "redirect": "/verify-email"
+            }), 403
 
         session['is_subscriber'] = True
         session['is_logged_in'] = True
@@ -291,10 +564,16 @@ def api_auth_login():
 
 @app.route('/api/auth/signup', methods=['POST'])
 def api_auth_signup():
-    """API endpoint for React signup page.
+    """API endpoint for React signup page with 2-step email verification.
     
     Expects JSON: { first_name, last_name, company, email, username, password, recaptcha_token }
     Returns JSON: { success, next, error }
+    
+    Flow:
+    1. Create Firebase user with email_verified=false
+    2. Generate 6-digit OTP and store hashed in Firebase
+    3. Send OTP email
+    4. Redirect to /verify-email
     """
     data = request.get_json() or {}
     
@@ -329,14 +608,11 @@ def api_auth_signup():
         
         app.logger.info(f"[Auth API] Firebase user created: {user_id}")
         
-        # Send Welcome Email (non-blocking)
-        import threading
-        email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
-        email_thread.daemon = True
-        email_thread.start()
-        app.logger.info("[Auth API] Welcome email thread started")
+        # Generate OTP for email verification
+        otp = generate_otp()
+        app.logger.info(f"[Auth API] Generated OTP for {email}")
         
-        # Store User Data in Session
+        # Store User Data in Session (for verify-email page)
         session['user_data'] = {
             "first_name": first_name,
             "last_name": last_name,
@@ -356,7 +632,7 @@ def api_auth_signup():
             'refreshToken': user_logged_in['refreshToken']
         }
         
-        # Store User Data in Firebase Database
+        # Store User Data in Firebase Database with email_verified=false
         db.child("users").child(user_id).set({
             "first_name": first_name,
             "last_name": last_name,
@@ -368,14 +644,29 @@ def api_auth_signup():
             "uploads_dir": create_user_directory(user_id),
             "credits_balance": 100,
             "credits_used": 0,
-            "directory_listed": False
+            "directory_listed": False,
+            "email_verified": False  # NEW: Mark as unverified
         }, user_logged_in['idToken'])
         
         app.logger.info(f"[Auth API] User data stored in Firebase for {email}")
         
+        # Store OTP verification data
+        try:
+            store_email_verification(email, otp, user_id)
+            update_otp_rate_limit(email)
+        except Exception as e:
+            app.logger.warning(f"[Auth API] Failed to store OTP (continuing anyway): {e}")
+        
+        # Send OTP email (non-blocking)
+        import threading
+        email_thread = threading.Thread(target=send_otp_email, args=(email, otp))
+        email_thread.daemon = True
+        email_thread.start()
+        app.logger.info("[Auth API] OTP email thread started")
+        
         return jsonify({
             "success": True,
-            "next": "/confirm-terms"
+            "next": "/verify-email"  # NEW: Redirect to email verification
         })
     
     except Exception as e:
@@ -396,6 +687,103 @@ def api_auth_signup():
             error_message = "Too many failed attempts. Please try again later."
         
         return jsonify({"success": False, "error": error_message}), 400
+
+
+@app.route('/api/auth/verify-email', methods=['POST'])
+def api_auth_verify_email():
+    """API endpoint to verify email with OTP code.
+    
+    Expects JSON: { code: "123456" }
+    Returns JSON: { success, redirect, error }
+    """
+    data = request.get_json() or {}
+    otp = data.get('code', '').strip()
+    
+    if not otp or len(otp) != 6 or not otp.isdigit():
+        return jsonify({"success": False, "error": "Please enter a valid 6-digit code"}), 400
+    
+    # Get user from session
+    user = session.get('user')
+    if not user:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    user_id = user.get('localId')
+    id_token = user.get('idToken')
+    email = user.get('email')
+    
+    app.logger.info(f"[Auth API] Email verification attempt for {email}")
+    
+    # Verify OTP
+    success, error = verify_email_otp(user_id, otp)
+    
+    if not success:
+        app.logger.warning(f"[Auth API] Email verification failed for {email}: {error}")
+        return jsonify({"success": False, "error": error}), 400
+    
+    # Mark user as verified in Firebase
+    try:
+        mark_user_email_verified(user_id, id_token)
+    except Exception as e:
+        app.logger.error(f"[Auth API] Failed to mark user as verified: {e}")
+        # Continue anyway - the OTP was valid
+    
+    app.logger.info(f"[Auth API] Email verified successfully for {email}")
+    
+    return jsonify({
+        "success": True,
+        "redirect": "/confirm-terms"
+    })
+
+
+@app.route('/api/auth/resend-otp', methods=['POST'])
+def api_auth_resend_otp():
+    """API endpoint to resend OTP verification code.
+    
+    Returns JSON: { success, error, seconds_until_retry }
+    """
+    # Get user from session
+    user = session.get('user')
+    if not user:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    user_id = user.get('localId')
+    email = user.get('email')
+    
+    app.logger.info(f"[Auth API] Resend OTP request for {email}")
+    
+    # Check rate limit
+    is_allowed, error_msg, seconds_remaining = check_otp_rate_limit(email)
+    
+    if not is_allowed:
+        return jsonify({
+            "success": False,
+            "error": error_msg,
+            "seconds_until_retry": seconds_remaining
+        }), 429
+    
+    # Generate new OTP
+    otp = generate_otp()
+    
+    # Store new OTP
+    try:
+        store_email_verification(email, otp, user_id)
+        update_otp_rate_limit(email)
+    except Exception as e:
+        app.logger.error(f"[Auth API] Failed to store new OTP: {e}")
+        return jsonify({"success": False, "error": "Failed to generate new code. Please try again."}), 500
+    
+    # Send OTP email (non-blocking)
+    import threading
+    email_thread = threading.Thread(target=send_otp_email, args=(email, otp))
+    email_thread.daemon = True
+    email_thread.start()
+    
+    app.logger.info(f"[Auth API] Resent OTP to {email}")
+    
+    return jsonify({
+        "success": True,
+        "message": "Verification code sent"
+    })
 
 
 @app.route('/api/auth/confirm-terms', methods=['POST'])
@@ -9578,17 +9966,17 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     in-memory cache. This allows browsing all 100k+ contracts while only holding
     one page (e.g., 50 items) in RAM at a time.
     
-    Pagination is cursor-based using Qdrant's scroll offset tokens:
-    - First page: cursor=None
-    - Subsequent pages: cursor=<offset_token from previous response>
+    PAGINATION FIX: Now uses OFFSET-BASED pagination with page numbers.
+    The frontend passes page=1, page=2, etc. and we calculate the offset.
+    This is simpler and works correctly with the frontend's page state.
     
-    For backwards compatibility, also supports page numbers (1-indexed) which
-    are converted to sequential scroll calls internally.
+    For page N, we scroll through (N-1) pages to reach the correct offset,
+    then return the Nth page of results.
     
     Args:
-        page: Page number (1-indexed) - used for display, not for Qdrant query
+        page: Page number (1-indexed) - used to calculate offset
         items_per_page: Number of contracts per page (default 10)
-        cursor: Qdrant scroll offset token for cursor-based pagination
+        cursor: DEPRECATED - kept for backwards compatibility but not used
     
     Returns:
         Tuple of (contracts_list, total_contracts, total_pages, next_cursor)
@@ -9611,12 +9999,49 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         total_contracts = count_result.count
         total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
         
-        # Fetch one page of contracts directly from Qdrant
-        # Use scroll with offset token for cursor-based pagination
+        # OFFSET-BASED PAGINATION FIX:
+        # For page N, we need to skip (N-1) * items_per_page contracts
+        # Qdrant scroll doesn't support numeric offset, so we scroll through pages sequentially
+        # This is O(N) for page N, but acceptable for reasonable page numbers (< 100)
+        
+        target_offset = (page - 1) * items_per_page
+        logging.info(f"[Server-Side Pagination] Fetching page {page} (offset={target_offset}, limit={items_per_page})")
+        
+        # Scroll through pages until we reach the target offset
+        current_offset = None
+        contracts_skipped = 0
+        
+        while contracts_skipped < target_offset:
+            # Calculate how many to fetch in this scroll (up to remaining offset)
+            remaining = target_offset - contracts_skipped
+            fetch_limit = min(remaining, 100)  # Scroll in batches of 100 max for efficiency
+            
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=fetch_limit,
+                offset=current_offset,
+                with_vectors=False,
+                with_payload=False  # Don't need payload for skipped items
+            )
+            
+            points, current_offset = scroll_result
+            
+            if not points:
+                # No more data - requested page is beyond available data
+                logging.warning(f"[Server-Side Pagination] Page {page} is beyond available data (only {contracts_skipped} contracts exist)")
+                return [], total_contracts, total_pages, None
+            
+            contracts_skipped += len(points)
+            
+            if current_offset is None:
+                # Reached end of collection before target offset
+                break
+        
+        # Now fetch the actual page we want
         scroll_result = client.scroll(
             collection_name="government_contracts",
             limit=items_per_page,
-            offset=cursor,  # None for first page, offset token for subsequent pages
+            offset=current_offset,  # Continue from where we left off
             with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
             with_payload=True  # Full payload for this page only
         )
@@ -9633,9 +10058,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
             )
             contracts.append(contract)
         
-        logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts from Qdrant (total: {total_contracts}, has_more: {next_cursor is not None})")
+        has_more = next_cursor is not None and page < total_pages
+        logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts from Qdrant (total: {total_contracts}, has_more: {has_more})")
         
-        return contracts, total_contracts, total_pages, next_cursor
+        return contracts, total_contracts, total_pages, next_cursor if has_more else None
         
     except Exception as e:
         logging.error(f"[Server-Side Pagination] Error fetching contracts from Qdrant: {e}", exc_info=True)
@@ -13899,7 +14325,7 @@ def get_directory_companies():
 
 # Serve React app - SPA routing
 # Public paths that don't require authentication (landing page and auth pages)
-REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'faq', 'about-us'}
+REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'verify-email', 'faq', 'about-us'}
 
 # React page routes - these will be handled by the SPA
 REACT_PAGE_ROUTES = {
