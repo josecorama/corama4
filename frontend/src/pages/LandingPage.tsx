@@ -388,14 +388,9 @@ const LandingPage = () => {
     }`
   }
 
-    return (
-      <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
-        {/* Waves Background Animation */}
-        <div className="fixed inset-0 z-0 pointer-events-none">
-          <Waves />
-        </div>
-      
-        {/* Header - Fixed at top */}
+  return (
+    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
+      {/* Header - Fixed at top */}
       <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -433,7 +428,24 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('hero')}`}
       >
-        {/* Radar Animation - only in hero section */}
+        {/* Layer 1: Waves Background Animation */}
+        <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
+          <Waves
+            lineColor="#0B2C48"
+            backgroundColor="rgba(11, 44, 72, 0.2)"
+            waveSpeedX={0.02}
+            waveSpeedY={0.01}
+            waveAmpX={40}
+            waveAmpY={20}
+            friction={0.9}
+            tension={0.01}
+            maxCursorMove={120}
+            xGap={12}
+            yGap={36}
+          />
+        </div>
+        
+        {/* Layer 2: Radar Animation */}
         <div className="absolute inset-0 z-[1] pointer-events-none">
           <RadarAnimation />
         </div>
