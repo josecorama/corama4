@@ -15,6 +15,7 @@ import PublicBidProposalGenerator from './pages/PublicBidProposalGenerator'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import ConfirmTerms from './pages/ConfirmTerms'
+import VerifyEmail from './pages/VerifyEmail'
 import ResetPassword from './pages/ResetPassword'
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import FAQ from './pages/FAQ'
@@ -28,8 +29,9 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/confirm-terms" element={<ConfirmTerms />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/confirm-terms" element={<ConfirmTerms />} />
+                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/reset-password/confirm" element={<ResetPasswordConfirm />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/about-us" element={<AboutUsPublic />} />
