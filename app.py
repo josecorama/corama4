@@ -825,10 +825,22 @@ def api_auth_confirm_terms():
 
 
 def send_email_smtp(to_email, subject, html_body):
-    """Unified email sending function using SMTP.
+    """Unified email sending function using SMTP with configurable provider support.
     
-    This function sends emails via Gmail SMTP. It's used for all transactional emails
-    including welcome emails and password reset emails.
+    Supports multiple SMTP providers via environment variables:
+    - Office 365 (STARTTLS on port 587)
+    - Gmail (SSL on port 465)
+    - Other SMTP providers
+    
+    Environment Variables:
+        SMTP_HOST: SMTP server hostname (e.g., "smtp.office365.com")
+        SMTP_PORT: SMTP port (e.g., "587" for TLS, "465" for SSL)
+        SMTP_USER: Email address for authentication
+        SMTP_PASSWORD: App password or account password
+        SMTP_MODE: Connection mode - "tls" for STARTTLS, "ssl" for SSL
+        
+    Fallback (legacy):
+        EMAIL_GOOGLE_USER / EMAIL_GOOGLE_PASS: Gmail credentials (deprecated)
     
     Args:
         to_email: Recipient email address
@@ -840,18 +852,38 @@ def send_email_smtp(to_email, subject, html_body):
     """
     import socket
     
-    sender_email = os.getenv('EMAIL_GOOGLE_USER')
-    sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    # Load SMTP configuration from environment variables
+    smtp_host = os.getenv('SMTP_HOST')
+    smtp_port = os.getenv('SMTP_PORT')
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_password = os.getenv('SMTP_PASSWORD')
+    smtp_mode = os.getenv('SMTP_MODE', 'tls').lower()  # Default to TLS for Office 365
     
-    if not sender_email or not sender_password:
-        app.logger.error(f"[Email] Credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+    # Fallback to legacy Gmail credentials if new vars not set
+    if not smtp_host or not smtp_user or not smtp_password:
+        smtp_host = 'smtp.gmail.com'
+        smtp_port = '465'
+        smtp_user = os.getenv('EMAIL_GOOGLE_USER')
+        smtp_password = os.getenv('EMAIL_GOOGLE_PASS')
+        smtp_mode = 'ssl'
+        app.logger.info("[Email] Using legacy Gmail credentials (EMAIL_GOOGLE_USER/PASS)")
+    
+    if not smtp_user or not smtp_password:
+        app.logger.error("[Email] SMTP credentials not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_MODE")
         return False, "Email service not configured"
+    
+    # Parse port as integer
+    try:
+        smtp_port_int = int(smtp_port) if smtp_port else (587 if smtp_mode == 'tls' else 465)
+    except ValueError:
+        app.logger.error(f"[Email] Invalid SMTP_PORT value: {smtp_port}")
+        return False, "Invalid SMTP port configuration"
     
     try:
         # Create MIME message
         msg = MIMEMultipart("alternative")
         msg['Subject'] = subject
-        msg['From'] = sender_email
+        msg['From'] = smtp_user
         msg['To'] = to_email
         
         # Attach HTML part
@@ -860,17 +892,33 @@ def send_email_smtp(to_email, subject, html_body):
         
         # Set socket timeout
         old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(15)
+        socket.setdefaulttimeout(30)  # Increased timeout for Office 365
         
         try:
-            app.logger.info(f"[Email] Connecting to smtp.gmail.com:465...")
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
-                app.logger.info(f"[Email] Connected, attempting login...")
-                server.login(sender_email, sender_password)
-                app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
-                server.sendmail(sender_email, to_email, msg.as_string())
-                app.logger.info(f"[Email] Email sent successfully to {to_email}")
-                return True, None
+            app.logger.info(f"[Email] Connecting to {smtp_host}:{smtp_port_int} (mode={smtp_mode})...")
+            
+            if smtp_mode == 'ssl':
+                # SSL mode (Gmail default) - connect with SSL from the start
+                with smtplib.SMTP_SSL(smtp_host, smtp_port_int, timeout=30) as server:
+                    app.logger.info(f"[Email] SSL connected, attempting login as {smtp_user}...")
+                    server.login(smtp_user, smtp_password)
+                    app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                    server.sendmail(smtp_user, to_email, msg.as_string())
+                    app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                    return True, None
+            else:
+                # TLS mode (Office 365) - connect plain, then upgrade with STARTTLS
+                with smtplib.SMTP(smtp_host, smtp_port_int, timeout=30) as server:
+                    app.logger.info(f"[Email] Connected, initiating STARTTLS...")
+                    server.ehlo()  # Identify ourselves to the server
+                    server.starttls()  # Upgrade connection to TLS
+                    server.ehlo()  # Re-identify after TLS upgrade
+                    app.logger.info(f"[Email] TLS established, attempting login as {smtp_user}...")
+                    server.login(smtp_user, smtp_password)
+                    app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                    server.sendmail(smtp_user, to_email, msg.as_string())
+                    app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                    return True, None
         finally:
             socket.setdefaulttimeout(old_timeout)
             
@@ -878,8 +926,15 @@ def send_email_smtp(to_email, subject, html_body):
         app.logger.error(f"[Email] SMTP timeout sending to {to_email}: {e}")
         return False, "Email service timeout"
     except smtplib.SMTPAuthenticationError as e:
-        app.logger.error(f"[Email] SMTP authentication failed: {e}")
-        return False, "Email authentication failed"
+        # Clear error message for authentication issues
+        error_code = e.smtp_code if hasattr(e, 'smtp_code') else 'unknown'
+        error_msg = e.smtp_error.decode() if hasattr(e, 'smtp_error') and isinstance(e.smtp_error, bytes) else str(e)
+        app.logger.error(f"[Email] SMTP authentication failed (code {error_code}): {error_msg}")
+        app.logger.error(f"[Email] Check SMTP_USER ({smtp_user}) and SMTP_PASSWORD are correct. For Office 365, use an App Password.")
+        return False, f"Email authentication failed (code {error_code})"
+    except smtplib.SMTPException as e:
+        app.logger.error(f"[Email] SMTP error sending to {to_email}: {type(e).__name__}: {e}")
+        return False, f"SMTP error: {str(e)}"
     except Exception as e:
         app.logger.error(f"[Email] Error sending to {to_email}: {type(e).__name__}: {e}")
         return False, str(e)
