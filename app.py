@@ -401,18 +401,8 @@ def send_otp_email(email: str, otp: str):
         </html>
         """
         
-        text_body = f"""
-        Welcome to Corama!
-        
-        Your verification code is: {otp}
-        
-        This code will expire in 15 minutes.
-        
-        If you didn't create an account with Corama, you can safely ignore this email.
-        """
-        
-        # Use existing send_email_smtp function
-        send_email_smtp(email, subject, html_body, text_body)
+        # Use existing send_email_smtp function (only takes 3 args: to_email, subject, html_body)
+        send_email_smtp(email, subject, html_body)
         app.logger.info(f"[OTP] Verification email sent to {email}")
         
     except Exception as e:

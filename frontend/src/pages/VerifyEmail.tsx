@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, Mail, RefreshCw } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 
 const VerifyEmail = () => {
   const [code, setCode] = useState(['', '', '', '', '', ''])
@@ -142,7 +142,7 @@ const VerifyEmail = () => {
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" /></a>
+          <a href="/" className="text-corama-teal font-poppins font-bold text-lg tracking-wider">CORAMA</a>
           
           <nav className="hidden md:flex items-center gap-4 lg:gap-8">
             <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
@@ -151,23 +151,28 @@ const VerifyEmail = () => {
             <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">About Us</a>
           </nav>
           
-          <a href="/login" className="text-corama-teal font-poppins text-sm font-medium hover:text-[#99c8ca] transition-colors">Log In</a>
+          <a href="/signup" className="text-corama-teal font-poppins text-sm font-medium hover:text-[#99c8ca] transition-colors">Sign up</a>
         </div>
       </header>
 
       {/* Verification Form */}
       <div className="pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md">
-          <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl">
-            {/* Logo and Icon */}
+          <div className="bg-gradient-to-br from-[#1c4262]/80 to-[#0f1419]/90 border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl backdrop-blur-sm">
+            {/* Logo */}
             <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-corama-teal/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Mail className="w-8 h-8 text-corama-teal" />
+              <div className="flex items-center justify-center gap-2 mb-6">
+                <img 
+                  src="/static/app/landing/corama-logo.png" 
+                  alt="CORAMA" 
+                  className="h-12 w-auto"
+                />
+                <span className="text-white font-poppins font-semibold text-lg">CORAMA</span>
               </div>
-              <h1 className="font-poppins text-2xl text-white mb-2">Verify Your Email</h1>
-              <p className="text-gray-400 font-poppins text-sm">
-                We sent a 6-digit code to<br />
-                <span className="text-corama-teal">{email || 'your email'}</span>
+              <h1 className="font-poppins text-2xl text-white mb-3">Enter The Code</h1>
+              <p className="text-gray-400 font-poppins text-sm leading-relaxed">
+                Enter the 6-digit verification code to confirm<br />
+                that you received the verification mail.
               </p>
             </div>
 
@@ -187,12 +192,14 @@ const VerifyEmail = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit}>
-              {/* 6-Digit Code Input */}
+              {/* Verification Code Label */}
               <div className="mb-6">
-                <label className="block text-gray-300 font-poppins text-sm mb-3 text-center">
-                  Enter verification code
+                <label className="block text-gray-300 font-poppins text-sm mb-3">
+                  Verification Code
                 </label>
-                <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
+                
+                {/* 6-Digit Code Input - Kept as separate boxes per user request */}
+                <div className="flex justify-between gap-2" onPaste={handlePaste}>
                   {code.map((digit, index) => (
                     <input
                       key={index}
@@ -204,7 +211,8 @@ const VerifyEmail = () => {
                       onChange={(e) => handleInputChange(index, e.target.value)}
                       onKeyDown={(e) => handleKeyDown(index, e)}
                       autoFocus={index === 0}
-                      className="w-11 h-14 sm:w-12 sm:h-16 bg-white text-gray-900 rounded-lg text-center font-poppins text-xl sm:text-2xl font-bold border border-gray-300/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all"
+                      placeholder=""
+                      className="w-12 h-14 bg-[#0B0B0F]/60 text-white rounded-lg text-center font-poppins text-xl font-bold border border-corama-teal/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all placeholder:text-gray-600"
                     />
                   ))}
                 </div>
@@ -213,7 +221,7 @@ const VerifyEmail = () => {
               <button
                 type="submit"
                 disabled={loading || code.join('').length !== 6}
-                className="w-full bg-gradient-to-b from-corama-teal via-[#9cd6d7] to-[#85c4c7] text-[#0B0B0F] font-poppins font-semibold py-3.5 rounded-lg hover:shadow-lg hover:shadow-corama-teal/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-gradient-to-r from-corama-teal to-[#85c4c7] text-[#0B0B0F] font-poppins font-semibold py-3.5 rounded-lg hover:shadow-lg hover:shadow-corama-teal/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -221,13 +229,13 @@ const VerifyEmail = () => {
                     Verifying...
                   </>
                 ) : (
-                  'Verify Email'
+                  'Submit Code'
                 )}
               </button>
             </form>
 
             {/* Resend Code */}
-            <div className="text-center mt-6">
+            <div className="text-center mt-5">
               <p className="text-gray-400 font-poppins text-sm mb-2">
                 Didn't receive the code?
               </p>
@@ -255,11 +263,10 @@ const VerifyEmail = () => {
               </button>
             </div>
 
-            {/* Help Text */}
-            <div className="text-center mt-6 pt-6 border-t border-gray-700">
-              <p className="text-gray-500 font-poppins text-xs">
-                The code expires in 15 minutes.<br />
-                Check your spam folder if you don't see the email.
+            {/* Login Link */}
+            <div className="text-center mt-5">
+              <p className="text-gray-400 font-poppins text-sm">
+                Remembered your password? <a href="/login" className="text-corama-teal hover:text-[#99c8ca] transition-colors">Log In</a>
               </p>
             </div>
           </div>
