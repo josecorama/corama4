@@ -262,8 +262,46 @@ def check_otp_rate_limit(email: str) -> tuple:
         return True, None, None  # Fail open
 
 
-def update_otp_rate_limit(email: str):
-    """Update rate limit counters after sending OTP."""
+def update_otp_cooldown(email: str):
+    """Update cooldown timestamp immediately when OTP request is made.
+    
+    This prevents rapid clicking/hammering but doesn't count against the
+    request limit until email is actually sent successfully.
+    """
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        rate_limit_ref = admin_db.reference(f'otp_rate_limits/{email.replace(".", "_dot_").replace("@", "_at_")}')
+        rate_data = rate_limit_ref.get() or {}
+        
+        current_time = time.time()
+        window_start = rate_data.get('window_start', current_time)
+        
+        # Reset window if expired (15 minutes)
+        if current_time - window_start > 900:
+            rate_limit_ref.set({
+                'last_request': current_time,
+                'request_count': rate_data.get('request_count', 0),  # Don't increment yet
+                'window_start': current_time
+            })
+        else:
+            rate_limit_ref.update({
+                'last_request': current_time
+                # Don't increment request_count - that happens on success
+            })
+            
+    except Exception as e:
+        app.logger.warning(f"[OTP] Failed to update cooldown: {e}")
+
+
+def increment_otp_success_count(email: str):
+    """Increment the successful send count after email is actually sent.
+    
+    Called only when email delivery succeeds, so failed sends don't
+    burn the user's rate limit quota.
+    """
     import time
     try:
         import firebase_admin
@@ -284,12 +322,13 @@ def update_otp_rate_limit(email: str):
             })
         else:
             rate_limit_ref.update({
-                'last_request': current_time,
                 'request_count': rate_data.get('request_count', 0) + 1
             })
+        
+        app.logger.info(f"[OTP] Incremented success count for {email}")
             
     except Exception as e:
-        app.logger.warning(f"[OTP] Failed to update rate limit: {e}")
+        app.logger.warning(f"[OTP] Failed to increment success count: {e}")
 
 
 def store_email_verification(email: str, otp: str, user_id: str):
@@ -362,8 +401,12 @@ def verify_email_otp(user_id: str, otp: str) -> tuple:
         return False, "Verification failed. Please try again."
 
 
-def send_otp_email(email: str, otp: str):
-    """Send OTP verification email using configured SMTP."""
+def send_otp_email(email: str, otp: str) -> bool:
+    """Send OTP verification email using configured SMTP.
+    
+    Returns:
+        bool: True if email was sent successfully, False otherwise
+    """
     try:
         subject = "Corama - Verify Your Email"
         
@@ -401,13 +444,19 @@ def send_otp_email(email: str, otp: str):
         </html>
         """
         
-        # Use existing send_email_smtp function (only takes 3 args: to_email, subject, html_body)
-        send_email_smtp(email, subject, html_body)
-        app.logger.info(f"[OTP] Verification email sent to {email}")
+        # Use existing send_email_smtp function and CHECK the return value
+        success, error_msg = send_email_smtp(email, subject, html_body)
+        
+        if success:
+            app.logger.info(f"[OTP] Verification email sent successfully to {email}")
+            return True
+        else:
+            app.logger.error(f"[OTP] Failed to send verification email to {email}: {error_msg}")
+            return False
         
     except Exception as e:
-        app.logger.error(f"[OTP] Failed to send verification email: {e}")
-        raise
+        app.logger.error(f"[OTP] Exception sending verification email to {email}: {e}")
+        return False
 
 
 def mark_user_email_verified(user_id: str, id_token: str):
@@ -603,6 +652,7 @@ def api_auth_signup():
         app.logger.info(f"[Auth API] Generated OTP for {email}")
         
         # Store User Data in Session (for verify-email page)
+        # NOTE: User data is NOT written to Firebase until email is verified
         session['user_data'] = {
             "first_name": first_name,
             "last_name": last_name,
@@ -622,34 +672,25 @@ def api_auth_signup():
             'refreshToken': user_logged_in['refreshToken']
         }
         
-        # Store User Data in Firebase Database with email_verified=false
-        db.child("users").child(user_id).set({
-            "first_name": first_name,
-            "last_name": last_name,
-            "company": company,
-            "email": email,
-            "username": username,
-            "account_type": account_type,
-            "subscription_end_date": subscription_end_date,
-            "uploads_dir": create_user_directory(user_id),
-            "credits_balance": 100,
-            "credits_used": 0,
-            "directory_listed": False,
-            "email_verified": False  # NEW: Mark as unverified
-        }, user_logged_in['idToken'])
+        # NOTE: Firebase DB write is DEFERRED until email verification succeeds
+        # This prevents creating user records for unverified accounts
+        app.logger.info(f"[Auth API] User data stored in session (Firebase write deferred until verification)")
         
-        app.logger.info(f"[Auth API] User data stored in Firebase for {email}")
-        
-        # Store OTP verification data
+        # Store OTP verification data and update cooldown
         try:
             store_email_verification(email, otp, user_id)
-            update_otp_rate_limit(email)
+            update_otp_cooldown(email)  # Only update cooldown, not success count
         except Exception as e:
             app.logger.warning(f"[Auth API] Failed to store OTP (continuing anyway): {e}")
         
-        # Send OTP email (non-blocking)
+        # Send OTP email (non-blocking) - increment success count only if email succeeds
+        def send_otp_with_tracking(email_addr, otp_code):
+            success = send_otp_email(email_addr, otp_code)
+            if success:
+                increment_otp_success_count(email_addr)
+        
         import threading
-        email_thread = threading.Thread(target=send_otp_email, args=(email, otp))
+        email_thread = threading.Thread(target=send_otp_with_tracking, args=(email, otp))
         email_thread.daemon = True
         email_thread.start()
         app.logger.info("[Auth API] OTP email thread started")
@@ -685,6 +726,11 @@ def api_auth_verify_email():
     
     Expects JSON: { code: "123456" }
     Returns JSON: { success, redirect, error }
+    
+    After successful verification, this endpoint:
+    1. Writes user data to Firebase Database (deferred from signup)
+    2. Creates user directory
+    3. Marks user as email verified
     """
     data = request.get_json() or {}
     otp = data.get('code', '').strip()
@@ -694,6 +740,8 @@ def api_auth_verify_email():
     
     # Get user from session
     user = session.get('user')
+    user_data = session.get('user_data')
+    
     if not user:
         return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
     
@@ -710,12 +758,58 @@ def api_auth_verify_email():
         app.logger.warning(f"[Auth API] Email verification failed for {email}: {error}")
         return jsonify({"success": False, "error": error}), 400
     
-    # Mark user as verified in Firebase
-    try:
-        mark_user_email_verified(user_id, id_token)
-    except Exception as e:
-        app.logger.error(f"[Auth API] Failed to mark user as verified: {e}")
-        # Continue anyway - the OTP was valid
+    # NOW write user data to Firebase Database (deferred from signup)
+    if user_data:
+        try:
+            # Use Firebase Admin SDK for reliability (doesn't depend on idToken expiration)
+            import firebase_admin
+            from firebase_admin import db as admin_db
+            
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_ref.set({
+                "first_name": user_data.get('first_name'),
+                "last_name": user_data.get('last_name'),
+                "company": user_data.get('company'),
+                "email": user_data.get('email'),
+                "username": user_data.get('username'),
+                "account_type": user_data.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS'),
+                "subscription_end_date": user_data.get('subscription_end_date', '9999-12-31'),
+                "uploads_dir": create_user_directory(user_id),
+                "credits_balance": 100,
+                "credits_used": 0,
+                "directory_listed": False,
+                "email_verified": True  # Already verified!
+            })
+            app.logger.info(f"[Auth API] User data written to Firebase for {email} after verification")
+        except Exception as e:
+            app.logger.error(f"[Auth API] Failed to write user data to Firebase: {e}")
+            # Try fallback with idToken
+            try:
+                db.child("users").child(user_id).set({
+                    "first_name": user_data.get('first_name'),
+                    "last_name": user_data.get('last_name'),
+                    "company": user_data.get('company'),
+                    "email": user_data.get('email'),
+                    "username": user_data.get('username'),
+                    "account_type": user_data.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS'),
+                    "subscription_end_date": user_data.get('subscription_end_date', '9999-12-31'),
+                    "uploads_dir": create_user_directory(user_id),
+                    "credits_balance": 100,
+                    "credits_used": 0,
+                    "directory_listed": False,
+                    "email_verified": True
+                }, id_token)
+                app.logger.info(f"[Auth API] User data written to Firebase (fallback) for {email}")
+            except Exception as e2:
+                app.logger.error(f"[Auth API] Fallback also failed: {e2}")
+                return jsonify({"success": False, "error": "Failed to create user account. Please try again."}), 500
+    else:
+        # Legacy path: user_data not in session, just mark as verified
+        try:
+            mark_user_email_verified(user_id, id_token)
+        except Exception as e:
+            app.logger.error(f"[Auth API] Failed to mark user as verified: {e}")
+            # Continue anyway - the OTP was valid
     
     app.logger.info(f"[Auth API] Email verified successfully for {email}")
     
@@ -754,17 +848,22 @@ def api_auth_resend_otp():
     # Generate new OTP
     otp = generate_otp()
     
-    # Store new OTP
+    # Store new OTP and update cooldown
     try:
         store_email_verification(email, otp, user_id)
-        update_otp_rate_limit(email)
+        update_otp_cooldown(email)  # Only update cooldown, not success count
     except Exception as e:
         app.logger.error(f"[Auth API] Failed to store new OTP: {e}")
         return jsonify({"success": False, "error": "Failed to generate new code. Please try again."}), 500
     
-    # Send OTP email (non-blocking)
+    # Send OTP email (non-blocking) - increment success count only if email succeeds
+    def send_otp_with_tracking(email_addr, otp_code):
+        success = send_otp_email(email_addr, otp_code)
+        if success:
+            increment_otp_success_count(email_addr)
+    
     import threading
-    email_thread = threading.Thread(target=send_otp_email, args=(email, otp))
+    email_thread = threading.Thread(target=send_otp_with_tracking, args=(email, otp))
     email_thread.daemon = True
     email_thread.start()
     
@@ -853,10 +952,11 @@ def send_email_smtp(to_email, subject, html_body):
     import socket
     
     # Load SMTP configuration from environment variables
+    # Accept both SMTP_PASSWORD and SMTP_PASS for flexibility
     smtp_host = os.getenv('SMTP_HOST')
     smtp_port = os.getenv('SMTP_PORT')
     smtp_user = os.getenv('SMTP_USER')
-    smtp_password = os.getenv('SMTP_PASSWORD')
+    smtp_password = os.getenv('SMTP_PASSWORD') or os.getenv('SMTP_PASS')
     smtp_mode = os.getenv('SMTP_MODE', 'tls').lower()  # Default to TLS for Office 365
     
     # Fallback to legacy Gmail credentials if new vars not set
