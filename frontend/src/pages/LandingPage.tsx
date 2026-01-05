@@ -837,8 +837,8 @@ const LandingPage = () => {
             </div>
             
             <div className="text-center mb-4">
-              <a href="mailto:info@corama.ai" className="text-white hover:text-corama-teal font-poppins text-xs sm:text-sm transition-colors">
-                Info@corama.ai
+              <a href="mailto:contact@corama.ai" className="text-white hover:text-corama-teal font-poppins text-xs sm:text-sm transition-colors">
+                contact@corama.ai
               </a>
             </div>
             

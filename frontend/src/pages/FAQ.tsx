@@ -233,9 +233,9 @@ const FAQ = () => {
             <a href="/terms-of-use" className="hover:text-corama-teal transition-colors">Terms of Use</a>
             <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-corama-teal transition-colors">Policy Notice</a>
             <a href="/faq" className="hover:text-corama-teal transition-colors">Frequently Asked Questions</a>
-            <a href="mailto:Info@corama.ai" className="hover:text-corama-teal transition-colors">Contact</a>
+            <a href="mailto:contact@corama.ai" className="hover:text-corama-teal transition-colors">Contact</a>
           </div>
-          <div>Info@corama.ai</div>
+          <div>contact@corama.ai</div>
         </div>
       </footer>
     </div>
