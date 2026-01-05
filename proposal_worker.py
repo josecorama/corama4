@@ -1295,19 +1295,21 @@ def calculate_dashboard_stats(db):
         sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
         top_categories = sorted_categories[:10]
         
-        # Build category distribution with percentages
-        category_distribution = {}
+        # Build category distribution as a LIST of objects (not dict with category names as keys)
+        # This avoids Firebase key restrictions (Firebase doesn't allow / in keys, which is in "Goods/Supplies")
+        category_distribution = []
         for cat_name, count in top_categories:
             percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
-            category_distribution[cat_name] = {
+            category_distribution.append({
+                'name': cat_name,
                 'count': count,
                 'percentage': percentage
-            }
+            })
         
         # Build the stats snapshot
         stats_snapshot = {
             'total_contracts': total_contracts,
-            'category_distribution': category_distribution,
+            'category_distribution': category_distribution,  # Now a list, not a dict
             'status_distribution': status_counts,
             'top_categories': [cat[0] for cat in top_categories[:4]],
             'generated_at': datetime.now().isoformat(),

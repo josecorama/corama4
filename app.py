@@ -5173,14 +5173,22 @@ def get_qdrant_analytics():
                 snapshot = stats_ref.get()
                 
                 if snapshot and snapshot.get('total_contracts'):
-                    # Convert category_distribution from {cat: {count, percentage}} to {cat: count}
-                    cat_dist = snapshot.get('category_distribution', {})
+                    # Convert category_distribution from list format [{name, count, percentage}] to {cat: count}
+                    # The worker now stores as a list to avoid Firebase key restrictions (/ in category names)
+                    cat_dist = snapshot.get('category_distribution', [])
                     category_distribution = {}
-                    for cat_name, cat_data in cat_dist.items():
-                        if isinstance(cat_data, dict):
-                            category_distribution[cat_name] = cat_data.get('count', 0)
-                        else:
-                            category_distribution[cat_name] = cat_data
+                    if isinstance(cat_dist, list):
+                        # New list format: [{name: 'Goods/Supplies', count: 100, percentage: 10.5}, ...]
+                        for cat_item in cat_dist:
+                            if isinstance(cat_item, dict) and 'name' in cat_item:
+                                category_distribution[cat_item['name']] = cat_item.get('count', 0)
+                    elif isinstance(cat_dist, dict):
+                        # Legacy dict format: {'Goods_Supplies': {count: 100, percentage: 10.5}, ...}
+                        for cat_name, cat_data in cat_dist.items():
+                            if isinstance(cat_data, dict):
+                                category_distribution[cat_name] = cat_data.get('count', 0)
+                            else:
+                                category_distribution[cat_name] = cat_data
                     
                     total_contracts = snapshot.get('total_contracts', 0)
                     status_dist = snapshot.get('status_distribution', {})
