@@ -1099,10 +1099,14 @@ def send_email_resend(to_email, subject, html_body):
 
 
 def send_email_smtp(to_email, subject, html_body):
-    """Send email using Gmail SMTP.
+    """Send email using configurable SMTP server.
     
-    This function sends emails via Gmail SMTP. It's used for all transactional emails
-    including welcome emails and password reset emails.
+    Supports multiple SMTP providers via environment variables:
+    - SMTP_HOST: SMTP server hostname (default: smtp.gmail.com for Gmail, smtpout.secureserver.net for GoDaddy)
+    - SMTP_PORT: SMTP port (default: 465 for SSL, 587 for TLS)
+    - SMTP_MODE: 'ssl' or 'tls' (default: ssl)
+    - SMTP_USER: SMTP username (falls back to EMAIL_GOOGLE_USER)
+    - SMTP_PASS: SMTP password (falls back to EMAIL_GOOGLE_PASS)
     
     Args:
         to_email: Recipient email address
@@ -1114,11 +1118,14 @@ def send_email_smtp(to_email, subject, html_body):
     """
     import socket
     
-    sender_email = os.getenv('EMAIL_GOOGLE_USER')
-    sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    sender_email = os.getenv('SMTP_USER') or os.getenv('EMAIL_GOOGLE_USER')
+    sender_password = os.getenv('SMTP_PASS') or os.getenv('EMAIL_GOOGLE_PASS')
+    smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
+    smtp_port = int(os.getenv('SMTP_PORT', '465'))
+    smtp_mode = os.getenv('SMTP_MODE', 'ssl').lower()
     
     if not sender_email or not sender_password:
-        app.logger.error(f"[Email] Credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+        app.logger.error(f"[Email] Credentials not configured (SMTP_USER/EMAIL_GOOGLE_USER or SMTP_PASS/EMAIL_GOOGLE_PASS missing)")
         return False, "Email service not configured"
     
     try:
@@ -1134,14 +1141,25 @@ def send_email_smtp(to_email, subject, html_body):
         socket.setdefaulttimeout(15)
         
         try:
-            app.logger.info(f"[Email] Connecting to smtp.gmail.com:465...")
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
-                app.logger.info(f"[Email] Connected, attempting login...")
-                server.login(sender_email, sender_password)
-                app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
-                server.sendmail(sender_email, to_email, msg.as_string())
-                app.logger.info(f"[Email] Email sent successfully to {to_email}")
-                return True, None
+            app.logger.info(f"[Email] Connecting to {smtp_host}:{smtp_port} ({smtp_mode})...")
+            
+            if smtp_mode == 'ssl':
+                with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as server:
+                    app.logger.info(f"[Email] Connected, attempting login as {sender_email}...")
+                    server.login(sender_email, sender_password)
+                    app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                    server.sendmail(sender_email, to_email, msg.as_string())
+                    app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                    return True, None
+            else:
+                with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
+                    server.starttls()
+                    app.logger.info(f"[Email] Connected with STARTTLS, attempting login as {sender_email}...")
+                    server.login(sender_email, sender_password)
+                    app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                    server.sendmail(sender_email, to_email, msg.as_string())
+                    app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                    return True, None
         finally:
             socket.setdefaulttimeout(old_timeout)
             
@@ -1149,7 +1167,7 @@ def send_email_smtp(to_email, subject, html_body):
         app.logger.error(f"[Email] SMTP timeout sending to {to_email}: {e}")
         return False, "Email service timeout"
     except smtplib.SMTPAuthenticationError as e:
-        app.logger.error(f"[Email] SMTP authentication failed: {e}")
+        app.logger.error(f"[Email] SMTP authentication failed for {sender_email}: {e}")
         return False, "Email authentication failed"
     except Exception as e:
         app.logger.error(f"[Email] Error sending to {to_email}: {type(e).__name__}: {e}")
