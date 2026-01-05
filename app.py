@@ -1050,6 +1050,8 @@ def send_password_reset_email(to_email, reset_link):
     Returns:
         tuple: (success: bool, error_message: str or None)
     """
+    app.logger.info(f"[Password Reset] Preparing to send reset email to {to_email}")
+    
     subject = "Reset Your CORAMA Password"
     
     html_body = f"""
@@ -1072,7 +1074,15 @@ def send_password_reset_email(to_email, reset_link):
     </html>
     """
     
-    return send_email_smtp(to_email, subject, html_body)
+    app.logger.info(f"[Password Reset] Calling send_email_smtp for {to_email}")
+    success, error = send_email_smtp(to_email, subject, html_body)
+    
+    if success:
+        app.logger.info(f"[Password Reset] Email sent successfully to {to_email}")
+    else:
+        app.logger.error(f"[Password Reset] Failed to send email to {to_email}: {error}")
+    
+    return success, error
 
 
 @app.route('/api/auth/reset-password', methods=['POST'])
@@ -1089,12 +1099,19 @@ def api_auth_reset_password():
     email = data.get('email')
     recaptcha_token = data.get('recaptcha_token')
     
+    app.logger.info(f"[Auth API] Password reset request received for email: {email}")
+    app.logger.info(f"[Auth API] reCAPTCHA token present: {bool(recaptcha_token)}")
+    
     if not email:
+        app.logger.warning("[Auth API] Password reset failed: email not provided")
         return jsonify({"success": False, "error": "Email is required"}), 400
     
     # Verify reCAPTCHA
     if not verify_recaptcha(recaptcha_token):
+        app.logger.warning(f"[Auth API] Password reset failed: reCAPTCHA verification failed for {email}")
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    app.logger.info(f"[Auth API] reCAPTCHA passed for {email}, generating reset link...")
     
     try:
         # Import firebase_admin auth module
