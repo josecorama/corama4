@@ -1187,6 +1187,172 @@ def check_and_queue_naics_backlog(db):
 
 
 # ============================================================================
+# DASHBOARD STATS CALCULATION
+# ============================================================================
+
+STATS_CALCULATION_INTERVAL = 60  # Check every 60 iterations (~5 minutes at 5s poll interval)
+
+def calculate_dashboard_stats(db):
+    """
+    Calculate dashboard statistics by scrolling through Qdrant and aggregating category counts.
+    
+    This function:
+    1. Gets total contract count using Qdrant count() API (fast)
+    2. Scrolls through all contracts in batches to count categories
+    3. Saves the snapshot to Firebase at 'dashboard_stats_snapshot'
+    
+    The web app reads this pre-computed snapshot instead of computing stats on each request.
+    """
+    try:
+        logger.info("[STATS_CALC] Starting dashboard stats calculation...")
+        start_time = time.time()
+        
+        qdrant_client = initialize_qdrant()
+        
+        # Get total count using count() API - fast and accurate
+        count_result = qdrant_client.count(
+            collection_name="government_contracts",
+            exact=True
+        )
+        total_contracts = count_result.count
+        logger.info(f"[STATS_CALC] Total contracts: {total_contracts}")
+        
+        # Scroll through all contracts to count categories
+        # Only fetch the 'category' field to minimize memory usage
+        category_counts = {}
+        status_counts = {'active': 0, 'closed': 0}
+        offset = None
+        contracts_processed = 0
+        
+        while True:
+            try:
+                result = qdrant_client.scroll(
+                    collection_name="government_contracts",
+                    limit=1000,  # Process 1000 at a time
+                    offset=offset,
+                    with_payload=True,  # Full payload needed to extract category
+                    with_vectors=False  # CRITICAL: Don't load vectors
+                )
+                
+                points, next_offset = result
+                
+                if not points:
+                    break
+                
+                for point in points:
+                    payload = point.payload or {}
+                    
+                    # Extract category
+                    category = payload.get('category') or payload.get('Category') or 'Other'
+                    if category in ('nan', 'None', 'null', ''):
+                        category = 'Other'
+                    
+                    category_counts[category] = category_counts.get(category, 0) + 1
+                    
+                    # Extract status (estimate based on due date if not available)
+                    status = payload.get('status') or payload.get('Status') or 'active'
+                    if status.lower() in ('open', 'active', 'accepting bids'):
+                        status_counts['active'] += 1
+                    else:
+                        status_counts['closed'] += 1
+                    
+                    contracts_processed += 1
+                
+                offset = next_offset
+                
+                if not next_offset:
+                    break
+                    
+                # Log progress every 10k contracts
+                if contracts_processed % 10000 == 0:
+                    logger.info(f"[STATS_CALC] Processed {contracts_processed} contracts...")
+                    
+            except Exception as e:
+                logger.error(f"[STATS_CALC] Error during scroll: {e}")
+                break
+        
+        # Sort categories by count and get top 10
+        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
+        top_categories = sorted_categories[:10]
+        
+        # Build category distribution with percentages
+        category_distribution = {}
+        for cat_name, count in top_categories:
+            percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
+            category_distribution[cat_name] = {
+                'count': count,
+                'percentage': percentage
+            }
+        
+        # Build the stats snapshot
+        stats_snapshot = {
+            'total_contracts': total_contracts,
+            'category_distribution': category_distribution,
+            'status_distribution': status_counts,
+            'top_categories': [cat[0] for cat in top_categories[:4]],
+            'generated_at': datetime.now().isoformat(),
+            'generated_by': WORKER_ID,
+            'calculation_time_seconds': round(time.time() - start_time, 2)
+        }
+        
+        # Save to Firebase
+        stats_ref = db.reference('dashboard_stats_snapshot')
+        stats_ref.set(stats_snapshot)
+        
+        elapsed = round(time.time() - start_time, 2)
+        logger.info(f"[STATS_CALC] Completed in {elapsed}s. Total: {total_contracts}, Categories: {len(category_counts)}")
+        
+        return stats_snapshot
+        
+    except Exception as e:
+        logger.error(f"[STATS_CALC] Error calculating stats: {e}", exc_info=True)
+        return None
+
+
+def check_and_calculate_stats(db):
+    """
+    Check if stats need to be recalculated and do so if needed.
+    
+    Stats are recalculated if:
+    1. No snapshot exists
+    2. Snapshot is older than 5 minutes
+    """
+    try:
+        stats_ref = db.reference('dashboard_stats_snapshot')
+        current_snapshot = stats_ref.get()
+        
+        should_calculate = False
+        
+        if not current_snapshot:
+            logger.info("[STATS_CALC] No snapshot exists, calculating...")
+            should_calculate = True
+        else:
+            # Check if snapshot is older than 5 minutes
+            generated_at = current_snapshot.get('generated_at')
+            if generated_at:
+                try:
+                    snapshot_time = datetime.fromisoformat(generated_at)
+                    age_seconds = (datetime.now() - snapshot_time).total_seconds()
+                    if age_seconds > 300:  # 5 minutes
+                        logger.info(f"[STATS_CALC] Snapshot is {age_seconds:.0f}s old, recalculating...")
+                        should_calculate = True
+                except Exception:
+                    should_calculate = True
+            else:
+                should_calculate = True
+        
+        if should_calculate:
+            calculate_dashboard_stats(db)
+            return True
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"[STATS_CALC] Error checking stats: {e}")
+        return False
+
+
+# ============================================================================
 # PROPOSAL GENERATION JOB PROCESSING
 # ============================================================================
 
@@ -1517,7 +1683,7 @@ def cleanup_stale_contract_analysis_jobs(db):
 
 
 def main():
-    """Main worker loop - processes proposal, contract analysis, and NAICS enrichment jobs"""
+    """Main worker loop - processes proposal, contract analysis, NAICS enrichment, and dashboard stats jobs"""
     global shutdown_requested
     
     # Set up signal handlers
@@ -1525,7 +1691,7 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     
     logger.info(f"Starting background worker {WORKER_ID}")
-    logger.info("Supported job types: proposal_jobs, contract_analysis_jobs, naics_enrichment_jobs")
+    logger.info("Supported job types: proposal_jobs, contract_analysis_jobs, naics_enrichment_jobs, dashboard_stats")
     
     # Initialize services
     try:
@@ -1535,6 +1701,13 @@ def main():
     except Exception as e:
         logger.error(f"Failed to initialize services: {e}")
         sys.exit(1)
+    
+    # STARTUP: Calculate dashboard stats immediately so dashboard is not empty after deploy
+    logger.info("[STATS_CALC] Running startup stats calculation...")
+    try:
+        calculate_dashboard_stats(db)
+    except Exception as e:
+        logger.warning(f"[STATS_CALC] Startup stats calculation failed (non-fatal): {e}")
     
     # STARTUP SWEEP: Check for contracts needing NAICS enrichment and queue a job if needed
     # This implements "set and forget" automation - no manual curl needed
@@ -1546,6 +1719,7 @@ def main():
     
     cleanup_counter = 0
     backlog_check_counter = 0
+    stats_check_counter = 0
     BACKLOG_CHECK_INTERVAL = 60  # Check every 60 iterations (~5 minutes at 5s poll interval)
     
     # Main loop
@@ -1582,6 +1756,16 @@ def main():
                 except Exception as e:
                     logger.warning(f"[NAICS_BACKLOG] Periodic check failed (non-fatal): {e}")
                 backlog_check_counter = 0
+            
+            # PERIODIC STATS CHECK: Every ~5 minutes, recalculate dashboard stats if needed
+            # This ensures the dashboard always has fresh statistics
+            stats_check_counter += 1
+            if stats_check_counter >= STATS_CALCULATION_INTERVAL:
+                try:
+                    check_and_calculate_stats(db)
+                except Exception as e:
+                    logger.warning(f"[STATS_CALC] Periodic check failed (non-fatal): {e}")
+                stats_check_counter = 0
             
             # If no job was processed, wait before polling again
             if not job_processed and not shutdown_requested:

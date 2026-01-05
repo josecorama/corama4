@@ -4407,33 +4407,73 @@ def get_qdrant_analytics():
     """
     Get analytics for the dashboard.
     
-    Uses qdrant_client.count() for accurate total contract count.
-    Category distribution uses estimated percentages (accurate counts would
-    require iterating through all contracts which causes OOM).
+    SCALABLE ARCHITECTURE: Reads pre-computed stats from Firebase snapshot
+    instead of computing on each request. The background worker calculates
+    these stats periodically and saves them to 'dashboard_stats_snapshot'.
     
-    Returns real total_contracts from Qdrant count() API.
+    Falls back to Qdrant count() + estimated percentages if snapshot not available.
     """
     global QDRANT_ANALYTICS_CACHE, QDRANT_ANALYTICS_SIGNATURE
     
     from datetime import datetime
     
     try:
-        # Get real total count using qdrant_client.count() - fast and accurate
+        # First, try to read pre-computed stats from Firebase snapshot
+        # This is the scalable approach - stats are computed by background worker
+        try:
+            if admin_initialized and admin_db:
+                stats_ref = admin_db.reference('dashboard_stats_snapshot')
+                snapshot = stats_ref.get()
+                
+                if snapshot and snapshot.get('total_contracts'):
+                    # Convert category_distribution from {cat: {count, percentage}} to {cat: count}
+                    cat_dist = snapshot.get('category_distribution', {})
+                    category_distribution = {}
+                    for cat_name, cat_data in cat_dist.items():
+                        if isinstance(cat_data, dict):
+                            category_distribution[cat_name] = cat_data.get('count', 0)
+                        else:
+                            category_distribution[cat_name] = cat_data
+                    
+                    total_contracts = snapshot.get('total_contracts', 0)
+                    status_dist = snapshot.get('status_distribution', {})
+                    
+                    result = {
+                        'total_contracts': total_contracts,
+                        'win_probability': 70.0,
+                        'open_contracts': status_dist.get('active', int(total_contracts * 0.6)),
+                        'upcoming_deadlines': 0,
+                        'high_score_opportunities': int(total_contracts * 0.2),
+                        'top_categories': snapshot.get('top_categories', []),
+                        'category_distribution': category_distribution,
+                        'status_distribution': status_dist,
+                        'top_agencies': {},
+                        'analysis_date': snapshot.get('generated_at', datetime.now().strftime('%Y-%m-%d')),
+                        '_from_snapshot': True,
+                        '_snapshot_age': snapshot.get('generated_at')
+                    }
+                    
+                    logging.info(f"[Qdrant Analytics] Using pre-computed snapshot: {total_contracts} contracts")
+                    QDRANT_ANALYTICS_CACHE = result
+                    QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
+                    return result
+        except Exception as snapshot_error:
+            logging.warning(f"[Qdrant Analytics] Could not read snapshot: {snapshot_error}")
+        
+        # Fallback: Get real total count using qdrant_client.count() - fast and accurate
         qdrant_url = os.getenv('QDRANT_URL')
         qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
         total_contracts = 0
         if qdrant_url and qdrant_api_key:
             client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-            # Use count() for accurate total - much faster than loading all contracts
             count_result = client.count(
                 collection_name="government_contracts",
-                exact=True  # Get exact count, not approximate
+                exact=True
             )
             total_contracts = count_result.count
-            logging.info(f"[Qdrant Analytics] Real count from Qdrant: {total_contracts}")
+            logging.info(f"[Qdrant Analytics] Fallback count from Qdrant: {total_contracts}")
         else:
-            # Fallback to signature if credentials not available
             current_signature = get_qdrant_collection_signature()
             if current_signature:
                 try:
@@ -4441,15 +4481,13 @@ def get_qdrant_analytics():
                 except (ValueError, TypeError):
                     pass
         
-        # Return analytics with real total count
-        # Category distribution uses estimated percentages (accurate counts would
-        # require iterating through all contracts which causes OOM)
+        # Return analytics with estimated percentages (snapshot not available)
         result = {
             'total_contracts': total_contracts,
-            'win_probability': 70.0,  # Reasonable default
-            'open_contracts': int(total_contracts * 0.6),  # Estimate 60% open
+            'win_probability': 70.0,
+            'open_contracts': int(total_contracts * 0.6),
             'upcoming_deadlines': 0,
-            'high_score_opportunities': int(total_contracts * 0.2),  # Estimate 20%
+            'high_score_opportunities': int(total_contracts * 0.2),
             'top_categories': ['Professional Services', 'Construction', 'Information Technology', 'Goods/Supplies'],
             'category_distribution': {
                 'Professional Services': int(total_contracts * 0.25),
@@ -4460,10 +4498,9 @@ def get_qdrant_analytics():
             'status_distribution': {'active': int(total_contracts * 0.6), 'closed': int(total_contracts * 0.4)},
             'top_agencies': {},
             'analysis_date': datetime.now().strftime('%Y-%m-%d'),
-            '_real_count': True  # Flag to indicate this uses real count from Qdrant
+            '_from_snapshot': False
         }
         
-        # Cache this result
         QDRANT_ANALYTICS_CACHE = result
         QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
         
@@ -4483,6 +4520,36 @@ def get_qdrant_analytics():
             'top_agencies': {},
             'analysis_date': datetime.now().strftime('%Y-%m-%d')
         }
+
+
+@app.route('/api/dashboard/stats', methods=['GET'])
+def get_dashboard_stats_api():
+    """
+    API endpoint to get pre-computed dashboard statistics.
+    
+    SCALABLE ARCHITECTURE: Returns stats from Firebase snapshot computed by background worker.
+    This endpoint is designed to be extremely fast (<50ms) as it only reads from Firebase.
+    
+    Returns:
+    - total_contracts: Total number of contracts in Qdrant
+    - category_distribution: Top categories with counts and percentages
+    - status_distribution: Active vs closed counts
+    - top_categories: List of top 4 category names
+    - generated_at: When the stats were last computed
+    - _from_snapshot: Boolean indicating if data is from pre-computed snapshot
+    """
+    try:
+        stats = get_qdrant_analytics()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        logging.error(f"[Dashboard Stats API] Error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # updated 3/17/25 - Permanent Stripe Validation Fix

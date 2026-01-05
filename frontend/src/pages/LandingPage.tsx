@@ -411,22 +411,6 @@ const LandingPage = () => {
         </div>
       </header>
 
-      {/* Global Waves Background Animation - covers entire landing page */}
-      <div className="fixed inset-0 z-0 pointer-events-none" style={{ top: '80px' }}>
-        <Waves
-          lineColor="#0B2C48"
-          backgroundColor="rgba(11, 44, 72, 0.2)"
-          waveSpeedX={0.02}
-          waveSpeedY={0.01}
-          waveAmpX={40}
-          waveAmpY={20}
-          friction={0.9}
-          tension={0.01}
-          maxCursorMove={120}
-          xGap={12}
-          yGap={36}
-        />
-      </div>
 
       {/* Scrollable container - takes remaining height below header */}
       <div 
@@ -452,7 +436,8 @@ const LandingPage = () => {
         {/* Layer 10: Content */}
         <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
-            Find Contracts
+            Find contracts<br />
+            in seconds
           </h1>
           <p className="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
