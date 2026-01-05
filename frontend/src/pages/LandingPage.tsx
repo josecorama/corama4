@@ -411,6 +411,22 @@ const LandingPage = () => {
         </div>
       </header>
 
+      {/* Global Waves Background Animation - covers entire landing page */}
+      <div className="fixed inset-0 z-0 pointer-events-none" style={{ top: '80px' }}>
+        <Waves
+          lineColor="#0B2C48"
+          backgroundColor="rgba(11, 44, 72, 0.2)"
+          waveSpeedX={0.02}
+          waveSpeedY={0.01}
+          waveAmpX={40}
+          waveAmpY={20}
+          friction={0.9}
+          tension={0.01}
+          maxCursorMove={120}
+          xGap={12}
+          yGap={36}
+        />
+      </div>
 
       {/* Scrollable container - takes remaining height below header */}
       <div 
@@ -428,24 +444,7 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('hero')}`}
       >
-        {/* Layer 1: Waves Background Animation */}
-        <div className="absolute inset-0 z-0" style={{ width: '100%', height: '100%' }}>
-          <Waves
-            lineColor="#0B2C48"
-            backgroundColor="rgba(11, 44, 72, 0.2)"
-            waveSpeedX={0.02}
-            waveSpeedY={0.01}
-            waveAmpX={40}
-            waveAmpY={20}
-            friction={0.9}
-            tension={0.01}
-            maxCursorMove={120}
-            xGap={12}
-            yGap={36}
-          />
-        </div>
-        
-        {/* Layer 2: Radar Animation */}
+        {/* Radar Animation - only in hero section */}
         <div className="absolute inset-0 z-[1] pointer-events-none">
           <RadarAnimation />
         </div>
