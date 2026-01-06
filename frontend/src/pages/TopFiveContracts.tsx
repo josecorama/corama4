@@ -338,9 +338,9 @@ const TopFiveContracts = () => {
                           {contract.rank}
                         </span>
                       </div>
-                      {/* Decorative stars - same size, moved 16px down */}
-                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-30px', top: '86px' }} />
-                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-15px', top: '136px' }} />
+                      {/* Decorative stars - same size, moved down */}
+                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-30px', top: '102px' }} />
+                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-15px', top: '152px' }} />
                     </div>
 
                     {/* Middle column: Contract Details with white pill headers */}
