@@ -8,8 +8,7 @@ import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 
 // SVG asset paths for contract cards
-const TopSignBaseIcon = '/static/app/dashboard/TopSignBase.svg'
-const StarSingleIcon = '/static/app/dashboard/StarSingle.svg'
+const TrophyBackgroundIcon = '/static/app/dashboard/TrophyBackground.svg'
 const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
 const AskAIIcon = '/static/app/dashboard/AskAI.svg'
 const SortByIcon = '/static/app/dashboard/SortBy.svg'
@@ -261,24 +260,11 @@ const TopFiveContracts = () => {
                   </div>
 
                   <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
-                    {/* Top Sign - Trophy with rank number and decorative stars */}
+                    {/* Top Sign - Trophy with background and rank number overlay */}
                     <div className="relative flex-shrink-0" style={{ width: '160px', height: '160px' }}>
-                      {/* Decorative stars */}
-                      <img 
-                        src={StarSingleIcon} 
-                        alt="" 
-                        className="absolute w-8 h-8 lg:w-10 lg:h-10"
-                        style={{ left: '-20px', top: '45%' }}
-                      />
-                      <img 
-                        src={StarSingleIcon} 
-                        alt="" 
-                        className="absolute w-8 h-8 lg:w-10 lg:h-10"
-                        style={{ left: '-5px', top: '75%' }}
-                      />
-                      {/* Trophy icon with rank number overlay */}
+                      {/* Trophy with teal circle background and rank number overlay */}
                       <div className="relative w-32 h-32 lg:w-36 lg:h-36">
-                        <img src={TopSignBaseIcon} alt="" className="absolute inset-0 w-full h-full" />
+                        <img src={TrophyBackgroundIcon} alt="" className="absolute inset-0 w-full h-full" />
                         <span className="absolute left-1/2 top-[35%] transform -translate-x-1/2 -translate-y-1/2 text-3xl lg:text-4xl font-poppins font-bold text-white leading-none">
                           {contract.rank}
                         </span>
