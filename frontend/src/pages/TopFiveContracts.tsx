@@ -13,7 +13,7 @@ const StarsIcon = '/static/app/dashboard/Stars.svg'
 const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
 const AskAIIcon = '/static/app/dashboard/AskAI.svg'
 const SortByIcon = '/static/app/dashboard/SortBy.svg'
-const PrintResultsIcon = '/dashboard/PrintResults.svg'
+const PrintResultsIcon = '/static/app/dashboard/PrintResults.svg'
 
 interface ContractMatch {
   rank: number
@@ -339,11 +339,11 @@ const TopFiveContracts = () => {
                   style={{ backgroundColor: '#1C4262' }}
                   onClick={() => window.print()}
                 >
-                  <img src={PrintResultsIcon} alt="Print" className="w-5 h-5" />
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">Print Results</p>
                     <p className="text-xs sm:text-sm text-gray-300">Click to print your contract matches.</p>
                   </div>
+                  <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
                 </button>
               </div>
             </div>
