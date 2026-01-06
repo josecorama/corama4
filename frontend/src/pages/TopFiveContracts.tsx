@@ -329,57 +329,57 @@ const TopFiveContracts = () => {
 
                   <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
                     {/* Left column: Top Sign with rank number and decorative stars */}
-                    <div className="relative flex-shrink-0" style={{ width: '180px', height: '200px' }}>
-                      {/* Top Sign base image with fixed dimensions for proper positioning - LARGER */}
-                      <div className="relative w-40 h-40 lg:w-44 lg:h-44">
+                    <div className="relative flex-shrink-0" style={{ width: '160px', height: '160px' }}>
+                      {/* Top Sign base image - sized to match design reference */}
+                      <div className="relative w-32 h-32 lg:w-36 lg:h-36">
                         <img src={TopSignBaseIcon} alt="" className="absolute inset-0 w-full h-full" />
-                        {/* Dynamic rank number overlay - centered in the yellow star area - LARGER */}
-                        <span className="absolute left-1/2 top-[35%] transform -translate-x-1/2 -translate-y-1/2 text-4xl lg:text-5xl font-poppins font-bold text-white leading-none">
+                        {/* Dynamic rank number overlay - centered in the yellow star area */}
+                        <span className="absolute left-1/2 top-[35%] transform -translate-x-1/2 -translate-y-1/2 text-3xl lg:text-4xl font-poppins font-bold text-white leading-none">
                           {contract.rank}
                         </span>
                       </div>
-                      {/* Decorative stars positioned below the Top Sign - moved 16px down and 8px closer together */}
-                      <img src={StarSingleIcon} alt="" className="absolute w-10 h-10 lg:w-12 lg:h-12 pointer-events-none select-none" style={{ left: '-21px', top: '53%' }} />
-                      <img src={StarSingleIcon} alt="" className="absolute w-10 h-10 lg:w-12 lg:h-12 pointer-events-none select-none" style={{ left: '-9px', top: '88%' }} />
+                      {/* Decorative stars positioned to match design - using px for precise control */}
+                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-30px', top: '70px' }} />
+                      <img src={StarSingleIcon} alt="" className="absolute w-6 h-6 lg:w-8 lg:h-8 pointer-events-none select-none" style={{ left: '-15px', top: '120px' }} />
                     </div>
 
                     {/* Middle column: Contract Details with white pill headers */}
                     <div className="flex-1 w-full">
                       {/* Top row: Contract Value, Submission Deadline, NAICS Code */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4 mb-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-4">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-3 py-1 rounded-full mb-1 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Contract Value
                           </span>
-                          <p className="text-white font-poppins font-bold text-xs lg:text-sm">{contract.contractValue}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractValue}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-3 py-1 rounded-full mb-1 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Submission Deadline
                           </span>
-                          <p className="text-white font-poppins font-bold text-xs lg:text-sm whitespace-pre-line">{contract.submissionDeadline?.replace('T', '\n')}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-pre-line">{contract.submissionDeadline?.replace('T', '\n')}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-3 py-1 rounded-full mb-1 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             NAICS Code
                           </span>
-                          <p className="text-white font-poppins font-bold text-xs lg:text-sm">{contract.naicsCode}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.naicsCode}</p>
                         </div>
                       </div>
 
                       {/* Bottom row: Name, Contracting Agency */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-3 py-1 rounded-full mb-1 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Name
                           </span>
-                          <p className="text-white font-poppins font-bold text-xs lg:text-sm line-clamp-2">{contract.name}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-normal break-words">{contract.name}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-3 py-1 rounded-full mb-1 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Contracting Agency
                           </span>
-                          <p className="text-white font-poppins font-bold text-xs lg:text-sm line-clamp-2">{contract.contractingAgency}</p>
+                          <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-normal break-words">{contract.contractingAgency}</p>
                         </div>
                         {/* Action Buttons - with gradient background, larger size */}
                         <div className="flex flex-col gap-3 justify-start items-start">
