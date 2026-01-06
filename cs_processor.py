@@ -513,7 +513,7 @@ Respond with ONLY valid JSON array, no other text:
                     'Category': clean_value(res.payload.get('category') or res.payload.get('Category'), 'Unknown'),
                     'Due_Date': clean_value(res.payload.get('due_date') or res.payload.get('Due Date'), 'Not Specified'),
                     'Detail_Link': clean_value(res.payload.get('source_url') or res.payload.get('detail_link') or res.payload.get('Detail Link'), '#'),
-                    'State': clean_value(res.payload.get('state') or res.payload.get('State'), 'Unknown'),
+                    'State': clean_value(res.payload.get('location') or res.payload.get('Location') or res.payload.get('state') or res.payload.get('State'), 'Unknown'),
                     'Organization': clean_value(res.payload.get('agency') or res.payload.get('organization') or res.payload.get('Organization'), 'Unknown'),
                     'Budget': clean_value(res.payload.get('budget') or res.payload.get('Budget'), 'Not Specified'),
                     'Similarity_Score': f"{res.score * 100:.2f}%",

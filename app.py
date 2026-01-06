@@ -5217,7 +5217,12 @@ def Signup():
 @app.route('/confirm-terms', methods=['GET'])
 @app.route('/confirm_terms', methods=['GET'])  # Keep old URL for backwards compatibility
 def confirm_terms():
-    """Serve React SPA for confirm terms page"""
+    """Serve React SPA for confirm terms page - requires authentication"""
+    # Require authentication - users must be logged in to access confirm-terms
+    # This prevents unauthenticated users from accessing the page directly via URL
+    if 'user' not in session:
+        return redirect(url_for('Login'))
+    
     app_dir = os.path.join(app.static_folder, 'app')
     return send_from_directory(app_dir, 'index.html')
 
