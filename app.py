@@ -194,52 +194,421 @@ def verify_recaptcha(token):
 
 
 # ============================================================================
-# DISPOSABLE EMAIL BLOCKING
+# DISPOSABLE EMAIL BLOCKING (COMPREHENSIVE MULTI-LAYER DETECTION)
 # ============================================================================
 
-# Load disposable email domains blocklist at startup
+# Import tldextract for proper domain parsing (handles subdomains correctly)
 try:
-    from disposable_email_domains import blocklist as DISPOSABLE_EMAIL_BLOCKLIST
-    app.logger.info(f"[Email Validation] Loaded {len(DISPOSABLE_EMAIL_BLOCKLIST)} disposable email domains")
+    import tldextract
+    TLDEXTRACT_AVAILABLE = True
 except ImportError:
-    app.logger.warning("[Email Validation] disposable-email-domains package not installed, disposable email blocking disabled")
-    DISPOSABLE_EMAIL_BLOCKLIST = set()
+    TLDEXTRACT_AVAILABLE = False
+    app.logger.warning("[Email Validation] tldextract not installed, subdomain detection will be limited")
+
+# Load disposable email domains blocklist from package
+try:
+    from disposable_email_domains import blocklist as PACKAGE_BLOCKLIST
+    app.logger.info(f"[Email Validation] Loaded {len(PACKAGE_BLOCKLIST)} domains from disposable-email-domains package")
+except ImportError:
+    app.logger.warning("[Email Validation] disposable-email-domains package not installed")
+    PACKAGE_BLOCKLIST = set()
+
+# Additional comprehensive blocklist of known disposable/temporary email domains
+# This supplements the package blocklist with domains that may be missing
+ADDITIONAL_DISPOSABLE_DOMAINS = {
+    # Popular temp mail services (frequently used, often missing from lists)
+    'tempmail.com', 'temp-mail.org', 'temp-mail.io', 'tempmail.net', 'tempmail.de',
+    'guerrillamail.com', 'guerrillamail.org', 'guerrillamail.net', 'guerrillamail.biz', 'guerrillamail.de',
+    'guerrillamail.info', 'grr.la', 'sharklasers.com', 'guerrilla.email',
+    'mailinator.com', 'mailinator.net', 'mailinator.org', 'mailinator2.com',
+    '10minutemail.com', '10minutemail.net', '10minutemail.org', '10minmail.com',
+    '10minemail.com', '10minutesemail.net', '10minutesmail.com',
+    'throwaway.email', 'throwawaymail.com', 'throam.com',
+    'fakeinbox.com', 'fakemailgenerator.com', 'fakemail.net',
+    'tempinbox.com', 'tempinbox.co.uk', 'tempr.email', 'tempemail.net',
+    'dispostable.com', 'disposableemailaddresses.com', 'disposable-email.ml',
+    'yopmail.com', 'yopmail.fr', 'yopmail.net', 'cool.fr.nf', 'jetable.fr.nf',
+    'nospam.ze.tc', 'nomail.xl.cx', 'mega.zik.dj', 'speed.1s.fr', 'courriel.fr.nf',
+    'moncourrier.fr.nf', 'monemail.fr.nf', 'monmail.fr.nf',
+    'maildrop.cc', 'mailnesia.com', 'mailcatch.com', 'mail-temp.com',
+    'mohmal.com', 'mohmal.im', 'mohmal.tech', 'mohmal.in',
+    'getnada.com', 'nada.email', 'tempail.com',
+    'emailondeck.com', 'emailfake.com', 'email-fake.com',
+    'trashmail.com', 'trashmail.net', 'trashmail.org', 'trashmail.me', 'trashmail.ws',
+    'trash-mail.com', 'trash-mail.at', 'trash-mail.de',
+    'spamgourmet.com', 'spamgourmet.net', 'spamgourmet.org',
+    'mailnull.com', 'e4ward.com', 'spamex.com', 'spamfree24.org',
+    'mytrashmail.com', 'mt2009.com', 'thankyou2010.com',
+    'dodgeit.com', 'dodgemail.de', 'dodgit.com', 'dodgit.org',
+    'mintemail.com', 'tempmailer.com', 'tempmailer.de',
+    'spambox.us', 'spambox.xyz', 'spambox.irishspringrealty.com',
+    'mailexpire.com', 'mailmoat.com', 'mailscrap.com',
+    'incognitomail.com', 'incognitomail.net', 'incognitomail.org',
+    'anonymbox.com', 'anonymmail.net', 'anonbox.net', 'anonmails.de',
+    'bugmenot.com', 'bumpymail.com', 'casualdx.com',
+    'chogmail.com', 'choicemail1.com', 'cool.fr.nf',
+    'correo.blogos.net', 'cosmorph.com', 'courrieltemporaire.com',
+    'curryworld.de', 'cust.in', 'dacoolest.com', 'dandikmail.com',
+    'deadaddress.com', 'despam.it', 'despammed.com', 'devnullmail.com',
+    'dfgh.net', 'digitalsanctuary.com', 'discardmail.com', 'discardmail.de',
+    'disposableaddress.com', 'disposableemailaddresses.com', 'disposableinbox.com',
+    'dispose.it', 'dispostable.com', 'dm.w3internet.co.uk', 'dodgeit.com',
+    'dodgit.com', 'donemail.ru', 'dontreg.com', 'dontsendmespam.de',
+    'drdrb.com', 'dump-email.info', 'dumpandjunk.com', 'dumpmail.de',
+    'dumpyemail.com', 'e-mail.com', 'e-mail.org', 'e4ward.com',
+    'easytrashmail.com', 'einmalmail.de', 'email60.com', 'emaildienst.de',
+    'emailgo.de', 'emailias.com', 'emailigo.de', 'emailinfive.com',
+    'emaillime.com', 'emailmiser.com', 'emailsensei.com', 'emailtemporanea.com',
+    'emailtemporanea.net', 'emailtemporar.ro', 'emailtemporario.com.br',
+    'emailthe.net', 'emailtmp.com', 'emailto.de', 'emailwarden.com',
+    'emailx.at.hm', 'emailxfer.com', 'emz.net', 'enterto.com',
+    'ephemail.net', 'etranquil.com', 'etranquil.net', 'etranquil.org',
+    'evopo.com', 'explodemail.com', 'express.net.ua', 'eyepaste.com',
+    'fakeinbox.com', 'fakeinformation.com', 'fansworldwide.de', 'fastacura.com',
+    'fastchevy.com', 'fastchrysler.com', 'fastkawasaki.com', 'fastmazda.com',
+    'fastmitsubishi.com', 'fastnissan.com', 'fastsubaru.com', 'fastsuzuki.com',
+    'fasttoyota.com', 'fastyamaha.com', 'filzmail.com', 'fixmail.tk',
+    'fizmail.com', 'flyspam.com', 'fr33mail.info', 'frapmail.com',
+    'friendlymail.co.uk', 'front14.org', 'fuckingduh.com', 'fudgerub.com',
+    'garliclife.com', 'gehensiull.com', 'get1mail.com', 'get2mail.fr',
+    'getairmail.com', 'getmails.eu', 'getonemail.com', 'getonemail.net',
+    'ghosttexter.de', 'giantmail.de', 'girlsundertheinfluence.com',
+    'gishpuppy.com', 'goemailgo.com', 'gorillaswithdirtyarmpits.com',
+    'gotmail.com', 'gotmail.net', 'gotmail.org', 'gotti.otherinbox.com',
+    'gowikibooks.com', 'gowikicampus.com', 'gowikicars.com', 'gowikifilms.com',
+    'gowikigames.com', 'gowikimusic.com', 'gowikinetwork.com', 'gowikitravel.com',
+    'gowikitv.com', 'grandmamail.com', 'grandmasmail.com', 'great-host.in',
+    'greensloth.com', 'gsrv.co.uk', 'guerillamail.biz', 'guerillamail.com',
+    'guerillamail.de', 'guerillamail.info', 'guerillamail.net', 'guerillamail.org',
+    'guerrillamail.biz', 'guerrillamail.com', 'guerrillamail.de', 'guerrillamail.info',
+    'guerrillamail.net', 'guerrillamail.org', 'guerrillamailblock.com',
+    'h8s.org', 'haltospam.com', 'harakirimail.com', 'hartbot.de',
+    'hatespam.org', 'herp.in', 'hidemail.de', 'hidzz.com',
+    'hmamail.com', 'hochsitze.com', 'hopemail.biz', 'hotpop.com',
+    'hulapla.de', 'ieatspam.eu', 'ieatspam.info', 'ieh-mail.de',
+    'ihateyoualot.info', 'iheartspam.org', 'imails.info', 'imgof.com',
+    'imgv.de', 'imstations.com', 'inbax.tk', 'inbox.si',
+    'inboxalias.com', 'inboxclean.com', 'inboxclean.org', 'inboxproxy.com',
+    'incognitomail.com', 'incognitomail.net', 'incognitomail.org', 'infocom.zp.ua',
+    'insorg-mail.info', 'instant-mail.de', 'instantemailaddress.com', 'iozak.com',
+    'ipoo.org', 'irish2me.com', 'iwi.net', 'jetable.com',
+    'jetable.fr.nf', 'jetable.net', 'jetable.org', 'jnxjn.com',
+    'jourrapide.com', 'jsrsolutions.com', 'junk1.com', 'kasmail.com',
+    'kaspop.com', 'keepmymail.com', 'killmail.com', 'killmail.net',
+    'kimsdisk.com', 'kingsq.ga', 'kiois.com', 'klassmaster.com',
+    'klassmaster.net', 'klzlv.com', 'kook.ml', 'kulturbetrieb.info',
+    'kurzepost.de', 'lawlita.com', 'lazyinbox.com', 'letthemeatspam.com',
+    'lhsdv.com', 'lifebyfood.com', 'link2mail.net', 'litedrop.com',
+    'loadby.us', 'login-email.ml', 'lol.ovpn.to', 'lookugly.com',
+    'lopl.co.cc', 'lortemail.dk', 'lovemeleaveme.com', 'lr78.com',
+    'lroid.com', 'lukop.dk', 'm4ilweb.info', 'maboard.com',
+    'mail-hierarchie.net', 'mail-temporaire.fr', 'mail.by', 'mail.mezimages.net',
+    'mail.zp.ua', 'mail114.net', 'mail2rss.org', 'mail333.com',
+    'mail4trash.com', 'mailbidon.com', 'mailblocks.com', 'mailbucket.org',
+    'mailcat.biz', 'mailcatch.com', 'mailde.de', 'mailde.info',
+    'maildrop.cc', 'maildrop.cf', 'maildrop.ga', 'maildrop.gq',
+    'maildrop.ml', 'maildu.de', 'maildx.com', 'mailed.ro',
+    'maileme101.com', 'mailexpire.com', 'mailfa.tk', 'mailfork.com',
+    'mailfreeonline.com', 'mailguard.me', 'mailhazard.com', 'mailhazard.us',
+    'mailhz.me', 'mailimate.com', 'mailin8r.com', 'mailinater.com',
+    'mailinator.com', 'mailinator.gq', 'mailinator.net', 'mailinator.org',
+    'mailinator.us', 'mailinator2.com', 'mailincubator.com', 'mailismagic.com',
+    'mailjunk.cf', 'mailjunk.ga', 'mailjunk.gq', 'mailjunk.ml',
+    'mailjunk.tk', 'mailmate.com', 'mailme.gq', 'mailme.ir',
+    'mailme.lv', 'mailme24.com', 'mailmetrash.com', 'mailmoat.com',
+    'mailnator.com', 'mailnesia.com', 'mailnull.com', 'mailorg.org',
+    'mailpick.biz', 'mailproxsy.com', 'mailquack.com', 'mailrock.biz',
+    'mailsac.com', 'mailseal.de', 'mailshell.com', 'mailsiphon.com',
+    'mailslapping.com', 'mailslite.com', 'mailtemp.info', 'mailtome.de',
+    'mailtothis.com', 'mailtrash.net', 'mailtv.net', 'mailtv.tv',
+    'mailzilla.com', 'mailzilla.org', 'makemetheking.com', 'manybrain.com',
+    'mbx.cc', 'mega.zik.dj', 'meinspamschutz.de', 'meltmail.com',
+    'messagebeamer.de', 'mezimages.net', 'mierdamail.com', 'migmail.pl',
+    'migumail.com', 'mintemail.com', 'mjukgansen.nu', 'moakt.com',
+    'mobi.web.id', 'mobileninja.co.uk', 'moburl.com', 'moncourrier.fr.nf',
+    'monemail.fr.nf', 'monmail.fr.nf', 'monumentmail.com', 'ms9.mailslite.com',
+    'msb.minsmail.com', 'msg.mailslite.com', 'mspeciosa.com', 'mswork.ru',
+    'mt2009.com', 'mt2014.com', 'myalias.pw', 'mycleaninbox.net',
+    'myemailboxy.com', 'mymail-in.net', 'mymailoasis.com', 'mynetstore.de',
+    'mypacks.net', 'mypartyclip.de', 'myphantomemail.com', 'mysamp.de',
+    'myspaceinc.com', 'myspaceinc.net', 'myspacepimpedup.com', 'myspamless.com',
+    'mytempemail.com', 'mytempmail.com', 'mytrashmail.com', 'nabuma.com',
+    'neomailbox.com', 'nepwk.com', 'nervmich.net', 'nervtmansen.de',
+    'netmails.com', 'netmails.net', 'netzidiot.de', 'neverbox.com',
+    'nice-4u.com', 'nincsmail.hu', 'nmail.cf', 'no-spam.ws',
+    'nobulk.com', 'noclickemail.com', 'nogmailspam.info', 'nomail.xl.cx',
+    'nomail2me.com', 'nomorespamemails.com', 'nospam.ze.tc', 'nospam4.us',
+    'nospamfor.us', 'nospammail.net', 'nospamthanks.info', 'notmailinator.com',
+    'notsharingmy.info', 'nowhere.org', 'nowmymail.com', 'ntlhelp.net',
+    'nurfuerspam.de', 'nus.edu.sg', 'nwldx.com', 'objectmail.com',
+    'obobbo.com', 'odnorazovoe.ru', 'one-time.email', 'oneoffemail.com',
+    'onewaymail.com', 'onlatedotcom.info', 'online.ms', 'oopi.org',
+    'opayq.com', 'ordinaryamerican.net', 'otherinbox.com', 'ourklips.com',
+    'outlawspam.com', 'ovpn.to', 'owlpic.com', 'pancakemail.com',
+    'pjjkp.com', 'plexolan.de', 'poczta.onet.pl', 'politikerclub.de',
+    'poofy.org', 'pookmail.com', 'privacy.net', 'privatdemail.net',
+    'privy-mail.com', 'privymail.de', 'proxymail.eu', 'prtnx.com',
+    'punkass.com', 'putthisinyourspamdatabase.com', 'pwrby.com', 'qisdo.com',
+    'qisoa.com', 'quickinbox.com', 'quickmail.nl', 'rainmail.biz',
+    'rcpt.at', 're-gister.com', 'reallymymail.com', 'realtyalerts.ca',
+    'recode.me', 'recursor.net', 'recyclemail.dk', 'regbypass.com',
+    'regbypass.comsafe-mail.net', 'rejectmail.com', 'remail.cf', 'remail.ga',
+    'rhyta.com', 'rklips.com', 'rmqkr.net', 'royal.net',
+    'rppkn.com', 'rtrtr.com', 's0ny.net', 'safe-mail.net',
+    'safersignup.de', 'safetymail.info', 'safetypost.de', 'sandelf.de',
+    'saynotospams.com', 'schafmail.de', 'schrott-email.de', 'secretemail.de',
+    'secure-mail.biz', 'selfdestructingmail.com', 'senseless-entertainment.com',
+    'server.ms.selfip.net', 'sharklasers.com', 'shieldemail.com', 'shiftmail.com',
+    'shitmail.me', 'shitmail.org', 'shortmail.net', 'shut.name',
+    'shut.ws', 'sibmail.com', 'sinnlos-mail.de', 'siteposter.net',
+    'skeefmail.com', 'slaskpost.se', 'slave-auctions.net', 'slopsbox.com',
+    'slushmail.com', 'smashmail.de', 'smellfear.com', 'snakemail.com',
+    'sneakemail.com', 'sneakmail.de', 'snkmail.com', 'sofimail.com',
+    'sofort-mail.de', 'softpls.asia', 'sogetthis.com', 'sohu.com',
+    'soisz.com', 'solvemail.info', 'soodonims.com', 'spam.la',
+    'spam.su', 'spam4.me', 'spamail.de', 'spamarrest.com',
+    'spamavert.com', 'spambob.com', 'spambob.net', 'spambob.org',
+    'spambog.com', 'spambog.de', 'spambog.net', 'spambog.ru',
+    'spambox.info', 'spambox.irishspringrealty.com', 'spambox.us', 'spamcannon.com',
+    'spamcannon.net', 'spamcero.com', 'spamcon.org', 'spamcorptastic.com',
+    'spamcowboy.com', 'spamcowboy.net', 'spamcowboy.org', 'spamday.com',
+    'spamex.com', 'spamfree.eu', 'spamfree24.com', 'spamfree24.de',
+    'spamfree24.eu', 'spamfree24.info', 'spamfree24.net', 'spamfree24.org',
+    'spamgoes.in', 'spamgourmet.com', 'spamgourmet.net', 'spamgourmet.org',
+    'spamherelots.com', 'spamhereplease.com', 'spamhole.com', 'spamify.com',
+    'spaminator.de', 'spamkill.info', 'spaml.com', 'spaml.de',
+    'spamlot.net', 'spammotel.com', 'spamobox.com', 'spamoff.de',
+    'spamsalad.in', 'spamslicer.com', 'spamspot.com', 'spamstack.net',
+    'spamthis.co.uk', 'spamthisplease.com', 'spamtrail.com', 'spamtroll.net',
+    'speed.1s.fr', 'spoofmail.de', 'squizzy.de', 'ssoia.com',
+    'startkeys.com', 'stinkefinger.net', 'stop-my-spam.cf', 'stop-my-spam.com',
+    'stop-my-spam.ga', 'stop-my-spam.ml', 'stop-my-spam.tk', 'streetwisemail.com',
+    'stuffmail.de', 'super-auswahl.de', 'supergreatmail.com', 'supermailer.jp',
+    'superrito.com', 'superstachel.de', 'suremail.info', 'svk.jp',
+    'sweetxxx.de', 'tafmail.com', 'tagyourself.com', 'talkinator.com',
+    'tapchicuoihoi.com', 'techemail.com', 'techgroup.me', 'teewars.org',
+    'teleosaurs.xyz', 'teleworm.com', 'teleworm.us', 'temp-mail.de',
+    'temp-mail.org', 'temp-mail.ru', 'temp.emeraldwebmail.com', 'temp.headstrong.de',
+    'tempail.com', 'tempalias.com', 'tempe-mail.com', 'tempemail.biz',
+    'tempemail.co.za', 'tempemail.com', 'tempemail.net', 'tempinbox.co.uk',
+    'tempinbox.com', 'tempmail.co', 'tempmail.de', 'tempmail.eu',
+    'tempmail.it', 'tempmail.net', 'tempmail.us', 'tempmail2.com',
+    'tempmaildemo.com', 'tempmailer.com', 'tempmailer.de', 'tempomail.fr',
+    'temporarily.de', 'temporarioemail.com.br', 'temporaryemail.net', 'temporaryemail.us',
+    'temporaryforwarding.com', 'temporaryinbox.com', 'temporarymailaddress.com', 'tempthe.net',
+    'tempymail.com', 'thanksnospam.info', 'thankyou2010.com', 'thc.st',
+    'thelimestones.com', 'thisisnotmyrealemail.com', 'thismail.net', 'thismail.ru',
+    'throam.com', 'throwam.com', 'throwawayemailaddress.com', 'throwawaymail.com',
+    'tilien.com', 'tittbit.in', 'tmailinator.com', 'tmail.ws',
+    'toiea.com', 'tokenmail.de', 'tonymanso.com', 'toomail.biz',
+    'topranklist.de', 'tradermail.info', 'trash-amil.com', 'trash-mail.at',
+    'trash-mail.com', 'trash-mail.de', 'trash-mail.ga', 'trash-mail.gq',
+    'trash-mail.ml', 'trash-mail.tk', 'trash2009.com', 'trash2010.com',
+    'trash2011.com', 'trashbox.eu', 'trashdevil.com', 'trashdevil.de',
+    'trashemail.de', 'trashmail.at', 'trashmail.com', 'trashmail.de',
+    'trashmail.me', 'trashmail.net', 'trashmail.org', 'trashmail.ws',
+    'trashmailer.com', 'trashymail.com', 'trashymail.net', 'trbvm.com',
+    'trickmail.net', 'trillianpro.com', 'tryalert.com', 'turual.com',
+    'twinmail.de', 'tyldd.com', 'uggsrock.com', 'umail.net',
+    'upliftnow.com', 'uplipht.com', 'uroid.com', 'us.af',
+    'valemail.net', 'venompen.com', 'veryrealemail.com', 'viditag.com',
+    'viewcastmedia.com', 'viewcastmedia.net', 'viewcastmedia.org', 'viralplays.com',
+    'vkcode.ru', 'vmani.com', 'vomoto.com', 'vpn.st',
+    'vsimcard.com', 'vubby.com', 'wasteland.rfc822.org', 'webemail.me',
+    'webm4il.info', 'webuser.in', 'wee.my', 'weg-werf-email.de',
+    'wegwerf-email-addressen.de', 'wegwerf-emails.de', 'wegwerfadresse.de', 'wegwerfemail.com',
+    'wegwerfemail.de', 'wegwerfmail.de', 'wegwerfmail.info', 'wegwerfmail.net',
+    'wegwerfmail.org', 'wetrainbayarea.com', 'wetrainbayarea.org', 'wh4f.org',
+    'whatiaas.com', 'whatpaas.com', 'whopy.com', 'whtjddn.33mail.com',
+    'whyspam.me', 'willhackforfood.biz', 'willselfdestruct.com', 'winemaven.info',
+    'wolfsmail.tk', 'wollan.info', 'worldspace.link', 'wronghead.com',
+    'wuzup.net', 'wuzupmail.net', 'wwwnew.eu', 'x.ip6.li',
+    'xagloo.co', 'xagloo.com', 'xemaps.com', 'xents.com',
+    'xmaily.com', 'xoxy.net', 'yapped.net', 'yeah.net',
+    'yep.it', 'yogamaven.com', 'yopmail.com', 'yopmail.fr',
+    'yopmail.gq', 'yopmail.net', 'you-spam.com', 'ypmail.webarnak.fr.eu.org',
+    'yuurok.com', 'z1p.biz', 'za.com', 'zehnminuten.de',
+    'zehnminutenmail.de', 'zetmail.com', 'zippymail.info', 'zoaxe.com',
+    'zoemail.com', 'zoemail.net', 'zoemail.org', 'zomg.info',
+    'zxcv.com', 'zxcvbnm.com', 'zzz.com',
+    # Recent/new disposable email services (2023-2024)
+    'tempmailo.com', 'tempmailaddress.com', 'emailnax.com', 'emailna.co',
+    'fexbox.org', 'fexbox.ru', 'fexpost.com', 'fextemp.com',
+    'mailsac.com', 'inboxes.com', 'mailpoof.com', 'tempemailco.com',
+    'burnermail.io', 'burner.kiwi', 'mailgw.com', 'emailfreedom.ml',
+    'dropmail.me', 'getairmail.com', 'mailforspam.com', 'tempr.email',
+    'fakemailgenerator.net', 'emailondeck.com', 'tempemailgen.com',
+    'emailfake.com', 'generator.email', 'fakemailgenerator.com',
+    'crazymailing.com', 'tempsky.com', 'tempmailgen.com',
+    'mail.tm', 'mail.gw', 'internxt.com', 'simplelogin.io',
+    'anonaddy.com', 'anonaddy.me', 'duckduckgo.com',
+    # Common wildcard base domains (subdomains of these should be blocked)
+    '33mail.com', 'spamgourmet.com', 'mailinator.com', 'guerrillamail.com',
+}
+
+# Wildcard domains - any subdomain of these should be blocked
+WILDCARD_DISPOSABLE_DOMAINS = {
+    '33mail.com', 'anonaddy.com', 'anonaddy.me', 'spamgourmet.com',
+    'mailinator.com', 'guerrillamail.com', 'guerrillamail.org', 'guerrillamail.net',
+    'guerrillamail.biz', 'guerrillamail.de', 'guerrillamail.info',
+    'sharklasers.com', 'grr.la', 'guerrilla.email',
+    'yopmail.com', 'yopmail.fr', 'yopmail.net',
+    'tempmail.com', 'temp-mail.org', 'tempmail.net',
+    'maildrop.cc', 'mailnesia.com', 'trashmail.com',
+    'mohmal.com', 'getnada.com', 'emailondeck.com',
+    'throwawaymail.com', 'fakeinbox.com', 'dispostable.com',
+    'spambox.us', 'mailexpire.com', 'incognitomail.com',
+    'anonbox.net', 'bugmenot.com', 'mailcatch.com',
+    'mintemail.com', 'spamfree24.org', 'mytrashmail.com',
+    'dodgeit.com', 'mailnull.com', 'e4ward.com',
+    'jetable.org', 'trash-mail.com', 'trash-mail.de',
+}
+
+# Pattern-based detection for common disposable email naming conventions
+DISPOSABLE_PATTERNS = [
+    r'^temp[-_]?mail',
+    r'^trash[-_]?mail',
+    r'^fake[-_]?mail',
+    r'^throw[-_]?away',
+    r'^disposable',
+    r'^burner[-_]?mail',
+    r'^spam[-_]?mail',
+    r'^junk[-_]?mail',
+    r'^10[-_]?min',
+    r'^guerr?illa',
+    r'^anon[-_]?mail',
+    r'^anon[-_]?box',
+    r'^mail[-_]?temp',
+    r'^mail[-_]?drop',
+    r'^mail[-_]?catch',
+    r'^mail[-_]?expire',
+    r'^no[-_]?spam',
+    r'^anti[-_]?spam',
+    r'tempmail',
+    r'trashmail',
+    r'throwaway',
+    r'disposable',
+    r'burnermail',
+    r'fakeemail',
+    r'fakemail',
+    r'spammail',
+    r'junkmail',
+    r'10minute',
+    r'guerilla',
+    r'guerrilla',
+]
+
+# Compile patterns for efficiency
+import re
+DISPOSABLE_PATTERN_REGEX = re.compile('|'.join(DISPOSABLE_PATTERNS), re.IGNORECASE)
+
+# Combine all blocklists into one set for O(1) lookup
+COMBINED_DISPOSABLE_BLOCKLIST = set()
+COMBINED_DISPOSABLE_BLOCKLIST.update(PACKAGE_BLOCKLIST)
+COMBINED_DISPOSABLE_BLOCKLIST.update(ADDITIONAL_DISPOSABLE_DOMAINS)
+app.logger.info(f"[Email Validation] Combined blocklist has {len(COMBINED_DISPOSABLE_BLOCKLIST)} unique domains")
 
 # Optional allowlist for domains that should never be blocked (env var: EMAIL_DOMAIN_ALLOWLIST=domain1.com,domain2.com)
 EMAIL_DOMAIN_ALLOWLIST = set(
     d.strip().lower() for d in os.getenv('EMAIL_DOMAIN_ALLOWLIST', '').split(',') if d.strip()
 )
 
+# Major legitimate email providers that should never be blocked (safety net)
+LEGITIMATE_EMAIL_PROVIDERS = {
+    'gmail.com', 'googlemail.com', 'google.com',
+    'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'microsoft.com',
+    'yahoo.com', 'yahoo.co.uk', 'yahoo.fr', 'yahoo.de', 'yahoo.es', 'yahoo.it',
+    'icloud.com', 'me.com', 'mac.com', 'apple.com',
+    'aol.com', 'aim.com',
+    'protonmail.com', 'proton.me', 'pm.me',
+    'zoho.com', 'zohomail.com',
+    'mail.com', 'email.com',
+    'gmx.com', 'gmx.net', 'gmx.de',
+    'fastmail.com', 'fastmail.fm',
+    'tutanota.com', 'tutanota.de', 'tuta.io',
+    'yandex.com', 'yandex.ru',
+    'mail.ru', 'inbox.ru', 'list.ru', 'bk.ru',
+    'qq.com', '163.com', '126.com', 'sina.com',
+    'att.net', 'sbcglobal.net', 'bellsouth.net',
+    'verizon.net', 'comcast.net', 'cox.net', 'charter.net',
+    'earthlink.net', 'juno.com', 'netzero.net',
+    'corama.ai',  # Our own domain
+}
+
 def is_disposable_email(email: str) -> tuple:
     """
     Check if an email address uses a disposable/temporary email domain.
+    Uses multi-layer detection:
+    1. Allowlist check (legitimate providers)
+    2. Exact domain match against combined blocklist
+    3. Subdomain/wildcard detection
+    4. Pattern-based heuristics
     
     Returns:
-        tuple: (is_disposable: bool, domain: str)
+        tuple: (is_disposable: bool, domain: str, reason: str)
     """
     if not email or '@' not in email:
-        return False, ''
+        return False, '', 'invalid_email'
     
     try:
         # Extract and normalize domain
-        domain = email.split('@')[-1].strip().lower()
+        full_domain = email.split('@')[-1].strip().lower()
         
         # Remove trailing dot if present
-        if domain.endswith('.'):
-            domain = domain[:-1]
+        if full_domain.endswith('.'):
+            full_domain = full_domain[:-1]
         
-        # Check allowlist first (always allow these domains)
-        if domain in EMAIL_DOMAIN_ALLOWLIST:
-            return False, domain
+        # Check user-defined allowlist first
+        if full_domain in EMAIL_DOMAIN_ALLOWLIST:
+            return False, full_domain, 'user_allowlist'
         
-        # Check against disposable email blocklist (exact match only)
-        if domain in DISPOSABLE_EMAIL_BLOCKLIST:
-            return True, domain
+        # Check legitimate providers (safety net)
+        if full_domain in LEGITIMATE_EMAIL_PROVIDERS:
+            return False, full_domain, 'legitimate_provider'
         
-        return False, domain
+        # Layer 1: Exact domain match against combined blocklist
+        if full_domain in COMBINED_DISPOSABLE_BLOCKLIST:
+            app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - exact match in blocklist")
+            return True, full_domain, 'exact_blocklist_match'
+        
+        # Layer 2: Subdomain/wildcard detection using tldextract
+        if TLDEXTRACT_AVAILABLE:
+            extracted = tldextract.extract(full_domain)
+            # Get the registrable domain (e.g., 'mail.guerrillamail.com' -> 'guerrillamail.com')
+            registrable_domain = f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
+            
+            # Check if the registrable domain is in wildcard list
+            if registrable_domain in WILDCARD_DISPOSABLE_DOMAINS:
+                app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - subdomain of wildcard '{registrable_domain}'")
+                return True, full_domain, f'wildcard_subdomain_of_{registrable_domain}'
+            
+            # Check if the registrable domain is in the main blocklist
+            if registrable_domain != full_domain and registrable_domain in COMBINED_DISPOSABLE_BLOCKLIST:
+                app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - subdomain of blocked '{registrable_domain}'")
+                return True, full_domain, f'subdomain_of_{registrable_domain}'
+        else:
+            # Fallback: simple subdomain check by splitting on dots
+            parts = full_domain.split('.')
+            if len(parts) > 2:
+                # Try parent domains
+                for i in range(1, len(parts) - 1):
+                    parent_domain = '.'.join(parts[i:])
+                    if parent_domain in WILDCARD_DISPOSABLE_DOMAINS or parent_domain in COMBINED_DISPOSABLE_BLOCKLIST:
+                        app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - subdomain of '{parent_domain}'")
+                        return True, full_domain, f'subdomain_of_{parent_domain}'
+        
+        # Layer 3: Pattern-based heuristics
+        if DISPOSABLE_PATTERN_REGEX.search(full_domain):
+            app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - matches disposable pattern")
+            return True, full_domain, 'pattern_match'
+        
+        # Not detected as disposable
+        return False, full_domain, 'not_disposable'
+        
     except Exception as e:
-        app.logger.warning(f"[Email Validation] Error checking disposable email: {e}")
-        return False, ''
+        app.logger.warning(f"[Email Validation] Error checking disposable email '{email}': {e}")
+        # Fail closed for security - if we can't check, block it
+        return True, '', f'error_checking_{str(e)}'
 
 
 # ============================================================================
@@ -764,10 +1133,10 @@ def api_auth_signup():
     if not verify_recaptcha(recaptcha_token):
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
     
-    # Check for disposable/temporary email domains
-    is_disposable, domain = is_disposable_email(email)
+    # Check for disposable/temporary email domains (multi-layer detection)
+    is_disposable, domain, reason = is_disposable_email(email)
     if is_disposable:
-        app.logger.warning(f"[EMAIL_BLOCK] domain={domain} reason=disposable ip={request.remote_addr}")
+        app.logger.warning(f"[EMAIL_BLOCK] domain={domain} reason={reason} ip={request.remote_addr}")
         return jsonify({"success": False, "error": "Please use a non-temporary email address. Disposable email domains are not allowed."}), 400
     
     app.logger.info(f"[Auth API] Signup attempt for email: {email}")
