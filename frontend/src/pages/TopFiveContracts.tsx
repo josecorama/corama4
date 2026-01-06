@@ -313,7 +313,7 @@ const TopFiveContracts = () => {
             ) : (
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
-                <div key={contract.rank} className="rounded-2xl p-4 sm:p-5 lg:p-6 relative" style={{ backgroundColor: '#2F3C4F' }}>
+                <div key={contract.rank} className="rounded-2xl p-4 sm:p-5 lg:p-6 relative border-2 border-white" style={{ backgroundColor: '#2F3C4F' }}>
                   {/* State name - top left in white */}
                   <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
                   
@@ -338,9 +338,9 @@ const TopFiveContracts = () => {
                           {contract.rank}
                         </span>
                       </div>
-                      {/* Decorative stars positioned to match design - using px for precise control */}
-                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-30px', top: '70px' }} />
-                      <img src={StarSingleIcon} alt="" className="absolute w-6 h-6 lg:w-8 lg:h-8 pointer-events-none select-none" style={{ left: '-15px', top: '120px' }} />
+                      {/* Decorative stars - same size, moved 16px down */}
+                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-30px', top: '86px' }} />
+                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-15px', top: '136px' }} />
                     </div>
 
                     {/* Middle column: Contract Details with white pill headers */}
