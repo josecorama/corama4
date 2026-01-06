@@ -333,14 +333,13 @@ const TopFiveContracts = () => {
                       {/* Top Sign base image */}
                       <div className="relative">
                         <img src={TopSignBaseIcon} alt="" className="w-32 h-32 lg:w-36 lg:h-36" />
-                        {/* Dynamic rank number overlay */}
-                        <span className="absolute inset-0 flex items-center justify-center text-4xl lg:text-5xl font-poppins font-bold text-white" style={{ paddingTop: '8px' }}>
+                        {/* Dynamic rank number overlay - positioned to match the "2" in the original SVG */}
+                        <span className="absolute inset-0 flex items-center justify-center text-4xl lg:text-5xl font-poppins font-bold text-white" style={{ top: '-12px' }}>
                           {contract.rank}
                         </span>
                       </div>
                       {/* Decorative stars positioned around the Top Sign */}
                       <img src={StarSingleIcon} alt="" className="absolute w-10 h-9 lg:w-12 lg:h-10 pointer-events-none select-none" style={{ left: '-15px', top: '55%' }} />
-                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-7 lg:w-10 lg:h-8 pointer-events-none select-none" style={{ left: '-5px', top: '75%' }} />
                       <img src={StarSingleIcon} alt="" className="absolute w-6 h-5 lg:w-8 lg:h-7 pointer-events-none select-none" style={{ left: '15px', top: '90%' }} />
                     </div>
 
@@ -382,23 +381,23 @@ const TopFiveContracts = () => {
                           </span>
                           <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractingAgency}</p>
                         </div>
-                        {/* Action Buttons - with gradient background */}
-                        <div className="flex flex-col gap-2 justify-start items-start">
+                        {/* Action Buttons - with gradient background, larger size */}
+                        <div className="flex flex-col gap-3 justify-start items-start">
                           <button 
                             onClick={() => handleVisitSite(contract.detailLink)}
-                            className="inline-flex items-center justify-center gap-2 text-white font-poppins text-xs px-4 py-1.5 rounded-full hover:opacity-90 transition-colors"
+                            className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
                             style={{ background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' }}
                           >
                             Contract Website
-                            <img src={ContractSiteIcon} alt="" className="w-4 h-4" />
+                            <img src={ContractSiteIcon} alt="" className="w-5 h-5" />
                           </button>
                           <button 
                             onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractAgency: contract.contractingAgency } })}
-                            className="inline-flex items-center justify-center gap-2 text-white font-poppins text-xs px-4 py-1.5 rounded-full hover:opacity-90 transition-colors"
+                            className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
                             style={{ background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' }}
                           >
                             Ask AI About This
-                            <img src={AskAIIcon} alt="" className="w-5 h-4" />
+                            <img src={AskAIIcon} alt="" className="w-6 h-5" />
                           </button>
                         </div>
                       </div>
