@@ -314,8 +314,8 @@ const TopFiveContracts = () => {
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
                 <div key={contract.rank} className="rounded-2xl p-4 sm:p-5 lg:p-6 relative" style={{ backgroundColor: '#2F3C4F' }}>
-                  {/* State name - top left */}
-                  <h3 className="text-[#6BB4B5] font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
+                  {/* State name - top left in white */}
+                  <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
                   
                   {/* Match badge - absolute positioned at top right with gradient */}
                   <div className="absolute top-4 right-4 lg:top-6 lg:right-6">
@@ -338,9 +338,9 @@ const TopFiveContracts = () => {
                           {contract.rank}
                         </span>
                       </div>
-                      {/* Decorative stars positioned around the Top Sign */}
-                      <img src={StarSingleIcon} alt="" className="absolute w-10 h-9 lg:w-12 lg:h-10 pointer-events-none select-none" style={{ left: '-15px', top: '55%' }} />
-                      <img src={StarSingleIcon} alt="" className="absolute w-6 h-5 lg:w-8 lg:h-7 pointer-events-none select-none" style={{ left: '15px', top: '90%' }} />
+                      {/* Decorative stars positioned to match design - same size, positioned to the left */}
+                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-20px', top: '45%' }} />
+                      <img src={StarSingleIcon} alt="" className="absolute w-8 h-8 lg:w-10 lg:h-10 pointer-events-none select-none" style={{ left: '-5px', top: '75%' }} />
                     </div>
 
                     {/* Middle column: Contract Details with white pill headers */}
@@ -348,19 +348,19 @@ const TopFiveContracts = () => {
                       {/* Top row: Contract Value, Submission Deadline, NAICS Code */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-4">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-medium px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Contract Value
                           </span>
                           <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractValue}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-medium px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Submission Deadline
                           </span>
                           <p className="text-white font-poppins font-bold text-sm lg:text-base whitespace-pre-line">{contract.submissionDeadline?.replace('T', '\n')}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-medium px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             NAICS Code
                           </span>
                           <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.naicsCode}</p>
@@ -370,13 +370,13 @@ const TopFiveContracts = () => {
                       {/* Bottom row: Name, Contracting Agency */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-medium px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Name
                           </span>
                           <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.name}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-medium px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-xs font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                             Contracting Agency
                           </span>
                           <p className="text-white font-poppins font-bold text-sm lg:text-base">{contract.contractingAgency}</p>
