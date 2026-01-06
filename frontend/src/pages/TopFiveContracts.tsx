@@ -330,11 +330,11 @@ const TopFiveContracts = () => {
                   <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
                     {/* Left column: Top Sign with rank number and decorative stars */}
                     <div className="relative flex-shrink-0" style={{ width: '160px', height: '180px' }}>
-                      {/* Top Sign base image */}
-                      <div className="relative">
-                        <img src={TopSignBaseIcon} alt="" className="w-32 h-32 lg:w-36 lg:h-36" />
-                        {/* Dynamic rank number overlay - positioned to match trophy.svg (centered at ~37.5% from top) */}
-                        <span className="absolute left-1/2 transform -translate-x-1/2 text-3xl lg:text-4xl font-poppins font-bold text-white" style={{ top: '37%' }}>
+                      {/* Top Sign base image with fixed dimensions for proper positioning */}
+                      <div className="relative w-32 h-32 lg:w-36 lg:h-36">
+                        <img src={TopSignBaseIcon} alt="" className="absolute inset-0 w-full h-full" />
+                        {/* Dynamic rank number overlay - centered in the yellow star area */}
+                        <span className="absolute left-1/2 top-[35%] transform -translate-x-1/2 -translate-y-1/2 text-3xl lg:text-4xl font-poppins font-bold text-white leading-none">
                           {contract.rank}
                         </span>
                       </div>
