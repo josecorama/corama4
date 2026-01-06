@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
@@ -26,8 +26,69 @@ interface ContractMatch {
   detailLink?: string
 }
 
+// Demo data for testing UI without Qdrant - activated with ?demo=1
+const DEMO_CONTRACTS: ContractMatch[] = [
+  {
+    rank: 1,
+    state: 'Illinois',
+    contractValue: '$10,000',
+    submissionDeadline: '2025-12-19\n00-00-00',
+    naicsCode: '333414',
+    name: 'Electrical Heating Element, NSN 4520-01-559-0984',
+    contractingAgency: 'DEPT OF DEFENSE.DEFENSE LOGISTICS AGENCY.',
+    matchPercentage: 17,
+    detailLink: 'https://sam.gov'
+  },
+  {
+    rank: 2,
+    state: 'California',
+    contractValue: '$25,000',
+    submissionDeadline: '2025-12-25\n14-00-00',
+    naicsCode: '541330',
+    name: 'Engineering Services for Infrastructure Project',
+    contractingAgency: 'DEPT OF TRANSPORTATION',
+    matchPercentage: 45,
+    detailLink: 'https://sam.gov'
+  },
+  {
+    rank: 3,
+    state: 'Texas',
+    contractValue: '$50,000',
+    submissionDeadline: '2026-01-15\n09-00-00',
+    naicsCode: '236220',
+    name: 'Commercial Building Construction',
+    contractingAgency: 'GENERAL SERVICES ADMINISTRATION',
+    matchPercentage: 62,
+    detailLink: 'https://sam.gov'
+  },
+  {
+    rank: 4,
+    state: 'New York',
+    contractValue: '$15,000',
+    submissionDeadline: '2026-01-20\n17-00-00',
+    naicsCode: '541512',
+    name: 'IT Consulting Services',
+    contractingAgency: 'DEPT OF HOMELAND SECURITY',
+    matchPercentage: 38,
+    detailLink: 'https://sam.gov'
+  },
+  {
+    rank: 5,
+    state: 'Florida',
+    contractValue: '$75,000',
+    submissionDeadline: '2026-02-01\n12-00-00',
+    naicsCode: '237310',
+    name: 'Highway Bridge Rehabilitation',
+    contractingAgency: 'FEDERAL HIGHWAY ADMINISTRATION',
+    matchPercentage: 71,
+    detailLink: 'https://sam.gov'
+  }
+]
+
 const TopFiveContracts = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const isDemo = searchParams.get('demo') === '1'
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
   const [rerunning, setRerunning] = useState(false)
@@ -37,18 +98,25 @@ const TopFiveContracts = () => {
   const [selectedStates, setSelectedStates] = useState<string[]>(['all', 'IL', 'IN'])
   const [noFilterResults, setNoFilterResults] = useState(false)
 
-  // Redirect to no-capability-statement page if user has no matches at all
+  // Redirect to no-capability-statement page if user has no matches at all (skip in demo mode)
   useEffect(() => {
-    if (!loading && hasMatches === false) {
+    if (!loading && hasMatches === false && !isDemo) {
       navigate('/no-capability-statement')
     }
-  }, [loading, hasMatches, navigate])
+  }, [loading, hasMatches, navigate, isDemo])
 
   useEffect(() => {
+    // In demo mode, use mock data instead of API
+    if (isDemo) {
+      setContracts(DEMO_CONTRACTS)
+      setHasMatches(true)
+      setLoading(false)
+      return
+    }
     // Load with no filters on initial load - the API will return all matches from CSV
     // The default filter state ('all') is just for the UI display
     loadTopFive()
-  }, [])
+  }, [isDemo])
 
   const loadTopFive = async (filterContractType?: string, filterStates?: string[]) => {
     setLoading(true)
