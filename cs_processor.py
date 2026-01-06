@@ -500,25 +500,27 @@ Respond with ONLY valid JSON array, no other text:
                 if naics_description and str(naics_description).lower() == 'nan':
                     naics_description = ''
                 
-                # Use actual Qdrant field names (lowercase)
+                # Use actual Qdrant field names - try both lowercase and uppercase variants
+                # to handle different payload schemas from various data sources
                 entry = {
                     'Company': user_company,
                     'contract_id': str(res.id),  # Qdrant point ID (replaces hash_value)
                     'hash_value': str(res.id),  # For backward compatibility
-                    'Bid_Number': clean_value(res.payload.get('contract_number') or res.payload.get('bid_number'), 'N/A'),
-                    'Bid_Name': clean_value(res.payload.get('title') or res.payload.get('bid_name'), 'Unknown Bid'),
-                    'Bid_Description': clean_value(res.payload.get('summary') or res.payload.get('bid_description'), 'No description available'),
+                    'Bid_Number': clean_value(res.payload.get('contract_number') or res.payload.get('bid_number') or res.payload.get('Bid Number'), 'N/A'),
+                    'Bid_Name': clean_value(res.payload.get('title') or res.payload.get('bid_name') or res.payload.get('Bid Name'), 'Unknown Bid'),
+                    'Bid_Description': clean_value(res.payload.get('summary') or res.payload.get('bid_description') or res.payload.get('Bid Description'), 'No description available'),
                     'Status': 'Open',  # Qdrant doesn't have status field
-                    'Category': clean_value(res.payload.get('category'), 'Unknown'),
-                    'Due_Date': clean_value(res.payload.get('due_date'), 'Not Specified'),
-                    'Detail_Link': clean_value(res.payload.get('source_url') or res.payload.get('detail_link'), '#'),
-                    'State': clean_value(res.payload.get('state'), 'Unknown'),
-                    'Organization': clean_value(res.payload.get('agency') or res.payload.get('organization'), 'Unknown'),
-                    'Budget': clean_value(res.payload.get('budget'), 'Not Specified'),
+                    'Category': clean_value(res.payload.get('category') or res.payload.get('Category'), 'Unknown'),
+                    'Due_Date': clean_value(res.payload.get('due_date') or res.payload.get('Due Date'), 'Not Specified'),
+                    'Detail_Link': clean_value(res.payload.get('source_url') or res.payload.get('detail_link') or res.payload.get('Detail Link'), '#'),
+                    'State': clean_value(res.payload.get('state') or res.payload.get('State'), 'Unknown'),
+                    'Organization': clean_value(res.payload.get('agency') or res.payload.get('organization') or res.payload.get('Organization'), 'Unknown'),
+                    'Budget': clean_value(res.payload.get('budget') or res.payload.get('Budget'), 'Not Specified'),
                     'Similarity_Score': f"{res.score * 100:.2f}%",
-                    'NAICS_CODE': naics_code,
+                    'NAICS_Code': naics_code,  # Use mixed case to match frontend expectation
+                    'NAICS_CODE': naics_code,  # Keep uppercase for backward compatibility
                     'NAICS_TITLE': naics_description,
-                    'source': res.payload.get('source', ''),  # For AI enrichment
+                    'source': res.payload.get('source') or res.payload.get('Source', ''),  # For AI enrichment
                 }
                 formatted_results.append(entry)
             

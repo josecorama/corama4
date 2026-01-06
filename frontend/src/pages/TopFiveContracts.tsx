@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
 import { InlineLoading } from '../components/ThinkingPopup'
-import { Edit, Printer, RefreshCw } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 
 // SVG asset paths for contract cards
@@ -13,6 +13,7 @@ const StarsIcon = '/static/app/dashboard/Stars.svg'
 const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
 const AskAIIcon = '/static/app/dashboard/AskAI.svg'
 const SortByIcon = '/static/app/dashboard/SortBy.svg'
+const PrintResultsIcon = '/dashboard/PrintResults.svg'
 
 interface ContractMatch {
   rank: number
@@ -333,18 +334,15 @@ const TopFiveContracts = () => {
 
               {/* Bottom Action Buttons */}
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8">
-                <button className="flex items-center gap-3 card-gradient-original text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
-                  <Edit size={20} />
-                  <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Edit Profile</p>
-                    <p className="text-xs sm:text-sm text-gray-400">Click to edit your registration.</p>
-                  </div>
-                </button>
-                <button className="flex items-center gap-3 card-gradient-original text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:bg-corama-darker transition-colors">
-                  <Printer size={20} />
+                <button 
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  style={{ backgroundColor: '#1C4262' }}
+                  onClick={() => window.print()}
+                >
+                  <img src={PrintResultsIcon} alt="Print" className="w-5 h-5" />
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">Print Results</p>
-                    <p className="text-xs sm:text-sm text-gray-400">Click to finalize your registration.</p>
+                    <p className="text-xs sm:text-sm text-gray-300">Click to print your contract matches.</p>
                   </div>
                 </button>
               </div>
