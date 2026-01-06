@@ -161,14 +161,11 @@ const VerifyEmail = () => {
           <div className="bg-gradient-to-br from-[#1c4262]/80 to-[#0f1419]/90 border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl backdrop-blur-sm">
             {/* Logo */}
             <div className="text-center mb-6">
-              <div className="flex items-center justify-center gap-2 mb-6">
-                <img 
-                  src="/static/app/landing/corama-logo.png" 
-                  alt="CORAMA" 
-                  className="h-12 w-auto"
-                />
-                <span className="text-white font-poppins font-semibold text-lg">CORAMA</span>
-              </div>
+              <img 
+                src="/static/app/landing/corama-logo.png" 
+                alt="CORAMA" 
+                className="h-20 mx-auto mb-6"
+              />
               <h1 className="font-poppins text-2xl text-white mb-3">Enter The Code</h1>
               <p className="text-gray-400 font-poppins text-sm leading-relaxed">
                 Enter the 6-digit verification code to confirm<br />
@@ -178,8 +175,9 @@ const VerifyEmail = () => {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 text-red-300 rounded-lg p-4 mb-6 text-sm">
-                {error}
+              <div className="rounded-lg p-4 mb-6 text-sm flex items-start gap-3" style={{ backgroundColor: '#2F3C4F' }}>
+                <img src="/static/app/landing/information-icon.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span className="text-white">{error}</span>
               </div>
             )}
 

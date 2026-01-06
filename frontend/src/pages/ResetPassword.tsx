@@ -133,8 +133,9 @@ const ResetPassword = () => {
 
             {/* Error Message */}
             {error && (
-              <div className="bg-red-500/20 border border-red-500/50 text-red-300 rounded-lg p-4 mb-6 text-sm">
-                {error}
+              <div className="rounded-lg p-4 mb-6 text-sm flex items-start gap-3" style={{ backgroundColor: '#2F3C4F' }}>
+                <img src="/static/app/landing/information-icon.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <span className="text-white">{error}</span>
               </div>
             )}
 
