@@ -347,24 +347,26 @@ class ApiService {
     return res.json();
   }
 
-  async updateDirectoryProfile(data: Partial<DirectoryProfile>): Promise<{success: boolean, error?: string}> {
+  async updateDirectoryProfile(data: Partial<DirectoryProfile>): Promise<{success: boolean, error?: string, authorization_error?: boolean}> {
     const res = await fetch(`${API_BASE()}/update_directory_profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to update directory profile');
+    // Don't throw on 403 - let the caller handle authorization errors
+    if (!res.ok && res.status !== 403) throw new Error('Failed to update directory profile');
     return res.json();
   }
 
-  async uploadDirectoryLogo(file: File): Promise<{success: boolean, logo_url?: string, error?: string}> {
+  async uploadDirectoryLogo(file: File): Promise<{success: boolean, logo_url?: string, error?: string, authorization_error?: boolean}> {
     const formData = new FormData();
     formData.append('logo', file);
     const res = await fetch(`${API_BASE()}/upload_directory_logo`, {
       method: 'POST',
       body: formData
     });
-    if (!res.ok) throw new Error('Failed to upload logo');
+    // Don't throw on 403 - let the caller handle authorization errors
+    if (!res.ok && res.status !== 403) throw new Error('Failed to upload logo');
     return res.json();
   }
 

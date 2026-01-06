@@ -14435,8 +14435,11 @@ def ensure_session_from_auth():
 def get_directory_profile():
     """Get user's directory profile"""
     try:
-        # Ensure session is populated from auth.current_user if needed
-        if not ensure_session_from_auth():
+        # SECURITY FIX: Do NOT use ensure_session_from_auth() here!
+        # That function uses auth.current_user which is a global singleton in Pyrebase
+        # and can contain another user's data in a multi-user server environment.
+        # This was causing cross-user profile editing vulnerability.
+        if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = session['user_data']['user_id']
@@ -14510,7 +14513,9 @@ def get_directory_profile():
 def update_directory_profile():
     """Update user's directory profile"""
     try:
-        # Use session-based authentication instead of auth.current_user
+        # SECURITY FIX: Do NOT use ensure_session_from_auth() here!
+        # That function uses auth.current_user which is a global singleton in Pyrebase
+        # and can contain another user's data in a multi-user server environment.
         if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
@@ -14523,6 +14528,34 @@ def update_directory_profile():
         
         if not user_data:
             return jsonify({'success': False, 'error': 'User data not found'}), 404
+        
+        # AUTHORIZATION CHECK: Only users with existing directory listings can edit their profile
+        # This prevents users who are not listed from creating/editing directory entries
+        existing_directory_data = None
+        try:
+            existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
+        except Exception as dir_read_error:
+            app.logger.warning(f"Could not read existing directory data for user {user_id}: {dir_read_error}")
+            # Try Admin SDK fallback for reading
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                    existing_directory_data = directory_ref.get()
+                except Exception as admin_read_error:
+                    app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
+        
+        # Check if user has an existing listing (listed: true)
+        if not existing_directory_data or not existing_directory_data.get('listed', False):
+            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to edit directory profile without existing listing")
+            return jsonify({
+                'success': False, 
+                'error': 'You must have an existing directory listing to edit your profile. Please contact support to get listed.',
+                'authorization_error': True
+            }), 403
+        
+        # SECURITY: Don't trust client-provided 'listed' value - preserve existing value
+        # The 'listed' status should only be changed by admins, not by users
+        existing_listed_status = existing_directory_data.get('listed', False)
         
         profile_data = {
             'company': data.get('company', user_data.get('company', '')).strip(),
@@ -14538,7 +14571,7 @@ def update_directory_profile():
             'team_size': data.get('team_size', '').strip(),
             'years_in_business': data.get('years_in_business', '').strip(),
             'logo_url': data.get('logo_url', ''),
-            'listed': data.get('listed', False),
+            'listed': existing_listed_status,  # SECURITY: Preserve existing listed status, don't trust client
             'updated_at': datetime.now().isoformat()
         }
         
@@ -14617,6 +14650,28 @@ def upload_directory_logo():
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
+        
+        # AUTHORIZATION CHECK: Only users with existing directory listings can upload logos
+        existing_directory_data = None
+        try:
+            existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
+        except Exception as dir_read_error:
+            app.logger.warning(f"Could not read existing directory data for logo upload user {user_id}: {dir_read_error}")
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                    existing_directory_data = directory_ref.get()
+                except Exception as admin_read_error:
+                    app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
+        
+        if not existing_directory_data or not existing_directory_data.get('listed', False):
+            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to upload logo without existing listing")
+            return jsonify({
+                'success': False, 
+                'error': 'You must have an existing directory listing to upload a logo.',
+                'authorization_error': True
+            }), 403
         
         if 'logo' not in request.files:
             app.logger.warning(f"Logo upload for user {user_id}: No logo file in request")

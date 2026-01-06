@@ -11,6 +11,8 @@ const EditDirectoryProfile = () => {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [credits, setCredits] = useState(0)
+  const [hasListing, setHasListing] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
   const [profile, setProfile] = useState<DirectoryProfile>({
     company: '',
     contact_name: '',
@@ -38,9 +40,21 @@ const EditDirectoryProfile = () => {
       const data = await api.getDirectoryProfile()
       if (data.success && data.profile) {
         setProfile(data.profile)
+        // Check if user has an existing listing (listed: true)
+        // Only users with existing listings can edit their profile
+        if (data.profile.listed === true) {
+          setHasListing(true)
+        } else {
+          setHasListing(false)
+          setAuthError('You must have an existing directory listing to edit your profile. Please contact support to get listed.')
+        }
+      } else {
+        setHasListing(false)
+        setAuthError('You must have an existing directory listing to edit your profile. Please contact support to get listed.')
       }
     } catch (error) {
       console.error('Failed to load profile:', error)
+      setAuthError('Failed to load profile. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -65,6 +79,12 @@ const EditDirectoryProfile = () => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Check if user has listing before attempting upload
+    if (!hasListing) {
+      alert('You must have an existing directory listing to upload a logo.')
+      return
+    }
+
     const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp']
     if (!allowedTypes.includes(file.type)) {
       alert('Please upload a PNG, JPG, GIF, or WEBP image')
@@ -82,7 +102,12 @@ const EditDirectoryProfile = () => {
       if (data.success && data.logo_url) {
         setProfile(prev => ({ ...prev, logo_url: data.logo_url || '' }))
       } else {
-        alert(data.error || 'Failed to upload logo')
+        // Handle authorization error from backend
+        if (data.authorization_error) {
+          setAuthError(data.error || 'You must have an existing directory listing to upload a logo.')
+        } else {
+          alert(data.error || 'Failed to upload logo')
+        }
       }
     } catch (error) {
       console.error('Failed to upload logo:', error)
@@ -93,6 +118,12 @@ const EditDirectoryProfile = () => {
   }
 
   const handleSave = async () => {
+    // Check if user has listing before attempting save
+    if (!hasListing) {
+      alert('You must have an existing directory listing to edit your profile.')
+      return
+    }
+
     setSaving(true)
     try {
       const data = await api.updateDirectoryProfile({
@@ -102,7 +133,12 @@ const EditDirectoryProfile = () => {
       if (data.success) {
         navigate('/corama-directory')
       } else {
-        alert(data.error || 'Failed to save profile')
+        // Handle authorization error from backend
+        if (data.authorization_error) {
+          setAuthError(data.error || 'You must have an existing directory listing to edit your profile.')
+        } else {
+          alert(data.error || 'Failed to save profile')
+        }
       }
     } catch (error) {
       console.error('Failed to save profile:', error)
@@ -122,6 +158,40 @@ const EditDirectoryProfile = () => {
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden flex items-center justify-center">
               <div className="text-white font-poppins">Loading...</div>
+            </main>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show authorization error if user doesn't have an existing listing
+  if (authError && !hasListing) {
+    return (
+      <div className="min-h-screen bg-corama-dark">
+        <Header credits={credits} />
+        <div className="flex">
+          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          <Sidebar />
+          <div className="flex-1 flex flex-col min-w-0">
+            <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden flex items-center justify-center">
+              <div className="max-w-md text-center">
+                <div className="card-gradient rounded-xl p-6">
+                  <div className="text-red-400 mb-4">
+                    <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-white font-poppins font-bold text-lg mb-2">Access Denied</h2>
+                  <p className="text-gray-400 font-poppins text-sm mb-4">{authError}</p>
+                  <button
+                    onClick={() => navigate('/corama-directory')}
+                    className="bg-corama-teal text-white font-poppins font-medium py-2 px-6 rounded-lg hover:bg-corama-teal/80 transition-colors"
+                  >
+                    Back to Directory
+                  </button>
+                </div>
+              </div>
             </main>
           </div>
         </div>
