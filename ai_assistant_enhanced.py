@@ -9,14 +9,32 @@ from openai import OpenAI
 from flask import request, jsonify, session
 from datetime import datetime
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class EnhancedAIAssistant:
     def __init__(self, app, db):
         self.app = app
         self.db = db
-        api_key = os.getenv('OPENAI_API_KEY') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('CS_BUILDER_OPENAI_API_KEY')
+        # Use OPENAI_MARIO as primary key for all AI features, with fallbacks
+        api_key = (
+            os.getenv('OPENAI_MARIO')
+            or os.getenv('OPENAI_API_KEY')
+            or os.getenv('BID_RESPONSE_OPENAI_API_KEY')
+            or os.getenv('CS_BUILDER_OPENAI_API_KEY')
+        )
         if not api_key:
-            raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY, BID_RESPONSE_OPENAI_API_KEY, or CS_BUILDER_OPENAI_API_KEY")
+            raise ValueError("No OpenAI API key found. Please set OPENAI_MARIO or another OpenAI API key env var")
+        
+        # Log which env var is being used (for debugging, not the key value)
+        if os.getenv('OPENAI_MARIO'):
+            self.app.logger.info("✅ EnhancedAIAssistant using OPENAI_MARIO key")
+        elif os.getenv('OPENAI_API_KEY'):
+            self.app.logger.info("⚠️ EnhancedAIAssistant using OPENAI_API_KEY (fallback)")
+        elif os.getenv('BID_RESPONSE_OPENAI_API_KEY'):
+            self.app.logger.info("⚠️ EnhancedAIAssistant using BID_RESPONSE_OPENAI_API_KEY (fallback)")
+        else:
+            self.app.logger.info("⚠️ EnhancedAIAssistant using CS_BUILDER_OPENAI_API_KEY (fallback)")
+        
         self.client = OpenAI(api_key=api_key)
         self.fine_tuned_model = "ft:gpt-3.5-turbo-0125:personal:bid-response:9oyXR6qz"
         
@@ -373,186 +391,274 @@ class EnhancedAIAssistant:
             return f"COVER LETTER\n\n[Date]\n\n[Recipient Information]\n\nDear Selection Committee,\n\n{company_name} is pleased to submit this proposal..."
     
     def generate_full_proposal(self, contract_requirements, capability_statement, company_name="your company", user_documents=None, target_pages=35):
-        """Generate comprehensive multi-page proposal (30-50 pages) - optimized to avoid timeouts"""
+        """Generate comprehensive multi-page proposal (30-50 pages) using parallel multi-prompt approach"""
         try:
-            proposal_content = self._generate_comprehensive_proposal_optimized(
-                contract_requirements, 
-                capability_statement,
-                company_name=company_name,
-                uploaded_docs=user_documents
-            )
+            self.app.logger.info("Starting parallel multi-prompt proposal generation...")
+            
+            section_tasks = {
+                "COVER LETTER": lambda: self._generate_cover_letter(contract_requirements, capability_statement, company_name),
+                "EXECUTIVE SUMMARY": lambda: self._generate_executive_summary(contract_requirements, capability_statement, company_name),
+                "TECHNICAL APPROACH": lambda: self._generate_technical_approach(contract_requirements, capability_statement, company_name),
+                "MANAGEMENT PLAN": lambda: self._generate_management_plan(contract_requirements, capability_statement, company_name),
+                "PAST PERFORMANCE": lambda: self._generate_past_performance(capability_statement, user_documents, company_name),
+                "PRICING STRATEGY": lambda: self._generate_pricing_strategy(contract_requirements, capability_statement, company_name),
+                "QUALITY ASSURANCE": lambda: self._generate_quality_assurance(contract_requirements, company_name),
+                "RISK MANAGEMENT": lambda: self._generate_risk_management(contract_requirements, company_name)
+            }
+            
+            sections = []
+            section_order = list(section_tasks.keys())
+            
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                future_to_section = {
+                    executor.submit(task): section_name 
+                    for section_name, task in section_tasks.items()
+                }
+                
+                completed_sections = {}
+                for future in as_completed(future_to_section):
+                    section_name = future_to_section[future]
+                    try:
+                        content = future.result()
+                        completed_sections[section_name] = content
+                        self.app.logger.info(f"✓ Completed: {section_name}")
+                    except Exception as e:
+                        self.app.logger.error(f"Error generating {section_name}: {e}")
+                        completed_sections[section_name] = f"Error generating {section_name}: {str(e)}"
+            
+            for section_name in section_order:
+                content = completed_sections.get(section_name, "")
+                sections.append({
+                    "section": section_name,
+                    "content": content,
+                    "pages": self._estimate_pages(content)
+                })
+            
+            total_pages = sum(section.get("pages", 0) for section in sections)
+            full_content = "\n\n".join([f"{s['section']}\n\n{s['content']}" for s in sections])
+            
+            self.app.logger.info(f"Parallel proposal generation complete. Total pages: {total_pages}")
             
             return {
-                "proposal_sections": proposal_content["sections"],
-                "total_estimated_pages": proposal_content["total_pages"],
+                "proposal_sections": sections,
+                "total_estimated_pages": total_pages,
                 "generation_timestamp": datetime.now().isoformat(),
-                "comprehensive_content": proposal_content["full_content"]
+                "comprehensive_content": full_content
             }
             
         except Exception as e:
-            self.app.logger.error(f"Error generating full proposal: {e}")
+            self.app.logger.error(f"Error generating full proposal: {e}", exc_info=True)
             return {"error": "Failed to generate comprehensive proposal"}
     
-    def _generate_executive_summary(self, contract_requirements, capability_statement):
+    def _generate_executive_summary(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed executive summary section"""
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """Create a comprehensive 2-3 page executive summary for this government contract proposal. Include:
-                1. Project understanding and objectives
-                2. Our unique value proposition and competitive advantages
-                3. Key personnel and team qualifications
-                4. Technical approach overview
-                5. Past performance highlights
-                6. Pricing competitiveness
-                7. Risk mitigation summary
-                8. Expected outcomes and benefits
-                
-                Write in professional government contracting language with specific details."""},
-                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+                {"role": "system", "content": f"""Create a comprehensive 3-4 page executive summary for {company_name}'s government contract proposal. 
+
+CRITICAL FORMATTING:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in paragraph form ready for Word documents
+
+Include these elements with substantial detail:
+1. Project Understanding and Objectives - Demonstrate deep comprehension of the contract requirements and how {company_name} interprets the agency's needs
+2. {company_name}'s Unique Value Proposition - Highlight what sets {company_name} apart from competitors with specific differentiators
+3. Key Personnel and Team Qualifications - Showcase the expertise and experience of {company_name}'s team members
+4. Technical Approach Overview - Summarize {company_name}'s methodology and innovative solutions
+5. Past Performance Highlights - Reference {company_name}'s relevant successful projects with metrics
+6. Pricing Competitiveness - Explain {company_name}'s cost-effective approach and value delivery
+7. Risk Mitigation Summary - Outline {company_name}'s proactive risk management strategies
+8. Expected Outcomes and Benefits - Detail the measurable results {company_name} will deliver
+
+Write 3-4 full pages with professional government contracting language, specific details, and compelling arguments for why {company_name} should win this contract."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:3000]}\n\n{company_name}'s Capability Statement: {capability_statement[:2000]}\n\nGenerate a comprehensive 3-4 page executive summary that positions {company_name} as the ideal contractor."}
             ],
             temperature=0.2,
             max_tokens=4000
         )
         return response.choices[0].message.content
     
-    def _generate_technical_approach(self, contract_requirements, capability_statement):
+    def _generate_technical_approach(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed technical approach section"""
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """Create a comprehensive 8-12 page technical approach section. Include:
-                1. Detailed methodology and work breakdown structure
-                2. Technical specifications and compliance
-                3. Innovation and technology solutions
-                4. Implementation timeline and milestones
-                5. Quality control procedures
-                6. Performance metrics and KPIs
-                7. Technical team structure and expertise
-                8. Tools, software, and equipment
-                9. Deliverables and documentation
-                10. Technical risk mitigation
-                
-                Provide specific, actionable details that demonstrate deep understanding."""},
-                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+                {"role": "system", "content": f"""Create a comprehensive 10-15 page technical approach section for {company_name}'s proposal.
+
+CRITICAL FORMATTING:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in detailed paragraph form
+
+Include these elements with extensive detail:
+1. Detailed Methodology and Work Breakdown Structure - {company_name}'s step-by-step approach tailored to this contract
+2. Technical Specifications and Compliance - How {company_name} meets or exceeds all technical requirements
+3. Innovation and Technology Solutions - {company_name}'s cutting-edge tools and methodologies
+4. Implementation Timeline and Milestones - {company_name}'s realistic schedule with key deliverables
+5. Quality Control Procedures - {company_name}'s quality assurance processes at each phase
+6. Performance Metrics and KPIs - Specific measurable outcomes {company_name} will track
+7. Technical Team Structure and Expertise - {company_name}'s team organization and qualifications
+8. Tools, Software, and Equipment - {company_name}'s technology stack and resources
+9. Deliverables and Documentation - Complete list of what {company_name} will provide
+10. Technical Risk Mitigation - {company_name}'s strategies to address technical challenges
+
+Write 10-15 full pages with specific, actionable details that demonstrate {company_name}'s deep technical understanding and proven methodology."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:3000]}\n\n{company_name}'s Capability Statement: {capability_statement[:2000]}\n\nGenerate a comprehensive 10-15 page technical approach that showcases {company_name}'s technical excellence."}
             ],
             temperature=0.2,
             max_tokens=4000
         )
         return response.choices[0].message.content
     
-    def _generate_management_plan(self, contract_requirements, capability_statement):
+    def _generate_management_plan(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed management plan section"""
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """Create a comprehensive 6-8 page management plan section. Include:
-                1. Project management methodology and framework
-                2. Organizational structure and reporting relationships
-                3. Key personnel roles and responsibilities
-                4. Communication and coordination procedures
-                5. Schedule management and milestone tracking
-                6. Resource allocation and management
-                7. Quality management system
-                8. Change management procedures
-                9. Performance monitoring and control
-                10. Stakeholder engagement strategy
-                
-                Demonstrate proven management capabilities and processes."""},
-                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+                {"role": "system", "content": f"""Create a comprehensive 8-10 page management plan section for {company_name}'s proposal.
+
+CRITICAL FORMATTING:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in detailed paragraph form
+
+Include these elements with extensive detail:
+1. Project Management Methodology and Framework - {company_name}'s proven PM approach (Agile, Waterfall, Hybrid)
+2. Organizational Structure and Reporting Relationships - {company_name}'s team hierarchy and communication lines
+3. Key Personnel Roles and Responsibilities - Detailed descriptions of {company_name}'s team members and their duties
+4. Communication and Coordination Procedures - {company_name}'s internal and external communication protocols
+5. Schedule Management and Milestone Tracking - {company_name}'s tools and processes for staying on schedule
+6. Resource Allocation and Management - How {company_name} assigns and manages personnel and resources
+7. Quality Management System - {company_name}'s quality assurance framework and standards
+8. Change Management Procedures - {company_name}'s process for handling scope changes and modifications
+9. Performance Monitoring and Control - {company_name}'s metrics and reporting systems
+10. Stakeholder Engagement Strategy - {company_name}'s approach to client communication and satisfaction
+
+Write 8-10 full pages demonstrating {company_name}'s proven management capabilities and mature processes."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:3000]}\n\n{company_name}'s Capability Statement: {capability_statement[:2000]}\n\nGenerate a comprehensive 8-10 page management plan that demonstrates {company_name}'s management excellence."}
             ],
             temperature=0.2,
             max_tokens=4000
         )
         return response.choices[0].message.content
     
-    def _generate_past_performance(self, capability_statement, user_documents):
+    def _generate_past_performance(self, capability_statement, user_documents, company_name="your company"):
         """Generate detailed past performance section"""
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """Create a comprehensive 5-7 page past performance section. Include:
-                1. Relevant project examples with detailed descriptions
-                2. Contract performance metrics and outcomes
-                3. Client testimonials and references
-                4. Lessons learned and continuous improvement
-                5. Awards, certifications, and recognition
-                6. Team experience and qualifications
-                7. Subcontractor and partner performance
-                8. Performance against schedule, budget, and quality metrics
-                
-                Highlight directly relevant experience that demonstrates capability."""},
-                {"role": "user", "content": f"Capabilities: {capability_statement[:3000]}\nDocuments: {str(user_documents)[:1000] if user_documents else 'No additional documents'}"}
+                {"role": "system", "content": f"""Create a comprehensive 6-8 page past performance section for {company_name}'s proposal.
+
+CRITICAL FORMATTING:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in detailed paragraph form
+
+Include these elements with extensive detail:
+1. Relevant Project Examples with Detailed Descriptions - {company_name}'s most relevant past contracts
+2. Contract Performance Metrics and Outcomes - Quantifiable results {company_name} delivered
+3. Client Testimonials and References - Positive feedback from {company_name}'s clients
+4. Lessons Learned and Continuous Improvement - How {company_name} evolves and improves
+5. Awards, Certifications, and Recognition - {company_name}'s industry recognition
+6. Team Experience and Qualifications - {company_name}'s team's collective expertise
+7. Subcontractor and Partner Performance - {company_name}'s successful partnerships
+8. Performance Against Schedule, Budget, and Quality Metrics - {company_name}'s track record
+
+Write 6-8 full pages highlighting {company_name}'s directly relevant experience that demonstrates proven capability."""},
+                {"role": "user", "content": f"{company_name}'s Capability Statement: {capability_statement[:3000]}\n\nAdditional Documents: {str(user_documents)[:1000] if user_documents else 'No additional documents'}\n\nGenerate a comprehensive 6-8 page past performance section that showcases {company_name}'s proven track record."}
             ],
             temperature=0.2,
             max_tokens=4000
         )
         return response.choices[0].message.content
     
-    def _generate_pricing_strategy(self, contract_requirements, capability_statement):
+    def _generate_pricing_strategy(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed pricing strategy section"""
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """Create a comprehensive 3-5 page pricing strategy section. Include:
-                1. Cost breakdown structure and methodology
-                2. Labor categories and rates justification
-                3. Direct and indirect cost analysis
-                4. Fee structure and profit margins
-                5. Cost control measures and efficiency strategies
-                6. Value engineering opportunities
-                7. Pricing competitiveness analysis
-                8. Cost risk assessment and mitigation
-                9. Payment terms and cash flow considerations
-                
-                Provide transparent, competitive pricing that demonstrates value."""},
-                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}\nCapabilities: {capability_statement[:2000]}"}
+                {"role": "system", "content": f"""Create a comprehensive 4-6 page pricing strategy section for {company_name}'s proposal.
+
+CRITICAL FORMATTING:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in detailed paragraph form
+
+Include these elements with extensive detail:
+1. Cost Breakdown Structure and Methodology - {company_name}'s transparent approach to pricing
+2. Labor Categories and Rates Justification - Detailed explanation of {company_name}'s labor costs
+3. Direct and Indirect Cost Analysis - {company_name}'s cost allocation methodology
+4. Fee Structure and Profit Margins - {company_name}'s reasonable and competitive fees
+5. Cost Control Measures and Efficiency Strategies - How {company_name} maximizes value
+6. Value Engineering Opportunities - {company_name}'s cost-saving innovations
+7. Pricing Competitiveness Analysis - Why {company_name}'s pricing offers best value
+8. Cost Risk Assessment and Mitigation - {company_name}'s approach to cost uncertainty
+9. Payment Terms and Cash Flow Considerations - {company_name}'s flexible payment options
+
+Write 4-6 full pages with transparent, competitive pricing that demonstrates {company_name}'s value proposition."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:3000]}\n\n{company_name}'s Capability Statement: {capability_statement[:2000]}\n\nGenerate a comprehensive 4-6 page pricing strategy that positions {company_name} as cost-effective and high-value."}
             ],
             temperature=0.2,
             max_tokens=4000
         )
         return response.choices[0].message.content
     
-    def _generate_quality_assurance(self, contract_requirements):
+    def _generate_quality_assurance(self, contract_requirements, company_name="your company"):
         """Generate detailed quality assurance section"""
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """Create a comprehensive 3-4 page quality assurance section. Include:
-                1. Quality management system and standards
-                2. Quality control procedures and checkpoints
-                3. Testing and validation methodologies
-                4. Documentation and record keeping
-                5. Continuous improvement processes
-                6. Quality metrics and performance indicators
-                7. Corrective and preventive action procedures
-                8. Quality training and certification requirements
-                
-                Demonstrate commitment to delivering high-quality results."""},
-                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}"}
+                {"role": "system", "content": f"""Create a comprehensive 3-4 page quality assurance section for {company_name}'s proposal.
+
+CRITICAL FORMATTING:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in detailed paragraph form
+
+Include these elements with extensive detail:
+1. Quality Management System and Standards - {company_name}'s QMS framework (ISO 9001, etc.)
+2. Quality Control Procedures and Checkpoints - {company_name}'s inspection and verification processes
+3. Testing and Validation Methodologies - {company_name}'s comprehensive testing approach
+4. Documentation and Record Keeping - {company_name}'s documentation standards and systems
+5. Continuous Improvement Processes - {company_name}'s commitment to ongoing quality enhancement
+6. Quality Metrics and Performance Indicators - Specific KPIs {company_name} tracks
+7. Corrective and Preventive Action Procedures - {company_name}'s CAPA process
+8. Quality Training and Certification Requirements - {company_name}'s quality training programs
+
+Write 3-4 full pages demonstrating {company_name}'s unwavering commitment to delivering high-quality results."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:3000]}\n\nGenerate a comprehensive 3-4 page quality assurance section that showcases {company_name}'s quality excellence."}
             ],
             temperature=0.2,
             max_tokens=4000
         )
         return response.choices[0].message.content
     
-    def _generate_risk_management(self, contract_requirements):
+    def _generate_risk_management(self, contract_requirements, company_name="your company"):
         """Generate detailed risk management section"""
         response = self.client.chat.completions.create(
             model="gpt-4",
             messages=[
-                {"role": "system", "content": """Create a comprehensive 2-3 page risk management section. Include:
-                1. Risk identification and assessment methodology
-                2. Risk register with probability and impact analysis
-                3. Risk mitigation strategies and contingency plans
-                4. Risk monitoring and reporting procedures
-                5. Escalation procedures and decision-making authority
-                6. Insurance and liability considerations
-                7. Business continuity and disaster recovery plans
-                8. Lessons learned from previous projects
-                
-                Show proactive risk management capabilities."""},
-                {"role": "user", "content": f"Contract: {json.dumps(contract_requirements)[:3000]}"}
+                {"role": "system", "content": f"""Create a comprehensive 2-3 page risk management section for {company_name}'s proposal.
+
+CRITICAL FORMATTING:
+- Output PLAIN TEXT ONLY - NO markdown symbols (**, ##, -, •)
+- Use clear section headings in UPPERCASE
+- Write in detailed paragraph form
+
+Include these elements with extensive detail:
+1. Risk Identification and Assessment Methodology - {company_name}'s systematic approach to identifying risks
+2. Risk Register with Probability and Impact Analysis - {company_name}'s comprehensive risk catalog
+3. Risk Mitigation Strategies and Contingency Plans - {company_name}'s proactive risk response plans
+4. Risk Monitoring and Reporting Procedures - {company_name}'s ongoing risk tracking systems
+5. Escalation Procedures and Decision-Making Authority - {company_name}'s risk escalation protocols
+6. Insurance and Liability Considerations - {company_name}'s insurance coverage and risk transfer
+7. Business Continuity and Disaster Recovery Plans - {company_name}'s resilience strategies
+8. Lessons Learned from Previous Projects - {company_name}'s risk management experience
+
+Write 2-3 full pages demonstrating {company_name}'s proactive and mature risk management capabilities."""},
+                {"role": "user", "content": f"Contract Requirements: {json.dumps(contract_requirements)[:3000]}\n\nGenerate a comprehensive 2-3 page risk management section that showcases {company_name}'s risk management excellence."}
             ],
             temperature=0.2,
             max_tokens=4000

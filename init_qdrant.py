@@ -54,6 +54,15 @@ class QdrantManager:
             for idx, row in tqdm(df.iterrows(), total=len(df), desc="Processing"):
                 vectors.append(ast.literal_eval(row['embedding']))
                 payload = {col: row[col] for col in df.columns if col != 'embedding'}
+                
+                # INGESTION HOOK: Mark contracts as needing NAICS enrichment if missing
+                # The background worker will automatically pick these up and enrich them
+                naics_code = payload.get('naics_code') or payload.get('NAICS Code') or ''
+                if not naics_code or str(naics_code).strip().lower() in ('nan', 'none', 'null', ''):
+                    payload['needs_naics_enrichment'] = True
+                else:
+                    payload['needs_naics_enrichment'] = False
+                
                 payloads.append(payload)
             
             # 分批上传数据
@@ -90,8 +99,8 @@ class QdrantManager:
 
 def main():
     # Qdrant配置
-    QDRANT_URL = os.getenv('QDRANT_URL')
-    QDRANT_API_KEY = os.getenv('QDRANT_API_KEY')
+    QDRANT_URL = os.getenv('Qdrant_EP')
+    QDRANT_API_KEY = os.getenv('Qdrant_AK')
     
     CSV_PATH = "embedded_smartsearch.csv"    # 您的CSV文件路径
     

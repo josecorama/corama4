@@ -4,7 +4,7 @@
 
 ### Repository Settings
 - **GitHub Repository:** `https://github.com/Adreliaz37/corama3`
-- **Branch:** `devin/1755354017-fix-missing-functions`
+- **Branch:** `devin/1762878446-deployment-integration`
 - **Root Directory:** Leave blank
 
 ### Build & Runtime Settings
