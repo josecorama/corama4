@@ -14771,7 +14771,7 @@ def get_directory_companies():
 
 # Serve React app - SPA routing
 # Public paths that don't require authentication (landing page and auth pages)
-REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'verify-email', 'faq', 'about-us'}
+REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq', 'about-us'}
 
 # React page routes - these will be handled by the SPA
 REACT_PAGE_ROUTES = {
