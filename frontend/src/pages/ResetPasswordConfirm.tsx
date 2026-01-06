@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle } from 'lucide-react'
 
 const ResetPasswordConfirm = () => {
   const [password, setPassword] = useState('')
@@ -134,18 +134,47 @@ const ResetPasswordConfirm = () => {
 
             {/* Success Message */}
             {success && (
-              <div className="text-center py-8">
-                <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-                <h2 className="text-white font-poppins text-xl mb-2">Password Reset Successful!</h2>
+              <div className="text-center py-4">
+                {/* Logo with CORAMA text */}
+                <div className="flex items-center justify-center gap-2 mb-6">
+                  <img 
+                    src="/static/app/landing/corama-logo.png" 
+                    alt="CORAMA" 
+                    className="h-12 w-auto"
+                  />
+                  <span className="text-white font-poppins font-semibold text-lg tracking-wide">CORAMA</span>
+                </div>
+                
+                {/* Checkmark Icon */}
+                <img 
+                  src="/static/app/landing/CheckPwReset.svg" 
+                  alt="Success" 
+                  className="w-14 h-14 mx-auto mb-4"
+                />
+                
+                {/* Title */}
+                <h2 className="text-white font-poppins text-2xl font-bold mb-1">Password Reset</h2>
+                <h2 className="text-white font-poppins text-2xl font-bold mb-4">Successful</h2>
+                
+                {/* Description */}
                 <p className="text-gray-400 font-poppins text-sm mb-6">
-                  Your password has been updated. You can now sign in with your new password.
+                  Your password has been updated.<br />
+                  You can now sign in with your new password.
                 </p>
+                
+                {/* Sign In Button */}
                 <a 
                   href="/login" 
-                  className="inline-block bg-gradient-to-b from-corama-teal via-[#9cd6d7] to-[#85c4c7] text-[#0B0B0F] font-poppins font-semibold py-3 px-8 rounded-lg hover:shadow-lg hover:shadow-corama-teal/30 transition-all"
+                  className="block w-full bg-gradient-to-b from-corama-teal via-[#9cd6d7] to-[#85c4c7] text-[#0B0B0F] font-poppins font-semibold py-3.5 rounded-lg hover:shadow-lg hover:shadow-corama-teal/30 transition-all text-center"
                 >
                   Sign In
                 </a>
+                
+                {/* Log in link */}
+                <div className="mt-5">
+                  <span className="text-gray-400 font-poppins text-sm">Remembered your password? </span>
+                  <a href="/login" className="text-corama-teal hover:text-[#99c8ca] font-poppins text-sm transition-colors">Log in</a>
+                </div>
               </div>
             )}
 
@@ -171,8 +200,9 @@ const ResetPasswordConfirm = () => {
               <>
                 {/* Error Message */}
                 {error && (
-                  <div className="bg-red-500/20 border border-red-500/50 text-red-300 rounded-lg p-4 mb-6 text-sm">
-                    {error}
+                  <div className="rounded-lg p-4 mb-6 text-sm flex items-start gap-3" style={{ backgroundColor: '#2F3C4F' }}>
+                    <img src="/static/app/landing/information-icon.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <span className="text-white">{error}</span>
                   </div>
                 )}
 

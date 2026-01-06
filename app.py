@@ -5227,6 +5227,20 @@ def confirm_terms():
     return send_from_directory(app_dir, 'index.html')
 
 
+# Verify email page - now served by React SPA
+# This page requires the user to have gone through the signup flow
+@app.route('/verify-email', methods=['GET'])
+def verify_email_page():
+    """Serve React SPA for verify email page - requires signup flow session data"""
+    # Require user_data in session - this is set during signup flow
+    # This prevents users from accessing the page directly via URL without signing up first
+    if 'user_data' not in session:
+        return redirect(url_for('Login'))
+    
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
+
+
 
 
 
