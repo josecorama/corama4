@@ -333,8 +333,8 @@ const TopFiveContracts = () => {
                       {/* Top Sign base image */}
                       <div className="relative">
                         <img src={TopSignBaseIcon} alt="" className="w-32 h-32 lg:w-36 lg:h-36" />
-                        {/* Dynamic rank number overlay - positioned to match the "2" in the original SVG */}
-                        <span className="absolute inset-0 flex items-center justify-center text-4xl lg:text-5xl font-poppins font-bold text-white" style={{ top: '-12px' }}>
+                        {/* Dynamic rank number overlay - positioned inside the yellow star/trophy area */}
+                        <span className="absolute left-1/2 transform -translate-x-1/2 text-3xl lg:text-4xl font-poppins font-bold text-white" style={{ top: '28%' }}>
                           {contract.rank}
                         </span>
                       </div>
