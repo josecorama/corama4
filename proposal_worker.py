@@ -428,6 +428,237 @@ def extract_text_with_pages_worker(pdf_path: str) -> list:
         return []
 
 
+def search_text_in_pdf_worker(pdf_path, quote, page_hint=None):
+    """Search for text in PDF and return bounding box coordinates for the FULL quote.
+    Returns a SINGLE best match with all its quads grouped together.
+    Uses prefix+suffix matching to capture full quotes including dates/times at the end."""
+    import re
+    
+    if not PYMUPDF_AVAILABLE:
+        logger.error("PyMuPDF not available for PDF text search")
+        return []
+    
+    def get_rects_from_quads(quads):
+        """Extract rectangle coordinates from quad objects."""
+        rects = []
+        for quad in quads:
+            rect = quad.rect
+            rects.append([rect.x0, rect.y0, rect.x1, rect.y1])
+        return rects
+    
+    def compute_bounding_box(rects):
+        """Compute bounding box that encompasses all rectangles."""
+        if not rects:
+            return None
+        all_x0 = min(r[0] for r in rects)
+        all_y0 = min(r[1] for r in rects)
+        all_x1 = max(r[2] for r in rects)
+        all_y1 = max(r[3] for r in rects)
+        return [all_x0, all_y0, all_x1, all_y1]
+    
+    def make_result(page_num, page_width, page_height, all_rects):
+        """Create a result dictionary from rectangles."""
+        bbox = compute_bounding_box(all_rects)
+        if not bbox:
+            return None
+        return {
+            'page': page_num,
+            'left': (bbox[0] / page_width) * 100,
+            'top': (bbox[1] / page_height) * 100,
+            'width': ((bbox[2] - bbox[0]) / page_width) * 100,
+            'height': ((bbox[3] - bbox[1]) / page_height) * 100,
+            'rect_raw': bbox,
+            'all_rects': all_rects,
+            'page_width': page_width,  # Include for frontend multi-rect rendering
+            'page_height': page_height
+        }
+    
+    try:
+        doc = fitz.open(pdf_path)
+        
+        # Normalize the quote for searching (collapse whitespace, handle line breaks)
+        normalized_quote = ' '.join(quote.split())
+        
+        # Log the quote being searched for debugging
+        logger.info(f"Searching for quote ({len(normalized_quote)} chars): {normalized_quote[:100]}...")
+        
+        # If page_hint provided, search that page first
+        pages_to_search = list(range(len(doc)))
+        if page_hint is not None and 0 <= page_hint < len(doc):
+            pages_to_search = [page_hint] + [p for p in pages_to_search if p != page_hint]
+        
+        for page_num in pages_to_search:
+            page = doc[page_num]
+            page_width = page.rect.width
+            page_height = page.rect.height
+            
+            # Try to search for the full quote first using quads for multi-line support
+            text_instances = page.search_for(normalized_quote, quads=True)
+            
+            if text_instances:
+                all_rects = get_rects_from_quads(text_instances)
+                logger.info(f"Found full quote match on page {page_num + 1}: {len(all_rects)} quads")
+                doc.close()
+                return [make_result(page_num, page_width, page_height, all_rects)]
+            
+            # Fallback: Use bounded-skip ordered subsequence matching with page.get_text("words")
+            # This handles line breaks, block boundaries, and formatting differences
+            words = normalized_quote.split()
+            
+            # Normalize words for matching (lowercase, strip punctuation for comparison)
+            def normalize_word(w):
+                return re.sub(r'[^\w]', '', w.lower())
+            
+            # Check if two normalized tokens match, including multi-token matching
+            def tokens_match(page_token, quote_token, next_quote_token=None, page_words_norm=None, page_idx=None):
+                if page_token == quote_token:
+                    return (1, 1)  # (quote tokens consumed, page tokens consumed)
+                # Case 1: PDF joins tokens - page_token == quote_token + next_quote_token
+                if next_quote_token and page_token == quote_token + next_quote_token:
+                    return (2, 1)  # Consumed 2 quote tokens, 1 page token
+                # Case 2: PDF splits tokens - check if quote_token starts with page_token
+                if page_words_norm and page_idx is not None and quote_token.startswith(page_token) and len(page_token) > 0:
+                    # Try to accumulate page tokens to match the quote token
+                    accumulated = page_token
+                    tokens_used = 1
+                    check_idx = page_idx + 1
+                    while check_idx < len(page_words_norm) and len(accumulated) < len(quote_token):
+                        next_page_token = page_words_norm[check_idx][0]
+                        accumulated += next_page_token
+                        tokens_used += 1
+                        check_idx += 1
+                        if accumulated == quote_token:
+                            return (1, tokens_used)  # Consumed 1 quote token, multiple page tokens
+                        if not quote_token.startswith(accumulated):
+                            break  # No longer a prefix match
+                return (0, 0)
+            
+            quote_words_normalized = [normalize_word(w) for w in words]
+            
+            # Get all words from the page with their bounding boxes
+            page_words = page.get_text("words")
+            
+            if page_words:
+                # Normalize page words for matching
+                page_words_normalized = [(normalize_word(pw[4]), pw) for pw in page_words]
+                
+                # Bounded-skip ordered subsequence matching
+                best_match_start = -1
+                best_match_length = 0
+                best_matched_indices = []
+                
+                for start_idx in range(len(page_words_normalized)):
+                    matched_indices = []
+                    quote_idx = 0
+                    page_idx = start_idx
+                    total_skips = 0
+                    max_skips = max(30, len(quote_words_normalized))
+                    
+                    while quote_idx < len(quote_words_normalized) and page_idx < len(page_words_normalized) and total_skips <= max_skips:
+                        page_token = page_words_normalized[page_idx][0]
+                        quote_token = quote_words_normalized[quote_idx]
+                        next_quote = quote_words_normalized[quote_idx + 1] if quote_idx + 1 < len(quote_words_normalized) else None
+                        
+                        quote_consumed, page_consumed = tokens_match(
+                            page_token, quote_token, next_quote, 
+                            page_words_normalized, page_idx
+                        )
+                        
+                        if quote_consumed > 0:
+                            for i in range(page_consumed):
+                                matched_indices.append(page_idx + i)
+                            quote_idx += quote_consumed
+                            page_idx += page_consumed
+                            total_skips = 0
+                        else:
+                            page_idx += 1
+                            total_skips += 1
+                    
+                    # Require at least 50% of quote words to match
+                    if len(matched_indices) > best_match_length and len(matched_indices) >= len(quote_words_normalized) * 0.5:
+                        best_match_start = start_idx
+                        best_match_length = len(matched_indices)
+                        best_matched_indices = matched_indices[:]
+                
+                if best_matched_indices:
+                    # Gap-filling: fill short gaps between matched indices on the same line
+                    filled_indices = set(best_matched_indices)
+                    sorted_indices = sorted(best_matched_indices)
+                    
+                    for i in range(len(sorted_indices) - 1):
+                        curr_idx = sorted_indices[i]
+                        next_idx = sorted_indices[i + 1]
+                        gap = next_idx - curr_idx - 1
+                        
+                        if gap > 0 and gap <= 3:
+                            curr_word = page_words_normalized[curr_idx][1]
+                            next_word = page_words_normalized[next_idx][1]
+                            if abs(curr_word[1] - next_word[1]) < 8:
+                                for fill_idx in range(curr_idx + 1, next_idx):
+                                    filled_indices.add(fill_idx)
+                    
+                    # Extract bounding boxes for matched words
+                    matched_rects = []
+                    for idx in sorted(filled_indices):
+                        pw = page_words_normalized[idx][1]
+                        matched_rects.append([pw[0], pw[1], pw[2], pw[3]])
+                    
+                    if matched_rects:
+                        # Group rectangles by line for cleaner highlighting
+                        line_rects = []
+                        current_line = [matched_rects[0]]
+                        
+                        for rect in matched_rects[1:]:
+                            if abs(rect[1] - current_line[-1][1]) < 8:
+                                current_line.append(rect)
+                            else:
+                                line_x0 = min(r[0] for r in current_line)
+                                line_y0 = min(r[1] for r in current_line)
+                                line_x1 = max(r[2] for r in current_line)
+                                line_y1 = max(r[3] for r in current_line)
+                                line_rects.append([line_x0, line_y0, line_x1, line_y1])
+                                current_line = [rect]
+                        
+                        if current_line:
+                            line_x0 = min(r[0] for r in current_line)
+                            line_y0 = min(r[1] for r in current_line)
+                            line_x1 = max(r[2] for r in current_line)
+                            line_y1 = max(r[3] for r in current_line)
+                            line_rects.append([line_x0, line_y0, line_x1, line_y1])
+                        
+                        logger.info(f"Found word-sequence match on page {page_num + 1}: {len(matched_rects)} words matched, {len(line_rects)} lines")
+                        doc.close()
+                        return [make_result(page_num, page_width, page_height, line_rects)]
+            
+            # Fallback: try decreasing word counts for prefix matching
+            for word_count in [40, 30, 20, 15, 10, 7, 5]:
+                if len(words) >= word_count:
+                    prefix_text = ' '.join(words[:word_count])
+                    prefix_hits = page.search_for(prefix_text, quads=True)
+                    
+                    if prefix_hits:
+                        prefix_rects = get_rects_from_quads(prefix_hits)
+                        logger.info(f"Found partial quote match ({word_count} words) on page {page_num + 1}")
+                        doc.close()
+                        return [make_result(page_num, page_width, page_height, prefix_rects)]
+            
+            # Last resort: try very short prefix (3 words minimum)
+            if len(words) >= 3:
+                short_prefix = ' '.join(words[:3])
+                short_hits = page.search_for(short_prefix, quads=True)
+                if short_hits:
+                    all_rects = get_rects_from_quads(short_hits)
+                    logger.info(f"Found short prefix match (3 words) on page {page_num + 1}")
+                    doc.close()
+                    return [make_result(page_num, page_width, page_height, all_rects)]
+        
+        doc.close()
+    except Exception as e:
+        logger.error(f"Error searching text in PDF: {e}")
+    
+    return []
+
+
 def download_pdf_from_firebase(storage_path: str) -> str:
     """Download PDF from Firebase Storage to a temp file"""
     try:
@@ -557,14 +788,46 @@ Respond ONLY with valid JSON, no other text."""
             
             parsed_response = json.loads(ai_response)
             
-            # Update job with results
+            # Get raw findings from AI response
+            raw_findings = parsed_response.get('findings', [])
+            
+            # Update progress - searching for quotes in PDF
+            job_ref.update({'progress': 'Finding quote locations in PDF...'})
+            
+            # Search for quotes in PDF and get coordinates for each finding
+            findings_with_coords = []
+            for finding in raw_findings:
+                finding_id = finding.get('id', str(uuid.uuid4())[:8])
+                quote = finding.get('quote', '')
+                page_hint = finding.get('page_hint')
+                
+                # Convert page_hint from 1-indexed to 0-indexed
+                if page_hint:
+                    page_hint = page_hint - 1
+                
+                coordinates = []
+                if quote and PYMUPDF_AVAILABLE:
+                    coordinates = search_text_in_pdf_worker(tmp_path, quote, page_hint)
+                
+                # Create finding with coordinates attached
+                finding_with_coords = {
+                    **finding,
+                    'coordinates': coordinates
+                }
+                findings_with_coords.append(finding_with_coords)
+                
+                logger.info(f"Finding {finding_id}: {'found' if coordinates else 'not found'} coordinates")
+            
+            logger.info(f"Processed {len(findings_with_coords)} findings with coordinate search")
+            
+            # Update job with results (including coordinates for each finding)
             job_ref.update({
                 'status': 'completed',
                 'completed_at': time.time(),
                 'progress': 'Complete',
                 'result': {
                     'markdown_summary': parsed_response.get('markdown_summary', ''),
-                    'findings': parsed_response.get('findings', []),
+                    'findings': findings_with_coords,
                     'total_pages': total_pages
                 }
             })
