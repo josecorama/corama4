@@ -15845,6 +15845,57 @@ def api_get_credits():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# API: Deduct credits for an action
+@app.route('/api/deduct-credits', methods=['POST'])
+def api_deduct_credits():
+    """Deduct credits from user's balance for a specific action"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        data = request.get_json()
+        amount = data.get('amount', 0)
+        action_type = data.get('action_type', 'unknown')
+        description = data.get('description', '')
+        
+        if amount <= 0:
+            return jsonify({"success": False, "error": "Invalid credit amount"}), 400
+        
+        # Use credit manager to deduct credits
+        credit_manager = CreditManager(db)
+        
+        if admin_initialized and admin_db:
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, amount, action_type, description, admin_db
+            )
+        else:
+            success, message = credit_manager.deduct_credits(
+                user_id, user['idToken'], amount, action_type, description
+            )
+            if success:
+                new_balance = credit_manager.get_user_credits(user_id, user['idToken'])
+            else:
+                new_balance = 0
+        
+        if success:
+            logging.info(f"[CREDITS] Deducted {amount} credits from user {user_id} for {action_type}: {description}")
+            return jsonify({
+                "success": True,
+                "new_balance": new_balance,
+                "message": message
+            })
+        else:
+            logging.warning(f"[CREDITS] Failed to deduct credits for user {user_id}: {message}")
+            return jsonify({"success": False, "error": message}), 402
+            
+    except Exception as e:
+        logging.error(f"Error in /api/deduct-credits: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # API: Directory listing
 @app.route('/api/directory', methods=['GET'])
 def api_directory():

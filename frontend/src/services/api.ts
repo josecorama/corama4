@@ -288,6 +288,31 @@ class ApiService {
     return res.json();
   }
 
+  // Deduct credits for an action
+  async deductCredits(
+    amount: number, 
+    actionType: string, 
+    description: string
+  ): Promise<{success: boolean, new_balance?: number, error?: string}> {
+    const res = await fetch(`${API_BASE()}/deduct-credits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, action_type: actionType, description })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      if (res.status === 402) {
+        return { success: false, error: 'Insufficient credits. Please purchase more credits.' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to deduct credits' }));
+      return { success: false, error: errorData.error || 'Failed to deduct credits' };
+    }
+    return res.json();
+  }
+
   // Upload CS
   async uploadCapabilityStatement(file: File, contractTypes: string[], states: string[]): Promise<{success: boolean, message: string, redirect?: string}> {
     const formData = new FormData();
