@@ -228,8 +228,8 @@ const AboutUs = () => {
     const originalHtmlBg = document.documentElement.style.backgroundColor
     
     // Set the page-specific background color
-    document.body.style.backgroundColor = '#192c46'
-    document.documentElement.style.backgroundColor = '#192c46'
+    document.body.style.backgroundColor = '#0B2C48'
+    document.documentElement.style.backgroundColor = '#0B2C48'
     
     // Restore original background on unmount
     return () => {
@@ -239,12 +239,12 @@ const AboutUs = () => {
   }, [])
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#192c46' }}>
+    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#0B2C48' }}>
       <Header credits={5} />
-      <div className="flex flex-1 overflow-hidden" style={{ backgroundColor: '#192c46' }}>
+      <div className="flex flex-1 overflow-hidden" style={{ backgroundColor: '#0B2C48' }}>
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: '#192c46' }}>
-          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col" style={{ backgroundColor: '#192c46' }}>
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: '#0B2C48' }}>
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col" style={{ backgroundColor: '#0B2C48' }}>
             {/* Header Section */}
             <div className="w-full text-center mb-16">
               <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
