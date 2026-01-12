@@ -364,7 +364,9 @@ class ApiService {
   // We don't redirect on 401 here because this is often called as a capability check,
   // not as a critical auth-required operation. Let the caller handle auth errors.
   async getDirectoryProfile(): Promise<{success: boolean, user_id?: string, profile?: DirectoryProfile, error?: string}> {
-    const res = await fetch(`${API_BASE()}/get_directory_profile`);
+    const res = await fetch(`${API_BASE()}/get_directory_profile`, {
+      credentials: 'include'
+    });
     if (!res.ok) {
       // Don't redirect on 401 - let the caller handle it gracefully
       // This prevents logout when just checking if user has a directory profile
@@ -380,6 +382,7 @@ class ApiService {
     const res = await fetch(`${API_BASE()}/update_directory_profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data)
     });
     // Don't throw on 403 - let the caller handle authorization errors
@@ -392,6 +395,7 @@ class ApiService {
     formData.append('logo', file);
     const res = await fetch(`${API_BASE()}/upload_directory_logo`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
     });
     // Don't throw on 403 - let the caller handle authorization errors
