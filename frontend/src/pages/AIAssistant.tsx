@@ -5,6 +5,65 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
 
+// Discard Changes Popup Component
+interface DiscardChangesPopupProps {
+  isOpen: boolean
+  onStayHere: () => void
+  onDiscard: () => void
+}
+
+const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPopupProps) => {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onStayHere}
+      />
+      
+      {/* Popup */}
+      <div className="relative bg-[#1C4262] rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-white/20">
+        {/* Warning Icon */}
+        <div className="flex justify-center mb-6">
+          <img 
+            src="/static/app/dashboard/WarnIcon.svg" 
+            alt="Warning" 
+            className="w-16 h-16"
+          />
+        </div>
+        
+        {/* Title */}
+        <h2 className="text-white font-poppins font-bold text-xl text-center mb-3">
+          Discard Unsaved Changes?
+        </h2>
+        
+        {/* Message */}
+        <p className="text-gray-300 font-poppins text-sm text-center mb-8">
+          You have unsaved progress in this workflow. If you leave now, your changes will be lost.
+        </p>
+        
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={onStayHere}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#1C4262] font-poppins font-bold rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            Stay Here
+          </button>
+          <button
+            onClick={onDiscard}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white font-poppins font-bold rounded-lg hover:bg-red-600 transition-colors"
+          >
+            Discard & Go Back
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Normalize markdown to fix common formatting issues from AI responses
 // Fixes cases where numbered lists or bullets appear on separate lines from their text
 const normalizeMarkdown = (input: string): string => {
@@ -157,6 +216,42 @@ const AIAssistant = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [headerKey, setHeaderKey] = useState(0)
   const chatContainerRef = useRef<HTMLDivElement>(null)
+  
+  // Discard changes popup state
+  const [showDiscardPopup, setShowDiscardPopup] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+  
+  // Check if user has made progress (more than just the initial AI message)
+  const hasUnsavedProgress = messages.length > 1
+  
+  // Handle staying on the page
+  const handleStayHere = () => {
+    setShowDiscardPopup(false)
+    setPendingNavigation(null)
+  }
+  
+  // Handle discarding changes and navigating away
+  const handleDiscard = () => {
+    setShowDiscardPopup(false)
+    if (pendingNavigation) {
+      navigate(pendingNavigation)
+    } else {
+      navigate(-1) // Go back if no specific path
+    }
+  }
+  
+  // Warn user before leaving the page via browser navigation
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedProgress) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedProgress])
 
   // Update initial message when contract name changes
   useEffect(() => {
@@ -385,6 +480,13 @@ const AIAssistant = () => {
 
     return (
       <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
+        {/* Discard Changes Popup */}
+        <DiscardChangesPopup
+          isOpen={showDiscardPopup}
+          onStayHere={handleStayHere}
+          onDiscard={handleDiscard}
+        />
+        
         {/* Header spans full width at top */}
         <Header key={headerKey} credits={5} />
         
