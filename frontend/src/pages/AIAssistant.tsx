@@ -126,14 +126,14 @@ const buildInitialMessage = (contractName: string): string => {
 Do you need help with a specific task, or do you want to build the full proposal?
 
 Pick a specific task:
-- Analyze Contract (3 credits)
-- Check Compliance (2 credits)
-- Develop Strategy (3 credits)
-- Create Outline (2 credits)
+- **Analyze Contract** (3 credits)
+- **Check Compliance** (2 credits)
+- **Develop Strategy** (3 credits)
+- **Create Outline** (2 credits)
 
 Ready to build the full proposal? I can guide you step-by-step from start to finish.
 
-To start building it, simply type "Start Guided Process" in the chat. This will direct you to the Contract Analysis page, where you'll be able to begin the step-by-step process for creating your proposal.`
+To start building it, simply type "**Start Guided Process**" in the chat. This will direct you to the Contract Analysis page, where you'll be able to begin the step-by-step process for creating your proposal.`
 }
 
 const AIAssistant = () => {
@@ -340,6 +340,18 @@ const AIAssistant = () => {
             addAiMessage(response.message)
             // Force Header to refresh credits
             setHeaderKey(k => k + 1)
+            // Add follow-up PDF question after a delay (after typing animation)
+            setTimeout(() => {
+              const pdfFollowUp: Message = {
+                id: Date.now() + 1,
+                sender: 'ai',
+                content: 'Would you like me to give you a PDF with this information?',
+                timestamp: formatTime(),
+                isTyping: true,
+                visibleContent: '',
+              }
+              setMessages(prev => [...prev, pdfFollowUp])
+            }, 10000) // Wait for typing animation to finish
           } else {
             addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
           }
@@ -347,7 +359,7 @@ const AIAssistant = () => {
           console.error('AI action error:', error)
           addAiMessage('Sorry, I encountered an error processing your request. Please try again later.')
         }
-      } else {
+      }else {
         // Non-action message - send as conversation to maintain context (1 credit)
         // This allows the AI to follow up on its own questions
         try {
