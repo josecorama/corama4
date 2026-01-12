@@ -19,7 +19,6 @@ import ResetPassword from './pages/ResetPassword'
 import ResetPasswordConfirm from './pages/ResetPasswordConfirm'
 import VerifyEmail from './pages/VerifyEmail'
 import FAQ from './pages/FAQ'
-import AboutUs from './pages/AboutUs'
 import AboutUsPublic from './pages/AboutUsPublic'
 import Support from './pages/Support'
 
@@ -48,7 +47,6 @@ function App() {
         <Route path="/proposal-team" element={<ProposalTeam />} />
         <Route path="/proposal-summary" element={<ProposalSummary />} />
                           <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
-                          <Route path="/about" element={<AboutUs />} />
                           <Route path="/support" element={<Support />} />
                         </Routes>
     </Router>

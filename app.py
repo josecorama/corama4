@@ -15546,7 +15546,7 @@ REACT_PAGE_ROUTES = {
     'no-capability-statement', 'contract-analysis', 'proposal-team',
     'proposal-summary', 'public-bid-proposal-generator', 'landing',
     'login', 'signup', 'confirm-terms', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq',
-    'about', 'about-us', 'support'
+    'about-us', 'support'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
