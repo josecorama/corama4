@@ -207,9 +207,9 @@ const TopFiveContracts = () => {
                         {loading || rerunning || hasMatches === null ? (
                           <div className="flex items-center justify-center h-64">
                             {rerunning ? (
-                              <InlineLoading text="Refreshing" size="large" darkMode={true} />
+                              <InlineLoading text="Refreshing" size="large" />
                             ) : (
-                              <InlineLoading text="Loading" size="large" darkMode={true} />
+                              <InlineLoading text="Loading" size="large" />
                             )}
                           </div>
                         ) : hasMatches === false ? (

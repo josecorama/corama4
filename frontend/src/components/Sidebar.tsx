@@ -12,6 +12,7 @@ interface MenuItem {
   label: string
   icon: string
   badge?: boolean
+  external?: boolean
 }
 
 const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }: SidebarProps) => {
@@ -70,7 +71,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
     { path: '/corama-directory', label: 'CORAMA Directory', icon: '/static/app/dashboard/CORAMADirectory.svg' },
     { path: '/get-more-credits', label: 'Get More Credits', icon: '/static/app/dashboard/Credits.svg' },
     { path: '/support', label: 'Support', icon: '/static/app/dashboard/Support.svg' },
-    { path: '/about', label: 'About Us', icon: '/static/app/dashboard/AboutUs.svg' },
+    { path: '/about-us', label: 'About Us', icon: '/static/app/dashboard/AboutUs.svg', external: true },
   ]
 
   const closeMobile = () => {
@@ -175,30 +176,55 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                     aria-hidden="true"
                   />
                 )}
-                <Link
-                  to={item.path}
-                  onClick={closeMobile}
-                  className={`relative flex items-center h-full px-4 transition-all ${
-                    isActive 
-                      ? 'text-white' 
-                      : 'text-gray-300 group-hover:text-white'
-                  }`}
-                  style={{ gap: '8px' }}
-                >
-                  <img 
-                    src={item.icon} 
-                    alt="" 
-                    className="w-[25px] h-[25px]" 
-                    style={{ marginLeft: isCapabilityBuilder ? '4px' : '0' }}
-                    aria-hidden="true" 
-                  />
-                  {isExpanded && (
-                    <span className="font-poppins text-sm">{item.label}</span>
-                  )}
-                  {item.badge && (
-                    <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
-                  )}
-                </Link>
+                {item.external ? (
+                  <a
+                    href={item.path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={closeMobile}
+                    className={`relative flex items-center h-full px-4 transition-all text-gray-300 group-hover:text-white`}
+                    style={{ gap: '8px' }}
+                  >
+                    <img 
+                      src={item.icon} 
+                      alt="" 
+                      className="w-[25px] h-[25px]" 
+                      style={{ marginLeft: isCapabilityBuilder ? '4px' : '0' }}
+                      aria-hidden="true" 
+                    />
+                    {isExpanded && (
+                      <span className="font-poppins text-sm">{item.label}</span>
+                    )}
+                    {item.badge && (
+                      <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
+                    )}
+                  </a>
+                ) : (
+                  <Link
+                    to={item.path}
+                    onClick={closeMobile}
+                    className={`relative flex items-center h-full px-4 transition-all ${
+                      isActive 
+                        ? 'text-white' 
+                        : 'text-gray-300 group-hover:text-white'
+                    }`}
+                    style={{ gap: '8px' }}
+                  >
+                    <img 
+                      src={item.icon} 
+                      alt="" 
+                      className="w-[25px] h-[25px]" 
+                      style={{ marginLeft: isCapabilityBuilder ? '4px' : '0' }}
+                      aria-hidden="true" 
+                    />
+                    {isExpanded && (
+                      <span className="font-poppins text-sm">{item.label}</span>
+                    )}
+                    {item.badge && (
+                      <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
+                    )}
+                  </Link>
+                )}
               </div>
             )
           })}

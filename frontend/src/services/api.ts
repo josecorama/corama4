@@ -360,14 +360,18 @@ class ApiService {
   }
 
   // Directory Profile
-  async getDirectoryProfile(): Promise<{success: boolean, user_id: string, profile: DirectoryProfile}> {
+  // Note: This endpoint is used to check if user has a directory profile.
+  // We don't redirect on 401 here because this is often called as a capability check,
+  // not as a critical auth-required operation. Let the caller handle auth errors.
+  async getDirectoryProfile(): Promise<{success: boolean, user_id?: string, profile?: DirectoryProfile, error?: string}> {
     const res = await fetch(`${API_BASE()}/get_directory_profile`);
     if (!res.ok) {
+      // Don't redirect on 401 - let the caller handle it gracefully
+      // This prevents logout when just checking if user has a directory profile
       if (res.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Not authenticated');
+        return { success: false, error: 'Not authenticated' };
       }
-      throw new Error('Failed to fetch directory profile');
+      return { success: false, error: 'Failed to fetch directory profile' };
     }
     return res.json();
   }
