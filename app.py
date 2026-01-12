@@ -98,6 +98,32 @@ else:
 proposal_jobs = {}
 job_lock = threading.Lock()
 
+# ============================================================================
+# RATE LIMITING CONFIGURATION
+# ============================================================================
+# SECURITY: Rate limiting to prevent abuse of expensive endpoints
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+def get_rate_limit_key():
+    """Get rate limit key - use user_id if authenticated, otherwise IP address."""
+    if 'user_data' in session and session['user_data'].get('user_id'):
+        return f"user:{session['user_data']['user_id']}"
+    return f"ip:{get_remote_address()}"
+
+limiter = Limiter(
+    app=app,
+    key_func=get_rate_limit_key,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
+
+# Exempt health check and static files from rate limiting
+@limiter.request_filter
+def exempt_health_check():
+    return request.path == "/healthz" or request.path.startswith("/static/")
+
 
 # Health Check Path
 @app.route("/healthz")
@@ -139,6 +165,118 @@ def admin_clear_caches():
             "QDRANT_CONTRACTS_CACHE"
         ]
     }), 200
+
+
+# ============================================================================
+# SECURITY HELPER FUNCTIONS
+# ============================================================================
+
+def is_safe_url_for_ssrf(url):
+    """
+    SECURITY: Validate URL to prevent SSRF (Server-Side Request Forgery) attacks.
+    
+    This function checks if a URL is safe to fetch by:
+    1. Ensuring it uses http or https scheme
+    2. Blocking private/internal IP ranges
+    3. Blocking localhost and loopback addresses
+    4. Blocking cloud metadata endpoints
+    
+    Returns:
+        tuple: (is_safe: bool, error_message: str or None)
+    """
+    import socket
+    import ipaddress
+    from urllib.parse import urlparse
+    
+    try:
+        parsed = urlparse(url)
+        
+        # Check scheme
+        if parsed.scheme not in ('http', 'https'):
+            return False, f"Invalid URL scheme: {parsed.scheme}. Only http and https are allowed."
+        
+        # Get hostname
+        hostname = parsed.hostname
+        if not hostname:
+            return False, "Invalid URL: no hostname found"
+        
+        # Block localhost and common internal hostnames
+        blocked_hostnames = [
+            'localhost', 'localhost.localdomain', 
+            'internal', 'intranet', 'corp',
+            'metadata', 'metadata.google.internal',
+            '169.254.169.254',  # AWS/GCP metadata
+            'instance-data', 'instance-data.ec2.internal'
+        ]
+        if hostname.lower() in blocked_hostnames:
+            return False, f"Blocked hostname: {hostname}"
+        
+        # Resolve hostname to IP and check if it's private
+        try:
+            ip_addresses = socket.getaddrinfo(hostname, None)
+            for addr_info in ip_addresses:
+                ip_str = addr_info[4][0]
+                try:
+                    ip = ipaddress.ip_address(ip_str)
+                    
+                    # Block private, loopback, link-local, and reserved addresses
+                    if ip.is_private:
+                        return False, f"Private IP address not allowed: {ip_str}"
+                    if ip.is_loopback:
+                        return False, f"Loopback address not allowed: {ip_str}"
+                    if ip.is_link_local:
+                        return False, f"Link-local address not allowed: {ip_str}"
+                    if ip.is_reserved:
+                        return False, f"Reserved address not allowed: {ip_str}"
+                    if ip.is_multicast:
+                        return False, f"Multicast address not allowed: {ip_str}"
+                        
+                    # Block AWS/GCP metadata IP range
+                    if ip_str.startswith('169.254.'):
+                        return False, f"Cloud metadata IP not allowed: {ip_str}"
+                        
+                except ValueError:
+                    continue  # Skip if not a valid IP
+                    
+        except socket.gaierror:
+            # DNS resolution failed - could be a non-existent domain
+            # Let the actual request handle this error
+            pass
+            
+        return True, None
+        
+    except Exception as e:
+        return False, f"URL validation error: {str(e)}"
+
+
+def safe_requests_get(url, **kwargs):
+    """
+    SECURITY: Wrapper around requests.get that validates URL for SSRF protection.
+    
+    Use this instead of requests.get() when fetching user-provided URLs.
+    
+    Args:
+        url: The URL to fetch
+        **kwargs: Additional arguments to pass to requests.get()
+        
+    Returns:
+        requests.Response object
+        
+    Raises:
+        ValueError: If URL fails SSRF validation
+        requests.exceptions.RequestException: If request fails
+    """
+    is_safe, error = is_safe_url_for_ssrf(url)
+    if not is_safe:
+        raise ValueError(f"SSRF protection: {error}")
+    
+    # Set reasonable defaults if not provided
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = 30
+    if 'allow_redirects' not in kwargs:
+        kwargs['allow_redirects'] = True
+        
+    return requests.get(url, **kwargs)
 
 
 # ============================================================================
@@ -4731,28 +4869,165 @@ capability_processed_file = 'capability_statements_processed.csv'
 # [START OF CS BUILDER ] 3/10/2025 UPDATED]
 # ---------------------------------------------------------------------
 
-#CS GENERATION
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'svg'}
+# ============================================================================
+# SECURE FILE UPLOAD HANDLING
+# ============================================================================
+# SECURITY: File upload validation with magic byte checking and path traversal prevention
 
-#CS GENERATION
+# Magic bytes for allowed file types
+FILE_SIGNATURES = {
+    'pdf': [b'%PDF'],
+    'png': [b'\x89PNG\r\n\x1a\n'],
+    'jpg': [b'\xff\xd8\xff'],
+    'jpeg': [b'\xff\xd8\xff'],
+    'gif': [b'GIF87a', b'GIF89a'],
+}
+
+# Maximum file sizes per type (in bytes)
+MAX_FILE_SIZES = {
+    'pdf': 50 * 1024 * 1024,  # 50MB for PDFs
+    'png': 10 * 1024 * 1024,  # 10MB for images
+    'jpg': 10 * 1024 * 1024,
+    'jpeg': 10 * 1024 * 1024,
+    'gif': 5 * 1024 * 1024,
+    'svg': 1 * 1024 * 1024,  # 1MB for SVGs (text-based, can be dangerous)
+}
+
+def allowed_file(filename):
+    """Check if filename has an allowed extension."""
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'svg'}
+
+def get_file_extension(filename):
+    """Safely get file extension."""
+    if not filename or '.' not in filename:
+        return None
+    return filename.rsplit('.', 1)[1].lower()
+
+def validate_file_magic_bytes(file_content, expected_ext):
+    """
+    SECURITY: Validate file content matches expected type using magic bytes.
+    
+    This prevents attackers from uploading malicious files with fake extensions.
+    """
+    if expected_ext == 'svg':
+        # SVG is text-based, check for XML/SVG markers
+        try:
+            content_start = file_content[:1000].decode('utf-8', errors='ignore').lower()
+            if '<svg' in content_start or '<?xml' in content_start:
+                # Additional check: block potentially dangerous SVG content
+                if '<script' in content_start or 'javascript:' in content_start:
+                    return False, "SVG contains potentially dangerous script content"
+                return True, None
+            return False, "File does not appear to be a valid SVG"
+        except Exception:
+            return False, "Could not validate SVG content"
+    
+    signatures = FILE_SIGNATURES.get(expected_ext)
+    if not signatures:
+        return True, None  # No signature check for this type
+    
+    for sig in signatures:
+        if file_content[:len(sig)] == sig:
+            return True, None
+    
+    return False, f"File content does not match expected {expected_ext.upper()} format"
+
+def secure_file_upload(file, user_id=None):
+    """
+    SECURITY: Securely handle file upload with comprehensive validation.
+    
+    Checks:
+    1. Filename extension is allowed
+    2. Filename is sanitized (no path traversal)
+    3. File size is within limits
+    4. File content matches expected type (magic bytes)
+    5. Unique filename to prevent overwrites
+    
+    Args:
+        file: FileStorage object from request.files
+        user_id: Optional user ID for user-specific upload directory
+        
+    Returns:
+        tuple: (success: bool, file_path_or_error: str)
+    """
+    if not file or not file.filename:
+        return False, "No file provided"
+    
+    # Check extension
+    if not allowed_file(file.filename):
+        return False, "File type not allowed"
+    
+    ext = get_file_extension(file.filename)
+    
+    # Sanitize filename - this prevents path traversal attacks
+    filename = secure_filename(file.filename)
+    if not filename:
+        return False, "Invalid filename"
+    
+    # Read file content for validation
+    file_content = file.read()
+    file.seek(0)  # Reset file pointer for later saving
+    
+    # Check file size
+    max_size = MAX_FILE_SIZES.get(ext, 10 * 1024 * 1024)  # Default 10MB
+    if len(file_content) > max_size:
+        return False, f"File too large. Maximum size for {ext.upper()} is {max_size // (1024*1024)}MB"
+    
+    # Validate magic bytes
+    is_valid, error = validate_file_magic_bytes(file_content, ext)
+    if not is_valid:
+        app.logger.warning(f"[SECURITY] File upload rejected - magic byte mismatch: {error}")
+        return False, error
+    
+    # Generate unique filename to prevent overwrites
+    unique_id = secrets.token_hex(8)
+    safe_filename = f"{unique_id}_{filename}"
+    
+    # Determine upload directory
+    if user_id:
+        upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"user_{user_id}")
+    else:
+        upload_dir = app.config['UPLOAD_FOLDER']
+    
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Final path validation - ensure we're still within upload folder
+    file_path = os.path.join(upload_dir, safe_filename)
+    real_path = os.path.realpath(file_path)
+    real_upload_dir = os.path.realpath(app.config['UPLOAD_FOLDER'])
+    
+    if not real_path.startswith(real_upload_dir):
+        app.logger.warning(f"[SECURITY] Path traversal attempt detected: {file_path}")
+        return False, "Invalid file path"
+    
+    # Save file
+    try:
+        with open(file_path, 'wb') as f:
+            f.write(file_content)
+        return True, file_path
+    except Exception as e:
+        app.logger.error(f"[SECURITY] File save error: {str(e)}")
+        return False, "Failed to save file"
+
 def handle_file_upload(file):
+    """Legacy wrapper for secure_file_upload - maintains backward compatibility."""
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-        return file_path
+        success, result = secure_file_upload(file)
+        if success:
+            return result
     return None
 
-#CS GENERATION
 def handle_multiple_file_uploads(files):
+    """Legacy wrapper for multiple file uploads - maintains backward compatibility."""
     paths = []
     for file in files:
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-            paths.append(file_path)
+            success, result = secure_file_upload(file)
+            if success:
+                paths.append(result)
     return paths
 
 
@@ -6594,8 +6869,9 @@ def dashboard_search():
 @app.route('/ai-assistant')
 def ai_assistant_room():
     """Redirect to React AI assistant page - old Jinja2 UI is deprecated"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
@@ -6612,8 +6888,9 @@ def ai_assistant_room():
 @app.route('/proposal/start')
 def proposal_start():
     """Screen 1: Contract Analysis & PDF Annotations"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     contract_hash = request.args.get('hash_value') or request.args.get('hash')
@@ -6622,7 +6899,7 @@ def proposal_start():
     if not contract_hash:
         return redirect('/app/dashboard')
     
-    user_id = user['localId']
+    user_id = user_data['user_id']
     current_credits = 0
     
     try:
@@ -6666,15 +6943,16 @@ def proposal_start():
 @app.route('/proposal/team')
 def proposal_team():
     """Screen 2: Team & Subcontractor Builder"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     draft_id = request.args.get('draft_id')
     if not draft_id:
         return redirect('/app/dashboard')
     
-    user_id = user['localId']
+    user_id = user_data['user_id']
     current_credits = 0
     
     try:
@@ -6694,15 +6972,16 @@ def proposal_team():
 @app.route('/proposal/pricing')
 def proposal_pricing():
     """Screen 3: Pricing Strategy & Review"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     draft_id = request.args.get('draft_id')
     if not draft_id:
         return redirect('/app/dashboard')
     
-    user_id = user['localId']
+    user_id = user_data['user_id']
     current_credits = 0
     
     try:
@@ -8087,11 +8366,15 @@ def api_capability_import_url():
         return jsonify({'success': False, 'message': 'URL is required'}), 400
 
     try:
-        # Fetch the PDF from URL
+        # SECURITY: Validate URL for SSRF protection
         app.logger.info(f"[api_capability_import_url] Fetching URL: {url}")
-        resp = requests.get(url, timeout=30, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
+        try:
+            resp = safe_requests_get(url, timeout=30, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+        except ValueError as ssrf_error:
+            app.logger.warning(f"[api_capability_import_url] SSRF blocked: {str(ssrf_error)}")
+            return jsonify({'success': False, 'message': 'URL not allowed for security reasons'}), 400
         resp.raise_for_status()
         
         # Verify it's a PDF
@@ -11228,18 +11511,18 @@ def upgrade_success():
 @app.route('/cancel_membership', methods=['POST'])
 def cancel_membership():
     try:
-        # Authenticate the user
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             logging.warning("No authenticated user found. Redirecting to login.")
             return jsonify({"error": "User not authenticated"}), 401
 
-        user_id = user['localId']
+        user_id = user_session['user_id']
         logging.info(f"Authenticated user ID: {user_id}")
 
         # Refresh the user's token
         try:
-            user_logged_in = auth.refresh(user['refreshToken'])
+            user_logged_in = auth.refresh(user_session['refreshToken'])
             logging.info(f"Token refreshed successfully for user ID: {user_id}")
         except Exception as token_error:
             logging.error(f"Failed to refresh token for user ID {user_id}: {token_error}")
@@ -13340,11 +13623,12 @@ def get_draft_team():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_data = draft_ref.get()
             
             if draft_data and 'team_members' in draft_data:
@@ -13374,11 +13658,12 @@ def add_team_member():
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_data = draft_ref.get()
             
             if not draft_data:
@@ -13910,11 +14195,12 @@ def update_draft_team():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_ref.update({'team_members': team_members})
         
         return jsonify({'success': True})
@@ -13935,12 +14221,13 @@ def suggest_team():
             logging.warning("[suggest_team] Missing draft_id in request")
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             logging.warning("[suggest_team] User not authenticated")
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user['localId']
+        user_id = user_session['user_id']
         logging.info(f"[suggest_team] Looking up draft: user_id={user_id}, draft_id={draft_id}")
         
         if not admin_initialized or not admin_db:
@@ -14086,11 +14373,12 @@ def get_draft_pricing():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_data = draft_ref.get()
             
             if draft_data and 'pricing' in draft_data:
@@ -14125,11 +14413,12 @@ def update_draft_pricing():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_ref.update({'pricing': pricing})
         
         return jsonify({'success': True})
@@ -14161,11 +14450,12 @@ def generate_pricing_strategy():
         if not admin_initialized or not admin_db:
             return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
         draft_data = draft_ref.get()
         
         if not draft_data:
@@ -14259,11 +14549,12 @@ def generate_final_proposal():
         if not admin_initialized or not admin_db:
             return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user["localId"]
+        user_id = user_session["user_id"]
         
         # Get draft data
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
@@ -14340,11 +14631,12 @@ def proposal_result_page():
     if not draft_id:
         return redirect('/app/dashboard')
     
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_session = get_current_user_secure()
+    if not user_session:
         return redirect(url_for('Login'))
     
-    return render_template('proposal_result.html', draft_id=draft_id, user_id=user["localId"])
+    return render_template('proposal_result.html', draft_id=draft_id, user_id=user_session["user_id"])
 
 @app.route('/api/generate_proposal_sections', methods=['POST'])
 def generate_proposal_sections():
@@ -14365,11 +14657,12 @@ def generate_proposal_sections():
         if not admin_initialized or not admin_db:
             return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user["localId"]
+        user_id = user_session["user_id"]
         
         # Get draft data to validate it exists
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
@@ -14669,11 +14962,12 @@ def download_proposal_docx():
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user["localId"]
+        user_id = user_session["user_id"]
         
         # Get the generated proposal from Firebase
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
@@ -14779,25 +15073,54 @@ def download_proposal_docx():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 def ensure_session_from_auth():
-    """Helper function to populate session from auth.current_user if session is missing"""
+    """
+    SECURITY FIX: This function now ONLY checks if session exists.
+    
+    IMPORTANT: We no longer use auth.current_user because it's a global singleton
+    in Pyrebase that can contain another user's data in a multi-user server environment.
+    This was causing cross-user data access vulnerabilities.
+    
+    The session is populated during login/signup and should be the ONLY source of
+    user identity for request handlers.
+    
+    Returns:
+        True if session['user_data'] exists, False otherwise
+    """
+    return 'user_data' in session
+
+
+def get_current_user_secure():
+    """
+    SECURITY: Get current user data from session only.
+    
+    This is the secure way to get user identity - never use auth.current_user directly
+    as it's a global singleton that can contain another user's data.
+    
+    Returns:
+        dict with user_id, idToken, etc. if authenticated, None otherwise
+    """
     if 'user_data' not in session:
-        user = auth.current_user
-        if user:
-            # Repopulate session from auth.current_user
-            session['user_data'] = {
-                'user_id': user.get('localId'),
-                'idToken': user.get('idToken'),
-                'refreshToken': user.get('refreshToken'),
-                'email': user.get('email', ''),
-                'first_name': user.get('first_name', ''),
-                'last_name': user.get('last_name', ''),
-                'company': user.get('company', '')
-            }
-            session.permanent = True
-            app.logger.info(f"✅ Repopulated session from auth.current_user for user {user.get('localId')}")
-            return True
-        return False
-    return True
+        return None
+    return session['user_data']
+
+
+def require_auth():
+    """
+    SECURITY: Decorator-style check that returns user data or raises 401.
+    
+    Usage:
+        user_data = require_auth()
+        if isinstance(user_data, tuple):  # It's an error response
+            return user_data
+        user_id = user_data['user_id']
+    
+    Returns:
+        dict with user data if authenticated, or (jsonify response, 401) tuple if not
+    """
+    user_data = get_current_user_secure()
+    if not user_data:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    return user_data
 
 
 @app.route('/api/get_directory_profile', methods=['GET'])
