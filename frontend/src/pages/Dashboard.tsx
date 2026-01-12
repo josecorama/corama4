@@ -52,7 +52,7 @@ const Dashboard = () => {
     try {
       const user = await api.getUser()
       setCredits(user.credits_balance)
-      setUserName(user.first_name || user.email.split('@')[0])
+      setUserName(user.username || user.first_name || user.email.split('@')[0])
     } catch (error) {
       console.error('Failed to load user data:', error)
     }

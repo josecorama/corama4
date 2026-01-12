@@ -1235,6 +1235,47 @@ def api_auth_login():
         return jsonify({"success": False, "error": error_message}), 401
 
 
+@app.route('/api/auth/check-username', methods=['POST'])
+def api_auth_check_username():
+    """Check if a username is available for registration.
+    
+    Expects JSON: { username }
+    Returns JSON: { available: bool, error?: string }
+    """
+    data = request.get_json() or {}
+    username = data.get('username', '').strip().lower()
+    
+    if not username:
+        return jsonify({"available": False, "error": "Username is required"}), 400
+    
+    if len(username) < 3:
+        return jsonify({"available": False, "error": "Username must be at least 3 characters"}), 400
+    
+    if len(username) > 30:
+        return jsonify({"available": False, "error": "Username must be 30 characters or less"}), 400
+    
+    # Only allow alphanumeric characters and underscores
+    import re
+    if not re.match(r'^[a-z0-9_]+$', username):
+        return jsonify({"available": False, "error": "Username can only contain letters, numbers, and underscores"}), 400
+    
+    try:
+        if admin_initialized and admin_db:
+            users_ref = admin_db.reference('users')
+            all_users = users_ref.get() or {}
+            for user_id, user_data in all_users.items():
+                if user_data and user_data.get('username', '').lower() == username:
+                    return jsonify({"available": False, "error": "This username is already taken"})
+            return jsonify({"available": True})
+        else:
+            # If admin SDK not available, assume available (will be checked again at signup)
+            app.logger.warning("[Auth API] Admin SDK not initialized, cannot check username")
+            return jsonify({"available": True})
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error checking username: {e}")
+        return jsonify({"available": True})  # Fail open - will be checked again at signup
+
+
 @app.route('/api/auth/signup', methods=['POST'])
 def api_auth_signup():
     """API endpoint for React signup page with 2-step email verification.
@@ -1266,6 +1307,36 @@ def api_auth_signup():
     
     if not first_name or not last_name:
         return jsonify({"success": False, "error": "First name and last name are required"}), 400
+    
+    if not username:
+        return jsonify({"success": False, "error": "Username is required"}), 400
+    
+    # Normalize username (lowercase, trimmed)
+    username = username.strip().lower()
+    
+    # Validate password requirements
+    if len(password) < 8:
+        return jsonify({"success": False, "error": "Password must be at least 8 characters long"}), 400
+    if not any(c.isupper() for c in password):
+        return jsonify({"success": False, "error": "Password must contain at least one uppercase letter"}), 400
+    if not any(c.isdigit() for c in password):
+        return jsonify({"success": False, "error": "Password must contain at least one number"}), 400
+    if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?/~`' for c in password):
+        return jsonify({"success": False, "error": "Password must contain at least one special character"}), 400
+    
+    # Check if username already exists
+    try:
+        if admin_initialized and admin_db:
+            users_ref = admin_db.reference('users')
+            all_users = users_ref.get() or {}
+            for user_id, user_data in all_users.items():
+                if user_data and user_data.get('username', '').lower() == username:
+                    return jsonify({"success": False, "error": "This username is already taken. Please choose a different one."}), 400
+        else:
+            app.logger.warning("[Auth API] Admin SDK not initialized, skipping username uniqueness check")
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error checking username uniqueness: {e}")
+        # Continue with signup even if check fails - Firebase will be the source of truth
     
     # Verify reCAPTCHA
     if not verify_recaptcha(recaptcha_token):
@@ -15614,6 +15685,7 @@ def api_get_user():
                 "first_name": user_data.get('first_name', ''),
                 "last_name": user_data.get('last_name', ''),
                 "company": user_data.get('company', ''),
+                "username": user_data.get('username', user_data.get('email', '').split('@')[0]),
                 "credits_balance": user_data.get('credits_balance', 0),
                 "has_capability_statement": has_cs
             }

@@ -9,6 +9,7 @@ export interface User {
   first_name: string;
   last_name: string;
   company: string;
+  username: string;
   credits_balance: number;
   has_capability_statement: boolean;
 }
