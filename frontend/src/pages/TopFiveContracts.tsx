@@ -338,7 +338,7 @@ const TopFiveContracts = () => {
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8">
                 <button 
                   className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
-                  style={{ backgroundColor: '#1C4262' }}
+                  style={{ backgroundColor: 'rgb(28, 66, 98)' }}
                   onClick={() => window.print()}
                 >
                   <div className="text-left">
@@ -346,6 +346,28 @@ const TopFiveContracts = () => {
                     <p className="text-xs sm:text-sm text-gray-300">Click to print your contract matches.</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
+                </button>
+                <button 
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+                  onClick={() => handleRerunMatching(contractType, selectedStates)}
+                >
+                  <div className="text-left">
+                    <p className="font-bold text-sm sm:text-base">Get More Related Contracts</p>
+                    <p className="text-xs sm:text-sm text-gray-300">Click to load more contracts.</p>
+                  </div>
+                  <img src="/static/app/dashboard/MoreContractsIcon.svg" alt="More Contracts" className="w-6 h-6" />
+                </button>
+                <button 
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+                  onClick={() => navigate('/capability-builder')}
+                >
+                  <div className="text-left">
+                    <p className="font-bold text-sm sm:text-base">Change Capability Statement</p>
+                    <p className="text-xs sm:text-sm text-gray-300">Click to change your CS.</p>
+                  </div>
+                  <img src="/static/app/dashboard/CSIcon.svg" alt="Capability Statement" className="w-6 h-6" />
                 </button>
               </div>
             </div>

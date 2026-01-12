@@ -210,13 +210,14 @@ const CoramaDirectory = () => {
               ) : (
                 <button 
                   onClick={() => navigate('/edit-directory-profile')}
-                  className="flex flex-row items-center justify-between gap-4 bg-[#2F3C4F] border border-corama-teal/30 rounded-xl px-6 lg:px-8 py-4 hover:bg-corama-darker transition-colors w-full max-w-2xl"
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  style={{ backgroundColor: 'rgb(28, 66, 98)' }}
                 >
                   <div className="text-left">
-                    <h3 className="text-white font-poppins font-bold text-base sm:text-lg">Join the list</h3>
-                    <p className="text-gray-400 font-poppins text-xs sm:text-sm">Increase your visibility and connect with businesses seeking your expertise.</p>
+                    <p className="font-bold text-sm sm:text-base">Join the list</p>
+                    <p className="text-xs sm:text-sm text-gray-300">Increase your visibility and connect with businesses seeking your expertise.</p>
                   </div>
-                  <img src="/static/app/dashboard/JoinTheList.svg" alt="" className="w-12 h-12 flex-shrink-0" />
+                  <img src="/static/app/dashboard/JoinTheList.svg" alt="" className="w-6 h-6" />
                 </button>
               )}
             </div>
