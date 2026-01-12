@@ -549,16 +549,15 @@ const Support = () => {
             {/* Header Section */}
             <div className="w-full text-center mb-16">
               <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
-                Meet the Team
+                Meet Your Expert Advisors
               </h2>
               <p className="text-lg text-white max-w-3xl mx-auto font-light leading-relaxed font-poppins">
-                Meet the visionary leaders behind Contract Radar Maximizer's
-                mission to revolutionize government contracting for small businesses.
+                Connect with the vetted proposal writers, legal consultants, and compliance specialists dedicated to guiding your business through the complexities of government contracting.
               </p>
             </div>
 
             {/* Team Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center mb-24">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center mb-8">
               {teamMembers.map((member) => (
                 <TeamMemberCard
                   key={member.name}
@@ -569,16 +568,6 @@ const Support = () => {
                   linkedinUrl={member.linkedinUrl}
                 />
               ))}
-            </div>
-
-            {/* Expert Advisors Header Section */}
-            <div className="w-full text-center mb-16">
-              <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
-                Meet Your Expert Advisors
-              </h2>
-              <p className="text-lg text-white max-w-3xl mx-auto font-light leading-relaxed font-poppins">
-                Connect with the vetted proposal writers, legal consultants, and compliance specialists dedicated to guiding your business through the complexities of government contracting.
-              </p>
             </div>
 
             {/* Expert Advisors Grid */}
