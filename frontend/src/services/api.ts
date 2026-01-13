@@ -176,8 +176,9 @@ class ApiService {
   // Top Five
   async getTopFiveContracts(
     contractType?: string,
-    states?: string[]
-  ): Promise<{success: boolean, matches: ContractMatch[], has_matches: boolean, filtered_count?: number}> {
+    states?: string[],
+    offset?: number
+  ): Promise<{success: boolean, matches: ContractMatch[], has_matches: boolean, filtered_count?: number, total_available?: number, has_more?: boolean, next_offset?: number | null, current_offset?: number}> {
     const params = new URLSearchParams();
     if (contractType && contractType !== 'all' && contractType !== '') {
       params.append('contract_type', contractType);
@@ -187,6 +188,9 @@ class ApiService {
       if (filteredStates.length > 0) {
         params.append('states', filteredStates.join(','));
       }
+    }
+    if (offset !== undefined && offset > 0) {
+      params.append('offset', offset.toString());
     }
     const qs = params.toString();
     const url = qs ? `${API_BASE()}/top-five-contracts?${qs}` : `${API_BASE()}/top-five-contracts`;

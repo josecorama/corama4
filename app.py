@@ -16355,7 +16355,11 @@ def api_top_five_contracts():
     states_param = request.args.get('states', '')  # comma-separated list of state codes
     selected_states = [s.strip().upper() for s in states_param.split(',') if s.strip()] if states_param else []
     
-    logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}")
+    # Pagination parameters
+    offset = request.args.get('offset', 0, type=int)  # Starting index for pagination
+    limit = request.args.get('limit', 5, type=int)  # Number of results per page (default 5)
+    
+    logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}, offset={offset}, limit={limit}")
     
     # Check if session has top5_results (newer approach - CSV is fallback)
     session_results = session.get('top5_results')
@@ -16649,13 +16653,29 @@ def api_top_five_contracts():
     else:
         logging.info(f"[top5] No matches file found at {matches_file}")
     
+    # Apply pagination - slice matches based on offset and limit
+    paginated_matches = matches[offset:offset + limit]
+    
+    # Update ranks to reflect pagination (rank = offset + index + 1)
+    for i, match in enumerate(paginated_matches):
+        match['rank'] = offset + i + 1
+    
     # Clean NaN values before returning JSON
-    cleaned_matches = clean_for_json(matches[:5])
+    cleaned_matches = clean_for_json(paginated_matches)
+    
+    # Calculate if there are more results available
+    has_more = (offset + limit) < len(matches)
+    next_offset = offset + limit if has_more else None
+    
     return jsonify({
         "success": True,
         "matches": cleaned_matches,
         "has_matches": total_matches > 0,  # True if user has ANY matches (before filtering)
-        "filtered_count": len(matches)  # Count after filtering
+        "filtered_count": len(matches),  # Count after filtering
+        "total_available": len(matches),  # Total matches available for pagination
+        "has_more": has_more,  # Whether more results are available
+        "next_offset": next_offset,  # Next offset to use for pagination
+        "current_offset": offset  # Current offset used
     })
 
 

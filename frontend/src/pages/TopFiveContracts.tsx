@@ -7,6 +7,90 @@ import { InlineLoading } from '../components/ThinkingPopup'
 import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 
+// Print styles - injected into document head
+const printStyles = `
+@media print {
+  /* Hide non-essential elements */
+  aside, header, button, .no-print {
+    display: none !important;
+  }
+  
+  /* Reset page layout */
+  body, html {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Make main content full width */
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  .flex {
+    display: block !important;
+  }
+  
+  /* Style contract cards for print */
+  .print-card {
+    background: #2F3C4F !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 20px !important;
+    border: 2px solid #333 !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+  }
+  
+  /* Ensure text is visible */
+  .print-card * {
+    color: black !important;
+  }
+  
+  .print-card h3, .print-card .text-white {
+    color: #1a1a1a !important;
+  }
+  
+  /* Match badge styling for print */
+  .print-badge {
+    background: #6BB4B5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color: white !important;
+    padding: 4px 12px !important;
+    border-radius: 20px !important;
+  }
+  
+  /* Trophy/rank styling for print */
+  .print-rank {
+    font-size: 24px !important;
+    font-weight: bold !important;
+    color: #1C4262 !important;
+  }
+  
+  /* Label badges for print */
+  .print-label {
+    background: #f0f0f0 !important;
+    border: 1px solid #ccc !important;
+    padding: 4px 12px !important;
+    border-radius: 20px !important;
+    font-weight: bold !important;
+    font-size: 12px !important;
+  }
+  
+  /* Page title for print */
+  .print-title {
+    font-size: 24px !important;
+    font-weight: bold !important;
+    color: #1a1a1a !important;
+    margin-bottom: 20px !important;
+    display: block !important;
+  }
+}
+`
+
 // SVG asset paths for contract cards
 const TrophyBackgroundIcon = '/static/app/dashboard/TrophyBackground.svg'
 const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
@@ -31,11 +115,32 @@ const TopFiveContracts = () => {
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
   const [rerunning, setRerunning] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [hasMatches, setHasMatches] = useState<boolean | null>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>(['all', 'IL', 'IN'])
   const [noFilterResults, setNoFilterResults] = useState(false)
+  
+  // Pagination state
+  const [currentOffset, setCurrentOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [totalAvailable, setTotalAvailable] = useState(0)
+
+  // Inject print styles into document head
+  useEffect(() => {
+    const styleElement = document.createElement('style')
+    styleElement.id = 'top-five-print-styles'
+    styleElement.textContent = printStyles
+    document.head.appendChild(styleElement)
+    
+    return () => {
+      const existingStyle = document.getElementById('top-five-print-styles')
+      if (existingStyle) {
+        existingStyle.remove()
+      }
+    }
+  }, [])
 
   // Redirect to no-capability-statement page if user has no matches at all
   // Pass the current page as returnTo so user is redirected back after uploading CS
@@ -51,11 +156,11 @@ const TopFiveContracts = () => {
     loadTopFive()
   }, [])
 
-  const loadTopFive = async (filterContractType?: string, filterStates?: string[]) => {
+  const loadTopFive = async (filterContractType?: string, filterStates?: string[], offset: number = 0) => {
     setLoading(true)
     setNoFilterResults(false)
     try {
-      const data = await api.getTopFiveContracts(filterContractType, filterStates)
+      const data = await api.getTopFiveContracts(filterContractType, filterStates, offset)
       if (data.success) {
         const transformedContracts: ContractMatch[] = (data.matches || []).map((m: ApiContractMatch) => {
           // Parse similarity score - handle both percentage strings and decimals
@@ -83,6 +188,9 @@ const TopFiveContracts = () => {
         })
         setContracts(transformedContracts)
         setHasMatches(data.has_matches)
+        setCurrentOffset(offset)
+        setHasMore(data.has_more || false)
+        setTotalAvailable(data.total_available || 0)
         
         // Check if filters produced no results but user has matches overall
         if (data.has_matches && transformedContracts.length === 0) {
@@ -96,6 +204,52 @@ const TopFiveContracts = () => {
       setHasMatches(false)
     } finally {
       setLoading(false)
+    }
+  }
+  
+  // Load more contracts (next 5)
+  const handleLoadMore = async () => {
+    if (!hasMore || loadingMore) return
+    
+    setLoadingMore(true)
+    try {
+      const nextOffset = currentOffset + 5
+      const data = await api.getTopFiveContracts(
+        contractType !== 'all' ? contractType : undefined,
+        selectedStates.filter(s => s !== 'all'),
+        nextOffset
+      )
+      if (data.success) {
+        const transformedContracts: ContractMatch[] = (data.matches || []).map((m: ApiContractMatch) => {
+          let matchPct = 0
+          const simScore = m.Similarity_Score
+          if (typeof simScore === 'string') {
+            matchPct = parseFloat(simScore.replace('%', '')) || 0
+          } else if (typeof simScore === 'number') {
+            matchPct = simScore > 1 ? simScore : simScore * 100
+          }
+          
+          return {
+            rank: m.rank,
+            state: m.State || 'N/A',
+            contractValue: m.Budget || 'TBD',
+            submissionDeadline: m.Due_Date || 'N/A',
+            naicsCode: m.NAICS_Code || 'N/A',
+            name: m.Bid_Name,
+            contractingAgency: m.Organization || m.Company || 'N/A',
+            matchPercentage: Math.round(matchPct),
+            detailLink: m.Detail_Link
+          }
+        })
+        // Replace current contracts with the next page
+        setContracts(transformedContracts)
+        setCurrentOffset(nextOffset)
+        setHasMore(data.has_more || false)
+      }
+    } catch (error) {
+      console.error('Failed to load more contracts:', error)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -246,7 +400,7 @@ const TopFiveContracts = () => {
             ) : (
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
-                <div key={contract.rank} className="rounded-2xl p-4 sm:p-5 lg:p-6 relative border border-white" style={{ backgroundColor: '#2F3C4F' }}>
+                <div key={contract.rank} className="print-card rounded-2xl p-4 sm:p-5 lg:p-6 relative border border-white" style={{ backgroundColor: '#2F3C4F' }}>
                   {/* State name - top left */}
                   <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
                   
@@ -336,7 +490,7 @@ const TopFiveContracts = () => {
               ))}
 
               {/* Bottom Action Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8">
+              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8 no-print">
                 <button 
                   className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
@@ -349,24 +503,31 @@ const TopFiveContracts = () => {
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
                 </button>
                 <button 
-                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50"
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
-                  onClick={() => handleRerunMatching(contractType, selectedStates)}
+                  onClick={handleLoadMore}
+                  disabled={!hasMore || loadingMore}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Get More Related Contracts</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Click to load more contracts.</p>
+                    <p className="font-bold text-sm sm:text-base">
+                      {loadingMore ? 'Loading...' : hasMore ? 'Get More Related Contracts' : 'No More Contracts'}
+                    </p>
+                    <p className="text-xs sm:text-sm text-gray-300">
+                      {hasMore 
+                        ? `Showing ${currentOffset + 1}-${currentOffset + contracts.length} of ${totalAvailable}` 
+                        : 'All contracts loaded'}
+                    </p>
                   </div>
                   <img src="/static/app/dashboard/MoreContractsIcon.svg" alt="More Contracts" className="w-6 h-6" />
                 </button>
                 <button 
                   className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
-                  onClick={() => navigate('/capability-builder')}
+                  onClick={() => navigate('/no-capability-statement?returnTo=/top-five-contracts')}
                 >
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">Change Capability Statement</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Click to change your CS.</p>
+                    <p className="text-xs sm:text-sm text-gray-300">Click to upload a new CS.</p>
                   </div>
                   <img src="/static/app/dashboard/CSIcon.svg" alt="Capability Statement" className="w-6 h-6" />
                 </button>
