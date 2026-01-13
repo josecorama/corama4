@@ -176,11 +176,11 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
 
   return (
     <>
-      {/* Mobile Menu Button - positioned to align with header logo, hidden when sidebar is open */}
+      {/* Mobile Menu Button - half visible on left edge, hidden when sidebar is open */}
       {!actualOpen && (
         <button 
           onClick={toggleOpen}
-          className="lg:hidden fixed top-3.5 left-3 z-50 p-1.5 rounded-md text-white opacity-70 hover:opacity-100 transition-opacity"
+          className="lg:hidden fixed top-3.5 -left-3 z-50 p-1.5 pl-4 rounded-r-md bg-corama-darker/80 text-white opacity-80 hover:opacity-100 transition-opacity"
           aria-label="Toggle menu"
         >
           <img 
