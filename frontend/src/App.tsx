@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { useEffect } from 'react'
 import LandingPage from './pages/LandingPage'
 import Dashboard from './pages/Dashboard'
 import CapabilityBuilder from './pages/CapabilityBuilder'
@@ -23,6 +24,29 @@ import AboutUsPublic from './pages/AboutUsPublic'
 import Support from './pages/Support'
 
 function App() {
+  useEffect(() => {
+    const applyDesktopScaling = () => {
+      const viewportWidth = window.innerWidth
+      const targetWidth = 1920
+      
+      // Only apply scaling on desktop (>= 1024px) and when viewport is smaller than target
+      if (viewportWidth >= 1024 && viewportWidth < targetWidth) {
+        const scale = viewportWidth / targetWidth
+        document.documentElement.style.zoom = `${scale}`
+      } else {
+        document.documentElement.style.zoom = '1'
+      }
+    }
+    
+    applyDesktopScaling()
+    window.addEventListener('resize', applyDesktopScaling)
+    
+    return () => {
+      window.removeEventListener('resize', applyDesktopScaling)
+      document.documentElement.style.zoom = '1'
+    }
+  }, [])
+
   return (
     <Router basename="/">
       <Routes>
