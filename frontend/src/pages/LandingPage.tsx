@@ -443,7 +443,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('hero')}
         data-section="hero"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('hero')}`}
+        className={`min-h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible flex flex-col justify-center snap-start ${getSectionClass('hero')}`}
       >
         {/* Radar Animation - only in hero section */}
         <div className="absolute inset-0 z-[1] pointer-events-none">
@@ -474,7 +474,7 @@ const LandingPage = () => {
         id="features" 
         ref={setSectionRef('features')}
         data-section="features"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features')}`}
+        className={`min-h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible flex flex-col justify-center snap-start ${getSectionClass('features')}`}
       >
         
         {/* Decorative stars with twinkling effect - positioned closer to cards (75% bigger) */}
@@ -640,7 +640,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('footer')}
         data-section="footer"
-        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-end snap-start ${getSectionClass('footer')}`}
+        className={`min-h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-visible flex flex-col justify-end snap-start ${getSectionClass('footer')}`}
       >
         {/* Footer - at bottom of section */}
         <footer className="py-6 px-4 sm:px-6 relative">
