@@ -169,19 +169,19 @@ const TopFiveContracts = () => {
   }
 
     return (
-      <div className="min-h-screen bg-corama-dark">
+      <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
         {/* Header spans full width at top */}
         <Header credits={5} />
         
         {/* Sidebar + Content row below header */}
-        <div className="flex">
+        <div className="flex flex-1 overflow-hidden">
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
           <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
           
           <Sidebar />
         
-          <div className="flex-1 flex flex-col min-w-0">
-            <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto">
               {/* Page Title and Action Buttons */}
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Contracts</h1>

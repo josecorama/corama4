@@ -799,8 +799,8 @@ const ProposalSummary = () => {
       {showCreditPopup && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div 
-            className="relative rounded-2xl p-4 lg:p-8 flex flex-col lg:flex-row items-center gap-4 lg:gap-6 w-full max-w-md lg:max-w-none lg:w-auto"
-            style={{ backgroundColor: '#0B2C48' }}
+            className="relative rounded-2xl p-6 lg:p-8 flex flex-col lg:flex-row items-center gap-4 lg:gap-6 w-full max-w-sm lg:max-w-none lg:w-auto"
+            style={{ backgroundColor: '#0B2C48', minHeight: '200px' }}
           >
             {/* Close Button */}
             <button
