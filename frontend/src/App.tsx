@@ -32,9 +32,18 @@ function App() {
       // Only apply scaling on desktop (>= 1024px) and when viewport is smaller than target
       if (viewportWidth >= 1024 && viewportWidth < targetWidth) {
         const scale = viewportWidth / targetWidth
-        document.documentElement.style.zoom = `${scale}`
+        // Use transform scale instead of zoom for better viewport handling
+        document.body.style.transform = `scale(${scale})`
+        document.body.style.transformOrigin = 'top left'
+        document.body.style.width = `${100 / scale}%`
+        document.body.style.minHeight = `${100 / scale}vh`
+        document.documentElement.style.overflow = 'hidden'
       } else {
-        document.documentElement.style.zoom = '1'
+        document.body.style.transform = ''
+        document.body.style.transformOrigin = ''
+        document.body.style.width = ''
+        document.body.style.minHeight = ''
+        document.documentElement.style.overflow = ''
       }
     }
     
@@ -43,7 +52,11 @@ function App() {
     
     return () => {
       window.removeEventListener('resize', applyDesktopScaling)
-      document.documentElement.style.zoom = '1'
+      document.body.style.transform = ''
+      document.body.style.transformOrigin = ''
+      document.body.style.width = ''
+      document.body.style.minHeight = ''
+      document.documentElement.style.overflow = ''
     }
   }, [])
 
