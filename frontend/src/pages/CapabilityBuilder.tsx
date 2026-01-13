@@ -623,7 +623,7 @@ const CapabilityBuilder = () => {
                     {/* Import Existing Capability Statement */}
                     <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">
             <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4 sm:mb-5">Import Existing Capability Statement</h2>
-            <div className="flex flex-col gap-4 lg:gap-6">
+            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:items-center">
               {/* Upload File Section */}
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <span className="text-white font-poppins text-sm whitespace-nowrap">Upload File</span>
