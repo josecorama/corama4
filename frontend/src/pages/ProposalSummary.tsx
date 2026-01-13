@@ -787,7 +787,7 @@ const ProposalSummary = () => {
                                                             className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden"
                                                             style={{ backgroundColor: '#27456e', width: '388px', height: '32px' }}
                             >
-                              <span>Generate Final Proposal</span>
+                              <span className="pr-8">Generate Final Proposal</span>
                 <img src={GenerateFinalProposalIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
@@ -797,48 +797,48 @@ const ProposalSummary = () => {
       
       {/* Credit Confirmation Popup */}
       {showCreditPopup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div 
-            className="relative rounded-2xl p-8 flex items-center gap-6"
-            style={{ backgroundColor: '#0B2C48', minWidth: '500px' }}
+            className="relative rounded-2xl p-4 lg:p-8 flex flex-col lg:flex-row items-center gap-4 lg:gap-6 w-full max-w-md lg:max-w-none lg:w-auto"
+            style={{ backgroundColor: '#0B2C48' }}
           >
             {/* Close Button */}
             <button
               onClick={() => setShowCreditPopup(false)}
-              className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+              className="absolute top-3 right-3 lg:top-4 lg:right-4 hover:opacity-80 transition-opacity"
             >
-              <img src={ClosePopupButtonIcon} alt="Close" className="w-6 h-6" />
+              <img src={ClosePopupButtonIcon} alt="Close" className="w-5 h-5 lg:w-6 lg:h-6" />
             </button>
             
             {/* Credits Icon */}
             <div className="flex-shrink-0">
-              <img src={CreditsIcon} alt="Credits" className="w-20 h-20" />
+              <img src={CreditsIcon} alt="Credits" className="w-16 h-16 lg:w-20 lg:h-20" />
             </div>
             
             {/* Content */}
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 lg:gap-4 text-center lg:text-left">
               <div>
-                <h3 className="text-white font-poppins font-bold text-xl mb-1">
+                <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-1">
                   This action costs credits
                 </h3>
-                <p className="text-gray-300 font-poppins text-sm">
+                <p className="text-gray-300 font-poppins text-xs lg:text-sm">
                   This will deduct 15 credits from your balance.
                 </p>
               </div>
               
               {/* Buttons */}
-              <div className="flex gap-3">
+              <div className="flex flex-col sm:flex-row gap-2 lg:gap-3">
                 <button
                   onClick={handleConfirmSpendCredits}
                   disabled={isDeductingCredits}
-                  className="px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                  className="px-4 lg:px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm lg:text-base hover:opacity-90 transition-opacity disabled:opacity-50"
                   style={{ backgroundColor: '#5CBFC0' }}
                 >
                   {isDeductingCredits ? 'Processing...' : 'Spend 15 credits'}
                 </button>
                 <button
                   onClick={() => setShowCreditPopup(false)}
-                  className="px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
+                  className="px-4 lg:px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm lg:text-base hover:opacity-90 transition-opacity"
                   style={{ backgroundColor: '#27456e' }}
                 >
                   Not now
