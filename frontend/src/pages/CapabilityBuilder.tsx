@@ -668,7 +668,7 @@ const CapabilityBuilder = () => {
                     value={importUrl}
                     onChange={(e) => setImportUrl(e.target.value)}
                     placeholder="https://example/capabilityst..."
-                    className="flex-1 min-w-0 bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-4 text-gray-900 text-sm focus:outline-none focus:border-[#1C4262]"
+                    className="flex-1 bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-4 text-gray-900 text-sm focus:outline-none focus:border-[#1C4262]"
                   />
                   <button
                     onClick={handleImportFromUrl}
