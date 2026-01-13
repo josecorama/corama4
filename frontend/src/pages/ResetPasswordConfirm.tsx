@@ -1,14 +1,42 @@
 import { useState, useEffect } from 'react'
-import { Loader2, AlertCircle } from 'lucide-react'
+import { Loader2, AlertCircle, Eye, EyeOff, Check, X } from 'lucide-react'
+
+// Password validation requirements (same as Signup)
+const validatePassword = (password: string) => {
+  return {
+    minLength: password.length >= 8,
+    hasUppercase: /[A-Z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[!@#$%^&*()_+\-=\[\]{}|;:,.<>?/~`]/.test(password),
+  }
+}
 
 const ResetPasswordConfirm = () => {
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
   const [validating, setValidating] = useState(true)
   const [oobCode, setOobCode] = useState('')
   const [codeValid, setCodeValid] = useState(false)
+  
+  // Password validation state
+  const [passwordValidation, setPasswordValidation] = useState({
+    minLength: false,
+    hasUppercase: false,
+    hasNumber: false,
+    hasSpecial: false,
+  })
+  const [showPasswordRequirements, setShowPasswordRequirements] = useState(false)
+  
+  // Update password validation on change
+  useEffect(() => {
+    setPasswordValidation(validatePassword(password))
+  }, [password])
+  
+  // Check if password is valid
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean)
 
   useEffect(() => {
     // Extract oobCode from URL parameters
@@ -54,9 +82,9 @@ const ResetPasswordConfirm = () => {
     e.preventDefault()
     setError('')
 
-    // Validate password strength
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long.')
+    // Validate password strength (same requirements as Signup)
+    if (!isPasswordValid) {
+      setError('Password does not meet all requirements.')
       return
     }
 
@@ -111,8 +139,13 @@ const ResetPasswordConfirm = () => {
       <div className="pt-24 sm:pt-32 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md">
           <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-2xl">
-            {/* Title */}
+            {/* Logo */}
             <div className="text-center mb-8">
+              <img 
+                src="/static/app/landing/corama-logo.png" 
+                alt="CORAMA" 
+                className="h-20 mx-auto mb-6"
+              />
               <h1 className="font-poppins text-2xl font-bold text-white mb-2">Reset Password</h1>
               <p className="text-gray-400 font-poppins text-sm">
                 Enter your new password<br />to login into your account.
@@ -194,22 +227,61 @@ const ResetPasswordConfirm = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-6">
                     <label className="block text-gray-300 font-poppins text-sm mb-2">New Password</label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter new password"
-                      required
-                      minLength={8}
-                      autoFocus
-                      autoComplete="new-password"
-                      className="w-full bg-white text-gray-900 rounded-lg px-4 py-3.5 font-poppins text-sm border border-gray-300/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all placeholder:text-gray-400"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onFocus={() => setShowPasswordRequirements(true)}
+                        onBlur={() => setShowPasswordRequirements(false)}
+                        placeholder="Create a strong password"
+                        required
+                        autoFocus
+                        autoComplete="new-password"
+                        className={`w-full bg-white text-gray-900 rounded-lg px-4 py-3.5 pr-12 font-poppins text-sm border outline-none transition-all placeholder:text-gray-400 ${
+                          password && !isPasswordValid ? 'border-red-500 focus:border-red-500' :
+                          password && isPasswordValid ? 'border-green-500 focus:border-green-500' :
+                          'border-gray-300/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-corama-teal transition-colors"
+                      >
+                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                      </button>
+                    </div>
+                    
+                    {/* Password Requirements */}
+                    {(showPasswordRequirements || (password && !isPasswordValid)) && (
+                      <div className="mt-2 p-3 bg-gray-800/50 rounded-lg">
+                        <p className="text-xs text-gray-300 font-poppins mb-2">Password must contain:</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.minLength ? 'text-green-400' : 'text-gray-400'}`}>
+                            {passwordValidation.minLength ? <Check size={12} /> : <X size={12} />}
+                            At least 8 characters
+                          </div>
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasUppercase ? 'text-green-400' : 'text-gray-400'}`}>
+                            {passwordValidation.hasUppercase ? <Check size={12} /> : <X size={12} />}
+                            One uppercase letter
+                          </div>
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasNumber ? 'text-green-400' : 'text-gray-400'}`}>
+                            {passwordValidation.hasNumber ? <Check size={12} /> : <X size={12} />}
+                            One number
+                          </div>
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasSpecial ? 'text-green-400' : 'text-gray-400'}`}>
+                            {passwordValidation.hasSpecial ? <Check size={12} /> : <X size={12} />}
+                            One special character
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || !isPasswordValid}
                     className="w-full bg-gradient-to-b from-corama-teal via-[#9cd6d7] to-[#85c4c7] text-[#0B0B0F] font-poppins font-semibold py-3.5 rounded-lg hover:shadow-lg hover:shadow-corama-teal/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
                     {loading ? (
