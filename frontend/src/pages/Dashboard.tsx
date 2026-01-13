@@ -252,10 +252,59 @@ const Dashboard = () => {
           {/* Top Contract Categories */}
           <div className="mb-6 lg:mb-8">
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+            
+            {/* Desktop: Grid layout */}
+            <div className="hidden lg:grid grid-cols-4 gap-4">
               {topCategories.map((cat, index) => (
                 <AnimatedCategoryCard key={index} cat={cat} index={index} />
               ))}
+            </div>
+            
+            {/* Mobile/Tablet: Horizontal scrollable carousel with snap */}
+            <div className="lg:hidden">
+              <div 
+                className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+                onScroll={(e) => {
+                  const container = e.currentTarget
+                  const scrollLeft = container.scrollLeft
+                  const cardWidth = container.offsetWidth
+                  const newIndex = Math.round(scrollLeft / cardWidth)
+                  const indicator = document.getElementById('category-carousel-indicator')
+                  if (indicator) {
+                    const dots = indicator.querySelectorAll('button')
+                    dots.forEach((dot, i) => {
+                      dot.className = i === newIndex 
+                        ? 'w-2.5 h-2.5 rounded-full bg-corama-teal' 
+                        : 'w-2 h-2 rounded-full bg-gray-500'
+                    })
+                  }
+                }}
+              >
+                {topCategories.map((cat, index) => (
+                  <div key={index} className="flex-shrink-0 w-full snap-center">
+                    <AnimatedCategoryCard cat={cat} index={index} />
+                  </div>
+                ))}
+              </div>
+              
+              {/* Dot indicators */}
+              <div id="category-carousel-indicator" className="flex justify-center gap-2 mt-2">
+                {topCategories.map((_, index) => (
+                  <button
+                    key={index}
+                    className={index === 0 ? 'w-2.5 h-2.5 rounded-full bg-corama-teal' : 'w-2 h-2 rounded-full bg-gray-500'}
+                    onClick={() => {
+                      const container = document.querySelector('.snap-x.snap-mandatory')
+                      if (container) {
+                        const cardWidth = container.clientWidth
+                        container.scrollTo({ left: cardWidth * index, behavior: 'smooth' })
+                      }
+                    }}
+                    aria-label={`Go to category ${index + 1}`}
+                  />
+                ))}
+              </div>
             </div>
           </div>
 
@@ -361,19 +410,19 @@ const Dashboard = () => {
                       {/* Mobile/Tablet Card View */}
                       <div className="lg:hidden space-y-3">
                         {contracts.map((contract) => (
-                          <div key={contract.id} className="bg-corama-darker/50 rounded-lg p-3 sm:p-4">
+                          <div key={contract.id} className="rounded-lg p-3 sm:p-4" style={{ backgroundColor: '#2F3C4F' }}>
                             <div className="flex justify-between items-start mb-2">
                               <h3 className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2">{contract.name}</h3>
-                              <span className="text-green-400 font-poppins text-xs sm:text-sm">{contract.status}</span>
+                              <span className="text-white font-poppins text-xs sm:text-sm">{contract.status}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-3">
                               <div>
                                 <span className="text-gray-400">Category:</span>
-                                <p className="text-gray-300">{contract.category}</p>
+                                <p className="text-white">{contract.category}</p>
                               </div>
                               <div>
                                 <span className="text-gray-400">Due:</span>
-                                <p className="text-gray-300">{contract.dueDate}</p>
+                                <p className="text-white">{contract.dueDate}</p>
                               </div>
                             </div>
                             <div className="flex gap-4">
@@ -382,14 +431,14 @@ const Dashboard = () => {
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-corama-teal text-xs sm:text-sm">AI Assistant</span>
+                                <span className="text-white text-xs sm:text-sm">AI Assistant</span>
                               </button>
                               <button 
                                 onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-corama-teal text-xs sm:text-sm">Visit Site</span>
+                                <span className="text-white text-xs sm:text-sm">Visit Site</span>
                               </button>
                             </div>
                           </div>

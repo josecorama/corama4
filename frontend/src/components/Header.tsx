@@ -46,38 +46,33 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           </a>
         </div>
         
-        {/* Mobile logo - shown only on small screens */}
-        <div className="lg:hidden flex items-center pl-14 pr-2">
+        {/* Mobile logo - shown only on small screens, positioned on left after hamburger space */}
+        <div className="lg:hidden flex items-center pl-10 pr-2">
           <a href="/" className="inline-flex items-center">
             <img 
               src="/static/app/dashboard/CoramaLogo.svg" 
               alt="CORAMA" 
-              className="h-8 w-auto"
+              className="h-7 sm:h-8 w-auto"
             />
           </a>
         </div>
         
         {/* Right: Main header content */}
-        <div className="flex-1 flex items-center justify-between px-4 lg:px-6">
-          {/* Search - hidden on mobile, visible on tablet+ - starts where sidebar ends, stops 16px before credits */}
-          <div className="hidden md:flex flex-1 min-w-0" style={{ marginRight: '16px' }}>
+        <div className="flex-1 flex items-center justify-between px-2 sm:px-4 lg:px-6">
+          {/* Search - visible on all screen sizes with compact styling on mobile */}
+          <div className="flex flex-1 min-w-0" style={{ marginRight: '8px' }}>
             <div className="relative w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <Search className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                placeholder="SEARCH IN CORAMA"
-                className="w-full rounded-full py-2 lg:py-2.5 pl-12 pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-sm"
+                placeholder="SEARCH"
+                className="w-full rounded-full py-1.5 sm:py-2 lg:py-2.5 pl-8 sm:pl-12 pr-2 sm:pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-xs sm:text-sm"
                 style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid rgb(60, 87, 114)' }}
               />
             </div>
           </div>
           
-          {/* Mobile search icon */}
-          <button className="md:hidden p-2 text-gray-400 hover:text-white">
-            <Search size={20} />
-          </button>
-          
-          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
+          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
             <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
               {!isLoading && credits !== null && (

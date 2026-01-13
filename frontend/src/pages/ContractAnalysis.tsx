@@ -458,7 +458,7 @@ const ContractAnalysis = () => {
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                   >
-                    <img src={UploadContractPDFIcon} alt="Upload Contract" style={{ height: '308px' }} className="mb-3" />
+                    <img src={UploadContractPDFIcon} alt="Upload Contract" className="h-32 sm:h-48 lg:h-[308px] mb-3" />
                     <p className="text-gray-500 font-poppins text-sm">Click or drag to upload PDF</p>
                   </div>
                 )}
@@ -561,7 +561,7 @@ const ContractAnalysis = () => {
                                   </div>
                                 ) : (
                   <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
-                    <img src={AIFindingsIcon} alt="Contract Insights" style={{ height: '356px' }} className="mb-3" />
+                    <img src={AIFindingsIcon} alt="Contract Insights" className="h-32 sm:h-48 lg:h-[356px] mb-3" />
                     <p className="text-gray-500 font-poppins text-sm">Upload a PDF to generate insights</p>
                   </div>
                 )}

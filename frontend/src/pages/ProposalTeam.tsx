@@ -492,10 +492,10 @@ const ProposalTeam = () => {
             <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-white p-4">
               {viewMode === 'default' ? (
                 <>
-                  {/* AI Suggestions Section - White card, taller and scrollable */}
-                  <div className="bg-white rounded-xl p-4 flex-1 min-h-0 flex flex-col">
-                    <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
-                    <div className="text-gray-600 font-poppins text-sm overflow-y-auto flex-1">
+                  {/* AI Suggestions Section - White card, responsive sizing */}
+                  <div className="bg-white rounded-xl p-3 sm:p-4 flex-1 min-h-[140px] flex flex-col">
+                    <h2 className="text-gray-800 font-poppins font-semibold text-sm sm:text-base lg:text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
+                    <div className="text-gray-600 font-poppins text-xs sm:text-sm overflow-y-auto flex-1">
                       {isLoadingSuggestions ? (
                         <InlineLoading text="Thinking" size="medium" />
                       ) : aiSuggestions ? (
@@ -738,12 +738,12 @@ const ProposalTeam = () => {
                   )}
                 </div>
               ) : (
-                /* Manual Entry View */
-                <div className="flex flex-col gap-4 flex-1">
-                  <h2 className="text-white font-poppins font-bold text-lg">Add Team Member</h2>
+                /* Manual Entry View - scrollable on mobile */
+                <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
+                  <h2 className="text-white font-poppins font-bold text-base sm:text-lg flex-shrink-0">Add Team Member</h2>
                   
                   {/* Form Grid */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     {/* Company Name */}
                     <div>
                       <label className="text-white font-poppins text-sm mb-1 block">Company Name</label>

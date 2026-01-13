@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 
@@ -23,6 +23,11 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   const [isOpen, setIsOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   
+  // Swipe gesture refs
+  const touchStartX = useRef<number>(0)
+  const touchStartY = useRef<number>(0)
+  const sidebarRef = useRef<HTMLElement>(null)
+  
   // Check admin status on mount
   useEffect(() => {
     const checkAdmin = async () => {
@@ -35,6 +40,48 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
     }
     checkAdmin()
   }, [])
+  
+  // Swipe gesture handlers
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX
+    touchStartY.current = e.touches[0].clientY
+  }, [])
+  
+  const handleTouchEnd = useCallback((e: TouchEvent) => {
+    const touchEndX = e.changedTouches[0].clientX
+    const touchEndY = e.changedTouches[0].clientY
+    const deltaX = touchEndX - touchStartX.current
+    const deltaY = touchEndY - touchStartY.current
+    const SWIPE_THRESHOLD = 50
+    const EDGE_ZONE = 30
+    
+    // Only handle horizontal swipes (ignore vertical scrolling)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SWIPE_THRESHOLD) {
+      const actualOpen = onMobileToggle ? mobileOpen : isOpen
+      
+      // Swipe right from left edge to open
+      if (deltaX > 0 && touchStartX.current < EDGE_ZONE && !actualOpen) {
+        if (onMobileToggle) onMobileToggle()
+        else setIsOpen(true)
+      }
+      // Swipe left to close
+      else if (deltaX < 0 && actualOpen) {
+        if (onMobileToggle) onMobileToggle()
+        else setIsOpen(false)
+      }
+    }
+  }, [mobileOpen, isOpen, onMobileToggle])
+  
+  // Add swipe gesture listeners
+  useEffect(() => {
+    document.addEventListener('touchstart', handleTouchStart, { passive: true })
+    document.addEventListener('touchend', handleTouchEnd, { passive: true })
+    
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart)
+      document.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [handleTouchStart, handleTouchEnd])
   
   // Initialize isExpanded from localStorage to persist across page navigation
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -104,19 +151,21 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button 
-        onClick={toggleOpen}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-corama-darker rounded-lg text-white"
-        aria-label="Toggle menu"
-      >
-        <img 
-          src="/static/app/dashboard/HamburgerButton.svg" 
-          alt="" 
-          className="w-6 h-6"
-          aria-hidden="true"
-        />
-      </button>
+      {/* Mobile Menu Button - positioned half off the left edge, only show when sidebar is closed */}
+      {!actualOpen && (
+        <button 
+          onClick={toggleOpen}
+          className="lg:hidden fixed top-4 -left-3 z-50 pl-4 pr-2 py-2 bg-corama-darker/80 opacity-80 rounded-r-md text-white"
+          aria-label="Toggle menu"
+        >
+          <img 
+            src="/static/app/dashboard/HamburgerButton.svg" 
+            alt="" 
+            className="w-6 h-6"
+            aria-hidden="true"
+          />
+        </button>
+      )}
 
       {/* Mobile Overlay */}
       {actualOpen && (
@@ -126,10 +175,11 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
         />
       )}
 
-      {/* Sidebar - sticky on desktop, starts below header (top-16) so horizontal line can span full width */}
+      {/* Sidebar - fixed on mobile (overlays content), sticky on desktop */}
       <aside 
+        ref={sidebarRef}
         className={`
-          relative fixed lg:sticky lg:top-16 inset-y-0 left-0 z-40
+          fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40
           ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
           transform transition-all duration-300 ease-in-out
           ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}

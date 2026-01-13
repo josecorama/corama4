@@ -324,7 +324,7 @@ const TopFiveContracts = () => {
   }
 
     return (
-      <div className="min-h-screen bg-corama-dark">
+      <div className="h-screen bg-corama-dark overflow-y-auto">
         {/* Header spans full width at top */}
         <Header credits={5} />
         

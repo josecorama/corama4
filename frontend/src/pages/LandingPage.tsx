@@ -391,22 +391,23 @@ const LandingPage = () => {
   return (
     <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
       {/* Header - Fixed at top */}
-      <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
+      <header className="h-16 sm:h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" />
+            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" />
           </div>
           
-          <nav className="hidden md:flex items-center gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
-            <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">Support</a>
-            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">FAQ</a>
-            <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">About Us</a>
+          {/* Navigation - visible on all screens with smaller text on mobile */}
+          <nav className="flex items-center gap-2 sm:gap-4 lg:gap-8">
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
+            <a href="/support" className="hidden sm:block text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">Support</a>
+            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
+            <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
           </nav>
           
-          <div className="flex items-center gap-2 sm:gap-4">
-            <a href="/login" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white" style={{ width: '96px' }}>Log In</a>
-            <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)', width: '96px' }}>Sign up</a>
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
+            <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
+            <a href="/signup" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
           </div>
         </div>
       </header>
@@ -473,16 +474,8 @@ const LandingPage = () => {
         id="features" 
         ref={setSectionRef('features')}
         data-section="features"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features')}`}
+        className={`h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-0 sm:px-4 lg:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features')}`}
       >
-        {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          {/* Top-left teal glow */}
-          <div className="absolute top-0 -left-32 w-[700px] h-[450px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
-          {/* Bottom-right teal glow */}
-          <div className="absolute bottom-0 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(26,58,74,0.12)_40%,transparent_70%)] -rotate-6"></div>
-        </div>
-        
         {/* Decorative stars with twinkling effect - positioned closer to cards (75% bigger) */}
         {/* Left side stars - closer to the cards */}
         <div className="absolute left-[8%] sm:left-[10%] lg:left-[12%] top-1/2 -translate-y-1/2 hidden lg:block">
@@ -527,8 +520,66 @@ const LandingPage = () => {
           />
         </div>
         
-        <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch">
+        {/* Mobile: Horizontal scrollable carousel */}
+        <div className="lg:hidden w-full relative z-10">
+          <div 
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-4 scrollbar-hide"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/SmartContractMatching.svg"
+                title="Smart Contract Matching"
+                description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/AutomatedProposalGeneration.svg"
+                title="Automated Proposal Generation"
+                description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/ComplianceIntelligence.svg"
+                title="Compliance Intelligence"
+                description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/WinProbabilityScoring.svg"
+                title="Win Probability Scoring"
+                description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/IntelligentMarketResearch.svg"
+                title="Intelligent Market Research"
+                description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/SmartDeadlineManagement.svg"
+                title="Smart Deadline Management"
+                description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+          </div>
+        </div>
+        
+        {/* Desktop: Grid layout */}
+        <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
+          <div className="grid grid-cols-3 gap-6 items-stretch">
             <FeatureCard
               icon="/static/app/landing/SmartContractMatching.svg"
               title="Smart Contract Matching"
@@ -573,36 +624,31 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('scope-revolution')}
         data-section="scope-revolution"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
+        className={`min-h-[60vh] lg:h-[calc(100vh-80px)] px-4 sm:px-6 py-8 lg:py-0 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
       >
-        {/* Soft teal glow background */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
-        </div>
-        
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-6xl mx-auto relative z-10 mb-8 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 mb-8 lg:mb-16 parallax-section"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-16 items-center">
             <div className="parallax-image">
               <img 
                 src="/static/app/landing/Scope.svg" 
                 alt="Scope of Work Station" 
-                className="w-full h-56 sm:h-72 lg:h-80 object-contain"
+                className="w-full h-40 sm:h-56 lg:h-80 object-contain"
               />
             </div>
             <div className="text-center md:text-left parallax-text">
-              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
+              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6">Scope Of Work Station</h2>
+              <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 leading-relaxed">
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
+                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
               >
                 Get Started
               </a>
@@ -612,18 +658,13 @@ const LandingPage = () => {
 
         {/* Revolutionizing Government Contracting */}
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          {/* Section background glow */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full"></div>
-          </div>
-          
-          <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+          <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
-          <p className="text-[#6bb4b5] font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+          <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
-          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-base hover:gap-3 transition-all">
+          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-sm sm:text-base hover:gap-3 transition-all">
             Learn More <ArrowRight size={18} />
           </button>
         </div>
@@ -633,25 +674,25 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('footer')}
         data-section="footer"
-        className={`h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-end snap-start ${getSectionClass('footer')}`}
+        className={`min-h-[40vh] lg:h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-end snap-start ${getSectionClass('footer')}`}
       >
         {/* Footer - at bottom of section */}
-        <footer className="py-6 px-4 sm:px-6 relative">
+        <footer className="py-4 sm:py-6 px-2 sm:px-4 lg:px-6 relative">
           <div className="max-w-6xl mx-auto relative z-10">
-            <div className="text-center mb-4">
-              <p className="text-white font-poppins text-xs sm:text-sm leading-relaxed">
+            <div className="text-center mb-2 sm:mb-4">
+              <p className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm leading-relaxed">
                 180 North Michigan Avenue Suite 500 Chicago, IL 60601
               </p>
             </div>
             
-            <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-4 text-xs sm:text-sm">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-4 lg:gap-6 mb-2 sm:mb-4 text-[10px] sm:text-xs lg:text-sm">
               <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
               <a href="/terms-of-use" className="text-white hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
               <a href="/static/docs/policy.pdf" target="_blank" className="text-white hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
               <a href="/faq" className="text-white hover:text-corama-teal font-poppins transition-colors">FAQ</a>
             </div>
             
-            <div className="text-center mb-4 text-xs sm:text-sm">
+            <div className="text-center mb-2 sm:mb-4 text-[10px] sm:text-xs lg:text-sm">
               <span className="text-white font-poppins">contact@corama.ai</span>
             </div>
             
@@ -660,7 +701,7 @@ const LandingPage = () => {
               <img 
                 src="/static/app/landing/corama-logo.png" 
                 alt="CORAMA" 
-                className="h-12 sm:h-16 w-auto"
+                className="h-8 sm:h-12 lg:h-16 w-auto"
               />
             </div>
           </div>

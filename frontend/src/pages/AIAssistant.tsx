@@ -622,7 +622,7 @@ const AIAssistant = () => {
                             </div>
                             </div>
 
-              {/* Input Area - sticky at bottom */}
+              {/* Input Area - sticky at bottom, responsive */}
               <div className="flex-shrink-0 pt-3 sm:pt-4">
                 <div className="relative">
                   <input
@@ -630,8 +630,8 @@ const AIAssistant = () => {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder={`Start asking your questions about ${contractName} here`}
-                    className="w-full border border-corama-teal/30 rounded-full py-3 sm:py-4 pl-4 sm:pl-6 pr-12 sm:pr-14 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
+                    placeholder="Ask questions here..."
+                    className="w-full border border-corama-teal/30 rounded-full py-3 sm:py-4 pl-4 sm:pl-6 pr-14 sm:pr-16 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal text-xs sm:text-sm truncate"
                     style={{ backgroundColor: '#333c4d' }}
                   />
                   <button
