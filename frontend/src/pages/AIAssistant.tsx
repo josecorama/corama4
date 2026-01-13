@@ -587,12 +587,12 @@ const AIAssistant = () => {
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
                     placeholder={`Start asking your questions about ${contractName} here`}
-                    className="w-full border border-corama-teal/30 rounded-full py-3 sm:py-4 pl-4 sm:pl-6 pr-12 sm:pr-14 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
+                    className="w-full border border-corama-teal/30 rounded-full py-3 sm:py-4 pl-4 sm:pl-6 pr-14 sm:pr-16 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal text-xs sm:text-sm truncate"
                     style={{ backgroundColor: '#333c4d' }}
                   />
                   <button
                     onClick={handleSendMessage}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center hover:opacity-80 transition-opacity"
+                    className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center hover:opacity-80 transition-opacity"
                   >
                     <img src={SendMessageIcon} alt="Send" className="w-10 h-10" />
                   </button>

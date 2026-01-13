@@ -371,10 +371,10 @@ const Dashboard = () => {
                       {/* Mobile/Tablet Card View */}
                       <div className="lg:hidden space-y-3">
                         {contracts.map((contract) => (
-                          <div key={contract.id} className="bg-corama-darker/50 rounded-lg p-3 sm:p-4">
+                          <div key={contract.id} className="rounded-lg p-3 sm:p-4" style={{ backgroundColor: '#2f3c4f' }}>
                             <div className="flex justify-between items-start mb-2">
                               <h3 className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2">{contract.name}</h3>
-                              <span className="text-green-400 font-poppins text-xs sm:text-sm">{contract.status}</span>
+                              <span className="text-white font-poppins text-xs sm:text-sm">{contract.status}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-3">
                               <div>
@@ -392,14 +392,14 @@ const Dashboard = () => {
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-corama-teal text-xs sm:text-sm">AI Assistant</span>
+                                <span className="text-white text-xs sm:text-sm">AI Assistant</span>
                               </button>
                               <button 
                                 onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-corama-teal text-xs sm:text-sm">Visit Site</span>
+                                <span className="text-white text-xs sm:text-sm">Visit Site</span>
                               </button>
                             </div>
                           </div>
