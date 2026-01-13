@@ -528,43 +528,65 @@ const LandingPage = () => {
         </div>
         
         <div className="max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 items-stretch">
-            <FeatureCard
-              icon="/static/app/landing/SmartContractMatching.svg"
-              title="Smart Contract Matching"
-              description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/AutomatedProposalGeneration.svg"
-              title="Automated Proposal Generation"
-              description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/ComplianceIntelligence.svg"
-              title="Compliance Intelligence"
-              description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/WinProbabilityScoring.svg"
-              title="Win Probability Scoring"
-              description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/IntelligentMarketResearch.svg"
-              title="Intelligent Market Research"
-              description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/SmartDeadlineManagement.svg"
-              title="Smart Deadline Management"
-              description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-              onLearnMore={scrollToFeatures}
-            />
+          {/* Mobile: Horizontal scrollable carousel, Desktop: Grid */}
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch overflow-x-auto sm:overflow-visible snap-x snap-mandatory sm:snap-none pb-4 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+              <FeatureCard
+                icon="/static/app/landing/SmartContractMatching.svg"
+                title="Smart Contract Matching"
+                description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+              <FeatureCard
+                icon="/static/app/landing/AutomatedProposalGeneration.svg"
+                title="Automated Proposal Generation"
+                description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+              <FeatureCard
+                icon="/static/app/landing/ComplianceIntelligence.svg"
+                title="Compliance Intelligence"
+                description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+              <FeatureCard
+                icon="/static/app/landing/WinProbabilityScoring.svg"
+                title="Win Probability Scoring"
+                description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+              <FeatureCard
+                icon="/static/app/landing/IntelligentMarketResearch.svg"
+                title="Intelligent Market Research"
+                description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+              <FeatureCard
+                icon="/static/app/landing/SmartDeadlineManagement.svg"
+                title="Smart Deadline Management"
+                description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+          </div>
+          {/* Mobile carousel indicator dots */}
+          <div className="flex sm:hidden justify-center gap-2 mt-4">
+            <div className="w-2 h-2 rounded-full bg-corama-teal/60"></div>
+            <div className="w-2 h-2 rounded-full bg-white/30"></div>
+            <div className="w-2 h-2 rounded-full bg-white/30"></div>
+            <div className="w-2 h-2 rounded-full bg-white/30"></div>
+            <div className="w-2 h-2 rounded-full bg-white/30"></div>
+            <div className="w-2 h-2 rounded-full bg-white/30"></div>
           </div>
         </div>
       </section>
@@ -573,7 +595,7 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('scope-revolution')}
         data-section="scope-revolution"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
+        className={`min-h-[auto] py-8 sm:py-0 sm:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
       >
         {/* Soft teal glow background */}
         <div className="absolute inset-0 pointer-events-none z-0">
@@ -582,27 +604,27 @@ const LandingPage = () => {
         
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-6xl mx-auto relative z-10 mb-8 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 mb-4 sm:mb-8 parallax-section"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-8 lg:gap-16 items-center">
             <div className="parallax-image">
               <img 
                 src="/static/app/landing/Scope.svg" 
                 alt="Scope of Work Station" 
-                className="w-full h-56 sm:h-72 lg:h-80 object-contain"
+                className="w-full h-32 sm:h-72 lg:h-80 object-contain"
               />
             </div>
             <div className="text-center md:text-left parallax-text">
-              <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
+              <h2 className="font-poppins font-bold text-xl sm:text-4xl lg:text-5xl text-white mb-3 sm:mb-6">Scope Of Work Station</h2>
+              <p className="text-gray-400 font-poppins text-sm sm:text-lg mb-4 sm:mb-8 leading-relaxed">
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-base"
+                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
               >
                 Get Started
               </a>
@@ -617,13 +639,13 @@ const LandingPage = () => {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full"></div>
           </div>
           
-          <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6 leading-tight">
+          <h2 className="font-poppins font-bold text-xl sm:text-4xl lg:text-5xl text-white mb-3 sm:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
-          <p className="text-[#6bb4b5] font-poppins text-base sm:text-lg mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+          <p className="text-[#6bb4b5] font-poppins text-xs sm:text-lg mb-4 sm:mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
-          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-base hover:gap-3 transition-all">
+          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-sm sm:text-base hover:gap-3 transition-all">
             Learn More <ArrowRight size={18} />
           </button>
         </div>

@@ -107,18 +107,18 @@ const ResetPassword = () => {
       </header>
 
       {/* Reset Password Form */}
-      <div className="pt-24 sm:pt-32 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
+      <div className="pt-20 sm:pt-32 pb-24 sm:pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md">
-          <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-2xl">
+          <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-5 sm:p-12 shadow-2xl">
             {/* Logo */}
-            <div className="text-center mb-8">
+            <div className="text-center mb-5 sm:mb-8">
               <img 
                 src="/static/app/landing/corama-logo.png" 
                 alt="CORAMA" 
-                className="h-20 mx-auto mb-6"
+                className="h-14 sm:h-20 mx-auto mb-4 sm:mb-6"
               />
-              <h1 className="font-poppins text-2xl text-white mb-2">Reset Password</h1>
-              <p className="text-gray-400 font-poppins text-sm">
+              <h1 className="font-poppins text-xl sm:text-2xl text-white mb-2">Reset Password</h1>
+              <p className="text-gray-400 font-poppins text-xs sm:text-sm">
                 Enter your email address and we'll send you a link to reset your password.
               </p>
             </div>
@@ -182,19 +182,19 @@ const ResetPassword = () => {
       </div>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent py-5 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
-          <div className="text-center sm:text-left">
+      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent py-2 sm:py-5 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-[10px] sm:text-xs text-white font-poppins">
+          <div className="text-center sm:text-left hidden sm:block">
             <div>180 North Michigan Avenue</div>
             <div className="sm:text-center">Suite 500 Chicago, IL 60601</div>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Learn More About IHCC</a>
-            <a href="/terms-of-use" className="hover:text-white transition-colors">Terms of Use</a>
-            <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-white transition-colors">Policy Notice</a>
-            <a href="/faq" className="hover:text-white transition-colors">Frequently Asked Questions</a>
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6">
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">IHCC</a>
+            <a href="/terms-of-use" className="hover:text-white transition-colors">Terms</a>
+            <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-white transition-colors">Policy</a>
+            <a href="/faq" className="hover:text-white transition-colors">FAQ</a>
           </div>
-          <div>contact@corama.ai</div>
+          <div className="hidden sm:block">contact@corama.ai</div>
         </div>
       </footer>
     </div>

@@ -205,17 +205,17 @@ const Signup = () => {
       </header>
 
       {/* Signup Form */}
-      <div className="pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center">
+      <div className="pt-20 sm:pt-28 pb-20 sm:pb-32 px-4 sm:px-6 flex items-center justify-center">
         <div className="w-full max-w-lg">
-          <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl">
+          <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-5 sm:p-10 shadow-2xl">
             {/* Logo */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-4 sm:mb-6">
               <img 
                 src="/static/app/landing/corama-logo.png" 
                 alt="CORAMA" 
-                className="h-20 mx-auto mb-4"
+                className="h-14 sm:h-20 mx-auto mb-3 sm:mb-4"
               />
-              <h1 className="font-poppins text-2xl text-white">Create Your Account</h1>
+              <h1 className="font-poppins text-xl sm:text-2xl text-white">Create Your Account</h1>
             </div>
 
             {/* Error Message */}
@@ -394,19 +394,19 @@ const Signup = () => {
       </div>
 
       {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent py-5 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
-          <div className="text-center sm:text-left">
+      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent py-2 sm:py-5 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-[10px] sm:text-xs text-white font-poppins">
+          <div className="text-center sm:text-left hidden sm:block">
             <div>180 North Michigan Avenue</div>
             <div className="sm:text-center">Suite 500 Chicago, IL 60601</div>
           </div>
-          <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Learn More About IHCC</a>
-            <a href="/terms-of-use" className="hover:text-white transition-colors">Terms of Use</a>
-            <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-white transition-colors">Policy Notice</a>
-            <a href="/faq" className="hover:text-white transition-colors">Frequently Asked Questions</a>
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6">
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">IHCC</a>
+            <a href="/terms-of-use" className="hover:text-white transition-colors">Terms</a>
+            <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-white transition-colors">Policy</a>
+            <a href="/faq" className="hover:text-white transition-colors">FAQ</a>
           </div>
-          <div>contact@corama.ai</div>
+          <div className="hidden sm:block">contact@corama.ai</div>
         </div>
       </footer>
     </div>
