@@ -623,9 +623,9 @@ const CapabilityBuilder = () => {
                     {/* Import Existing Capability Statement */}
                     <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">
             <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4 sm:mb-5">Import Existing Capability Statement</h2>
-            <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 items-start lg:items-center">
+            <div className="flex flex-col gap-4 lg:gap-6">
               {/* Upload File Section */}
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <span className="text-white font-poppins text-sm whitespace-nowrap">Upload File</span>
                 <input
                   type="file"
@@ -640,11 +640,11 @@ const CapabilityBuilder = () => {
                   onDragEnter={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
-                  className={`bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-6 cursor-pointer transition-all min-w-[280px] ${
+                  className={`bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-4 sm:px-6 cursor-pointer transition-all w-full sm:w-auto sm:min-w-[280px] ${
                     isDragOver ? 'ring-2 ring-corama-teal' : ''
                   }`}
                 >
-                  <span className="text-gray-500 font-poppins text-sm">
+                  <span className="text-gray-500 font-poppins text-sm truncate block">
                     {selectedFile ? selectedFile.name : 'Click here to browse your pdf file'}
                   </span>
                 </div>
@@ -652,7 +652,7 @@ const CapabilityBuilder = () => {
                   <button
                     onClick={handleImportFile}
                     disabled={uploading}
-                    className="bg-corama-teal text-white rounded-lg py-2 px-4 text-sm hover:bg-corama-teal/80 transition-colors disabled:opacity-50"
+                    className="bg-corama-teal text-white rounded-lg py-2 px-4 text-sm hover:bg-corama-teal/80 transition-colors disabled:opacity-50 w-full sm:w-auto"
                   >
                     {uploading ? 'Importing...' : 'Import'}
                   </button>
@@ -660,15 +660,15 @@ const CapabilityBuilder = () => {
               </div>
 
               {/* Or Import from URL Section */}
-              <div className="flex items-center gap-4 flex-1">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                 <span className="text-white font-poppins text-sm whitespace-nowrap">Or Import from URL</span>
-                <div className="flex items-center gap-2 flex-1">
+                <div className="flex items-center gap-2 flex-1 w-full sm:w-auto">
                   <input
                     type="text"
                     value={importUrl}
                     onChange={(e) => setImportUrl(e.target.value)}
-                    placeholder="https://example/capabilitystate..."
-                    className="flex-1 bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-4 text-gray-900 text-sm focus:outline-none focus:border-[#1C4262]"
+                    placeholder="https://example/capabilityst..."
+                    className="flex-1 min-w-0 bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-4 text-gray-900 text-sm focus:outline-none focus:border-[#1C4262]"
                   />
                   <button
                     onClick={handleImportFromUrl}

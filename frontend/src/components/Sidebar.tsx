@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 
 interface SidebarProps {
@@ -19,6 +19,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
+  
+  // Swipe gesture state
+  const touchStartX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
+  const SWIPE_THRESHOLD = 50 // Minimum swipe distance to trigger
+  const EDGE_ZONE = 30 // Pixels from left edge to start swipe detection
   
   // Initialize isExpanded from localStorage to persist across page navigation
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -50,6 +56,94 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
     sessionStorage.setItem('corama_current_path', current)
   }, [location.pathname])
   
+  const isDashboard = location.pathname === '/dashboard'
+  const showGoBack = !isDashboard && !!previousPath
+  
+  const actualOpen = onMobileToggle ? mobileOpen : isOpen
+  const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
+  
+  // Swipe gesture handlers for mobile
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    const touch = e.touches[0]
+    // Only track swipes that start from the left edge of the screen
+    if (touch.clientX <= EDGE_ZONE && !actualOpen) {
+      touchStartX.current = touch.clientX
+      touchStartY.current = touch.clientY
+    } else if (actualOpen) {
+      // Track swipes anywhere when sidebar is open (for closing)
+      touchStartX.current = touch.clientX
+      touchStartY.current = touch.clientY
+    }
+  }, [actualOpen])
+  
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return
+    
+    const touch = e.touches[0]
+    const deltaX = touch.clientX - touchStartX.current
+    const deltaY = touch.clientY - touchStartY.current
+    
+    // Only consider horizontal swipes (deltaX > deltaY)
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Swipe right to open (when closed and started from edge)
+      if (deltaX > SWIPE_THRESHOLD && !actualOpen && touchStartX.current <= EDGE_ZONE) {
+        toggleOpen()
+        touchStartX.current = null
+        touchStartY.current = null
+      }
+      // Swipe left to close (when open)
+      else if (deltaX < -SWIPE_THRESHOLD && actualOpen) {
+        toggleOpen()
+        touchStartX.current = null
+        touchStartY.current = null
+      }
+    }
+  }, [actualOpen, toggleOpen])
+  
+  const handleTouchEnd = useCallback(() => {
+    touchStartX.current = null
+    touchStartY.current = null
+  }, [])
+  
+  // Set up touch event listeners for swipe gestures
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    // Only add listeners on mobile (lg breakpoint is 1024px)
+    const mediaQuery = window.matchMedia('(max-width: 1023px)')
+    
+    const addListeners = () => {
+      document.addEventListener('touchstart', handleTouchStart, { passive: true })
+      document.addEventListener('touchmove', handleTouchMove, { passive: true })
+      document.addEventListener('touchend', handleTouchEnd, { passive: true })
+    }
+    
+    const removeListeners = () => {
+      document.removeEventListener('touchstart', handleTouchStart)
+      document.removeEventListener('touchmove', handleTouchMove)
+      document.removeEventListener('touchend', handleTouchEnd)
+    }
+    
+    if (mediaQuery.matches) {
+      addListeners()
+    }
+    
+    const handleMediaChange = (e: MediaQueryListEvent) => {
+      if (e.matches) {
+        addListeners()
+      } else {
+        removeListeners()
+      }
+    }
+    
+    mediaQuery.addEventListener('change', handleMediaChange)
+    
+    return () => {
+      removeListeners()
+      mediaQuery.removeEventListener('change', handleMediaChange)
+    }
+  }, [handleTouchStart, handleTouchMove, handleTouchEnd])
+  
   const handleGoBack = () => {
     if (customGoBack) {
       customGoBack()
@@ -57,12 +151,6 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
       navigate(previousPath)
     }
   }
-  
-  const isDashboard = location.pathname === '/dashboard'
-  const showGoBack = !isDashboard && !!previousPath
-  
-  const actualOpen = onMobileToggle ? mobileOpen : isOpen
-  const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
   
   const menuItems: MenuItem[] = [
     { path: '/dashboard', label: 'Dashboard', icon: '/static/app/dashboard/Dashboard.svg' },
