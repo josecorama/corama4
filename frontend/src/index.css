@@ -480,18 +480,3 @@ body {
 .grecaptcha-badge {
   visibility: hidden !important;
 }
-
-/* Desktop view: Scale site proportionally on smaller screens to maintain consistent appearance */
-/* Base design is optimized for 1920px width - scale down proportionally on smaller screens */
-@media (min-width: 1024px) and (max-width: 1919px) {
-  html {
-    zoom: calc(100vw / 1920);
-  }
-}
-
-/* For screens 1920px and above, no scaling needed */
-@media (min-width: 1920px) {
-  html {
-    zoom: 1;
-  }
-}
