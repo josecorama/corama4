@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
@@ -11,8 +11,12 @@ const NoCSImage = '/static/app/dashboard/NoCSImage.svg'
 
 const NoCapabilityStatement = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
+  
+  // Get the return URL from query params, default to dashboard
+  const returnTo = searchParams.get('returnTo') || '/dashboard'
 
   const handleUploadClick = () => {
     fileInputRef.current?.click()
@@ -26,7 +30,8 @@ const NoCapabilityStatement = () => {
     try {
       const result = await api.uploadCapabilityStatement(file, [], [])
       if (result.success) {
-        navigate('/dashboard')
+        // Redirect back to the page user originally tried to access
+        navigate(returnTo)
       } else {
         alert(result.message || 'Failed to upload capability statement')
       }

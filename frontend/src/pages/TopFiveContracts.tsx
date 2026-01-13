@@ -38,9 +38,10 @@ const TopFiveContracts = () => {
   const [noFilterResults, setNoFilterResults] = useState(false)
 
   // Redirect to no-capability-statement page if user has no matches at all
+  // Pass the current page as returnTo so user is redirected back after uploading CS
   useEffect(() => {
     if (!loading && hasMatches === false) {
-      navigate('/no-capability-statement')
+      navigate('/no-capability-statement?returnTo=/top-five-contracts')
     }
   }, [loading, hasMatches, navigate])
 
