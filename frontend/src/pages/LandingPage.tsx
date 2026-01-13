@@ -104,14 +104,14 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   return (
     <div 
       ref={cardRef}
-      className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full"
+      className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 lg:p-5 xl:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       {/* Card content - icon at top with 2-layer parallax */}
-      <div className="flex justify-center mb-5 sm:mb-6 relative z-10">
+      <div className="flex justify-center mb-5 sm:mb-6 lg:mb-4 xl:mb-6 relative z-10">
         <div 
-          className="relative w-16 h-16 sm:w-20 sm:h-20"
+          className="relative w-16 h-16 sm:w-20 sm:h-20 lg:w-14 lg:h-14 xl:w-20 xl:h-20"
           style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
         >
           {/* Layer 1 - Background (shadow/glow) */}
@@ -133,11 +133,11 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
           </div>
         </div>
       </div>
-      <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center relative z-10">{title}</h3>
-      <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
+      <h3 className="font-poppins font-bold text-lg sm:text-xl lg:text-base xl:text-xl text-white mb-3 sm:mb-4 lg:mb-2 xl:mb-4 min-h-[56px] lg:min-h-[48px] xl:min-h-[56px] text-center relative z-10">{title}</h3>
+      <p className="text-[#B6F8F9] font-poppins text-sm lg:text-xs xl:text-sm leading-relaxed flex-grow text-center relative z-10">
         {description}
       </p>
-      <div className="mt-5 sm:mt-6 text-center relative z-10">
+      <div className="mt-5 sm:mt-6 lg:mt-3 xl:mt-6 text-center relative z-10">
         <button onClick={onLearnMore} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
           Learn more <ArrowRight size={14} />
         </button>
@@ -523,7 +523,7 @@ const LandingPage = () => {
         
         <div className="w-full sm:max-w-6xl mx-auto relative z-10 px-4 sm:px-0">
           {/* Mobile: Horizontal scrollable carousel, Desktop: Grid */}
-          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch overflow-x-scroll sm:overflow-visible pb-4 sm:pb-0 -mx-4 px-4 sm:mx-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-4 xl:gap-6 items-stretch overflow-x-scroll sm:overflow-visible pb-4 sm:pb-0 -mx-4 px-4 sm:mx-0" style={{ WebkitOverflowScrolling: 'touch' }}>
             <div className="flex-shrink-0 w-[80vw] sm:w-auto">
               <FeatureCard
                 icon="/static/app/landing/SmartContractMatching.svg"
