@@ -589,12 +589,12 @@ const LandingPage = () => {
       <section 
         ref={setSectionRef('scope-revolution')}
         data-section="scope-revolution"
-        className={`min-h-[auto] py-8 sm:py-0 sm:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
+        className={`min-h-[auto] py-8 sm:py-12 lg:py-16 sm:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-between snap-start ${getSectionClass('scope-revolution')}`}
       >
         
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-6xl mx-auto relative z-10 mb-16 sm:mb-20 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 mb-8 sm:mb-12 lg:mb-16 parallax-section flex-1 flex items-center"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
@@ -623,7 +623,7 @@ const LandingPage = () => {
         </div>
 
         {/* Revolutionizing Government Contracting */}
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="max-w-4xl mx-auto text-center relative z-10 flex-1 flex flex-col justify-center pb-8 sm:pb-12 lg:pb-16">
           <h2 className="font-poppins font-bold text-xl sm:text-4xl lg:text-5xl text-white mb-3 sm:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>

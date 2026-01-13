@@ -1,5 +1,4 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { useEffect } from 'react'
 import LandingPage from './pages/LandingPage'
 import Dashboard from './pages/Dashboard'
 import CapabilityBuilder from './pages/CapabilityBuilder'
@@ -24,42 +23,6 @@ import AboutUsPublic from './pages/AboutUsPublic'
 import Support from './pages/Support'
 
 function App() {
-  useEffect(() => {
-    const applyDesktopScaling = () => {
-      const viewportWidth = window.innerWidth
-      const targetWidth = 1920
-      
-      // Only apply scaling on desktop (>= 1024px) and when viewport is smaller than target
-      if (viewportWidth >= 1024 && viewportWidth < targetWidth) {
-        const scale = viewportWidth / targetWidth
-        // Use transform scale instead of zoom for better viewport handling
-        document.body.style.transform = `scale(${scale})`
-        document.body.style.transformOrigin = 'top left'
-        document.body.style.width = `${100 / scale}%`
-        document.body.style.minHeight = `${100 / scale}vh`
-        document.documentElement.style.overflow = 'hidden'
-      } else {
-        document.body.style.transform = ''
-        document.body.style.transformOrigin = ''
-        document.body.style.width = ''
-        document.body.style.minHeight = ''
-        document.documentElement.style.overflow = ''
-      }
-    }
-    
-    applyDesktopScaling()
-    window.addEventListener('resize', applyDesktopScaling)
-    
-    return () => {
-      window.removeEventListener('resize', applyDesktopScaling)
-      document.body.style.transform = ''
-      document.body.style.transformOrigin = ''
-      document.body.style.width = ''
-      document.body.style.minHeight = ''
-      document.documentElement.style.overflow = ''
-    }
-  }, [])
-
   return (
     <Router basename="/">
       <Routes>
