@@ -111,13 +111,8 @@ const ResetPasswordConfirm = () => {
       <div className="pt-24 sm:pt-32 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md">
           <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-2xl">
-            {/* Logo */}
+            {/* Title */}
             <div className="text-center mb-8">
-              <img 
-                src="/static/app/landing/corama-logo.png" 
-                alt="CORAMA" 
-                className="h-20 mx-auto mb-6"
-              />
               <h1 className="font-poppins text-2xl font-bold text-white mb-2">Reset Password</h1>
               <p className="text-gray-400 font-poppins text-sm">
                 Enter your new password<br />to login into your account.
@@ -135,16 +130,6 @@ const ResetPasswordConfirm = () => {
             {/* Success Message */}
             {success && (
               <div className="text-center py-4">
-                {/* Logo with CORAMA text */}
-                <div className="flex items-center justify-center gap-2 mb-6">
-                  <img 
-                    src="/static/app/landing/corama-logo.png" 
-                    alt="CORAMA" 
-                    className="h-12 w-auto"
-                  />
-                  <span className="text-white font-poppins font-semibold text-lg tracking-wide">CORAMA</span>
-                </div>
-                
                 {/* Checkmark Icon */}
                 <img 
                   src="/static/app/landing/CheckPwReset.svg" 
