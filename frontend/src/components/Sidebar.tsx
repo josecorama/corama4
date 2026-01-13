@@ -176,19 +176,21 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
 
   return (
     <>
-      {/* Mobile Menu Button - positioned to align with header logo */}
-      <button 
-        onClick={toggleOpen}
-        className="lg:hidden fixed top-3.5 left-3 z-50 p-1.5 rounded-md text-white opacity-70 hover:opacity-100 transition-opacity"
-        aria-label="Toggle menu"
-      >
-        <img 
-          src="/static/app/dashboard/HamburgerButton.svg" 
-          alt="" 
-          className="w-5 h-5"
-          aria-hidden="true"
-        />
-      </button>
+      {/* Mobile Menu Button - positioned to align with header logo, hidden when sidebar is open */}
+      {!actualOpen && (
+        <button 
+          onClick={toggleOpen}
+          className="lg:hidden fixed top-3.5 left-3 z-50 p-1.5 rounded-md text-white opacity-70 hover:opacity-100 transition-opacity"
+          aria-label="Toggle menu"
+        >
+          <img 
+            src="/static/app/dashboard/HamburgerButton.svg" 
+            alt="" 
+            className="w-5 h-5"
+            aria-hidden="true"
+          />
+        </button>
+      )}
 
       {/* Mobile Overlay */}
       {actualOpen && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -35,6 +35,10 @@ const Dashboard = () => {
   
   // Top categories from backend (calculated from ALL contracts, not just current page)
   const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
+  
+  // Mobile carousel state for top categories
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState(0)
+  const categoryCarouselRef = useRef<HTMLDivElement>(null)
 
   const contractsPerPage = 10 // Fixed batch size for traditional pagination
   const startItem = (currentPage - 1) * contractsPerPage + 1
@@ -149,44 +153,78 @@ const Dashboard = () => {
           {/* Top Contract Categories */}
           <div className="mb-6 lg:mb-8">
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
-            {/* Mobile: Horizontal scrollable carousel */}
-            <div className="lg:hidden overflow-x-auto -mx-3 sm:-mx-4 px-3 sm:px-4 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
-              <div className="flex gap-3" style={{ width: 'max-content' }}>
-                {topCategories.map((cat, index) => (
-                  <div key={index} className="rounded-xl p-3 border border-white flex items-center gap-3 flex-shrink-0" style={{ backgroundColor: '#0b2c48', width: '200px' }}>
-                    {/* Percentage graph on the left */}
-                    <div className="relative w-14 h-14 flex-shrink-0">
-                      <svg className="w-14 h-14 transform -rotate-90">
-                        <circle
-                          cx="28"
-                          cy="28"
-                          r="24"
-                          stroke="rgba(107, 180, 181, 0.2)"
-                          strokeWidth="4"
-                          fill="none"
-                        />
-                        <circle
-                          cx="28"
-                          cy="28"
-                          r="24"
-                          stroke="#6bb4b5"
-                          strokeWidth="4"
-                          fill="none"
-                          strokeDasharray={`${cat.percentage * 1.5} 151`}
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-xs font-bold">
-                        {cat.percentage}%
-                      </span>
+            {/* Mobile: Single card carousel with dots */}
+            <div className="lg:hidden">
+              <div 
+                ref={categoryCarouselRef}
+                className="overflow-x-auto pb-2 snap-x snap-mandatory" 
+                style={{ WebkitOverflowScrolling: 'touch' }}
+                onScroll={(e) => {
+                  const container = e.currentTarget
+                  const cardWidth = container.scrollWidth / topCategories.length
+                  const newIndex = Math.round(container.scrollLeft / cardWidth)
+                  if (newIndex !== activeCategoryIndex && newIndex >= 0 && newIndex < topCategories.length) {
+                    setActiveCategoryIndex(newIndex)
+                  }
+                }}
+              >
+                <div className="flex" style={{ width: `${topCategories.length * 100}%` }}>
+                  {topCategories.map((cat, index) => (
+                    <div key={index} className="flex-shrink-0 px-3 snap-center" style={{ width: `${100 / topCategories.length}%` }}>
+                      <div className="rounded-xl p-4 border border-white flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
+                        {/* Percentage graph on the left */}
+                        <div className="relative w-16 h-16 flex-shrink-0">
+                          <svg className="w-16 h-16 transform -rotate-90">
+                            <circle
+                              cx="32"
+                              cy="32"
+                              r="28"
+                              stroke="rgba(107, 180, 181, 0.2)"
+                              strokeWidth="4"
+                              fill="none"
+                            />
+                            <circle
+                              cx="32"
+                              cy="32"
+                              r="28"
+                              stroke="#6bb4b5"
+                              strokeWidth="4"
+                              fill="none"
+                              strokeDasharray={`${cat.percentage * 1.76} 176`}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                          <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-sm font-bold">
+                            {cat.percentage}%
+                          </span>
+                        </div>
+                        
+                        {/* Category name and contract count to the right of graph */}
+                        <div className="flex flex-col justify-center min-w-0">
+                          <h3 className="text-white font-poppins font-semibold text-sm">{cat.name}</h3>
+                          <p className="text-corama-teal font-poppins text-sm">{cat.count} contracts</p>
+                        </div>
+                      </div>
                     </div>
-                    
-                    {/* Category name and contract count to the right of graph */}
-                    <div className="flex flex-col justify-center min-w-0">
-                      <h3 className="text-white font-poppins font-semibold text-xs truncate">{cat.name}</h3>
-                      <p className="text-corama-teal font-poppins text-xs">{cat.count} contracts</p>
-                    </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
+              {/* Dot indicators */}
+              <div className="flex justify-center gap-2 mt-3">
+                {topCategories.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      if (categoryCarouselRef.current) {
+                        const cardWidth = categoryCarouselRef.current.scrollWidth / topCategories.length
+                        categoryCarouselRef.current.scrollTo({ left: cardWidth * index, behavior: 'smooth' })
+                      }
+                    }}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      index === activeCategoryIndex ? 'bg-corama-teal' : 'bg-white/30'
+                    }`}
+                    aria-label={`Go to category ${index + 1}`}
+                  />
                 ))}
               </div>
             </div>
