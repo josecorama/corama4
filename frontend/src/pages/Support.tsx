@@ -46,14 +46,14 @@ const expertAdvisors = [
   {
     name: 'Jacqueline Valle',
     role: 'Grants Manager',
-    description: '',
+    description: 'Manages the full lifecycle of grant acquisition, budgeting, and compliance. Acts as the primary liaison for funders, leveraging a degree in Human Resources Management and a strong background in executive support.',
     imageUrl: '/static/app/advisors/Jacqui.webp',
     email: 'jacqueline@ihccbusiness.net'
   },
   {
-    name: 'Andres Solarte',
+    name: 'Andres Solares',
     role: 'Government and Community Relations Director',
-    description: '',
+    description: 'Spearheads advocacy initiatives and builds strategic partnerships with government officials and community stakeholders. Brings extensive experience in public policy, legislative affairs, and coalition building to advance the organization\'s mission.',
     imageUrl: '/static/app/advisors/Andres-Headshot-Web.webp',
     email: 'asolarte@ihccbusiness.net'
   },
@@ -137,14 +137,14 @@ const expertAdvisors = [
   {
     name: 'Danna Gallegos',
     role: 'Marketing & Communications Assistant',
-    description: '',
+    description: 'Supports the execution of digital marketing campaigns and content creation to enhance brand visibility. Skilled in social media management, graphic design, and coordinating communications strategies for diverse audiences.',
     imageUrl: '/static/app/advisors/Danna-Headshot-Web.webp',
     email: 'dgallegos@ihccbusiness.net'
   },
   {
     name: 'Clarissa Roa',
     role: 'Illinois Tollway Program Administrator',
-    description: '',
+    description: 'Oversees technical assistance programs to guide businesses through Tollway procurement opportunities. Specializes in project management, contract compliance, and navigating complex government requirements to drive small business growth.',
     imageUrl: '/static/app/advisors/Clarissa-1.webp',
     email: 'croa@ihccbusiness.net'
   }

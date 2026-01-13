@@ -422,7 +422,28 @@ const AboutUsPublic = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-[1400px] mx-auto justify-items-center">
+            {/* Mobile: Horizontal scrollable carousel */}
+            <div className="lg:hidden w-full">
+              <div 
+                className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-4 scrollbar-hide"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
+                {teamMembers.map((member) => (
+                  <div key={member.name} className="flex-shrink-0 w-[80vw] snap-center">
+                    <TeamMemberCard
+                      name={member.name}
+                      role={member.role}
+                      description={member.description}
+                      imageUrl={member.imageUrl}
+                      linkedinUrl={member.linkedinUrl}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Desktop: Grid layout */}
+            <div className="hidden lg:grid grid-cols-4 gap-6 w-full max-w-[1400px] mx-auto justify-items-center">
               {teamMembers.map((member) => (
                 <TeamMemberCard
                   key={member.name}
@@ -538,8 +559,8 @@ const AboutUsPublic = () => {
             </div>
           </div>
 
-          {/* Footer */}
-          <footer className="py-6 px-4 sm:px-6 relative">
+          {/* Footer - with margin-top to prevent touching elements above */}
+          <footer className="py-6 px-4 sm:px-6 relative mt-8">
             <div className="max-w-6xl mx-auto relative z-10">
               <div className="text-center mb-4">
                 <p className="text-white font-poppins text-xs sm:text-sm leading-relaxed">
