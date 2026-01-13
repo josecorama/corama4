@@ -527,9 +527,9 @@ const LandingPage = () => {
           />
         </div>
         
-        <div className="max-w-6xl mx-auto relative z-10">
+        <div className="sm:max-w-6xl mx-auto relative z-10">
           {/* Mobile: Horizontal scrollable carousel, Desktop: Grid */}
-          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch overflow-x-auto sm:overflow-visible snap-x snap-mandatory sm:snap-none pb-4 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch overflow-x-auto sm:overflow-visible snap-x snap-mandatory sm:snap-none pb-4 sm:pb-0 px-4 sm:px-0 scrollbar-hide">
             <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
               <FeatureCard
                 icon="/static/app/landing/SmartContractMatching.svg"
