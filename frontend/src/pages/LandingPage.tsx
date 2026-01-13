@@ -527,10 +527,10 @@ const LandingPage = () => {
           />
         </div>
         
-        <div className="sm:max-w-6xl mx-auto relative z-10">
+        <div className="w-full sm:max-w-6xl mx-auto relative z-10 px-4 sm:px-0">
           {/* Mobile: Horizontal scrollable carousel, Desktop: Grid */}
-          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch overflow-x-auto sm:overflow-visible snap-x snap-mandatory sm:snap-none pb-4 sm:pb-0 px-4 sm:px-0 scrollbar-hide">
-            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+          <div className="flex sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch overflow-x-scroll sm:overflow-visible pb-4 sm:pb-0 -mx-4 px-4 sm:mx-0" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex-shrink-0 w-[80vw] sm:w-auto">
               <FeatureCard
                 icon="/static/app/landing/SmartContractMatching.svg"
                 title="Smart Contract Matching"
@@ -538,15 +538,15 @@ const LandingPage = () => {
                 onLearnMore={scrollToFeatures}
               />
             </div>
-            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
-              <FeatureCard
-                icon="/static/app/landing/AutomatedProposalGeneration.svg"
+                        <div className="flex-shrink-0 w-[80vw] sm:w-auto">
+                          <FeatureCard
+                            icon="/static/app/landing/AutomatedProposalGeneration.svg"
                 title="Automated Proposal Generation"
                 description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
                 onLearnMore={scrollToFeatures}
               />
             </div>
-            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+            <div className="flex-shrink-0 w-[80vw] sm:w-auto">
               <FeatureCard
                 icon="/static/app/landing/ComplianceIntelligence.svg"
                 title="Compliance Intelligence"
@@ -554,7 +554,7 @@ const LandingPage = () => {
                 onLearnMore={scrollToFeatures}
               />
             </div>
-            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+            <div className="flex-shrink-0 w-[80vw] sm:w-auto">
               <FeatureCard
                 icon="/static/app/landing/WinProbabilityScoring.svg"
                 title="Win Probability Scoring"
@@ -562,7 +562,7 @@ const LandingPage = () => {
                 onLearnMore={scrollToFeatures}
               />
             </div>
-            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+            <div className="flex-shrink-0 w-[80vw] sm:w-auto">
               <FeatureCard
                 icon="/static/app/landing/IntelligentMarketResearch.svg"
                 title="Intelligent Market Research"
@@ -570,7 +570,7 @@ const LandingPage = () => {
                 onLearnMore={scrollToFeatures}
               />
             </div>
-            <div className="flex-shrink-0 w-[85vw] sm:w-auto snap-center">
+            <div className="flex-shrink-0 w-[80vw] sm:w-auto">
               <FeatureCard
                 icon="/static/app/landing/SmartDeadlineManagement.svg"
                 title="Smart Deadline Management"
@@ -604,7 +604,7 @@ const LandingPage = () => {
         
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-6xl mx-auto relative z-10 mb-10 sm:mb-16 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 mb-16 sm:mb-20 parallax-section"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
@@ -634,11 +634,6 @@ const LandingPage = () => {
 
         {/* Revolutionizing Government Contracting */}
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          {/* Section background glow */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.1)_0%,transparent_70%)] rounded-full"></div>
-          </div>
-          
           <h2 className="font-poppins font-bold text-xl sm:text-4xl lg:text-5xl text-white mb-3 sm:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
