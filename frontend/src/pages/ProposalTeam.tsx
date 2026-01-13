@@ -488,14 +488,14 @@ const ProposalTeam = () => {
               </div>
             </div>
 
-            {/* Main Content Container with border */}
-            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-white p-4">
+            {/* Main Content Container with border - scrollable on mobile */}
+            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto lg:overflow-hidden rounded-2xl border border-white p-4">
               {viewMode === 'default' ? (
                 <>
-                  {/* AI Suggestions Section - White card, taller and scrollable */}
-                  <div className="bg-white rounded-xl p-4 flex-1 min-h-0 flex flex-col">
-                    <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
-                    <div className="text-gray-600 font-poppins text-sm overflow-y-auto flex-1">
+                  {/* AI Suggestions Section - White card, smaller on mobile to match option cards */}
+                  <div className="bg-white rounded-xl p-4 min-h-[140px] lg:flex-1 lg:min-h-0 flex flex-col">
+                    <h2 className="text-gray-800 font-poppins font-semibold text-sm lg:text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
+                    <div className="text-gray-600 font-poppins text-xs lg:text-sm overflow-y-auto flex-1 max-h-24 lg:max-h-none">
                       {isLoadingSuggestions ? (
                         <InlineLoading text="Thinking" size="medium" />
                       ) : aiSuggestions ? (
@@ -520,8 +520,53 @@ const ProposalTeam = () => {
                     </div>
                   </div>
 
-                  {/* Option Cards - Three teal cards in a row */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-shrink-0">
+                  {/* Option Cards - Carousel on mobile, grid on desktop */}
+                  {/* Mobile: Horizontal scrollable carousel */}
+                  <div className="lg:hidden flex-shrink-0">
+                    <div className="flex gap-4 overflow-x-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+                      {/* From CORAMA Directory */}
+                      <div 
+                        onClick={() => handleOptionClick('from-directory')}
+                        className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] flex-shrink-0 w-[80vw] ${
+                          selectedOption === 'from-directory' ? 'ring-2 ring-blue-500' : ''
+                        }`}
+                        style={{ backgroundColor: '#99C8CA' }}
+                      >
+                        <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
+                        <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
+                        <img src={FromCORAMADirectoryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
+                      </div>
+
+                      {/* Manual Entry */}
+                      <div 
+                        onClick={() => handleOptionClick('manual-entry')}
+                        className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] flex-shrink-0 w-[80vw] ${
+                          selectedOption === 'manual-entry' ? 'ring-2 ring-blue-500' : ''
+                        }`}
+                        style={{ backgroundColor: '#99C8CA' }}
+                      >
+                        <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
+                        <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
+                        <img src={ManualEntryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
+                      </div>
+
+                      {/* From Web Site */}
+                      <div 
+                        onClick={() => handleOptionClick('from-site')}
+                        className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] flex-shrink-0 w-[80vw] ${
+                          selectedOption === 'from-site' ? 'ring-2 ring-blue-500' : ''
+                        }`}
+                        style={{ backgroundColor: '#99C8CA' }}
+                      >
+                        <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
+                        <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
+                        <img src={FromSiteIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Desktop: Grid layout */}
+                  <div className="hidden lg:grid grid-cols-3 gap-4 flex-shrink-0">
                     {/* From CORAMA Directory */}
                     <div 
                       onClick={() => handleOptionClick('from-directory')}
