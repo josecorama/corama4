@@ -219,7 +219,7 @@ const ResetPasswordConfirm = () => {
                 {/* Error Message */}
                 {error && (
                   <div className="rounded-lg p-4 mb-6 text-sm flex items-start gap-3" style={{ backgroundColor: '#2F3C4F' }}>
-                    <img src="/static/app/landing/information-icon.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <img src="/static/app/landing/information-icon-white.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
                     <span className="text-white">{error}</span>
                   </div>
                 )}
@@ -255,22 +255,22 @@ const ResetPasswordConfirm = () => {
                     
                     {/* Password Requirements */}
                     {(showPasswordRequirements || (password && !isPasswordValid)) && (
-                      <div className="mt-2 p-3 bg-gray-800/50 rounded-lg">
-                        <p className="text-xs text-gray-300 font-poppins mb-2">Password must contain:</p>
+                      <div className="mt-2 p-3 rounded-lg" style={{ backgroundColor: '#2F3C4F' }}>
+                        <p className="text-xs text-white font-poppins mb-2">Password must contain:</p>
                         <div className="grid grid-cols-2 gap-1">
-                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.minLength ? 'text-green-400' : 'text-gray-400'}`}>
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.minLength ? 'text-green-400' : 'text-white'}`}>
                             {passwordValidation.minLength ? <Check size={12} /> : <X size={12} />}
                             At least 8 characters
                           </div>
-                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasUppercase ? 'text-green-400' : 'text-gray-400'}`}>
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasUppercase ? 'text-green-400' : 'text-white'}`}>
                             {passwordValidation.hasUppercase ? <Check size={12} /> : <X size={12} />}
                             One uppercase letter
                           </div>
-                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasNumber ? 'text-green-400' : 'text-gray-400'}`}>
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasNumber ? 'text-green-400' : 'text-white'}`}>
                             {passwordValidation.hasNumber ? <Check size={12} /> : <X size={12} />}
                             One number
                           </div>
-                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasSpecial ? 'text-green-400' : 'text-gray-400'}`}>
+                          <div className={`flex items-center gap-1 text-xs font-poppins ${passwordValidation.hasSpecial ? 'text-green-400' : 'text-white'}`}>
                             {passwordValidation.hasSpecial ? <Check size={12} /> : <X size={12} />}
                             One special character
                           </div>

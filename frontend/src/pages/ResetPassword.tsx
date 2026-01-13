@@ -126,7 +126,7 @@ const ResetPassword = () => {
             {/* Success Message */}
             {success && (
               <div className="rounded-lg p-4 mb-6 text-sm flex items-start gap-3" style={{ backgroundColor: '#2F3C4F' }}>
-                <img src="/static/app/landing/information-icon.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <img src="/static/app/landing/information-icon-white.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 <span className="text-white">{success}</span>
               </div>
             )}
@@ -134,7 +134,7 @@ const ResetPassword = () => {
             {/* Error Message */}
             {error && (
               <div className="rounded-lg p-4 mb-6 text-sm flex items-start gap-3" style={{ backgroundColor: '#2F3C4F' }}>
-                <img src="/static/app/landing/information-icon.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                <img src="/static/app/landing/information-icon-white.svg" alt="Info" className="w-5 h-5 flex-shrink-0 mt-0.5" />
                 <span className="text-white">{error}</span>
               </div>
             )}
