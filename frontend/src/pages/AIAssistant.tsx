@@ -202,6 +202,27 @@ const AIAssistant = () => {
   const contractName = state?.contractName || 'this contract'
   const contractId = state?.contractId || ''
   
+  // Check if user has capability statement on load
+  const [hasCapabilityStatement, setHasCapabilityStatement] = useState<boolean | null>(null)
+  
+  useEffect(() => {
+    const checkCapabilityStatement = async () => {
+      try {
+        const user = await api.getUser()
+        setHasCapabilityStatement(user.has_capability_statement)
+        if (!user.has_capability_statement) {
+          // Redirect to No CS page with returnTo parameter
+          navigate('/no-capability-statement?returnTo=/ai-assistant')
+        }
+      } catch (error) {
+        console.error('Failed to check capability statement:', error)
+        // On error, assume no CS and redirect
+        setHasCapabilityStatement(false)
+      }
+    }
+    checkCapabilityStatement()
+  }, [navigate])
+  
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -477,6 +498,15 @@ const AIAssistant = () => {
       setIsProcessing(false)
     }
   }
+
+    // Show loading state while checking capability statement
+    if (hasCapabilityStatement === null) {
+      return (
+        <div className="h-screen bg-corama-dark flex items-center justify-center">
+          <div className="text-white font-poppins">Loading...</div>
+        </div>
+      )
+    }
 
     return (
       <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
