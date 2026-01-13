@@ -1326,8 +1326,9 @@ def api_auth_signup():
     if not username:
         return jsonify({"success": False, "error": "Username is required"}), 400
     
-    # Normalize username (lowercase, trimmed)
-    username = username.strip().lower()
+    # Store original username for display, normalize for login matching
+    display_name = username.strip()  # Preserve original casing for display
+    username = username.strip().lower()  # Lowercase for case-insensitive login
     
     # Validate password requirements
     if len(password) < 8:
@@ -1384,6 +1385,7 @@ def api_auth_signup():
             "company": company,
             "email": email,
             "username": username,
+            "display_name": display_name,  # Original casing for display
             "account_type": account_type,
             "subscription_end_date": subscription_end_date,
             "user_id": user_id
@@ -1405,6 +1407,7 @@ def api_auth_signup():
             "company": company,
             "email": email,
             "username": username,
+            "display_name": display_name,  # Original casing for display
             "account_type": account_type,
             "subscription_end_date": subscription_end_date,
             "is_stripe_customer": False,
@@ -16068,7 +16071,7 @@ REACT_PAGE_ROUTES = {
     'no-capability-statement', 'contract-analysis', 'proposal-team',
     'proposal-summary', 'public-bid-proposal-generator', 'landing',
     'login', 'signup', 'confirm-terms', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq',
-    'about-us', 'support'
+    'about-us', 'support', 'admin'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
@@ -16128,6 +16131,9 @@ def api_get_user():
         cs_file = os.path.join(user_upload_dir, "capability_statements_processed.csv")
         has_cs = os.path.exists(cs_file)
         
+        # Use display_name if available, otherwise fall back to username or first_name
+        display_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or user_data.get('email', '').split('@')[0]
+        
         return jsonify({
             "success": True,
             "user": {
@@ -16136,7 +16142,7 @@ def api_get_user():
                 "first_name": user_data.get('first_name', ''),
                 "last_name": user_data.get('last_name', ''),
                 "company": user_data.get('company', ''),
-                "username": user_data.get('username', user_data.get('email', '').split('@')[0]),
+                "username": display_name,  # Return display_name with original casing
                 "credits_balance": user_data.get('credits_balance', 0),
                 "has_capability_statement": has_cs
             }
