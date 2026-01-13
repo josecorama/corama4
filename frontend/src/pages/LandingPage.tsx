@@ -392,21 +392,22 @@ const LandingPage = () => {
     <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
       {/* Header - Fixed at top */}
       <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-full flex items-center justify-between">
           <div className="flex items-center gap-2">
             <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" />
           </div>
           
-          <nav className="hidden md:flex items-center gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
-            <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">Support</a>
-            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">FAQ</a>
-            <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">About Us</a>
+          {/* Navigation - visible on all screen sizes */}
+          <nav className="flex items-center gap-2 sm:gap-4 lg:gap-8">
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
+            <a href="#" className="hidden sm:inline text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">Support</a>
+            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
+            <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">About</a>
           </nav>
           
-          <div className="flex items-center gap-2 sm:gap-4">
-            <a href="/login" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white" style={{ width: '96px' }}>Log In</a>
-            <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)', width: '96px' }}>Sign up</a>
+          <div className="flex items-center gap-1 sm:gap-4">
+            <a href="/login" className="text-white font-poppins text-[10px] sm:text-sm font-semibold px-3 sm:px-0 py-1.5 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white sm:w-24">Log In</a>
+            <a href="/signup" className="text-white font-poppins text-[10px] sm:text-sm font-semibold px-3 sm:px-0 py-1.5 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center sm:w-24" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
           </div>
         </div>
       </header>
