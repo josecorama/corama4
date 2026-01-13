@@ -659,10 +659,10 @@ const CapabilityBuilder = () => {
                 )}
               </div>
 
-              {/* Or Import from URL Section */}
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <span className="text-white font-poppins text-sm whitespace-nowrap">Or Import from URL</span>
-                <div className="flex items-center gap-2 flex-1">
+                            {/* Or Import from URL Section */}
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 lg:flex-1">
+                              <span className="text-white font-poppins text-sm whitespace-nowrap">Or Import from URL</span>
+                              <div className="flex items-center gap-2 flex-1">
                   <input
                     type="text"
                     value={importUrl}
