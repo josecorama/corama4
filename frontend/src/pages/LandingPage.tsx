@@ -476,13 +476,6 @@ const LandingPage = () => {
         data-section="features"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features')}`}
       >
-        {/* Layer 0: Soft teal glow backgrounds - diffused elliptical gradients */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          {/* Top-left teal glow */}
-          <div className="absolute top-0 -left-32 w-[700px] h-[450px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
-          {/* Bottom-right teal glow */}
-          <div className="absolute bottom-0 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(26,58,74,0.12)_40%,transparent_70%)] -rotate-6"></div>
-        </div>
         
         {/* Decorative stars with twinkling effect - positioned closer to cards (75% bigger) */}
         {/* Left side stars - closer to the cards */}
@@ -598,10 +591,6 @@ const LandingPage = () => {
         data-section="scope-revolution"
         className={`min-h-[auto] py-8 sm:py-0 sm:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
       >
-        {/* Soft teal glow background */}
-        <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="absolute top-1/2 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6 -translate-y-1/2"></div>
-        </div>
         
         {/* Scope of Work - with parallax effect */}
         <div 
