@@ -604,7 +604,7 @@ const LandingPage = () => {
         
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-6xl mx-auto relative z-10 mb-4 sm:mb-8 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 mb-10 sm:mb-16 parallax-section"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
