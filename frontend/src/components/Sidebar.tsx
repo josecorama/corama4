@@ -110,10 +110,10 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
         />
       )}
 
-      {/* Sidebar - sticky on desktop, starts below header (top-16) so horizontal line can span full width */}
+      {/* Sidebar - sticky on desktop, fixed overlay on mobile */}
       <aside 
         className={`
-          relative fixed lg:sticky lg:top-16 inset-y-0 left-0 z-40
+          fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40
           ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
           transform transition-all duration-300 ease-in-out
           ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
