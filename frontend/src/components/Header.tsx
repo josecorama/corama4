@@ -46,9 +46,14 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           </a>
         </div>
         
-        {/* Mobile logo - shown only on small screens, positioned on left after hamburger space */}
-        <div className="lg:hidden flex items-center pl-10 pr-2">
-          <a href="/" className="inline-flex items-center">
+        {/* Mobile: Hamburger spacer + Logo - positioned on left with proper spacing */}
+        <div className="lg:hidden flex items-center h-full">
+          {/* Hamburger button spacer - reserves space for the sidebar hamburger button */}
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 ml-2">
+            {/* This is a placeholder to maintain consistent header height and spacing */}
+            {/* The actual hamburger button is rendered by the Sidebar component */}
+          </div>
+          <a href="/" className="inline-flex items-center ml-1">
             <img 
               src="/static/app/dashboard/CoramaLogo.svg" 
               alt="CORAMA" 
