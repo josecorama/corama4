@@ -13430,6 +13430,222 @@ def initialize_proposal_draft():
         logging.error(f"Error initializing proposal draft: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/send-team-assignment-email', methods=['POST'])
+def send_team_assignment_email():
+    """Send notification emails to team members added from Corama Directory.
+    
+    This endpoint is called when the user reaches the proposal draft generator page
+    to notify team members that they have been added to a work team.
+    """
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        team_members = data.get('team_members', [])
+        contract_name = data.get('contract_name', 'a contract')
+        
+        if not team_members:
+            return jsonify({'success': True, 'message': 'No team members to notify', 'emails_sent': 0})
+        
+        # Get current user info
+        user_data = session.get('user_data', {})
+        user_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+        if not user_name:
+            user_name = user_data.get('username', 'A Corama user')
+        user_email = user_data.get('email', session.get('user', {}).get('email', ''))
+        
+        emails_sent = 0
+        errors = []
+        
+        for member in team_members:
+            member_email = member.get('email', '')
+            if not member_email:
+                continue
+            
+            # Build the HTML email using the team assignment template
+            html_body = f'''<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body {{ 
+        font-family: 'Poppins', sans-serif; 
+        background-color: #0f172a; 
+        margin: 0;
+        padding: 0;
+    }}
+    .container {{ 
+        max-width: 600px; 
+        margin: 40px auto; 
+        background-color: #1C4262; 
+        border-radius: 12px; 
+        padding: 40px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25); 
+        text-align: center; 
+    }}
+    .logo {{ 
+        margin-bottom: 30px; 
+    }}
+    .logo img {{
+        max-width: 180px; 
+        height: auto;
+        display: block;
+        margin: 0 auto;
+    }}
+    .btn-reset {{ 
+        display: inline-block;
+        background-color: #6bb4b5; 
+        color: #ffffff;
+        text-decoration: none;
+        padding: 16px 40px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        margin: 30px 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        transition: background-color 0.3s ease;
+    }}
+    .btn-reset:hover {{
+        background-color: #5aa1a2; 
+    }}
+    .message {{ 
+        color: #ffffff; 
+        line-height: 1.6; 
+    }}
+    .welcome-text {{
+        font-weight: 700; 
+        font-size: 20px;
+        margin-bottom: 15px;
+        display: block;
+    }}
+    .link-fallback {{
+        font-size: 12px;
+        color: #aabdd1;
+        margin-top: 20px;
+        word-break: break-all; 
+    }}
+    .link-fallback a {{
+        color: #6bb4b5;
+    }}
+    .footer {{ 
+        margin-top: 40px; 
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1); 
+        font-size: 13px; 
+        color: #e0e0e0; 
+        line-height: 1.5;
+        font-weight: 400;
+    }}
+    .footer p {{
+        margin: 5px 0;
+    }}
+    .footer a {{
+        color: #6bb4b5; 
+        text-decoration: none;
+        font-weight: 600;
+    }}
+    .copyright {{
+        margin-top: 20px;
+        font-size: 11px;
+        opacity: 0.7;
+    }}
+    .highlight {{
+        color: #6bb4b5;
+        font-weight: 600;
+    }}
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+        </div>
+        
+        <div class="message">
+            <p class="welcome-text">
+                New Team Assignment
+            </p>
+            <p style="font-weight: 400;">
+                Hello,
+                <br><br>
+                You have been added to a work team by <span class="highlight">{user_name}</span> via the Corama Directory.
+            </p>
+            <p style="font-weight: 400;">
+                This assignment is for the contract:
+                <br>
+                <span class="highlight" style="font-size: 18px;">{contract_name}</span>
+            </p>
+            <p style="font-weight: 400;">
+                For more information regarding this assignment, please contact them directly by clicking the button below.
+            </p>
+        </div>
+        
+        <a href="mailto:{user_email}?subject=Inquiry regarding contract: {contract_name}" class="btn-reset">Contact {user_name}</a>
+        
+        <div class="message">
+            <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
+                If you believe this was a mistake, you can ignore this email.
+            </p>
+        </div>
+
+        <div class="link-fallback">
+            <p>Button not working? You can email them directly at:</p>
+            <p><a href="mailto:{user_email}">{user_email}</a></p>
+        </div>
+        
+        <div class="footer">
+
+            <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+            <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+            <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+            
+            <div class="copyright">
+                <p>&copy; 2026 Corama. All rights reserved.</p>
+            </div>
+            
+            <div style="margin-top: 15px; font-size: 11px;">
+                <a href="https://ihccbusiness.net/" target="_blank">About IHCC</a> | 
+                <a href="https://corama.ai/terms-of-use">Terms of Use</a> | 
+                <a href="https://corama.ai/static/docs/policy.pdf">Policy</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>'''
+            
+            subject = f"New Team Assignment: {contract_name}"
+            
+            try:
+                success, error_msg = send_email_smtp(member_email, subject, html_body)
+                if success:
+                    emails_sent += 1
+                    app.logger.info(f"[Team Assignment] Email sent to {member_email} for contract '{contract_name}'")
+                else:
+                    errors.append(f"{member_email}: {error_msg}")
+                    app.logger.warning(f"[Team Assignment] Failed to send email to {member_email}: {error_msg}")
+            except Exception as email_error:
+                errors.append(f"{member_email}: {str(email_error)}")
+                app.logger.error(f"[Team Assignment] Error sending email to {member_email}: {email_error}")
+        
+        return jsonify({
+            'success': True,
+            'emails_sent': emails_sent,
+            'errors': errors if errors else None
+        })
+        
+    except Exception as e:
+        logging.error(f"Error sending team assignment emails: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/proposal-summary', methods=['POST'])
 def save_proposal_summary():
     """Save proposal summary checkpoint for a contract"""

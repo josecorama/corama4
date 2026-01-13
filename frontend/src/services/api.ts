@@ -732,6 +732,27 @@ class ApiService {
     window.open(`${API_BASE()}/download_proposal_pdf?draft_id=${draftId}`, '_blank');
   }
 
+  // Send Team Assignment Emails - Notifies team members added from Corama Directory
+  async sendTeamAssignmentEmails(data: {
+    team_members: Array<{name: string; role: string; email?: string; phone?: string}>;
+    contract_name: string;
+  }): Promise<{success: boolean; emails_sent?: number; errors?: string[]; error?: string}> {
+    const res = await fetch(`${API_BASE()}/send-team-assignment-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to send emails' }));
+      return { success: false, error: errorData.error || 'Failed to send emails' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     window.location.href = '/logout';

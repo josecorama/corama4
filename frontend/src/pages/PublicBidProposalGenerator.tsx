@@ -369,6 +369,23 @@ const PublicBidProposalGenerator = () => {
         setDraftId(initResult.draft_id)
         setProgressText('Generating 8 sections in parallel using AI...')
 
+        // Send team assignment notification emails to team members added from Corama Directory
+        const teamMembers = state?.teamMembers || JSON.parse(sessionStorage.getItem('currentTeamMembers') || '[]')
+        const contractName = state?.contractName || sessionStorage.getItem('currentContractName') || 'Contract'
+        if (teamMembers.length > 0) {
+          // Send emails in background - don't block proposal generation
+          api.sendTeamAssignmentEmails({
+            team_members: teamMembers,
+            contract_name: contractName
+          }).then(result => {
+            if (result.success && result.emails_sent && result.emails_sent > 0) {
+              console.log(`[Team Assignment] Sent ${result.emails_sent} notification email(s)`)
+            }
+          }).catch(err => {
+            console.error('[Team Assignment] Error sending notification emails:', err)
+          })
+        }
+
         // Step 2: Start the proposal generation job (returns immediately with job_id)
         const generateResult = await api.generateProposalSections(initResult.draft_id)
 
