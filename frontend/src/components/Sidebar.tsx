@@ -5,6 +5,7 @@ interface SidebarProps {
   mobileOpen?: boolean
   onMobileToggle?: () => void
   onGoBack?: () => void
+  onBeforeNavigate?: (to: string) => boolean // Return false to prevent navigation
 }
 
 interface MenuItem {
@@ -15,7 +16,7 @@ interface MenuItem {
   external?: boolean
 }
 
-const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }: SidebarProps) => {
+const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, onBeforeNavigate }: SidebarProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -202,7 +203,14 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                 ) : (
                   <Link
                     to={item.path}
-                    onClick={closeMobile}
+                    onClick={(e) => {
+                      // If onBeforeNavigate is provided and returns false, prevent navigation
+                      if (onBeforeNavigate && !onBeforeNavigate(item.path)) {
+                        e.preventDefault()
+                        return
+                      }
+                      closeMobile()
+                    }}
                     className={`relative flex items-center h-full px-4 transition-all ${
                       isActive 
                         ? 'text-white' 

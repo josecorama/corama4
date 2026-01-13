@@ -495,7 +495,21 @@ const AIAssistant = () => {
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
           <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
           
-          <Sidebar />
+          <Sidebar 
+            onBeforeNavigate={(to) => {
+              // Define workflow pages that should show the discard popup when leaving
+              const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis']
+              const isLeavingWorkflow = !workflowPages.some(page => to.startsWith(page))
+              
+              // If user has progress and is leaving the workflow, show popup
+              if (hasUnsavedProgress && isLeavingWorkflow) {
+                setPendingNavigation(to)
+                setShowDiscardPopup(true)
+                return false // Prevent navigation
+              }
+              return true // Allow navigation
+            }}
+          />
         
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 flex flex-col overflow-hidden">
