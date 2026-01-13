@@ -1,9 +1,112 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
 import { api, Contract as ApiContract } from '../services/api'
+
+// Custom hook for animating a number from 0 to target value
+const useCountUp = (target: number, duration: number = 1000, delay: number = 0) => {
+  const [count, setCount] = useState(0)
+  const startTimeRef = useRef<number | null>(null)
+  const animationFrameRef = useRef<number | null>(null)
+  
+  useEffect(() => {
+    // Reset when target changes
+    setCount(0)
+    startTimeRef.current = null
+    
+    if (target === 0) return
+    
+    const startAnimation = () => {
+      const animate = (currentTime: number) => {
+        if (startTimeRef.current === null) {
+          startTimeRef.current = currentTime
+        }
+        
+        const elapsed = currentTime - startTimeRef.current
+        const progress = Math.min(elapsed / duration, 1)
+        
+        // Easing function for smooth animation (ease-out)
+        const easeOut = 1 - Math.pow(1 - progress, 3)
+        const currentValue = Math.round(target * easeOut)
+        
+        setCount(currentValue)
+        
+        if (progress < 1) {
+          animationFrameRef.current = requestAnimationFrame(animate)
+        }
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(animate)
+    }
+    
+    // Start animation after delay
+    const timeoutId = setTimeout(startAnimation, delay)
+    
+    return () => {
+      clearTimeout(timeoutId)
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [target, duration, delay])
+  
+  return count
+}
+
+// Animated category card component
+const AnimatedCategoryCard = ({ 
+  cat, 
+  index 
+}: { 
+  cat: { name: string; count: number; percentage: number }; 
+  index: number 
+}) => {
+  const animatedPercentage = useCountUp(cat.percentage, 1200, index * 150)
+  const animatedCount = useCountUp(cat.count, 1200, index * 150)
+  
+  // Calculate stroke dash array based on animated percentage
+  const strokeDasharray = `${animatedPercentage * 2.2} 220`
+  
+  return (
+    <div className="rounded-xl p-4 border border-white flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
+      {/* Percentage graph on the left */}
+      <div className="relative w-20 h-20 flex-shrink-0">
+        <svg className="w-20 h-20 transform -rotate-90">
+          <circle
+            cx="40"
+            cy="40"
+            r="35"
+            stroke="rgba(107, 180, 181, 0.2)"
+            strokeWidth="5"
+            fill="none"
+          />
+          <circle
+            cx="40"
+            cy="40"
+            r="35"
+            stroke="#6bb4b5"
+            strokeWidth="5"
+            fill="none"
+            strokeDasharray={strokeDasharray}
+            strokeLinecap="round"
+            style={{ transition: 'stroke-dasharray 0.1s ease-out' }}
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-base font-bold">
+          {animatedPercentage}%
+        </span>
+      </div>
+      
+      {/* Category name and contract count to the right of graph */}
+      <div className="flex flex-col justify-center">
+        <h3 className="text-white font-poppins font-semibold text-sm">{cat.name}</h3>
+        <p className="text-corama-teal font-poppins text-sm">{animatedCount} contracts</p>
+      </div>
+    </div>
+  )
+}
 
 interface Contract {
   id: number
@@ -151,40 +254,7 @@ const Dashboard = () => {
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {topCategories.map((cat, index) => (
-                <div key={index} className="rounded-xl p-4 border border-white flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
-                  {/* Percentage graph on the left */}
-                  <div className="relative w-20 h-20 flex-shrink-0">
-                    <svg className="w-20 h-20 transform -rotate-90">
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="35"
-                        stroke="rgba(107, 180, 181, 0.2)"
-                        strokeWidth="5"
-                        fill="none"
-                      />
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="35"
-                        stroke="#6bb4b5"
-                        strokeWidth="5"
-                        fill="none"
-                        strokeDasharray={`${cat.percentage * 2.2} 220`}
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-base font-bold">
-                      {cat.percentage}%
-                    </span>
-                  </div>
-                  
-                  {/* Category name and contract count to the right of graph */}
-                  <div className="flex flex-col justify-center">
-                    <h3 className="text-white font-poppins font-semibold text-sm">{cat.name}</h3>
-                    <p className="text-corama-teal font-poppins text-sm">{cat.count} contracts</p>
-                  </div>
-                </div>
+                <AnimatedCategoryCard key={index} cat={cat} index={index} />
               ))}
             </div>
           </div>
