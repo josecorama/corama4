@@ -483,13 +483,29 @@ body {
 
 /* Desktop view: Scale site proportionally on smaller screens to maintain consistent appearance */
 /* Base design is optimized for 1920px width - scale down proportionally on smaller screens */
-@media (min-width: 1024px) and (max-width: 1919px) {
+
+/* Small laptops (1024px - 1366px): zoom to ~71% */
+@media (min-width: 1024px) and (max-width: 1366px) {
   html {
-    zoom: calc(100vw / 1920);
+    zoom: 0.71;
   }
 }
 
-/* For screens 1920px and above, no scaling needed */
+/* Medium laptops (1367px - 1600px): zoom to ~83% */
+@media (min-width: 1367px) and (max-width: 1600px) {
+  html {
+    zoom: 0.83;
+  }
+}
+
+/* Large laptops (1601px - 1919px): zoom to ~90% */
+@media (min-width: 1601px) and (max-width: 1919px) {
+  html {
+    zoom: 0.9;
+  }
+}
+
+/* Full HD and above (1920px+): no scaling needed */
 @media (min-width: 1920px) {
   html {
     zoom: 1;
