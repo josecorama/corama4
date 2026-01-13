@@ -15425,6 +15425,226 @@ def require_auth():
     return user_data
 
 
+# ============================================================================
+# ADMIN AUTHENTICATION SYSTEM
+# ============================================================================
+
+def check_admin_status(user_id: str, email: str = None) -> bool:
+    """
+    SECURITY: Check if a user has admin privileges.
+    
+    Checks two sources (in order):
+    1. ADMIN_EMAILS environment variable (bootstrap/emergency access)
+    2. /admins/{user_id} collection in Firebase (primary source)
+    
+    Args:
+        user_id: Firebase user ID
+        email: User's email (optional, for env var check)
+    
+    Returns:
+        True if user is admin, False otherwise
+    """
+    # Check 1: Environment variable whitelist (bootstrap/emergency)
+    admin_emails = os.getenv('ADMIN_EMAILS', '')
+    if email and admin_emails:
+        admin_email_list = [e.strip().lower() for e in admin_emails.split(',') if e.strip()]
+        if email.lower() in admin_email_list:
+            app.logger.info(f"[Admin] User {email} granted admin via ADMIN_EMAILS env var")
+            return True
+    
+    # Check 2: Firebase /admins/{user_id} collection
+    if admin_initialized and admin_db:
+        try:
+            admin_ref = admin_db.reference(f'admins/{user_id}')
+            admin_data = admin_ref.get()
+            if admin_data and admin_data.get('is_admin', False):
+                app.logger.info(f"[Admin] User {user_id} granted admin via Firebase /admins collection")
+                return True
+        except Exception as e:
+            app.logger.warning(f"[Admin] Error checking admin status for {user_id}: {e}")
+    
+    return False
+
+
+def require_admin():
+    """
+    SECURITY: Check that user is authenticated AND has admin privileges.
+    
+    Re-checks admin status on every request for quick revocation.
+    
+    Usage:
+        result = require_admin()
+        if isinstance(result, tuple):  # It's an error response
+            return result
+        user_data = result
+    
+    Returns:
+        dict with user data if admin, or (jsonify response, status_code) tuple if not
+    """
+    user_data = get_current_user_secure()
+    if not user_data:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    user_id = user_data.get('user_id')
+    email = user_data.get('email')
+    
+    # Re-check admin status on every request (not cached) for quick revocation
+    if not check_admin_status(user_id, email):
+        app.logger.warning(f"[Admin] Unauthorized admin access attempt by {email} ({user_id})")
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    return user_data
+
+
+def log_admin_action(user_id: str, email: str, action: str, details: dict = None):
+    """
+    SECURITY: Log admin actions for audit trail.
+    
+    Args:
+        user_id: Admin's Firebase user ID
+        email: Admin's email
+        action: Description of the action taken
+        details: Additional details about the action
+    """
+    log_entry = {
+        'timestamp': datetime.now().isoformat(),
+        'admin_user_id': user_id,
+        'admin_email': email,
+        'action': action,
+        'details': details or {},
+        'ip_address': request.remote_addr,
+        'user_agent': request.headers.get('User-Agent', 'Unknown')
+    }
+    
+    app.logger.info(f"[Admin Audit] {email} performed: {action} - {details}")
+    
+    # Store audit log in Firebase
+    if admin_initialized and admin_db:
+        try:
+            audit_ref = admin_db.reference('admin_audit_logs')
+            audit_ref.push(log_entry)
+        except Exception as e:
+            app.logger.error(f"[Admin Audit] Failed to store audit log: {e}")
+
+
+# ============================================================================
+# ADMIN API ENDPOINTS
+# ============================================================================
+
+@app.route('/api/admin/check-status', methods=['GET'])
+def api_admin_check_status():
+    """Check if current user has admin privileges."""
+    user_data = get_current_user_secure()
+    if not user_data:
+        return jsonify({'success': False, 'is_admin': False, 'error': 'Not authenticated'}), 401
+    
+    user_id = user_data.get('user_id')
+    email = user_data.get('email')
+    is_admin = check_admin_status(user_id, email)
+    
+    return jsonify({
+        'success': True,
+        'is_admin': is_admin,
+        'email': email
+    })
+
+
+@app.route('/api/admin/directory/list', methods=['GET'])
+def api_admin_directory_list():
+    """Admin endpoint to list all directory entries."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    try:
+        all_listings = []
+        
+        if admin_initialized and admin_db:
+            directory_ref = admin_db.reference('corama_directory')
+            all_directory_data = directory_ref.get()
+            
+            if all_directory_data:
+                for user_id, listing in all_directory_data.items():
+                    if listing:
+                        listing['user_id'] = user_id
+                        all_listings.append(listing)
+        
+        log_admin_action(
+            admin_data['user_id'],
+            admin_data['email'],
+            'VIEW_ALL_DIRECTORY_LISTINGS',
+            {'count': len(all_listings)}
+        )
+        
+        return jsonify({
+            'success': True,
+            'listings': all_listings,
+            'count': len(all_listings)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error listing directory entries: {e}")
+        return jsonify({'success': False, 'error': 'Failed to load directory listings'}), 500
+
+
+@app.route('/api/admin/directory/delete', methods=['POST'])
+def api_admin_directory_delete():
+    """Admin endpoint to delete a directory entry."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    data = request.get_json() or {}
+    target_user_id = data.get('user_id')
+    
+    if not target_user_id:
+        return jsonify({'success': False, 'error': 'user_id is required'}), 400
+    
+    try:
+        # Get listing info before deletion for audit log
+        listing_info = None
+        if admin_initialized and admin_db:
+            directory_ref = admin_db.reference(f'corama_directory/{target_user_id}')
+            listing_info = directory_ref.get()
+            
+            if not listing_info:
+                return jsonify({'success': False, 'error': 'Directory listing not found'}), 404
+            
+            # Delete the directory entry
+            directory_ref.delete()
+            
+            # Also update the user's directory_listed flag
+            try:
+                user_ref = admin_db.reference(f'users/{target_user_id}')
+                user_ref.update({'directory_listed': False})
+            except Exception as user_update_error:
+                app.logger.warning(f"[Admin] Could not update directory_listed flag for {target_user_id}: {user_update_error}")
+        
+        log_admin_action(
+            admin_data['user_id'],
+            admin_data['email'],
+            'DELETE_DIRECTORY_LISTING',
+            {
+                'deleted_user_id': target_user_id,
+                'deleted_company': listing_info.get('company', 'Unknown') if listing_info else 'Unknown'
+            }
+        )
+        
+        app.logger.info(f"[Admin] Directory listing deleted for user {target_user_id} by admin {admin_data['email']}")
+        
+        return jsonify({
+            'success': True,
+            'message': f"Directory listing deleted successfully",
+            'deleted_user_id': target_user_id
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error deleting directory entry for {target_user_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to delete directory listing'}), 500
+
+
 @app.route('/api/get_directory_profile', methods=['GET'])
 def get_directory_profile():
     """Get user's directory profile"""

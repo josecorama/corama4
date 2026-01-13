@@ -21,6 +21,7 @@ import VerifyEmail from './pages/VerifyEmail'
 import FAQ from './pages/FAQ'
 import AboutUsPublic from './pages/AboutUsPublic'
 import Support from './pages/Support'
+import AdminDirectory from './pages/AdminDirectory'
 
 function App() {
   return (
@@ -46,9 +47,10 @@ function App() {
         <Route path="/contract-analysis" element={<ContractAnalysis />} />
         <Route path="/proposal-team" element={<ProposalTeam />} />
         <Route path="/proposal-summary" element={<ProposalSummary />} />
-                          <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
-                          <Route path="/support" element={<Support />} />
-                        </Routes>
+                                                  <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
+                                                  <Route path="/support" element={<Support />} />
+                                                  <Route path="/admin/directory" element={<AdminDirectory />} />
+                                                </Routes>
     </Router>
   )
 }

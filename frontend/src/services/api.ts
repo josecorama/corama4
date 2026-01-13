@@ -753,6 +753,85 @@ class ApiService {
     return res.json();
   }
 
+  // ============================================================================
+  // ADMIN API ENDPOINTS
+  // ============================================================================
+
+  // Check if current user has admin privileges
+  async checkAdminStatus(): Promise<{success: boolean; is_admin: boolean; email?: string; error?: string}> {
+    const res = await fetch(`${API_BASE()}/admin/check-status`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, is_admin: false, error: 'Not authenticated' };
+      }
+      return { success: false, is_admin: false, error: 'Failed to check admin status' };
+    }
+    return res.json();
+  }
+
+  // Get all directory listings (admin only)
+  async adminGetDirectoryListings(): Promise<{
+    success: boolean;
+    listings?: Array<{
+      user_id: string;
+      company: string;
+      contact_name: string;
+      email: string;
+      phone: string;
+      listed: boolean;
+      updated_at?: string;
+    }>;
+    count?: number;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/admin/directory/list`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      if (res.status === 403) {
+        return { success: false, error: 'Admin access required' };
+      }
+      return { success: false, error: 'Failed to load directory listings' };
+    }
+    return res.json();
+  }
+
+  // Delete a directory listing (admin only)
+  async adminDeleteDirectoryListing(userId: string): Promise<{
+    success: boolean;
+    message?: string;
+    deleted_user_id?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/admin/directory/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ user_id: userId })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      if (res.status === 403) {
+        return { success: false, error: 'Admin access required' };
+      }
+      if (res.status === 404) {
+        return { success: false, error: 'Directory listing not found' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to delete listing' }));
+      return { success: false, error: errorData.error || 'Failed to delete listing' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     window.location.href = '/logout';
