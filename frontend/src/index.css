@@ -480,3 +480,11 @@ body {
 .grecaptcha-badge {
   visibility: hidden !important;
 }
+
+/* Desktop view: Constrain to 1366px max-width for consistent display */
+@media (min-width: 1024px) {
+  #root {
+    max-width: 1366px;
+    margin: 0 auto;
+  }
+}
