@@ -46,19 +46,19 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           </a>
         </div>
         
-        {/* Mobile logo - shown only on small screens */}
-        <div className="lg:hidden flex items-center pl-14 pr-2">
+        {/* Mobile logo - shown only on small screens, centered with proper spacing */}
+        <div className="lg:hidden flex items-center justify-center flex-1">
           <a href="/" className="inline-flex items-center">
             <img 
               src="/static/app/dashboard/CoramaLogo.svg" 
               alt="CORAMA" 
-              className="h-8 w-auto"
+              className="h-7 w-auto"
             />
           </a>
         </div>
         
         {/* Right: Main header content */}
-        <div className="flex-1 flex items-center justify-between px-4 lg:px-6">
+        <div className="flex-1 flex items-center justify-between px-2 sm:px-4 lg:px-6">
           {/* Search - hidden on mobile, visible on tablet+ - starts where sidebar ends, stops 16px before credits */}
           <div className="hidden md:flex flex-1 min-w-0" style={{ marginRight: '16px' }}>
             <div className="relative w-full">
@@ -72,30 +72,29 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
             </div>
           </div>
           
-          {/* Mobile search icon */}
-          <button className="md:hidden p-2 text-gray-400 hover:text-white">
+          {/* Mobile search icon - hidden on mobile to save space */}
+          <button className="hidden md:block lg:hidden p-2 text-gray-400 hover:text-white">
             <Search size={20} />
           </button>
           
-          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
-            <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-              <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
+          <div className="flex items-center gap-3 sm:gap-4 lg:gap-6">
+            <Link to="/get-more-credits" className="flex items-center gap-1 text-white hover:text-corama-teal transition-colors">
+              <img src="/static/app/dashboard/Credits.svg" alt="" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
               {!isLoading && credits !== null && (
                 <span className="font-poppins text-xs sm:text-sm">{credits}</span>
               )}
-              <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Credits</span>
             </Link>
             
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors"
+              className="flex items-center gap-1 text-white hover:text-corama-teal transition-colors"
             >
-              <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-5 w-5" aria-hidden="true" />
+              <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
               <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Log Out</span>
             </button>
             
-            <button className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-              <img src="/static/app/dashboard/settings.svg" alt="" className="h-5 w-5" aria-hidden="true" />
+            <button className="flex items-center gap-1 text-white hover:text-corama-teal transition-colors">
+              <img src="/static/app/dashboard/settings.svg" alt="" className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
               <span className="hidden lg:inline font-poppins text-sm">Settings</span>
             </button>
           </div>

@@ -149,7 +149,49 @@ const Dashboard = () => {
           {/* Top Contract Categories */}
           <div className="mb-6 lg:mb-8">
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+            {/* Mobile: Horizontal scrollable carousel */}
+            <div className="lg:hidden overflow-x-auto -mx-3 sm:-mx-4 px-3 sm:px-4 pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex gap-3" style={{ width: 'max-content' }}>
+                {topCategories.map((cat, index) => (
+                  <div key={index} className="rounded-xl p-3 border border-white flex items-center gap-3 flex-shrink-0" style={{ backgroundColor: '#0b2c48', width: '200px' }}>
+                    {/* Percentage graph on the left */}
+                    <div className="relative w-14 h-14 flex-shrink-0">
+                      <svg className="w-14 h-14 transform -rotate-90">
+                        <circle
+                          cx="28"
+                          cy="28"
+                          r="24"
+                          stroke="rgba(107, 180, 181, 0.2)"
+                          strokeWidth="4"
+                          fill="none"
+                        />
+                        <circle
+                          cx="28"
+                          cy="28"
+                          r="24"
+                          stroke="#6bb4b5"
+                          strokeWidth="4"
+                          fill="none"
+                          strokeDasharray={`${cat.percentage * 1.5} 151`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-xs font-bold">
+                        {cat.percentage}%
+                      </span>
+                    </div>
+                    
+                    {/* Category name and contract count to the right of graph */}
+                    <div className="flex flex-col justify-center min-w-0">
+                      <h3 className="text-white font-poppins font-semibold text-xs truncate">{cat.name}</h3>
+                      <p className="text-corama-teal font-poppins text-xs">{cat.count} contracts</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Desktop: Grid layout */}
+            <div className="hidden lg:grid grid-cols-4 gap-4">
               {topCategories.map((cat, index) => (
                 <div key={index} className="rounded-xl p-4 border border-white flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
                   {/* Percentage graph on the left */}
