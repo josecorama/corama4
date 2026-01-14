@@ -247,26 +247,42 @@ const Dashboard = () => {
             <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>
             
             {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowGrants(!showGrants)}
-                className="relative w-[40px] h-[22px] rounded-full border-none cursor-pointer p-[2px] flex items-center transition-colors duration-300"
-                style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
-                aria-pressed={showGrants}
-                aria-label="Toggle between Grants and Contracts"
+            <button
+              onClick={() => setShowGrants(!showGrants)}
+              className="relative w-[120px] h-[22px] rounded-[20px] border-none cursor-pointer p-[2px] flex items-center transition-colors duration-400 select-none font-poppins"
+              style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
+              aria-pressed={showGrants}
+              aria-label="Toggle between Grants and Contracts"
+            >
+              {/* Moving thumb */}
+              <span
+                className="relative z-10 block w-[18px] h-[18px] bg-white rounded-full shadow-md transition-transform duration-400"
+                style={{ 
+                  transform: showGrants ? 'translateX(98px)' : 'translateX(0)',
+                  transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+                }}
+              />
+              {/* Contracts View label (visible when OFF) */}
+              <span 
+                className="absolute inset-0 flex items-center justify-center text-[10px] font-medium pointer-events-none z-0 transition-opacity duration-400"
+                style={{ 
+                  color: '#0B2C48',
+                  opacity: showGrants ? 0 : 1
+                }}
               >
-                <span
-                  className="block w-[18px] h-[18px] bg-white rounded-full shadow-md transition-transform duration-300"
-                  style={{ 
-                    transform: showGrants ? 'translateX(18px)' : 'translateX(0)',
-                    transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
-                  }}
-                />
-              </button>
-              <span className="text-white font-poppins text-xs whitespace-nowrap">
-                {showGrants ? 'Toggle to see Contracts' : 'Toggle to see Grants'}
+                Contracts View
               </span>
-            </div>
+              {/* Grants View label (visible when ON) */}
+              <span 
+                className="absolute inset-0 flex items-center justify-center text-[10px] font-medium pointer-events-none z-0 transition-opacity duration-400"
+                style={{ 
+                  color: '#ffffff',
+                  opacity: showGrants ? 1 : 0
+                }}
+              >
+                Grants View
+              </span>
+            </button>
             
             <div className="flex items-center gap-2 text-white font-poppins text-xs sm:text-sm">
               <span>Accounts</span>
