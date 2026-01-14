@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
+import InsufficientCreditsPopup from '../components/InsufficientCreditsPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
@@ -165,6 +166,9 @@ const ProposalSummary = () => {
   // Credit confirmation popup state
   const [showCreditPopup, setShowCreditPopup] = useState(false)
   const [isDeductingCredits, setIsDeductingCredits] = useState(false)
+  
+  // Insufficient credits popup state
+  const [showInsufficientCreditsPopup, setShowInsufficientCreditsPopup] = useState(false)
   
   // Generate unique ID
   const generateId = () => Math.random().toString(36).substr(2, 9)
@@ -415,9 +419,15 @@ const ProposalSummary = () => {
           } 
         })
       } else {
-        // Show error message
-        setSaveMessage(response.error || 'Failed to deduct credits. Please try again.')
-        setShowCreditPopup(false)
+        // Check if it's an insufficient credits error
+        if (response.error?.toLowerCase().includes('insufficient')) {
+          setShowCreditPopup(false)
+          setShowInsufficientCreditsPopup(true)
+        } else {
+          // Show error message
+          setSaveMessage(response.error || 'Failed to deduct credits. Please try again.')
+          setShowCreditPopup(false)
+        }
       }
     } catch (error) {
       console.error('Error deducting credits:', error)
@@ -426,6 +436,12 @@ const ProposalSummary = () => {
     } finally {
       setIsDeductingCredits(false)
     }
+  }
+  
+  // Handle getting more credits from insufficient credits popup
+  const handleGetCredits = () => {
+    setShowInsufficientCreditsPopup(false)
+    navigate('/get-more-credits')
   }
   
     // Format currency
@@ -440,6 +456,14 @@ const ProposalSummary = () => {
         isOpen={showDiscardPopup}
         onStayHere={handleStayHere}
         onDiscard={handleDiscard}
+      />
+      
+      {/* Insufficient Credits Popup */}
+      <InsufficientCreditsPopup
+        isOpen={showInsufficientCreditsPopup}
+        creditsRequired={15}
+        onGetCredits={handleGetCredits}
+        onClose={() => setShowInsufficientCreditsPopup(false)}
       />
       
       <Header credits={5} />
