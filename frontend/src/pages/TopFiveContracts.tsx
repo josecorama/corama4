@@ -339,7 +339,7 @@ const TopFiveContracts = () => {
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
               {/* Page Title and Action Buttons */}
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Contracts</h1>
+                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Matches</h1>
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => handleRerunMatching(contractType, selectedStates)}
