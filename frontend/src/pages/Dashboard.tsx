@@ -249,22 +249,22 @@ const Dashboard = () => {
             {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
             <button
               onClick={() => setShowGrants(!showGrants)}
-              className="relative w-[120px] h-[22px] rounded-[20px] border-none cursor-pointer p-[2px] flex items-center transition-colors duration-400 select-none font-poppins"
+              className="relative w-[240px] h-[44px] rounded-[40px] border-none cursor-pointer p-[4px] flex items-center transition-colors duration-400 select-none font-poppins"
               style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
               aria-pressed={showGrants}
               aria-label="Toggle between Grants and Contracts"
             >
-              {/* Moving thumb */}
+              {/* Moving thumb - 36px (44px - 4px*2 padding) */}
               <span
-                className="relative z-10 block w-[18px] h-[18px] bg-white rounded-full shadow-md transition-transform duration-400"
+                className="relative z-10 block w-[36px] h-[36px] bg-white rounded-full shadow-md transition-transform duration-400"
                 style={{ 
-                  transform: showGrants ? 'translateX(98px)' : 'translateX(0)',
+                  transform: showGrants ? 'translateX(196px)' : 'translateX(0)',
                   transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
                 }}
               />
               {/* Contracts View label (visible when OFF) */}
               <span 
-                className="absolute inset-0 flex items-center justify-center text-[10px] font-medium pointer-events-none z-0 transition-opacity duration-400"
+                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-400"
                 style={{ 
                   color: '#0B2C48',
                   opacity: showGrants ? 0 : 1
@@ -274,7 +274,7 @@ const Dashboard = () => {
               </span>
               {/* Grants View label (visible when ON) */}
               <span 
-                className="absolute inset-0 flex items-center justify-center text-[10px] font-medium pointer-events-none z-0 transition-opacity duration-400"
+                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-400"
                 style={{ 
                   color: '#ffffff',
                   opacity: showGrants ? 1 : 0
