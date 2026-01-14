@@ -394,8 +394,8 @@ const Signup = () => {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent py-5 z-40">
+      {/* Footer - at bottom of page content, not fixed */}
+      <footer className="bg-[#0B0B0F] pt-8 pb-5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
           <div className="text-center sm:text-left">
             <div>180 North Michigan Avenue</div>

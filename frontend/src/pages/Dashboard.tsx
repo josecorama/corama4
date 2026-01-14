@@ -244,30 +244,30 @@ const Dashboard = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
-            <div className="flex items-center gap-4">
-              <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>
-              {/* Toggle Button for Grants/Contracts */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowGrants(!showGrants)}
-                  className="relative w-[60px] h-[34px] rounded-full border-none cursor-pointer p-[4px] flex items-center transition-colors duration-300"
-                  style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
-                  aria-pressed={showGrants}
-                  aria-label="Toggle between Grants and Contracts"
-                >
-                  <span
-                    className="block w-[26px] h-[26px] bg-white rounded-full shadow-md transition-transform duration-300"
-                    style={{ 
-                      transform: showGrants ? 'translateX(26px)' : 'translateX(0)',
-                      transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
-                    }}
-                  />
-                </button>
-                <span className="text-white font-poppins text-xs sm:text-sm whitespace-nowrap">
-                  {showGrants ? 'Toggle to see Contracts' : 'Toggle to see Grants'}
-                </span>
-              </div>
+            <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>
+            
+            {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowGrants(!showGrants)}
+                className="relative w-[40px] h-[22px] rounded-full border-none cursor-pointer p-[2px] flex items-center transition-colors duration-300"
+                style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
+                aria-pressed={showGrants}
+                aria-label="Toggle between Grants and Contracts"
+              >
+                <span
+                  className="block w-[18px] h-[18px] bg-white rounded-full shadow-md transition-transform duration-300"
+                  style={{ 
+                    transform: showGrants ? 'translateX(18px)' : 'translateX(0)',
+                    transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+                  }}
+                />
+              </button>
+              <span className="text-white font-poppins text-xs whitespace-nowrap">
+                {showGrants ? 'Toggle to see Contracts' : 'Toggle to see Grants'}
+              </span>
             </div>
+            
             <div className="flex items-center gap-2 text-white font-poppins text-xs sm:text-sm">
               <span>Accounts</span>
               <span>|</span>
