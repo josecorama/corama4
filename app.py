@@ -15896,26 +15896,10 @@ def upload_directory_logo():
         user_id = session['user_data']['user_id']
         id_token = session['user_data']['idToken']
         
-        # AUTHORIZATION CHECK: Only users with existing directory listings can upload logos
-        existing_directory_data = None
-        try:
-            existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
-        except Exception as dir_read_error:
-            app.logger.warning(f"Could not read existing directory data for logo upload user {user_id}: {dir_read_error}")
-            if admin_initialized and admin_db:
-                try:
-                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
-                    existing_directory_data = directory_ref.get()
-                except Exception as admin_read_error:
-                    app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
-        
-        if not existing_directory_data or not existing_directory_data.get('listed', False):
-            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to upload logo without existing listing")
-            return jsonify({
-                'success': False, 
-                'error': 'You must have an existing directory listing to upload a logo.',
-                'authorization_error': True
-            }), 403
+        # AUTHORIZATION CHECK: Allow authenticated users to upload logos
+        # This allows both existing directory members and new users joining the directory
+        # The authentication check above (session['user_data']) is sufficient
+        app.logger.info(f"Logo upload authorized for authenticated user {user_id}")
         
         if 'logo' not in request.files:
             app.logger.warning(f"Logo upload for user {user_id}: No logo file in request")
