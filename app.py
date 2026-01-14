@@ -15773,8 +15773,7 @@ def update_directory_profile():
         if not user_data:
             return jsonify({'success': False, 'error': 'User data not found'}), 404
         
-        # AUTHORIZATION CHECK: Only users with existing directory listings can edit their profile
-        # This prevents users who are not listed from creating/editing directory entries
+        # Check for existing directory data to determine if this is a new listing or an update
         existing_directory_data = None
         try:
             existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
@@ -15788,18 +15787,17 @@ def update_directory_profile():
                 except Exception as admin_read_error:
                     app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
         
-        # Check if user has an existing listing (listed: true)
-        if not existing_directory_data or not existing_directory_data.get('listed', False):
-            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to edit directory profile without existing listing")
-            return jsonify({
-                'success': False, 
-                'error': 'You must have an existing directory listing to edit your profile. Please contact support to get listed.',
-                'authorization_error': True
-            }), 403
-        
-        # SECURITY: Don't trust client-provided 'listed' value - preserve existing value
-        # The 'listed' status should only be changed by admins, not by users
-        existing_listed_status = existing_directory_data.get('listed', False)
+        # Determine the listed status:
+        # - For NEW listings: Allow user to join the directory (set listed: true)
+        # - For EXISTING listings: Preserve the existing listed status (security measure)
+        if existing_directory_data:
+            # Existing entry - preserve the listed status (don't trust client value)
+            existing_listed_status = existing_directory_data.get('listed', False)
+            app.logger.info(f"Updating existing directory entry for user {user_id}, preserving listed={existing_listed_status}")
+        else:
+            # New entry - allow user to join the directory
+            existing_listed_status = data.get('listed', True)  # Default to True for new listings
+            app.logger.info(f"Creating new directory entry for user {user_id}, setting listed={existing_listed_status}")
         
         profile_data = {
             'company': data.get('company', user_data.get('company', '')).strip(),
