@@ -1,15 +1,64 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../services/api'
-
-// Note: Link is still used for credits link below
 
 interface HeaderProps {
   credits?: number
 }
 
 const CREDITS_CACHE_KEY = 'corama_credits_cache'
+const CREDITS_ANIMATED_KEY = 'corama_credits_animated'
+
+const useCountUp = (targetValue: number | null, duration: number = 800) => {
+  const [displayValue, setDisplayValue] = useState<number | null>(null)
+  const hasAnimatedRef = useRef(false)
+  const animationRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (targetValue === null) {
+      setDisplayValue(null)
+      return
+    }
+
+    const alreadyAnimated = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
+    
+    if (alreadyAnimated || hasAnimatedRef.current) {
+      setDisplayValue(targetValue)
+      return
+    }
+
+    hasAnimatedRef.current = true
+    sessionStorage.setItem(CREDITS_ANIMATED_KEY, 'true')
+
+    const startTime = performance.now()
+    const startValue = 0
+
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      
+      const easeOutQuad = 1 - (1 - progress) * (1 - progress)
+      const currentValue = Math.round(startValue + (targetValue - startValue) * easeOutQuad)
+      
+      setDisplayValue(currentValue)
+
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate)
+      }
+    }
+
+    animationRef.current = requestAnimationFrame(animate)
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [targetValue, duration])
+
+  return displayValue
+}
 
 const Header = ({ credits: propCredits }: HeaderProps) => {
   const [credits, setCredits] = useState<number | null>(() => {
@@ -21,6 +70,8 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
     }
     return propCredits ?? null
   })
+
+  const displayCredits = useCountUp(credits)
 
   useEffect(() => {
     loadUserData()
@@ -88,8 +139,8 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
             <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              {credits !== null && (
-                <span className="font-poppins text-xs sm:text-sm">{credits}</span>
+              {displayCredits !== null && (
+                <span className="font-poppins text-xs sm:text-sm">{displayCredits}</span>
               )}
               <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Credits</span>
             </Link>
