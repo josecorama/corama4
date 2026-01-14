@@ -249,16 +249,16 @@ const Dashboard = () => {
             {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
             <button
               onClick={() => setShowGrants(!showGrants)}
-              className="relative w-[240px] h-[44px] rounded-[40px] border-none cursor-pointer p-[4px] flex items-center transition-colors duration-400 select-none font-poppins"
+              className="relative w-[240px] h-[40px] rounded-[40px] border-none cursor-pointer p-[4px] flex items-center transition-colors duration-400 select-none font-poppins"
               style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
               aria-pressed={showGrants}
               aria-label="Toggle between Grants and Contracts"
             >
-              {/* Moving thumb - 36px (44px - 4px*2 padding) */}
+              {/* Moving thumb - 32px (40px - 4px*2 padding) */}
               <span
-                className="relative z-10 block w-[36px] h-[36px] bg-white rounded-full shadow-md transition-transform duration-400"
+                className="relative z-10 block w-[32px] h-[32px] bg-white rounded-full shadow-md transition-transform duration-400"
                 style={{ 
-                  transform: showGrants ? 'translateX(196px)' : 'translateX(0)',
+                  transform: showGrants ? 'translateX(200px)' : 'translateX(0)',
                   transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
                 }}
               />
