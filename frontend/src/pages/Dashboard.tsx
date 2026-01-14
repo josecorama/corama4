@@ -249,22 +249,22 @@ const Dashboard = () => {
             {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
             <button
               onClick={() => setShowGrants(!showGrants)}
-              className="relative w-[240px] h-[40px] rounded-[40px] border-none cursor-pointer p-[4px] flex items-center transition-colors duration-400 select-none font-poppins"
+              className="relative w-[240px] h-[36px] rounded-[40px] border-none cursor-pointer p-[4px] flex items-center transition-colors duration-700 select-none font-poppins"
               style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
               aria-pressed={showGrants}
               aria-label="Toggle between Grants and Contracts"
             >
-              {/* Moving thumb - 32px (40px - 4px*2 padding) */}
+              {/* Moving thumb - 28px (36px - 4px*2 padding) */}
               <span
-                className="relative z-10 block w-[32px] h-[32px] bg-white rounded-full shadow-md transition-transform duration-400"
+                className="relative z-10 block w-[28px] h-[28px] bg-white rounded-full shadow-md transition-transform duration-700"
                 style={{ 
-                  transform: showGrants ? 'translateX(200px)' : 'translateX(0)',
+                  transform: showGrants ? 'translateX(204px)' : 'translateX(0)',
                   transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
                 }}
               />
               {/* Contracts View label (visible when OFF) */}
               <span 
-                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-400"
+                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-700"
                 style={{ 
                   color: '#0B2C48',
                   opacity: showGrants ? 0 : 1
@@ -274,7 +274,7 @@ const Dashboard = () => {
               </span>
               {/* Grants View label (visible when ON) */}
               <span 
-                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-400"
+                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-700"
                 style={{ 
                   color: '#ffffff',
                   opacity: showGrants ? 1 : 0
@@ -291,9 +291,9 @@ const Dashboard = () => {
             </div>
           </div>
 
-          {/* Top Contract Categories */}
+          {/* Top Contract/Grant Categories */}
           <div className="mb-6 lg:mb-8">
-            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
+            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">{showGrants ? 'TOP GRANT CATEGORIES' : 'TOP CONTRACT CATEGORIES'}</h2>
             
             {/* Desktop: Grid layout */}
             <div className="hidden lg:grid grid-cols-4 gap-4">
@@ -350,18 +350,18 @@ const Dashboard = () => {
             </div>
           </div>
 
-                    {/* Available Contracts Table */}
+                    {/* Available Contracts/Grants Table */}
                     <div className="rounded-xl p-3 sm:p-4 lg:p-6 border" style={{ backgroundColor: '#2f3c4f', borderColor: '#98C9CA' }}>
                       {/* Single row: Heading LEFT, Search CENTER, Filter/Pagination RIGHT */}
                       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4 lg:mb-6">
-                        {/* Left: Available Contracts heading */}
-                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">Available Contracts</h2>
+                        {/* Left: Available Contracts/Grants heading */}
+                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">{showGrants ? 'Available Grants' : 'Available Contracts'}</h2>
                         
                         {/* Center: Search Bar */}
                         <form onSubmit={handleSearch} className="relative flex-1 max-w-xl mx-auto">
                           <input
                             type="text"
-                            placeholder="SEARCH CONTRACTS"
+                            placeholder={showGrants ? 'SEARCH GRANTS' : 'SEARCH CONTRACTS'}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border rounded-full py-2 pl-10 pr-6 text-white placeholder-gray-400 focus:outline-none w-full text-sm font-poppins tracking-wide"
@@ -406,9 +406,9 @@ const Dashboard = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="font-poppins text-sm" style={{ color: '#9ccdcd' }}>
-                              <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">Contract Name</th>
+                              <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">{showGrants ? 'Grant Name' : 'Contract Name'}</th>
                               <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Category</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">NAICS Code(s)</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{showGrants ? 'CFDA/ALN' : 'NAICS Code(s)'}</th>
                               <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Due Date</th>
                               <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Status</th>
                               <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">AI Assistant</th>
@@ -429,7 +429,7 @@ const Dashboard = () => {
                                   <button 
                                     onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
-                                    title="Open AI Assistant for this contract"
+                                    title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
                                   >
                                     <img src="/static/app/dashboard/AIAssistant.svg" alt="AI Assistant" className="w-6 h-6" />
                                   </button>
@@ -438,7 +438,7 @@ const Dashboard = () => {
                                   <button 
                                     onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
-                                    title="Visit contract website"
+                                    title={showGrants ? "Visit grant website" : "Visit contract website"}
                                   >
                                     <img src="/static/app/dashboard/VisitSite.svg" alt="Visit Site" className="w-6 h-6" />
                                   </button>
