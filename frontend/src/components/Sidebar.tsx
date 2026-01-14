@@ -129,7 +129,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   
   const menuItems: MenuItem[] = [
     { path: '/dashboard', label: 'Dashboard', icon: '/static/app/dashboard/Dashboard.svg' },
-    { path: '/top-five-contracts', label: 'Top Five Contracts', icon: '/static/app/dashboard/TopFiveContracts.svg' },
+    { path: '/top-five-contracts', label: 'Top Five Matches', icon: '/static/app/dashboard/TopFiveContracts.svg' },
     { path: '/capability-builder', label: 'Capability Builder', icon: '/static/app/dashboard/CapabilityBuilder.svg' },
     { path: '/corama-directory', label: 'CORAMA Directory', icon: '/static/app/dashboard/CORAMADirectory.svg' },
     { path: '/get-more-credits', label: 'Get More Credits', icon: '/static/app/dashboard/Credits.svg' },
