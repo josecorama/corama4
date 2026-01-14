@@ -283,17 +283,19 @@ const EditDirectoryProfile = () => {
                 <div>
                   <label className="block text-gray-400 font-poppins text-sm mb-2">Team Size</label>
                   <input
-                    type="text"
+                    type="number"
+                    min="1"
                     value={profile.team_size}
                     onChange={(e) => handleInputChange('team_size', e.target.value)}
-                    placeholder="Select your team size"
+                    placeholder="Enter team size"
                     className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-gray-400 font-poppins text-sm mb-2">Years in Business</label>
                   <input
-                    type="text"
+                    type="number"
+                    min="0"
                     value={profile.years_in_business}
                     onChange={(e) => handleInputChange('years_in_business', e.target.value)}
                     placeholder="e.g., 15"
