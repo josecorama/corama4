@@ -75,7 +75,7 @@ const FAQ = () => {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 pt-24 sm:pt-32 pb-32 px-4 sm:px-6">
+      <div className="flex-1 pt-24 sm:pt-32 pb-40 sm:pb-32 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           {/* Title */}
           <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white text-center mb-12 sm:mb-16">

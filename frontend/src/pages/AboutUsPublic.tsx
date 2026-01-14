@@ -409,27 +409,27 @@ const AboutUsPublic = () => {
         <section 
           ref={setSectionRef('team')}
           data-section="team"
-          className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('team')}`}
+          className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-8 lg:py-0 snap-start ${getSectionClass('team')}`}
         >
-          <div className="max-w-7xl mx-auto relative z-10">
-            <div className="w-full text-center mb-8">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 tracking-tight font-poppins">
+          <div className="max-w-7xl mx-auto relative z-10 w-full">
+            <div className="w-full text-center mb-6 lg:mb-8">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 sm:mb-3 tracking-tight font-poppins">
                 Meet the Team
               </h2>
-              <p className="text-base text-white max-w-2xl mx-auto font-light leading-relaxed font-poppins">
+              <p className="text-sm sm:text-base text-white max-w-2xl mx-auto font-light leading-relaxed font-poppins px-2">
                 Meet the visionary leaders behind Contract Radar Maximizer's
                 mission to revolutionize government contracting for small businesses.
               </p>
             </div>
 
             {/* Mobile: Horizontal scrollable carousel */}
-            <div className="lg:hidden w-full">
+            <div className="lg:hidden w-full overflow-visible">
               <div 
-                className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-4 scrollbar-hide"
+                className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-2 pb-4 scrollbar-hide -mx-2"
                 style={{ WebkitOverflowScrolling: 'touch' }}
               >
                 {teamMembers.map((member) => (
-                  <div key={member.name} className="flex-shrink-0 w-[80vw] snap-center">
+                  <div key={member.name} className="flex-shrink-0 w-[85vw] max-w-[342px] snap-center first:ml-2 last:mr-2">
                     <TeamMemberCard
                       name={member.name}
                       role={member.role}
