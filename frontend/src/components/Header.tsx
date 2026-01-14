@@ -9,9 +9,18 @@ interface HeaderProps {
   credits?: number
 }
 
+const CREDITS_CACHE_KEY = 'corama_credits_cache'
+
 const Header = ({ credits: propCredits }: HeaderProps) => {
-  const [credits, setCredits] = useState<number | null>(propCredits ?? null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [credits, setCredits] = useState<number | null>(() => {
+    if (typeof window === 'undefined') return propCredits ?? null
+    const cached = sessionStorage.getItem(CREDITS_CACHE_KEY)
+    if (cached !== null) {
+      const parsed = parseInt(cached, 10)
+      return isNaN(parsed) ? propCredits ?? null : parsed
+    }
+    return propCredits ?? null
+  })
 
   useEffect(() => {
     loadUserData()
@@ -21,10 +30,9 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
     try {
       const user = await api.getUser()
       setCredits(user.credits_balance)
+      sessionStorage.setItem(CREDITS_CACHE_KEY, String(user.credits_balance))
     } catch (error) {
       console.error('Failed to load user data:', error)
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -80,7 +88,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
             <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              {!isLoading && credits !== null && (
+              {credits !== null && (
                 <span className="font-poppins text-xs sm:text-sm">{credits}</span>
               )}
               <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Credits</span>
