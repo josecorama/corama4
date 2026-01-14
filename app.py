@@ -54,8 +54,8 @@ from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence
 from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 
-# Load environment variables - use override=True to ensure .env values take precedence
-# over any system environment variables (fixes API key issues)
+# Load environment variables - use override=False to preserve system environment variables
+# (system env vars take precedence over .env file values)
 load_dotenv(override=False)
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -9239,6 +9239,12 @@ def download_and_extract_from_url(url):
             logging.error(f"Invalid URL format: {original_url}")
             return ""
         
+        # SECURITY: Validate URL for SSRF protection before making any requests
+        is_safe, ssrf_error = is_safe_url_for_ssrf(url)
+        if not is_safe:
+            logging.error(f"SSRF protection blocked URL: {url} - {ssrf_error}")
+            return ""
+        
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -9258,7 +9264,7 @@ def download_and_extract_from_url(url):
         
         if 'pdf' in content_type or url.lower().endswith('.pdf'):
             logging.info("Detected direct PDF URL, downloading...")
-            response = requests.get(url, timeout=30, headers=headers, stream=True, allow_redirects=True)
+            response = safe_requests_get(url, timeout=30, headers=headers, stream=True, allow_redirects=True)
             
             if response.status_code == 200:
                 temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
@@ -9287,7 +9293,7 @@ def download_and_extract_from_url(url):
         
         else:
             logging.info("Detected HTML page, attempting to extract content...")
-            response = requests.get(url, timeout=30, headers=headers, allow_redirects=True)
+            response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
             
             if response.status_code != 200:
                 logging.error(f"Failed to fetch website: HTTP {response.status_code}")
@@ -9306,7 +9312,12 @@ def download_and_extract_from_url(url):
             if pdf_links:
                 logging.info(f"Attempting to download PDF from embedded link: {pdf_links[0]}")
                 try:
-                    pdf_response = requests.get(pdf_links[0], timeout=30, headers=headers, stream=True, allow_redirects=True)
+                    # SECURITY: Validate embedded PDF URL for SSRF protection
+                    pdf_url_safe, pdf_ssrf_error = is_safe_url_for_ssrf(pdf_links[0])
+                    if not pdf_url_safe:
+                        logging.warning(f"SSRF protection blocked embedded PDF URL: {pdf_links[0]} - {pdf_ssrf_error}")
+                        raise ValueError(f"SSRF protection: {pdf_ssrf_error}")
+                    pdf_response = safe_requests_get(pdf_links[0], timeout=30, headers=headers, stream=True, allow_redirects=True)
                     if pdf_response.status_code == 200 and 'pdf' in pdf_response.headers.get('content-type', '').lower():
                         temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
                         max_size = 10 * 1024 * 1024
@@ -9358,7 +9369,12 @@ def download_and_extract_from_url(url):
             # Try to fetch the first contact page
             if contact_links:
                 try:
-                    contact_response = requests.get(contact_links[0], timeout=15, headers=headers, allow_redirects=True)
+                    # SECURITY: Validate contact page URL for SSRF protection
+                    contact_url_safe, contact_ssrf_error = is_safe_url_for_ssrf(contact_links[0])
+                    if not contact_url_safe:
+                        logging.warning(f"SSRF protection blocked contact page URL: {contact_links[0]} - {contact_ssrf_error}")
+                        raise ValueError(f"SSRF protection: {contact_ssrf_error}")
+                    contact_response = safe_requests_get(contact_links[0], timeout=15, headers=headers, allow_redirects=True)
                     if contact_response.status_code == 200:
                         contact_soup = BeautifulSoup(contact_response.content, 'html.parser')
                         for element in contact_soup(["script", "style"]):
@@ -12009,11 +12025,17 @@ def fetch_contract_pdf():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
+            # SECURITY: Validate detail_link for SSRF protection
+            is_safe, ssrf_error = is_safe_url_for_ssrf(detail_link)
+            if not is_safe:
+                logging.error(f"SSRF protection blocked contract detail link: {detail_link} - {ssrf_error}")
+                return jsonify({'success': False, 'error': f'Invalid URL: {ssrf_error}'}), 400
+            
             response = requests.head(detail_link, headers=headers, timeout=10, allow_redirects=True)
             content_type = response.headers.get('Content-Type', '').lower()
             
             if 'application/pdf' in content_type or detail_link.lower().endswith('.pdf'):
-                pdf_response = requests.get(detail_link, headers=headers, timeout=30)
+                pdf_response = safe_requests_get(detail_link, headers=headers, timeout=30)
                 pdf_response.raise_for_status()
                 
                 with open(pdf_path, 'wb') as f:
@@ -12025,7 +12047,7 @@ def fetch_contract_pdf():
                     'method': 'direct_download'
                 })
             
-            page_response = requests.get(detail_link, headers=headers, timeout=30)
+            page_response = safe_requests_get(detail_link, headers=headers, timeout=30)
             page_response.raise_for_status()
             soup = BeautifulSoup(page_response.content, 'html.parser')
             
@@ -12054,7 +12076,12 @@ def fetch_contract_pdf():
             
             if pdf_links:
                 pdf_url = pdf_links[0]
-                pdf_response = requests.get(pdf_url, headers=headers, timeout=30)
+                # SECURITY: Validate extracted PDF URL for SSRF protection
+                pdf_url_safe, pdf_ssrf_error = is_safe_url_for_ssrf(pdf_url)
+                if not pdf_url_safe:
+                    logging.warning(f"SSRF protection blocked extracted PDF URL: {pdf_url} - {pdf_ssrf_error}")
+                    return jsonify({'success': False, 'error': f'Invalid PDF URL: {pdf_ssrf_error}'}), 400
+                pdf_response = safe_requests_get(pdf_url, headers=headers, timeout=30)
                 pdf_response.raise_for_status()
                 
                 with open(pdf_path, 'wb') as f:

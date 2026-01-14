@@ -85,7 +85,7 @@ const AdminDirectory = () => {
   if (isAdmin === false) {
     return (
       <div className="min-h-screen bg-corama-dark">
-        <Header credits={5} />
+        <Header />
         <div className="flex">
           <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
           <Sidebar />
@@ -111,7 +111,7 @@ const AdminDirectory = () => {
 
   return (
     <div className="min-h-screen bg-corama-dark">
-      <Header credits={5} />
+      <Header />
       
       <div className="flex">
         <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />

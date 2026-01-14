@@ -434,7 +434,7 @@ const ProposalTeam = () => {
   return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
       {/* Header spans full width at top */}
-      <Header credits={5} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex flex-1 overflow-hidden">

@@ -130,7 +130,7 @@ const GetMoreCredits = () => {
     return (
       <div className="min-h-screen bg-corama-dark">
         {/* Header spans full width at top */}
-        <Header credits={5} />
+        <Header />
         
         {/* Sidebar + Content row below header */}
         <div className="flex">

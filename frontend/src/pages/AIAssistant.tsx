@@ -518,7 +518,7 @@ const AIAssistant = () => {
         />
         
         {/* Header spans full width at top */}
-        <Header key={headerKey} credits={5} />
+        <Header key={headerKey} />
         
         {/* Sidebar + Content row below header */}
         <div className="flex flex-1 overflow-hidden">

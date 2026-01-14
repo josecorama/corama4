@@ -378,9 +378,6 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromFile(selectedFile)
-      console.log('[CS Import File] Full result:', result)
-      console.log('[CS Import File] Data fields:', result.data ? Object.keys(result.data) : 'no data')
-      console.log('[CS Import File] Data values:', result.data)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setSelectedFile(null)
@@ -409,9 +406,6 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
-      console.log('[CS Import URL] Full result:', result)
-      console.log('[CS Import URL] Data fields:', result.data ? Object.keys(result.data) : 'no data')
-      console.log('[CS Import URL] Data values:', result.data)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setImportUrl('')
@@ -575,7 +569,7 @@ const CapabilityBuilder = () => {
       <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
       
       {/* Header spans full width at top */}
-      <Header credits={5} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex">

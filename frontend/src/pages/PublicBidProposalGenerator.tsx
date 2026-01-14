@@ -463,7 +463,7 @@ const PublicBidProposalGenerator = () => {
         onDiscard={handleDiscard}
       />
       
-      <Header credits={5} />
+      <Header />
       
       <div className="flex flex-1 overflow-hidden">
         <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />

@@ -119,7 +119,7 @@ const TopFiveContracts = () => {
   const [hasMatches, setHasMatches] = useState<boolean | null>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contractType, setContractType] = useState('all')
-  const [selectedStates, setSelectedStates] = useState<string[]>(['all', 'IL', 'IN'])
+  const [selectedStates, setSelectedStates] = useState<string[]>(['all'])
   const [noFilterResults, setNoFilterResults] = useState(false)
   
   // Pagination state
@@ -241,8 +241,8 @@ const TopFiveContracts = () => {
             detailLink: m.Detail_Link
           }
         })
-        // Replace current contracts with the next page
-        setContracts(transformedContracts)
+        // Append new contracts to existing ones
+        setContracts(prev => [...prev, ...transformedContracts])
         setCurrentOffset(nextOffset)
         setHasMore(data.has_more || false)
       }
@@ -326,7 +326,7 @@ const TopFiveContracts = () => {
     return (
       <div className="h-screen bg-corama-dark overflow-y-auto">
         {/* Header spans full width at top */}
-        <Header credits={5} />
+        <Header />
         
         {/* Sidebar + Content row below header */}
         <div className="flex">
