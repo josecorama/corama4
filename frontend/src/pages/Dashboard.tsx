@@ -235,8 +235,8 @@ const Dashboard = () => {
       
       {/* Sidebar + Content row below header */}
       <div className="flex">
-        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        {/* Horizontal separator line across entire viewport width, below header */}
+        <div className="fixed left-0 right-0 top-20 lg:top-16 h-px z-50" style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }} aria-hidden="true" />
         
         <Sidebar />
         

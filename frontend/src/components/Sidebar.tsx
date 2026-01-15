@@ -151,17 +151,17 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
 
   return (
     <>
-      {/* Mobile Menu Button - positioned half off the left edge, only show when sidebar is closed */}
+      {/* Mobile Menu Button - aligned with Menu text in header, only show when sidebar is closed */}
       {!actualOpen && (
         <button 
           onClick={toggleOpen}
-          className="lg:hidden fixed top-4 -left-3 z-50 pl-4 pr-2 py-2 bg-corama-darker/80 opacity-80 rounded-r-md text-white"
+          className="lg:hidden fixed top-2 left-2 z-50 w-12 flex flex-col items-center justify-center text-white"
           aria-label="Toggle menu"
         >
           <img 
             src="/static/app/dashboard/HamburgerButton.svg" 
             alt="" 
-            className="w-6 h-6"
+            className="w-8 h-8"
             aria-hidden="true"
           />
         </button>
@@ -187,7 +187,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
       >
         {/* Vertical separator line: 16px from the Highlight SVG end (258px + 16px = 274px from left, so right-4 = 16px from right edge of 290px sidebar) */}
         <div
-          className="hidden lg:block absolute right-4 top-0 bottom-0 w-px bg-white"
+          className="absolute right-4 top-0 bottom-0 w-px"
+          style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }}
           aria-hidden="true"
         />
         
