@@ -74,7 +74,11 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
   const displayCredits = useCountUp(credits)
 
   useEffect(() => {
-    loadUserData()
+    // Only fetch from API if we don't have cached credits
+    const cached = sessionStorage.getItem(CREDITS_CACHE_KEY)
+    if (cached === null) {
+      loadUserData()
+    }
   }, [])
 
   const loadUserData = async () => {
