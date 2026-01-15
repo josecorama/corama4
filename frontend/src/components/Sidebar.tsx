@@ -180,9 +180,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             <aside 
               ref={sidebarRef}
               className={`
-                fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40
-                ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
-                                transform transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)]
+                                fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40 overflow-hidden
+                                ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
+                                                transform transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)]
                                 ${actualOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0 opacity-0 lg:opacity-100'}
               `}
             >
@@ -382,10 +382,10 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           )}
         </nav>
         
-        {/* IHCC and Social Media Section - fixed at bottom, centered */}
-        {isExpanded && (
-          <div className="px-4 pt-4 pb-[36px] text-center shrink-0">
-            <p className="text-white text-xs mb-2">Learn More About IHCC</p>
+                {/* IHCC and Social Media Section - fixed at bottom, centered */}
+                {isExpanded && (
+                  <div className={`px-4 pt-4 pb-[36px] text-center shrink-0 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${actualOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 lg:opacity-100 lg:translate-x-0'}`}>
+                    <p className="text-white text-xs mb-2">Learn More About IHCC</p>
             <a 
               href="https://ihccbusiness.net/" 
               target="_blank" 
