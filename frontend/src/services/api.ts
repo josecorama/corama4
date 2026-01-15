@@ -845,6 +845,52 @@ class ApiService {
     return res.json();
   }
 
+  // Credit History
+  async getCreditHistory(): Promise<{
+    success: boolean;
+    transactions?: Array<{
+      id: string;
+      date: string;
+      action: string;
+      cost: number;
+      timestamp: string;
+    }>;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/credit-history`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to fetch credit history' }));
+      return { success: false, error: errorData.error || 'Failed to fetch credit history' };
+    }
+    return res.json();
+  }
+
+  // Send Support Message
+  async sendSupportMessage(message: string): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/send-support-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to send message' }));
+      return { success: false, error: errorData.error || 'Failed to send message' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     // Clear credits cache to prevent showing previous user's credits on next login

@@ -4,29 +4,35 @@ import Sidebar from '../components/Sidebar'
 import { api } from '../services/api'
 
 interface CreditHistoryItem {
+  id: string
   date: string
   action: string
   cost: number
 }
 
+const LANGUAGE_KEY = 'corama_language'
+
 const Settings = () => {
   const [username, setUsername] = useState('')
   const [isUsernameEditable, setIsUsernameEditable] = useState(false)
-  const [language, setLanguage] = useState<'en' | 'es'>('en')
+  const [language, setLanguage] = useState<'en' | 'es'>(() => {
+    const saved = localStorage.getItem(LANGUAGE_KEY)
+    return (saved === 'es' ? 'es' : 'en') as 'en' | 'es'
+  })
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [supportMessage, setSupportMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState('')
-  const [creditHistory] = useState<CreditHistoryItem[]>([
-    { date: 'Jan 14', action: 'Capability Stmt', cost: -50 },
-    { date: 'Jan 12', action: 'Export Data', cost: -20 },
-    { date: 'Jan 10', action: 'Credit Purchase', cost: 1000 },
-  ])
+  const [creditHistory, setCreditHistory] = useState<CreditHistoryItem[]>([])
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [supportStatus, setSupportStatus] = useState<{type: 'success' | 'error', message: string} | null>(null)
 
   useEffect(() => {
     loadUserData()
+    loadCreditHistory()
   }, [])
 
   const loadUserData = async () => {
@@ -38,8 +44,34 @@ const Settings = () => {
     }
   }
 
+  const loadCreditHistory = async () => {
+    setIsLoadingHistory(true)
+    try {
+      const response = await api.getCreditHistory()
+      if (response.success && response.transactions) {
+        setCreditHistory(response.transactions.map(tx => ({
+          id: tx.id,
+          date: tx.date,
+          action: tx.action,
+          cost: tx.cost
+        })))
+      }
+    } catch (error) {
+      console.error('Failed to load credit history:', error)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
+
   const handleUnlockUsername = () => {
     setIsUsernameEditable(true)
+  }
+
+  const handleLanguageChange = (newLang: 'en' | 'es') => {
+    setLanguage(newLang)
+    localStorage.setItem(LANGUAGE_KEY, newLang)
+    // Dispatch event for other components to react to language change
+    window.dispatchEvent(new CustomEvent('languageChanged', { detail: { language: newLang } }))
   }
 
   const handleSaveChanges = async () => {
@@ -62,12 +94,21 @@ const Settings = () => {
   const handleSendSupportMessage = async () => {
     if (!supportMessage.trim()) return
     
+    setIsSendingMessage(true)
+    setSupportStatus(null)
+    
     try {
-      // TODO: Implement support message sending when backend endpoint is ready
-      alert('Support message sent!')
-      setSupportMessage('')
+      const response = await api.sendSupportMessage(supportMessage)
+      if (response.success) {
+        setSupportStatus({ type: 'success', message: response.message || 'Message sent successfully!' })
+        setSupportMessage('')
+      } else {
+        setSupportStatus({ type: 'error', message: response.error || 'Failed to send message.' })
+      }
     } catch (error) {
-      alert('Failed to send message. Please try again.')
+      setSupportStatus({ type: 'error', message: 'Failed to send message. Please try again.' })
+    } finally {
+      setIsSendingMessage(false)
     }
   }
 
@@ -132,7 +173,7 @@ const Settings = () => {
                     </label>
                     <div className="flex bg-[#0B0B0F] p-1 rounded-full w-fit border border-[#2D5170]">
                       <button
-                        onClick={() => setLanguage('en')}
+                        onClick={() => handleLanguageChange('en')}
                         className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${
                           language === 'en'
                             ? 'bg-[#99C8CA] text-[#0B0B0F]'
@@ -142,7 +183,7 @@ const Settings = () => {
                         English
                       </button>
                       <button
-                        onClick={() => setLanguage('es')}
+                        onClick={() => handleLanguageChange('es')}
                         className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${
                           language === 'es'
                             ? 'bg-[#99C8CA] text-[#0B0B0F]'
@@ -241,21 +282,37 @@ const Settings = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#2D5170]/30 text-gray-200 font-poppins text-xs sm:text-sm">
-                      {creditHistory.map((item, index) => (
-                        <tr key={index} className="hover:bg-white/5 transition">
-                          <td className="px-4 py-3">{item.date}</td>
-                          <td className="px-4 py-3">{item.action}</td>
-                          <td className={`px-4 py-3 text-right ${item.cost > 0 ? 'text-[#99C8CA]' : 'text-red-300'}`}>
-                            {item.cost > 0 ? `+${item.cost}` : item.cost}
+                      {isLoadingHistory ? (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
+                            Loading credit history...
                           </td>
                         </tr>
-                      ))}
+                      ) : creditHistory.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
+                            No credit transactions yet
+                          </td>
+                        </tr>
+                      ) : (
+                        creditHistory.map((item) => (
+                          <tr key={item.id} className="hover:bg-white/5 transition">
+                            <td className="px-4 py-3">{item.date}</td>
+                            <td className="px-4 py-3">{item.action}</td>
+                            <td className={`px-4 py-3 text-right ${item.cost > 0 ? 'text-[#99C8CA]' : 'text-red-300'}`}>
+                              {item.cost > 0 ? `+${item.cost}` : item.cost}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
-                <button className="w-full mt-4 text-center text-[#99C8CA] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition">
-                  View Full History
-                </button>
+                {creditHistory.length > 0 && (
+                  <button className="w-full mt-4 text-center text-[#99C8CA] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition">
+                    View Full History
+                  </button>
+                )}
               </div>
 
               {/* Contact Support */}
@@ -274,18 +331,32 @@ const Settings = () => {
                   rows={4}
                   value={supportMessage}
                   onChange={(e) => setSupportMessage(e.target.value)}
-                  className="w-full bg-white border border-gray-200 rounded-2xl py-3 px-4 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm mb-4 resize-none"
+                  disabled={isSendingMessage}
+                  className="w-full bg-white border border-gray-200 rounded-2xl py-3 px-4 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm mb-4 resize-none disabled:opacity-70 disabled:cursor-not-allowed"
                   placeholder="How can we help?"
                 />
 
+                {supportStatus && (
+                  <div className={`mb-4 p-3 rounded-lg text-sm ${
+                    supportStatus.type === 'success' 
+                      ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
+                      : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                  }`}>
+                    {supportStatus.message}
+                  </div>
+                )}
+
                 <button
                   onClick={handleSendSupportMessage}
-                  className="w-full bg-[#99C8CA] hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition text-sm flex justify-center items-center gap-2"
+                  disabled={isSendingMessage || !supportMessage.trim()}
+                  className="w-full bg-[#99C8CA] hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send Message
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
+                  {isSendingMessage ? 'Sending...' : 'Send Message'}
+                  {!isSendingMessage && (
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>

@@ -16778,6 +16778,140 @@ def api_deduct_credits():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+# API: Get credit history for user
+@app.route('/api/credit-history', methods=['GET'])
+def api_credit_history():
+    """Get credit transaction history for the current user"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        transactions = []
+        
+        if admin_initialized and admin_db:
+            transactions_ref = admin_db.reference(f'credit_transactions/{user_id}')
+            transactions_data = transactions_ref.get() or {}
+        else:
+            transactions_data = db.child("credit_transactions").child(user_id).get(user['idToken']).val() or {}
+        
+        # Convert Firebase dict to list and format for frontend
+        for tx_id, tx in transactions_data.items():
+            if isinstance(tx, dict):
+                # Format the operation type for display
+                operation = tx.get('operation_type', 'Unknown')
+                operation_display = {
+                    'stripe_purchase': 'Credit Purchase',
+                    'purchase': 'Credit Purchase',
+                    'analyze': 'Contract Analysis',
+                    'compliance': 'Compliance Check',
+                    'strategy': 'Strategy Analysis',
+                    'outline': 'Proposal Outline',
+                    'cs_analysis': 'Capability Stmt',
+                    'proposal_generation': 'Proposal Generation',
+                    'refund_failed_generation': 'Refund',
+                    'refund_failed_analysis': 'Refund',
+                    'refund_failed_compliance': 'Refund',
+                    'refund_failed_strategy': 'Refund',
+                    'refund_failed_outline': 'Refund',
+                }.get(operation, operation.replace('_', ' ').title())
+                
+                # Parse timestamp
+                timestamp = tx.get('timestamp', '')
+                try:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    date_display = dt.strftime('%b %d')
+                except:
+                    date_display = timestamp[:10] if timestamp else 'Unknown'
+                
+                transactions.append({
+                    'id': tx_id,
+                    'date': date_display,
+                    'action': operation_display,
+                    'cost': tx.get('amount', 0),
+                    'timestamp': timestamp
+                })
+        
+        # Sort by timestamp descending (most recent first)
+        transactions.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        # Return only the last 50 transactions
+        return jsonify({
+            "success": True,
+            "transactions": transactions[:50]
+        })
+    except Exception as e:
+        logging.error(f"Error in /api/credit-history: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Send support message
+@app.route('/api/send-support-message', methods=['POST'])
+def api_send_support_message():
+    """Send a support message to admin@corama.ai"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return jsonify({"success": False, "error": "Message cannot be empty"}), 400
+        
+        if len(message) > 5000:
+            return jsonify({"success": False, "error": "Message too long (max 5000 characters)"}), 400
+        
+        # Get user info for the email
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get() or {}
+        else:
+            user_data = db.child("users").child(user_id).get(user['idToken']).val() or {}
+        
+        user_email = user_data.get('email', 'Unknown')
+        user_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or 'Unknown'
+        company = user_data.get('company', 'Not specified')
+        
+        # Build the email
+        subject = f"Support Request from {user_name}"
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #1C4262;">Support Request</h2>
+            <p><strong>From:</strong> {user_name}</p>
+            <p><strong>Email:</strong> {user_email}</p>
+            <p><strong>Company:</strong> {company}</p>
+            <p><strong>User ID:</strong> {user_id}</p>
+            <hr style="border: 1px solid #eee;">
+            <h3>Message:</h3>
+            <p style="white-space: pre-wrap; background: #f9f9f9; padding: 15px; border-radius: 5px;">{message}</p>
+            <hr style="border: 1px solid #eee;">
+            <p style="color: #666; font-size: 12px;">This message was sent from the Corama Settings page.</p>
+        </body>
+        </html>
+        """
+        
+        # Send the email to admin
+        success, error_msg = send_email_smtp('admin@corama.ai', subject, html_body)
+        
+        if success:
+            logging.info(f"[Support] Message sent from user {user_id} ({user_email})")
+            return jsonify({"success": True, "message": "Your message has been sent. We'll get back to you soon!"})
+        else:
+            logging.error(f"[Support] Failed to send message from user {user_id}: {error_msg}")
+            return jsonify({"success": False, "error": "Failed to send message. Please try again later."}), 500
+            
+    except Exception as e:
+        logging.error(f"Error in /api/send-support-message: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 # API: Directory listing
 @app.route('/api/directory', methods=['GET'])
 def api_directory():
