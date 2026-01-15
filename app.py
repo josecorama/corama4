@@ -1206,12 +1206,13 @@ def api_auth_login():
         # CRITICAL FIX: Also set session['user_data'] for endpoints that require it
         # (e.g., /api/upload_directory_logo, /api/initialize-proposal-draft via ensure_session_from_auth)
         # Previously, only signup set user_data, causing 401 errors for logged-in users
+        # Use display_name if available to preserve original casing, otherwise fall back to username
         session['user_data'] = {
             "first_name": user_data.get('first_name', ''),
             "last_name": user_data.get('last_name', ''),
             "company": user_data.get('company', ''),
             "email": email,
-            "username": user_data.get('username', email.split('@')[0]),
+            "username": user_data.get('display_name') or user_data.get('username', email.split('@')[0]),
             "idToken": refreshed_user['idToken'],
             "refreshToken": refreshed_user['refreshToken'],
             "user_id": local_id
