@@ -226,24 +226,20 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                             const isCapabilityBuilder = item.path === '/capability-builder'
                             return (
                               <div key={item.path} className="relative group" style={{ height: '51px' }}>
-                {/* Hover background layer - controlled width, only shows on hover when not active */}
-                {!isActive && (
-                  <div 
-                    className="absolute top-0 left-0 bottom-0 bg-corama-darker opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                    style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
-                    aria-hidden="true"
-                  />
-                )}
-                {/* Active highlight - use object-right when collapsed to preserve rounded edge */}
-                {isActive && (
-                  <img 
-                    src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
-                    alt="" 
-                    className={`absolute top-0 left-0 bottom-0 h-full object-cover ${isExpanded ? 'object-left' : 'object-right'}`}
-                    style={{ width: isExpanded ? '258px' : '76px' }}
-                    aria-hidden="true"
-                  />
-                )}
+                                {/* Hover background layer - controlled width, only shows on hover when not active */}
+                                <div 
+                                  className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-300 pointer-events-none ${!isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                                  style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                                  aria-hidden="true"
+                                />
+                                {/* Active highlight - use object-right when collapsed to preserve rounded edge */}
+                                <img 
+                                  src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
+                                  alt="" 
+                                  className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-500 ease-out ${isExpanded ? 'object-left' : 'object-right'} ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                                  style={{ width: isExpanded ? '258px' : '76px' }}
+                                  aria-hidden="true"
+                                />
                 {item.external ? (
                   <a
                     href={item.path}
@@ -304,27 +300,23 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             )
           })}
           
-                                        {/* Admin Link - only shown for admin users */}
-                              {isAdmin && (
-                                <div className="relative group mt-2" style={{ height: '51px' }}>
-              {/* Hover background layer */}
-              {location.pathname !== '/admin/directory' && (
-                <div 
-                  className="absolute top-0 left-0 bottom-0 bg-corama-darker opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                  style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
-                  aria-hidden="true"
-                />
-              )}
-              {/* Active highlight */}
-              {location.pathname === '/admin/directory' && (
-                <img 
-                  src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
-                  alt="" 
-                  className={`absolute top-0 left-0 bottom-0 h-full object-cover ${isExpanded ? 'object-left' : 'object-right'}`}
-                  style={{ width: isExpanded ? '258px' : '76px' }}
-                  aria-hidden="true"
-                />
-              )}
+                                                      {/* Admin Link - only shown for admin users */}
+                        {isAdmin && (
+                          <div className="relative group mt-2" style={{ height: '51px' }}>
+                            {/* Hover background layer */}
+                            <div 
+                              className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-300 pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                              style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                              aria-hidden="true"
+                            />
+                            {/* Active highlight */}
+                            <img 
+                              src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
+                              alt="" 
+                              className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-500 ease-out ${isExpanded ? 'object-left' : 'object-right'} ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
+                              style={{ width: isExpanded ? '258px' : '76px' }}
+                              aria-hidden="true"
+                            />
               <Link
                 to="/admin/directory"
                 onClick={closeMobile}
