@@ -220,7 +220,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           </button>
         </div>
         
-                                <nav className="flex-1 pt-[16px] overflow-y-auto" style={{ gap: '8px' }}>
+                                <nav className="flex-1 pt-[16px] overflow-y-auto overflow-x-hidden" style={{ gap: '8px' }}>
                           {menuItems.map((item) => {
                             const isActive = location.pathname === item.path
                             const isCapabilityBuilder = item.path === '/capability-builder'
