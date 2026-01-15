@@ -10,6 +10,71 @@ import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
 
+// Discard Changes Popup Component
+interface DiscardChangesPopupProps {
+  isOpen: boolean
+  onStayHere: () => void
+  onDiscard: () => void
+}
+
+const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPopupProps) => {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onStayHere}
+      />
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
+      >
+        <button 
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+          onClick={onStayHere}
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        <div className="flex-shrink-0">
+          <img 
+            src="/static/app/proposal-summary/WarnIcon.svg" 
+            alt="Warning" 
+            className="w-16 h-16 sm:w-20 sm:h-20"
+          />
+        </div>
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              Discard unsaved changes?
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              You're in the middle of a workflow.<br />
+              If you go back now, your progress in this page will not be saved.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onStayHere}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'rgb(92, 191, 192)' }}
+            >
+              Stay Here
+            </button>
+            <button
+              onClick={onDiscard}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'rgb(39, 69, 110)' }}
+            >
+              Discard & Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // SVG asset paths
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 const FromCORAMADirectoryIcon = '/static/app/team-builder/FromCORAMADirectory.svg'
@@ -118,6 +183,10 @@ const ProposalTeam = () => {
   // Second check animation state - triggers once when first team member is added
   const [hasAnimatedSecondCheck, setHasAnimatedSecondCheck] = useState(false)
   const [showSecondCheckAnimation, setShowSecondCheckAnimation] = useState(false)
+  
+  // Discard changes popup state
+  const [showDiscardPopup, setShowDiscardPopup] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
   
   // Watch for first team member being added to trigger animation
   useEffect(() => {
@@ -306,9 +375,28 @@ const ProposalTeam = () => {
       setViewMode('default')
       setSelectedOption(null)
     } else {
-      // From default view, go back to contract analysis
-      navigate('/contract-analysis', { state })
+      // From default view, show discard popup before going back
+      setPendingNavigation('/contract-analysis')
+      setShowDiscardPopup(true)
     }
+  }
+  
+  // Discard changes popup handlers
+  const handleStayHere = () => {
+    setShowDiscardPopup(false)
+    setPendingNavigation(null)
+  }
+  
+  const handleDiscard = () => {
+    setShowDiscardPopup(false)
+    if (pendingNavigation) {
+      if (pendingNavigation === '/contract-analysis') {
+        navigate(pendingNavigation, { state })
+      } else {
+        navigate(pendingNavigation)
+      }
+    }
+    setPendingNavigation(null)
   }
   
   // Manual Entry handlers
@@ -433,6 +521,13 @@ const ProposalTeam = () => {
 
   return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
+      {/* Discard Changes Popup */}
+      <DiscardChangesPopup
+        isOpen={showDiscardPopup}
+        onStayHere={handleStayHere}
+        onDiscard={handleDiscard}
+      />
+      
       {/* Header spans full width at top */}
       <Header />
       
@@ -441,7 +536,22 @@ const ProposalTeam = () => {
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
         <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
-        <Sidebar onGoBack={handleGoBack} />
+        <Sidebar 
+          onGoBack={handleGoBack}
+          onBeforeNavigate={(to) => {
+            // Define workflow pages that should NOT show the discard popup
+            const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis', '/proposal-team', '/public-bid-proposal-generator']
+            const isLeavingWorkflow = !workflowPages.some(page => to.startsWith(page))
+            
+            // If user is leaving the workflow, show popup
+            if (isLeavingWorkflow) {
+              setPendingNavigation(to)
+              setShowDiscardPopup(true)
+              return false
+            }
+            return true
+          }}
+        />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
