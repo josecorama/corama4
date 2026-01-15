@@ -9,12 +9,20 @@ interface HeaderProps {
 
 const CREDITS_CACHE_KEY = 'corama_credits_cache'
 const CREDITS_ANIMATED_KEY = 'corama_credits_animated'
+const CREDITS_LAST_VALUE_KEY = 'corama_credits_last_value'
 
 const useCountUp = (targetValue: number | null, duration: number = 800) => {
-  const [displayValue, setDisplayValue] = useState<number | null>(null)
-  const previousValueRef = useRef<number | null>(null)
+  const [displayValue, setDisplayValue] = useState<number | null>(() => {
+    // Initialize from sessionStorage to prevent flash
+    if (typeof window === 'undefined') return null
+    const lastValue = sessionStorage.getItem(CREDITS_LAST_VALUE_KEY)
+    if (lastValue !== null) {
+      const parsed = parseInt(lastValue, 10)
+      return isNaN(parsed) ? null : parsed
+    }
+    return null
+  })
   const animationRef = useRef<number | null>(null)
-  const isFirstLoadRef = useRef(true)
 
   useEffect(() => {
     if (targetValue === null) {
@@ -28,25 +36,35 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
     }
 
     const alreadyAnimatedInitial = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
+    const lastValueStr = sessionStorage.getItem(CREDITS_LAST_VALUE_KEY)
+    const lastValue = lastValueStr !== null ? parseInt(lastValueStr, 10) : null
     
     // Determine start value for animation
     let startValue: number
-    if (isFirstLoadRef.current && !alreadyAnimatedInitial) {
-      // First load: animate from 0
+    let shouldAnimate = false
+    
+    if (!alreadyAnimatedInitial) {
+      // First load ever: animate from 0
       startValue = 0
+      shouldAnimate = true
       sessionStorage.setItem(CREDITS_ANIMATED_KEY, 'true')
-    } else if (previousValueRef.current !== null && previousValueRef.current !== targetValue) {
-      // Credits changed: animate from previous value
-      startValue = previousValueRef.current
+    } else if (lastValue !== null && lastValue !== targetValue) {
+      // Credits changed: animate from last value
+      startValue = lastValue
+      shouldAnimate = true
     } else {
-      // No change or already animated initial: just set the value
+      // No change: just set the value without animation
       setDisplayValue(targetValue)
-      previousValueRef.current = targetValue
-      isFirstLoadRef.current = false
+      sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
       return
     }
 
-    isFirstLoadRef.current = false
+    if (!shouldAnimate) {
+      setDisplayValue(targetValue)
+      sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
+      return
+    }
+
     const startTime = performance.now()
 
     const animate = (currentTime: number) => {
@@ -61,7 +79,8 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
       } else {
-        previousValueRef.current = targetValue
+        // Animation complete: save final value
+        sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
       }
     }
 
@@ -73,16 +92,6 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
       }
     }
   }, [targetValue, duration])
-
-  // Update previous value when target changes without animation
-  useEffect(() => {
-    if (targetValue !== null && previousValueRef.current === null) {
-      const alreadyAnimated = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
-      if (alreadyAnimated) {
-        previousValueRef.current = targetValue
-      }
-    }
-  }, [targetValue])
 
   return displayValue
 }

@@ -149,6 +149,8 @@ const VerifyEmail = () => {
           
           {/* Navigation - visible on all screens with smaller text on mobile */}
           <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
+            <a href="/pricing" className="hidden sm:block text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">Pricing</a>
             <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
             <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
           </nav>
