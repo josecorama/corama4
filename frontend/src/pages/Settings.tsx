@@ -236,33 +236,17 @@ const Settings = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* Left Column - Profile & Security */}
             <div className="space-y-6 lg:space-y-8">
-              <div className="bg-[#2F3C4F] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
-                <h2 className="text-white font-poppins font-semibold text-base mb-6 flex items-center gap-2">
+              <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
+                <h2 className="text-white font-poppins font-semibold text-base mb-6">
                   {t.profileSecurity}
-                  <img 
-                    src="/static/app/dashboard/settings.svg" 
-                    alt="" 
-                    className="ml-auto w-5 h-5 opacity-80"
-                    aria-hidden="true"
-                  />
                 </h2>
 
                 <div className="space-y-6">
                   {/* Username */}
                   <div>
-                    <div className="flex justify-between items-center mb-2">
-                      <label className="block text-xs font-poppins text-gray-300 uppercase tracking-wide">
-                        {t.username}
-                      </label>
-                      {!isUsernameEditable && (
-                        <button
-                          onClick={handleUnlockUsername}
-                          className="text-[10px] uppercase tracking-wider bg-[#1C4262] hover:bg-[#3E6B91] text-white px-3 py-1 rounded-full transition"
-                        >
-                          {t.edit}
-                        </button>
-                      )}
-                    </div>
+                    <label className="block text-xs font-poppins text-gray-300 uppercase tracking-wide mb-2">
+                      {t.username}
+                    </label>
                     <input
                       type="text"
                       value={username}
@@ -270,6 +254,14 @@ const Settings = () => {
                       disabled={!isUsernameEditable}
                       className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 focus:outline-none focus:border-[#99C8CA] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
                     />
+                    {!isUsernameEditable && (
+                      <button
+                        onClick={handleUnlockUsername}
+                        className="mt-3 text-sm uppercase tracking-wider bg-[#1C4262] hover:bg-[#3E6B91] text-white px-6 py-2 rounded-full transition"
+                      >
+                        {t.edit}
+                      </button>
+                    )}
                   </div>
 
                   {/* Language Toggle */}
@@ -277,7 +269,7 @@ const Settings = () => {
                     <label className="block text-xs font-poppins text-gray-300 uppercase tracking-wide mb-2">
                       {t.language}
                     </label>
-                    <div className="flex bg-[#0B0B0F] p-1 rounded-full w-fit border border-[#2D5170]">
+                    <div className="flex bg-[#0B2C48] p-1 rounded-full w-fit border border-[#2D5170]">
                       <button
                         onClick={() => handleLanguageChange('en')}
                         className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${
@@ -304,8 +296,8 @@ const Settings = () => {
                   <div className="h-px bg-[#2D5170] w-full my-4"></div>
 
                   {/* Change Password */}
-                  <div className="bg-[#0B0B0F]/30 p-5 rounded-xl border border-[#2D5170]/30">
-                    <h3 className="text-white font-poppins text-sm font-semibold mb-4 flex items-center gap-2">
+                  <div className="p-5 rounded-xl">
+                    <h3 className="text-white font-poppins text-sm font-semibold mb-4">
                       {t.changePassword}
                     </h3>
 
