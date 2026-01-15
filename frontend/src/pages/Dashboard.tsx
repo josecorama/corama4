@@ -154,7 +154,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadContracts()
-  }, [currentPage, contractType, selectedStates])
+  }, [currentPage, contractType, selectedStates, showGrants])
 
   const loadUserData = async () => {
     try {
@@ -169,12 +169,19 @@ const Dashboard = () => {
   const loadContracts = async () => {
     setLoading(true)
     try {
-      // Use searchContracts only when there's a query or non-default filters
-      // Otherwise use getContracts with offset-based pagination
-      const hasFilters = searchQuery || contractType !== 'all' || selectedStates.length > 0
-      const data = hasFilters
-        ? await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
-        : await api.getContracts(currentPage, contractsPerPage)
+      let data;
+      
+      if (showGrants) {
+        // Fetch grants from government_grants collection
+        data = await api.getGrants(currentPage, contractsPerPage)
+      } else {
+        // Use searchContracts only when there's a query or non-default filters
+        // Otherwise use getContracts with offset-based pagination
+        const hasFilters = searchQuery || contractType !== 'all' || selectedStates.length > 0
+        data = hasFilters
+          ? await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
+          : await api.getContracts(currentPage, contractsPerPage)
+      }
       
       // Transform API response to component format
       const transformedContracts: Contract[] = data.contracts.map((c: ApiContract, index: number) => ({
@@ -250,7 +257,10 @@ const Dashboard = () => {
             
             {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
             <button
-              onClick={() => setShowGrants(!showGrants)}
+              onClick={() => {
+                setShowGrants(!showGrants)
+                setCurrentPage(1) // Reset to page 1 when toggling
+              }}
               className="relative w-[240px] h-[36px] rounded-[40px] border-none cursor-pointer p-[4px] flex items-center transition-colors duration-500 select-none font-poppins"
               style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
               aria-pressed={showGrants}

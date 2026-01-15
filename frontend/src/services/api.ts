@@ -150,6 +150,30 @@ class ApiService {
     return res.json();
   }
 
+  // Grants - fetch from government_grants collection
+  async getGrants(
+    page: number = 1, 
+    limit: number = 50
+  ): Promise<{
+    contracts: Contract[], 
+    total_pages: number, 
+    total_contracts: number, 
+    has_more?: boolean,
+    top_categories?: {name: string, count: number, percentage: number}[]
+  }> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    
+    const res = await fetch(`${API_BASE()}/grants?${params}`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      throw new Error('Failed to fetch grants');
+    }
+    return res.json();
+  }
+
     async searchContracts(
       query: string, 
       page: number = 1, 

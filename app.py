@@ -6233,6 +6233,78 @@ def get_contracts_api():
             "error": "Failed to load contracts from database"
         })
 
+@app.route('/api/grants', methods=['GET'])
+def get_grants_api():
+    """API endpoint to get grants data for the dashboard with SERVER-SIDE PAGINATION.
+    
+    Fetches grants from the government_grants Qdrant collection.
+    
+    Query params:
+    - page: Page number (1-indexed) - for display only
+    - limit: Number of grants per page (default 50, max 100)
+    
+    Returns:
+    - contracts: Array of grant objects (using 'contracts' key for frontend compatibility)
+    - total_contracts: Total count from Qdrant
+    - current_page: Current page number
+    - total_pages: Total pages available
+    - top_categories: Category distribution for analytics
+    """
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 50, type=int)
+        
+        # Validate limit (max 100 to prevent OOM)
+        limit = min(max(limit, 1), 100)
+        
+        # Fetch grants from Qdrant
+        grants, total_grants, total_pages = get_dashboard_grants_from_qdrant(
+            page=page,
+            items_per_page=limit
+        )
+        
+        # Build top_categories from grants
+        category_counts = {}
+        for grant in grants:
+            cat = grant.get('category', 'Unknown')
+            category_counts[cat] = category_counts.get(cat, 0) + 1
+        
+        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
+        top_categories = []
+        for cat_name, count in sorted_categories:
+            percentage = round((count / len(grants) * 100), 1) if grants else 0
+            top_categories.append({
+                'name': cat_name,
+                'count': count,
+                'percentage': percentage
+            })
+        
+        logging.info(f"/api/grants: Returning {len(grants)} grants (page {page}, limit {limit})")
+        
+        return jsonify({
+            "contracts": grants,  # Use 'contracts' key for frontend compatibility
+            "total_contracts": total_grants,
+            "current_page": page,
+            "total_pages": total_pages,
+            "next_cursor": None,
+            "has_more": page < total_pages,
+            "top_categories": top_categories
+        })
+    except Exception as e:
+        logging.error(f"Error loading grants from Qdrant: {e}", exc_info=True)
+        return jsonify({
+            "contracts": [],
+            "total_contracts": 0,
+            "current_page": 1,
+            "total_pages": 1,
+            "next_cursor": None,
+            "has_more": False,
+            "top_categories": [],
+            "error": "Failed to load grants from database"
+        })
+
+
 @app.route('/api/qdrant_version', methods=['GET'])
 def qdrant_version_api():
     """API endpoint to check if Qdrant data has changed.
@@ -11320,6 +11392,195 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     except Exception as e:
         logging.error(f"[Server-Side Pagination] Error fetching contracts from Qdrant: {e}", exc_info=True)
         return [], 0, 0, None
+
+
+def qdrant_payload_to_dashboard_grant(payload, point_id=None, score=None):
+    """
+    Convert Qdrant grant payload to dashboard format with lowercase field names.
+    Maps grant-specific fields to the same structure used by contracts for frontend compatibility.
+    
+    Grant CSV fields:
+    - title -> bid_name
+    - grant_number -> bid_number
+    - description -> bid_description
+    - detail_url -> detail_link
+    - agency -> organization
+    - category -> category
+    - cfda_aln -> naics_code (displayed as CFDA/ALN in UI)
+    - due_date -> due_date
+    - opportunity_status -> status
+    """
+    import hashlib
+    from datetime import date, datetime
+    
+    # Map grant fields to dashboard format
+    detail_link = payload.get("detail_url") or payload.get("source_url") or "#"
+    grant_number = payload.get("grant_number") or "N/A"
+    
+    # Generate hash_value for backward compatibility
+    hash_input = f"{detail_link}{grant_number}"
+    hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+    
+    # Get CFDA/ALN code (displayed in place of NAICS code for grants)
+    cfda_aln = payload.get("cfda_aln") or ""
+    
+    # Due date handling - grants use DD/MM/YYYY format
+    raw_due_date = payload.get("due_date")
+    has_due_date = bool(raw_due_date) and str(raw_due_date).lower() not in ('nan', 'none', '')
+    
+    # Parse and format due date
+    due_date = "No due date"
+    is_past_due = False
+    if has_due_date:
+        try:
+            # Try DD/MM/YYYY format first (grants CSV format)
+            parsed_date = datetime.strptime(raw_due_date, "%d/%m/%Y").date()
+            due_date = parsed_date.strftime("%Y-%m-%d")
+            is_past_due = parsed_date < date.today()
+        except Exception:
+            try:
+                # Try YYYY-MM-DD format as fallback
+                parsed_date = datetime.strptime(raw_due_date.split("T")[0], "%Y-%m-%d").date()
+                due_date = parsed_date.strftime("%Y-%m-%d")
+                is_past_due = parsed_date < date.today()
+            except Exception:
+                due_date = raw_due_date  # Use as-is if parsing fails
+    
+    # Status: "closed" if past due, otherwise use opportunity_status or "open"
+    if is_past_due:
+        status = "closed"
+    else:
+        status = payload.get("opportunity_status") or "open"
+    
+    # Category - capitalize first letter
+    category = payload.get("category") or "Unknown"
+    if category and isinstance(category, str):
+        category = category.capitalize()
+    
+    return {
+        # Identifiers
+        "contract_id": str(point_id) if point_id is not None else None,
+        "hash_value": hash_value,
+        
+        # Core fields (lowercase for dashboard JS)
+        "bid_name": payload.get("title") or "Unknown Grant",
+        "bid_number": grant_number,
+        "bid_description": payload.get("description") or "No description available",
+        "detail_link": detail_link,
+        "organization": payload.get("agency") or "Unknown",
+        "category": category,
+        "naics_code": cfda_aln,  # CFDA/ALN displayed in place of NAICS
+        "due_date": due_date,
+        "status": status,
+        "state": payload.get("location") or "Federal",  # Most grants are federal
+        
+        # Optional fields
+        "industry": "",
+        "department": "",
+        
+        # Search metadata
+        "Similarity_Score": score if score is not None else None,
+    }
+
+
+def get_dashboard_grants_from_qdrant(page=1, items_per_page=10):
+    """
+    Fetch grants from Qdrant government_grants collection for dashboard display.
+    
+    Uses offset-based pagination similar to contracts.
+    
+    Args:
+        page: Page number (1-indexed)
+        items_per_page: Number of grants per page (default 10)
+    
+    Returns:
+        Tuple of (grants_list, total_grants, total_pages)
+    """
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("[Grants Pagination] Qdrant credentials not configured")
+            return [], 0, 1
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Check if government_grants collection exists
+        try:
+            count_result = client.count(
+                collection_name="government_grants",
+                exact=True
+            )
+            total_grants = count_result.count
+        except Exception as e:
+            logging.warning(f"[Grants Pagination] government_grants collection not found or error: {e}")
+            return [], 0, 1
+        
+        if total_grants == 0:
+            return [], 0, 1
+        
+        total_pages = (total_grants + items_per_page - 1) // items_per_page
+        
+        # Calculate offset for pagination
+        target_offset = (page - 1) * items_per_page
+        logging.info(f"[Grants Pagination] Fetching page {page} (offset={target_offset}, limit={items_per_page})")
+        
+        # Scroll through pages until we reach the target offset
+        current_offset = None
+        grants_skipped = 0
+        
+        while grants_skipped < target_offset:
+            remaining = target_offset - grants_skipped
+            fetch_limit = min(remaining, 100)
+            
+            scroll_result = client.scroll(
+                collection_name="government_grants",
+                limit=fetch_limit,
+                offset=current_offset,
+                with_vectors=False,
+                with_payload=False
+            )
+            
+            points, current_offset = scroll_result
+            
+            if not points:
+                logging.warning(f"[Grants Pagination] Page {page} is beyond available data")
+                return [], total_grants, total_pages
+            
+            grants_skipped += len(points)
+            
+            if current_offset is None:
+                break
+        
+        # Fetch the actual page we want
+        scroll_result = client.scroll(
+            collection_name="government_grants",
+            limit=items_per_page,
+            offset=current_offset,
+            with_vectors=False,
+            with_payload=True
+        )
+        
+        points, _next_cursor = scroll_result
+        
+        # Convert Qdrant points to dashboard grant format
+        grants = []
+        for point in points:
+            grant = qdrant_payload_to_dashboard_grant(
+                point.payload,
+                point_id=point.id,
+                score=None
+            )
+            grants.append(grant)
+        
+        logging.info(f"[Grants Pagination] Page {page}: fetched {len(grants)} grants from Qdrant (total: {total_grants})")
+        
+        return grants, total_grants, total_pages
+        
+    except Exception as e:
+        logging.error(f"[Grants Pagination] Error fetching grants from Qdrant: {e}", exc_info=True)
+        return [], 0, 1
 
 
 def load_all_contracts(client):
