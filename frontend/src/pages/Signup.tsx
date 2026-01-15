@@ -191,7 +191,7 @@ const Signup = () => {
           {/* Background flicker effect */}
           <div className="prelogin-flicker-bg" />
           {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">
           <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
           

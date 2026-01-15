@@ -142,7 +142,7 @@ const VerifyEmail = () => {
           {/* Background flicker effect */}
           <div className="prelogin-flicker-bg" />
           {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">
           <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
           
@@ -160,7 +160,7 @@ const VerifyEmail = () => {
       {/* Verification Form */}
       <div className="pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md">
-          <div className="bg-gradient-to-br from-[#1c4262]/80 to-[#0f1419]/90 border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl backdrop-blur-sm">
+          <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl">
             {/* Logo */}
             <div className="text-center mb-6">
               <img 
@@ -212,7 +212,7 @@ const VerifyEmail = () => {
                       onKeyDown={(e) => handleKeyDown(index, e)}
                       autoFocus={index === 0}
                       placeholder=""
-                      className="w-12 h-14 bg-[#0B0B0F]/60 text-white rounded-lg text-center font-poppins text-xl font-bold border border-corama-teal/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all placeholder:text-gray-600"
+                      className="w-12 h-14 bg-[#0B0B0F] text-white rounded-lg text-center font-poppins text-xl font-bold border border-corama-teal/30 focus:border-corama-teal focus:ring-2 focus:ring-corama-teal/20 outline-none transition-all placeholder:text-gray-600"
                     />
                   ))}
                 </div>
