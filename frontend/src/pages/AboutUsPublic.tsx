@@ -296,17 +296,19 @@ const AboutUsPublic = () => {
   }
 
   return (
-    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
+      {/* Flicker Background */}
+      <div className="prelogin-flicker-bg" />
+      
       {/* Header */}
-      <header className="h-16 sm:h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
+      <header className="h-16 sm:h-20 flex-shrink-0 bg-[#0B0B0F] backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-full flex items-center justify-between">
           <a href="/" className="flex items-center gap-2">
             <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" />
           </a>
           
           {/* Navigation - visible on all screens with smaller text on mobile */}
-          <nav className="flex items-center gap-2 sm:gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
+          <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
             <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
             <a href="/about-us" className="text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
           </nav>
@@ -321,7 +323,7 @@ const AboutUsPublic = () => {
       {/* Scrollable container */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-[1] snap-y snap-mandatory"
+        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-10 snap-y snap-mandatory"
         style={{ 
           scrollBehavior: 'smooth',
           scrollbarWidth: 'none',

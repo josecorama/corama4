@@ -138,15 +138,17 @@ const VerifyEmail = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F]">
+    <div className="min-h-screen bg-[#0B0B0F] relative">
+      {/* Flicker Background */}
+      <div className="prelogin-flicker-bg" />
+      
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F] backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">
           <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
           
           {/* Navigation - visible on all screens with smaller text on mobile */}
-          <nav className="flex items-center gap-2 sm:gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
+          <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
             <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
             <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
           </nav>
@@ -156,7 +158,7 @@ const VerifyEmail = () => {
       </header>
 
       {/* Verification Form */}
-      <div className="pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
+      <div className="relative z-10 pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
         <div className="w-full max-w-md">
           <div className="bg-gradient-to-br from-[#1c4262]/80 to-[#0f1419]/90 border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl backdrop-blur-sm">
             {/* Logo */}

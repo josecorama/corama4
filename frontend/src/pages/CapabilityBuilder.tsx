@@ -1209,13 +1209,14 @@ const CapabilityBuilder = () => {
               <button
                 onClick={handleGeneratePdf}
                 disabled={generatingPdf || !canGeneratePdf}
-                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
               >
-                <div className="text-left">
-                  <h3 className="text-white font-poppins font-bold text-sm sm:text-base">
+                <div className="text-left flex-1">
+                  <p className="font-bold text-sm sm:text-base">
                     {generatingPdf ? 'Generating...' : 'Generate PDF'}
-                  </h3>
-                  <p className="text-white font-poppins text-xs sm:text-sm">Create your Capability Statement</p>
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-300">Create your Capability Statement</p>
                 </div>
                 {generatingPdf ? (
                   <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />
@@ -1227,11 +1228,12 @@ const CapabilityBuilder = () => {
               {/* AI Assistant Button */}
               <button
                 onClick={handleAiAssistant}
-                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
               >
-                <div className="text-left">
-                  <h3 className="text-white font-poppins font-bold text-sm sm:text-base">AI Assistant</h3>
-                  <p className="text-white font-poppins text-xs sm:text-sm">Use AI to enhance your content</p>
+                <div className="text-left flex-1">
+                  <p className="font-bold text-sm sm:text-base">AI Assistant</p>
+                  <p className="text-xs sm:text-sm text-gray-300">Use AI to enhance your content</p>
                 </div>
                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-6 h-6 flex-shrink-0" />
               </button>

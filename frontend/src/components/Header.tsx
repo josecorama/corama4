@@ -181,25 +181,30 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
-            <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
+            {/* Credits - mobile: icon with label below, desktop: inline */}
+            <Link to="/get-more-credits" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              {displayCredits !== null && (
-                <span className="font-poppins text-xs sm:text-sm">{displayCredits}</span>
-              )}
-              <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Credits</span>
+              <div className="flex flex-col sm:flex-row items-center gap-0 sm:gap-1">
+                {displayCredits !== null && (
+                  <span className="font-poppins text-[10px] sm:text-sm">{displayCredits}</span>
+                )}
+                <span className="font-poppins text-[10px] sm:text-sm">Credits</span>
+              </div>
             </Link>
             
+            {/* Logout - mobile: icon with label below, desktop: inline */}
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors"
+              className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 text-white hover:text-corama-teal transition-colors"
             >
               <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Log Out</span>
+              <span className="font-poppins text-[10px] sm:text-sm">Log out</span>
             </button>
             
-            <button className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
+            {/* Settings - mobile: icon with label below, desktop: inline */}
+            <button className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/settings.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              <span className="hidden lg:inline font-poppins text-sm">Settings</span>
+              <span className="font-poppins text-[10px] sm:text-sm">Settings</span>
             </button>
           </div>
         </div>
