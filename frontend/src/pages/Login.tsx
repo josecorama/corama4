@@ -84,7 +84,7 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F]">
+    <div className="min-h-screen prelogin-gradient-bg">
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">

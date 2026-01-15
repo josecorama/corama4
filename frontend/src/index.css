@@ -493,3 +493,22 @@ body {
 .prelogin-nav:has(a:hover) a:not(:hover) {
   opacity: 0.3;
 }
+
+/* Animated gradient background for prelogin pages */
+.prelogin-gradient-bg {
+  background: linear-gradient(-45deg, #0a1a24, #0b2c48, #1a4a5e, #0d3347);
+  background-size: 400% 400%;
+  animation: preloginGradient 15s ease infinite;
+}
+
+@keyframes preloginGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
