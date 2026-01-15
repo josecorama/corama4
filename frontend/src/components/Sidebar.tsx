@@ -349,12 +349,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
             <div className="relative mt-2 group" style={{ height: '51px' }}>
-              {/* Single button with smooth morphing animation for width, borderRadius, and background (teal gradient from original SVG) */}
+              {/* Single button with smooth morphing animation for width, borderRadius, and background (dark blue gradient) */}
               <button
                 onClick={handleGoBack}
                 className="relative flex items-center h-full px-4 text-white transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] hover:opacity-90"
                 style={{
-                  background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                  background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
                   width: isExpanded ? '258px' : '76px',
                   borderRadius: isExpanded ? '0 9999px 9999px 0' : '9999px',
                   gap: '8px'
