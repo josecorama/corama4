@@ -226,20 +226,22 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             const isCapabilityBuilder = item.path === '/capability-builder'
             return (
               <div key={item.path} className="relative group" style={{ height: '51px' }}>
-                  {/* Hover background layer - controlled width, always rendered with opacity transition */}
-                  <div 
-                    className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${!isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
-                    style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
-                    aria-hidden="true"
-                  />
-                  {/* Active highlight - always rendered with opacity transition */}
-                  <img 
-                    src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
-                    alt="" 
-                    className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isExpanded ? 'object-left' : 'object-right'} ${isActive ? 'opacity-100' : 'opacity-0'}`}
-                    style={{ width: isExpanded ? '258px' : '76px' }}
-                    aria-hidden="true"
-                  />
+                      {/* Hover background layer - controlled width with smooth resize transition */}
+                      <div 
+                        className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${!isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                        style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                        aria-hidden="true"
+                      />
+                      {/* Active highlight - CSS gradient with smooth resize transition */}
+                      <div 
+                        className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                        style={{ 
+                          width: isExpanded ? '258px' : '76px',
+                          background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                          borderRadius: '0 9999px 9999px 0'
+                        }}
+                        aria-hidden="true"
+                      />
                 {item.external ? (
                   <a
                     href={item.path}
@@ -303,18 +305,20 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           {/* Admin Link - only shown for admin users */}
           {isAdmin && (
             <div className="relative group mt-2" style={{ height: '51px' }}>
-              {/* Hover background layer - always rendered with opacity transition */}
+              {/* Hover background layer - smooth resize transition */}
               <div 
-                className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
                 style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
                 aria-hidden="true"
               />
-              {/* Active highlight - always rendered with opacity transition */}
-              <img 
-                src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
-                alt="" 
-                className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isExpanded ? 'object-left' : 'object-right'} ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
-                style={{ width: isExpanded ? '258px' : '76px' }}
+              {/* Active highlight - CSS gradient with smooth resize transition */}
+              <div 
+                className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
+                style={{ 
+                  width: isExpanded ? '258px' : '76px',
+                  background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                  borderRadius: '0 9999px 9999px 0'
+                }}
                 aria-hidden="true"
               />
               <Link
@@ -345,28 +349,27 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
             <div className="relative mt-2 group" style={{ height: '51px' }}>
-              {/* Collapsed state background - always rendered with opacity transition */}
-              <img 
-                src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
-                alt="" 
-                className={`absolute top-0 left-0 bottom-0 h-full object-cover object-right transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${!isExpanded ? 'opacity-100' : 'opacity-0'}`}
-                style={{ width: '76px' }}
-                aria-hidden="true"
-              />
+              {/* Single button with smooth morphing animation for width, borderRadius, and background */}
               <button
                 onClick={handleGoBack}
                 className="relative flex items-center h-full px-4 text-white transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] hover:opacity-90"
                 style={{
-                  background: isExpanded ? 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' : 'transparent',
+                  background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
                   width: isExpanded ? '258px' : '76px',
-                  borderRadius: isExpanded ? '0 9999px 9999px 0' : '0',
+                  borderRadius: isExpanded ? '0 9999px 9999px 0' : '9999px',
                   gap: '8px'
                 }}
               >
                 <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-[25px] h-[25px]" aria-hidden="true" />
-                {isExpanded && (
-                  <span className="font-poppins text-sm">Go Back</span>
-                )}
+                <span 
+                  className="font-poppins text-sm transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap overflow-hidden"
+                  style={{ 
+                    opacity: isExpanded ? 1 : 0,
+                    maxWidth: isExpanded ? '200px' : '0px'
+                  }}
+                >
+                  Go Back
+                </span>
               </button>
             </div>
           )}
