@@ -480,3 +480,16 @@ body {
     animation: none;
   }
 }
+
+/* Prelogin navigation hover effect */
+.prelogin-nav a {
+  transition: color 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.prelogin-nav a:hover {
+  color: #99C8CA !important;
+}
+
+.prelogin-nav:has(a:hover) a:not(:hover) {
+  opacity: 0.3;
+}

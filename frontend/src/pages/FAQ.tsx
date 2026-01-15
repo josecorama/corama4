@@ -64,11 +64,11 @@ const FAQ = () => {
           <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
           
           {/* Navigation - visible on all screens with smaller text on mobile */}
-          <nav className="flex items-center gap-2 sm:gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
-            <a href="/faq" className="text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
-            <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
-          </nav>
+                    <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
+                      <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 font-poppins text-[10px] sm:text-sm">IHCC</a>
+                      <a href="/faq" className="text-white font-poppins text-[10px] sm:text-sm">FAQ</a>
+                      <a href="/about-us" className="text-gray-300 font-poppins text-[10px] sm:text-sm">About Us</a>
+                    </nav>
           
           <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
             <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
