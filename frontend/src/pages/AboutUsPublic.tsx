@@ -296,8 +296,10 @@ const AboutUsPublic = () => {
   }
 
   return (
-    <div className="h-screen prelogin-gradient-bg flex flex-col overflow-hidden">
-      {/* Header */}
+        <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
+          {/* Background flicker effect */}
+          <div className="prelogin-flicker-bg" />
+          {/* Header */}
       <header className="h-16 sm:h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-full flex items-center justify-between">
           <a href="/" className="flex items-center gap-2">

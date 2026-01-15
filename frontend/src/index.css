@@ -494,21 +494,37 @@ body {
   opacity: 0.3;
 }
 
-/* Animated gradient background for prelogin pages */
-.prelogin-gradient-bg {
-  background: linear-gradient(-45deg, #0a1a24, #0b2c48, #1a4a5e, #0d3347);
-  background-size: 400% 400%;
-  animation: preloginGradient 15s ease infinite;
+/* Conic gradient flicker background for prelogin pages */
+.prelogin-flicker-bg {
+  --flicker-size: 20px;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 180deg at 50% 70%,
+    hsla(175, 30%, 70%, 1) 0deg,
+    #6BB4B5 72deg,
+    #0B2C48 144deg,
+    #1C4262 216deg,
+    #99C8CA 288deg,
+    hsla(175, 30%, 70%, 1) 360deg
+  );
+  mask:
+    radial-gradient(circle at 50% 50%, white 2px, transparent 2.5px) 50% 50% / var(--flicker-size) var(--flicker-size),
+    url("https://assets.codepen.io/605876/noise-mask.png") 256px 50% / 256px 256px;
+  -webkit-mask:
+    radial-gradient(circle at 50% 50%, white 2px, transparent 2.5px) 50% 50% / var(--flicker-size) var(--flicker-size),
+    url("https://assets.codepen.io/605876/noise-mask.png") 256px 50% / 256px 256px;
+  mask-composite: intersect;
+  -webkit-mask-composite: source-in;
+  animation: preloginFlicker 20s infinite linear;
+  opacity: 0.6;
 }
 
-@keyframes preloginGradient {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
+@keyframes preloginFlicker {
+  to {
+    mask-position: 50% 50%, 0 50%;
+    -webkit-mask-position: 50% 50%, 0 50%;
   }
 }
