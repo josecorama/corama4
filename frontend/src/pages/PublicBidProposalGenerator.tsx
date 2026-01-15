@@ -331,8 +331,18 @@ const PublicBidProposalGenerator = () => {
 
         // Job still running, continue polling
       } catch (err) {
-        console.error('Error polling job status:', err)
-        // Don't stop polling on network errors, just log and continue
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        
+        // Check if this is a rate limit error (429)
+        const isRateLimitError = errorMessage.includes('429') || 
+                                 errorMessage.includes('rate_limit') || 
+                                 errorMessage.includes('Rate limit')
+        
+        // Silently continue polling for rate limit errors - loading animation is already showing
+        if (!isRateLimitError) {
+          console.error('Error polling job status:', err)
+        }
+        // Don't stop polling on errors, just continue
       }
     }, 2500) // Poll every 2.5 seconds
 

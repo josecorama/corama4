@@ -349,6 +349,20 @@ const ContractAnalysis = () => {
           // If status is 'queued' or 'running', continue polling
           
         } catch (pollError) {
+          const errorMessage = pollError instanceof Error ? pollError.message : String(pollError)
+          
+          // Check if this is a rate limit error (429)
+          const isRateLimitError = errorMessage.includes('429') || 
+                                   errorMessage.includes('rate_limit') || 
+                                   errorMessage.includes('Rate limit')
+          
+          if (isRateLimitError) {
+            // Silently continue polling for rate limit errors - loading animation is already showing
+            // The interval will retry automatically
+            return
+          }
+          
+          // For other errors, stop polling and show error
           console.error('Error polling job:', pollError)
           if (jobPollingRef.current) {
             clearInterval(jobPollingRef.current)
@@ -356,7 +370,7 @@ const ContractAnalysis = () => {
           }
           setIsGeneratingFindings(false)
           setJobProgress('')
-          alert(pollError instanceof Error ? pollError.message : 'Failed to get analysis results')
+          alert(errorMessage || 'Failed to get analysis results')
         }
       }
       
