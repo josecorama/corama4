@@ -17056,6 +17056,23 @@ def api_update_username():
         if len(new_username) > 50:
             return jsonify({"success": False, "error": "Username must be less than 50 characters"}), 400
         
+        # Check if username is already taken (case-insensitive, exclude current user)
+        new_username_lower = new_username.lower()
+        try:
+            if admin_initialized and admin_db:
+                users_ref = admin_db.reference('users')
+                all_users = users_ref.get() or {}
+                for other_user_id, user_data in all_users.items():
+                    if other_user_id != user_id and user_data:
+                        existing_username = user_data.get('username', '') or user_data.get('display_name', '')
+                        if existing_username.lower() == new_username_lower:
+                            return jsonify({"success": False, "error": "This username is already taken. Please choose a different one."}), 400
+            else:
+                logging.warning("[Settings] Admin SDK not initialized, skipping username uniqueness check")
+        except Exception as check_err:
+            logging.error(f"[Settings] Error checking username uniqueness: {check_err}")
+            # Continue with update even if check fails
+        
         # Update display_name in Firebase
         if admin_initialized and admin_db:
             user_ref = admin_db.reference(f'users/{user_id}')
@@ -17099,8 +17116,15 @@ def api_change_password():
         if not new_password:
             return jsonify({"success": False, "error": "New password is required"}), 400
         
-        if len(new_password) < 6:
-            return jsonify({"success": False, "error": "New password must be at least 6 characters"}), 400
+        # Validate password requirements (same as signup)
+        if len(new_password) < 8:
+            return jsonify({"success": False, "error": "Password must be at least 8 characters long"}), 400
+        if not any(c.isupper() for c in new_password):
+            return jsonify({"success": False, "error": "Password must contain at least one uppercase letter"}), 400
+        if not any(c.isdigit() for c in new_password):
+            return jsonify({"success": False, "error": "Password must contain at least one number"}), 400
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?/~`' for c in new_password):
+            return jsonify({"success": False, "error": "Password must contain at least one special character"}), 400
         
         if new_password != confirm_password:
             return jsonify({"success": False, "error": "New passwords do not match"}), 400
