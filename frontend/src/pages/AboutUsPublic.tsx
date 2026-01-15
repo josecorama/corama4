@@ -306,7 +306,7 @@ const AboutUsPublic = () => {
             <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" />
           </a>
           
-          {/* Navigation - visible on all screens with smaller text on mobile */}
+                    {/* Navigation - visible on all screens with smaller text on mobile */}
                     <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
                       <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 font-poppins text-[10px] sm:text-sm">IHCC</a>
                       <a href="/faq" className="text-gray-300 font-poppins text-[10px] sm:text-sm">FAQ</a>
@@ -320,10 +320,10 @@ const AboutUsPublic = () => {
         </div>
       </header>
 
-      {/* Scrollable container */}
-      <div 
-        ref={containerRef}
-        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-[1] snap-y snap-mandatory"
+            {/* Scrollable container */}
+            <div 
+              ref={containerRef}
+              className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-10 snap-y snap-mandatory"
         style={{ 
           scrollBehavior: 'smooth',
           scrollbarWidth: 'none',

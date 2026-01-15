@@ -65,7 +65,7 @@ const FAQ = () => {
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">
           <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
           
-          {/* Navigation - visible on all screens with smaller text on mobile */}
+                    {/* Navigation - visible on all screens with smaller text on mobile */}
                     <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
                       <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 font-poppins text-[10px] sm:text-sm">IHCC</a>
                       <a href="/faq" className="text-white font-poppins text-[10px] sm:text-sm">FAQ</a>
@@ -79,8 +79,8 @@ const FAQ = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 pt-24 sm:pt-32 pb-40 sm:pb-32 px-4 sm:px-6">
+            {/* Main Content */}
+            <div className="flex-1 pt-24 sm:pt-32 pb-40 sm:pb-32 px-4 sm:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
           {/* Title */}
           <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white text-center mb-12 sm:mb-16">
@@ -226,8 +226,8 @@ const FAQ = () => {
         </div>
       </div>
 
-      {/* Footer - at bottom of page content, not fixed */}
-      <footer className="bg-[#0B0B0F] pt-8 pb-5">
+            {/* Footer - at bottom of page content, not fixed */}
+            <footer className="bg-[#0B0B0F] pt-8 pb-5 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
           <div className="text-center sm:text-left">
             <div>180 North Michigan Avenue</div>

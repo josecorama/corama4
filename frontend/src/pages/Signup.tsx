@@ -191,25 +191,28 @@ const Signup = () => {
           {/* Background flicker effect */}
           <div className="prelogin-flicker-bg" />
           {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]">
-        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
+            <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]">
+              <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">
+                <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
           
-          {/* Navigation - visible on all screens with smaller text on mobile */}
-                    <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
-                      <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 font-poppins text-[10px] sm:text-sm">IHCC</a>
-                      <a href="/faq" className="text-gray-300 font-poppins text-[10px] sm:text-sm">FAQ</a>
-                      <a href="/about-us" className="text-gray-300 font-poppins text-[10px] sm:text-sm">About Us</a>
-                    </nav>
+                {/* Navigation - visible on all screens with smaller text on mobile */}
+                <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
+                  <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 font-poppins text-[10px] sm:text-sm">IHCC</a>
+                  <a href="/faq" className="text-gray-300 font-poppins text-[10px] sm:text-sm">FAQ</a>
+                  <a href="/about-us" className="text-gray-300 font-poppins text-[10px] sm:text-sm">About Us</a>
+                </nav>
           
-          <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
-        </div>
-      </header>
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
+                  <a href="/signup" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
+                </div>
+              </div>
+            </header>
 
-      {/* Signup Form */}
-      <div className="pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center">
-        <div className="w-full max-w-lg">
-          <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl">
+            {/* Signup Form */}
+            <div className="pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center relative z-10">
+              <div className="w-full max-w-lg">
+                <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl">
             {/* Logo */}
             <div className="text-center mb-6">
               <img 
@@ -396,8 +399,8 @@ const Signup = () => {
         </div>
       </div>
 
-      {/* Footer - at bottom of page content, not fixed */}
-      <footer className="bg-[#0B0B0F] pt-8 pb-5">
+            {/* Footer - at bottom of page content, not fixed */}
+            <footer className="bg-[#0B0B0F] pt-8 pb-5 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
           <div className="text-center sm:text-left">
             <div>180 North Michigan Avenue</div>
