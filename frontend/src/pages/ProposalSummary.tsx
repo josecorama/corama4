@@ -56,38 +56,60 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50"
         onClick={onStayHere}
       />
-      <div className="relative bg-[#1C4262] rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-white/20">
-        <div className="flex justify-center mb-6">
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto"
+        style={{ backgroundColor: '#0B2C48', minHeight: '200px' }}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onStayHere}
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        
+        {/* Warning Icon */}
+        <div className="flex-shrink-0">
           <img 
             src="/static/app/dashboard/WarnIcon.svg" 
             alt="Warning" 
-            className="w-16 h-16"
+            className="w-16 h-16 sm:w-20 sm:h-20"
           />
         </div>
-        <h2 className="text-white font-poppins font-bold text-xl text-center mb-3">
-          Discard Unsaved Changes?
-        </h2>
-        <p className="text-gray-300 font-poppins text-sm text-center mb-8">
-          You have unsaved progress in this workflow. If you leave now, your changes will be lost.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            onClick={onStayHere}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#1C4262] font-poppins font-bold rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Stay Here
-          </button>
-          <button
-            onClick={onDiscard}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white font-poppins font-bold rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Discard & Go Back
-          </button>
+        
+        {/* Content */}
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              Discard Unsaved Changes?
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              You have unsaved progress in this workflow. If you leave now, your changes will be lost.
+            </p>
+          </div>
+          
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onStayHere}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#5CBFC0' }}
+            >
+              Stay Here
+            </button>
+            <button
+              onClick={onDiscard}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#27456E' }}
+            >
+              Discard & Go Back
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -663,8 +685,8 @@ const ProposalSummary = () => {
                                                                                                                                         <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="40" value={laborHours} onChange={e => setLaborHours(e.target.value)} />
                                                                                                                                         <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
                                                                                                                                         <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '40px' }} value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
-                                                                                                                                        <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '40px' }}>
-                                                                      <span className="mr-6">Add Role</span>
+                                                                                                                                                                                                              <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '150px', height: '40px' }}>
+                                                                                                                                            <span className="mr-6">Add Role</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button className="p-1 opacity-30 flex-shrink-0">
@@ -775,8 +797,8 @@ const ProposalSummary = () => {
                                                                                                                                         <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="5" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)} />
                                                                                                                                         <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
                                                                                                                                         <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '40px' }} value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
-                                                                                                                                        <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '40px' }}>
-                                                                      <span className="mr-6">Add Item</span>
+                                                                                                                                                                                                              <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '150px', height: '40px' }}>
+                                                                                                                                            <span className="mr-6">Add Item</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button className="p-1 opacity-30 flex-shrink-0">
