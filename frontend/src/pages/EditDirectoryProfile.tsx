@@ -10,7 +10,6 @@ const EditDirectoryProfile = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [credits, setCredits] = useState(0)
   const [_hasListing, setHasListing] = useState(false)
   const [_authError, setAuthError] = useState<string | null>(null)
   const [profile, setProfile] = useState<DirectoryProfile>({
@@ -32,7 +31,6 @@ const EditDirectoryProfile = () => {
 
   useEffect(() => {
     loadProfile()
-    loadCredits()
   }, [])
 
   const loadProfile = async () => {
@@ -59,16 +57,6 @@ const EditDirectoryProfile = () => {
     }
   }
 
-  const loadCredits = async () => {
-    try {
-      const data = await api.getCredits()
-      if (data.success) {
-        setCredits(data.current_balance)
-      }
-    } catch (error) {
-      console.error('Failed to load credits:', error)
-    }
-  }
 
   const handleInputChange = (field: keyof DirectoryProfile, value: string | boolean) => {
     setProfile(prev => ({ ...prev, [field]: value }))
@@ -138,7 +126,7 @@ const EditDirectoryProfile = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-corama-dark">
-        <Header credits={credits} />
+        <Header />
         <div className="flex">
           <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
           <Sidebar />
@@ -155,7 +143,7 @@ const EditDirectoryProfile = () => {
   return (
     <div className="min-h-screen bg-corama-dark">
       {/* Header spans full width at top */}
-      <Header credits={credits} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex">
