@@ -125,9 +125,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
       ref={cardRef}
       className="relative flex flex-col w-full max-w-[342px] h-[432px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
       style={{
-        background: 'linear-gradient(90deg, rgba(107, 180, 181, 0.7) 9%, rgba(156, 214, 215, 0.7) 88%, rgba(133, 196, 199, 0.7) 100%)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        background: 'linear-gradient(90deg, rgb(107, 180, 181) 9%, rgb(156, 214, 215) 88%, rgb(133, 196, 199) 100%)',
         border: '1px solid rgba(255, 255, 255, 0.2)',
         boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
         transformStyle: 'preserve-3d',

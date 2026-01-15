@@ -893,10 +893,10 @@ const ProposalSummary = () => {
 
               <button
                 onClick={handleGenerateFinalProposalClick}
-                                                            className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden h-[32px] lg:h-[44px]"
-                                                            style={{ backgroundColor: '#27456e', width: '388px' }}
-                            >
-                              <span className="pr-8">Generate Final Proposal</span>
+                className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden h-[44px] lg:h-[44px]"
+                style={{ backgroundColor: '#27456e', width: '388px' }}
+              >
+                <span className="pr-8">Generate Final Proposal</span>
                 <img src={GenerateFinalProposalIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>

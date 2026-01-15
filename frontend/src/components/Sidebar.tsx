@@ -153,20 +153,20 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
 
   return (
     <>
-      {/* Mobile Menu Button - positioned at top left with Menu label */}
+      {/* Mobile Menu Button - positioned at top left with Menu label, aligned with header icons */}
       {!actualOpen && (
         <button 
           onClick={toggleOpen}
-          className="lg:hidden fixed top-0 left-2 z-50 h-20 w-12 flex flex-col items-center justify-center text-white"
+          className="lg:hidden fixed top-0 left-2 z-50 h-14 w-10 flex flex-col items-center justify-center text-white"
           aria-label="Toggle menu"
         >
           <img 
             src="/static/app/dashboard/HamburgerButton.svg" 
             alt="" 
-            className="w-6 h-6"
+            className="w-4 h-4"
             aria-hidden="true"
           />
-          <span className="font-poppins text-[10px] mt-0.5">{t('menu')}</span>
+          <span className="font-poppins text-[8px] mt-0.5">{t('menu')}</span>
         </button>
       )}
 
