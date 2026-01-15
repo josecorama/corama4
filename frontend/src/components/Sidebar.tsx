@@ -226,20 +226,20 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             const isCapabilityBuilder = item.path === '/capability-builder'
             return (
               <div key={item.path} className="relative group" style={{ height: '51px' }}>
-                {/* Hover background layer - controlled width, always rendered with opacity transition */}
-                <div 
-                  className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-500 ease-out pointer-events-none ${!isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
-                  style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
-                  aria-hidden="true"
-                />
-                {/* Active highlight - always rendered with opacity transition */}
-                <img 
-                  src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
-                  alt="" 
-                  className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-500 ease-out ${isExpanded ? 'object-left' : 'object-right'} ${isActive ? 'opacity-100' : 'opacity-0'}`}
-                  style={{ width: isExpanded ? '258px' : '76px' }}
-                  aria-hidden="true"
-                />
+                  {/* Hover background layer - controlled width, always rendered with opacity transition */}
+                  <div 
+                    className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${!isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                    style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                    aria-hidden="true"
+                  />
+                  {/* Active highlight - always rendered with opacity transition */}
+                  <img 
+                    src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
+                    alt="" 
+                    className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isExpanded ? 'object-left' : 'object-right'} ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                    style={{ width: isExpanded ? '258px' : '76px' }}
+                    aria-hidden="true"
+                  />
                 {item.external ? (
                   <a
                     href={item.path}
@@ -305,7 +305,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             <div className="relative group mt-2" style={{ height: '51px' }}>
               {/* Hover background layer - always rendered with opacity transition */}
               <div 
-                className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-500 ease-out pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
                 style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
                 aria-hidden="true"
               />
@@ -313,7 +313,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
               <img 
                 src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
                 alt="" 
-                className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-500 ease-out ${isExpanded ? 'object-left' : 'object-right'} ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
+                className={`absolute top-0 left-0 bottom-0 h-full object-cover transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isExpanded ? 'object-left' : 'object-right'} ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
                 style={{ width: isExpanded ? '258px' : '76px' }}
                 aria-hidden="true"
               />
@@ -345,19 +345,17 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
             <div className="relative mt-2 group" style={{ height: '51px' }}>
-              {/* Collapsed state: use object-right to preserve rounded edge */}
-              {!isExpanded && (
-                <img 
-                  src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
-                  alt="" 
-                  className="absolute top-0 left-0 bottom-0 h-full object-cover object-right"
-                  style={{ width: '76px' }}
-                  aria-hidden="true"
-                />
-              )}
+              {/* Collapsed state background - always rendered with opacity transition */}
+              <img 
+                src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
+                alt="" 
+                className={`absolute top-0 left-0 bottom-0 h-full object-cover object-right transition-opacity duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${!isExpanded ? 'opacity-100' : 'opacity-0'}`}
+                style={{ width: '76px' }}
+                aria-hidden="true"
+              />
               <button
                 onClick={handleGoBack}
-                className="relative flex items-center h-full px-4 text-white transition-all hover:opacity-90"
+                className="relative flex items-center h-full px-4 text-white transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] hover:opacity-90"
                 style={{
                   background: isExpanded ? 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' : 'transparent',
                   width: isExpanded ? '258px' : '76px',
