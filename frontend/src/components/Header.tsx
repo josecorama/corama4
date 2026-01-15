@@ -189,31 +189,31 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
             </div>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
+          <div className="flex items-center gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
             {/* Credits - mobile: icon with label below, desktop: inline */}
-            <Link to="/get-more-credits" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-              <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
+            <Link to="/get-more-credits" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
+              <img src="/static/app/dashboard/Credits.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
               <div className="flex flex-col sm:flex-row items-center gap-0 sm:gap-1">
                 {displayCredits !== null && (
-                  <span className="font-poppins text-[10px] sm:text-sm">{displayCredits}</span>
+                  <span className="font-poppins text-[8px] sm:text-xs">{displayCredits}</span>
                 )}
-                <span className="font-poppins text-[10px] sm:text-sm">Credits</span>
+                <span className="font-poppins text-[8px] sm:text-xs">Credits</span>
               </div>
             </Link>
             
             {/* Logout - mobile: icon with label below, desktop: inline */}
             <button 
               onClick={handleLogout}
-              className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 text-white hover:text-corama-teal transition-colors"
+              className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
             >
-              <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              <span className="font-poppins text-[10px] sm:text-sm">Log out</span>
+              <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
+              <span className="font-poppins text-[8px] sm:text-xs">Log out</span>
             </button>
             
             {/* Settings - mobile: icon with label below, desktop: inline */}
-            <button className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-              <img src="/static/app/dashboard/settings.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              <span className="font-poppins text-[10px] sm:text-sm">Settings</span>
+            <button className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
+              <img src="/static/app/dashboard/settings.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
+              <span className="font-poppins text-[8px] sm:text-xs">Settings</span>
             </button>
           </div>
         </div>

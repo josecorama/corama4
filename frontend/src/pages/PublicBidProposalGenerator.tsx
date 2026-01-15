@@ -129,33 +129,49 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onStayHere}
       />
-      <div className="relative bg-[#1C4262] rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-white/20">
-        <div className="flex justify-center mb-6">
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
+      >
+        <button 
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+          onClick={onStayHere}
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        <div className="flex-shrink-0">
           <img 
-            src="/static/app/dashboard/WarnIcon.svg" 
+            src="/static/app/proposal-summary/WarnIcon.svg" 
             alt="Warning" 
-            className="w-16 h-16"
+            className="w-16 h-16 sm:w-20 sm:h-20"
           />
         </div>
-        <h2 className="text-white font-poppins font-bold text-xl text-center mb-3">
-          Discard Unsaved Changes?
-        </h2>
-        <p className="text-gray-300 font-poppins text-sm text-center mb-8">
-          You have unsaved progress in this workflow. If you leave now, your changes will be lost.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            onClick={onStayHere}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#1C4262] font-poppins font-bold rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Stay Here
-          </button>
-          <button
-            onClick={onDiscard}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white font-poppins font-bold rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Discard & Go Back
-          </button>
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              Discard unsaved changes?
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              You're in the middle of a workflow.<br />
+              If you go back now, your progress in this page will not be saved.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onStayHere}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'rgb(92, 191, 192)' }}
+            >
+              Stay Here
+            </button>
+            <button
+              onClick={onDiscard}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'rgb(39, 69, 110)' }}
+            >
+              Discard & Go Back
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -466,7 +482,7 @@ const PublicBidProposalGenerator = () => {
       <Header />
       
       <div className="flex flex-1 overflow-hidden">
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
         <Sidebar 
           onGoBack={handleGoBack}
