@@ -21,8 +21,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [shouldAnimate, setShouldAnimate] = useState(false)
+    const [isAdmin, setIsAdmin] = useState(false)
   
   // Swipe gesture refs
   const touchStartX = useRef<number>(0)
@@ -125,23 +124,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   const isDashboard = location.pathname === '/dashboard'
   const showGoBack = !isDashboard && !!previousPath
   
-    const actualOpen = onMobileToggle ? mobileOpen : isOpen
-    const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
-  
-    // Trigger animation when sidebar opens on mobile
-    useEffect(() => {
-      if (actualOpen) {
-        // Reset animation state first
-        setShouldAnimate(false)
-        // Then trigger animation after a brief delay
-        const timer = setTimeout(() => {
-          setShouldAnimate(true)
-        }, 50)
-        return () => clearTimeout(timer)
-      } else {
-        setShouldAnimate(false)
-      }
-    }, [actualOpen])
+        const actualOpen = onMobileToggle ? mobileOpen : isOpen
+      const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
   
   const menuItems: MenuItem[] = [
     { path: '/dashboard', label: 'Dashboard', icon: '/static/app/dashboard/Dashboard.svg' },
@@ -192,16 +176,16 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
         />
       )}
 
-      {/* Sidebar - fixed on mobile (overlays content), sticky on desktop */}
-      <aside 
-        ref={sidebarRef}
-        className={`
-          fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40
-          ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
-          transform transition-all duration-300 ease-in-out
-          ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
-      >
+            {/* Sidebar - fixed on mobile (overlays content), sticky on desktop */}
+            <aside 
+              ref={sidebarRef}
+              className={`
+                fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40
+                ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
+                transform transition-transform duration-500 ease-out
+                ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+              `}
+            >
         {/* Vertical separator line: 16px from the Highlight SVG end (258px + 16px = 274px from left, so right-4 = 16px from right edge of 290px sidebar) - desktop only */}
         <div
           className="hidden lg:block absolute right-4 top-0 bottom-0 w-px"
@@ -236,12 +220,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           </button>
         </div>
         
-                <nav className={`flex-1 pt-[16px] overflow-y-auto ${shouldAnimate ? 'sidebar-animate-in' : ''}`} style={{ gap: '8px' }}>
-                  {menuItems.map((item) => {
-                    const isActive = location.pathname === item.path
-                    const isCapabilityBuilder = item.path === '/capability-builder'
-                    return (
-                      <div key={item.path} className="relative group sidebar-menu-item" style={{ height: '51px' }}>
+                                <nav className="flex-1 pt-[16px] overflow-y-auto" style={{ gap: '8px' }}>
+                          {menuItems.map((item) => {
+                            const isActive = location.pathname === item.path
+                            const isCapabilityBuilder = item.path === '/capability-builder'
+                            return (
+                              <div key={item.path} className="relative group" style={{ height: '51px' }}>
                 {/* Hover background layer - controlled width, only shows on hover when not active */}
                 {!isActive && (
                   <div 
@@ -320,9 +304,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             )
           })}
           
-                    {/* Admin Link - only shown for admin users */}
-                    {isAdmin && (
-                      <div className="relative group mt-2 sidebar-menu-item" style={{ height: '51px' }}>
+                                        {/* Admin Link - only shown for admin users */}
+                              {isAdmin && (
+                                <div className="relative group mt-2" style={{ height: '51px' }}>
               {/* Hover background layer */}
               {location.pathname !== '/admin/directory' && (
                 <div 
@@ -366,9 +350,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             </div>
           )}
           
-                    {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
-                    {showGoBack && (
-                      <div className="relative mt-2 group sidebar-menu-item" style={{ height: '51px' }}>
+                                        {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
+                              {showGoBack && (
+                                <div className="relative mt-2 group" style={{ height: '51px' }}>
               {/* Collapsed state: use object-right to preserve rounded edge */}
               {!isExpanded && (
                 <img 
