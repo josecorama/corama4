@@ -232,12 +232,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                         style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
                         aria-hidden="true"
                       />
-                      {/* Active highlight - CSS gradient with smooth resize transition */}
+                      {/* Active highlight - CSS gradient with smooth resize transition (teal gradient from original SVG) */}
                       <div 
                         className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isActive ? 'opacity-100' : 'opacity-0'}`}
                         style={{ 
                           width: isExpanded ? '258px' : '76px',
-                          background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                          background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
                           borderRadius: '0 9999px 9999px 0'
                         }}
                         aria-hidden="true"
@@ -311,12 +311,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                 style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
                 aria-hidden="true"
               />
-              {/* Active highlight - CSS gradient with smooth resize transition */}
+              {/* Active highlight - CSS gradient with smooth resize transition (teal gradient from original SVG) */}
               <div 
                 className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
                 style={{ 
                   width: isExpanded ? '258px' : '76px',
-                  background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                  background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
                   borderRadius: '0 9999px 9999px 0'
                 }}
                 aria-hidden="true"
@@ -349,12 +349,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
             <div className="relative mt-2 group" style={{ height: '51px' }}>
-              {/* Single button with smooth morphing animation for width, borderRadius, and background */}
+              {/* Single button with smooth morphing animation for width, borderRadius, and background (teal gradient from original SVG) */}
               <button
                 onClick={handleGoBack}
                 className="relative flex items-center h-full px-4 text-white transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] hover:opacity-90"
                 style={{
-                  background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
+                  background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
                   width: isExpanded ? '258px' : '76px',
                   borderRadius: isExpanded ? '0 9999px 9999px 0' : '9999px',
                   gap: '8px'

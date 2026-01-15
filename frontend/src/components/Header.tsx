@@ -182,7 +182,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
               <Search className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                placeholder="SEARCH"
+                placeholder="SEARCH IN CORAMA"
                 className="w-full rounded-full py-1.5 sm:py-2 lg:py-2.5 pl-8 sm:pl-12 pr-2 sm:pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-xs sm:text-sm"
                 style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid rgb(60, 87, 114)' }}
               />
