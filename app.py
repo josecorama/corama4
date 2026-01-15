@@ -6198,8 +6198,15 @@ def get_contracts_api():
         analytics = get_qdrant_analytics()
         category_distribution = analytics.get('category_distribution', {})
         
-        # Build top_categories from analytics
-        sorted_categories = sorted(category_distribution.items(), key=lambda x: x[1], reverse=True)[:4]
+        # Build top_categories from analytics, excluding unhelpful categories
+        # Filter out categories like "Other", "Unknown", etc. that aren't useful for users
+        excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
+        filtered_categories = {
+            cat: count for cat, count in category_distribution.items()
+            if cat.lower() not in excluded_cats
+        }
+        
+        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:4]
         top_categories = []
         for cat_name, count in sorted_categories:
             percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
@@ -6233,6 +6240,83 @@ def get_contracts_api():
             "error": "Failed to load contracts from database"
         })
 
+def get_grants_analytics():
+    """
+    Get analytics for grants from the government_grants Qdrant collection.
+    
+    Scrolls through all grants to calculate category distribution.
+    Results are cached to avoid repeated full scans.
+    """
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("[Grants Analytics] Qdrant credentials not configured")
+            return {'total_grants': 0, 'category_distribution': {}}
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Check if government_grants collection exists
+        try:
+            count_result = client.count(
+                collection_name="government_grants",
+                exact=True
+            )
+            total_grants = count_result.count
+        except Exception as e:
+            logging.warning(f"[Grants Analytics] government_grants collection not found: {e}")
+            return {'total_grants': 0, 'category_distribution': {}}
+        
+        if total_grants == 0:
+            return {'total_grants': 0, 'category_distribution': {}}
+        
+        # Scroll through all grants to count categories
+        # Use with_payload=["category"] to only fetch the category field for efficiency
+        category_counts = {}
+        current_offset = None
+        
+        while True:
+            scroll_result = client.scroll(
+                collection_name="government_grants",
+                limit=1000,
+                offset=current_offset,
+                with_vectors=False,
+                with_payload=["category"]
+            )
+            
+            points, current_offset = scroll_result
+            
+            if not points:
+                break
+            
+            for point in points:
+                cat = point.payload.get("category", "Unknown")
+                if cat and isinstance(cat, str):
+                    cat = cat.capitalize()
+                else:
+                    cat = "Unknown"
+                category_counts[cat] = category_counts.get(cat, 0) + 1
+            
+            if current_offset is None:
+                break
+        
+        logging.info(f"[Grants Analytics] Calculated category distribution from {total_grants} grants")
+        
+        return {
+            'total_grants': total_grants,
+            'category_distribution': category_counts
+        }
+        
+    except Exception as e:
+        logging.error(f"[Grants Analytics] Error: {e}", exc_info=True)
+        return {'total_grants': 0, 'category_distribution': {}}
+
+
+# Categories to exclude from top categories display (not useful for users)
+EXCLUDED_CATEGORIES = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
+
+
 @app.route('/api/grants', methods=['GET'])
 def get_grants_api():
     """API endpoint to get grants data for the dashboard with SERVER-SIDE PAGINATION.
@@ -6248,7 +6332,7 @@ def get_grants_api():
     - total_contracts: Total count from Qdrant
     - current_page: Current page number
     - total_pages: Total pages available
-    - top_categories: Category distribution for analytics
+    - top_categories: Category distribution for analytics (from ALL grants)
     """
     try:
         # Get pagination parameters
@@ -6264,16 +6348,21 @@ def get_grants_api():
             items_per_page=limit
         )
         
-        # Build top_categories from grants
-        category_counts = {}
-        for grant in grants:
-            cat = grant.get('category', 'Unknown')
-            category_counts[cat] = category_counts.get(cat, 0) + 1
+        # Get category distribution from ALL grants (not just current page)
+        grants_analytics = get_grants_analytics()
+        category_distribution = grants_analytics.get('category_distribution', {})
         
-        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
+        # Build top_categories from analytics, excluding unhelpful categories
+        # Filter out categories like "Other", "Unknown", etc.
+        filtered_categories = {
+            cat: count for cat, count in category_distribution.items()
+            if cat.lower() not in EXCLUDED_CATEGORIES
+        }
+        
+        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:4]
         top_categories = []
         for cat_name, count in sorted_categories:
-            percentage = round((count / len(grants) * 100), 1) if grants else 0
+            percentage = round((count / total_grants * 100), 1) if total_grants > 0 else 0
             top_categories.append({
                 'name': cat_name,
                 'count': count,
