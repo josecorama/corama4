@@ -22,6 +22,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [shouldAnimate, setShouldAnimate] = useState(false)
   
   // Swipe gesture refs
   const touchStartX = useRef<number>(0)
@@ -124,8 +125,23 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   const isDashboard = location.pathname === '/dashboard'
   const showGoBack = !isDashboard && !!previousPath
   
-  const actualOpen = onMobileToggle ? mobileOpen : isOpen
-  const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
+    const actualOpen = onMobileToggle ? mobileOpen : isOpen
+    const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
+  
+    // Trigger animation when sidebar opens on mobile
+    useEffect(() => {
+      if (actualOpen) {
+        // Reset animation state first
+        setShouldAnimate(false)
+        // Then trigger animation after a brief delay
+        const timer = setTimeout(() => {
+          setShouldAnimate(true)
+        }, 50)
+        return () => clearTimeout(timer)
+      } else {
+        setShouldAnimate(false)
+      }
+    }, [actualOpen])
   
   const menuItems: MenuItem[] = [
     { path: '/dashboard', label: 'Dashboard', icon: '/static/app/dashboard/Dashboard.svg' },
@@ -220,12 +236,12 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           </button>
         </div>
         
-        <nav className="flex-1 pt-[16px] overflow-y-auto" style={{ gap: '8px' }}>
-          {menuItems.map((item) => {
-            const isActive = location.pathname === item.path
-            const isCapabilityBuilder = item.path === '/capability-builder'
-            return (
-              <div key={item.path} className="relative group" style={{ height: '51px' }}>
+                <nav className={`flex-1 pt-[16px] overflow-y-auto ${shouldAnimate ? 'sidebar-animate-in' : ''}`} style={{ gap: '8px' }}>
+                  {menuItems.map((item) => {
+                    const isActive = location.pathname === item.path
+                    const isCapabilityBuilder = item.path === '/capability-builder'
+                    return (
+                      <div key={item.path} className="relative group sidebar-menu-item" style={{ height: '51px' }}>
                 {/* Hover background layer - controlled width, only shows on hover when not active */}
                 {!isActive && (
                   <div 
@@ -304,9 +320,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             )
           })}
           
-          {/* Admin Link - only shown for admin users */}
-          {isAdmin && (
-            <div className="relative group mt-2" style={{ height: '51px' }}>
+                    {/* Admin Link - only shown for admin users */}
+                    {isAdmin && (
+                      <div className="relative group mt-2 sidebar-menu-item" style={{ height: '51px' }}>
               {/* Hover background layer */}
               {location.pathname !== '/admin/directory' && (
                 <div 
@@ -350,9 +366,9 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             </div>
           )}
           
-          {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
-          {showGoBack && (
-            <div className="relative mt-2 group" style={{ height: '51px' }}>
+                    {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
+                    {showGoBack && (
+                      <div className="relative mt-2 group sidebar-menu-item" style={{ height: '51px' }}>
               {/* Collapsed state: use object-right to preserve rounded edge */}
               {!isExpanded && (
                 <img 
