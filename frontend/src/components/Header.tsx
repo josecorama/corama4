@@ -211,10 +211,10 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
             </button>
             
             {/* Settings - mobile: icon with label below, desktop: inline */}
-            <button className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
+            <Link to="/settings" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/settings.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
               <span className="font-poppins text-[8px] sm:text-xs">Settings</span>
-            </button>
+            </Link>
           </div>
         </div>
       </div>
