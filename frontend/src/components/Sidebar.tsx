@@ -182,8 +182,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
               className={`
                 fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40
                 ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
-                transform transition-transform duration-500 ease-out
-                ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+                                transform transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)]
+                                ${actualOpen ? 'translate-x-0 opacity-100' : '-translate-x-full lg:translate-x-0 opacity-0 lg:opacity-100'}
               `}
             >
         {/* Vertical separator line: 16px from the Highlight SVG end (258px + 16px = 274px from left, so right-4 = 16px from right edge of 290px sidebar) - desktop only */}
