@@ -847,6 +847,10 @@ class ApiService {
 
   // Logout
   logout(): void {
+    // Clear credits cache to prevent showing previous user's credits on next login
+    sessionStorage.removeItem('corama_credits_cache');
+    sessionStorage.removeItem('corama_credits_animated');
+    sessionStorage.removeItem('corama_credits_last_value');
     window.location.href = '/logout';
   }
 }
