@@ -140,7 +140,7 @@ const EditDirectoryProfile = () => {
       <div className="min-h-screen bg-corama-dark">
         <Header credits={credits} />
         <div className="flex">
-          <div className="fixed left-0 right-0 top-20 lg:top-16 h-px z-50" style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }} aria-hidden="true" />
+          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px z-50" style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }} aria-hidden="true" />
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden flex items-center justify-center">
@@ -160,7 +160,7 @@ const EditDirectoryProfile = () => {
       {/* Sidebar + Content row below header */}
       <div className="flex">
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="fixed left-0 right-0 top-20 lg:top-16 h-px z-50" style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }} aria-hidden="true" />
+        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px z-50" style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }} aria-hidden="true" />
         
         <Sidebar />
         

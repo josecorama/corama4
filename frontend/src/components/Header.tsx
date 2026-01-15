@@ -105,14 +105,10 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           </a>
         </div>
         
-        {/* Mobile: Menu button + Logo */}
+        {/* Mobile: Spacer for hamburger button + Logo */}
         <div className="lg:hidden flex items-center h-full pl-2">
-          {/* Menu button with label - reserves space for the sidebar hamburger button */}
-          <div className="flex flex-col items-center justify-center w-12 flex-shrink-0">
-            {/* The actual hamburger button is rendered by the Sidebar component */}
-            <div className="w-8 h-8"></div>
-            <span className="text-white font-poppins text-[10px] mt-0.5">Menu</span>
-          </div>
+          {/* Spacer for the hamburger button rendered by Sidebar component */}
+          <div className="w-12 flex-shrink-0"></div>
           <a href="/" className="inline-flex items-center ml-1">
             <img 
               src="/static/app/dashboard/CoramaLogo.svg" 
