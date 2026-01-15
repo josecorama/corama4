@@ -12,8 +12,9 @@ const CREDITS_ANIMATED_KEY = 'corama_credits_animated'
 
 const useCountUp = (targetValue: number | null, duration: number = 800) => {
   const [displayValue, setDisplayValue] = useState<number | null>(null)
-  const hasAnimatedRef = useRef(false)
+  const previousValueRef = useRef<number | null>(null)
   const animationRef = useRef<number | null>(null)
+  const isFirstLoadRef = useRef(true)
 
   useEffect(() => {
     if (targetValue === null) {
@@ -21,18 +22,32 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
       return
     }
 
-    const alreadyAnimated = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
+    // Cancel any ongoing animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+    }
+
+    const alreadyAnimatedInitial = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
     
-    if (alreadyAnimated || hasAnimatedRef.current) {
+    // Determine start value for animation
+    let startValue: number
+    if (isFirstLoadRef.current && !alreadyAnimatedInitial) {
+      // First load: animate from 0
+      startValue = 0
+      sessionStorage.setItem(CREDITS_ANIMATED_KEY, 'true')
+    } else if (previousValueRef.current !== null && previousValueRef.current !== targetValue) {
+      // Credits changed: animate from previous value
+      startValue = previousValueRef.current
+    } else {
+      // No change or already animated initial: just set the value
       setDisplayValue(targetValue)
+      previousValueRef.current = targetValue
+      isFirstLoadRef.current = false
       return
     }
 
-    hasAnimatedRef.current = true
-    sessionStorage.setItem(CREDITS_ANIMATED_KEY, 'true')
-
+    isFirstLoadRef.current = false
     const startTime = performance.now()
-    const startValue = 0
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime
@@ -45,6 +60,8 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
 
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
+      } else {
+        previousValueRef.current = targetValue
       }
     }
 
@@ -56,6 +73,16 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
       }
     }
   }, [targetValue, duration])
+
+  // Update previous value when target changes without animation
+  useEffect(() => {
+    if (targetValue !== null && previousValueRef.current === null) {
+      const alreadyAnimated = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
+      if (alreadyAnimated) {
+        previousValueRef.current = targetValue
+      }
+    }
+  }, [targetValue])
 
   return displayValue
 }
@@ -78,6 +105,19 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
     const cached = sessionStorage.getItem(CREDITS_CACHE_KEY)
     if (cached === null) {
       loadUserData()
+    }
+
+    // Listen for credit changes from other components
+    const handleCreditsChanged = (event: CustomEvent<{ credits: number }>) => {
+      const newCredits = event.detail.credits
+      setCredits(newCredits)
+      sessionStorage.setItem(CREDITS_CACHE_KEY, String(newCredits))
+    }
+
+    window.addEventListener('creditsChanged', handleCreditsChanged as EventListener)
+    
+    return () => {
+      window.removeEventListener('creditsChanged', handleCreditsChanged as EventListener)
     }
   }, [])
 

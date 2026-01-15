@@ -315,7 +315,16 @@ class ApiService {
       const errorData = await res.json().catch(() => ({ error: 'Failed to deduct credits' }));
       return { success: false, error: errorData.error || 'Failed to deduct credits' };
     }
-    return res.json();
+    const data = await res.json();
+    
+    // Dispatch event to notify Header of credit change (triggers animation)
+    if (data.success && data.new_balance !== undefined) {
+      window.dispatchEvent(new CustomEvent('creditsChanged', { 
+        detail: { credits: data.new_balance } 
+      }));
+    }
+    
+    return data;
   }
 
   // Upload CS
