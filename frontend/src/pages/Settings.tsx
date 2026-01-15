@@ -12,8 +12,69 @@ interface CreditHistoryItem {
 
 const LANGUAGE_KEY = 'corama_language'
 
+// Translation strings
+const translations = {
+  en: {
+    accountSettings: 'Account Settings',
+    manageProfile: 'Manage profile, security & preferences',
+    profileSecurity: 'Profile & Security',
+    username: 'Username',
+    edit: 'Edit',
+    language: 'Language',
+    english: 'English',
+    spanish: 'Español',
+    changePassword: 'Change Password',
+    currentPassword: 'Current Password',
+    newPassword: 'New Password',
+    confirm: 'Confirm',
+    saveChanges: 'Save Changes',
+    saving: 'Saving...',
+    creditsUsage: 'Credits Usage',
+    date: 'Date',
+    action: 'Action',
+    cost: 'Cost',
+    loadingHistory: 'Loading credit history...',
+    noTransactions: 'No credit transactions yet',
+    viewFullHistory: 'View Full History',
+    contactSupport: 'Contact Support',
+    needHelp: 'Need help with your account or finding contracts?',
+    howCanWeHelp: 'How can we help?',
+    sendMessage: 'Send Message',
+    sending: 'Sending...',
+  },
+  es: {
+    accountSettings: 'Configuración de Cuenta',
+    manageProfile: 'Administrar perfil, seguridad y preferencias',
+    profileSecurity: 'Perfil y Seguridad',
+    username: 'Nombre de Usuario',
+    edit: 'Editar',
+    language: 'Idioma',
+    english: 'English',
+    spanish: 'Español',
+    changePassword: 'Cambiar Contraseña',
+    currentPassword: 'Contraseña Actual',
+    newPassword: 'Nueva Contraseña',
+    confirm: 'Confirmar',
+    saveChanges: 'Guardar Cambios',
+    saving: 'Guardando...',
+    creditsUsage: 'Uso de Créditos',
+    date: 'Fecha',
+    action: 'Acción',
+    cost: 'Costo',
+    loadingHistory: 'Cargando historial de créditos...',
+    noTransactions: 'Sin transacciones de créditos aún',
+    viewFullHistory: 'Ver Historial Completo',
+    contactSupport: 'Contactar Soporte',
+    needHelp: '¿Necesita ayuda con su cuenta o encontrar contratos?',
+    howCanWeHelp: '¿Cómo podemos ayudarle?',
+    sendMessage: 'Enviar Mensaje',
+    sending: 'Enviando...',
+  }
+}
+
 const Settings = () => {
   const [username, setUsername] = useState('')
+  const [originalUsername, setOriginalUsername] = useState('')
   const [isUsernameEditable, setIsUsernameEditable] = useState(false)
   const [language, setLanguage] = useState<'en' | 'es'>(() => {
     const saved = localStorage.getItem(LANGUAGE_KEY)
@@ -24,11 +85,14 @@ const Settings = () => {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [supportMessage, setSupportMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
-  const [saveMessage, setSaveMessage] = useState('')
+  const [saveMessage, setSaveMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
   const [creditHistory, setCreditHistory] = useState<CreditHistoryItem[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [supportStatus, setSupportStatus] = useState<{type: 'success' | 'error', message: string} | null>(null)
+
+  // Get translations for current language
+  const t = translations[language]
 
   useEffect(() => {
     loadUserData()
@@ -38,7 +102,9 @@ const Settings = () => {
   const loadUserData = async () => {
     try {
       const user = await api.getUser()
-      setUsername(user.username || '')
+      const name = user.username || ''
+      setUsername(name)
+      setOriginalUsername(name)
     } catch (error) {
       console.error('Failed to load user data:', error)
     }
@@ -76,16 +142,56 @@ const Settings = () => {
 
   const handleSaveChanges = async () => {
     setIsSaving(true)
-    setSaveMessage('')
+    setSaveMessage(null)
     
     try {
-      // TODO: Implement save functionality when backend endpoints are ready
-      // For now, just show a success message
-      await new Promise(resolve => setTimeout(resolve, 500))
-      setSaveMessage('Changes saved successfully!')
-      setIsUsernameEditable(false)
+      let hasChanges = false
+      let allSuccess = true
+      const messages: string[] = []
+
+      // Update username if changed
+      if (isUsernameEditable && username !== originalUsername) {
+        hasChanges = true
+        const usernameResponse = await api.updateUsername(username)
+        if (usernameResponse.success) {
+          setOriginalUsername(username)
+          setIsUsernameEditable(false)
+          messages.push(usernameResponse.message || 'Username updated!')
+        } else {
+          allSuccess = false
+          messages.push(usernameResponse.error || 'Failed to update username')
+        }
+      }
+
+      // Change password if provided
+      if (currentPassword && newPassword) {
+        hasChanges = true
+        const passwordResponse = await api.changePassword(currentPassword, newPassword, confirmPassword)
+        if (passwordResponse.success) {
+          setCurrentPassword('')
+          setNewPassword('')
+          setConfirmPassword('')
+          messages.push(passwordResponse.message || 'Password changed!')
+        } else {
+          allSuccess = false
+          messages.push(passwordResponse.error || 'Failed to change password')
+        }
+      }
+
+      if (!hasChanges) {
+        setSaveMessage({ type: 'success', text: language === 'es' ? 'No hay cambios para guardar' : 'No changes to save' })
+      } else {
+        setSaveMessage({ 
+          type: allSuccess ? 'success' : 'error', 
+          text: messages.join('. ')
+        })
+      }
+
+      if (allSuccess && isUsernameEditable) {
+        setIsUsernameEditable(false)
+      }
     } catch (error) {
-      setSaveMessage('Failed to save changes. Please try again.')
+      setSaveMessage({ type: 'error', text: language === 'es' ? 'Error al guardar cambios' : 'Failed to save changes. Please try again.' })
     } finally {
       setIsSaving(false)
     }
@@ -100,13 +206,13 @@ const Settings = () => {
     try {
       const response = await api.sendSupportMessage(supportMessage)
       if (response.success) {
-        setSupportStatus({ type: 'success', message: response.message || 'Message sent successfully!' })
+        setSupportStatus({ type: 'success', message: response.message || (language === 'es' ? 'Mensaje enviado exitosamente!' : 'Message sent successfully!') })
         setSupportMessage('')
       } else {
-        setSupportStatus({ type: 'error', message: response.error || 'Failed to send message.' })
+        setSupportStatus({ type: 'error', message: response.error || (language === 'es' ? 'Error al enviar mensaje.' : 'Failed to send message.') })
       }
     } catch (error) {
-      setSupportStatus({ type: 'error', message: 'Failed to send message. Please try again.' })
+      setSupportStatus({ type: 'error', message: language === 'es' ? 'Error al enviar mensaje. Intente de nuevo.' : 'Failed to send message. Please try again.' })
     } finally {
       setIsSendingMessage(false)
     }
@@ -120,10 +226,10 @@ const Settings = () => {
         <main className="flex-1 p-3 sm:p-4 lg:p-12">
           <div className="mb-6 lg:mb-8">
             <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl uppercase tracking-wider">
-              Account Settings
+              {t.accountSettings}
             </h1>
             <p className="text-gray-400 font-poppins text-sm">
-              Manage profile, security & preferences
+              {t.manageProfile}
             </p>
           </div>
 
@@ -132,7 +238,7 @@ const Settings = () => {
             <div className="space-y-6 lg:space-y-8">
               <div className="bg-[#2F3C4F] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
                 <h2 className="text-white font-poppins font-semibold text-base mb-6 flex items-center gap-2">
-                  Profile & Security
+                  {t.profileSecurity}
                   <img 
                     src="/static/app/dashboard/settings.svg" 
                     alt="" 
@@ -146,14 +252,14 @@ const Settings = () => {
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <label className="block text-xs font-poppins text-gray-300 uppercase tracking-wide">
-                        Username
+                        {t.username}
                       </label>
                       {!isUsernameEditable && (
                         <button
                           onClick={handleUnlockUsername}
                           className="text-[10px] uppercase tracking-wider bg-[#1C4262] hover:bg-[#3E6B91] text-white px-3 py-1 rounded-full transition"
                         >
-                          Edit
+                          {t.edit}
                         </button>
                       )}
                     </div>
@@ -169,7 +275,7 @@ const Settings = () => {
                   {/* Language Toggle */}
                   <div>
                     <label className="block text-xs font-poppins text-gray-300 uppercase tracking-wide mb-2">
-                      Language
+                      {t.language}
                     </label>
                     <div className="flex bg-[#0B0B0F] p-1 rounded-full w-fit border border-[#2D5170]">
                       <button
@@ -180,7 +286,7 @@ const Settings = () => {
                             : 'text-gray-400 hover:text-white'
                         }`}
                       >
-                        English
+                        {t.english}
                       </button>
                       <button
                         onClick={() => handleLanguageChange('es')}
@@ -190,7 +296,7 @@ const Settings = () => {
                             : 'text-gray-400 hover:text-white'
                         }`}
                       >
-                        Español
+                        {t.spanish}
                       </button>
                     </div>
                   </div>
@@ -200,7 +306,7 @@ const Settings = () => {
                   {/* Change Password */}
                   <div className="bg-[#0B0B0F]/30 p-5 rounded-xl border border-[#2D5170]/30">
                     <h3 className="text-white font-poppins text-sm font-semibold mb-4 flex items-center gap-2">
-                      Change Password
+                      {t.changePassword}
                     </h3>
 
                     <div className="space-y-4">
@@ -209,7 +315,7 @@ const Settings = () => {
                           type="password"
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
-                          placeholder="Current Password"
+                          placeholder={t.currentPassword}
                           className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm"
                         />
                       </div>
@@ -220,7 +326,7 @@ const Settings = () => {
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
                           disabled={!currentPassword}
-                          placeholder="New Password"
+                          placeholder={t.newPassword}
                           className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
                         />
                         <input
@@ -228,7 +334,7 @@ const Settings = () => {
                           value={confirmPassword}
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           disabled={!currentPassword}
-                          placeholder="Confirm"
+                          placeholder={t.confirm}
                           className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
                         />
                       </div>
@@ -238,8 +344,8 @@ const Settings = () => {
                   {/* Save Button */}
                   <div className="flex justify-end pt-2">
                     {saveMessage && (
-                      <span className={`mr-4 text-sm self-center ${saveMessage.includes('success') ? 'text-green-400' : 'text-red-400'}`}>
-                        {saveMessage}
+                      <span className={`mr-4 text-sm self-center ${saveMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}`}>
+                        {saveMessage.text}
                       </span>
                     )}
                     <button
@@ -247,7 +353,7 @@ const Settings = () => {
                       disabled={isSaving}
                       className="bg-[#1C4262] border-2 border-white hover:opacity-90 text-white font-bold py-3 px-8 rounded-lg transition text-sm flex items-center gap-2 disabled:opacity-50"
                     >
-                      <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                      <span>{isSaving ? t.saving : t.saveChanges}</span>
                       {!isSaving && (
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -265,7 +371,7 @@ const Settings = () => {
               <div className="bg-[#2F3C4F] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
                 <div className="flex justify-between items-center mb-6">
                   <h2 className="text-white font-poppins font-semibold text-base">
-                    Credits Usage
+                    {t.creditsUsage}
                   </h2>
                   <svg className="w-5 h-5 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
@@ -276,22 +382,22 @@ const Settings = () => {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-[#0B0B0F]/50 text-gray-300 uppercase text-xs font-poppins">
                       <tr>
-                        <th className="px-4 py-3 font-medium">Date</th>
-                        <th className="px-4 py-3 font-medium">Action</th>
-                        <th className="px-4 py-3 text-right font-medium">Cost</th>
+                        <th className="px-4 py-3 font-medium">{t.date}</th>
+                        <th className="px-4 py-3 font-medium">{t.action}</th>
+                        <th className="px-4 py-3 text-right font-medium">{t.cost}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#2D5170]/30 text-gray-200 font-poppins text-xs sm:text-sm">
                       {isLoadingHistory ? (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
-                            Loading credit history...
+                            {t.loadingHistory}
                           </td>
                         </tr>
                       ) : creditHistory.length === 0 ? (
                         <tr>
                           <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
-                            No credit transactions yet
+                            {t.noTransactions}
                           </td>
                         </tr>
                       ) : (
@@ -310,7 +416,7 @@ const Settings = () => {
                 </div>
                 {creditHistory.length > 0 && (
                   <button className="w-full mt-4 text-center text-[#99C8CA] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition">
-                    View Full History
+                    {t.viewFullHistory}
                   </button>
                 )}
               </div>
@@ -318,13 +424,13 @@ const Settings = () => {
               {/* Contact Support */}
               <div className="bg-[#2F3C4F] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
                 <h2 className="text-white font-poppins font-semibold text-base mb-2 flex items-center gap-2">
-                  Contact Support
+                  {t.contactSupport}
                   <svg className="ml-auto w-5 h-5 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
                   </svg>
                 </h2>
                 <p className="text-gray-400 font-poppins text-xs mb-4">
-                  Need help with your account or finding contracts?
+                  {t.needHelp}
                 </p>
 
                 <textarea
@@ -333,7 +439,7 @@ const Settings = () => {
                   onChange={(e) => setSupportMessage(e.target.value)}
                   disabled={isSendingMessage}
                   className="w-full bg-white border border-gray-200 rounded-2xl py-3 px-4 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm mb-4 resize-none disabled:opacity-70 disabled:cursor-not-allowed"
-                  placeholder="How can we help?"
+                  placeholder={t.howCanWeHelp}
                 />
 
                 {supportStatus && (
@@ -351,7 +457,7 @@ const Settings = () => {
                   disabled={isSendingMessage || !supportMessage.trim()}
                   className="w-full bg-[#99C8CA] hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSendingMessage ? 'Sending...' : 'Send Message'}
+                  {isSendingMessage ? t.sending : t.sendMessage}
                   {!isSendingMessage && (
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />

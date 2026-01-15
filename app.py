@@ -16878,21 +16878,142 @@ def api_send_support_message():
         user_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or 'Unknown'
         company = user_data.get('company', 'Not specified')
         
-        # Build the email
+        # Build the email with Corama branding (matching password reset email design)
         subject = f"Support Request from {user_name}"
         html_body = f"""
+        <!DOCTYPE html>
         <html>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-            <h2 style="color: #1C4262;">Support Request</h2>
-            <p><strong>From:</strong> {user_name}</p>
-            <p><strong>Email:</strong> {user_email}</p>
-            <p><strong>Company:</strong> {company}</p>
-            <p><strong>User ID:</strong> {user_id}</p>
-            <hr style="border: 1px solid #eee;">
-            <h3>Message:</h3>
-            <p style="white-space: pre-wrap; background: #f9f9f9; padding: 15px; border-radius: 5px;">{message}</p>
-            <hr style="border: 1px solid #eee;">
-            <p style="color: #666; font-size: 12px;">This message was sent from the Corama Settings page.</p>
+        <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body {{
+                font-family: 'Poppins', sans-serif;
+                background-color: #0F172A;
+                margin: 0;
+                padding: 0;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 40px auto;
+                background-color: #1C4262;
+                border-radius: 12px;
+                padding: 40px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            }}
+            .logo {{
+                margin-bottom: 30px;
+                text-align: center;
+            }}
+            .logo img {{
+                max-width: 180px;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+            }}
+            .message {{
+                color: #FFFFFF;
+                line-height: 1.6;
+            }}
+            .welcome-text {{
+                font-weight: 700;
+                font-size: 20px;
+                margin-bottom: 15px;
+                display: block;
+                text-align: center;
+            }}
+            .info-box {{
+                background-color: rgba(0,0,0,0.2);
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+            }}
+            .info-row {{
+                margin: 10px 0;
+                font-size: 14px;
+            }}
+            .info-label {{
+                color: #AABDD1;
+                font-weight: 400;
+            }}
+            .info-value {{
+                color: #FFFFFF;
+                font-weight: 600;
+            }}
+            .message-box {{
+                background-color: rgba(255,255,255,0.1);
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+                white-space: pre-wrap;
+                font-size: 14px;
+                color: #FFFFFF;
+                line-height: 1.6;
+            }}
+            .footer {{
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                font-size: 13px;
+                color: #E0E0E0;
+                line-height: 1.5;
+                font-weight: 400;
+                text-align: center;
+            }}
+            .footer p {{
+                margin: 5px 0;
+            }}
+            .footer a {{
+                color: #6BB4B5;
+                text-decoration: none;
+                font-weight: 600;
+            }}
+            .copyright {{
+                margin-top: 20px;
+                font-size: 11px;
+                opacity: 0.7;
+            }}
+        </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">
+                    <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+                </div>
+                <div class="message">
+                    <p class="welcome-text">
+                        Support Request
+                    </p>
+                </div>
+                <div class="info-box">
+                    <div class="info-row">
+                        <span class="info-label">From:</span> <span class="info-value">{user_name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email:</span> <span class="info-value">{user_email}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Company:</span> <span class="info-value">{company}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">User ID:</span> <span class="info-value">{user_id}</span>
+                    </div>
+                </div>
+                <div class="message">
+                    <p style="font-weight: 600; font-size: 16px; margin-bottom: 10px;">Message:</p>
+                </div>
+                <div class="message-box">{message}</div>
+                <div class="footer">
+                    <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+                    <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                    <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+                    <div class="copyright">
+                        <p>&copy; 2026 Corama. All rights reserved.</p>
+                    </div>
+                </div>
+            </div>
         </body>
         </html>
         """
@@ -16909,6 +17030,132 @@ def api_send_support_message():
             
     except Exception as e:
         logging.error(f"Error in /api/send-support-message: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Update username (display_name)
+@app.route('/api/update-username', methods=['POST'])
+def api_update_username():
+    """Update user's display name"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        data = request.get_json()
+        new_username = data.get('username', '').strip()
+        
+        if not new_username:
+            return jsonify({"success": False, "error": "Username cannot be empty"}), 400
+        
+        if len(new_username) < 3:
+            return jsonify({"success": False, "error": "Username must be at least 3 characters"}), 400
+        
+        if len(new_username) > 50:
+            return jsonify({"success": False, "error": "Username must be less than 50 characters"}), 400
+        
+        # Update display_name in Firebase
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_ref.update({
+                'display_name': new_username,
+                'username_updated_at': datetime.now().isoformat()
+            })
+        else:
+            db.child("users").child(user_id).update({
+                'display_name': new_username,
+                'username_updated_at': datetime.now().isoformat()
+            }, user['idToken'])
+        
+        logging.info(f"[Settings] Username updated for user {user_id} to '{new_username}'")
+        return jsonify({"success": True, "message": "Username updated successfully!", "username": new_username})
+        
+    except Exception as e:
+        logging.error(f"Error in /api/update-username: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Change password
+@app.route('/api/change-password', methods=['POST'])
+def api_change_password():
+    """Change user's password (requires current password verification)"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_email = user.get('email', '')
+    
+    try:
+        data = request.get_json()
+        current_password = data.get('currentPassword', '')
+        new_password = data.get('newPassword', '')
+        confirm_password = data.get('confirmPassword', '')
+        
+        if not current_password:
+            return jsonify({"success": False, "error": "Current password is required"}), 400
+        
+        if not new_password:
+            return jsonify({"success": False, "error": "New password is required"}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({"success": False, "error": "New password must be at least 6 characters"}), 400
+        
+        if new_password != confirm_password:
+            return jsonify({"success": False, "error": "New passwords do not match"}), 400
+        
+        # Verify current password by attempting to sign in
+        try:
+            auth.sign_in_with_email_and_password(user_email, current_password)
+        except Exception as auth_error:
+            logging.warning(f"[Settings] Password verification failed for {user_email}: {auth_error}")
+            return jsonify({"success": False, "error": "Current password is incorrect"}), 400
+        
+        # Use Firebase REST API to change password
+        # We need to use the Firebase Auth REST API directly
+        import requests as req
+        api_key = os.getenv('FIREBASE_API_KEY')
+        
+        if not api_key:
+            return jsonify({"success": False, "error": "Password change service unavailable"}), 500
+        
+        # First, get a fresh ID token by signing in
+        sign_in_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        sign_in_response = req.post(sign_in_url, json={
+            "email": user_email,
+            "password": current_password,
+            "returnSecureToken": True
+        })
+        
+        if sign_in_response.status_code != 200:
+            return jsonify({"success": False, "error": "Authentication failed"}), 400
+        
+        id_token = sign_in_response.json().get('idToken')
+        
+        # Now change the password using the ID token
+        change_password_url = f"https://identitytoolkit.googleapis.com/v1/accounts:update?key={api_key}"
+        change_response = req.post(change_password_url, json={
+            "idToken": id_token,
+            "password": new_password,
+            "returnSecureToken": True
+        })
+        
+        if change_response.status_code != 200:
+            error_message = change_response.json().get('error', {}).get('message', 'Password change failed')
+            logging.error(f"[Settings] Password change failed for {user_email}: {error_message}")
+            return jsonify({"success": False, "error": "Failed to change password. Please try again."}), 400
+        
+        # Update session with new token
+        new_token_data = change_response.json()
+        session['user']['idToken'] = new_token_data.get('idToken')
+        session['user']['refreshToken'] = new_token_data.get('refreshToken')
+        
+        logging.info(f"[Settings] Password changed successfully for {user_email}")
+        return jsonify({"success": True, "message": "Password changed successfully!"})
+        
+    except Exception as e:
+        logging.error(f"Error in /api/change-password: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

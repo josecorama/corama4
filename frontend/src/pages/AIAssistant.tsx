@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -214,9 +214,14 @@ To start building it, simply type "**Start Guided Process**" in the chat. This w
 const AIAssistant = () => {
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string } | null
-  const contractName = state?.contractName || 'this contract'
-  const contractId = state?.contractId || ''
+  
+  // Get contract name from state first, then from URL params (for returning from NoCS page)
+  const contractNameFromState = state?.contractName
+  const contractNameFromUrl = searchParams.get('contractName')
+  const contractName = contractNameFromState || contractNameFromUrl || 'this contract'
+  const contractId = state?.contractId || searchParams.get('contractId') || ''
   
   // Check if user has capability statement on load
   const [hasCapabilityStatement, setHasCapabilityStatement] = useState<boolean | null>(null)
@@ -227,8 +232,9 @@ const AIAssistant = () => {
         const user = await api.getUser()
         setHasCapabilityStatement(user.has_capability_statement)
         if (!user.has_capability_statement) {
-          // Redirect to No CS page with returnTo parameter
-          navigate('/no-capability-statement?returnTo=/ai-assistant')
+          // Redirect to No CS page with returnTo parameter that includes contract info
+          const returnUrl = `/ai-assistant?contractName=${encodeURIComponent(contractName)}${contractId ? `&contractId=${encodeURIComponent(contractId)}` : ''}`
+          navigate(`/no-capability-statement?returnTo=${encodeURIComponent(returnUrl)}`)
         }
       } catch (error) {
         console.error('Failed to check capability statement:', error)
@@ -237,7 +243,7 @@ const AIAssistant = () => {
       }
     }
     checkCapabilityStatement()
-  }, [navigate])
+  }, [navigate, contractName, contractId])
   
   const [messages, setMessages] = useState<Message[]>([
     {

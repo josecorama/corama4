@@ -891,6 +891,51 @@ class ApiService {
     return res.json();
   }
 
+  // Update Username
+  async updateUsername(username: string): Promise<{
+    success: boolean;
+    message?: string;
+    username?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/update-username`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to update username' }));
+      return { success: false, error: errorData.error || 'Failed to update username' };
+    }
+    return res.json();
+  }
+
+  // Change Password
+  async changePassword(currentPassword: string, newPassword: string, confirmPassword: string): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to change password' }));
+      return { success: false, error: errorData.error || 'Failed to change password' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
     // Clear credits cache to prevent showing previous user's credits on next login
