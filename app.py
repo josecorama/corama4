@@ -6306,11 +6306,42 @@ def backfill_naics_api():
     and generates NAICS codes using AI for each one. Results are cached to disk.
     
     This is a one-time operation that should be run to populate NAICS codes for existing contracts.
+    
+    Authentication: Requires either:
+    - X-Admin-Secret header matching ADMIN_SECRET_KEY env var, OR
+    - Logged-in user with admin privileges
+    
+    Request body (optional):
+    {
+        "limit": 100  // Max contracts to process (default: all)
+    }
     """
     import hashlib
     import re
     
     try:
+        # Verify admin access via header secret or logged-in admin user
+        admin_secret = request.headers.get('X-Admin-Secret')
+        expected_secret = os.getenv('ADMIN_SECRET_KEY')
+        
+        is_admin_by_secret = expected_secret and admin_secret == expected_secret
+        is_admin_by_user = False
+        
+        # Check if logged-in user is admin
+        user_id = session.get('user_id')
+        if user_id:
+            try:
+                admin_emails = os.getenv('ADMIN_EMAILS', '').split(',')
+                user_doc = db.collection('users').document(user_id).get()
+                if user_doc.exists:
+                    user_email = user_doc.to_dict().get('email', '')
+                    is_admin_by_user = user_email in admin_emails
+            except Exception:
+                pass
+        
+        if not is_admin_by_secret and not is_admin_by_user:
+            return jsonify({"success": False, "error": "Unauthorized - admin access required"}), 401
+        
         # Get optional limit parameter (for testing)
         data = request.get_json() or {}
         limit = data.get('limit', None)  # None means process all
