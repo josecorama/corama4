@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface SidebarProps {
   mobileOpen?: boolean
@@ -18,6 +19,7 @@ interface MenuItem {
 }
 
 const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, onBeforeNavigate }: SidebarProps) => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -128,13 +130,13 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
   
   const menuItems: MenuItem[] = [
-    { path: '/dashboard', label: 'Dashboard', icon: '/static/app/dashboard/Dashboard.svg' },
-    { path: '/top-five-contracts', label: 'Top Five Matches', icon: '/static/app/dashboard/TopFiveContracts.svg' },
-    { path: '/capability-builder', label: 'Capability Builder', icon: '/static/app/dashboard/CapabilityBuilder.svg' },
-    { path: '/corama-directory', label: 'CORAMA Directory', icon: '/static/app/dashboard/CORAMADirectory.svg' },
-    { path: '/get-more-credits', label: 'Get More Credits', icon: '/static/app/dashboard/Credits.svg' },
-    { path: '/support', label: 'Support', icon: '/static/app/dashboard/Support.svg' },
-    { path: '/about-us', label: 'About Us', icon: '/static/app/dashboard/AboutUs.svg', external: true },
+    { path: '/dashboard', label: t('dashboard'), icon: '/static/app/dashboard/Dashboard.svg' },
+    { path: '/top-five-contracts', label: t('topFiveMatches'), icon: '/static/app/dashboard/TopFiveContracts.svg' },
+    { path: '/capability-builder', label: t('capabilityBuilder'), icon: '/static/app/dashboard/CapabilityBuilder.svg' },
+    { path: '/corama-directory', label: t('coramaDirectory'), icon: '/static/app/dashboard/CORAMADirectory.svg' },
+    { path: '/get-more-credits', label: t('getMoreCredits'), icon: '/static/app/dashboard/Credits.svg' },
+    { path: '/support', label: t('support'), icon: '/static/app/dashboard/Support.svg' },
+    { path: '/about-us', label: t('aboutUs'), icon: '/static/app/dashboard/AboutUs.svg', external: true },
   ]
 
   const closeMobile = () => {
@@ -164,7 +166,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             className="w-6 h-6"
             aria-hidden="true"
           />
-          <span className="font-poppins text-[10px] mt-0.5">Menu</span>
+          <span className="font-poppins text-[10px] mt-0.5">{t('menu')}</span>
         </button>
       )}
 
@@ -215,7 +217,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
               aria-hidden="true"
             />
             {isExpanded && (
-              <span className="font-poppins text-sm text-white whitespace-nowrap">Collapse Menu</span>
+              <span className="font-poppins text-sm text-white whitespace-nowrap">{t('collapseMenu')}</span>
             )}
           </button>
         </div>
@@ -340,7 +342,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
                 </svg>
                 {isExpanded && (
-                  <span className="font-poppins text-sm">Admin: Directory</span>
+                  <span className="font-poppins text-sm">{t('adminDirectory')}</span>
                 )}
               </Link>
             </div>
@@ -368,7 +370,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                     maxWidth: isExpanded ? '200px' : '0px'
                   }}
                 >
-                  Go Back
+                  {t('goBack')}
                 </span>
               </button>
             </div>
@@ -378,7 +380,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
         {/* IHCC and Social Media Section - fixed at bottom, centered */}
         {isExpanded && (
           <div className={`px-4 pt-4 pb-[36px] text-center shrink-0 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${actualOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 lg:opacity-100 lg:translate-x-0'}`}>
-            <p className="text-white text-xs mb-2">Learn More About IHCC</p>
+            <p className="text-white text-xs mb-2">{t('learnMoreIHCC')}</p>
             <a 
               href="https://ihccbusiness.net/" 
               target="_blank" 
@@ -391,7 +393,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                 className="h-24 w-auto mx-auto"
               />
             </a>
-            <p className="text-white text-xs mb-3">Follow Contract Radar Maximizer</p>
+            <p className="text-white text-xs mb-3">{t('followCorama')}</p>
             <div className="flex justify-center gap-3">
               <a 
                 href="https://www.instagram.com/corama.ai/" 

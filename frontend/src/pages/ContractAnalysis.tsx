@@ -8,6 +8,7 @@ import { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // PDF Viewer imports
 import { Viewer, Worker } from '@react-pdf-viewer/core'
@@ -62,6 +63,7 @@ interface ContractAnalysisState {
 }
 
 const ContractAnalysis = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ContractAnalysisState | null

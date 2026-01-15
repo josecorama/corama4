@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface HeaderProps {
   credits?: number
@@ -97,6 +98,7 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
 }
 
 const Header = ({ credits: propCredits }: HeaderProps) => {
+  const { t } = useTranslation()
   const [credits, setCredits] = useState<number | null>(() => {
     if (typeof window === 'undefined') return propCredits ?? null
     const cached = sessionStorage.getItem(CREDITS_CACHE_KEY)
@@ -180,7 +182,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
               <Search className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                placeholder="SEARCH IN CORAMA"
+                placeholder={t('searchInCorama')}
                 className="w-full rounded-full py-1.5 sm:py-2 lg:py-2.5 pl-8 sm:pl-12 pr-2 sm:pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-xs sm:text-sm"
                 style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid rgb(60, 87, 114)' }}
               />
@@ -195,7 +197,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
                 {displayCredits !== null && (
                   <span className="font-poppins text-[8px] sm:text-xs">{displayCredits}</span>
                 )}
-                <span className="font-poppins text-[8px] sm:text-xs">Credits</span>
+                <span className="font-poppins text-[8px] sm:text-xs">{t('credits')}</span>
               </div>
             </Link>
             
@@ -205,13 +207,13 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
               className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
             >
               <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
-              <span className="font-poppins text-[8px] sm:text-xs">Log out</span>
+              <span className="font-poppins text-[8px] sm:text-xs">{t('logOut')}</span>
             </button>
             
             {/* Settings - mobile: icon with label below, desktop: inline */}
             <Link to="/settings" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/settings.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
-              <span className="font-poppins text-[8px] sm:text-xs">Settings</span>
+              <span className="font-poppins text-[8px] sm:text-xs">{t('settings')}</span>
             </Link>
           </div>
         </div>

@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { Briefcase } from 'lucide-react'
 import { api, DirectoryCompany } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface Company {
   id: number
@@ -19,6 +20,7 @@ interface Company {
 }
 
 const CoramaDirectory = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)

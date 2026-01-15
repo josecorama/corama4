@@ -9,6 +9,7 @@ import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Discard Changes Popup Component
 interface DiscardChangesPopupProps {
@@ -130,6 +131,7 @@ interface DirectoryCompany {
 type ViewMode = 'default' | 'addFromWebsite' | 'coramaDirectory' | 'manualEntry'
 
 const ProposalTeam = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ProposalTeamState | null

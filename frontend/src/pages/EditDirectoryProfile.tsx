@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api, DirectoryProfile } from '../services/api'
+import { useTranslation } from '../i18n'
 
 const EditDirectoryProfile = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)

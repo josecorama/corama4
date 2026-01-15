@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
 import { api, Contract as ApiContract } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Custom hook for animating a number from 0 to target value
 const useCountUp = (target: number, duration: number = 1000, delay: number = 0) => {
@@ -120,6 +121,7 @@ interface Contract {
 }
 
 const Dashboard = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
   const [totalContracts, setTotalContracts] = useState(0)
@@ -244,7 +246,7 @@ const Dashboard = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
-            <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>
+            <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
             
             {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
             <button
@@ -270,7 +272,7 @@ const Dashboard = () => {
                   opacity: showGrants ? 0 : 1
                 }}
               >
-                Contracts View
+                {t('contractsView')}
               </span>
               {/* Grants View label (visible when ON) */}
               <span 
@@ -280,20 +282,20 @@ const Dashboard = () => {
                   opacity: showGrants ? 1 : 0
                 }}
               >
-                Grants View
+                {t('grantsView')}
               </span>
             </button>
             
             <div className="flex items-center gap-2 text-white font-poppins text-xs sm:text-sm">
-              <span>Accounts</span>
+              <span>{t('accounts')}</span>
               <span>|</span>
-              <span className="text-white">{userName || 'Loading...'}</span>
+              <span className="text-white">{userName || t('loading')}</span>
             </div>
           </div>
 
           {/* Top Contract/Grant Categories */}
           <div className="mb-6 lg:mb-8">
-            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">{showGrants ? 'TOP GRANT CATEGORIES' : 'TOP CONTRACT CATEGORIES'}</h2>
+            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">{showGrants ? t('topGrantCategories') : t('topContractCategories')}</h2>
             
             {/* Desktop: Grid layout */}
             <div className="hidden lg:grid grid-cols-4 gap-4">
@@ -355,13 +357,13 @@ const Dashboard = () => {
                       {/* Single row: Heading LEFT, Search CENTER, Filter/Pagination RIGHT */}
                       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4 lg:mb-6">
                         {/* Left: Available Contracts/Grants heading */}
-                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">{showGrants ? 'Available Grants' : 'Available Contracts'}</h2>
+                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">{showGrants ? t('availableGrants') : t('availableContracts')}</h2>
                         
                         {/* Center: Search Bar */}
                         <form onSubmit={handleSearch} className="relative flex-1 max-w-xl mx-auto">
                           <input
                             type="text"
-                            placeholder={showGrants ? 'SEARCH GRANTS' : 'SEARCH CONTRACTS'}
+                            placeholder={showGrants ? t('searchGrants') : t('searchContracts')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border rounded-full py-2 pl-10 pr-6 text-white placeholder-gray-400 focus:outline-none w-full text-sm font-poppins tracking-wide"
@@ -406,13 +408,13 @@ const Dashboard = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="font-poppins text-sm" style={{ color: '#9ccdcd' }}>
-                              <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">{showGrants ? 'Grant Name' : 'Contract Name'}</th>
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Category</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{showGrants ? 'CFDA/ALN' : 'NAICS Code(s)'}</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Due Date</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Status</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">AI Assistant</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Visit Site</th>
+                              <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">{showGrants ? t('grantName') : t('contractName')}</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">{t('category')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{showGrants ? t('cfdaAln') : t('naicsCode')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('dueDate')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('status')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('aiAssistant')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('visitSite')}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -459,11 +461,11 @@ const Dashboard = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-3">
                               <div>
-                                <span className="text-gray-400">Category:</span>
+                                <span className="text-gray-400">{t('category')}:</span>
                                 <p className="text-white">{contract.category}</p>
                               </div>
                               <div>
-                                <span className="text-gray-400">Due:</span>
+                                <span className="text-gray-400">{t('dueDate')}:</span>
                                 <p className="text-white">{contract.dueDate}</p>
                               </div>
                             </div>
@@ -473,14 +475,14 @@ const Dashboard = () => {
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-white text-xs sm:text-sm">AI Assistant</span>
+                                <span className="text-white text-xs sm:text-sm">{t('aiAssistant')}</span>
                               </button>
                               <button 
                                 onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-white text-xs sm:text-sm">Visit Site</span>
+                                <span className="text-white text-xs sm:text-sm">{t('visitSite')}</span>
                               </button>
                             </div>
                           </div>

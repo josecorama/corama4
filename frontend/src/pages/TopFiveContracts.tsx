@@ -6,6 +6,7 @@ import FilterPopup from '../components/FilterPopup'
 import { InlineLoading } from '../components/ThinkingPopup'
 import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Print styles - injected into document head
 const printStyles = `
@@ -111,6 +112,7 @@ interface ContractMatch {
 }
 
 const TopFiveContracts = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
@@ -339,7 +341,7 @@ const TopFiveContracts = () => {
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
               {/* Page Title and Action Buttons */}
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Matches</h1>
+                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">{t('topFiveMatchesTitle')}</h1>
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => handleRerunMatching(contractType, selectedStates)}
@@ -348,7 +350,7 @@ const TopFiveContracts = () => {
                     style={{ backgroundColor: '#6bb4b5' }}
                   >
                     <RefreshCw size={16} className={rerunning ? 'animate-spin' : ''} />
-                    {rerunning ? 'Refreshing...' : 'Refresh Matches'}
+                    {rerunning ? t('rerunningMatching') : t('rerunMatching')}
                   </button>
                   <button 
                     onClick={() => setIsFilterOpen(true)}
@@ -369,7 +371,7 @@ const TopFiveContracts = () => {
                           </div>
                         ) : hasMatches === false ? (
               <div className="flex items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins">Redirecting to dashboard...</p>
+                <p className="text-gray-400 font-poppins">{t('loading')}</p>
               </div>
             ) : noFilterResults ? (
               <div className="flex flex-col items-center justify-center h-64">
@@ -383,7 +385,7 @@ const TopFiveContracts = () => {
                   className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white"
                   style={{ backgroundColor: '#6bb4b5' }}
                 >
-                  Clear Filters
+                  {t('clearFilters')}
                 </button>
               </div>
             ) : contracts.length === 0 ? (
@@ -394,7 +396,7 @@ const TopFiveContracts = () => {
                   className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white"
                   style={{ backgroundColor: '#6bb4b5' }}
                 >
-                  Refresh Matches
+                  {t('rerunMatching')}
                 </button>
               </div>
             ) : (
@@ -497,7 +499,7 @@ const TopFiveContracts = () => {
                   onClick={() => window.print()}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Print Results</p>
+                    <p className="font-bold text-sm sm:text-base">{t('printResults')}</p>
                     <p className="text-xs sm:text-sm text-gray-300">Click to print your contract matches.</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
@@ -510,7 +512,7 @@ const TopFiveContracts = () => {
                 >
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">
-                      {loadingMore ? 'Loading...' : hasMore ? 'Get More Related Contracts' : 'No More Contracts'}
+                      {loadingMore ? t('loading') : hasMore ? t('loadMore') : t('noMoreContracts')}
                     </p>
                     <p className="text-xs sm:text-sm text-gray-300">
                       {hasMore 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import { useTranslation } from '../i18n'
 
 // Team member data (CORAMA team)
 const teamMembers = [
@@ -527,6 +528,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
 }
 
 const Support = () => {
+  const { t } = useTranslation()
   // Override body background color for this page only
   useEffect(() => {
     const originalBodyBg = document.body.style.backgroundColor

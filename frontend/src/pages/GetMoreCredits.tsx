@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api, CreditPackage } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface CreditPack {
   credits: number
@@ -22,6 +23,7 @@ interface CreditFeature {
 }
 
 const GetMoreCredits = () => {
+  const { t } = useTranslation()
   const [_credits, setCredits] = useState(0)
   const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
   const [_loading, setLoading] = useState(true)

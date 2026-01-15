@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Discard Changes Popup Component
 interface DiscardChangesPopupProps {
@@ -212,6 +213,7 @@ To start building it, simply type "**Start Guided Process**" in the chat. This w
 }
 
 const AIAssistant = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()

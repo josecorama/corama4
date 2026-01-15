@@ -4,12 +4,14 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // SVG asset paths for empty state
 const ExclamationMarkIcon = '/static/app/dashboard/ExclamationMark.svg'
 const NoCSImage = '/static/app/dashboard/NoCSImage.svg'
 
 const NoCapabilityStatement = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)

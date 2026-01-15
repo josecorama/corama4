@@ -10,6 +10,7 @@ import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // SVG asset paths
 const RemoveIcon = '/static/app/team-builder/Remove.svg'
@@ -111,6 +112,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
 }
 
 const ProposalSummary = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const locationState = location.state as ProposalSummaryState | null

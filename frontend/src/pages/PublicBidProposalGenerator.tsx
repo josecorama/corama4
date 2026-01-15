@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Icons
 const DocxIcon = '/static/app/dashboard/Docx.svg'
@@ -179,6 +180,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
 }
 
 const PublicBidProposalGenerator = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ProposalGeneratorState | null

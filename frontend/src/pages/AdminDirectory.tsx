@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { Trash2, RefreshCw, AlertTriangle, Shield } from 'lucide-react'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface DirectoryListing {
   user_id: string
@@ -16,6 +17,7 @@ interface DirectoryListing {
 }
 
 const AdminDirectory = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
   const [listings, setListings] = useState<DirectoryListing[]>([])

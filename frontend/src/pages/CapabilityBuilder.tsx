@@ -7,6 +7,7 @@ import ThinkingPopup from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api, CapabilityStatementData } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface ImportResult {
   success: boolean
@@ -118,6 +119,7 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
 }
 
 const CapabilityBuilder = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
