@@ -110,11 +110,9 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
   const displayCredits = useCountUp(credits)
 
   useEffect(() => {
-    // Only fetch from API if we don't have cached credits
-    const cached = sessionStorage.getItem(CREDITS_CACHE_KEY)
-    if (cached === null) {
-      loadUserData()
-    }
+    // Always fetch credits from API to ensure we have the latest value
+    // The animation logic will handle whether to animate or not based on value changes
+    loadUserData()
 
     // Listen for credit changes from other components
     const handleCreditsChanged = (event: CustomEvent<{ credits: number }>) => {
