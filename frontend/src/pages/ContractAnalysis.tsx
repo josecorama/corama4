@@ -63,7 +63,7 @@ interface ContractAnalysisState {
 }
 
 const ContractAnalysis = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ContractAnalysisState | null

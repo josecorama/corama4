@@ -213,7 +213,7 @@ To start building it, simply type "**Start Guided Process**" in the chat. This w
 }
 
 const AIAssistant = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()

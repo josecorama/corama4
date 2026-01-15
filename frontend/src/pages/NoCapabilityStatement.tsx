@@ -11,7 +11,7 @@ const ExclamationMarkIcon = '/static/app/dashboard/ExclamationMark.svg'
 const NoCSImage = '/static/app/dashboard/NoCSImage.svg'
 
 const NoCapabilityStatement = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)

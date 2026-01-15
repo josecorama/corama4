@@ -23,7 +23,7 @@ interface CreditFeature {
 }
 
 const GetMoreCredits = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const [_credits, setCredits] = useState(0)
   const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
   const [_loading, setLoading] = useState(true)

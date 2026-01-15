@@ -20,7 +20,7 @@ interface Company {
 }
 
 const CoramaDirectory = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)

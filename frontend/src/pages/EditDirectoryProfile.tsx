@@ -6,7 +6,7 @@ import { api, DirectoryProfile } from '../services/api'
 import { useTranslation } from '../i18n'
 
 const EditDirectoryProfile = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)

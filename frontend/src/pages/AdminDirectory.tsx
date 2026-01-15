@@ -17,7 +17,7 @@ interface DirectoryListing {
 }
 
 const AdminDirectory = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null)
   const [listings, setListings] = useState<DirectoryListing[]>([])

@@ -180,7 +180,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
 }
 
 const PublicBidProposalGenerator = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ProposalGeneratorState | null

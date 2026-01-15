@@ -131,7 +131,7 @@ interface DirectoryCompany {
 type ViewMode = 'default' | 'addFromWebsite' | 'coramaDirectory' | 'manualEntry'
 
 const ProposalTeam = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ProposalTeamState | null

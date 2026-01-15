@@ -112,7 +112,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
 }
 
 const ProposalSummary = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const locationState = location.state as ProposalSummaryState | null

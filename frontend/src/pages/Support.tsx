@@ -528,7 +528,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
 }
 
 const Support = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   // Override body background color for this page only
   useEffect(() => {
     const originalBodyBg = document.body.style.backgroundColor

@@ -119,7 +119,7 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
 }
 
 const CapabilityBuilder = () => {
-  const { t } = useTranslation()
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
