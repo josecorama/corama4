@@ -944,6 +944,35 @@ class ApiService {
     sessionStorage.removeItem('corama_credits_last_value');
     window.location.href = '/logout';
   }
+
+  // Admin: Backfill NAICS codes for contracts missing them
+  async adminBackfillNaics(limit?: number): Promise<{
+    success: boolean;
+    total_contracts?: number;
+    contracts_without_naics?: number;
+    generated_count?: number;
+    failed_count?: number;
+    results?: Array<{
+      title: string;
+      naics_codes: string;
+      success: boolean;
+    }>;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/backfill_naics`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(limit ? { limit } : {})
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Unauthorized - admin access required' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to backfill NAICS codes' }));
+      return { success: false, error: errorData.error || 'Failed to backfill NAICS codes' };
+    }
+    return res.json();
+  }
 }
 
 export const api = new ApiService();

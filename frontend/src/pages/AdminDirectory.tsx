@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { Trash2, RefreshCw, AlertTriangle, Shield } from 'lucide-react'
+import { Trash2, RefreshCw, AlertTriangle, Shield, Database, CheckCircle, XCircle } from 'lucide-react'
 import { api } from '../services/api'
 import { useTranslation } from '../i18n'
 
@@ -16,6 +16,12 @@ interface DirectoryListing {
   updated_at?: string
 }
 
+interface NaicsBackfillResult {
+  title: string
+  naics_codes: string
+  success: boolean
+}
+
 const AdminDirectory = () => {
   const { t: _t } = useTranslation()
   const navigate = useNavigate()
@@ -25,6 +31,18 @@ const AdminDirectory = () => {
   const [error, setError] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  
+  // NAICS Backfill state
+  const [naicsLoading, setNaicsLoading] = useState(false)
+  const [naicsLimit, setNaicsLimit] = useState<string>('')
+  const [naicsResults, setNaicsResults] = useState<{
+    total_contracts?: number
+    contracts_without_naics?: number
+    generated_count?: number
+    failed_count?: number
+    results?: NaicsBackfillResult[]
+  } | null>(null)
+  const [naicsError, setNaicsError] = useState<string | null>(null)
 
   useEffect(() => {
     checkAdminAndLoad()
@@ -80,6 +98,40 @@ const AdminDirectory = () => {
       setError('Failed to delete listing')
     } finally {
       setDeleting(null)
+    }
+  }
+
+  const handleNaicsBackfill = async () => {
+    setNaicsLoading(true)
+    setNaicsError(null)
+    setNaicsResults(null)
+    
+    try {
+      const limit = naicsLimit ? parseInt(naicsLimit, 10) : undefined
+      if (naicsLimit && (isNaN(limit!) || limit! < 1)) {
+        setNaicsError('Please enter a valid number for limit')
+        setNaicsLoading(false)
+        return
+      }
+      
+      const result = await api.adminBackfillNaics(limit)
+      
+      if (result.success) {
+        setNaicsResults({
+          total_contracts: result.total_contracts,
+          contracts_without_naics: result.contracts_without_naics,
+          generated_count: result.generated_count,
+          failed_count: result.failed_count,
+          results: result.results
+        })
+      } else {
+        setNaicsError(result.error || 'Failed to backfill NAICS codes')
+      }
+    } catch (err) {
+      console.error('Error backfilling NAICS codes:', err)
+      setNaicsError('Failed to backfill NAICS codes')
+    } finally {
+      setNaicsLoading(false)
     }
   }
 
@@ -245,6 +297,125 @@ const AdminDirectory = () => {
                     {' | '}
                     Unlisted: <span className="text-yellow-400 font-semibold">{listings.filter(l => !l.listed).length}</span>
                   </p>
+                </div>
+              )}
+            </div>
+
+            {/* NAICS Backfill Section */}
+            <div className="card-gradient rounded-xl p-3 sm:p-4 lg:p-6 mt-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Database className="w-6 h-6 text-corama-teal" />
+                    <h2 className="text-white font-poppins font-bold text-lg sm:text-xl uppercase tracking-wider">NAICS Code Backfill</h2>
+                  </div>
+                  <p className="text-gray-400 font-poppins text-sm">Generate NAICS codes for contracts that don't have them using AI</p>
+                </div>
+              </div>
+
+              {/* NAICS Backfill Controls */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1">
+                  <label className="block text-gray-400 font-poppins text-sm mb-2">
+                    Limit (optional - leave empty to process all)
+                  </label>
+                  <input
+                    type="number"
+                    value={naicsLimit}
+                    onChange={(e) => setNaicsLimit(e.target.value)}
+                    placeholder="e.g., 50"
+                    className="w-full bg-corama-dark border border-gray-700 rounded-lg px-4 py-2 text-white font-poppins focus:border-corama-teal focus:outline-none"
+                    min="1"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    onClick={handleNaicsBackfill}
+                    disabled={naicsLoading}
+                    className="flex items-center gap-2 bg-corama-teal text-white font-poppins px-6 py-2 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {naicsLoading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Database className="w-4 h-4" />
+                        Run Backfill
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* NAICS Error */}
+              {naicsError && (
+                <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4 mb-6 flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                  <p className="text-red-400 font-poppins text-sm">{naicsError}</p>
+                  <button
+                    onClick={() => setNaicsError(null)}
+                    className="ml-auto text-red-400 hover:text-red-300"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+
+              {/* NAICS Results */}
+              {naicsResults && (
+                <div className="space-y-4">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="bg-corama-dark/50 rounded-lg p-4 text-center">
+                      <p className="text-gray-400 font-poppins text-xs mb-1">Total Contracts</p>
+                      <p className="text-white font-poppins font-bold text-xl">{naicsResults.total_contracts || 0}</p>
+                    </div>
+                    <div className="bg-corama-dark/50 rounded-lg p-4 text-center">
+                      <p className="text-gray-400 font-poppins text-xs mb-1">Without NAICS</p>
+                      <p className="text-yellow-400 font-poppins font-bold text-xl">{naicsResults.contracts_without_naics || 0}</p>
+                    </div>
+                    <div className="bg-corama-dark/50 rounded-lg p-4 text-center">
+                      <p className="text-gray-400 font-poppins text-xs mb-1">Generated</p>
+                      <p className="text-green-400 font-poppins font-bold text-xl">{naicsResults.generated_count || 0}</p>
+                    </div>
+                    <div className="bg-corama-dark/50 rounded-lg p-4 text-center">
+                      <p className="text-gray-400 font-poppins text-xs mb-1">Failed</p>
+                      <p className="text-red-400 font-poppins font-bold text-xl">{naicsResults.failed_count || 0}</p>
+                    </div>
+                  </div>
+
+                  {/* Results Table */}
+                  {naicsResults.results && naicsResults.results.length > 0 && (
+                    <div className="overflow-x-auto">
+                      <p className="text-gray-400 font-poppins text-sm mb-2">Sample Results (first 20):</p>
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-gray-700">
+                            <th className="text-left text-gray-400 font-poppins text-sm py-2 px-2">Status</th>
+                            <th className="text-left text-gray-400 font-poppins text-sm py-2 px-2">Contract Title</th>
+                            <th className="text-left text-gray-400 font-poppins text-sm py-2 px-2">NAICS Codes</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {naicsResults.results.map((result, index) => (
+                            <tr key={index} className="border-b border-gray-700/50">
+                              <td className="py-2 px-2">
+                                {result.success ? (
+                                  <CheckCircle className="w-4 h-4 text-green-400" />
+                                ) : (
+                                  <XCircle className="w-4 h-4 text-red-400" />
+                                )}
+                              </td>
+                              <td className="text-white font-poppins text-sm py-2 px-2">{result.title}</td>
+                              <td className="text-gray-300 font-poppins text-sm py-2 px-2">{result.naics_codes || '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
