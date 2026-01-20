@@ -429,7 +429,11 @@ const Dashboard = () => {
                           <tbody>
                             {contracts.map((contract) => (
                               <tr key={contract.id} className="hover:bg-corama-darker/30">
-                                <td className="py-4 pr-6 text-white font-poppins font-semibold">{contract.name}</td>
+                                <td 
+                                  className="py-4 pr-6 text-white font-poppins font-semibold cursor-pointer hover:text-corama-teal transition-colors"
+                                  onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
+                                  title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
+                                >{contract.name}</td>
                                 <td className="py-4 text-white font-poppins text-sm">{contract.category}</td>
                                 <td className="py-4 px-4 text-center text-white font-poppins text-sm">{contract.naicsCode}</td>
                                 <td className="py-4 px-4 text-center text-white font-poppins text-sm whitespace-nowrap">{contract.dueDate}</td>
@@ -465,7 +469,10 @@ const Dashboard = () => {
                         {contracts.map((contract) => (
                           <div key={contract.id} className="rounded-lg p-3 sm:p-4" style={{ backgroundColor: '#2F3C4F' }}>
                             <div className="flex justify-between items-start mb-2">
-                              <h3 className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2">{contract.name}</h3>
+                              <h3 
+                                className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2 cursor-pointer hover:text-corama-teal transition-colors"
+                                onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
+                              >{contract.name}</h3>
                               <span className="text-white font-poppins text-xs sm:text-sm">{contract.status}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-3">
