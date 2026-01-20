@@ -67,6 +67,8 @@ export interface DirectoryCompany {
   logo: string;
   services: string;
   certifications: string;
+  linkedinUrl: string;
+  pastProjects: string;
 }
 
 export interface DirectoryProfile {

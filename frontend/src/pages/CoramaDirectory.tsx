@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { Briefcase } from 'lucide-react'
-import { api, DirectoryCompany } from '../services/api'
+import { api } from '../services/api'
 import { useTranslation } from '../i18n'
 
 interface Company {
@@ -17,6 +17,9 @@ interface Company {
   employees: string
   yearsInBusiness: number
   logo?: string
+  linkedinUrl: string
+  certifications: string
+  pastProjects: string
 }
 
 const CoramaDirectory = () => {
@@ -57,17 +60,22 @@ const CoramaDirectory = () => {
     try {
       const data = await api.getDirectory(currentPage, searchQuery)
       if (data.success && data.companies) {
-        const transformedCompanies: Company[] = data.companies.map((c: DirectoryCompany, index: number) => ({
+        // Backend returns snake_case fields, map to camelCase for frontend
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformedCompanies: Company[] = data.companies.map((c: any, index: number) => ({
           id: index + 1,
-          name: c.name,
-          contactName: c.contactName || 'N/A',
+          name: c.company || c.name || '',
+          contactName: c.contact_name || c.contactName || 'N/A',
           description: c.description || 'No description available',
           phone: c.phone || 'N/A',
           email: c.email || 'N/A',
           website: c.website || 'N/A',
-          employees: c.employees || 'N/A',
-          yearsInBusiness: c.yearsInBusiness || 0,
-          logo: c.logo
+          employees: c.team_size || c.employees || 'N/A',
+          yearsInBusiness: parseInt(c.years_in_business || c.yearsInBusiness || '0') || 0,
+          logo: c.logo_url || c.logo,
+          linkedinUrl: c.linkedin_url || c.linkedinUrl || '',
+          certifications: c.certifications || '',
+          pastProjects: c.past_projects || c.pastProjects || ''
         }))
         setCompanies(transformedCompanies)
         setTotalCompanies(data.total || transformedCompanies.length)
@@ -161,7 +169,7 @@ const CoramaDirectory = () => {
                     <div className="flex items-center gap-4 mt-3">
                       <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                         <img src="/static/app/dashboard/Employees.svg" alt="" className="w-4 h-4" />
-                        <span>{company.employees}</span>
+                        <span>{company.employees} Employees</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                         <img src="/static/app/dashboard/YearsInBusiness.svg" alt="" className="w-4 h-4" />
@@ -176,7 +184,7 @@ const CoramaDirectory = () => {
                     <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-2 text-center sm:text-left">{company.contactName}</p>
                     <p className="text-gray-300 font-poppins text-xs sm:text-sm mb-3 lg:mb-4">{company.description}</p>
 
-                    {/* Contact Info */}
+                    {/* Contact Info - Row 1 */}
                     <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-4 lg:gap-6">
                       <div className="flex items-center gap-2">
                         <img src="/static/app/dashboard/Phone.svg" alt="" className="w-5 h-5" />
@@ -190,6 +198,24 @@ const CoramaDirectory = () => {
                         <img src="/static/app/dashboard/Website.svg" alt="" className="w-5 h-5" />
                         <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.website}</span>
                       </div>
+                      {company.linkedinUrl && (
+                        <div className="flex items-center gap-2">
+                          <img src="/static/app/dashboard/LinkedIn.svg" alt="" className="w-5 h-5" />
+                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.linkedinUrl}</span>
+                        </div>
+                      )}
+                      {company.certifications && (
+                        <div className="flex items-center gap-2">
+                          <img src="/static/app/dashboard/Certifications.svg" alt="" className="w-5 h-5" />
+                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.certifications}</span>
+                        </div>
+                      )}
+                      {company.pastProjects && (
+                        <div className="flex items-center gap-2">
+                          <img src="/static/app/dashboard/PastProjects.svg" alt="" className="w-5 h-5" />
+                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.pastProjects}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
