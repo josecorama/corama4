@@ -53,6 +53,7 @@ from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
+from ai_provider import get_ai_provider_manager, initialize_ai_provider, AIProvider
 
 # Load environment variables - use override=False to preserve system environment variables
 # (system env vars take precedence over .env file values)
@@ -4838,8 +4839,23 @@ client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=cs_api_key)
 
 client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('OPENAI_API_KEY'))
 
-
-
+# Initialize AI Provider Manager with all OpenAI clients
+# This allows switching between OpenAI and HuggingFace Inference Endpoints
+# Configure via environment variables:
+#   AI_PROVIDER: 'openai' (default) or 'huggingface'
+#   HF_INFERENCE_ENDPOINT: URL of your HuggingFace Inference Endpoint
+#   HF_API_TOKEN: HuggingFace API token for authentication
+# Feature-specific overrides:
+#   TOP_FIVE_MATCHES_PROVIDER, AI_ASSISTANT_PROVIDER, CONTRACT_ANALYSIS_PROVIDER,
+#   PROPOSAL_GENERATION_PROVIDER, CATEGORY_PREDICTION_PROVIDER, CAPABILITY_BUILDER_PROVIDER
+ai_provider_manager = initialize_ai_provider({
+    'smart_search': client_SMART_SEARCH_OPENAI_API_KEY,
+    'cs_builder': client_CS_BUILDER_OPENAI_API_KEY,
+    'bid_response': client_BID_RESPONSE_OPENAI_API_KEY
+})
+app.logger.info(f"AI Provider initialized. Default provider: {ai_provider_manager.default_provider.value}")
+if ai_provider_manager.is_huggingface_available():
+    app.logger.info(f"HuggingFace Inference Endpoint available: {ai_provider_manager.hf_endpoint_url}")
 
 # BID UPLOADS
 uploads_dir = os.path.join(os.getcwd(), 'uploads') 
