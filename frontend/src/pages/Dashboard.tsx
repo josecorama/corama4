@@ -393,8 +393,7 @@ const Dashboard = () => {
                             <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
                           </button>
                           <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">
-                            <span className="hidden sm:inline">{startItem}-{endItem} of {totalContracts}</span>
-                            <span className="sm:hidden">{currentPage}/{Math.ceil(totalContracts/contractsPerPage)}</span>
+                            <span>{startItem}-{endItem} of {totalContracts}</span>
                                                         <button 
                                                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                                           disabled={currentPage <= 1}

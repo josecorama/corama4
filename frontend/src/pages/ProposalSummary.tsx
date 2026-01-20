@@ -410,8 +410,11 @@ const ProposalSummary = () => {
     setIsDeductingCredits(true)
     
     try {
+      // Generate idempotency key to prevent double-click duplicate charges
+      const idempotencyKey = `proposal_summary_${contractId}_${Date.now()}`
+      
       // Deduct 15 credits for generating final proposal
-      const response = await api.deductCredits(15, 'generate_final_proposal', 'Generate Final Proposal')
+      const response = await api.deductCredits(15, 'generate_final_proposal', 'Generate Final Proposal', idempotencyKey)
       
       if (response.success) {
         // Close popup and navigate to the next page

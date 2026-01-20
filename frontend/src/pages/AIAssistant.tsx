@@ -474,12 +474,16 @@ const AIAssistant = () => {
         // Call backend API for AI action with conversation history
         try {
           const conversationHistory = buildConversationHistory()
-          const response = await api.aiAssistantAction(actionKey, contractName, conversationHistory)
+          // Generate idempotency key to prevent double-click duplicate charges
+          const idempotencyKey = `ai_assistant_${actionKey}_${contractId}_${Date.now()}`
+          const response = await api.aiAssistantAction(actionKey, contractName, conversationHistory, idempotencyKey)
           
           if (response.success) {
             addAiMessage(response.message)
-            // Force Header to refresh credits
-            setHeaderKey(k => k + 1)
+            // Force Header to refresh credits (skip if cached response)
+            if (!response.cached) {
+              setHeaderKey(k => k + 1)
+            }
             // Add follow-up PDF question after a delay (after typing animation)
             setTimeout(() => {
               const pdfFollowUp: Message = {
@@ -504,12 +508,16 @@ const AIAssistant = () => {
         // This allows the AI to follow up on its own questions
         try {
           const conversationHistory = buildConversationHistory()
-          const response = await api.aiAssistantAction('conversation', contractName, conversationHistory)
+          // Generate idempotency key to prevent double-click duplicate charges
+          const idempotencyKey = `ai_assistant_conversation_${contractId}_${Date.now()}`
+          const response = await api.aiAssistantAction('conversation', contractName, conversationHistory, idempotencyKey)
           
           if (response.success) {
             addAiMessage(response.message)
-            // Force Header to refresh credits
-            setHeaderKey(k => k + 1)
+            // Force Header to refresh credits (skip if cached response)
+            if (!response.cached) {
+              setHeaderKey(k => k + 1)
+            }
           } else {
             addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
           }

@@ -8479,6 +8479,8 @@ def ai_assistant_action():
         contract_name = sanitize_contract_name(data.get('contractName', 'this contract'))
         # Get conversation history (optional, for follow-up messages)
         conversation_history = data.get('conversationHistory', [])
+        # Get idempotency key (optional, for preventing duplicate credit deductions)
+        idempotency_key = data.get('idempotency_key')
         
         # Validate action against fixed enum (security: no arbitrary actions)
         VALID_ACTIONS = {
@@ -8500,6 +8502,18 @@ def ai_assistant_action():
         
         user = session['user']
         user_id = user['localId']
+        
+        # Check idempotency - if this operation was already processed, return cached result
+        if idempotency_key:
+            if is_credit_operation_processed(idempotency_key):
+                cached_result = get_credit_operation_result(idempotency_key)
+                if cached_result:
+                    logging.info(f"[AI_ASSISTANT] Returning cached result for idempotency key {idempotency_key[:16]}...")
+                    return jsonify(cached_result)
+                else:
+                    # Operation was processed but result not found - return success to avoid duplicate
+                    logging.warning(f"[AI_ASSISTANT] Idempotency key {idempotency_key[:16]}... found but no cached result")
+                    return jsonify({"success": True, "message": "Already processed", "cached": True})
         
         # Initialize credit manager
         credit_manager = CreditManager(db)
@@ -8549,11 +8563,17 @@ def ai_assistant_action():
                     "credits_balance": current_credits
                 }), 402
             
-            return jsonify({
+            result = {
                 "success": True,
                 "message": ai_response,
                 "credits_balance": new_balance
-            })
+            }
+            
+            # Mark operation as processed if idempotency key provided
+            if idempotency_key:
+                mark_credit_operation_processed(idempotency_key, user_id, required_credits, f'ai_assistant_{action}', result)
+            
+            return jsonify(result)
             
         except Exception as e:
             app.logger.error(f"Error generating AI response for action {action}: {e}", exc_info=True)
@@ -12147,6 +12167,52 @@ def mark_stripe_session_processed(session_id, user_id, credits):
     except Exception as e:
         logging.error(f"Error marking session {session_id} as processed: {e}")
     return False
+
+
+def is_credit_operation_processed(idempotency_key):
+    """Check if a credit operation has already been processed (idempotency check)"""
+    try:
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_credit_operations/{idempotency_key}')
+            return ref.get() is not None
+        return False
+    except Exception as e:
+        logging.error(f"Error checking processed credit operation {idempotency_key}: {e}")
+        return False
+
+def mark_credit_operation_processed(idempotency_key, user_id, amount, action_type, result):
+    """Mark a credit operation as processed to prevent duplicate deductions"""
+    try:
+        import time
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_credit_operations/{idempotency_key}')
+            ref.set({
+                'user_id': user_id,
+                'amount': amount,
+                'action_type': action_type,
+                'result': result,
+                'processed_at': time.time(),
+                'processed_at_iso': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+            })
+            logging.info(f"Marked credit operation {idempotency_key[:16]}... as processed for user {user_id}")
+            return True
+    except Exception as e:
+        logging.error(f"Error marking credit operation {idempotency_key} as processed: {e}")
+    return False
+
+def get_credit_operation_result(idempotency_key):
+    """Get the result of a previously processed credit operation"""
+    try:
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_credit_operations/{idempotency_key}')
+            data = ref.get()
+            if data:
+                return data.get('result')
+        return None
+    except Exception as e:
+        logging.error(f"Error getting credit operation result {idempotency_key}: {e}")
+        return None
+
 
 @app.route('/stripe_webhook', methods=['POST'])
 def stripe_webhook():
@@ -17168,7 +17234,7 @@ def api_get_credits():
 # API: Deduct credits for an action
 @app.route('/api/deduct-credits', methods=['POST'])
 def api_deduct_credits():
-    """Deduct credits from user's balance for a specific action"""
+    """Deduct credits from user's balance for a specific action (with idempotency support)"""
     if 'user' not in session:
         return jsonify({"success": False, "error": "Not authenticated"}), 401
     
@@ -17180,9 +17246,23 @@ def api_deduct_credits():
         amount = data.get('amount', 0)
         action_type = data.get('action_type', 'unknown')
         description = data.get('description', '')
+        idempotency_key = data.get('idempotency_key')  # Optional: frontend can provide this
         
         if amount <= 0:
             return jsonify({"success": False, "error": "Invalid credit amount"}), 400
+        
+        # If idempotency key provided, check if operation was already processed
+        if idempotency_key:
+            if is_credit_operation_processed(idempotency_key):
+                # Return the cached result
+                cached_result = get_credit_operation_result(idempotency_key)
+                if cached_result:
+                    logging.info(f"[CREDITS] Returning cached result for idempotency key {idempotency_key[:16]}...")
+                    return jsonify(cached_result)
+                else:
+                    # Operation was processed but result not found - return success to avoid duplicate
+                    logging.warning(f"[CREDITS] Idempotency key {idempotency_key[:16]}... found but no cached result")
+                    return jsonify({"success": True, "new_balance": 0, "message": "Already processed", "cached": True})
         
         # Use credit manager to deduct credits
         credit_manager = CreditManager(db)
@@ -17202,11 +17282,15 @@ def api_deduct_credits():
         
         if success:
             logging.info(f"[CREDITS] Deducted {amount} credits from user {user_id} for {action_type}: {description}")
-            return jsonify({
+            result = {
                 "success": True,
                 "new_balance": new_balance,
                 "message": message
-            })
+            }
+            # Mark operation as processed if idempotency key provided
+            if idempotency_key:
+                mark_credit_operation_processed(idempotency_key, user_id, amount, action_type, result)
+            return jsonify(result)
         else:
             logging.warning(f"[CREDITS] Failed to deduct credits for user {user_id}: {message}")
             return jsonify({"success": False, "error": message}), 402

@@ -268,19 +268,21 @@ class ApiService {
     return res.json();
   }
 
-  // AI Assistant Action (with credit deduction and optional conversation history)
+  // AI Assistant Action (with credit deduction, idempotency support, and optional conversation history)
   async aiAssistantAction(
     action: string, 
     contractName: string, 
-    conversationHistory?: Array<{role: string, content: string}>
-  ): Promise<{success: boolean, message: string, credits_balance?: number, error?: string}> {
+    conversationHistory?: Array<{role: string, content: string}>,
+    idempotencyKey?: string
+  ): Promise<{success: boolean, message: string, credits_balance?: number, error?: string, cached?: boolean}> {
     const res = await fetch(`${API_BASE()}/ai-assistant-action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         action, 
         contractName,
-        conversationHistory: conversationHistory || []
+        conversationHistory: conversationHistory || [],
+        idempotency_key: idempotencyKey
       })
     });
     if (!res.ok) {
@@ -317,16 +319,22 @@ class ApiService {
     return res.json();
   }
 
-  // Deduct credits for an action
+  // Deduct credits for an action (with idempotency support)
   async deductCredits(
     amount: number, 
     actionType: string, 
-    description: string
-  ): Promise<{success: boolean, new_balance?: number, error?: string}> {
+    description: string,
+    idempotencyKey?: string
+  ): Promise<{success: boolean, new_balance?: number, error?: string, cached?: boolean}> {
     const res = await fetch(`${API_BASE()}/deduct-credits`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, action_type: actionType, description })
+      body: JSON.stringify({ 
+        amount, 
+        action_type: actionType, 
+        description,
+        idempotency_key: idempotencyKey 
+      })
     });
     if (!res.ok) {
       if (res.status === 401) {
@@ -342,7 +350,8 @@ class ApiService {
     const data = await res.json();
     
     // Dispatch event to notify Header of credit change (triggers animation)
-    if (data.success && data.new_balance !== undefined) {
+    // Don't dispatch if this was a cached response (already processed)
+    if (data.success && data.new_balance !== undefined && !data.cached) {
       window.dispatchEvent(new CustomEvent('creditsChanged', { 
         detail: { credits: data.new_balance } 
       }));
