@@ -12119,6 +12119,35 @@ def download_word():
 
 
 
+def is_stripe_session_processed(session_id):
+    """Check if a Stripe checkout session has already been processed (idempotency check)"""
+    try:
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_stripe_sessions/{session_id}')
+            return ref.get() is not None
+        return False
+    except Exception as e:
+        logging.error(f"Error checking processed session {session_id}: {e}")
+        return False
+
+def mark_stripe_session_processed(session_id, user_id, credits):
+    """Mark a Stripe checkout session as processed to prevent duplicate credit additions"""
+    try:
+        import time
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_stripe_sessions/{session_id}')
+            ref.set({
+                'user_id': user_id,
+                'credits': credits,
+                'processed_at': time.time(),
+                'processed_at_iso': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+            })
+            logging.info(f"Marked session {session_id} as processed for user {user_id}")
+            return True
+    except Exception as e:
+        logging.error(f"Error marking session {session_id} as processed: {e}")
+    return False
+
 @app.route('/stripe_webhook', methods=['POST'])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
@@ -12157,6 +12186,7 @@ def stripe_webhook():
 def handle_successful_payment(session):
     customer_id = session["customer"]
     subscription_id = session.get("subscription")
+    session_id = session.get("id")
     metadata = session.get("metadata", {})
     
     if metadata.get("purchase_type") == "credits":
@@ -12164,11 +12194,18 @@ def handle_successful_payment(session):
         credits = int(metadata.get("credits", 0))
         
         if user_id and credits:
+            # Idempotency check: prevent duplicate credit additions
+            if is_stripe_session_processed(session_id):
+                app.logger.info(f"⏭️ Session {session_id} already processed, skipping credit addition (webhook)")
+                return
+            
             credit_manager = CreditManager(db)
             success, new_balance = credit_manager.add_credits_admin(
                 user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
             )
             if success:
+                # Mark session as processed to prevent duplicate additions
+                mark_stripe_session_processed(session_id, user_id, credits)
                 app.logger.info(f"✅ Credits added for user {user_id}: {credits} credits, new balance: {new_balance}")
             else:
                 app.logger.error(f"❌ Failed to add credits for user {user_id} via webhook")
@@ -12268,6 +12305,14 @@ def create_credit_checkout():
         credits = int(request.json.get('credits'))
         price = int(request.json.get('price'))
         
+        # Generate idempotency key to prevent duplicate checkout sessions on network retries
+        # Using user_id + credits + price + timestamp (rounded to 5-minute window) for uniqueness
+        import time
+        import hashlib
+        timestamp_window = int(time.time() // 300)  # 5-minute window
+        idempotency_data = f"{user['localId']}_{credits}_{price}_{timestamp_window}"
+        idempotency_key = hashlib.sha256(idempotency_data.encode()).hexdigest()[:32]
+        
         try:
             checkout_session = stripe.checkout.Session.create(
                 customer=stripe_customer_id,
@@ -12291,8 +12336,10 @@ def create_credit_checkout():
                     'credits': credits,
                     'purchase_type': 'credits'
                 },
-                allow_promotion_codes=True
+                allow_promotion_codes=True,
+                idempotency_key=idempotency_key
             )
+            logging.info(f"Created checkout session with idempotency key: {idempotency_key[:8]}...")
             
             return jsonify({"checkout_url": checkout_session.url})
         except stripe.error.AuthenticationError as stripe_error:
@@ -12324,15 +12371,25 @@ def credit_purchase_success():
             metadata_user_id = checkout_session.metadata.get('user_id')
             
             success = False
+            already_processed = False
+            
             if metadata_user_id == user_id and credits > 0:
-                credit_manager = CreditManager(db)
-                success, new_balance = credit_manager.add_credits_admin(
-                    user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
-                )
-                if success:
-                    app.logger.info(f"✅ Credits added via success page for user {user_id}: {credits} credits, new balance: {new_balance}")
+                # Idempotency check: prevent duplicate credit additions
+                if is_stripe_session_processed(session_id):
+                    app.logger.info(f"⏭️ Session {session_id} already processed, skipping credit addition (success page)")
+                    already_processed = True
+                    success = True  # Show success to user since credits were already added
                 else:
-                    app.logger.error(f"❌ Failed to add credits via success page for user {user_id}")
+                    credit_manager = CreditManager(db)
+                    success, new_balance = credit_manager.add_credits_admin(
+                        user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
+                    )
+                    if success:
+                        # Mark session as processed to prevent duplicate additions
+                        mark_stripe_session_processed(session_id, user_id, credits)
+                        app.logger.info(f"✅ Credits added via success page for user {user_id}: {credits} credits, new balance: {new_balance}")
+                    else:
+                        app.logger.error(f"❌ Failed to add credits via success page for user {user_id}")
             
             return render_template('credit_purchase_success.html', credits=credits, success=success)
         except Exception as e:
