@@ -206,13 +206,13 @@ const CoramaDirectory = () => {
                       )}
                       {company.certifications && (
                         <div className="flex items-center gap-2">
-                          <img src="/static/app/dashboard/Certifications.svg" alt="" className="w-5 h-5" />
+                          <img src="/static/app/dashboard/TopFiveContracts.svg" alt="" className="w-5 h-5" />
                           <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.certifications}</span>
                         </div>
                       )}
                       {company.pastProjects && (
                         <div className="flex items-center gap-2">
-                          <img src="/static/app/dashboard/PastProjects.svg" alt="" className="w-5 h-5" />
+                          <img src="/static/app/dashboard/TopFiveContracts.svg" alt="" className="w-5 h-5" />
                           <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.pastProjects}</span>
                         </div>
                       )}
