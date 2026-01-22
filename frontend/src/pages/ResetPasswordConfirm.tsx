@@ -115,7 +115,7 @@ const ResetPasswordConfirm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] relative">
+    <div className="min-h-screen bg-[#0B0B0F] relative flex flex-col">
       {/* Flicker Background */}
       <div className="prelogin-flicker-bg" />
       
@@ -139,8 +139,8 @@ const ResetPasswordConfirm = () => {
         </div>
       </header>
 
-      {/* Reset Password Confirm Form */}
-      <div className="relative z-10 pt-24 sm:pt-32 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
+            {/* Reset Password Confirm Form */}
+            <div className="relative z-10 pt-24 sm:pt-32 pb-16 px-4 sm:px-6 flex items-center justify-center flex-1">
         <div className="w-full max-w-md">
           <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-2xl">
             {/* Logo */}

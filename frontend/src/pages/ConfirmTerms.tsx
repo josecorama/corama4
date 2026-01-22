@@ -35,7 +35,7 @@ const ConfirmTerms = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] relative">
+    <div className="min-h-screen bg-[#0B0B0F] relative flex flex-col">
       {/* Flicker Background */}
       <div className="prelogin-flicker-bg" />
       
@@ -56,8 +56,8 @@ const ConfirmTerms = () => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="relative z-10 pt-24 sm:pt-32 pb-32 px-4 sm:px-6">
+            {/* Main Content */}
+            <div className="relative z-10 pt-24 sm:pt-32 pb-16 px-4 sm:px-6 flex-1">
         <div className="max-w-4xl mx-auto">
           {/* Title Section */}
           <div className="text-center mb-10">
