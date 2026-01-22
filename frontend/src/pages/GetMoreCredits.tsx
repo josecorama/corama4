@@ -23,7 +23,7 @@ interface CreditFeature {
 }
 
 const GetMoreCredits = () => {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   const [_credits, setCredits] = useState(0)
   const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
   const [_loading, setLoading] = useState(true)
@@ -144,7 +144,7 @@ const GetMoreCredits = () => {
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
             {/* Page Title */}
-            <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8">Get More Credits</h1>
+            <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8">{t('getMoreCredits')}</h1>
 
             {/* Credit Packs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 lg:mb-12">
@@ -178,7 +178,7 @@ const GetMoreCredits = () => {
                     disabled={purchasing !== null}
                     className={`w-full py-2 rounded-lg font-poppins font-semibold text-sm sm:text-base transition-colors bg-corama-teal text-corama-dark group-hover:bg-corama-dark group-hover:text-white mt-auto ${purchasing !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {purchasing === pack.credits ? 'Processing...' : 'Choose Pack'}
+                    {purchasing === pack.credits ? t('processing') : t('choosePack')}
                   </button>
                 </div>
               ))}

@@ -221,13 +221,85 @@ export const translations = {
     tryAgain: 'Try Again',
     somethingWentWrong: 'Something went wrong. Please try again.',
     
-    // Filter
-    filterContracts: 'Filter Contracts',
-    contractType: 'Contract Type',
-    stateProvince: 'State/Province',
-    applyFilters: 'Apply Filters',
-    clearFilters: 'Clear Filters',
-  },
+      // Filter
+      filterContracts: 'Filter Contracts',
+      contractType: 'Contract Type',
+      stateProvince: 'State/Province',
+      applyFilters: 'Apply Filters',
+      clearFilters: 'Clear Filters',
+    
+      // Top Five Contracts - additional
+      contractValue: 'Contract Value',
+      submissionDeadline: 'Submission Deadline',
+      contractingAgency: 'Contracting Agency',
+      contractWebsite: 'Contract Website',
+      askAiAboutThis: 'Ask AI About This',
+      clickToPrint: 'Click to print your contract matches.',
+      showingContracts: 'Showing',
+      allContractsLoaded: 'All contracts loaded',
+      changeCapabilityStatement: 'Change Capability Statement',
+      clickToUploadNewCS: 'Click to upload a new CS.',
+      noContractsMatchFilters: 'No contracts match these filters.',
+      noContractsToShow: 'No contracts to show yet.',
+                        match: 'Match',
+                  matchPending: 'Match Pending',
+    
+                  // Get More Credits - additional
+      choosePack: 'Choose Pack',
+      processing: 'Processing...',
+      howCreditsWork: 'How Credits Work',
+      basicAiChat: 'Basic AI Chat',
+      basicAiChatDesc: 'Get instant answers to your questions about government contracting, procurement processes, and general guidance.',
+      complianceCheck: 'Compliance Check',
+      complianceCheckDesc: 'Deep analysis of contract opportunities to identify key requirements, evaluation criteria, and match them against your capabilities.',
+      contractAnalysisDesc: 'Verify that your capability statement or proposal meets all necessary compliance requirements for government contracting.',
+      fullProposal: 'Full Proposal',
+      fullProposalDesc: 'Generate a comprehensive, professionally formatted proposal document tailored to a specific contract opportunity.',
+      credit: 'Credit',
+    
+      // AI Assistant - additional
+      discardUnsavedChanges: 'Discard unsaved changes?',
+      workflowInProgress: "You're in the middle of a workflow.",
+      progressNotSaved: 'If you go back now, your progress in this page will not be saved.',
+      stayHere: 'Stay Here',
+      discardAndGoBack: 'Discard & Go Back',
+      startGuidedProcess: 'Start Guided Process',
+      typeMessageHere: 'Type your message here...',
+    
+      // Contract Analysis - additional
+      uploadPdf: 'Upload PDF',
+      contractDocument: 'Contract Document',
+      clickOrDragToUpload: 'Click or drag to upload PDF',
+      uploaded: 'Uploaded',
+      contractInsights: 'Contract Insights',
+      uploadingPdf: 'Uploading PDF...',
+      processingContract: 'Processing contract...',
+      continueToNextStep: 'Continue to Next Step',
+    
+            // Capability Builder - additional
+            companyInfo: 'Company Information',
+            capabilitiesAndDifferentiators: 'Capabilities & Differentiators',
+      governmentCodes: 'Government Codes',
+      pastPerformanceTitle: 'Past Performance',
+      generatePdf: 'Generate PDF',
+      resetForm: 'Reset Form',
+      clearAll: 'Clear All',
+      importFromFile: 'Import from File',
+      selectFile: 'Select File',
+      noFileSelected: 'No file selected',
+    
+      // Support - additional
+      coramaTeam: 'CORAMA Team',
+      expertAdvisors: 'Expert Advisors',
+      ihccMembers: 'IHCC Members',
+      connect: 'Connect',
+    
+      // Directory - additional
+      searchInDirectory: 'Search in directory...',
+      noCompaniesFound: 'No companies found',
+      viewDetails: 'View Details',
+      linkedinProfile: 'LinkedIn Profile',
+    },
   es: {
     // Common
     loading: 'Cargando...',
@@ -449,6 +521,78 @@ export const translations = {
     stateProvince: 'Estado/Provincia',
     applyFilters: 'Aplicar Filtros',
     clearFilters: 'Limpiar Filtros',
+    
+    // Top Five Contracts - additional
+    contractValue: 'Valor del Contrato',
+    submissionDeadline: 'Fecha Limite de Envio',
+    contractingAgency: 'Agencia Contratante',
+    contractWebsite: 'Sitio Web del Contrato',
+    askAiAboutThis: 'Preguntar a la IA',
+    clickToPrint: 'Haga clic para imprimir sus coincidencias de contratos.',
+    showingContracts: 'Mostrando',
+    allContractsLoaded: 'Todos los contratos cargados',
+    changeCapabilityStatement: 'Cambiar Declaracion de Capacidades',
+    clickToUploadNewCS: 'Haga clic para subir una nueva DC.',
+    noContractsMatchFilters: 'Ningun contrato coincide con estos filtros.',
+    noContractsToShow: 'No hay contratos para mostrar aun.',
+                match: 'Coincidencia',
+            matchPending: 'Coincidencia Pendiente',
+    
+            // Get More Credits - additional
+    choosePack: 'Elegir Paquete',
+    processing: 'Procesando...',
+    howCreditsWork: 'Como Funcionan los Creditos',
+    basicAiChat: 'Chat Basico con IA',
+    basicAiChatDesc: 'Obtenga respuestas instantaneas a sus preguntas sobre contratacion gubernamental, procesos de adquisicion y orientacion general.',
+    complianceCheck: 'Verificacion de Cumplimiento',
+    complianceCheckDesc: 'Analisis profundo de oportunidades de contratos para identificar requisitos clave, criterios de evaluacion y compararlos con sus capacidades.',
+    contractAnalysisDesc: 'Verifique que su declaracion de capacidades o propuesta cumpla con todos los requisitos de cumplimiento necesarios para la contratacion gubernamental.',
+    fullProposal: 'Propuesta Completa',
+    fullProposalDesc: 'Genere un documento de propuesta completo y profesionalmente formateado adaptado a una oportunidad de contrato especifica.',
+    credit: 'Credito',
+    
+    // AI Assistant - additional
+    discardUnsavedChanges: 'Descartar cambios sin guardar?',
+    workflowInProgress: 'Esta en medio de un flujo de trabajo.',
+    progressNotSaved: 'Si regresa ahora, su progreso en esta pagina no se guardara.',
+    stayHere: 'Permanecer Aqui',
+    discardAndGoBack: 'Descartar y Volver',
+    startGuidedProcess: 'Iniciar Proceso Guiado',
+    typeMessageHere: 'Escriba su mensaje aqui...',
+    
+    // Contract Analysis - additional
+    uploadPdf: 'Subir PDF',
+    contractDocument: 'Documento del Contrato',
+    clickOrDragToUpload: 'Haga clic o arrastre para subir PDF',
+    uploaded: 'Subido',
+    contractInsights: 'Analisis del Contrato',
+    uploadingPdf: 'Subiendo PDF...',
+    processingContract: 'Procesando contrato...',
+    continueToNextStep: 'Continuar al Siguiente Paso',
+    
+        // Capability Builder - additional
+        companyInfo: 'Informacion de la Empresa',
+        capabilitiesAndDifferentiators: 'Capacidades y Diferenciadores',
+    governmentCodes: 'Codigos Gubernamentales',
+    pastPerformanceTitle: 'Desempeno Anterior',
+    generatePdf: 'Generar PDF',
+    resetForm: 'Restablecer Formulario',
+    clearAll: 'Limpiar Todo',
+    importFromFile: 'Importar desde Archivo',
+    selectFile: 'Seleccionar Archivo',
+    noFileSelected: 'Ningun archivo seleccionado',
+    
+    // Support - additional
+    coramaTeam: 'Equipo CORAMA',
+    expertAdvisors: 'Asesores Expertos',
+    ihccMembers: 'Miembros de IHCC',
+    connect: 'Conectar',
+    
+    // Directory - additional
+    searchInDirectory: 'Buscar en directorio...',
+    noCompaniesFound: 'No se encontraron empresas',
+    viewDetails: 'Ver Detalles',
+    linkedinProfile: 'Perfil de LinkedIn',
   }
 }
 

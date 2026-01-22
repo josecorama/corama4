@@ -375,7 +375,7 @@ const TopFiveContracts = () => {
               </div>
             ) : noFilterResults ? (
               <div className="flex flex-col items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins text-lg mb-4">No contracts match these filters.</p>
+                <p className="text-gray-400 font-poppins text-lg mb-4">{t('noContractsMatchFilters')}</p>
                 <button 
                   onClick={() => {
                     setContractType('')
@@ -390,7 +390,7 @@ const TopFiveContracts = () => {
               </div>
             ) : contracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins text-lg mb-4">No contracts to show yet.</p>
+                <p className="text-gray-400 font-poppins text-lg mb-4">{t('noContractsToShow')}</p>
                 <button 
                   onClick={() => handleRerunMatching(contractType, selectedStates)}
                   className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white"
@@ -412,7 +412,7 @@ const TopFiveContracts = () => {
                       className="font-poppins text-sm font-bold px-5 py-2 rounded-full text-white"
                       style={{ background: 'radial-gradient(ellipse at 50% 150%, #6BB4B5 0%, #99C8CA 100%)' }}
                     >
-                      {Number.isFinite(contract.matchPercentage) ? `${contract.matchPercentage}% Match` : 'Match Pending'}
+                      {Number.isFinite(contract.matchPercentage) ? `${contract.matchPercentage}% ${t('match')}` : t('matchPending')}
                     </span>
                   </div>
 
@@ -433,21 +433,21 @@ const TopFiveContracts = () => {
                       {/* Row 1: Contract Value, Submission Deadline, NAICS Code */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-4">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Contract Value
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('contractValue')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Submission Deadline
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('submissionDeadline')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.submissionDeadline?.replace('T', '\n')}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            NAICS Code
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('naicsCode')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.naicsCode}</p>
                         </div>
                       </div>
@@ -455,15 +455,15 @@ const TopFiveContracts = () => {
                       {/* Row 2: Name, Contracting Agency, Action Buttons */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Name
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('name')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.name}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Contracting Agency
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('contractingAgency')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.contractingAgency}</p>
                         </div>
                         {/* Action Buttons */}
@@ -473,16 +473,16 @@ const TopFiveContracts = () => {
                             className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
                             style={{ background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' }}
                           >
-                            Contract Website
-                            <img src={ContractSiteIcon} alt="" className="w-5 h-5" />
+                                                        {t('contractWebsite')}
+                                                        <img src={ContractSiteIcon} alt="" className="w-5 h-5" />
                           </button>
                           <button 
                             onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractAgency: contract.contractingAgency } })}
                             className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
                             style={{ background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' }}
                           >
-                            Ask AI About This
-                            <img src={AskAIIcon} alt="" className="w-6 h-5" />
+                                                        {t('askAiAboutThis')}
+                                                        <img src={AskAIIcon} alt="" className="w-6 h-5" />
                           </button>
                         </div>
                       </div>
@@ -500,7 +500,7 @@ const TopFiveContracts = () => {
                 >
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">{t('printResults')}</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Click to print your contract matches.</p>
+                    <p className="text-xs sm:text-sm text-gray-300">{t('clickToPrint')}</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
                 </button>
@@ -514,11 +514,11 @@ const TopFiveContracts = () => {
                     <p className="font-bold text-sm sm:text-base">
                       {loadingMore ? t('loading') : hasMore ? t('loadMore') : t('noMoreContracts')}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-300">
-                      {hasMore 
-                        ? `Showing ${currentOffset + 1}-${currentOffset + contracts.length} of ${totalAvailable}` 
-                        : 'All contracts loaded'}
-                    </p>
+                                        <p className="text-xs sm:text-sm text-gray-300">
+                                          {hasMore 
+                                            ? `${t('showingContracts')} ${currentOffset + 1}-${currentOffset + contracts.length} ${t('of')} ${totalAvailable}` 
+                                            : t('allContractsLoaded')}
+                                        </p>
                   </div>
                   <img src="/static/app/dashboard/MoreContractsIcon.svg" alt="More Contracts" className="w-6 h-6" />
                 </button>
@@ -528,8 +528,8 @@ const TopFiveContracts = () => {
                   onClick={() => navigate('/no-capability-statement?returnTo=/top-five-contracts')}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Change Capability Statement</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Click to upload a new CS.</p>
+                                        <p className="font-bold text-sm sm:text-base">{t('changeCapabilityStatement')}</p>
+                                        <p className="text-xs sm:text-sm text-gray-300">{t('clickToUploadNewCS')}</p>
                   </div>
                   <img src="/static/app/dashboard/CSIcon.svg" alt="Capability Statement" className="w-6 h-6" />
                 </button>
