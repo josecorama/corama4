@@ -94,40 +94,40 @@ const GetMoreCredits = () => {
     }
   }
 
-  const creditFeatures: CreditFeature[] = [
-    {
-      icon: '/static/app/dashboard/BasicAIChat.svg',
-      title: 'Basic AI Chat',
-      description: 'Get instant answers to your questions about government contracting, procurement processes, and general guidance.',
-      credits: 1,
-      bgColor: 'bg-[#8FBABC]',
-      textColor: '#1C4262',
-    },
-    {
-      icon: '/static/app/dashboard/ComplianceCheck.svg',
-      title: 'Compliance Check',
-      description: 'Deep analysis of contract opportunities to identify key requirements, evaluation criteria, and match them against your capabilities.',
-      credits: 2,
-      bgColor: 'bg-[#2F3C4F]',
-      textColor: '#DDFFFF',
-    },
-    {
-      icon: '/static/app/dashboard/ContractAnalysis.svg',
-      title: 'Contract Analysis',
-      description: 'Verify that your capability statement or proposal meets all necessary compliance requirements for government contracting.',
-      credits: 3,
-      bgColor: 'bg-[#8FBABC]',
-      textColor: '#1C4262',
-    },
-    {
-      icon: '/static/app/dashboard/FullProposal.svg',
-      title: 'Full Proposal',
-      description: 'Generate a comprehensive, professionally formatted proposal document tailored to a specific contract opportunity.',
-      credits: 15,
-      bgColor: 'bg-[#2F3C4F]',
-      textColor: '#DDFFFF',
-    },
-  ]
+    const creditFeatures: CreditFeature[] = [
+      {
+        icon: '/static/app/dashboard/BasicAIChat.svg',
+        title: t('basicAiChat'),
+        description: t('basicAiChatDesc'),
+        credits: 1,
+        bgColor: 'bg-[#8FBABC]',
+        textColor: '#1C4262',
+      },
+      {
+        icon: '/static/app/dashboard/ComplianceCheck.svg',
+        title: t('complianceCheck'),
+        description: t('complianceCheckDesc'),
+        credits: 2,
+        bgColor: 'bg-[#2F3C4F]',
+        textColor: '#DDFFFF',
+      },
+      {
+        icon: '/static/app/dashboard/ContractAnalysis.svg',
+        title: t('contractAnalysis'),
+        description: t('contractAnalysisDesc'),
+        credits: 3,
+        bgColor: 'bg-[#8FBABC]',
+        textColor: '#1C4262',
+      },
+      {
+        icon: '/static/app/dashboard/FullProposal.svg',
+        title: t('fullProposal'),
+        description: t('fullProposalDesc'),
+        credits: 15,
+        bgColor: 'bg-[#2F3C4F]',
+        textColor: '#DDFFFF',
+      },
+    ]
 
     return (
       <div className="min-h-screen bg-corama-dark">
@@ -184,8 +184,8 @@ const GetMoreCredits = () => {
               ))}
             </div>
 
-            {/* How Credits Work */}
-            <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6">How Credits Work</h2>
+                        {/* How Credits Work */}
+                        <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6">{t('howCreditsWork')}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {creditFeatures.map((feature, index) => (
                 <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6`}>
