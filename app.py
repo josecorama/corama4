@@ -9048,8 +9048,8 @@ def generate_enhanced_pdf():
             hex_color = hex_color.lstrip('#')
             return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
         
-        primary_color = form_data.get('primaryColor', '#2E4C8B')
-        secondary_color = form_data.get('secondaryColor', '#A8D5E2')
+        primary_color = form_data.get('primaryColor', '#0B2C48')
+        secondary_color = form_data.get('secondaryColor', '#99C8CA')
         
         primary_rgb = hex_to_rgb(primary_color)
         secondary_rgb = hex_to_rgb(secondary_color)
