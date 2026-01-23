@@ -230,39 +230,63 @@ Respond with ONLY valid JSON array, no other text:
             print("All Contracts selected, no filter conditions added")
             return None
 
-        match_values = []
+        must_conditions = []
         
-        # Handle federal contracts
+        # Handle contract type filtering (Federal vs State)
+        contract_type_values = []
         if "federal" in contract_types:
-            match_values.append("Federal")
+            contract_type_values.append("Federal")
             print("Added Federal condition")
         
-        # Handle state contracts
         if "state" in contract_types:
             # If "All state" is selected, automatically use all specific states
             if "All state" in states:
-                # Ensure this list matches the states that exist in the database
                 ALL_STATES = ["IL", "IN"]
                 for s in ALL_STATES:
-                    match_values.append(f"State-{s.upper()}")
+                    contract_type_values.append(f"State-{s.upper()}")
                     print(f"Added All state condition: State-{s.upper()}")
             else:
                 for s in states:
-                    match_values.append(f"State-{s.upper()}")
+                    contract_type_values.append(f"State-{s.upper()}")
                     print(f"Added State condition: State-{s.upper()}")
+        
+        if contract_type_values:
+            must_conditions.append(
+                models.FieldCondition(
+                    key='Contract Type',
+                    match=models.MatchAny(any=contract_type_values)
+                )
+            )
+        
+        # Handle geographic state filtering (filter by actual State field)
+        # This filters contracts by their geographic location
+        if states and len(states) > 0:
+            # Filter out 'all' and 'All state' from the states list
+            filtered_states = [s for s in states if s.lower() not in ('all', 'all state')]
+            if filtered_states:
+                # Normalize state values - handle both abbreviations and full names
+                state_values = []
+                for s in filtered_states:
+                    state_values.append(s)  # Original value
+                    state_values.append(s.upper())  # Uppercase
+                    state_values.append(s.lower())  # Lowercase
+                    state_values.append(s.title())  # Title case
+                # Remove duplicates while preserving order
+                state_values = list(dict.fromkeys(state_values))
+                
+                must_conditions.append(
+                    models.FieldCondition(
+                        key='State',
+                        match=models.MatchAny(any=state_values)
+                    )
+                )
+                print(f"Added State geographic filter: {state_values}")
 
-        if not match_values:
+        if not must_conditions:
             print("No valid match conditions, returning None")
             return None
 
-        filter_condition = models.Filter(
-            must=[
-                models.FieldCondition(
-                    key='Contract Type',  # Fixed: removed embedded quotes
-                    match=models.MatchAny(any=match_values)
-                )
-            ]
-        )
+        filter_condition = models.Filter(must=must_conditions)
         print("Built filter condition:", filter_condition.dict())
         return filter_condition
 
