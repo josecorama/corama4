@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -120,7 +119,6 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
 
 const CapabilityBuilder = () => {
   const { t: _t } = useTranslation()
-  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const imagesInputRef = useRef<HTMLInputElement>(null)
@@ -595,13 +593,6 @@ const CapabilityBuilder = () => {
       primaryColor: '#FF0000',
       secondaryColor: '#FFFF00',
     })
-  }
-
-  const handleClear = () => {
-    if (confirm('Are you sure you want to clear all form data?')) {
-      handleReset()
-      sessionStorage.removeItem('capabilityBuilderData')
-    }
   }
 
   const handleLoadPdf = () => {
