@@ -8993,7 +8993,8 @@ Return ONLY a JSON object:
 def api_enhance_capability_statement():
     """API endpoint to enhance capability statement content using AI"""
     try:
-        if 'user_id' not in session:
+        # Check for user authentication - session can have 'user' or 'user_id'
+        if 'user' not in session and 'user_id' not in session:
             return jsonify({'error': 'User not authenticated'}), 401
         
         data = request.get_json()
