@@ -17430,6 +17430,31 @@ def api_top_five_contracts():
                                 return row_dict
                             break
                 
+                # Method 4: Generate NAICS codes with AI if still not found
+                # Build payload for AI generation
+                ai_payload = {
+                    'bid_name': row_dict.get('Bid_Name', ''),
+                    'bid_description': row_dict.get('Bid_Description', ''),
+                    'organization': row_dict.get('Organization', ''),
+                    'category': row_dict.get('Category', '')
+                }
+                
+                # Compute hash for caching
+                hash_value = None
+                if detail_link and bid_number:
+                    hash_value = compute_hash(detail_link, bid_number)
+                
+                # Only generate if we have some content to work with
+                if ai_payload.get('bid_name') or ai_payload.get('bid_description'):
+                    try:
+                        generated_naics = generate_naics_codes_with_ai(ai_payload, hash_value)
+                        if generated_naics:
+                            row_dict['NAICS_Code'] = generated_naics
+                            logging.info(f"[top5] Generated NAICS for '{ai_payload.get('bid_name', '')[:30]}': {generated_naics}")
+                            return row_dict
+                    except Exception as e:
+                        logging.warning(f"[top5] Failed to generate NAICS with AI: {e}")
+                
                 return row_dict
             
             # Apply filters if provided
