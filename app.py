@@ -8989,6 +8989,46 @@ Return ONLY a JSON object:
         logging.error(f"Error enhancing capability statement content: {str(e)}")
         return data
 
+@app.route('/api/enhance-capability-statement', methods=['POST'])
+def api_enhance_capability_statement():
+    """API endpoint to enhance capability statement content using AI"""
+    try:
+        if 'user_id' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Map frontend form data to the format expected by enhance_capability_statement_content
+        formatted_data = {
+            'company_name': data.get('companyName', ''),
+            'company_description': data.get('companyDescription', ''),
+            'core_competencies': [c.strip() for c in data.get('coreCompetencies', '').split('\n') if c.strip()],
+            'differentiators': [d.strip() for d in data.get('keyDifferentiators', '').split('\n') if d.strip()],
+            'private_performance': [p.strip() for p in data.get('projectDescription', '').split('\n') if p.strip()],
+            'certifications': [c.strip() for c in data.get('certifications', '').split('\n') if c.strip()],
+            'naics_codes': [n.strip() for n in data.get('naicsCodes', '').split('\n') if n.strip()],
+        }
+        
+        # Enhance the content using AI
+        enhanced_data = enhance_capability_statement_content(formatted_data)
+        
+        # Map back to frontend format
+        result = {
+            'companyDescription': enhanced_data.get('company_description', ''),
+            'coreCompetencies': '\n'.join(enhanced_data.get('core_competencies', [])),
+            'keyDifferentiators': '\n'.join(enhanced_data.get('differentiators', [])),
+            'projectDescription': '\n'.join(enhanced_data.get('private_performance', [])),
+            'certifications': '\n'.join(enhanced_data.get('certifications', [])),
+        }
+        
+        return jsonify({'success': True, 'data': result})
+        
+    except Exception as e:
+        logging.error(f"Error in enhance capability statement API: {str(e)}")
+        return jsonify({'error': f'Failed to enhance content: {str(e)}'}), 500
+
 @app.route('/generate-enhanced-pdf', methods=['POST'])
 def generate_enhanced_pdf():
     try:

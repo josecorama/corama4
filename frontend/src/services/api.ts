@@ -399,6 +399,38 @@ class ApiService {
     return res.json();
   }
 
+  // Enhance Capability Statement content using AI
+  async enhanceCapabilityStatement(formData: {
+    companyName?: string;
+    companyDescription?: string;
+    coreCompetencies?: string;
+    keyDifferentiators?: string;
+    projectDescription?: string;
+    certifications?: string;
+    naicsCodes?: string;
+  }): Promise<{success: boolean, error?: string, data?: {
+    companyDescription: string;
+    coreCompetencies: string;
+    keyDifferentiators: string;
+    projectDescription: string;
+    certifications: string;
+  }}> {
+    const res = await fetch(`${API_BASE()}/enhance-capability-statement`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to enhance content' }));
+      return { success: false, error: errorData.error || 'Failed to enhance content' };
+    }
+    return res.json();
+  }
+
   // Directory
   async getDirectory(page: number = 1, search: string = ''): Promise<{success: boolean, companies: DirectoryCompany[], total: number, page: number, total_pages: number}> {
     const params = new URLSearchParams({ page: String(page) });

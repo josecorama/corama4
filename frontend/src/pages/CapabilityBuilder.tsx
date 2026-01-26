@@ -1,5 +1,4 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -120,7 +119,6 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
 
 const CapabilityBuilder = () => {
   const { t: _t } = useTranslation()
-  const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const imagesInputRef = useRef<HTMLInputElement>(null)
@@ -157,6 +155,7 @@ const CapabilityBuilder = () => {
   const [imagesFile, setImagesFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
+  const [enhancingContent, setEnhancingContent] = useState(false)
   // Compute step completion based on form data
   const section1HasData = !!(
     formData.companyName ||
@@ -521,8 +520,46 @@ const CapabilityBuilder = () => {
     }
   }
 
-  const handleAiAssistant = () => {
-    navigate('/dashboard')
+  const handleAiAssistant = async () => {
+    if (enhancingContent) return
+    
+    const hasContent = formData.companyDescription || formData.coreCompetencies || formData.keyDifferentiators || formData.certifications || formData.projectDescription
+    if (!hasContent) {
+      alert('Please fill in some content first (Company Description, Core Competencies, Differentiators, Certifications, or Past Performance) before using AI enhancement.')
+      return
+    }
+    
+    setEnhancingContent(true)
+    try {
+      const result = await api.enhanceCapabilityStatement({
+        companyName: formData.companyName,
+        companyDescription: formData.companyDescription,
+        coreCompetencies: formData.coreCompetencies,
+        keyDifferentiators: formData.keyDifferentiators,
+        projectDescription: formData.projectDescription,
+        certifications: formData.certifications,
+        naicsCodes: formData.naicsCodes,
+      })
+      
+      if (result.success && result.data) {
+        setFormData(prev => ({
+          ...prev,
+          companyDescription: result.data!.companyDescription || prev.companyDescription,
+          coreCompetencies: result.data!.coreCompetencies || prev.coreCompetencies,
+          keyDifferentiators: result.data!.keyDifferentiators || prev.keyDifferentiators,
+          projectDescription: result.data!.projectDescription || prev.projectDescription,
+          certifications: result.data!.certifications || prev.certifications,
+        }))
+        alert('Content enhanced successfully!')
+      } else {
+        alert(result.error || 'Failed to enhance content. Please try again.')
+      }
+    } catch (error) {
+      console.error('AI enhancement error:', error)
+      alert('Failed to enhance content. Please try again.')
+    } finally {
+      setEnhancingContent(false)
+    }
   }
 
   const handleSave = () => {
@@ -558,11 +595,8 @@ const CapabilityBuilder = () => {
     })
   }
 
-  const handleClear = () => {
-    if (confirm('Are you sure you want to clear all form data?')) {
-      handleReset()
-      sessionStorage.removeItem('capabilityBuilderData')
-    }
+  const handleLoadPdf = () => {
+    fileInputRef.current?.click()
   }
 
   return (
@@ -1134,9 +1168,9 @@ const CapabilityBuilder = () => {
                     <img src="/static/app/dashboard/Reload.svg" alt="Reload" className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
                   <button 
-                    onClick={handleClear}
+                    onClick={handleLoadPdf}
                     className="hover:opacity-80 transition-opacity"
-                    title="Load"
+                    title="Load PDF"
                   >
                     <img src="/static/app/dashboard/Load.svg" alt="Load" className="w-6 h-6 sm:w-7 sm:h-7" />
                   </button>
@@ -1230,14 +1264,21 @@ const CapabilityBuilder = () => {
               {/* AI Assistant Button */}
               <button
                 onClick={handleAiAssistant}
-                className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                disabled={enhancingContent}
+                className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: 'rgb(28, 66, 98)' }}
               >
                 <div className="text-left flex-1">
-                  <p className="font-bold text-sm sm:text-base">AI Assistant</p>
+                  <p className="font-bold text-sm sm:text-base">
+                    {enhancingContent ? 'Enhancing...' : 'AI Assistant'}
+                  </p>
                   <p className="text-xs sm:text-sm text-gray-300">Use AI to enhance your content</p>
                 </div>
-                <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-6 h-6 flex-shrink-0" />
+                {enhancingContent ? (
+                  <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                ) : (
+                  <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-6 h-6 flex-shrink-0" />
+                )}
               </button>
             </div>
           </div>
