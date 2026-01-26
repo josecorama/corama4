@@ -278,37 +278,45 @@ Respond with ONLY valid JSON array, no other text:
                 if contract_types:
                     filter_conditions = self.build_filter_conditions(contract_types, states or [])
                 
-                # Execute search
+                # Execute search using query_points (new API)
                 print("Filter conditions used:", filter_conditions.dict() if filter_conditions else None)
                 
-                results = self.qdrant_client.search(
+                results = self.qdrant_client.query_points(
                     collection_name=self.collection_name,
-                    query_vector=vector,
+                    query=vector,
                     query_filter=filter_conditions,
                     with_payload=True,
                     limit=limit
                 )
                 
-                print(f"\nSearch completed, found {len(results)} results")
+                # Extract points from QueryResponse
+                points = results.points if hasattr(results, 'points') else []
                 
-                if results:
+                print(f"\nSearch completed, found {len(points)} results")
+                
+                if points:
                     print("\nTop 3 results:")
-                    for i, res in enumerate(results[:3], 1):
+                    for i, res in enumerate(points[:3], 1):
                         ct = res.payload.get('Contract Type')
                         state = res.payload.get('State')
                         score = res.score
                         print(f"Result {i}: Contract Type={ct}, State={state}, Score={score:.4f}")
                 
-                return results
+                return points
                 
             except Exception as e:
                 print(f"Search error: {str(e)}")
-                return self.qdrant_client.search(
-                    collection_name=self.collection_name,
-                    query_vector=vector,
-                    with_payload=True,
-                    limit=limit
-                )
+                try:
+                    results = self.qdrant_client.query_points(
+                        collection_name=self.collection_name,
+                        query=vector,
+                        with_payload=True,
+                        limit=limit
+                    )
+                    return results.points if hasattr(results, 'points') else []
+                except Exception as e2:
+                    print(f"Fallback search also failed: {str(e2)}")
+                    return []
 
     
     def process_query(self, pdf_file, contract_types=None, states=None, limit=50):
@@ -368,9 +376,17 @@ Respond with ONLY valid JSON array, no other text:
                     query_params["query_filter"] = filter_conditions  # Pass object directly, not .dict()
                 print("\nFilter conditions used:", filter_conditions.dict() if filter_conditions else None)
             
-            # 5. Execute search
+            # 5. Execute search using query_points (new API)
             print("\nExecuting search...")
-            results = self.qdrant_client.search(**query_params)
+            query_response = self.qdrant_client.query_points(
+                collection_name=self.collection_name,
+                query=vector,
+                query_filter=filter_conditions,
+                with_payload=True,
+                limit=limit
+            )
+            # Extract points from QueryResponse
+            results = query_response.points if hasattr(query_response, 'points') else []
 
             print(f"\n[MATCHING] Stage 1 - Raw Qdrant results: {len(results)} (limit={limit})")
             for idx, res in enumerate(results, 1):
