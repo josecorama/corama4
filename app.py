@@ -11452,6 +11452,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     in-memory cache. This allows browsing all 100k+ contracts while only holding
     one page (e.g., 50 items) in RAM at a time.
     
+    SORTING: Contracts are sorted by status - Open/Active contracts first, Closed contracts last.
+    This is achieved by using Qdrant filters to first fetch contracts with future due dates,
+    then contracts with past due dates.
+    
     PAGINATION FIX: Now uses OFFSET-BASED pagination with page numbers.
     The frontend passes page=1, page=2, etc. and we calculate the offset.
     This is simpler and works correctly with the frontend's page state.
@@ -11467,6 +11471,9 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     Returns:
         Tuple of (contracts_list, total_contracts, total_pages, next_cursor)
     """
+    from qdrant_client.models import Filter, FieldCondition, Range
+    from datetime import date
+    
     try:
         qdrant_url = os.getenv('QDRANT_URL')
         qdrant_api_key = os.getenv('QDRANT_API_KEY')
@@ -11477,84 +11484,281 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         
-        # Get total count using count() API - fast and accurate
+        # Get today's date for filtering open vs closed contracts
+        today_str = date.today().isoformat()  # Format: "2026-01-26"
+        
+        # Count open contracts (due_date >= today or no due_date)
+        # Note: Qdrant doesn't support "is null" filter, so we count total and subtract closed
+        try:
+            # Count contracts with past due dates (closed)
+            closed_filter = Filter(
+                must=[
+                    FieldCondition(
+                        key="due_date",
+                        range=Range(lt=today_str)
+                    )
+                ]
+            )
+            closed_count_result = client.count(
+                collection_name="government_contracts",
+                count_filter=closed_filter,
+                exact=True
+            )
+            closed_count = closed_count_result.count
+        except Exception as e:
+            logging.warning(f"[Server-Side Pagination] Could not count closed contracts: {e}")
+            closed_count = 0
+        
+        # Get total count
         count_result = client.count(
             collection_name="government_contracts",
             exact=True
         )
         total_contracts = count_result.count
+        open_count = total_contracts - closed_count
+        
         total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
         
-        # OFFSET-BASED PAGINATION FIX:
-        # For page N, we need to skip (N-1) * items_per_page contracts
-        # Qdrant scroll doesn't support numeric offset, so we scroll through pages sequentially
-        # This is O(N) for page N, but acceptable for reasonable page numbers (< 100)
-        
+        # Calculate target offset
         target_offset = (page - 1) * items_per_page
-        logging.info(f"[Server-Side Pagination] Fetching page {page} (offset={target_offset}, limit={items_per_page})")
-        
-        # Scroll through pages until we reach the target offset
-        current_offset = None
-        contracts_skipped = 0
-        
-        while contracts_skipped < target_offset:
-            # Calculate how many to fetch in this scroll (up to remaining offset)
-            remaining = target_offset - contracts_skipped
-            fetch_limit = min(remaining, 100)  # Scroll in batches of 100 max for efficiency
-            
-            scroll_result = client.scroll(
-                collection_name="government_contracts",
-                limit=fetch_limit,
-                offset=current_offset,
-                with_vectors=False,
-                with_payload=False  # Don't need payload for skipped items
-            )
-            
-            points, current_offset = scroll_result
-            
-            if not points:
-                # No more data - requested page is beyond available data
-                logging.warning(f"[Server-Side Pagination] Page {page} is beyond available data (only {contracts_skipped} contracts exist)")
-                return [], total_contracts, total_pages, None
-            
-            contracts_skipped += len(points)
-            
-            if current_offset is None:
-                # Reached end of collection before target offset
-                break
-        
-        # Now fetch the actual page we want
-        scroll_result = client.scroll(
-            collection_name="government_contracts",
-            limit=items_per_page,
-            offset=current_offset,  # Continue from where we left off
-            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
-            with_payload=True  # Full payload for this page only
-        )
-        
-        points, next_cursor = scroll_result
+        logging.info(f"[Server-Side Pagination] Fetching page {page} (offset={target_offset}, limit={items_per_page}, open_count={open_count}, closed_count={closed_count})")
         
         # Get hidden contract IDs to filter them out for normal users
         hidden_ids = get_hidden_contract_ids()
         
-        # Convert Qdrant points to dashboard contract format
         contracts = []
-        for point in points:
-            # Skip hidden contracts
-            if str(point.id) in hidden_ids:
-                continue
+        
+        # Determine if we're in the "open" section or "closed" section
+        if target_offset < open_count:
+            # We're still in the open contracts section
+            # First, fetch open contracts (due_date >= today OR no due_date)
+            # Qdrant doesn't support OR with "is null", so we fetch all and filter
             
-            contract = qdrant_payload_to_dashboard_contract(
-                point.payload,
-                point_id=point.id,
-                score=None
-            )
-            contracts.append(contract)
+            # Scroll through open contracts
+            current_offset = None
+            contracts_skipped = 0
+            
+            while contracts_skipped < target_offset:
+                remaining = target_offset - contracts_skipped
+                fetch_limit = min(remaining, 100)
+                
+                scroll_result = client.scroll(
+                    collection_name="government_contracts",
+                    limit=fetch_limit,
+                    offset=current_offset,
+                    with_vectors=False,
+                    with_payload=True  # Need payload to check due_date
+                )
+                
+                points, current_offset = scroll_result
+                
+                if not points:
+                    break
+                
+                # Count only open contracts (not past due)
+                for point in points:
+                    due_date = point.payload.get("due_date") or point.payload.get("Due Date")
+                    if due_date and str(due_date).lower() not in ('nan', 'none', ''):
+                        try:
+                            date_part = str(due_date).split("T")[0]
+                            if date_part < today_str:
+                                continue  # Skip closed contracts
+                        except Exception:
+                            pass
+                    contracts_skipped += 1
+                    if contracts_skipped >= target_offset:
+                        break
+                
+                if current_offset is None:
+                    break
+            
+            # Now fetch the actual page of open contracts
+            items_needed = items_per_page
+            while items_needed > 0 and current_offset is not None:
+                scroll_result = client.scroll(
+                    collection_name="government_contracts",
+                    limit=items_needed * 2,  # Fetch extra to account for filtering
+                    offset=current_offset,
+                    with_vectors=False,
+                    with_payload=True
+                )
+                
+                points, current_offset = scroll_result
+                
+                if not points:
+                    break
+                
+                for point in points:
+                    if str(point.id) in hidden_ids:
+                        continue
+                    
+                    due_date = point.payload.get("due_date") or point.payload.get("Due Date")
+                    is_closed = False
+                    if due_date and str(due_date).lower() not in ('nan', 'none', ''):
+                        try:
+                            date_part = str(due_date).split("T")[0]
+                            if date_part < today_str:
+                                is_closed = True
+                        except Exception:
+                            pass
+                    
+                    if not is_closed:
+                        contract = qdrant_payload_to_dashboard_contract(
+                            point.payload,
+                            point_id=point.id,
+                            score=None
+                        )
+                        contracts.append(contract)
+                        items_needed -= 1
+                        if items_needed <= 0:
+                            break
+                
+                if current_offset is None:
+                    break
+            
+            # If we still need more items, we've exhausted open contracts - start fetching closed
+            if items_needed > 0:
+                # Fetch closed contracts from the beginning
+                closed_offset = None
+                while items_needed > 0:
+                    scroll_result = client.scroll(
+                        collection_name="government_contracts",
+                        limit=items_needed * 2,
+                        offset=closed_offset,
+                        with_vectors=False,
+                        with_payload=True
+                    )
+                    
+                    points, closed_offset = scroll_result
+                    
+                    if not points:
+                        break
+                    
+                    for point in points:
+                        if str(point.id) in hidden_ids:
+                            continue
+                        
+                        due_date = point.payload.get("due_date") or point.payload.get("Due Date")
+                        is_closed = False
+                        if due_date and str(due_date).lower() not in ('nan', 'none', ''):
+                            try:
+                                date_part = str(due_date).split("T")[0]
+                                if date_part < today_str:
+                                    is_closed = True
+                            except Exception:
+                                pass
+                        
+                        if is_closed:
+                            contract = qdrant_payload_to_dashboard_contract(
+                                point.payload,
+                                point_id=point.id,
+                                score=None
+                            )
+                            contracts.append(contract)
+                            items_needed -= 1
+                            if items_needed <= 0:
+                                break
+                    
+                    if closed_offset is None:
+                        break
+        else:
+            # We're in the closed contracts section
+            # Skip to the correct position in closed contracts
+            closed_target_offset = target_offset - open_count
+            
+            current_offset = None
+            contracts_skipped = 0
+            
+            # First pass: skip to the target offset in closed contracts
+            while True:
+                scroll_result = client.scroll(
+                    collection_name="government_contracts",
+                    limit=100,
+                    offset=current_offset,
+                    with_vectors=False,
+                    with_payload=True
+                )
+                
+                points, current_offset = scroll_result
+                
+                if not points:
+                    break
+                
+                for point in points:
+                    due_date = point.payload.get("due_date") or point.payload.get("Due Date")
+                    is_closed = False
+                    if due_date and str(due_date).lower() not in ('nan', 'none', ''):
+                        try:
+                            date_part = str(due_date).split("T")[0]
+                            if date_part < today_str:
+                                is_closed = True
+                        except Exception:
+                            pass
+                    
+                    if is_closed:
+                        if contracts_skipped >= closed_target_offset:
+                            # Start collecting from here
+                            if str(point.id) not in hidden_ids:
+                                contract = qdrant_payload_to_dashboard_contract(
+                                    point.payload,
+                                    point_id=point.id,
+                                    score=None
+                                )
+                                contracts.append(contract)
+                                if len(contracts) >= items_per_page:
+                                    break
+                        else:
+                            contracts_skipped += 1
+                
+                if len(contracts) >= items_per_page or current_offset is None:
+                    break
+            
+            # Continue fetching if we need more
+            while len(contracts) < items_per_page and current_offset is not None:
+                scroll_result = client.scroll(
+                    collection_name="government_contracts",
+                    limit=100,
+                    offset=current_offset,
+                    with_vectors=False,
+                    with_payload=True
+                )
+                
+                points, current_offset = scroll_result
+                
+                if not points:
+                    break
+                
+                for point in points:
+                    if str(point.id) in hidden_ids:
+                        continue
+                    
+                    due_date = point.payload.get("due_date") or point.payload.get("Due Date")
+                    is_closed = False
+                    if due_date and str(due_date).lower() not in ('nan', 'none', ''):
+                        try:
+                            date_part = str(due_date).split("T")[0]
+                            if date_part < today_str:
+                                is_closed = True
+                        except Exception:
+                            pass
+                    
+                    if is_closed:
+                        contract = qdrant_payload_to_dashboard_contract(
+                            point.payload,
+                            point_id=point.id,
+                            score=None
+                        )
+                        contracts.append(contract)
+                        if len(contracts) >= items_per_page:
+                            break
+                
+                if current_offset is None:
+                    break
         
-        has_more = next_cursor is not None and page < total_pages
-        logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts from Qdrant (total: {total_contracts}, has_more: {has_more})")
+        has_more = page < total_pages
+        logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts (open first, closed last)")
         
-        return contracts, total_contracts, total_pages, next_cursor if has_more else None
+        return contracts, total_contracts, total_pages, "next" if has_more else None
         
     except Exception as e:
         logging.error(f"[Server-Side Pagination] Error fetching contracts from Qdrant: {e}", exc_info=True)
