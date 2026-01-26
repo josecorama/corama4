@@ -1008,6 +1008,113 @@ class ApiService {
     }
     return res.json();
   }
+
+  // Admin: List all contracts with hidden status
+  async adminGetContracts(page: number = 1, perPage: number = 50, search: string = ''): Promise<{
+    success: boolean;
+    contracts?: Array<{
+      id: string;
+      title: string;
+      state: string;
+      contract_type: string;
+      agency: string;
+      deadline: string;
+      hidden: boolean;
+    }>;
+    pagination?: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+    };
+    hidden_count?: number;
+    error?: string;
+  }> {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+      ...(search && { search })
+    });
+    const res = await fetch(`${API_BASE()}/admin/contracts/list?${params}`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Unauthorized - admin access required' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to load contracts' }));
+      return { success: false, error: errorData.error || 'Failed to load contracts' };
+    }
+    return res.json();
+  }
+
+  // Admin: Hide a contract from normal users
+  async adminHideContract(contractId: string): Promise<{
+    success: boolean;
+    message?: string;
+    contract_id?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/admin/contracts/hide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ contract_id: contractId })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Unauthorized - admin access required' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to hide contract' }));
+      return { success: false, error: errorData.error || 'Failed to hide contract' };
+    }
+    return res.json();
+  }
+
+  // Admin: Unhide a contract (make visible to normal users again)
+  async adminUnhideContract(contractId: string): Promise<{
+    success: boolean;
+    message?: string;
+    contract_id?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/admin/contracts/unhide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ contract_id: contractId })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Unauthorized - admin access required' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to unhide contract' }));
+      return { success: false, error: errorData.error || 'Failed to unhide contract' };
+    }
+    return res.json();
+  }
+
+  // Admin: Get list of hidden contract IDs
+  async adminGetHiddenContracts(): Promise<{
+    success: boolean;
+    hidden_contract_ids?: string[];
+    count?: number;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/admin/contracts/hidden`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Unauthorized - admin access required' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to get hidden contracts' }));
+      return { success: false, error: errorData.error || 'Failed to get hidden contracts' };
+    }
+    return res.json();
+  }
 }
 
 export const api = new ApiService();

@@ -11483,9 +11483,16 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         
         points, next_cursor = scroll_result
         
+        # Get hidden contract IDs to filter them out for normal users
+        hidden_ids = get_hidden_contract_ids()
+        
         # Convert Qdrant points to dashboard contract format
         contracts = []
         for point in points:
+            # Skip hidden contracts
+            if str(point.id) in hidden_ids:
+                continue
+            
             contract = qdrant_payload_to_dashboard_contract(
                 point.payload,
                 point_id=point.id,
@@ -16178,6 +16185,223 @@ def api_admin_directory_delete():
     except Exception as e:
         app.logger.error(f"[Admin] Error deleting directory entry for {target_user_id}: {e}")
         return jsonify({'success': False, 'error': 'Failed to delete directory listing'}), 500
+
+
+# ============================================================================
+# ADMIN CONTRACT VISIBILITY MANAGEMENT
+# ============================================================================
+
+def get_hidden_contract_ids():
+    """Get set of hidden contract IDs from Firebase."""
+    hidden_ids = set()
+    if admin_initialized and admin_db:
+        try:
+            hidden_ref = admin_db.reference('hidden_contracts')
+            hidden_data = hidden_ref.get()
+            if hidden_data:
+                hidden_ids = set(hidden_data.keys())
+        except Exception as e:
+            app.logger.warning(f"[Admin] Error fetching hidden contracts: {e}")
+    return hidden_ids
+
+
+def is_contract_hidden(contract_id):
+    """Check if a specific contract is hidden."""
+    if admin_initialized and admin_db:
+        try:
+            hidden_ref = admin_db.reference(f'hidden_contracts/{contract_id}')
+            return hidden_ref.get() is not None
+        except Exception as e:
+            app.logger.warning(f"[Admin] Error checking hidden status for {contract_id}: {e}")
+    return False
+
+
+@app.route('/api/admin/contracts/list', methods=['GET'])
+def api_admin_contracts_list():
+    """Admin endpoint to list all contracts with their hidden status."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        search = request.args.get('search', '', type=str).strip().lower()
+        
+        # Limit per_page to prevent abuse
+        per_page = min(per_page, 100)
+        
+        # Get all contracts from Qdrant
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            return jsonify({'success': False, 'error': 'Qdrant not configured'}), 500
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Get collection info for total count
+        collection_info = client.get_collection("government_contracts")
+        total_contracts = collection_info.points_count
+        
+        # Scroll through contracts with pagination
+        offset = (page - 1) * per_page
+        
+        # Use scroll to get contracts
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=per_page,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False
+        )
+        
+        contracts = []
+        hidden_ids = get_hidden_contract_ids()
+        
+        for point in scroll_result[0]:
+            payload = point.payload
+            contract_id = str(point.id)
+            
+            # Apply search filter if provided
+            if search:
+                title = (payload.get('Title') or payload.get('title') or '').lower()
+                description = (payload.get('Description') or payload.get('description') or '').lower()
+                if search not in title and search not in description:
+                    continue
+            
+            contracts.append({
+                'id': contract_id,
+                'title': payload.get('Title') or payload.get('title') or 'Untitled',
+                'state': payload.get('State') or payload.get('state') or 'N/A',
+                'contract_type': payload.get('Contract Type') or payload.get('contract_type') or 'N/A',
+                'agency': payload.get('Agency') or payload.get('agency') or 'N/A',
+                'deadline': payload.get('Deadline') or payload.get('deadline') or 'N/A',
+                'hidden': contract_id in hidden_ids
+            })
+        
+        total_pages = (total_contracts + per_page - 1) // per_page
+        
+        return jsonify({
+            'success': True,
+            'contracts': contracts,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_contracts,
+                'total_pages': total_pages
+            },
+            'hidden_count': len(hidden_ids)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error listing contracts: {e}")
+        return jsonify({'success': False, 'error': 'Failed to load contracts'}), 500
+
+
+@app.route('/api/admin/contracts/hide', methods=['POST'])
+def api_admin_contracts_hide():
+    """Admin endpoint to hide a contract from normal users."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    data = request.get_json() or {}
+    contract_id = data.get('contract_id')
+    
+    if not contract_id:
+        return jsonify({'success': False, 'error': 'contract_id is required'}), 400
+    
+    try:
+        if admin_initialized and admin_db:
+            hidden_ref = admin_db.reference(f'hidden_contracts/{contract_id}')
+            hidden_ref.set({
+                'hidden_at': datetime.now().isoformat(),
+                'hidden_by': admin_data['email']
+            })
+            
+            log_admin_action(
+                admin_data['user_id'],
+                admin_data['email'],
+                'HIDE_CONTRACT',
+                {'contract_id': contract_id}
+            )
+            
+            app.logger.info(f"[Admin] Contract {contract_id} hidden by {admin_data['email']}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Contract hidden successfully',
+                'contract_id': contract_id
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Firebase Admin not initialized'}), 500
+            
+    except Exception as e:
+        app.logger.error(f"[Admin] Error hiding contract {contract_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to hide contract'}), 500
+
+
+@app.route('/api/admin/contracts/unhide', methods=['POST'])
+def api_admin_contracts_unhide():
+    """Admin endpoint to unhide a contract (make visible to normal users again)."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    data = request.get_json() or {}
+    contract_id = data.get('contract_id')
+    
+    if not contract_id:
+        return jsonify({'success': False, 'error': 'contract_id is required'}), 400
+    
+    try:
+        if admin_initialized and admin_db:
+            hidden_ref = admin_db.reference(f'hidden_contracts/{contract_id}')
+            hidden_ref.delete()
+            
+            log_admin_action(
+                admin_data['user_id'],
+                admin_data['email'],
+                'UNHIDE_CONTRACT',
+                {'contract_id': contract_id}
+            )
+            
+            app.logger.info(f"[Admin] Contract {contract_id} unhidden by {admin_data['email']}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Contract unhidden successfully',
+                'contract_id': contract_id
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Firebase Admin not initialized'}), 500
+            
+    except Exception as e:
+        app.logger.error(f"[Admin] Error unhiding contract {contract_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to unhide contract'}), 500
+
+
+@app.route('/api/admin/contracts/hidden', methods=['GET'])
+def api_admin_contracts_hidden_list():
+    """Admin endpoint to get list of all hidden contract IDs."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    
+    try:
+        hidden_ids = list(get_hidden_contract_ids())
+        return jsonify({
+            'success': True,
+            'hidden_contract_ids': hidden_ids,
+            'count': len(hidden_ids)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error getting hidden contracts list: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get hidden contracts'}), 500
 
 
 @app.route('/api/get_directory_profile', methods=['GET'])
