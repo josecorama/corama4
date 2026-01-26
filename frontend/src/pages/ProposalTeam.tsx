@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { InlineLoading } from '../components/ThinkingPopup'
+import ThinkingPopup, { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
@@ -523,6 +523,9 @@ const ProposalTeam = () => {
 
   return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
+      {/* Extracting popup for website data extraction */}
+      <ThinkingPopup isVisible={isExtracting} text="Extracting" />
+
       {/* Discard Changes Popup */}
       <DiscardChangesPopup
         isOpen={showDiscardPopup}

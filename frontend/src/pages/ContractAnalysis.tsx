@@ -22,6 +22,63 @@ const UploadContractPDFIcon = '/static/app/contract-analysis/UploadContractPDF.s
 const AIFindingsIcon = '/static/app/contract-analysis/AIFindings.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 
+// Error Popup Component (for PDF drop errors)
+interface ErrorPopupProps {
+  isOpen: boolean
+  message: string
+  onClose: () => void
+}
+
+const ErrorPopup = ({ isOpen, message, onClose }: ErrorPopupProps) => {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '180px' }}
+      >
+        <button 
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+          onClick={onClose}
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        <div className="flex-shrink-0">
+          <img 
+            src="/static/app/proposal-summary/WarnIcon.svg" 
+            alt="Warning" 
+            className="w-16 h-16 sm:w-20 sm:h-20"
+          />
+        </div>
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              Invalid File Type
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              {message}
+            </p>
+          </div>
+          <div className="flex justify-center sm:justify-start">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'rgb(92, 191, 192)' }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Discard Changes Popup Component
 interface DiscardChangesPopupProps {
   isOpen: boolean
@@ -178,6 +235,10 @@ const ContractAnalysis = () => {
   const [showDiscardPopup, setShowDiscardPopup] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
 
+  // Error popup state (for invalid file type)
+  const [showErrorPopup, setShowErrorPopup] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+
   // Track if step 1 is complete (findings generated)
   const step1Complete = !!aiFindings
   
@@ -303,8 +364,9 @@ const ContractAnalysis = () => {
       // Create a local URL for preview
       const url = URL.createObjectURL(file)
       setPdfUrl(url)
-    } else {
-      alert('Please select a PDF file')
+    } else if (file) {
+      setErrorMessage('Please select a PDF file. Only PDF documents are supported for contract analysis.')
+      setShowErrorPopup(true)
     }
   }
 
@@ -320,7 +382,8 @@ const ContractAnalysis = () => {
       const url = URL.createObjectURL(file)
       setPdfUrl(url)
     } else {
-      alert('Please drop a PDF file')
+      setErrorMessage('Please drop a PDF file. Only PDF documents are supported for contract analysis.')
+      setShowErrorPopup(true)
     }
   }
 
@@ -499,6 +562,13 @@ const ContractAnalysis = () => {
 
   return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
+      {/* Error Popup for invalid file type */}
+      <ErrorPopup
+        isOpen={showErrorPopup}
+        message={errorMessage}
+        onClose={() => setShowErrorPopup(false)}
+      />
+
       {/* Discard Changes Popup */}
       <DiscardChangesPopup
         isOpen={showDiscardPopup}

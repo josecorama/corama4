@@ -6,7 +6,7 @@ import { useTranslation } from '../i18n'
 
 // Tool suggestions for the search autocomplete
 const TOOL_SUGGESTIONS = [
-  { id: 'top-five-contracts', label: 'Top Five Contracts', labelEs: 'Cinco Mejores Contratos', path: '/top-five-contracts' },
+  { id: 'top-five-contracts', label: 'Top Five Matches', labelEs: 'Cinco Mejores Coincidencias', path: '/top-five-contracts' },
   { id: 'capability-builder', label: 'Capability Builder', labelEs: 'Constructor de Capacidades', path: '/capability-builder' },
   { id: 'corama-directory', label: 'CORAMA Directory', labelEs: 'Directorio CORAMA', path: '/corama-directory' },
   { id: 'get-more-credits', label: 'Get More Credits', labelEs: 'Obtener Más Créditos', path: '/get-more-credits' },
