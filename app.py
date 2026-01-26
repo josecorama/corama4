@@ -17296,17 +17296,46 @@ def api_top_five_contracts():
             
             # Helper function to enrich row with NAICS from dashboard cache
             def enrich_with_naics(row_dict):
+                # Skip if already has NAICS code
+                existing_naics = row_dict.get('NAICS_Code', '')
+                if existing_naics and existing_naics != 'N/A' and existing_naics != '':
+                    return row_dict
+                
                 # Try to find this contract in the dashboard cache using computed hash
                 detail_link = row_dict.get('Detail_Link', '')
                 bid_number = row_dict.get('Bid_Number', '')
+                contract_id = row_dict.get('contract_id', '')
+                
+                # Method 1: Hash lookup (fastest)
                 if detail_link and bid_number and _dashboard_contracts_hash_index:
                     computed_hash = compute_hash(detail_link, bid_number)
                     cached_contract = _dashboard_contracts_hash_index.get(computed_hash)
                     if cached_contract:
                         naics_code = cached_contract.get('naics_code', '')
-                        if naics_code:
+                        if naics_code and naics_code != 'N/A':
                             row_dict['NAICS_Code'] = naics_code
-                            logging.info(f"[top5] Found NAICS {naics_code} for {bid_number}")
+                            return row_dict
+                
+                # Method 2: Fallback - search by contract_id in dashboard cache
+                if contract_id and _dashboard_contracts_cache:
+                    for cached_contract in _dashboard_contracts_cache:
+                        if str(cached_contract.get('id', '')) == str(contract_id):
+                            naics_code = cached_contract.get('naics_code', '')
+                            if naics_code and naics_code != 'N/A':
+                                row_dict['NAICS_Code'] = naics_code
+                                return row_dict
+                            break
+                
+                # Method 3: Fallback - search by bid_number in dashboard cache
+                if bid_number and _dashboard_contracts_cache:
+                    for cached_contract in _dashboard_contracts_cache:
+                        if cached_contract.get('bid_number', '') == bid_number:
+                            naics_code = cached_contract.get('naics_code', '')
+                            if naics_code and naics_code != 'N/A':
+                                row_dict['NAICS_Code'] = naics_code
+                                return row_dict
+                            break
+                
                 return row_dict
             
             # Apply filters if provided
