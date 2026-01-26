@@ -8,6 +8,71 @@ import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api, CapabilityStatementData } from '../services/api'
 import { useTranslation } from '../i18n'
 
+// AI Assistant Popup Component
+interface AIPopupProps {
+  isOpen: boolean
+  type: 'success' | 'error' | 'warning'
+  title: string
+  message: string
+  onClose: () => void
+}
+
+const AIAssistantPopup = ({ isOpen, type, title, message, onClose }: AIPopupProps) => {
+  if (!isOpen) return null
+
+  const iconSrc = type === 'success' 
+    ? '/static/app/dashboard/AIAssistant.svg'
+    : '/static/app/proposal-summary/WarnIcon.svg'
+  
+  const buttonColor = type === 'success' ? 'rgb(92, 191, 192)' : 'rgb(39, 69, 110)'
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '180px' }}
+      >
+        <button 
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+          onClick={onClose}
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        <div className="flex-shrink-0">
+          <img 
+            src={iconSrc} 
+            alt={type} 
+            className="w-16 h-16 sm:w-20 sm:h-20"
+          />
+        </div>
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              {title}
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              {message}
+            </p>
+          </div>
+          <div className="flex justify-center sm:justify-start">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: buttonColor }}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ImportResult {
   success: boolean
   error?: string
@@ -156,6 +221,27 @@ const CapabilityBuilder = () => {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [enhancingContent, setEnhancingContent] = useState(false)
+  
+  // AI Assistant popup state
+  const [aiPopup, setAiPopup] = useState<{
+    isOpen: boolean
+    type: 'success' | 'error' | 'warning'
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  })
+  
+  const showAiPopup = (type: 'success' | 'error' | 'warning', title: string, message: string) => {
+    setAiPopup({ isOpen: true, type, title, message })
+  }
+  
+  const closeAiPopup = () => {
+    setAiPopup(prev => ({ ...prev, isOpen: false }))
+  }
   // Compute step completion based on form data
   const section1HasData = !!(
     formData.companyName ||
@@ -525,7 +611,7 @@ const CapabilityBuilder = () => {
     
     const hasContent = formData.companyDescription || formData.coreCompetencies || formData.keyDifferentiators || formData.certifications || formData.projectDescription
     if (!hasContent) {
-      alert('Please fill in some content first (Company Description, Core Competencies, Differentiators, Certifications, or Past Performance) before using AI enhancement.')
+      showAiPopup('warning', 'Content Required', 'Please fill in some content first (Company Description, Core Competencies, Differentiators, Certifications, or Past Performance) before using AI enhancement.')
       return
     }
     
@@ -550,13 +636,13 @@ const CapabilityBuilder = () => {
           projectDescription: result.data!.projectDescription || prev.projectDescription,
           certifications: result.data!.certifications || prev.certifications,
         }))
-        alert('Content enhanced successfully!')
+        showAiPopup('success', 'Content Enhanced!', 'Your capability statement content has been successfully enhanced with AI.')
       } else {
-        alert(result.error || 'Failed to enhance content. Please try again.')
+        showAiPopup('error', 'Enhancement Failed', result.error || 'Failed to enhance content. Please try again.')
       }
     } catch (error) {
       console.error('AI enhancement error:', error)
-      alert('Failed to enhance content. Please try again.')
+      showAiPopup('error', 'Enhancement Failed', 'Failed to enhance content. Please try again.')
     } finally {
       setEnhancingContent(false)
     }
@@ -601,6 +687,15 @@ const CapabilityBuilder = () => {
 
   return (
     <div className="min-h-screen bg-corama-dark">
+      {/* AI Assistant Popup */}
+      <AIAssistantPopup
+        isOpen={aiPopup.isOpen}
+        type={aiPopup.type}
+        title={aiPopup.title}
+        message={aiPopup.message}
+        onClose={closeAiPopup}
+      />
+      
       {/* Extracting popup for data extraction */}
       <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
       

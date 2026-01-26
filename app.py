@@ -9145,23 +9145,33 @@ def generate_enhanced_pdf():
                 if client or desc or value
             ]
         
-        formatted_data = enhance_capability_statement_content(formatted_data)
+        # Try to enhance content with AI, but don't fail if it doesn't work
+        try:
+            formatted_data = enhance_capability_statement_content(formatted_data)
+        except Exception as enhance_error:
+            logging.warning(f"AI enhancement failed, using original content: {enhance_error}")
+            # Continue with original content
         
         # Generate PDF
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
         output_path = os.path.join(user_upload_dir, output_filename)
         
-        create_pdf(formatted_data, output_path)
+        try:
+            create_pdf(formatted_data, output_path)
+        except Exception as pdf_error:
+            logging.error(f"PDF creation failed: {pdf_error}")
+            return jsonify({'error': f'PDF creation failed: {str(pdf_error)}'}), 500
         
         if not os.path.exists(output_path):
-            return jsonify({'error': 'PDF generation failed'}), 500
+            logging.error(f"PDF file not created at: {output_path}")
+            return jsonify({'error': 'PDF generation failed - file not created'}), 500
         
         # Return the PDF file
         return send_file(output_path, as_attachment=True, download_name=f"{form_data.get('companyName', 'Company')}_Capability_Statement.pdf")
         
     except Exception as e:
-        logging.error(f"Error generating enhanced PDF: {str(e)}")
-        return jsonify({'error': 'Failed to generate PDF'}), 500
+        logging.error(f"Error generating enhanced PDF: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
 
 @app.route('/process-capability-statement', methods=['POST'])
 def process_capability_statement():
@@ -13326,8 +13336,9 @@ def create_contract_analysis_job():
         import uuid
         job_id = str(uuid.uuid4())
         
-        # Upload PDF to Firebase Storage
+        # Upload PDF to Firebase Storage or local fallback
         storage_path = f'contract_analysis/{user_id}/{job_id}.pdf'
+        local_pdf_path = None
         
         try:
             from firebase_admin import storage
@@ -13336,8 +13347,19 @@ def create_contract_analysis_job():
             blob.upload_from_file(file, content_type='application/pdf')
             logging.info(f"Uploaded PDF to Firebase Storage: {storage_path}")
         except Exception as upload_error:
-            logging.error(f"Failed to upload PDF to Firebase Storage: {upload_error}")
-            return jsonify({'success': False, 'error': 'Failed to upload PDF'}), 500
+            logging.warning(f"Firebase Storage not available, using local fallback: {upload_error}")
+            # Fallback to local storage
+            try:
+                local_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"contract_analysis/{user_id}")
+                os.makedirs(local_upload_dir, exist_ok=True)
+                local_pdf_path = os.path.join(local_upload_dir, f"{job_id}.pdf")
+                file.seek(0)  # Reset file pointer
+                file.save(local_pdf_path)
+                storage_path = f"local:{local_pdf_path}"
+                logging.info(f"Saved PDF locally: {local_pdf_path}")
+            except Exception as local_error:
+                logging.error(f"Failed to save PDF locally: {local_error}")
+                return jsonify({'success': False, 'error': 'Failed to upload PDF'}), 500
         
         # Create job entry in Firebase Realtime Database
         job_data = {
