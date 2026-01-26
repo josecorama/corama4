@@ -210,8 +210,8 @@ const CapabilityBuilder = () => {
     clientAgency: '',
     contractValue: '',
     projectDescription: '',
-    primaryColor: '#FF0000',
-    secondaryColor: '#FFFF00',
+    primaryColor: '#0B2C48',
+    secondaryColor: '#99C8CA',
   })
 
   const [importUrl, setImportUrl] = useState('')
@@ -559,8 +559,8 @@ const CapabilityBuilder = () => {
       pdfFormData.append('zipCode', formData.zipCode || '')
       pdfFormData.append('website', formData.website || '')
       pdfFormData.append('companyDescription', formData.companyDescription || '')
-      pdfFormData.append('primaryColor', formData.primaryColor || '#2E4C8B')
-      pdfFormData.append('secondaryColor', formData.secondaryColor || '#A8D5E2')
+      pdfFormData.append('primaryColor', formData.primaryColor || '#0B2C48')
+      pdfFormData.append('secondaryColor', formData.secondaryColor || '#99C8CA')
       
       // Array fields as JSON strings
       pdfFormData.append('competencies', JSON.stringify(stringToArray(formData.coreCompetencies)))

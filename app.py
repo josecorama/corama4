@@ -16307,31 +16307,58 @@ def api_admin_contracts_list():
         collection_info = client.get_collection("government_contracts")
         total_contracts = collection_info.points_count
         
-        # Scroll through contracts with pagination
+        # Use query_points with offset for proper pagination
         offset = (page - 1) * per_page
         
-        # Use scroll to get contracts
-        scroll_result = client.scroll(
-            collection_name="government_contracts",
-            limit=per_page,
-            offset=offset,
-            with_payload=True,
-            with_vectors=False
-        )
+        # Use query_points to get contracts with proper offset-based pagination
+        from qdrant_client.models import Filter, FieldCondition, MatchText
+        
+        # Build filter if search is provided
+        query_filter = None
+        if search:
+            # Search in title field
+            query_filter = Filter(
+                should=[
+                    FieldCondition(key="Title", match=MatchText(text=search)),
+                    FieldCondition(key="title", match=MatchText(text=search)),
+                ]
+            )
+        
+        # Use scroll with proper cursor-based pagination
+        # First, get all points up to the offset + limit
+        all_points = []
+        scroll_offset = None
+        points_needed = offset + per_page
+        
+        while len(all_points) < points_needed:
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=min(1000, points_needed - len(all_points)),  # Batch size
+                offset=scroll_offset,
+                with_payload=True,
+                with_vectors=False,
+                scroll_filter=query_filter
+            )
+            
+            points, next_offset = scroll_result
+            if not points:
+                break
+            
+            all_points.extend(points)
+            scroll_offset = next_offset
+            
+            if next_offset is None:
+                break
+        
+        # Get the page slice
+        page_points = all_points[offset:offset + per_page]
         
         contracts = []
         hidden_ids = get_hidden_contract_ids()
         
-        for point in scroll_result[0]:
+        for point in page_points:
             payload = point.payload
             contract_id = str(point.id)
-            
-            # Apply search filter if provided
-            if search:
-                title = (payload.get('Title') or payload.get('title') or '').lower()
-                description = (payload.get('Description') or payload.get('description') or '').lower()
-                if search not in title and search not in description:
-                    continue
             
             contracts.append({
                 'id': contract_id,
@@ -16342,6 +16369,10 @@ def api_admin_contracts_list():
                 'deadline': payload.get('Deadline') or payload.get('deadline') or 'N/A',
                 'hidden': contract_id in hidden_ids
             })
+        
+        # Recalculate total if search filter is applied
+        if search:
+            total_contracts = len(all_points)
         
         total_pages = (total_contracts + per_page - 1) // per_page
         
