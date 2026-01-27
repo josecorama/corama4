@@ -69,10 +69,9 @@ const SuggestionCard = ({
 
   return (
     <div 
-      className="relative rounded-xl p-6 flex flex-col h-[500px] overflow-hidden"
+      className="relative rounded-2xl p-6 flex flex-col h-[500px] overflow-hidden border border-white"
       style={{ 
-        background: 'linear-gradient(180deg, #0B2C48 0%, #0D3A5C 100%)',
-        border: '1px solid rgba(240, 240, 240, 0.2)'
+        backgroundColor: 'rgb(47, 65, 97)'
       }}
     >
       {/* Header */}
@@ -90,7 +89,7 @@ const SuggestionCard = ({
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto mb-4 space-y-3 pr-2"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: '#99C8CA #0B2C48' }}
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#99C8CA rgb(47, 65, 97)' }}
       >
         {messages.map((message) => (
           <div 
@@ -140,7 +139,7 @@ const SuggestionCard = ({
             onKeyPress={handleKeyPress}
             placeholder={inputPlaceholder}
             disabled={isLoading}
-            className="flex-1 bg-transparent text-white font-poppins text-sm placeholder-gray-400 outline-none"
+            className="flex-1 bg-transparent text-white font-poppins text-sm placeholder-white outline-none"
           />
           <button
             onClick={handleSend}
