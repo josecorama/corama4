@@ -508,8 +508,8 @@ const ContractAnalysis = () => {
         }
       }
       
-      // Start polling every 2 seconds
-      jobPollingRef.current = setInterval(pollJob, 2000)
+      // Start polling every 4 seconds (increased from 2s to reduce 429 rate limit errors)
+      jobPollingRef.current = setInterval(pollJob, 4000)
       // Also poll immediately
       pollJob()
       
