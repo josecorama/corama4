@@ -17175,9 +17175,9 @@ REACT_PAGE_ROUTES = {
     'dashboard', 'capability-builder', 'top-five-contracts', 'ai-assistant',
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
-    'proposal-summary', 'public-bid-proposal-generator', 'landing',
+    'proposal-summary', 'public-bid-proposal-generator', 'proposal-assistant', 'landing',
     'login', 'signup', 'confirm-terms', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq',
-    'about-us', 'support', 'admin'
+    'about-us', 'support', 'admin', 'settings'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
