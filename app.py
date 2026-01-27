@@ -8598,6 +8598,204 @@ def capability_builder_enhanced():
             current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
     return render_template('capability_builder_enhanced.html', current_credits=current_credits)
 
+# ============= Proposal Assistant API Endpoints =============
+
+@app.route('/api/proposal-suggestions', methods=['POST'])
+def api_proposal_suggestions():
+    """Generate AI suggestions for a contract proposal.
+    
+    Returns:
+    - suggestions: Main AI suggestions for the proposal
+    - marketInsights: Initial market value insights
+    - teamComposition: Initial team composition recommendations
+    """
+    ensure_session_from_auth()
+    
+    if 'user' not in session and 'user_id' not in session:
+        return jsonify({"success": False, "error": "User not authenticated"}), 401
+    
+    try:
+        data = request.get_json() or {}
+        contract_name = data.get('contract_name', 'this contract')
+        contract_id = data.get('contract_id', '')
+        contract_description = data.get('contract_description', '')
+        
+        # Sanitize inputs
+        contract_name = contract_name[:500] if contract_name else 'this contract'
+        contract_description = contract_description[:2000] if contract_description else ''
+        
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            return jsonify({
+                "success": False,
+                "error": "OpenAI API key not configured"
+            }), 500
+        
+        client = OpenAI(api_key=openai_api_key)
+        
+        # Generate main suggestions
+        main_prompt = f"""You are an expert government contract proposal advisor. Analyze the following contract and provide strategic suggestions for creating a winning bid proposal.
+
+Contract Name: {contract_name}
+{f'Contract Description: {contract_description}' if contract_description else ''}
+
+Provide comprehensive suggestions covering:
+1. Key requirements to address
+2. Competitive advantages to highlight
+3. Potential risks and mitigation strategies
+4. Pricing considerations
+5. Compliance requirements
+
+Keep your response concise but actionable. Use markdown formatting."""
+
+        main_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert government contract proposal advisor helping businesses win bids."},
+                {"role": "user", "content": main_prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        main_suggestions = main_response.choices[0].message.content
+        
+        # Generate market insights
+        market_prompt = f"""Based on the contract "{contract_name}", provide initial market value insights including:
+- Typical contract values for similar projects
+- Market trends affecting pricing
+- Competitive landscape overview
+
+Keep it brief (2-3 paragraphs). Use markdown formatting."""
+
+        market_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a market analyst specializing in government contracts."},
+                {"role": "user", "content": market_prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        market_insights = market_response.choices[0].message.content
+        
+        # Generate team composition recommendations
+        team_prompt = f"""Based on the contract "{contract_name}", suggest an ideal team composition including:
+- Key roles needed
+- Required skills and certifications
+- Team structure recommendations
+
+Keep it brief (2-3 paragraphs). Use markdown formatting."""
+
+        team_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an HR and project management expert specializing in government contract teams."},
+                {"role": "user", "content": team_prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        team_composition = team_response.choices[0].message.content
+        
+        return jsonify({
+            "success": True,
+            "suggestions": main_suggestions,
+            "marketInsights": market_insights,
+            "teamComposition": team_composition
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in api_proposal_suggestions: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": f"Failed to generate suggestions: {str(e)}"}), 500
+
+
+@app.route('/api/proposal-suggestions/chat', methods=['POST'])
+def api_proposal_suggestions_chat():
+    """Chat with AI about specific proposal suggestion topics.
+    
+    Topics:
+    - market_value: Questions about market value and pricing
+    - team_composition: Questions about team structure and roles
+    """
+    ensure_session_from_auth()
+    
+    if 'user' not in session and 'user_id' not in session:
+        return jsonify({"success": False, "error": "User not authenticated"}), 401
+    
+    try:
+        data = request.get_json() or {}
+        topic = data.get('topic', 'market_value')
+        message = data.get('message', '')
+        contract_name = data.get('contract_name', 'this contract')
+        conversation_history = data.get('conversation_history', [])
+        
+        if not message:
+            return jsonify({"success": False, "error": "Message is required"}), 400
+        
+        # Sanitize inputs
+        message = message[:1000]
+        contract_name = contract_name[:500] if contract_name else 'this contract'
+        
+        # Validate topic
+        if topic not in ['market_value', 'team_composition']:
+            return jsonify({"success": False, "error": "Invalid topic"}), 400
+        
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            return jsonify({
+                "success": False,
+                "error": "OpenAI API key not configured"
+            }), 500
+        
+        client = OpenAI(api_key=openai_api_key)
+        
+        # Build system prompt based on topic
+        if topic == 'market_value':
+            system_prompt = f"""You are a market analyst specializing in government contracts. 
+You are helping a user understand market value and pricing for the contract: "{contract_name}".
+Provide helpful, accurate information about market trends, pricing strategies, and competitive analysis.
+Keep responses concise and actionable. Use markdown formatting when appropriate."""
+        else:  # team_composition
+            system_prompt = f"""You are an HR and project management expert specializing in government contract teams.
+You are helping a user build the ideal team for the contract: "{contract_name}".
+Provide helpful advice about team structure, required roles, skills, and certifications.
+Keep responses concise and actionable. Use markdown formatting when appropriate."""
+        
+        # Build messages array
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add conversation history (limit to last 10 messages)
+        for msg in conversation_history[-10:]:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role in ['user', 'assistant'] and content:
+                messages.append({"role": role, "content": content[:1000]})
+        
+        # Add current message
+        messages.append({"role": "user", "content": message})
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=800,
+            temperature=0.7
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        return jsonify({
+            "success": True,
+            "response": ai_response
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in api_proposal_suggestions_chat: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": f"Failed to process chat: {str(e)}"}), 500
+
+
 # ============= React Capability Builder API Endpoints =============
 
 @app.route('/api/capability/import_file', methods=['POST'])

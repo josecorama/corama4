@@ -23,6 +23,7 @@ import AboutUsPublic from './pages/AboutUsPublic'
 import Support from './pages/Support'
 import AdminDirectory from './pages/AdminDirectory'
 import AdminContracts from './pages/AdminContracts'
+import ProposalAssistant from './pages/ProposalAssistant'
 import Settings from './pages/Settings'
 
 function App() {
@@ -52,8 +53,9 @@ function App() {
                                                   <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
                                                   <Route path="/support" element={<Support />} />
                                                                                                     <Route path="/admin/directory" element={<AdminDirectory />} />
-                                                                                                    <Route path="/admin/contracts" element={<AdminContracts />} />
-                                                                                                    <Route path="/settings" element={<Settings />} />
+                                                                                                                                                                                                        <Route path="/admin/contracts" element={<AdminContracts />} />
+                                                                                                                                                                                                        <Route path="/proposal-assistant" element={<ProposalAssistant />} />
+                                                                                                                                                                                                        <Route path="/settings" element={<Settings />} />
                                                 </Routes>
     </Router>
   )

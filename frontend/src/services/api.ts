@@ -1147,6 +1147,72 @@ class ApiService {
     }
     return res.json();
   }
+
+  // Proposal Assistant: Get AI suggestions for a contract
+  async getProposalSuggestions(
+    contractName: string,
+    contractId?: string,
+    contractDescription?: string
+  ): Promise<{
+    success: boolean;
+    suggestions: string;
+    marketInsights?: string;
+    teamComposition?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/proposal-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contract_name: contractName,
+        contract_id: contractId,
+        contract_description: contractDescription
+      })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to get suggestions' }));
+      return { success: false, suggestions: '', error: errorData.error || 'Failed to get suggestions' };
+    }
+    return res.json();
+  }
+
+  // Proposal Assistant: Chat with AI about specific suggestion topic
+  async chatProposalSuggestion(
+    topic: 'market_value' | 'team_composition',
+    message: string,
+    contractName: string,
+    contractId?: string,
+    conversationHistory?: Array<{role: string, content: string}>
+  ): Promise<{
+    success: boolean;
+    response: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/proposal-suggestions/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        message,
+        contract_name: contractName,
+        contract_id: contractId,
+        conversation_history: conversationHistory || []
+      })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to chat' }));
+      return { success: false, response: '', error: errorData.error || 'Failed to chat' };
+    }
+    return res.json();
+  }
 }
 
 export const api = new ApiService();
