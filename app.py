@@ -17734,27 +17734,6 @@ def api_top_five_contracts():
                 
                 return row_dict
             
-            # Helper function to check if a contract has valid required fields
-            def has_valid_required_fields(row_dict):
-                """Check if contract has valid Location, NAICS Code, and Submission Deadline
-                Only exclude contracts with specific invalid values (not empty values)"""
-                # Check Location/State - only exclude "Unknown" (case-insensitive)
-                state = str(row_dict.get('State', '')).strip().upper()
-                if state == 'UNKNOWN':
-                    return False
-                
-                # Check NAICS Code - only exclude "N/A" (case-insensitive)
-                naics = str(row_dict.get('NAICS_Code', '')).strip().upper()
-                if naics == 'N/A':
-                    return False
-                
-                # Check Submission Deadline/Due Date - only exclude "Not Specified" (case-insensitive)
-                due_date = str(row_dict.get('Due_Date', '')).strip().upper()
-                if due_date == 'NOT SPECIFIED':
-                    return False
-                
-                return True
-            
             # Apply filters if provided
             if contract_type or selected_states:
                 filtered_rows = []
@@ -17763,10 +17742,6 @@ def api_top_five_contracts():
                     
                     # Enrich with NAICS code from dashboard cache
                     row_dict = enrich_with_naics(row_dict)
-                    
-                    # Filter out contracts with invalid required fields
-                    if not has_valid_required_fields(row_dict):
-                        continue
                     
                     # Get contract type from Contract_Type column or derive from State
                     row_contract_type = str(row_dict.get('Contract_Type', '')).lower().strip()
@@ -17820,17 +17795,12 @@ def api_top_five_contracts():
                 logging.info(f"[top5] After filtering: {len(matches)} matches")
             else:
                 # No filters - return all matches with rank, enriched with NAICS
-                # But still filter out contracts with invalid required fields
                 all_rows = []
                 for _, row in df.iterrows():
                     row_dict = row.to_dict()
                     
                     # Enrich with NAICS code from dashboard cache
                     row_dict = enrich_with_naics(row_dict)
-                    
-                    # Filter out contracts with invalid required fields
-                    if not has_valid_required_fields(row_dict):
-                        continue
                     
                     all_rows.append(row_dict)
                 
@@ -17839,7 +17809,7 @@ def api_top_five_contracts():
                     row['rank'] = i + 1
                 
                 matches = all_rows
-                logging.info(f"[top5] No filters, returning {len(matches)} matches (after filtering invalid fields)")
+                logging.info(f"[top5] No filters, returning {len(matches)} matches")
                 
         except Exception as e:
             logging.error(f"Error loading matches: {e}")

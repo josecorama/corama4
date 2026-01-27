@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
+import loadingAnimation from '../assets/LoadingAnimationLogo.json'
 
 // Icon paths
 const EnterButtonIcon = '/static/app/dashboard/enterbutton.svg'
@@ -451,8 +453,20 @@ const ProposalAssistant = () => {
             </h2>
             
             {isLoadingMain ? (
-              <div className="flex items-center justify-center flex-1">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-corama-teal" />
+              <div className="flex flex-col items-center justify-center flex-1">
+                <div className="w-24 h-24">
+                  <Lottie 
+                    animationData={loadingAnimation} 
+                    loop={true}
+                    autoplay={true}
+                  />
+                </div>
+                <div className="text-gray-600 font-poppins font-semibold text-sm mt-2">
+                  Loading
+                  <span className="inline-block">
+                    <span className="animate-ellipsis">...</span>
+                  </span>
+                </div>
               </div>
             ) : (
               <div 
