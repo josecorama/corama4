@@ -9150,8 +9150,11 @@ Create professional capability statement content following these guidelines:
    - Emphasize commitment to excellence, innovation, compliance
    - Use strong, confident language
 
-5. CERTIFICATIONS (keep all, enhance descriptions):
-   - Add brief context if needed (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
+5. CERTIFICATIONS (CRITICAL - DO NOT INVENT):
+   - ONLY include certifications that were explicitly provided in the input
+   - If no certifications were provided, return an empty array []
+   - DO NOT make up or assume any certifications
+   - If certifications exist, you may add brief context (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
 
 Return ONLY a JSON object:
 {{
@@ -9159,7 +9162,7 @@ Return ONLY a JSON object:
   "past_performance": ["achievement 1", "achievement 2", ...],
   "core_competencies": ["Service: Description", ...],
   "differentiators": ["Advantage: Explanation", ...],
-  "certifications": ["certification with context", ...]
+  "certifications": ["certification with context", ...] or [] if none provided
 }}"""
 
         response = client.chat.completions.create(
@@ -17733,23 +17736,21 @@ def api_top_five_contracts():
             
             # Helper function to check if a contract has valid required fields
             def has_valid_required_fields(row_dict):
-                """Check if contract has valid Location, NAICS Code, and Submission Deadline"""
-                # Check Location/State - exclude Unknown, N/A, empty
+                """Check if contract has valid Location, NAICS Code, and Submission Deadline
+                Only exclude contracts with specific invalid values (not empty values)"""
+                # Check Location/State - only exclude "Unknown" (case-insensitive)
                 state = str(row_dict.get('State', '')).strip().upper()
-                invalid_locations = {'', 'UNKNOWN', 'N/A', 'NA', 'NONE', 'NOT SPECIFIED'}
-                if state in invalid_locations:
+                if state == 'UNKNOWN':
                     return False
                 
-                # Check NAICS Code - exclude N/A, empty
+                # Check NAICS Code - only exclude "N/A" (case-insensitive)
                 naics = str(row_dict.get('NAICS_Code', '')).strip().upper()
-                invalid_naics = {'', 'N/A', 'NA', 'NONE', 'NOT SPECIFIED'}
-                if naics in invalid_naics:
+                if naics == 'N/A':
                     return False
                 
-                # Check Submission Deadline/Due Date - exclude Not Specified, N/A, empty
+                # Check Submission Deadline/Due Date - only exclude "Not Specified" (case-insensitive)
                 due_date = str(row_dict.get('Due_Date', '')).strip().upper()
-                invalid_dates = {'', 'N/A', 'NA', 'NONE', 'NOT SPECIFIED', 'TBD', 'TBA'}
-                if due_date in invalid_dates:
+                if due_date == 'NOT SPECIFIED':
                     return False
                 
                 return True

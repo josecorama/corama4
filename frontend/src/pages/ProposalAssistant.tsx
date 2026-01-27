@@ -7,7 +7,6 @@ import { api } from '../services/api'
 
 // Icon paths
 const EnterButtonIcon = '/static/app/dashboard/enterbutton.svg'
-const CyanFormIcon = '/static/app/dashboard/cyanform.svg'
 const ThreePeopleIcon = '/static/app/dashboard/3people.svg'
 const DollarSignIcon = '/static/app/dashboard/dollarsign.svg'
 
@@ -74,14 +73,6 @@ const SuggestionCard = ({
         border: '1px solid rgba(240, 240, 240, 0.2)'
       }}
     >
-      {/* Wave decoration at bottom using cyanform SVG */}
-      <img 
-        src={CyanFormIcon}
-        alt=""
-        className="absolute bottom-0 left-0 right-0 w-full pointer-events-none"
-        style={{ borderRadius: '0 0 12px 12px' }}
-      />
-      
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
@@ -444,24 +435,30 @@ const ProposalAssistant = () => {
             Proposal Assistant
           </h1>
           
-          {/* Main AI Suggestions Card */}
+          {/* Main AI Suggestions Card - Fixed height with scrollbar */}
           <div 
             className="rounded-xl p-6 mb-6"
             style={{ 
               background: 'white',
-              border: '1px solid rgba(240, 240, 240, 0.2)'
+              border: '1px solid rgba(240, 240, 240, 0.2)',
+              height: '300px',
+              display: 'flex',
+              flexDirection: 'column'
             }}
           >
-            <h2 className="text-black font-poppins font-bold text-xl mb-4">
+            <h2 className="text-black font-poppins font-bold text-xl mb-4 flex-shrink-0">
               AI Suggestions For a Wise Bid Proposal
             </h2>
             
             {isLoadingMain ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center flex-1">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-corama-teal" />
               </div>
             ) : (
-              <div className="prose max-w-none text-black">
+              <div 
+                className="prose max-w-none text-black overflow-y-auto flex-1"
+                style={{ scrollbarWidth: 'thin', scrollbarColor: '#99C8CA #f0f0f0' }}
+              >
                 <ReactMarkdown>{mainSuggestions}</ReactMarkdown>
               </div>
             )}
