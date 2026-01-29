@@ -420,17 +420,18 @@ const ProposalAssistant = () => {
   }
 
   return (
-    <div className="min-h-screen bg-corama-dark flex flex-col">
+    <div className="min-h-screen bg-corama-dark">
       <Header key={headerKey} />
       
-      <div className="flex flex-1 pt-16">
+      <div className="flex">
         <Sidebar 
           mobileOpen={mobileOpen} 
           onMobileToggle={() => setMobileOpen(!mobileOpen)}
           onBeforeNavigate={handleBeforeNavigate}
         />
         
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <div className="flex-1 flex flex-col min-w-0">
+          <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Page Title */}
           <h1 className="text-white font-poppins font-bold text-2xl sm:text-3xl text-center mb-6">
             Proposal Assistant
@@ -502,6 +503,7 @@ const ProposalAssistant = () => {
             />
           </div>
         </main>
+        </div>
       </div>
     </div>
   )
