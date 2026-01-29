@@ -776,7 +776,7 @@ const ContractAnalysis = () => {
                 onClick={handleContinue}
                 disabled={!aiFindings}
                 className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity overflow-hidden"
-                style={{ backgroundColor: '#99C8CA', color: 'white', width: '414px', height: '48px' }}
+                style={{ backgroundColor: '#6BA4A7', color: 'white', width: '414px', height: '48px' }}
               >
                 <span className="text-center">Continue</span>
                 <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />

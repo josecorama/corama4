@@ -252,7 +252,7 @@ const Settings = () => {
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       disabled={!isUsernameEditable}
-                      className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 focus:outline-none focus:border-[#99C8CA] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                      className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 focus:outline-none focus:border-[#6BA4A7] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
                     />
                     {!isUsernameEditable && (
                       <button
@@ -274,7 +274,7 @@ const Settings = () => {
                         onClick={() => handleLanguageChange('en')}
                         className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${
                           language === 'en'
-                            ? 'bg-[#99C8CA] text-[#0B0B0F]'
+                            ? 'bg-[#6BA4A7] text-[#0B0B0F]'
                             : 'text-gray-400 hover:text-white'
                         }`}
                       >
@@ -284,7 +284,7 @@ const Settings = () => {
                         onClick={() => handleLanguageChange('es')}
                         className={`px-6 py-2 rounded-full text-sm font-semibold transition-all ${
                           language === 'es'
-                            ? 'bg-[#99C8CA] text-[#0B0B0F]'
+                            ? 'bg-[#6BA4A7] text-[#0B0B0F]'
                             : 'text-gray-400 hover:text-white'
                         }`}
                       >
@@ -308,7 +308,7 @@ const Settings = () => {
                           value={currentPassword}
                           onChange={(e) => setCurrentPassword(e.target.value)}
                           placeholder={t.currentPassword}
-                          className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm"
+                          className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6BA4A7] text-sm"
                         />
                       </div>
 
@@ -319,7 +319,7 @@ const Settings = () => {
                           onChange={(e) => setNewPassword(e.target.value)}
                           disabled={!currentPassword}
                           placeholder={t.newPassword}
-                          className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                          className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6BA4A7] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
                         />
                         <input
                           type="password"
@@ -327,7 +327,7 @@ const Settings = () => {
                           onChange={(e) => setConfirmPassword(e.target.value)}
                           disabled={!currentPassword}
                           placeholder={t.confirm}
-                          className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
+                          className="w-full bg-white border border-gray-200 rounded-full py-3 px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6BA4A7] text-sm disabled:opacity-70 disabled:bg-gray-200 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -389,7 +389,7 @@ const Settings = () => {
                           <tr key={item.id} className="hover:bg-white/5 transition">
                             <td className="px-4 py-3">{item.date}</td>
                             <td className="px-4 py-3">{item.action}</td>
-                            <td className={`px-4 py-3 text-right ${item.cost > 0 ? 'text-[#99C8CA]' : 'text-red-300'}`}>
+                            <td className={`px-4 py-3 text-right ${item.cost > 0 ? 'text-[#6BA4A7]' : 'text-red-300'}`}>
                               {item.cost > 0 ? `+${item.cost}` : item.cost}
                             </td>
                           </tr>
@@ -399,7 +399,7 @@ const Settings = () => {
                   </table>
                 </div>
                 {creditHistory.length > 0 && (
-                  <button className="w-full mt-4 text-center text-[#99C8CA] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition">
+                  <button className="w-full mt-4 text-center text-[#6BA4A7] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition">
                     {t.viewFullHistory}
                   </button>
                 )}
@@ -419,7 +419,7 @@ const Settings = () => {
                   value={supportMessage}
                   onChange={(e) => setSupportMessage(e.target.value)}
                   disabled={isSendingMessage}
-                  className="w-full bg-white border border-gray-200 rounded-2xl py-3 px-4 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#99C8CA] text-sm mb-4 resize-none disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full bg-white border border-gray-200 rounded-2xl py-3 px-4 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#6BA4A7] text-sm mb-4 resize-none disabled:opacity-70 disabled:cursor-not-allowed"
                   placeholder={t.howCanWeHelp}
                 />
 
@@ -436,7 +436,7 @@ const Settings = () => {
                                 <button
                                   onClick={handleSendSupportMessage}
                                   disabled={isSendingMessage || !supportMessage.trim()}
-                                  className="w-full bg-[#99C8CA] hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="w-full bg-[#6BA4A7] hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                   {isSendingMessage ? t.sending : t.sendMessage}
                                 </button>

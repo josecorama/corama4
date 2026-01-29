@@ -410,7 +410,7 @@ const TopFiveContracts = () => {
                   <div className="absolute top-4 right-4 lg:top-6 lg:right-6">
                     <span 
                       className="font-poppins text-sm font-bold px-5 py-2 rounded-full text-white"
-                      style={{ background: 'radial-gradient(ellipse at 50% 150%, #6BB4B5 0%, #99C8CA 100%)' }}
+                      style={{ background: 'radial-gradient(ellipse at 50% 150%, #6BB4B5 0%, #6BA4A7 100%)' }}
                     >
                       {Number.isFinite(contract.matchPercentage) ? `${contract.matchPercentage}% ${t('match')}` : t('matchPending')}
                     </span>

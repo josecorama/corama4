@@ -311,7 +311,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
           className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4"
           style={{
             backgroundColor: '#0B2C48',
-            color: '#99C8CA',
+            color: '#6BA4A7',
             boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
           }}
         >
@@ -491,7 +491,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
           className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4"
           style={{
             backgroundColor: '#0B2C48',
-            color: '#99C8CA',
+            color: '#6BA4A7',
             boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
           }}
         >

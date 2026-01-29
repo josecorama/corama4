@@ -89,7 +89,7 @@ const SuggestionCard = ({
       <div 
         ref={chatContainerRef}
         className="flex-1 overflow-y-auto mb-4 space-y-3 pr-2"
-        style={{ scrollbarWidth: 'thin', scrollbarColor: '#99C8CA rgb(47, 65, 97)' }}
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#6BA4A7 rgb(47, 65, 97)' }}
       >
         {messages.map((message) => (
           <div 
@@ -471,7 +471,7 @@ const ProposalAssistant = () => {
             ) : (
               <div 
                 className="prose max-w-none text-black overflow-y-auto flex-1"
-                style={{ scrollbarWidth: 'thin', scrollbarColor: '#99C8CA #f0f0f0' }}
+                style={{ scrollbarWidth: 'thin', scrollbarColor: '#6BA4A7 #f0f0f0' }}
               >
                 <ReactMarkdown>{mainSuggestions}</ReactMarkdown>
               </div>

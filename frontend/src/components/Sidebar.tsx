@@ -239,7 +239,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                         className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isActive ? 'opacity-100' : 'opacity-0'}`}
                         style={{ 
                           width: isExpanded ? '258px' : '76px',
-                          background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                          background: 'linear-gradient(180deg, #6BB4B5 51.44%, #6BA4A7 100%)',
                           borderRadius: '0 9999px 9999px 0'
                         }}
                         aria-hidden="true"
@@ -320,7 +320,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                   className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
                   style={{ 
                     width: isExpanded ? '258px' : '76px',
-                    background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                    background: 'linear-gradient(180deg, #6BB4B5 51.44%, #6BA4A7 100%)',
                     borderRadius: '0 9999px 9999px 0'
                   }}
                   aria-hidden="true"
@@ -362,7 +362,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                   className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/contracts' ? 'opacity-100' : 'opacity-0'}`}
                   style={{ 
                     width: isExpanded ? '258px' : '76px',
-                    background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                    background: 'linear-gradient(180deg, #6BB4B5 51.44%, #6BA4A7 100%)',
                     borderRadius: '0 9999px 9999px 0'
                   }}
                   aria-hidden="true"

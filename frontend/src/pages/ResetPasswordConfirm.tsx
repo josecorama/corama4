@@ -195,7 +195,7 @@ const ResetPasswordConfirm = () => {
                 {/* Log in link */}
                 <div className="mt-5">
                   <span className="text-gray-400 font-poppins text-sm">Remembered your password? </span>
-                  <a href="/login" className="text-corama-teal hover:text-[#99c8ca] font-poppins text-sm transition-colors">Log in</a>
+                  <a href="/login" className="text-corama-teal hover:text-[#6BA4A7] font-poppins text-sm transition-colors">Log in</a>
                 </div>
               </div>
             )}
@@ -300,7 +300,7 @@ const ResetPasswordConfirm = () => {
 
                   <div className="text-center mt-6">
                     <span className="text-gray-400 font-poppins text-sm">Remembered your password? </span>
-                    <a href="/login" className="text-corama-teal hover:text-[#99c8ca] font-poppins text-sm transition-colors">Log in</a>
+                    <a href="/login" className="text-corama-teal hover:text-[#6BA4A7] font-poppins text-sm transition-colors">Log in</a>
                   </div>
                 </form>
               </>
