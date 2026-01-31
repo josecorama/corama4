@@ -6,6 +6,7 @@ import FilterPopup from '../components/FilterPopup'
 import { InlineLoading } from '../components/ThinkingPopup'
 import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Print styles - injected into document head
 const printStyles = `
@@ -111,6 +112,7 @@ interface ContractMatch {
 }
 
 const TopFiveContracts = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
@@ -119,7 +121,7 @@ const TopFiveContracts = () => {
   const [hasMatches, setHasMatches] = useState<boolean | null>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contractType, setContractType] = useState('all')
-  const [selectedStates, setSelectedStates] = useState<string[]>(['all', 'IL', 'IN'])
+  const [selectedStates, setSelectedStates] = useState<string[]>(['all'])
   const [noFilterResults, setNoFilterResults] = useState(false)
   
   // Pagination state
@@ -241,8 +243,8 @@ const TopFiveContracts = () => {
             detailLink: m.Detail_Link
           }
         })
-        // Replace current contracts with the next page
-        setContracts(transformedContracts)
+        // Append new contracts to existing ones
+        setContracts(prev => [...prev, ...transformedContracts])
         setCurrentOffset(nextOffset)
         setHasMore(data.has_more || false)
       }
@@ -326,12 +328,12 @@ const TopFiveContracts = () => {
     return (
       <div className="h-screen bg-corama-dark overflow-y-auto">
         {/* Header spans full width at top */}
-        <Header credits={5} />
+        <Header />
         
         {/* Sidebar + Content row below header */}
         <div className="flex">
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
           
           <Sidebar />
         
@@ -339,7 +341,7 @@ const TopFiveContracts = () => {
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
               {/* Page Title and Action Buttons */}
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Top Five Contracts</h1>
+                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">{t('topFiveMatchesTitle')}</h1>
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => handleRerunMatching(contractType, selectedStates)}
@@ -348,7 +350,7 @@ const TopFiveContracts = () => {
                     style={{ backgroundColor: '#6bb4b5' }}
                   >
                     <RefreshCw size={16} className={rerunning ? 'animate-spin' : ''} />
-                    {rerunning ? 'Refreshing...' : 'Refresh Matches'}
+                    {rerunning ? t('rerunningMatching') : t('rerunMatching')}
                   </button>
                   <button 
                     onClick={() => setIsFilterOpen(true)}
@@ -369,11 +371,11 @@ const TopFiveContracts = () => {
                           </div>
                         ) : hasMatches === false ? (
               <div className="flex items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins">Redirecting to dashboard...</p>
+                <p className="text-gray-400 font-poppins">{t('loading')}</p>
               </div>
             ) : noFilterResults ? (
               <div className="flex flex-col items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins text-lg mb-4">No contracts match these filters.</p>
+                <p className="text-gray-400 font-poppins text-lg mb-4">{t('noContractsMatchFilters')}</p>
                 <button 
                   onClick={() => {
                     setContractType('')
@@ -383,18 +385,18 @@ const TopFiveContracts = () => {
                   className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white"
                   style={{ backgroundColor: '#6bb4b5' }}
                 >
-                  Clear Filters
+                  {t('clearFilters')}
                 </button>
               </div>
             ) : contracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-64">
-                <p className="text-gray-400 font-poppins text-lg mb-4">No contracts to show yet.</p>
+                <p className="text-gray-400 font-poppins text-lg mb-4">{t('noContractsToShow')}</p>
                 <button 
                   onClick={() => handleRerunMatching(contractType, selectedStates)}
                   className="px-6 py-2 rounded-full font-poppins text-sm font-semibold text-white"
                   style={{ backgroundColor: '#6bb4b5' }}
                 >
-                  Refresh Matches
+                  {t('rerunMatching')}
                 </button>
               </div>
             ) : (
@@ -410,7 +412,7 @@ const TopFiveContracts = () => {
                       className="font-poppins text-sm font-bold px-5 py-2 rounded-full text-white"
                       style={{ background: 'radial-gradient(ellipse at 50% 150%, #6BB4B5 0%, #99C8CA 100%)' }}
                     >
-                      {Number.isFinite(contract.matchPercentage) ? `${contract.matchPercentage}% Match` : 'Match Pending'}
+                      {Number.isFinite(contract.matchPercentage) ? `${contract.matchPercentage}% ${t('match')}` : t('matchPending')}
                     </span>
                   </div>
 
@@ -431,21 +433,21 @@ const TopFiveContracts = () => {
                       {/* Row 1: Contract Value, Submission Deadline, NAICS Code */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-4">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Contract Value
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('contractValue')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Submission Deadline
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('submissionDeadline')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.submissionDeadline?.replace('T', '\n')}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            NAICS Code
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('naicsCode')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.naicsCode}</p>
                         </div>
                       </div>
@@ -453,15 +455,15 @@ const TopFiveContracts = () => {
                       {/* Row 2: Name, Contracting Agency, Action Buttons */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Name
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('name')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.name}</p>
                         </div>
                         <div>
-                          <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                            Contracting Agency
-                          </span>
+                                                    <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
+                                                      {t('contractingAgency')}
+                                                    </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.contractingAgency}</p>
                         </div>
                         {/* Action Buttons */}
@@ -471,16 +473,16 @@ const TopFiveContracts = () => {
                             className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
                             style={{ background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' }}
                           >
-                            Contract Website
-                            <img src={ContractSiteIcon} alt="" className="w-5 h-5" />
+                                                        {t('contractWebsite')}
+                                                        <img src={ContractSiteIcon} alt="" className="w-5 h-5" />
                           </button>
                           <button 
                             onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractAgency: contract.contractingAgency } })}
                             className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
                             style={{ background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' }}
                           >
-                            Ask AI About This
-                            <img src={AskAIIcon} alt="" className="w-6 h-5" />
+                                                        {t('askAiAboutThis')}
+                                                        <img src={AskAIIcon} alt="" className="w-6 h-5" />
                           </button>
                         </div>
                       </div>
@@ -497,8 +499,8 @@ const TopFiveContracts = () => {
                   onClick={() => window.print()}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Print Results</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Click to print your contract matches.</p>
+                    <p className="font-bold text-sm sm:text-base">{t('printResults')}</p>
+                    <p className="text-xs sm:text-sm text-gray-300">{t('clickToPrint')}</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
                 </button>
@@ -510,13 +512,13 @@ const TopFiveContracts = () => {
                 >
                   <div className="text-left">
                     <p className="font-bold text-sm sm:text-base">
-                      {loadingMore ? 'Loading...' : hasMore ? 'Get More Related Contracts' : 'No More Contracts'}
+                      {loadingMore ? t('loading') : hasMore ? t('loadMore') : t('noMoreContracts')}
                     </p>
-                    <p className="text-xs sm:text-sm text-gray-300">
-                      {hasMore 
-                        ? `Showing ${currentOffset + 1}-${currentOffset + contracts.length} of ${totalAvailable}` 
-                        : 'All contracts loaded'}
-                    </p>
+                                        <p className="text-xs sm:text-sm text-gray-300">
+                                          {hasMore 
+                                            ? `${t('showingContracts')} ${currentOffset + 1}-${currentOffset + contracts.length} ${t('of')} ${totalAvailable}` 
+                                            : t('allContractsLoaded')}
+                                        </p>
                   </div>
                   <img src="/static/app/dashboard/MoreContractsIcon.svg" alt="More Contracts" className="w-6 h-6" />
                 </button>
@@ -526,8 +528,8 @@ const TopFiveContracts = () => {
                   onClick={() => navigate('/no-capability-statement?returnTo=/top-five-contracts')}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Change Capability Statement</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Click to upload a new CS.</p>
+                                        <p className="font-bold text-sm sm:text-base">{t('changeCapabilityStatement')}</p>
+                                        <p className="text-xs sm:text-sm text-gray-300">{t('clickToUploadNewCS')}</p>
                   </div>
                   <img src="/static/app/dashboard/CSIcon.svg" alt="Capability Statement" className="w-6 h-6" />
                 </button>

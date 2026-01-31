@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { Briefcase } from 'lucide-react'
-import { api, DirectoryCompany } from '../services/api'
+import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface Company {
   id: number
@@ -16,9 +17,13 @@ interface Company {
   employees: string
   yearsInBusiness: number
   logo?: string
+  linkedinUrl: string
+  certifications: string
+  pastProjects: string
 }
 
 const CoramaDirectory = () => {
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -55,17 +60,22 @@ const CoramaDirectory = () => {
     try {
       const data = await api.getDirectory(currentPage, searchQuery)
       if (data.success && data.companies) {
-        const transformedCompanies: Company[] = data.companies.map((c: DirectoryCompany, index: number) => ({
+        // Backend returns snake_case fields, map to camelCase for frontend
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const transformedCompanies: Company[] = data.companies.map((c: any, index: number) => ({
           id: index + 1,
-          name: c.name,
-          contactName: c.contactName || 'N/A',
+          name: c.company || c.name || '',
+          contactName: c.contact_name || c.contactName || 'N/A',
           description: c.description || 'No description available',
           phone: c.phone || 'N/A',
           email: c.email || 'N/A',
           website: c.website || 'N/A',
-          employees: c.employees || 'N/A',
-          yearsInBusiness: c.yearsInBusiness || 0,
-          logo: c.logo
+          employees: c.team_size || c.employees || 'N/A',
+          yearsInBusiness: parseInt(c.years_in_business || c.yearsInBusiness || '0') || 0,
+          logo: c.logo_url || c.logo,
+          linkedinUrl: c.linkedin_url || c.linkedinUrl || '',
+          certifications: c.certifications || '',
+          pastProjects: c.past_projects || c.pastProjects || ''
         }))
         setCompanies(transformedCompanies)
         setTotalCompanies(data.total || transformedCompanies.length)
@@ -87,12 +97,12 @@ const CoramaDirectory = () => {
   return (
     <div className="min-h-screen bg-corama-dark">
       {/* Header spans full width at top */}
-      <Header credits={5} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex">
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
         <Sidebar />
         
@@ -159,7 +169,7 @@ const CoramaDirectory = () => {
                     <div className="flex items-center gap-4 mt-3">
                       <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                         <img src="/static/app/dashboard/Employees.svg" alt="" className="w-4 h-4" />
-                        <span>{company.employees}</span>
+                        <span>{company.employees} Employees</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                         <img src="/static/app/dashboard/YearsInBusiness.svg" alt="" className="w-4 h-4" />
@@ -174,7 +184,7 @@ const CoramaDirectory = () => {
                     <p className="text-gray-400 font-poppins text-xs sm:text-sm mb-2 text-center sm:text-left">{company.contactName}</p>
                     <p className="text-gray-300 font-poppins text-xs sm:text-sm mb-3 lg:mb-4">{company.description}</p>
 
-                    {/* Contact Info */}
+                    {/* Contact Info - Row 1 */}
                     <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-4 lg:gap-6">
                       <div className="flex items-center gap-2">
                         <img src="/static/app/dashboard/Phone.svg" alt="" className="w-5 h-5" />
@@ -188,6 +198,24 @@ const CoramaDirectory = () => {
                         <img src="/static/app/dashboard/Website.svg" alt="" className="w-5 h-5" />
                         <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.website}</span>
                       </div>
+                      {company.linkedinUrl && (
+                        <div className="flex items-center gap-2">
+                          <img src="/static/app/dashboard/LinkedIn.svg" alt="" className="w-5 h-5" />
+                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.linkedinUrl}</span>
+                        </div>
+                      )}
+                      {company.certifications && (
+                        <div className="flex items-center gap-2">
+                          <img src="/static/app/dashboard/TopFiveContracts.svg" alt="" className="w-5 h-5" />
+                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.certifications}</span>
+                        </div>
+                      )}
+                      {company.pastProjects && (
+                        <div className="flex items-center gap-2">
+                          <img src="/static/app/dashboard/TopFiveContracts.svg" alt="" className="w-5 h-5" />
+                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.pastProjects}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -199,13 +227,14 @@ const CoramaDirectory = () => {
               {hasDirectoryProfile ? (
                 <button 
                   onClick={() => navigate('/edit-directory-profile')}
-                  className="flex flex-row items-center justify-between gap-4 bg-[#2F3C4F] border border-corama-teal/30 rounded-xl px-6 lg:px-8 py-4 hover:bg-corama-darker transition-colors w-full max-w-2xl"
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  style={{ backgroundColor: 'rgb(28, 66, 98)' }}
                 >
                   <div className="text-left">
-                    <h3 className="text-white font-poppins font-bold text-base sm:text-lg">Edit Profile</h3>
-                    <p className="text-gray-400 font-poppins text-xs sm:text-sm">Click to edit your registration.</p>
+                    <p className="font-bold text-sm sm:text-base">Edit Profile</p>
+                    <p className="text-xs sm:text-sm text-gray-300">Click to edit your registration.</p>
                   </div>
-                  <img src="/static/app/dashboard/EditProfile.svg" alt="" className="w-12 h-12 flex-shrink-0" />
+                  <img src="/static/app/dashboard/EditProfile.svg" alt="" className="w-6 h-6 flex-shrink-0" />
                 </button>
               ) : (
                 <button 

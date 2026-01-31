@@ -54,8 +54,8 @@ from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence
 from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 
-# Load environment variables - use override=True to ensure .env values take precedence
-# over any system environment variables (fixes API key issues)
+# Load environment variables - use override=False to preserve system environment variables
+# (system env vars take precedence over .env file values)
 load_dotenv(override=False)
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1206,12 +1206,13 @@ def api_auth_login():
         # CRITICAL FIX: Also set session['user_data'] for endpoints that require it
         # (e.g., /api/upload_directory_logo, /api/initialize-proposal-draft via ensure_session_from_auth)
         # Previously, only signup set user_data, causing 401 errors for logged-in users
+        # Use display_name if available to preserve original casing, otherwise fall back to username
         session['user_data'] = {
             "first_name": user_data.get('first_name', ''),
             "last_name": user_data.get('last_name', ''),
             "company": user_data.get('company', ''),
             "email": email,
-            "username": user_data.get('username', email.split('@')[0]),
+            "username": user_data.get('display_name') or user_data.get('username', email.split('@')[0]),
             "idToken": refreshed_user['idToken'],
             "refreshToken": refreshed_user['refreshToken'],
             "user_id": local_id
@@ -6197,8 +6198,15 @@ def get_contracts_api():
         analytics = get_qdrant_analytics()
         category_distribution = analytics.get('category_distribution', {})
         
-        # Build top_categories from analytics
-        sorted_categories = sorted(category_distribution.items(), key=lambda x: x[1], reverse=True)[:4]
+        # Build top_categories from analytics, excluding unhelpful categories
+        # Filter out categories like "Other", "Unknown", etc. that aren't useful for users
+        excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
+        filtered_categories = {
+            cat: count for cat, count in category_distribution.items()
+            if cat.lower() not in excluded_cats
+        }
+        
+        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:4]
         top_categories = []
         for cat_name, count in sorted_categories:
             percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
@@ -6231,6 +6239,160 @@ def get_contracts_api():
             "top_categories": [],
             "error": "Failed to load contracts from database"
         })
+
+def get_grants_analytics():
+    """
+    Get analytics for grants from the government_grants Qdrant collection.
+    
+    Scrolls through all grants to calculate category distribution.
+    Results are cached to avoid repeated full scans.
+    """
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("[Grants Analytics] Qdrant credentials not configured")
+            return {'total_grants': 0, 'category_distribution': {}}
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Check if government_grants collection exists
+        try:
+            count_result = client.count(
+                collection_name="government_grants",
+                exact=True
+            )
+            total_grants = count_result.count
+        except Exception as e:
+            logging.warning(f"[Grants Analytics] government_grants collection not found: {e}")
+            return {'total_grants': 0, 'category_distribution': {}}
+        
+        if total_grants == 0:
+            return {'total_grants': 0, 'category_distribution': {}}
+        
+        # Scroll through all grants to count categories
+        # Use with_payload=["category"] to only fetch the category field for efficiency
+        category_counts = {}
+        current_offset = None
+        
+        while True:
+            scroll_result = client.scroll(
+                collection_name="government_grants",
+                limit=1000,
+                offset=current_offset,
+                with_vectors=False,
+                with_payload=["category"]
+            )
+            
+            points, current_offset = scroll_result
+            
+            if not points:
+                break
+            
+            for point in points:
+                cat = point.payload.get("category", "Unknown")
+                if cat and isinstance(cat, str):
+                    cat = cat.capitalize()
+                else:
+                    cat = "Unknown"
+                category_counts[cat] = category_counts.get(cat, 0) + 1
+            
+            if current_offset is None:
+                break
+        
+        logging.info(f"[Grants Analytics] Calculated category distribution from {total_grants} grants")
+        
+        return {
+            'total_grants': total_grants,
+            'category_distribution': category_counts
+        }
+        
+    except Exception as e:
+        logging.error(f"[Grants Analytics] Error: {e}", exc_info=True)
+        return {'total_grants': 0, 'category_distribution': {}}
+
+
+# Categories to exclude from top categories display (not useful for users)
+EXCLUDED_CATEGORIES = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
+
+
+@app.route('/api/grants', methods=['GET'])
+def get_grants_api():
+    """API endpoint to get grants data for the dashboard with SERVER-SIDE PAGINATION.
+    
+    Fetches grants from the government_grants Qdrant collection.
+    
+    Query params:
+    - page: Page number (1-indexed) - for display only
+    - limit: Number of grants per page (default 50, max 100)
+    
+    Returns:
+    - contracts: Array of grant objects (using 'contracts' key for frontend compatibility)
+    - total_contracts: Total count from Qdrant
+    - current_page: Current page number
+    - total_pages: Total pages available
+    - top_categories: Category distribution for analytics (from ALL grants)
+    """
+    try:
+        # Get pagination parameters
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 50, type=int)
+        
+        # Validate limit (max 100 to prevent OOM)
+        limit = min(max(limit, 1), 100)
+        
+        # Fetch grants from Qdrant
+        grants, total_grants, total_pages = get_dashboard_grants_from_qdrant(
+            page=page,
+            items_per_page=limit
+        )
+        
+        # Get category distribution from ALL grants (not just current page)
+        grants_analytics = get_grants_analytics()
+        category_distribution = grants_analytics.get('category_distribution', {})
+        
+        # Build top_categories from analytics, excluding unhelpful categories
+        # Filter out categories like "Other", "Unknown", etc.
+        filtered_categories = {
+            cat: count for cat, count in category_distribution.items()
+            if cat.lower() not in EXCLUDED_CATEGORIES
+        }
+        
+        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:4]
+        top_categories = []
+        for cat_name, count in sorted_categories:
+            percentage = round((count / total_grants * 100), 1) if total_grants > 0 else 0
+            top_categories.append({
+                'name': cat_name,
+                'count': count,
+                'percentage': percentage
+            })
+        
+        logging.info(f"/api/grants: Returning {len(grants)} grants (page {page}, limit {limit})")
+        
+        return jsonify({
+            "contracts": grants,  # Use 'contracts' key for frontend compatibility
+            "total_contracts": total_grants,
+            "current_page": page,
+            "total_pages": total_pages,
+            "next_cursor": None,
+            "has_more": page < total_pages,
+            "top_categories": top_categories
+        })
+    except Exception as e:
+        logging.error(f"Error loading grants from Qdrant: {e}", exc_info=True)
+        return jsonify({
+            "contracts": [],
+            "total_contracts": 0,
+            "current_page": 1,
+            "total_pages": 1,
+            "next_cursor": None,
+            "has_more": False,
+            "top_categories": [],
+            "error": "Failed to load grants from database"
+        })
+
 
 @app.route('/api/qdrant_version', methods=['GET'])
 def qdrant_version_api():
@@ -6305,11 +6467,42 @@ def backfill_naics_api():
     and generates NAICS codes using AI for each one. Results are cached to disk.
     
     This is a one-time operation that should be run to populate NAICS codes for existing contracts.
+    
+    Authentication: Requires either:
+    - X-Admin-Secret header matching ADMIN_SECRET_KEY env var, OR
+    - Logged-in user with admin privileges
+    
+    Request body (optional):
+    {
+        "limit": 100  // Max contracts to process (default: all)
+    }
     """
     import hashlib
     import re
     
     try:
+        # Verify admin access via header secret or logged-in admin user
+        admin_secret = request.headers.get('X-Admin-Secret')
+        expected_secret = os.getenv('ADMIN_SECRET_KEY')
+        
+        is_admin_by_secret = expected_secret and admin_secret == expected_secret
+        is_admin_by_user = False
+        
+        # Check if logged-in user is admin
+        user_id = session.get('user_id')
+        if user_id:
+            try:
+                admin_emails = os.getenv('ADMIN_EMAILS', '').split(',')
+                user_doc = db.collection('users').document(user_id).get()
+                if user_doc.exists:
+                    user_email = user_doc.to_dict().get('email', '')
+                    is_admin_by_user = user_email in admin_emails
+            except Exception:
+                pass
+        
+        if not is_admin_by_secret and not is_admin_by_user:
+            return jsonify({"success": False, "error": "Unauthorized - admin access required"}), 401
+        
         # Get optional limit parameter (for testing)
         data = request.get_json() or {}
         limit = data.get('limit', None)  # None means process all
@@ -8286,6 +8479,8 @@ def ai_assistant_action():
         contract_name = sanitize_contract_name(data.get('contractName', 'this contract'))
         # Get conversation history (optional, for follow-up messages)
         conversation_history = data.get('conversationHistory', [])
+        # Get idempotency key (optional, for preventing duplicate credit deductions)
+        idempotency_key = data.get('idempotency_key')
         
         # Validate action against fixed enum (security: no arbitrary actions)
         VALID_ACTIONS = {
@@ -8307,6 +8502,18 @@ def ai_assistant_action():
         
         user = session['user']
         user_id = user['localId']
+        
+        # Check idempotency - if this operation was already processed, return cached result
+        if idempotency_key:
+            if is_credit_operation_processed(idempotency_key):
+                cached_result = get_credit_operation_result(idempotency_key)
+                if cached_result:
+                    logging.info(f"[AI_ASSISTANT] Returning cached result for idempotency key {idempotency_key[:16]}...")
+                    return jsonify(cached_result)
+                else:
+                    # Operation was processed but result not found - return success to avoid duplicate
+                    logging.warning(f"[AI_ASSISTANT] Idempotency key {idempotency_key[:16]}... found but no cached result")
+                    return jsonify({"success": True, "message": "Already processed", "cached": True})
         
         # Initialize credit manager
         credit_manager = CreditManager(db)
@@ -8356,11 +8563,17 @@ def ai_assistant_action():
                     "credits_balance": current_credits
                 }), 402
             
-            return jsonify({
+            result = {
                 "success": True,
                 "message": ai_response,
                 "credits_balance": new_balance
-            })
+            }
+            
+            # Mark operation as processed if idempotency key provided
+            if idempotency_key:
+                mark_credit_operation_processed(idempotency_key, user_id, required_credits, f'ai_assistant_{action}', result)
+            
+            return jsonify(result)
             
         except Exception as e:
             app.logger.error(f"Error generating AI response for action {action}: {e}", exc_info=True)
@@ -9239,6 +9452,12 @@ def download_and_extract_from_url(url):
             logging.error(f"Invalid URL format: {original_url}")
             return ""
         
+        # SECURITY: Validate URL for SSRF protection before making any requests
+        is_safe, ssrf_error = is_safe_url_for_ssrf(url)
+        if not is_safe:
+            logging.error(f"SSRF protection blocked URL: {url} - {ssrf_error}")
+            return ""
+        
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -9258,7 +9477,7 @@ def download_and_extract_from_url(url):
         
         if 'pdf' in content_type or url.lower().endswith('.pdf'):
             logging.info("Detected direct PDF URL, downloading...")
-            response = requests.get(url, timeout=30, headers=headers, stream=True, allow_redirects=True)
+            response = safe_requests_get(url, timeout=30, headers=headers, stream=True, allow_redirects=True)
             
             if response.status_code == 200:
                 temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
@@ -9287,7 +9506,7 @@ def download_and_extract_from_url(url):
         
         else:
             logging.info("Detected HTML page, attempting to extract content...")
-            response = requests.get(url, timeout=30, headers=headers, allow_redirects=True)
+            response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
             
             if response.status_code != 200:
                 logging.error(f"Failed to fetch website: HTTP {response.status_code}")
@@ -9306,7 +9525,12 @@ def download_and_extract_from_url(url):
             if pdf_links:
                 logging.info(f"Attempting to download PDF from embedded link: {pdf_links[0]}")
                 try:
-                    pdf_response = requests.get(pdf_links[0], timeout=30, headers=headers, stream=True, allow_redirects=True)
+                    # SECURITY: Validate embedded PDF URL for SSRF protection
+                    pdf_url_safe, pdf_ssrf_error = is_safe_url_for_ssrf(pdf_links[0])
+                    if not pdf_url_safe:
+                        logging.warning(f"SSRF protection blocked embedded PDF URL: {pdf_links[0]} - {pdf_ssrf_error}")
+                        raise ValueError(f"SSRF protection: {pdf_ssrf_error}")
+                    pdf_response = safe_requests_get(pdf_links[0], timeout=30, headers=headers, stream=True, allow_redirects=True)
                     if pdf_response.status_code == 200 and 'pdf' in pdf_response.headers.get('content-type', '').lower():
                         temp_path = f"/tmp/temp_capability_{int(time.time())}.pdf"
                         max_size = 10 * 1024 * 1024
@@ -9358,7 +9582,12 @@ def download_and_extract_from_url(url):
             # Try to fetch the first contact page
             if contact_links:
                 try:
-                    contact_response = requests.get(contact_links[0], timeout=15, headers=headers, allow_redirects=True)
+                    # SECURITY: Validate contact page URL for SSRF protection
+                    contact_url_safe, contact_ssrf_error = is_safe_url_for_ssrf(contact_links[0])
+                    if not contact_url_safe:
+                        logging.warning(f"SSRF protection blocked contact page URL: {contact_links[0]} - {contact_ssrf_error}")
+                        raise ValueError(f"SSRF protection: {contact_ssrf_error}")
+                    contact_response = safe_requests_get(contact_links[0], timeout=15, headers=headers, allow_redirects=True)
                     if contact_response.status_code == 200:
                         contact_soup = BeautifulSoup(contact_response.content, 'html.parser')
                         for element in contact_soup(["script", "style"]):
@@ -11274,6 +11503,195 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         return [], 0, 0, None
 
 
+def qdrant_payload_to_dashboard_grant(payload, point_id=None, score=None):
+    """
+    Convert Qdrant grant payload to dashboard format with lowercase field names.
+    Maps grant-specific fields to the same structure used by contracts for frontend compatibility.
+    
+    Grant CSV fields:
+    - title -> bid_name
+    - grant_number -> bid_number
+    - description -> bid_description
+    - detail_url -> detail_link
+    - agency -> organization
+    - category -> category
+    - cfda_aln -> naics_code (displayed as CFDA/ALN in UI)
+    - due_date -> due_date
+    - opportunity_status -> status
+    """
+    import hashlib
+    from datetime import date, datetime
+    
+    # Map grant fields to dashboard format
+    detail_link = payload.get("detail_url") or payload.get("source_url") or "#"
+    grant_number = payload.get("grant_number") or "N/A"
+    
+    # Generate hash_value for backward compatibility
+    hash_input = f"{detail_link}{grant_number}"
+    hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
+    
+    # Get CFDA/ALN code (displayed in place of NAICS code for grants)
+    cfda_aln = payload.get("cfda_aln") or ""
+    
+    # Due date handling - grants use DD/MM/YYYY format
+    raw_due_date = payload.get("due_date")
+    has_due_date = bool(raw_due_date) and str(raw_due_date).lower() not in ('nan', 'none', '')
+    
+    # Parse and format due date
+    due_date = "No due date"
+    is_past_due = False
+    if has_due_date:
+        try:
+            # Try DD/MM/YYYY format first (grants CSV format)
+            parsed_date = datetime.strptime(raw_due_date, "%d/%m/%Y").date()
+            due_date = parsed_date.strftime("%Y-%m-%d")
+            is_past_due = parsed_date < date.today()
+        except Exception:
+            try:
+                # Try YYYY-MM-DD format as fallback
+                parsed_date = datetime.strptime(raw_due_date.split("T")[0], "%Y-%m-%d").date()
+                due_date = parsed_date.strftime("%Y-%m-%d")
+                is_past_due = parsed_date < date.today()
+            except Exception:
+                due_date = raw_due_date  # Use as-is if parsing fails
+    
+    # Status: "closed" if past due, otherwise use opportunity_status or "open"
+    if is_past_due:
+        status = "closed"
+    else:
+        status = payload.get("opportunity_status") or "open"
+    
+    # Category - capitalize first letter
+    category = payload.get("category") or "Unknown"
+    if category and isinstance(category, str):
+        category = category.capitalize()
+    
+    return {
+        # Identifiers
+        "contract_id": str(point_id) if point_id is not None else None,
+        "hash_value": hash_value,
+        
+        # Core fields (lowercase for dashboard JS)
+        "bid_name": payload.get("title") or "Unknown Grant",
+        "bid_number": grant_number,
+        "bid_description": payload.get("description") or "No description available",
+        "detail_link": detail_link,
+        "organization": payload.get("agency") or "Unknown",
+        "category": category,
+        "naics_code": cfda_aln,  # CFDA/ALN displayed in place of NAICS
+        "due_date": due_date,
+        "status": status,
+        "state": payload.get("location") or "Federal",  # Most grants are federal
+        
+        # Optional fields
+        "industry": "",
+        "department": "",
+        
+        # Search metadata
+        "Similarity_Score": score if score is not None else None,
+    }
+
+
+def get_dashboard_grants_from_qdrant(page=1, items_per_page=10):
+    """
+    Fetch grants from Qdrant government_grants collection for dashboard display.
+    
+    Uses offset-based pagination similar to contracts.
+    
+    Args:
+        page: Page number (1-indexed)
+        items_per_page: Number of grants per page (default 10)
+    
+    Returns:
+        Tuple of (grants_list, total_grants, total_pages)
+    """
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("[Grants Pagination] Qdrant credentials not configured")
+            return [], 0, 1
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Check if government_grants collection exists
+        try:
+            count_result = client.count(
+                collection_name="government_grants",
+                exact=True
+            )
+            total_grants = count_result.count
+        except Exception as e:
+            logging.warning(f"[Grants Pagination] government_grants collection not found or error: {e}")
+            return [], 0, 1
+        
+        if total_grants == 0:
+            return [], 0, 1
+        
+        total_pages = (total_grants + items_per_page - 1) // items_per_page
+        
+        # Calculate offset for pagination
+        target_offset = (page - 1) * items_per_page
+        logging.info(f"[Grants Pagination] Fetching page {page} (offset={target_offset}, limit={items_per_page})")
+        
+        # Scroll through pages until we reach the target offset
+        current_offset = None
+        grants_skipped = 0
+        
+        while grants_skipped < target_offset:
+            remaining = target_offset - grants_skipped
+            fetch_limit = min(remaining, 100)
+            
+            scroll_result = client.scroll(
+                collection_name="government_grants",
+                limit=fetch_limit,
+                offset=current_offset,
+                with_vectors=False,
+                with_payload=False
+            )
+            
+            points, current_offset = scroll_result
+            
+            if not points:
+                logging.warning(f"[Grants Pagination] Page {page} is beyond available data")
+                return [], total_grants, total_pages
+            
+            grants_skipped += len(points)
+            
+            if current_offset is None:
+                break
+        
+        # Fetch the actual page we want
+        scroll_result = client.scroll(
+            collection_name="government_grants",
+            limit=items_per_page,
+            offset=current_offset,
+            with_vectors=False,
+            with_payload=True
+        )
+        
+        points, _next_cursor = scroll_result
+        
+        # Convert Qdrant points to dashboard grant format
+        grants = []
+        for point in points:
+            grant = qdrant_payload_to_dashboard_grant(
+                point.payload,
+                point_id=point.id,
+                score=None
+            )
+            grants.append(grant)
+        
+        logging.info(f"[Grants Pagination] Page {page}: fetched {len(grants)} grants from Qdrant (total: {total_grants})")
+        
+        return grants, total_grants, total_pages
+        
+    except Exception as e:
+        logging.error(f"[Grants Pagination] Error fetching grants from Qdrant: {e}", exc_info=True)
+        return [], 0, 1
+
+
 def load_all_contracts(client):
     """
     Load all contracts from Qdrant collection using pagination.
@@ -11721,6 +12139,81 @@ def download_word():
 
 
 
+def is_stripe_session_processed(session_id):
+    """Check if a Stripe checkout session has already been processed (idempotency check)"""
+    try:
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_stripe_sessions/{session_id}')
+            return ref.get() is not None
+        return False
+    except Exception as e:
+        logging.error(f"Error checking processed session {session_id}: {e}")
+        return False
+
+def mark_stripe_session_processed(session_id, user_id, credits):
+    """Mark a Stripe checkout session as processed to prevent duplicate credit additions"""
+    try:
+        import time
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_stripe_sessions/{session_id}')
+            ref.set({
+                'user_id': user_id,
+                'credits': credits,
+                'processed_at': time.time(),
+                'processed_at_iso': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+            })
+            logging.info(f"Marked session {session_id} as processed for user {user_id}")
+            return True
+    except Exception as e:
+        logging.error(f"Error marking session {session_id} as processed: {e}")
+    return False
+
+
+def is_credit_operation_processed(idempotency_key):
+    """Check if a credit operation has already been processed (idempotency check)"""
+    try:
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_credit_operations/{idempotency_key}')
+            return ref.get() is not None
+        return False
+    except Exception as e:
+        logging.error(f"Error checking processed credit operation {idempotency_key}: {e}")
+        return False
+
+def mark_credit_operation_processed(idempotency_key, user_id, amount, action_type, result):
+    """Mark a credit operation as processed to prevent duplicate deductions"""
+    try:
+        import time
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_credit_operations/{idempotency_key}')
+            ref.set({
+                'user_id': user_id,
+                'amount': amount,
+                'action_type': action_type,
+                'result': result,
+                'processed_at': time.time(),
+                'processed_at_iso': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+            })
+            logging.info(f"Marked credit operation {idempotency_key[:16]}... as processed for user {user_id}")
+            return True
+    except Exception as e:
+        logging.error(f"Error marking credit operation {idempotency_key} as processed: {e}")
+    return False
+
+def get_credit_operation_result(idempotency_key):
+    """Get the result of a previously processed credit operation"""
+    try:
+        if admin_initialized and admin_db:
+            ref = admin_db.reference(f'processed_credit_operations/{idempotency_key}')
+            data = ref.get()
+            if data:
+                return data.get('result')
+        return None
+    except Exception as e:
+        logging.error(f"Error getting credit operation result {idempotency_key}: {e}")
+        return None
+
+
 @app.route('/stripe_webhook', methods=['POST'])
 def stripe_webhook():
     payload = request.get_data(as_text=True)
@@ -11759,6 +12252,7 @@ def stripe_webhook():
 def handle_successful_payment(session):
     customer_id = session["customer"]
     subscription_id = session.get("subscription")
+    session_id = session.get("id")
     metadata = session.get("metadata", {})
     
     if metadata.get("purchase_type") == "credits":
@@ -11766,11 +12260,18 @@ def handle_successful_payment(session):
         credits = int(metadata.get("credits", 0))
         
         if user_id and credits:
+            # Idempotency check: prevent duplicate credit additions
+            if is_stripe_session_processed(session_id):
+                app.logger.info(f"⏭️ Session {session_id} already processed, skipping credit addition (webhook)")
+                return
+            
             credit_manager = CreditManager(db)
             success, new_balance = credit_manager.add_credits_admin(
                 user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
             )
             if success:
+                # Mark session as processed to prevent duplicate additions
+                mark_stripe_session_processed(session_id, user_id, credits)
                 app.logger.info(f"✅ Credits added for user {user_id}: {credits} credits, new balance: {new_balance}")
             else:
                 app.logger.error(f"❌ Failed to add credits for user {user_id} via webhook")
@@ -11870,6 +12371,14 @@ def create_credit_checkout():
         credits = int(request.json.get('credits'))
         price = int(request.json.get('price'))
         
+        # Generate idempotency key to prevent duplicate checkout sessions on network retries
+        # Using user_id + credits + price + timestamp (rounded to 5-minute window) for uniqueness
+        import time
+        import hashlib
+        timestamp_window = int(time.time() // 300)  # 5-minute window
+        idempotency_data = f"{user['localId']}_{credits}_{price}_{timestamp_window}"
+        idempotency_key = hashlib.sha256(idempotency_data.encode()).hexdigest()[:32]
+        
         try:
             checkout_session = stripe.checkout.Session.create(
                 customer=stripe_customer_id,
@@ -11893,8 +12402,10 @@ def create_credit_checkout():
                     'credits': credits,
                     'purchase_type': 'credits'
                 },
-                allow_promotion_codes=True
+                allow_promotion_codes=True,
+                idempotency_key=idempotency_key
             )
+            logging.info(f"Created checkout session with idempotency key: {idempotency_key[:8]}...")
             
             return jsonify({"checkout_url": checkout_session.url})
         except stripe.error.AuthenticationError as stripe_error:
@@ -11926,15 +12437,25 @@ def credit_purchase_success():
             metadata_user_id = checkout_session.metadata.get('user_id')
             
             success = False
+            already_processed = False
+            
             if metadata_user_id == user_id and credits > 0:
-                credit_manager = CreditManager(db)
-                success, new_balance = credit_manager.add_credits_admin(
-                    user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
-                )
-                if success:
-                    app.logger.info(f"✅ Credits added via success page for user {user_id}: {credits} credits, new balance: {new_balance}")
+                # Idempotency check: prevent duplicate credit additions
+                if is_stripe_session_processed(session_id):
+                    app.logger.info(f"⏭️ Session {session_id} already processed, skipping credit addition (success page)")
+                    already_processed = True
+                    success = True  # Show success to user since credits were already added
                 else:
-                    app.logger.error(f"❌ Failed to add credits via success page for user {user_id}")
+                    credit_manager = CreditManager(db)
+                    success, new_balance = credit_manager.add_credits_admin(
+                        user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
+                    )
+                    if success:
+                        # Mark session as processed to prevent duplicate additions
+                        mark_stripe_session_processed(session_id, user_id, credits)
+                        app.logger.info(f"✅ Credits added via success page for user {user_id}: {credits} credits, new balance: {new_balance}")
+                    else:
+                        app.logger.error(f"❌ Failed to add credits via success page for user {user_id}")
             
             return render_template('credit_purchase_success.html', credits=credits, success=success)
         except Exception as e:
@@ -12009,11 +12530,17 @@ def fetch_contract_pdf():
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
             
+            # SECURITY: Validate detail_link for SSRF protection
+            is_safe, ssrf_error = is_safe_url_for_ssrf(detail_link)
+            if not is_safe:
+                logging.error(f"SSRF protection blocked contract detail link: {detail_link} - {ssrf_error}")
+                return jsonify({'success': False, 'error': f'Invalid URL: {ssrf_error}'}), 400
+            
             response = requests.head(detail_link, headers=headers, timeout=10, allow_redirects=True)
             content_type = response.headers.get('Content-Type', '').lower()
             
             if 'application/pdf' in content_type or detail_link.lower().endswith('.pdf'):
-                pdf_response = requests.get(detail_link, headers=headers, timeout=30)
+                pdf_response = safe_requests_get(detail_link, headers=headers, timeout=30)
                 pdf_response.raise_for_status()
                 
                 with open(pdf_path, 'wb') as f:
@@ -12025,7 +12552,7 @@ def fetch_contract_pdf():
                     'method': 'direct_download'
                 })
             
-            page_response = requests.get(detail_link, headers=headers, timeout=30)
+            page_response = safe_requests_get(detail_link, headers=headers, timeout=30)
             page_response.raise_for_status()
             soup = BeautifulSoup(page_response.content, 'html.parser')
             
@@ -12054,7 +12581,12 @@ def fetch_contract_pdf():
             
             if pdf_links:
                 pdf_url = pdf_links[0]
-                pdf_response = requests.get(pdf_url, headers=headers, timeout=30)
+                # SECURITY: Validate extracted PDF URL for SSRF protection
+                pdf_url_safe, pdf_ssrf_error = is_safe_url_for_ssrf(pdf_url)
+                if not pdf_url_safe:
+                    logging.warning(f"SSRF protection blocked extracted PDF URL: {pdf_url} - {pdf_ssrf_error}")
+                    return jsonify({'success': False, 'error': f'Invalid PDF URL: {pdf_ssrf_error}'}), 400
+                pdf_response = safe_requests_get(pdf_url, headers=headers, timeout=30)
                 pdf_response.raise_for_status()
                 
                 with open(pdf_path, 'wb') as f:
@@ -15746,8 +16278,7 @@ def update_directory_profile():
         if not user_data:
             return jsonify({'success': False, 'error': 'User data not found'}), 404
         
-        # AUTHORIZATION CHECK: Only users with existing directory listings can edit their profile
-        # This prevents users who are not listed from creating/editing directory entries
+        # Check for existing directory data to determine if this is a new listing or an update
         existing_directory_data = None
         try:
             existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
@@ -15761,18 +16292,17 @@ def update_directory_profile():
                 except Exception as admin_read_error:
                     app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
         
-        # Check if user has an existing listing (listed: true)
-        if not existing_directory_data or not existing_directory_data.get('listed', False):
-            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to edit directory profile without existing listing")
-            return jsonify({
-                'success': False, 
-                'error': 'You must have an existing directory listing to edit your profile. Please contact support to get listed.',
-                'authorization_error': True
-            }), 403
-        
-        # SECURITY: Don't trust client-provided 'listed' value - preserve existing value
-        # The 'listed' status should only be changed by admins, not by users
-        existing_listed_status = existing_directory_data.get('listed', False)
+        # Determine the listed status:
+        # - For NEW listings: Allow user to join the directory (set listed: true)
+        # - For EXISTING listings: Preserve the existing listed status (security measure)
+        if existing_directory_data:
+            # Existing entry - preserve the listed status (don't trust client value)
+            existing_listed_status = existing_directory_data.get('listed', False)
+            app.logger.info(f"Updating existing directory entry for user {user_id}, preserving listed={existing_listed_status}")
+        else:
+            # New entry - allow user to join the directory
+            existing_listed_status = data.get('listed', True)  # Default to True for new listings
+            app.logger.info(f"Creating new directory entry for user {user_id}, setting listed={existing_listed_status}")
         
         profile_data = {
             'company': data.get('company', user_data.get('company', '')).strip(),
@@ -15869,26 +16399,10 @@ def upload_directory_logo():
         user_id = session['user_data']['user_id']
         id_token = session['user_data']['idToken']
         
-        # AUTHORIZATION CHECK: Only users with existing directory listings can upload logos
-        existing_directory_data = None
-        try:
-            existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
-        except Exception as dir_read_error:
-            app.logger.warning(f"Could not read existing directory data for logo upload user {user_id}: {dir_read_error}")
-            if admin_initialized and admin_db:
-                try:
-                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
-                    existing_directory_data = directory_ref.get()
-                except Exception as admin_read_error:
-                    app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
-        
-        if not existing_directory_data or not existing_directory_data.get('listed', False):
-            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to upload logo without existing listing")
-            return jsonify({
-                'success': False, 
-                'error': 'You must have an existing directory listing to upload a logo.',
-                'authorization_error': True
-            }), 403
+        # AUTHORIZATION CHECK: Allow authenticated users to upload logos
+        # This allows both existing directory members and new users joining the directory
+        # The authentication check above (session['user_data']) is sufficient
+        app.logger.info(f"Logo upload authorized for authenticated user {user_id}")
         
         if 'logo' not in request.files:
             app.logger.warning(f"Logo upload for user {user_id}: No logo file in request")
@@ -16720,7 +17234,7 @@ def api_get_credits():
 # API: Deduct credits for an action
 @app.route('/api/deduct-credits', methods=['POST'])
 def api_deduct_credits():
-    """Deduct credits from user's balance for a specific action"""
+    """Deduct credits from user's balance for a specific action (with idempotency support)"""
     if 'user' not in session:
         return jsonify({"success": False, "error": "Not authenticated"}), 401
     
@@ -16732,9 +17246,23 @@ def api_deduct_credits():
         amount = data.get('amount', 0)
         action_type = data.get('action_type', 'unknown')
         description = data.get('description', '')
+        idempotency_key = data.get('idempotency_key')  # Optional: frontend can provide this
         
         if amount <= 0:
             return jsonify({"success": False, "error": "Invalid credit amount"}), 400
+        
+        # If idempotency key provided, check if operation was already processed
+        if idempotency_key:
+            if is_credit_operation_processed(idempotency_key):
+                # Return the cached result
+                cached_result = get_credit_operation_result(idempotency_key)
+                if cached_result:
+                    logging.info(f"[CREDITS] Returning cached result for idempotency key {idempotency_key[:16]}...")
+                    return jsonify(cached_result)
+                else:
+                    # Operation was processed but result not found - return success to avoid duplicate
+                    logging.warning(f"[CREDITS] Idempotency key {idempotency_key[:16]}... found but no cached result")
+                    return jsonify({"success": True, "new_balance": 0, "message": "Already processed", "cached": True})
         
         # Use credit manager to deduct credits
         credit_manager = CreditManager(db)
@@ -16754,17 +17282,426 @@ def api_deduct_credits():
         
         if success:
             logging.info(f"[CREDITS] Deducted {amount} credits from user {user_id} for {action_type}: {description}")
-            return jsonify({
+            result = {
                 "success": True,
                 "new_balance": new_balance,
                 "message": message
-            })
+            }
+            # Mark operation as processed if idempotency key provided
+            if idempotency_key:
+                mark_credit_operation_processed(idempotency_key, user_id, amount, action_type, result)
+            return jsonify(result)
         else:
             logging.warning(f"[CREDITS] Failed to deduct credits for user {user_id}: {message}")
             return jsonify({"success": False, "error": message}), 402
             
     except Exception as e:
         logging.error(f"Error in /api/deduct-credits: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Get credit history for user
+@app.route('/api/credit-history', methods=['GET'])
+def api_credit_history():
+    """Get credit transaction history for the current user"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        transactions = []
+        
+        if admin_initialized and admin_db:
+            transactions_ref = admin_db.reference(f'credit_transactions/{user_id}')
+            transactions_data = transactions_ref.get() or {}
+        else:
+            transactions_data = db.child("credit_transactions").child(user_id).get(user['idToken']).val() or {}
+        
+        # Convert Firebase dict to list and format for frontend
+        for tx_id, tx in transactions_data.items():
+            if isinstance(tx, dict):
+                # Format the operation type for display
+                operation = tx.get('operation_type', 'Unknown')
+                operation_display = {
+                    'stripe_purchase': 'Credit Purchase',
+                    'purchase': 'Credit Purchase',
+                    'analyze': 'Contract Analysis',
+                    'compliance': 'Compliance Check',
+                    'strategy': 'Strategy Analysis',
+                    'outline': 'Proposal Outline',
+                    'cs_analysis': 'Capability Stmt',
+                    'proposal_generation': 'Proposal Generation',
+                    'refund_failed_generation': 'Refund',
+                    'refund_failed_analysis': 'Refund',
+                    'refund_failed_compliance': 'Refund',
+                    'refund_failed_strategy': 'Refund',
+                    'refund_failed_outline': 'Refund',
+                }.get(operation, operation.replace('_', ' ').title())
+                
+                # Parse timestamp
+                timestamp = tx.get('timestamp', '')
+                try:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    date_display = dt.strftime('%b %d')
+                except:
+                    date_display = timestamp[:10] if timestamp else 'Unknown'
+                
+                transactions.append({
+                    'id': tx_id,
+                    'date': date_display,
+                    'action': operation_display,
+                    'cost': tx.get('amount', 0),
+                    'timestamp': timestamp
+                })
+        
+        # Sort by timestamp descending (most recent first)
+        transactions.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        
+        # Return only the last 50 transactions
+        return jsonify({
+            "success": True,
+            "transactions": transactions[:50]
+        })
+    except Exception as e:
+        logging.error(f"Error in /api/credit-history: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Send support message
+@app.route('/api/send-support-message', methods=['POST'])
+def api_send_support_message():
+    """Send a support message to admin@corama.ai"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        data = request.get_json()
+        message = data.get('message', '').strip()
+        
+        if not message:
+            return jsonify({"success": False, "error": "Message cannot be empty"}), 400
+        
+        if len(message) > 5000:
+            return jsonify({"success": False, "error": "Message too long (max 5000 characters)"}), 400
+        
+        # Get user info for the email
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_data = user_ref.get() or {}
+        else:
+            user_data = db.child("users").child(user_id).get(user['idToken']).val() or {}
+        
+        user_email = user_data.get('email', 'Unknown')
+        user_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or 'Unknown'
+        company = user_data.get('company', 'Not specified')
+        
+        # Build the email with Corama branding (matching password reset email design)
+        subject = f"Support Request from {user_name}"
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body {{
+                font-family: 'Poppins', sans-serif;
+                background-color: #0F172A;
+                margin: 0;
+                padding: 0;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 40px auto;
+                background-color: #1C4262;
+                border-radius: 12px;
+                padding: 40px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            }}
+            .logo {{
+                margin-bottom: 30px;
+                text-align: center;
+            }}
+            .logo img {{
+                max-width: 180px;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+            }}
+            .message {{
+                color: #FFFFFF;
+                line-height: 1.6;
+            }}
+            .welcome-text {{
+                font-weight: 700;
+                font-size: 20px;
+                margin-bottom: 15px;
+                display: block;
+                text-align: center;
+            }}
+            .info-box {{
+                background-color: rgba(0,0,0,0.2);
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+            }}
+            .info-row {{
+                margin: 10px 0;
+                font-size: 14px;
+            }}
+            .info-label {{
+                color: #AABDD1;
+                font-weight: 400;
+            }}
+            .info-value {{
+                color: #FFFFFF;
+                font-weight: 600;
+            }}
+            .message-box {{
+                background-color: rgba(255,255,255,0.1);
+                border-radius: 8px;
+                padding: 20px;
+                margin: 20px 0;
+                white-space: pre-wrap;
+                font-size: 14px;
+                color: #FFFFFF;
+                line-height: 1.6;
+            }}
+            .footer {{
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                font-size: 13px;
+                color: #E0E0E0;
+                line-height: 1.5;
+                font-weight: 400;
+                text-align: center;
+            }}
+            .footer p {{
+                margin: 5px 0;
+            }}
+            .footer a {{
+                color: #6BB4B5;
+                text-decoration: none;
+                font-weight: 600;
+            }}
+            .copyright {{
+                margin-top: 20px;
+                font-size: 11px;
+                opacity: 0.7;
+            }}
+        </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">
+                    <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+                </div>
+                <div class="message">
+                    <p class="welcome-text">
+                        Support Request
+                    </p>
+                </div>
+                <div class="info-box">
+                    <div class="info-row">
+                        <span class="info-label">From:</span> <span class="info-value">{user_name}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Email:</span> <span class="info-value">{user_email}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Company:</span> <span class="info-value">{company}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">User ID:</span> <span class="info-value">{user_id}</span>
+                    </div>
+                </div>
+                <div class="message">
+                    <p style="font-weight: 600; font-size: 16px; margin-bottom: 10px;">Message:</p>
+                </div>
+                <div class="message-box">{message}</div>
+                <div class="footer">
+                    <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+                    <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                    <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+                    <div class="copyright">
+                        <p>&copy; 2026 Corama. All rights reserved.</p>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Send the email to admin
+        success, error_msg = send_email_smtp('admin@corama.ai', subject, html_body)
+        
+        if success:
+            logging.info(f"[Support] Message sent from user {user_id} ({user_email})")
+            return jsonify({"success": True, "message": "Your message has been sent. We'll get back to you soon!"})
+        else:
+            logging.error(f"[Support] Failed to send message from user {user_id}: {error_msg}")
+            return jsonify({"success": False, "error": "Failed to send message. Please try again later."}), 500
+            
+    except Exception as e:
+        logging.error(f"Error in /api/send-support-message: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Update username (display_name)
+@app.route('/api/update-username', methods=['POST'])
+def api_update_username():
+    """Update user's display name"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        data = request.get_json()
+        new_username = data.get('username', '').strip()
+        
+        if not new_username:
+            return jsonify({"success": False, "error": "Username cannot be empty"}), 400
+        
+        if len(new_username) < 3:
+            return jsonify({"success": False, "error": "Username must be at least 3 characters"}), 400
+        
+        if len(new_username) > 50:
+            return jsonify({"success": False, "error": "Username must be less than 50 characters"}), 400
+        
+        # Check if username is already taken (case-insensitive, exclude current user)
+        new_username_lower = new_username.lower()
+        try:
+            if admin_initialized and admin_db:
+                users_ref = admin_db.reference('users')
+                all_users = users_ref.get() or {}
+                for other_user_id, user_data in all_users.items():
+                    if other_user_id != user_id and user_data:
+                        existing_username = user_data.get('username', '') or user_data.get('display_name', '')
+                        if existing_username.lower() == new_username_lower:
+                            return jsonify({"success": False, "error": "This username is already taken. Please choose a different one."}), 400
+            else:
+                logging.warning("[Settings] Admin SDK not initialized, skipping username uniqueness check")
+        except Exception as check_err:
+            logging.error(f"[Settings] Error checking username uniqueness: {check_err}")
+            # Continue with update even if check fails
+        
+        # Update display_name in Firebase
+        if admin_initialized and admin_db:
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_ref.update({
+                'display_name': new_username,
+                'username_updated_at': datetime.now().isoformat()
+            })
+        else:
+            db.child("users").child(user_id).update({
+                'display_name': new_username,
+                'username_updated_at': datetime.now().isoformat()
+            }, user['idToken'])
+        
+        logging.info(f"[Settings] Username updated for user {user_id} to '{new_username}'")
+        return jsonify({"success": True, "message": "Username updated successfully!", "username": new_username})
+        
+    except Exception as e:
+        logging.error(f"Error in /api/update-username: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Change password
+@app.route('/api/change-password', methods=['POST'])
+def api_change_password():
+    """Change user's password (requires current password verification)"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_email = user.get('email', '')
+    
+    try:
+        data = request.get_json()
+        current_password = data.get('currentPassword', '')
+        new_password = data.get('newPassword', '')
+        confirm_password = data.get('confirmPassword', '')
+        
+        if not current_password:
+            return jsonify({"success": False, "error": "Current password is required"}), 400
+        
+        if not new_password:
+            return jsonify({"success": False, "error": "New password is required"}), 400
+        
+        # Validate password requirements (same as signup)
+        if len(new_password) < 8:
+            return jsonify({"success": False, "error": "Password must be at least 8 characters long"}), 400
+        if not any(c.isupper() for c in new_password):
+            return jsonify({"success": False, "error": "Password must contain at least one uppercase letter"}), 400
+        if not any(c.isdigit() for c in new_password):
+            return jsonify({"success": False, "error": "Password must contain at least one number"}), 400
+        if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?/~`' for c in new_password):
+            return jsonify({"success": False, "error": "Password must contain at least one special character"}), 400
+        
+        if new_password != confirm_password:
+            return jsonify({"success": False, "error": "New passwords do not match"}), 400
+        
+        # Verify current password by attempting to sign in
+        try:
+            auth.sign_in_with_email_and_password(user_email, current_password)
+        except Exception as auth_error:
+            logging.warning(f"[Settings] Password verification failed for {user_email}: {auth_error}")
+            return jsonify({"success": False, "error": "Current password is incorrect"}), 400
+        
+        # Use Firebase REST API to change password
+        # We need to use the Firebase Auth REST API directly
+        import requests as req
+        api_key = os.getenv('FIREBASE_API_KEY')
+        
+        if not api_key:
+            return jsonify({"success": False, "error": "Password change service unavailable"}), 500
+        
+        # First, get a fresh ID token by signing in
+        sign_in_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
+        sign_in_response = req.post(sign_in_url, json={
+            "email": user_email,
+            "password": current_password,
+            "returnSecureToken": True
+        })
+        
+        if sign_in_response.status_code != 200:
+            return jsonify({"success": False, "error": "Authentication failed"}), 400
+        
+        id_token = sign_in_response.json().get('idToken')
+        
+        # Now change the password using the ID token
+        change_password_url = f"https://identitytoolkit.googleapis.com/v1/accounts:update?key={api_key}"
+        change_response = req.post(change_password_url, json={
+            "idToken": id_token,
+            "password": new_password,
+            "returnSecureToken": True
+        })
+        
+        if change_response.status_code != 200:
+            error_message = change_response.json().get('error', {}).get('message', 'Password change failed')
+            logging.error(f"[Settings] Password change failed for {user_email}: {error_message}")
+            return jsonify({"success": False, "error": "Failed to change password. Please try again."}), 400
+        
+        # Update session with new token
+        new_token_data = change_response.json()
+        session['user']['idToken'] = new_token_data.get('idToken')
+        session['user']['refreshToken'] = new_token_data.get('refreshToken')
+        
+        logging.info(f"[Settings] Password changed successfully for {user_email}")
+        return jsonify({"success": True, "message": "Password changed successfully!"})
+        
+    except Exception as e:
+        logging.error(f"Error in /api/change-password: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

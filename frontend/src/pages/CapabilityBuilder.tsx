@@ -7,6 +7,7 @@ import ThinkingPopup from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api, CapabilityStatementData } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface ImportResult {
   success: boolean
@@ -118,6 +119,7 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
 }
 
 const CapabilityBuilder = () => {
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
@@ -378,9 +380,6 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromFile(selectedFile)
-      console.log('[CS Import File] Full result:', result)
-      console.log('[CS Import File] Data fields:', result.data ? Object.keys(result.data) : 'no data')
-      console.log('[CS Import File] Data values:', result.data)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setSelectedFile(null)
@@ -409,9 +408,6 @@ const CapabilityBuilder = () => {
 
     try {
       const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
-      console.log('[CS Import URL] Full result:', result)
-      console.log('[CS Import URL] Data fields:', result.data ? Object.keys(result.data) : 'no data')
-      console.log('[CS Import URL] Data values:', result.data)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setImportUrl('')
@@ -575,12 +571,12 @@ const CapabilityBuilder = () => {
       <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
       
       {/* Header spans full width at top */}
-      <Header credits={5} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex">
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
         <Sidebar />
         
@@ -1215,13 +1211,14 @@ const CapabilityBuilder = () => {
               <button
                 onClick={handleGeneratePdf}
                 disabled={generatingPdf || !canGeneratePdf}
-                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
               >
-                <div className="text-left">
-                  <h3 className="text-white font-poppins font-bold text-sm sm:text-base">
+                <div className="text-left flex-1">
+                  <p className="font-bold text-sm sm:text-base">
                     {generatingPdf ? 'Generating...' : 'Generate PDF'}
-                  </h3>
-                  <p className="text-white font-poppins text-xs sm:text-sm">Create your Capability Statement</p>
+                  </p>
+                  <p className="text-xs sm:text-sm text-gray-300">Create your Capability Statement</p>
                 </div>
                 {generatingPdf ? (
                   <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />
@@ -1233,11 +1230,12 @@ const CapabilityBuilder = () => {
               {/* AI Assistant Button */}
               <button
                 onClick={handleAiAssistant}
-                className="w-full card-gradient rounded-xl p-3 sm:p-4 flex items-center justify-between hover:bg-corama-darker/80 transition-colors cursor-pointer"
+                className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
               >
-                <div className="text-left">
-                  <h3 className="text-white font-poppins font-bold text-sm sm:text-base">AI Assistant</h3>
-                  <p className="text-white font-poppins text-xs sm:text-sm">Use AI to enhance your content</p>
+                <div className="text-left flex-1">
+                  <p className="font-bold text-sm sm:text-base">AI Assistant</p>
+                  <p className="text-xs sm:text-sm text-gray-300">Use AI to enhance your content</p>
                 </div>
                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-6 h-6 flex-shrink-0" />
               </button>

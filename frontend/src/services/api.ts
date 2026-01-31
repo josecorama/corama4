@@ -67,6 +67,8 @@ export interface DirectoryCompany {
   logo: string;
   services: string;
   certifications: string;
+  linkedinUrl: string;
+  pastProjects: string;
 }
 
 export interface DirectoryProfile {
@@ -146,6 +148,30 @@ class ApiService {
         throw new Error('Not authenticated');
       }
       throw new Error('Failed to fetch contracts');
+    }
+    return res.json();
+  }
+
+  // Grants - fetch from government_grants collection
+  async getGrants(
+    page: number = 1, 
+    limit: number = 50
+  ): Promise<{
+    contracts: Contract[], 
+    total_pages: number, 
+    total_contracts: number, 
+    has_more?: boolean,
+    top_categories?: {name: string, count: number, percentage: number}[]
+  }> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    
+    const res = await fetch(`${API_BASE()}/grants?${params}`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      throw new Error('Failed to fetch grants');
     }
     return res.json();
   }
@@ -244,19 +270,21 @@ class ApiService {
     return res.json();
   }
 
-  // AI Assistant Action (with credit deduction and optional conversation history)
+  // AI Assistant Action (with credit deduction, idempotency support, and optional conversation history)
   async aiAssistantAction(
     action: string, 
     contractName: string, 
-    conversationHistory?: Array<{role: string, content: string}>
-  ): Promise<{success: boolean, message: string, credits_balance?: number, error?: string}> {
+    conversationHistory?: Array<{role: string, content: string}>,
+    idempotencyKey?: string
+  ): Promise<{success: boolean, message: string, credits_balance?: number, error?: string, cached?: boolean}> {
     const res = await fetch(`${API_BASE()}/ai-assistant-action`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         action, 
         contractName,
-        conversationHistory: conversationHistory || []
+        conversationHistory: conversationHistory || [],
+        idempotency_key: idempotencyKey
       })
     });
     if (!res.ok) {
@@ -293,16 +321,22 @@ class ApiService {
     return res.json();
   }
 
-  // Deduct credits for an action
+  // Deduct credits for an action (with idempotency support)
   async deductCredits(
     amount: number, 
     actionType: string, 
-    description: string
-  ): Promise<{success: boolean, new_balance?: number, error?: string}> {
+    description: string,
+    idempotencyKey?: string
+  ): Promise<{success: boolean, new_balance?: number, error?: string, cached?: boolean}> {
     const res = await fetch(`${API_BASE()}/deduct-credits`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ amount, action_type: actionType, description })
+      body: JSON.stringify({ 
+        amount, 
+        action_type: actionType, 
+        description,
+        idempotency_key: idempotencyKey 
+      })
     });
     if (!res.ok) {
       if (res.status === 401) {
@@ -315,7 +349,17 @@ class ApiService {
       const errorData = await res.json().catch(() => ({ error: 'Failed to deduct credits' }));
       return { success: false, error: errorData.error || 'Failed to deduct credits' };
     }
-    return res.json();
+    const data = await res.json();
+    
+    // Dispatch event to notify Header of credit change (triggers animation)
+    // Don't dispatch if this was a cached response (already processed)
+    if (data.success && data.new_balance !== undefined && !data.cached) {
+      window.dispatchEvent(new CustomEvent('creditsChanged', { 
+        detail: { credits: data.new_balance } 
+      }));
+    }
+    
+    return data;
   }
 
   // Upload CS
@@ -836,9 +880,133 @@ class ApiService {
     return res.json();
   }
 
+  // Credit History
+  async getCreditHistory(): Promise<{
+    success: boolean;
+    transactions?: Array<{
+      id: string;
+      date: string;
+      action: string;
+      cost: number;
+      timestamp: string;
+    }>;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/credit-history`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to fetch credit history' }));
+      return { success: false, error: errorData.error || 'Failed to fetch credit history' };
+    }
+    return res.json();
+  }
+
+  // Send Support Message
+  async sendSupportMessage(message: string): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/send-support-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to send message' }));
+      return { success: false, error: errorData.error || 'Failed to send message' };
+    }
+    return res.json();
+  }
+
+  // Update Username
+  async updateUsername(username: string): Promise<{
+    success: boolean;
+    message?: string;
+    username?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/update-username`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to update username' }));
+      return { success: false, error: errorData.error || 'Failed to update username' };
+    }
+    return res.json();
+  }
+
+  // Change Password
+  async changePassword(currentPassword: string, newPassword: string, confirmPassword: string): Promise<{
+    success: boolean;
+    message?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword, confirmPassword })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to change password' }));
+      return { success: false, error: errorData.error || 'Failed to change password' };
+    }
+    return res.json();
+  }
+
   // Logout
   logout(): void {
+    // Clear credits cache to prevent showing previous user's credits on next login
+    sessionStorage.removeItem('corama_credits_cache');
+    sessionStorage.removeItem('corama_credits_animated');
+    sessionStorage.removeItem('corama_credits_last_value');
     window.location.href = '/logout';
+  }
+
+  // Admin: Backfill NAICS codes for contracts missing them
+  async adminBackfillNaics(limit?: number): Promise<{
+    success: boolean;
+    total_contracts?: number;
+    contracts_without_naics?: number;
+    generated_count?: number;
+    failed_count?: number;
+    results?: Array<{
+      title: string;
+      naics_codes: string;
+      success: boolean;
+    }>;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/backfill_naics`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(limit ? { limit } : {})
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Unauthorized - admin access required' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to backfill NAICS codes' }));
+      return { success: false, error: errorData.error || 'Failed to backfill NAICS codes' };
+    }
+    return res.json();
   }
 }
 

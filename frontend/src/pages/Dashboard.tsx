@@ -4,6 +4,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
 import { api, Contract as ApiContract } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Custom hook for animating a number from 0 to target value
 const useCountUp = (target: number, duration: number = 1000, delay: number = 0) => {
@@ -120,6 +121,7 @@ interface Contract {
 }
 
 const Dashboard = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [currentPage, setCurrentPage] = useState(1)
   const [totalContracts, setTotalContracts] = useState(0)
@@ -136,6 +138,9 @@ const Dashboard = () => {
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>([])
   
+  // Toggle state for Grants/Contracts view
+  const [showGrants, setShowGrants] = useState(false)
+  
   // Top categories from backend (calculated from ALL contracts, not just current page)
   const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
 
@@ -149,7 +154,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     loadContracts()
-  }, [currentPage, contractType, selectedStates])
+  }, [currentPage, contractType, selectedStates, showGrants])
 
   const loadUserData = async () => {
     try {
@@ -164,12 +169,19 @@ const Dashboard = () => {
   const loadContracts = async () => {
     setLoading(true)
     try {
-      // Use searchContracts only when there's a query or non-default filters
-      // Otherwise use getContracts with offset-based pagination
-      const hasFilters = searchQuery || contractType !== 'all' || selectedStates.length > 0
-      const data = hasFilters
-        ? await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
-        : await api.getContracts(currentPage, contractsPerPage)
+      let data;
+      
+      if (showGrants) {
+        // Fetch grants from government_grants collection
+        data = await api.getGrants(currentPage, contractsPerPage)
+      } else {
+        // Use searchContracts only when there's a query or non-default filters
+        // Otherwise use getContracts with offset-based pagination
+        const hasFilters = searchQuery || contractType !== 'all' || selectedStates.length > 0
+        data = hasFilters
+          ? await api.searchContracts(searchQuery, currentPage, contractType, selectedStates)
+          : await api.getContracts(currentPage, contractsPerPage)
+      }
       
       // Transform API response to component format
       const transformedContracts: Contract[] = data.contracts.map((c: ApiContract, index: number) => ({
@@ -228,12 +240,12 @@ const Dashboard = () => {
       />
       
       {/* Header spans full width at top */}
-      <Header credits={5} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex">
-        {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        {/* Vertical separator line with blue glow (lg only) */}
+        <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
         <Sidebar />
         
@@ -241,17 +253,59 @@ const Dashboard = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
-            <h1 className="text-white font-poppins text-lg lg:text-xl">Overview</h1>
+            <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
+            
+            {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
+            <button
+              onClick={() => {
+                setShowGrants(!showGrants)
+                setCurrentPage(1) // Reset to page 1 when toggling
+              }}
+              className="relative w-[240px] h-[36px] rounded-[40px] border-none cursor-pointer p-[4px] flex items-center transition-colors duration-500 select-none font-poppins"
+              style={{ backgroundColor: showGrants ? '#0B2C48' : '#98C9CA' }}
+              aria-pressed={showGrants}
+              aria-label="Toggle between Grants and Contracts"
+            >
+              {/* Moving thumb - 28px (36px - 4px*2 padding) */}
+              <span
+                className="relative z-10 block w-[28px] h-[28px] bg-white rounded-full shadow-md transition-transform duration-500"
+                style={{ 
+                  transform: showGrants ? 'translateX(204px)' : 'translateX(0)',
+                  transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
+                }}
+              />
+              {/* Contracts View label (visible when OFF) */}
+              <span 
+                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-500"
+                style={{ 
+                  color: '#0B2C48',
+                  opacity: showGrants ? 0 : 1
+                }}
+              >
+                {t('contractsView')}
+              </span>
+              {/* Grants View label (visible when ON) */}
+              <span 
+                className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-500"
+                style={{ 
+                  color: '#ffffff',
+                  opacity: showGrants ? 1 : 0
+                }}
+              >
+                {t('grantsView')}
+              </span>
+            </button>
+            
             <div className="flex items-center gap-2 text-white font-poppins text-xs sm:text-sm">
-              <span>Accounts</span>
+              <span>{t('accounts')}</span>
               <span>|</span>
-              <span className="text-white">{userName || 'Loading...'}</span>
+              <span className="text-white">{userName || t('loading')}</span>
             </div>
           </div>
 
-          {/* Top Contract Categories */}
+          {/* Top Contract/Grant Categories */}
           <div className="mb-6 lg:mb-8">
-            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">TOP CONTRACT CATEGORIES</h2>
+            <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">{showGrants ? t('topGrantCategories') : t('topContractCategories')}</h2>
             
             {/* Desktop: Grid layout */}
             <div className="hidden lg:grid grid-cols-4 gap-4">
@@ -308,18 +362,18 @@ const Dashboard = () => {
             </div>
           </div>
 
-                    {/* Available Contracts Table */}
+                    {/* Available Contracts/Grants Table */}
                     <div className="rounded-xl p-3 sm:p-4 lg:p-6 border" style={{ backgroundColor: '#2f3c4f', borderColor: '#98C9CA' }}>
                       {/* Single row: Heading LEFT, Search CENTER, Filter/Pagination RIGHT */}
                       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4 lg:mb-6">
-                        {/* Left: Available Contracts heading */}
-                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">Available Contracts</h2>
+                        {/* Left: Available Contracts/Grants heading */}
+                        <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">{showGrants ? t('availableGrants') : t('availableContracts')}</h2>
                         
                         {/* Center: Search Bar */}
                         <form onSubmit={handleSearch} className="relative flex-1 max-w-xl mx-auto">
                           <input
                             type="text"
-                            placeholder="SEARCH CONTRACTS"
+                            placeholder={showGrants ? t('searchGrants') : t('searchContracts')}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="border rounded-full py-2 pl-10 pr-6 text-white placeholder-gray-400 focus:outline-none w-full text-sm font-poppins tracking-wide"
@@ -339,8 +393,7 @@ const Dashboard = () => {
                             <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-5 h-5" />
                           </button>
                           <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">
-                            <span className="hidden sm:inline">{startItem}-{endItem} of {totalContracts}</span>
-                            <span className="sm:hidden">{currentPage}/{Math.ceil(totalContracts/contractsPerPage)}</span>
+                            <span>{startItem}-{endItem} of {totalContracts}</span>
                                                         <button 
                                                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                                           disabled={currentPage <= 1}
@@ -364,19 +417,23 @@ const Dashboard = () => {
                         <table className="w-full">
                           <thead>
                             <tr className="font-poppins text-sm" style={{ color: '#9ccdcd' }}>
-                              <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">Contract Name</th>
-                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">Category</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">NAICS Code(s)</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Due Date</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Status</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">AI Assistant</th>
-                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">Visit Site</th>
+                              <th className="text-left py-3 pr-6 font-normal whitespace-nowrap align-bottom">{showGrants ? t('grantName') : t('contractName')}</th>
+                              <th className="text-left py-3 font-normal whitespace-nowrap align-bottom">{t('category')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{showGrants ? t('cfdaAln') : t('naicsCode')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('dueDate')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('status')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('aiAssistant')}</th>
+                              <th className="text-center py-3 px-4 font-normal whitespace-nowrap align-bottom">{t('visitSite')}</th>
                             </tr>
                           </thead>
                           <tbody>
                             {contracts.map((contract) => (
                               <tr key={contract.id} className="hover:bg-corama-darker/30">
-                                <td className="py-4 pr-6 text-white font-poppins font-semibold">{contract.name}</td>
+                                <td 
+                                  className="py-4 pr-6 text-white font-poppins font-semibold cursor-pointer hover:text-corama-teal transition-colors"
+                                  onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
+                                  title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
+                                >{contract.name}</td>
                                 <td className="py-4 text-white font-poppins text-sm">{contract.category}</td>
                                 <td className="py-4 px-4 text-center text-white font-poppins text-sm">{contract.naicsCode}</td>
                                 <td className="py-4 px-4 text-center text-white font-poppins text-sm whitespace-nowrap">{contract.dueDate}</td>
@@ -387,7 +444,7 @@ const Dashboard = () => {
                                   <button 
                                     onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
-                                    title="Open AI Assistant for this contract"
+                                    title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
                                   >
                                     <img src="/static/app/dashboard/AIAssistant.svg" alt="AI Assistant" className="w-6 h-6" />
                                   </button>
@@ -396,7 +453,7 @@ const Dashboard = () => {
                                   <button 
                                     onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
-                                    title="Visit contract website"
+                                    title={showGrants ? "Visit grant website" : "Visit contract website"}
                                   >
                                     <img src="/static/app/dashboard/VisitSite.svg" alt="Visit Site" className="w-6 h-6" />
                                   </button>
@@ -412,16 +469,19 @@ const Dashboard = () => {
                         {contracts.map((contract) => (
                           <div key={contract.id} className="rounded-lg p-3 sm:p-4" style={{ backgroundColor: '#2F3C4F' }}>
                             <div className="flex justify-between items-start mb-2">
-                              <h3 className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2">{contract.name}</h3>
+                              <h3 
+                                className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2 cursor-pointer hover:text-corama-teal transition-colors"
+                                onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
+                              >{contract.name}</h3>
                               <span className="text-white font-poppins text-xs sm:text-sm">{contract.status}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-3">
                               <div>
-                                <span className="text-gray-400">Category:</span>
+                                <span className="text-gray-400">{t('category')}:</span>
                                 <p className="text-white">{contract.category}</p>
                               </div>
                               <div>
-                                <span className="text-gray-400">Due:</span>
+                                <span className="text-gray-400">{t('dueDate')}:</span>
                                 <p className="text-white">{contract.dueDate}</p>
                               </div>
                             </div>
@@ -431,14 +491,14 @@ const Dashboard = () => {
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-white text-xs sm:text-sm">AI Assistant</span>
+                                <span className="text-white text-xs sm:text-sm">{t('aiAssistant')}</span>
                               </button>
                               <button 
                                 onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-white text-xs sm:text-sm">Visit Site</span>
+                                <span className="text-white text-xs sm:text-sm">{t('visitSite')}</span>
                               </button>
                             </div>
                           </div>

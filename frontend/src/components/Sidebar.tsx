@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface SidebarProps {
   mobileOpen?: boolean
@@ -18,6 +19,7 @@ interface MenuItem {
 }
 
 const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, onBeforeNavigate }: SidebarProps) => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
@@ -128,13 +130,13 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
   const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
   
   const menuItems: MenuItem[] = [
-    { path: '/dashboard', label: 'Dashboard', icon: '/static/app/dashboard/Dashboard.svg' },
-    { path: '/top-five-contracts', label: 'Top Five Contracts', icon: '/static/app/dashboard/TopFiveContracts.svg' },
-    { path: '/capability-builder', label: 'Capability Builder', icon: '/static/app/dashboard/CapabilityBuilder.svg' },
-    { path: '/corama-directory', label: 'CORAMA Directory', icon: '/static/app/dashboard/CORAMADirectory.svg' },
-    { path: '/get-more-credits', label: 'Get More Credits', icon: '/static/app/dashboard/Credits.svg' },
-    { path: '/support', label: 'Support', icon: '/static/app/dashboard/Support.svg' },
-    { path: '/about-us', label: 'About Us', icon: '/static/app/dashboard/AboutUs.svg', external: true },
+    { path: '/dashboard', label: t('dashboard'), icon: '/static/app/dashboard/Dashboard.svg' },
+    { path: '/top-five-contracts', label: t('topFiveMatches'), icon: '/static/app/dashboard/TopFiveContracts.svg' },
+    { path: '/capability-builder', label: t('capabilityBuilder'), icon: '/static/app/dashboard/CapabilityBuilder.svg' },
+    { path: '/corama-directory', label: t('coramaDirectory'), icon: '/static/app/dashboard/CORAMADirectory.svg' },
+    { path: '/get-more-credits', label: t('getMoreCredits'), icon: '/static/app/dashboard/Credits.svg' },
+    { path: '/support', label: t('support'), icon: '/static/app/dashboard/Support.svg' },
+    { path: '/about-us', label: t('aboutUs'), icon: '/static/app/dashboard/AboutUs.svg', external: true },
   ]
 
   const closeMobile = () => {
@@ -151,19 +153,20 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
 
   return (
     <>
-      {/* Mobile Menu Button - positioned half off the left edge, only show when sidebar is closed */}
+      {/* Mobile Menu Button - positioned at top left with Menu label, aligned with header icons */}
       {!actualOpen && (
         <button 
           onClick={toggleOpen}
-          className="lg:hidden fixed top-4 -left-3 z-50 pl-4 pr-2 py-2 bg-corama-darker/80 opacity-80 rounded-r-md text-white"
+          className="lg:hidden fixed top-0 left-2 z-50 h-14 w-10 flex flex-col items-center justify-center text-white"
           aria-label="Toggle menu"
         >
           <img 
             src="/static/app/dashboard/HamburgerButton.svg" 
             alt="" 
-            className="w-6 h-6"
+            className="w-4 h-4"
             aria-hidden="true"
           />
+          <span className="font-poppins text-[8px] mt-0.5">{t('menu')}</span>
         </button>
       )}
 
@@ -181,13 +184,14 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
         className={`
           fixed lg:sticky lg:relative lg:top-16 inset-y-0 left-0 z-40
           ${isExpanded ? 'w-[290px]' : 'w-[100px]'} lg:h-[calc(100vh-4rem)] h-screen bg-corama-dark flex flex-col
-          transform transition-all duration-300 ease-in-out
-          ${actualOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          transform transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden
+          ${actualOpen ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 lg:translate-x-0 lg:opacity-100'}
         `}
       >
         {/* Vertical separator line: 16px from the Highlight SVG end (258px + 16px = 274px from left, so right-4 = 16px from right edge of 290px sidebar) */}
         <div
-          className="hidden lg:block absolute right-4 top-0 bottom-0 w-px bg-white"
+          className="hidden lg:block absolute right-4 top-0 bottom-0 w-px"
+          style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }}
           aria-hidden="true"
         />
         
@@ -213,35 +217,33 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
               aria-hidden="true"
             />
             {isExpanded && (
-              <span className="font-poppins text-sm text-white whitespace-nowrap">Collapse Menu</span>
+              <span className="font-poppins text-sm text-white whitespace-nowrap">{t('collapseMenu')}</span>
             )}
           </button>
         </div>
         
-        <nav className="flex-1 pt-[16px] overflow-y-auto" style={{ gap: '8px' }}>
+        <nav className="flex-1 pt-[16px] overflow-y-auto overflow-x-hidden" style={{ gap: '8px' }}>
           {menuItems.map((item) => {
             const isActive = location.pathname === item.path
             const isCapabilityBuilder = item.path === '/capability-builder'
             return (
               <div key={item.path} className="relative group" style={{ height: '51px' }}>
-                {/* Hover background layer - controlled width, only shows on hover when not active */}
-                {!isActive && (
-                  <div 
-                    className="absolute top-0 left-0 bottom-0 bg-corama-darker opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                    style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
-                    aria-hidden="true"
-                  />
-                )}
-                {/* Active highlight - use object-right when collapsed to preserve rounded edge */}
-                {isActive && (
-                  <img 
-                    src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
-                    alt="" 
-                    className={`absolute top-0 left-0 bottom-0 h-full object-cover ${isExpanded ? 'object-left' : 'object-right'}`}
-                    style={{ width: isExpanded ? '258px' : '76px' }}
-                    aria-hidden="true"
-                  />
-                )}
+                      {/* Hover background layer - controlled width with smooth resize transition */}
+                      <div 
+                        className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${!isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                        style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                        aria-hidden="true"
+                      />
+                      {/* Active highlight - CSS gradient with smooth resize transition (teal gradient from original SVG) */}
+                      <div 
+                        className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isActive ? 'opacity-100' : 'opacity-0'}`}
+                        style={{ 
+                          width: isExpanded ? '258px' : '76px',
+                          background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                          borderRadius: '0 9999px 9999px 0'
+                        }}
+                        aria-hidden="true"
+                      />
                 {item.external ? (
                   <a
                     href={item.path}
@@ -305,24 +307,22 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           {/* Admin Link - only shown for admin users */}
           {isAdmin && (
             <div className="relative group mt-2" style={{ height: '51px' }}>
-              {/* Hover background layer */}
-              {location.pathname !== '/admin/directory' && (
-                <div 
-                  className="absolute top-0 left-0 bottom-0 bg-corama-darker opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                  style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
-                  aria-hidden="true"
-                />
-              )}
-              {/* Active highlight */}
-              {location.pathname === '/admin/directory' && (
-                <img 
-                  src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
-                  alt="" 
-                  className={`absolute top-0 left-0 bottom-0 h-full object-cover ${isExpanded ? 'object-left' : 'object-right'}`}
-                  style={{ width: isExpanded ? '258px' : '76px' }}
-                  aria-hidden="true"
-                />
-              )}
+              {/* Hover background layer - smooth resize transition */}
+              <div 
+                className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                aria-hidden="true"
+              />
+              {/* Active highlight - CSS gradient with smooth resize transition (teal gradient from original SVG) */}
+              <div 
+                className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
+                style={{ 
+                  width: isExpanded ? '258px' : '76px',
+                  background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                  borderRadius: '0 9999px 9999px 0'
+                }}
+                aria-hidden="true"
+              />
               <Link
                 to="/admin/directory"
                 onClick={closeMobile}
@@ -342,7 +342,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                   <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
                 </svg>
                 {isExpanded && (
-                  <span className="font-poppins text-sm">Admin: Directory</span>
+                  <span className="font-poppins text-sm">{t('adminDirectory')}</span>
                 )}
               </Link>
             </div>
@@ -351,30 +351,27 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
             <div className="relative mt-2 group" style={{ height: '51px' }}>
-              {/* Collapsed state: use object-right to preserve rounded edge */}
-              {!isExpanded && (
-                <img 
-                  src="/static/app/dashboard/HighlightGoBackCollapsed.svg"
-                  alt="" 
-                  className="absolute top-0 left-0 bottom-0 h-full object-cover object-right"
-                  style={{ width: '76px' }}
-                  aria-hidden="true"
-                />
-              )}
+              {/* Single button with smooth morphing animation for width, borderRadius, and background (dark blue gradient) */}
               <button
                 onClick={handleGoBack}
-                className="relative flex items-center h-full px-4 text-white transition-all hover:opacity-90"
+                className="relative flex items-center h-full px-4 text-white transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] hover:opacity-90"
                 style={{
-                  background: isExpanded ? 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)' : 'transparent',
+                  background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
                   width: isExpanded ? '258px' : '76px',
-                  borderRadius: isExpanded ? '0 9999px 9999px 0' : '0',
+                  borderRadius: isExpanded ? '0 9999px 9999px 0' : '9999px',
                   gap: '8px'
                 }}
               >
                 <img src="/static/app/dashboard/GoBack.svg" alt="" className="w-[25px] h-[25px]" aria-hidden="true" />
-                {isExpanded && (
-                  <span className="font-poppins text-sm">Go Back</span>
-                )}
+                <span 
+                  className="font-poppins text-sm transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] whitespace-nowrap overflow-hidden"
+                  style={{ 
+                    opacity: isExpanded ? 1 : 0,
+                    maxWidth: isExpanded ? '200px' : '0px'
+                  }}
+                >
+                  {t('goBack')}
+                </span>
               </button>
             </div>
           )}
@@ -382,8 +379,8 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
         
         {/* IHCC and Social Media Section - fixed at bottom, centered */}
         {isExpanded && (
-          <div className="px-4 pt-4 pb-[36px] text-center shrink-0">
-            <p className="text-white text-xs mb-2">Learn More About IHCC</p>
+          <div className={`px-4 pt-4 pb-[36px] text-center shrink-0 transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${actualOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 lg:opacity-100 lg:translate-x-0'}`}>
+            <p className="text-white text-xs mb-2">{t('learnMoreIHCC')}</p>
             <a 
               href="https://ihccbusiness.net/" 
               target="_blank" 
@@ -396,7 +393,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                 className="h-24 w-auto mx-auto"
               />
             </a>
-            <p className="text-white text-xs mb-3">Follow Contract Radar Maximizer</p>
+            <p className="text-white text-xs mb-3">{t('followCorama')}</p>
             <div className="flex justify-center gap-3">
               <a 
                 href="https://www.instagram.com/corama.ai/" 

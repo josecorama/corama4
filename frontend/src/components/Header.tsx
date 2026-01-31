@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Search } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface HeaderProps {
   credits?: number
@@ -9,10 +10,19 @@ interface HeaderProps {
 
 const CREDITS_CACHE_KEY = 'corama_credits_cache'
 const CREDITS_ANIMATED_KEY = 'corama_credits_animated'
+const CREDITS_LAST_VALUE_KEY = 'corama_credits_last_value'
 
 const useCountUp = (targetValue: number | null, duration: number = 800) => {
-  const [displayValue, setDisplayValue] = useState<number | null>(null)
-  const hasAnimatedRef = useRef(false)
+  const [displayValue, setDisplayValue] = useState<number | null>(() => {
+    // Initialize from sessionStorage to prevent flash
+    if (typeof window === 'undefined') return null
+    const lastValue = sessionStorage.getItem(CREDITS_LAST_VALUE_KEY)
+    if (lastValue !== null) {
+      const parsed = parseInt(lastValue, 10)
+      return isNaN(parsed) ? null : parsed
+    }
+    return null
+  })
   const animationRef = useRef<number | null>(null)
 
   useEffect(() => {
@@ -21,18 +31,42 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
       return
     }
 
-    const alreadyAnimated = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
+    // Cancel any ongoing animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current)
+    }
+
+    const alreadyAnimatedInitial = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
+    const lastValueStr = sessionStorage.getItem(CREDITS_LAST_VALUE_KEY)
+    const lastValue = lastValueStr !== null ? parseInt(lastValueStr, 10) : null
     
-    if (alreadyAnimated || hasAnimatedRef.current) {
+    // Determine start value for animation
+    let startValue: number
+    let shouldAnimate = false
+    
+    if (!alreadyAnimatedInitial) {
+      // First load ever: animate from 0
+      startValue = 0
+      shouldAnimate = true
+      sessionStorage.setItem(CREDITS_ANIMATED_KEY, 'true')
+    } else if (lastValue !== null && lastValue !== targetValue) {
+      // Credits changed: animate from last value
+      startValue = lastValue
+      shouldAnimate = true
+    } else {
+      // No change: just set the value without animation
       setDisplayValue(targetValue)
+      sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
       return
     }
 
-    hasAnimatedRef.current = true
-    sessionStorage.setItem(CREDITS_ANIMATED_KEY, 'true')
+    if (!shouldAnimate) {
+      setDisplayValue(targetValue)
+      sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
+      return
+    }
 
     const startTime = performance.now()
-    const startValue = 0
 
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime
@@ -45,6 +79,9 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
 
       if (progress < 1) {
         animationRef.current = requestAnimationFrame(animate)
+      } else {
+        // Animation complete: save final value
+        sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
       }
     }
 
@@ -61,6 +98,7 @@ const useCountUp = (targetValue: number | null, duration: number = 800) => {
 }
 
 const Header = ({ credits: propCredits }: HeaderProps) => {
+  const { t } = useTranslation()
   const [credits, setCredits] = useState<number | null>(() => {
     if (typeof window === 'undefined') return propCredits ?? null
     const cached = sessionStorage.getItem(CREDITS_CACHE_KEY)
@@ -74,7 +112,22 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
   const displayCredits = useCountUp(credits)
 
   useEffect(() => {
+    // Always fetch credits from API to ensure we have the latest value
+    // The animation logic will handle whether to animate or not based on value changes
     loadUserData()
+
+    // Listen for credit changes from other components
+    const handleCreditsChanged = (event: CustomEvent<{ credits: number }>) => {
+      const newCredits = event.detail.credits
+      setCredits(newCredits)
+      sessionStorage.setItem(CREDITS_CACHE_KEY, String(newCredits))
+    }
+
+    window.addEventListener('creditsChanged', handleCreditsChanged as EventListener)
+    
+    return () => {
+      window.removeEventListener('creditsChanged', handleCreditsChanged as EventListener)
+    }
   }, [])
 
   const loadUserData = async () => {
@@ -129,34 +182,39 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
               <Search className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
               <input
                 type="text"
-                placeholder="SEARCH"
+                placeholder={t('searchInCorama')}
                 className="w-full rounded-full py-1.5 sm:py-2 lg:py-2.5 pl-8 sm:pl-12 pr-2 sm:pr-4 text-white placeholder-gray-400 focus:outline-none transition-colors text-xs sm:text-sm"
                 style={{ backgroundColor: 'rgb(19, 41, 71)', border: '1px solid rgb(60, 87, 114)' }}
               />
             </div>
           </div>
           
-          <div className="flex items-center gap-2 sm:gap-4 lg:gap-6 flex-shrink-0">
-            <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-              <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              {displayCredits !== null && (
-                <span className="font-poppins text-xs sm:text-sm">{displayCredits}</span>
-              )}
-              <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Credits</span>
+          <div className="flex items-center gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
+            {/* Credits - mobile: icon with label below, desktop: inline */}
+            <Link to="/get-more-credits" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
+              <img src="/static/app/dashboard/Credits.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
+              <div className="flex flex-col sm:flex-row items-center gap-0 sm:gap-1">
+                {displayCredits !== null && (
+                  <span className="font-poppins text-[8px] sm:text-xs">{displayCredits}</span>
+                )}
+                <span className="font-poppins text-[8px] sm:text-xs">{t('credits')}</span>
+              </div>
             </Link>
             
+            {/* Logout - mobile: icon with label below, desktop: inline */}
             <button 
               onClick={handleLogout}
-              className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors"
+              className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
             >
-              <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Log Out</span>
+              <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
+              <span className="font-poppins text-[8px] sm:text-xs">{t('logOut')}</span>
             </button>
             
-            <button className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
-              <img src="/static/app/dashboard/settings.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              <span className="hidden lg:inline font-poppins text-sm">Settings</span>
-            </button>
+            {/* Settings - mobile: icon with label below, desktop: inline */}
+            <Link to="/settings" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
+              <img src="/static/app/dashboard/settings.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
+              <span className="font-poppins text-[8px] sm:text-xs">{t('settings')}</span>
+            </Link>
           </div>
         </div>
       </div>

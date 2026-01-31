@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api, DirectoryProfile } from '../services/api'
+import { useTranslation } from '../i18n'
 
 const EditDirectoryProfile = () => {
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [credits, setCredits] = useState(0)
   const [_hasListing, setHasListing] = useState(false)
   const [_authError, setAuthError] = useState<string | null>(null)
   const [profile, setProfile] = useState<DirectoryProfile>({
@@ -32,7 +33,6 @@ const EditDirectoryProfile = () => {
 
   useEffect(() => {
     loadProfile()
-    loadCredits()
   }, [])
 
   const loadProfile = async () => {
@@ -59,16 +59,6 @@ const EditDirectoryProfile = () => {
     }
   }
 
-  const loadCredits = async () => {
-    try {
-      const data = await api.getCredits()
-      if (data.success) {
-        setCredits(data.current_balance)
-      }
-    } catch (error) {
-      console.error('Failed to load credits:', error)
-    }
-  }
 
   const handleInputChange = (field: keyof DirectoryProfile, value: string | boolean) => {
     setProfile(prev => ({ ...prev, [field]: value }))
@@ -138,9 +128,9 @@ const EditDirectoryProfile = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-corama-dark">
-        <Header credits={credits} />
+        <Header />
         <div className="flex">
-          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
           <Sidebar />
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden flex items-center justify-center">
@@ -155,12 +145,12 @@ const EditDirectoryProfile = () => {
   return (
     <div className="min-h-screen bg-corama-dark">
       {/* Header spans full width at top */}
-      <Header credits={credits} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex">
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
         <Sidebar />
         
@@ -283,17 +273,19 @@ const EditDirectoryProfile = () => {
                 <div>
                   <label className="block text-gray-400 font-poppins text-sm mb-2">Team Size</label>
                   <input
-                    type="text"
+                    type="number"
+                    min="1"
                     value={profile.team_size}
                     onChange={(e) => handleInputChange('team_size', e.target.value)}
-                    placeholder="Select your team size"
+                    placeholder="Enter team size"
                     className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
                   />
                 </div>
                 <div>
                   <label className="block text-gray-400 font-poppins text-sm mb-2">Years in Business</label>
                   <input
-                    type="text"
+                    type="number"
+                    min="0"
                     value={profile.years_in_business}
                     onChange={(e) => handleInputChange('years_in_business', e.target.value)}
                     placeholder="e.g., 15"

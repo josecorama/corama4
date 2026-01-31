@@ -8,6 +8,7 @@ import { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // PDF Viewer imports
 import { Viewer, Worker } from '@react-pdf-viewer/core'
@@ -62,6 +63,7 @@ interface ContractAnalysisState {
 }
 
 const ContractAnalysis = () => {
+  const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ContractAnalysisState | null
@@ -349,6 +351,20 @@ const ContractAnalysis = () => {
           // If status is 'queued' or 'running', continue polling
           
         } catch (pollError) {
+          const errorMessage = pollError instanceof Error ? pollError.message : String(pollError)
+          
+          // Check if this is a rate limit error (429)
+          const isRateLimitError = errorMessage.includes('429') || 
+                                   errorMessage.includes('rate_limit') || 
+                                   errorMessage.includes('Rate limit')
+          
+          if (isRateLimitError) {
+            // Silently continue polling for rate limit errors - loading animation is already showing
+            // The interval will retry automatically
+            return
+          }
+          
+          // For other errors, stop polling and show error
           console.error('Error polling job:', pollError)
           if (jobPollingRef.current) {
             clearInterval(jobPollingRef.current)
@@ -356,7 +372,7 @@ const ContractAnalysis = () => {
           }
           setIsGeneratingFindings(false)
           setJobProgress('')
-          alert(pollError instanceof Error ? pollError.message : 'Failed to get analysis results')
+          alert(errorMessage || 'Failed to get analysis results')
         }
       }
       
@@ -390,12 +406,12 @@ const ContractAnalysis = () => {
   return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
       {/* Header spans full width at top */}
-      <Header key={headerKey} credits={5} />
+      <Header key={headerKey} />
       
       {/* Sidebar + Content row below header */}
       <div className="flex flex-1 overflow-hidden">
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
         <Sidebar />
       

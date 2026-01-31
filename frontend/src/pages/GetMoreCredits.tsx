@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api, CreditPackage } from '../services/api'
+import { useTranslation } from '../i18n'
 
 interface CreditPack {
   credits: number
@@ -22,6 +23,7 @@ interface CreditFeature {
 }
 
 const GetMoreCredits = () => {
+  const { t } = useTranslation()
   const [_credits, setCredits] = useState(0)
   const [creditPacks, setCreditPacks] = useState<CreditPack[]>([])
   const [_loading, setLoading] = useState(true)
@@ -92,57 +94,57 @@ const GetMoreCredits = () => {
     }
   }
 
-  const creditFeatures: CreditFeature[] = [
-    {
-      icon: '/static/app/dashboard/BasicAIChat.svg',
-      title: 'Basic AI Chat',
-      description: 'Get instant answers to your questions about government contracting, procurement processes, and general guidance.',
-      credits: 1,
-      bgColor: 'bg-[#8FBABC]',
-      textColor: '#1C4262',
-    },
-    {
-      icon: '/static/app/dashboard/ComplianceCheck.svg',
-      title: 'Compliance Check',
-      description: 'Deep analysis of contract opportunities to identify key requirements, evaluation criteria, and match them against your capabilities.',
-      credits: 2,
-      bgColor: 'bg-[#2F3C4F]',
-      textColor: '#DDFFFF',
-    },
-    {
-      icon: '/static/app/dashboard/ContractAnalysis.svg',
-      title: 'Contract Analysis',
-      description: 'Verify that your capability statement or proposal meets all necessary compliance requirements for government contracting.',
-      credits: 3,
-      bgColor: 'bg-[#8FBABC]',
-      textColor: '#1C4262',
-    },
-    {
-      icon: '/static/app/dashboard/FullProposal.svg',
-      title: 'Full Proposal',
-      description: 'Generate a comprehensive, professionally formatted proposal document tailored to a specific contract opportunity.',
-      credits: 15,
-      bgColor: 'bg-[#2F3C4F]',
-      textColor: '#DDFFFF',
-    },
-  ]
+    const creditFeatures: CreditFeature[] = [
+      {
+        icon: '/static/app/dashboard/BasicAIChat.svg',
+        title: t('basicAiChat'),
+        description: t('basicAiChatDesc'),
+        credits: 1,
+        bgColor: 'bg-[#8FBABC]',
+        textColor: '#1C4262',
+      },
+      {
+        icon: '/static/app/dashboard/ComplianceCheck.svg',
+        title: t('complianceCheck'),
+        description: t('complianceCheckDesc'),
+        credits: 2,
+        bgColor: 'bg-[#2F3C4F]',
+        textColor: '#DDFFFF',
+      },
+      {
+        icon: '/static/app/dashboard/ContractAnalysis.svg',
+        title: t('contractAnalysis'),
+        description: t('contractAnalysisDesc'),
+        credits: 3,
+        bgColor: 'bg-[#8FBABC]',
+        textColor: '#1C4262',
+      },
+      {
+        icon: '/static/app/dashboard/FullProposal.svg',
+        title: t('fullProposal'),
+        description: t('fullProposalDesc'),
+        credits: 15,
+        bgColor: 'bg-[#2F3C4F]',
+        textColor: '#DDFFFF',
+      },
+    ]
 
     return (
       <div className="min-h-screen bg-corama-dark">
         {/* Header spans full width at top */}
-        <Header credits={5} />
+        <Header />
         
         {/* Sidebar + Content row below header */}
         <div className="flex">
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
           
           <Sidebar />
         
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
             {/* Page Title */}
-            <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8">Get More Credits</h1>
+            <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8">{t('getMoreCredits')}</h1>
 
             {/* Credit Packs */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 lg:mb-12">
@@ -176,14 +178,14 @@ const GetMoreCredits = () => {
                     disabled={purchasing !== null}
                     className={`w-full py-2 rounded-lg font-poppins font-semibold text-sm sm:text-base transition-colors bg-corama-teal text-corama-dark group-hover:bg-corama-dark group-hover:text-white mt-auto ${purchasing !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    {purchasing === pack.credits ? 'Processing...' : 'Choose Pack'}
+                    {purchasing === pack.credits ? t('processing') : t('choosePack')}
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* How Credits Work */}
-            <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6">How Credits Work</h2>
+                        {/* How Credits Work */}
+                        <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6">{t('howCreditsWork')}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {creditFeatures.map((feature, index) => (
                 <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6`}>

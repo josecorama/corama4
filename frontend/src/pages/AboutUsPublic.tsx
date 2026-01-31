@@ -125,9 +125,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
       ref={cardRef}
       className="relative flex flex-col w-full max-w-[342px] h-[432px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
       style={{
-        background: 'linear-gradient(90deg, rgba(107, 180, 181, 0.7) 9%, rgba(156, 214, 215, 0.7) 88%, rgba(133, 196, 199, 0.7) 100%)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
+        background: 'linear-gradient(90deg, rgb(107, 180, 181) 9%, rgb(156, 214, 215) 88%, rgb(133, 196, 199) 100%)',
         border: '1px solid rgba(255, 255, 255, 0.2)',
         boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
         transformStyle: 'preserve-3d',
@@ -296,24 +294,28 @@ const AboutUsPublic = () => {
   }
 
   return (
-    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden">
+    <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
+      {/* Flicker Background */}
+      <div className="prelogin-flicker-bg" />
+      
       {/* Header */}
-      <header className="h-20 flex-shrink-0 bg-[#0B0B0F]/90 backdrop-blur-sm z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-full flex items-center justify-between">
+      <header className="h-16 sm:h-20 flex-shrink-0 bg-[#0B0B0F] backdrop-blur-sm z-50">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-full flex items-center justify-between">
           <a href="/" className="flex items-center gap-2">
-            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" />
+            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" />
           </a>
           
-          <nav className="hidden md:flex items-center gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
-            <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">Support</a>
-            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">FAQ</a>
-            <a href="/about-us" className="text-white font-poppins text-sm transition-colors">About Us</a>
+          {/* Navigation - visible on all screens with smaller text on mobile */}
+          <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
+            <a href="/pricing" className="hidden sm:block text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">Pricing</a>
+            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
+            <a href="/about-us" className="text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
           </nav>
           
-          <div className="flex items-center gap-2 sm:gap-4">
-            <a href="/login" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white" style={{ width: '96px' }}>Log In</a>
-            <a href="/signup" className="text-white font-poppins text-xs sm:text-sm font-semibold py-2 sm:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)', width: '96px' }}>Sign up</a>
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
+            <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
+            <a href="/signup" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
           </div>
         </div>
       </header>
@@ -321,7 +323,7 @@ const AboutUsPublic = () => {
       {/* Scrollable container */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-[1] snap-y snap-mandatory"
+        className="flex-1 overflow-y-auto scroll-smooth scrollbar-hide relative z-10 snap-y snap-mandatory"
         style={{ 
           scrollBehavior: 'smooth',
           scrollbarWidth: 'none',
@@ -409,27 +411,27 @@ const AboutUsPublic = () => {
         <section 
           ref={setSectionRef('team')}
           data-section="team"
-          className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('team')}`}
+          className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-8 lg:py-0 snap-start ${getSectionClass('team')}`}
         >
-          <div className="max-w-7xl mx-auto relative z-10">
-            <div className="w-full text-center mb-8">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 tracking-tight font-poppins">
+          <div className="max-w-7xl mx-auto relative z-10 w-full">
+            <div className="w-full text-center mb-6 lg:mb-8">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 sm:mb-3 tracking-tight font-poppins">
                 Meet the Team
               </h2>
-              <p className="text-base text-white max-w-2xl mx-auto font-light leading-relaxed font-poppins">
+              <p className="text-sm sm:text-base text-white max-w-2xl mx-auto font-light leading-relaxed font-poppins px-2">
                 Meet the visionary leaders behind Contract Radar Maximizer's
                 mission to revolutionize government contracting for small businesses.
               </p>
             </div>
 
             {/* Mobile: Horizontal scrollable carousel */}
-            <div className="lg:hidden w-full">
+            <div className="lg:hidden w-full overflow-visible">
               <div 
-                className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-4 scrollbar-hide"
+                className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-2 pb-4 scrollbar-hide -mx-2"
                 style={{ WebkitOverflowScrolling: 'touch' }}
               >
                 {teamMembers.map((member) => (
-                  <div key={member.name} className="flex-shrink-0 w-[80vw] snap-center">
+                  <div key={member.name} className="flex-shrink-0 w-[85vw] max-w-[342px] snap-center first:ml-2 last:mr-2">
                     <TeamMemberCard
                       name={member.name}
                       role={member.role}

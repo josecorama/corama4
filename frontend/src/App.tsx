@@ -22,6 +22,7 @@ import FAQ from './pages/FAQ'
 import AboutUsPublic from './pages/AboutUsPublic'
 import Support from './pages/Support'
 import AdminDirectory from './pages/AdminDirectory'
+import Settings from './pages/Settings'
 
 function App() {
   return (
@@ -50,6 +51,7 @@ function App() {
                                                   <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />
                                                   <Route path="/support" element={<Support />} />
                                                   <Route path="/admin/directory" element={<AdminDirectory />} />
+                                                  <Route path="/settings" element={<Settings />} />
                                                 </Routes>
     </Router>
   )

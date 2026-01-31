@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
+import { useTranslation } from '../i18n'
 
 // Team member data (CORAMA team)
 const teamMembers = [
@@ -46,14 +47,14 @@ const expertAdvisors = [
   {
     name: 'Jacqueline Valle',
     role: 'Grants Manager',
-    description: 'Manages the full lifecycle of grant acquisition, budgeting, and compliance. Acts as the primary liaison for funders, leveraging a degree in Human Resources Management and a strong background in executive support.',
+    description: 'Manages the full lifecycle of grant acquisition, budgeting, and compliance. Acts as the primary liaison for funders, leveraging a degree in Human Resources Management.',
     imageUrl: '/static/app/advisors/Jacqui.webp',
     email: 'jacqueline@ihccbusiness.net'
   },
   {
     name: 'Andres Solares',
     role: 'Government and Community Relations Director',
-    description: 'Spearheads advocacy initiatives and builds strategic partnerships with government officials and community stakeholders. Brings extensive experience in public policy, legislative affairs, and coalition building to advance the organization\'s mission.',
+    description: 'Spearheads advocacy initiatives and builds strategic partnerships with government officials and community stakeholders. Brings extensive experience in public policy and legislative affairs.',
     imageUrl: '/static/app/advisors/Andres-Headshot-Web.webp',
     email: 'asolarte@ihccbusiness.net'
   },
@@ -137,14 +138,14 @@ const expertAdvisors = [
   {
     name: 'Danna Gallegos',
     role: 'Marketing & Communications Assistant',
-    description: 'Supports the execution of digital marketing campaigns and content creation to enhance brand visibility. Skilled in social media management, graphic design, and coordinating communications strategies for diverse audiences.',
+    description: 'Supports the execution of digital marketing campaigns and content creation to enhance brand visibility. Skilled in social media management and graphic design.',
     imageUrl: '/static/app/advisors/Danna-Headshot-Web.webp',
     email: 'dgallegos@ihccbusiness.net'
   },
   {
     name: 'Clarissa Roa',
     role: 'Illinois Tollway Program Administrator',
-    description: 'Oversees technical assistance programs to guide businesses through Tollway procurement opportunities. Specializes in project management, contract compliance, and navigating complex government requirements to drive small business growth.',
+    description: 'Oversees technical assistance programs to guide businesses through Tollway procurement opportunities.',
     imageUrl: '/static/app/advisors/Clarissa-1.webp',
     email: 'croa@ihccbusiness.net'
   }
@@ -527,6 +528,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
 }
 
 const Support = () => {
+  const { t: _t } = useTranslation()
   // Override body background color for this page only
   useEffect(() => {
     const originalBodyBg = document.body.style.backgroundColor
@@ -545,7 +547,7 @@ const Support = () => {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#0B2C48' }}>
-      <Header credits={5} />
+      <Header />
       <div className="flex flex-1 overflow-hidden" style={{ backgroundColor: '#0B2C48' }}>
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: '#0B2C48' }}>

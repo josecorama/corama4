@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // Discard Changes Popup Component
 interface DiscardChangesPopupProps {
@@ -24,40 +25,56 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
       />
       
       {/* Popup */}
-      <div className="relative bg-[#1C4262] rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-white/20">
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
+      >
+        {/* Close button */}
+        <button 
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+          onClick={onStayHere}
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        
         {/* Warning Icon */}
-        <div className="flex justify-center mb-6">
+        <div className="flex-shrink-0">
           <img 
-            src="/static/app/dashboard/WarnIcon.svg" 
+            src="/static/app/proposal-summary/WarnIcon.svg" 
             alt="Warning" 
-            className="w-16 h-16"
+            className="w-16 h-16 sm:w-20 sm:h-20"
           />
         </div>
         
-        {/* Title */}
-        <h2 className="text-white font-poppins font-bold text-xl text-center mb-3">
-          Discard Unsaved Changes?
-        </h2>
-        
-        {/* Message */}
-        <p className="text-gray-300 font-poppins text-sm text-center mb-8">
-          You have unsaved progress in this workflow. If you leave now, your changes will be lost.
-        </p>
-        
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            onClick={onStayHere}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#1C4262] font-poppins font-bold rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Stay Here
-          </button>
-          <button
-            onClick={onDiscard}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white font-poppins font-bold rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Discard & Go Back
-          </button>
+        {/* Content */}
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              Discard unsaved changes?
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              You're in the middle of a workflow.<br />
+              If you go back now, your progress in this page will not be saved.
+            </p>
+          </div>
+          
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onStayHere}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'rgb(92, 191, 192)' }}
+            >
+              Stay Here
+            </button>
+            <button
+              onClick={onDiscard}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: 'rgb(39, 69, 110)' }}
+            >
+              Discard & Go Back
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -196,11 +213,17 @@ To start building it, simply type "**Start Guided Process**" in the chat. This w
 }
 
 const AIAssistant = () => {
+  const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string } | null
-  const contractName = state?.contractName || 'this contract'
-  const contractId = state?.contractId || ''
+  
+  // Get contract name from state first, then from URL params (for returning from NoCS page)
+  const contractNameFromState = state?.contractName
+  const contractNameFromUrl = searchParams.get('contractName')
+  const contractName = contractNameFromState || contractNameFromUrl || 'this contract'
+  const contractId = state?.contractId || searchParams.get('contractId') || ''
   
   // Check if user has capability statement on load
   const [hasCapabilityStatement, setHasCapabilityStatement] = useState<boolean | null>(null)
@@ -211,8 +234,9 @@ const AIAssistant = () => {
         const user = await api.getUser()
         setHasCapabilityStatement(user.has_capability_statement)
         if (!user.has_capability_statement) {
-          // Redirect to No CS page with returnTo parameter
-          navigate('/no-capability-statement?returnTo=/ai-assistant')
+          // Redirect to No CS page with returnTo parameter that includes contract info
+          const returnUrl = `/ai-assistant?contractName=${encodeURIComponent(contractName)}${contractId ? `&contractId=${encodeURIComponent(contractId)}` : ''}`
+          navigate(`/no-capability-statement?returnTo=${encodeURIComponent(returnUrl)}`)
         }
       } catch (error) {
         console.error('Failed to check capability statement:', error)
@@ -221,7 +245,7 @@ const AIAssistant = () => {
       }
     }
     checkCapabilityStatement()
-  }, [navigate])
+  }, [navigate, contractName, contractId])
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -450,12 +474,16 @@ const AIAssistant = () => {
         // Call backend API for AI action with conversation history
         try {
           const conversationHistory = buildConversationHistory()
-          const response = await api.aiAssistantAction(actionKey, contractName, conversationHistory)
+          // Generate idempotency key to prevent double-click duplicate charges
+          const idempotencyKey = `ai_assistant_${actionKey}_${contractId}_${Date.now()}`
+          const response = await api.aiAssistantAction(actionKey, contractName, conversationHistory, idempotencyKey)
           
           if (response.success) {
             addAiMessage(response.message)
-            // Force Header to refresh credits
-            setHeaderKey(k => k + 1)
+            // Force Header to refresh credits (skip if cached response)
+            if (!response.cached) {
+              setHeaderKey(k => k + 1)
+            }
             // Add follow-up PDF question after a delay (after typing animation)
             setTimeout(() => {
               const pdfFollowUp: Message = {
@@ -480,12 +508,16 @@ const AIAssistant = () => {
         // This allows the AI to follow up on its own questions
         try {
           const conversationHistory = buildConversationHistory()
-          const response = await api.aiAssistantAction('conversation', contractName, conversationHistory)
+          // Generate idempotency key to prevent double-click duplicate charges
+          const idempotencyKey = `ai_assistant_conversation_${contractId}_${Date.now()}`
+          const response = await api.aiAssistantAction('conversation', contractName, conversationHistory, idempotencyKey)
           
           if (response.success) {
             addAiMessage(response.message)
-            // Force Header to refresh credits
-            setHeaderKey(k => k + 1)
+            // Force Header to refresh credits (skip if cached response)
+            if (!response.cached) {
+              setHeaderKey(k => k + 1)
+            }
           } else {
             addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
           }
@@ -518,21 +550,21 @@ const AIAssistant = () => {
         />
         
         {/* Header spans full width at top */}
-        <Header key={headerKey} credits={5} />
+        <Header key={headerKey} />
         
         {/* Sidebar + Content row below header */}
         <div className="flex flex-1 overflow-hidden">
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
           
           <Sidebar 
             onBeforeNavigate={(to) => {
               // Define workflow pages that should show the discard popup when leaving
-              const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis']
+              const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis', '/proposal-team', '/public-bid-proposal-generator']
               const isLeavingWorkflow = !workflowPages.some(page => to.startsWith(page))
               
-              // If user has progress and is leaving the workflow, show popup
-              if (hasUnsavedProgress && isLeavingWorkflow) {
+              // If user is leaving the workflow, show popup
+              if (isLeavingWorkflow) {
                 setPendingNavigation(to)
                 setShowDiscardPopup(true)
                 return false // Prevent navigation

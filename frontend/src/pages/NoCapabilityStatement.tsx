@@ -4,12 +4,14 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
 import { api } from '../services/api'
+import { useTranslation } from '../i18n'
 
 // SVG asset paths for empty state
 const ExclamationMarkIcon = '/static/app/dashboard/ExclamationMark.svg'
 const NoCSImage = '/static/app/dashboard/NoCSImage.svg'
 
 const NoCapabilityStatement = () => {
+  const { t: _t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -46,12 +48,12 @@ const NoCapabilityStatement = () => {
   return (
     <div className="min-h-screen bg-corama-dark">
       {/* Header spans full width at top */}
-      <Header credits={5} />
+      <Header />
       
       {/* Sidebar + Content row below header */}
       <div className="flex">
         {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
         
         <Sidebar />
         
