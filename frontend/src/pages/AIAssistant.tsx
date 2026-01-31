@@ -16,48 +16,60 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50"
         onClick={onStayHere}
       />
-      
-      {/* Popup */}
-      <div className="relative bg-[#1C4262] rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-white/20">
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto"
+        style={{ backgroundColor: '#0B2C48', minHeight: '200px' }}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onStayHere}
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        
         {/* Warning Icon */}
-        <div className="flex justify-center mb-6">
+        <div className="flex-shrink-0">
           <img 
             src="/static/app/dashboard/WarnIcon.svg" 
             alt="Warning" 
-            className="w-16 h-16"
+            className="w-16 h-16 sm:w-20 sm:h-20"
           />
         </div>
         
-        {/* Title */}
-        <h2 className="text-white font-poppins font-bold text-xl text-center mb-3">
-          Discard Unsaved Changes?
-        </h2>
-        
-        {/* Message */}
-        <p className="text-gray-300 font-poppins text-sm text-center mb-8">
-          You have unsaved progress in this workflow. If you leave now, your changes will be lost.
-        </p>
-        
-        {/* Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            onClick={onStayHere}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#1C4262] font-poppins font-bold rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Stay Here
-          </button>
-          <button
-            onClick={onDiscard}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white font-poppins font-bold rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Discard & Go Back
-          </button>
+        {/* Content */}
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              Discard Unsaved Changes?
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              You have unsaved progress in this workflow. If you leave now, your changes will be lost.
+            </p>
+          </div>
+          
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onStayHere}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#5CBFC0' }}
+            >
+              Stay Here
+            </button>
+            <button
+              onClick={onDiscard}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#27456E' }}
+            >
+              Discard & Go Back
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -523,7 +535,7 @@ const AIAssistant = () => {
         {/* Sidebar + Content row below header */}
         <div className="flex flex-1 overflow-hidden">
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
-          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+          <div className="hidden lg:block fixed left-0 right-0 top-16 h-px z-50" style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }} aria-hidden="true" />
           
           <Sidebar 
             onBeforeNavigate={(to) => {

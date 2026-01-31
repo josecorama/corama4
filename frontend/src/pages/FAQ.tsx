@@ -57,25 +57,30 @@ const FAQ = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0B0F] flex flex-col">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]/90 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-          <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-3 sm:h-3.5 w-auto" /></a>
+        <div className="min-h-screen bg-[#0B0B0F] flex flex-col relative">
+          {/* Background flicker effect */}
+          <div className="prelogin-flicker-bg" />
+          {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#0B0B0F]">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-16 sm:h-20 flex items-center justify-between">
+          <a href="/"><img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" /></a>
           
-          <nav className="hidden md:flex items-center gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">IHCC</a>
-            <a href="#" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">Support</a>
-            <a href="/faq" className="text-white font-poppins text-sm transition-colors">FAQ</a>
-            <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-sm transition-colors">About Us</a>
-          </nav>
+                    {/* Navigation - visible on all screens with smaller text on mobile */}
+                    <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
+                      <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 font-poppins text-[10px] sm:text-sm">IHCC</a>
+                      <a href="/faq" className="text-white font-poppins text-[10px] sm:text-sm">FAQ</a>
+                      <a href="/about-us" className="text-gray-300 font-poppins text-[10px] sm:text-sm">About Us</a>
+                    </nav>
           
-          <a href="/login" className="text-corama-teal font-poppins text-sm font-medium hover:text-[#99c8ca] transition-colors">Login</a>
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
+            <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
+            <a href="/signup" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
+          </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 pt-24 sm:pt-32 pb-32 px-4 sm:px-6">
+            {/* Main Content */}
+            <div className="flex-1 pt-24 sm:pt-32 pb-40 sm:pb-32 px-4 sm:px-6 relative z-10">
         <div className="max-w-6xl mx-auto">
           {/* Title */}
           <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white text-center mb-12 sm:mb-16">
@@ -221,8 +226,8 @@ const FAQ = () => {
         </div>
       </div>
 
-      {/* Footer - with padding-top to prevent touching elements above */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-[#0B0B0F] via-[#0B0B0F]/95 to-transparent pt-12 pb-5 z-40">
+            {/* Footer - at bottom of page content, not fixed */}
+            <footer className="bg-[#0B0B0F] pt-8 pb-5 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white font-poppins">
           <div className="text-center sm:text-left">
             <div>180 North Michigan Avenue</div>

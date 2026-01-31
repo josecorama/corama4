@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
+import InsufficientCreditsPopup from '../components/InsufficientCreditsPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
@@ -55,38 +56,60 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50"
         onClick={onStayHere}
       />
-      <div className="relative bg-[#1C4262] rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-white/20">
-        <div className="flex justify-center mb-6">
+      <div 
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto"
+        style={{ backgroundColor: '#0B2C48', minHeight: '200px' }}
+      >
+        {/* Close Button */}
+        <button
+          onClick={onStayHere}
+          className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+        >
+          <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+        </button>
+        
+        {/* Warning Icon */}
+        <div className="flex-shrink-0">
           <img 
             src="/static/app/dashboard/WarnIcon.svg" 
             alt="Warning" 
-            className="w-16 h-16"
+            className="w-16 h-16 sm:w-20 sm:h-20"
           />
         </div>
-        <h2 className="text-white font-poppins font-bold text-xl text-center mb-3">
-          Discard Unsaved Changes?
-        </h2>
-        <p className="text-gray-300 font-poppins text-sm text-center mb-8">
-          You have unsaved progress in this workflow. If you leave now, your changes will be lost.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            onClick={onStayHere}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#1C4262] font-poppins font-bold rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Stay Here
-          </button>
-          <button
-            onClick={onDiscard}
-            className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white font-poppins font-bold rounded-lg hover:bg-red-600 transition-colors"
-          >
-            Discard & Go Back
-          </button>
+        
+        {/* Content */}
+        <div className="flex flex-col gap-4 text-center sm:text-left">
+          <div>
+            <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
+              Discard Unsaved Changes?
+            </h3>
+            <p className="text-gray-300 font-poppins text-xs sm:text-sm">
+              You have unsaved progress in this workflow. If you leave now, your changes will be lost.
+            </p>
+          </div>
+          
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={onStayHere}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#5CBFC0' }}
+            >
+              Stay Here
+            </button>
+            <button
+              onClick={onDiscard}
+              className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: '#27456E' }}
+            >
+              Discard & Go Back
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -165,6 +188,9 @@ const ProposalSummary = () => {
   // Credit confirmation popup state
   const [showCreditPopup, setShowCreditPopup] = useState(false)
   const [isDeductingCredits, setIsDeductingCredits] = useState(false)
+  
+  // Insufficient credits popup state
+  const [showInsufficientCreditsPopup, setShowInsufficientCreditsPopup] = useState(false)
   
   // Generate unique ID
   const generateId = () => Math.random().toString(36).substr(2, 9)
@@ -415,9 +441,15 @@ const ProposalSummary = () => {
           } 
         })
       } else {
-        // Show error message
-        setSaveMessage(response.error || 'Failed to deduct credits. Please try again.')
-        setShowCreditPopup(false)
+        // Check if it's an insufficient credits error
+        if (response.error?.toLowerCase().includes('insufficient')) {
+          setShowCreditPopup(false)
+          setShowInsufficientCreditsPopup(true)
+        } else {
+          // Show error message
+          setSaveMessage(response.error || 'Failed to deduct credits. Please try again.')
+          setShowCreditPopup(false)
+        }
       }
     } catch (error) {
       console.error('Error deducting credits:', error)
@@ -426,6 +458,12 @@ const ProposalSummary = () => {
     } finally {
       setIsDeductingCredits(false)
     }
+  }
+  
+  // Handle getting more credits from insufficient credits popup
+  const handleGetCredits = () => {
+    setShowInsufficientCreditsPopup(false)
+    navigate('/get-more-credits')
   }
   
     // Format currency
@@ -442,10 +480,18 @@ const ProposalSummary = () => {
         onDiscard={handleDiscard}
       />
       
+      {/* Insufficient Credits Popup */}
+      <InsufficientCreditsPopup
+        isOpen={showInsufficientCreditsPopup}
+        creditsRequired={15}
+        onGetCredits={handleGetCredits}
+        onClose={() => setShowInsufficientCreditsPopup(false)}
+      />
+      
       <Header credits={5} />
       
       <div className="flex flex-1 overflow-hidden">
-        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
+        <div className="hidden lg:block fixed left-0 right-0 top-16 h-px z-50" style={{ backgroundColor: '#2D5170', boxShadow: '0 0 8px rgba(45, 81, 112, 0.5)' }} aria-hidden="true" />
         
         <Sidebar 
           onGoBack={handleGoBack}
@@ -583,11 +629,11 @@ const ProposalSummary = () => {
                                                                       <div style={{ width: '28px' }}></div>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.role} readOnly />
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.hours} readOnly />
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.rate} readOnly />
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency(item.cost)} readOnly />
-                                                                      <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '100px', height: '32px' }}>
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={item.role} readOnly />
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={item.hours} readOnly />
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={item.rate} readOnly />
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={formatCurrency(item.cost)} readOnly />
+                                                                                                                                            <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '100px', height: '40px' }}>
                                                                         <span>Edit Role</span>
                                                                         <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                       </button>
@@ -635,12 +681,12 @@ const ProposalSummary = () => {
                                                                     <div style={{ width: '28px' }}></div>
                                                                   </div>
                                                                   <div className="flex items-center gap-2">
-                                                                    <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="Project Manager" value={laborRole} onChange={e => setLaborRole(e.target.value)} />
-                                                                    <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="40" value={laborHours} onChange={e => setLaborHours(e.target.value)} />
-                                                                    <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
-                                                                    <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
-                                                                    <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}>
-                                                                      <span className="mr-6">Add Role</span>
+                                                                                                                                        <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="Project Manager" value={laborRole} onChange={e => setLaborRole(e.target.value)} />
+                                                                                                                                        <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="40" value={laborHours} onChange={e => setLaborHours(e.target.value)} />
+                                                                                                                                        <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
+                                                                                                                                        <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '40px' }} value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
+                                                                                                                                                                                                              <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '150px', height: '40px' }}>
+                                                                                                                                            <span className="mr-6">Add Role</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button className="p-1 opacity-30 flex-shrink-0">
@@ -695,11 +741,11 @@ const ProposalSummary = () => {
                                                                       <div style={{ width: '28px' }}></div>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.item} readOnly />
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.quantity} readOnly />
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.unit_cost} readOnly />
-                                                                      <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency(item.cost)} readOnly />
-                                                                      <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}>
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={item.item} readOnly />
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={item.quantity} readOnly />
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={item.unit_cost} readOnly />
+                                                                                                                                            <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} value={formatCurrency(item.cost)} readOnly />
+                                                                                                                                            <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '40px' }}>
                                                                         <span className="mr-6">Edit Item</span>
                                                                         <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                       </button>
@@ -747,12 +793,12 @@ const ProposalSummary = () => {
                                                                     <div style={{ width: '28px' }}></div>
                                                                   </div>
                                                                   <div className="flex items-center gap-2">
-                                                                    <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="Laptop" value={materialItem} onChange={e => setMaterialItem(e.target.value)} />
-                                                                    <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="5" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)} />
-                                                                    <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
-                                                                    <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
-                                                                    <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '120px', height: '32px' }}>
-                                                                      <span className="mr-6">Add Item</span>
+                                                                                                                                        <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="Laptop" value={materialItem} onChange={e => setMaterialItem(e.target.value)} />
+                                                                                                                                        <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="5" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)} />
+                                                                                                                                        <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '40px' }} placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
+                                                                                                                                        <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '40px' }} value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
+                                                                                                                                                                                                              <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#99C8CA', width: '150px', height: '40px' }}>
+                                                                                                                                            <span className="mr-6">Add Item</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button className="p-1 opacity-30 flex-shrink-0">
@@ -843,7 +889,7 @@ const ProposalSummary = () => {
                               onClick={handleSaveSummary}
                               disabled={isSaving}
                               className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 overflow-hidden"
-                              style={{ backgroundColor: '#99C8CA', width: '388px', height: '32px' }}
+                              style={{ backgroundColor: '#99C8CA', width: '388px', height: '48px' }}
                             >
                 <span>{isSaving ? 'Saving...' : 'Save Summary'}</span>
                 <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
@@ -852,7 +898,7 @@ const ProposalSummary = () => {
               <button
                 onClick={handleGenerateFinalProposalClick}
                                                             className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden"
-                                                            style={{ backgroundColor: '#27456e', width: '388px', height: '32px' }}
+                                                            style={{ backgroundColor: '#27456e', width: '388px', height: '48px' }}
                             >
                               <span className="pr-8">Generate Final Proposal</span>
                 <img src={GenerateFinalProposalIcon} alt="" className="absolute right-0 top-0 h-full" />
