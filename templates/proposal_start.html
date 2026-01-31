@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contract Analysis - CORAMA</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/footer.css') }}">
+    <style>
+        .proposal-wizard {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding-top: 100px;
+        }
+        
+        .proposal-wizard .proposal-wizard .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* Stepper Navigation */
+        .proposal-wizard .stepper {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .step {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+        
+        .proposal-wizard .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            width: 100%;
+            height: 3px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .proposal-wizard .step.active:not(:last-child)::after {
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .proposal-wizard .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #999;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-wizard .step.active .step-circle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .proposal-wizard .step.completed .step-circle {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .proposal-wizard .step-label {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            text-align: center;
+        }
+        
+        .proposal-wizard .step.active .step-label {
+            color: #667eea;
+        }
+        
+        /* Main Content */
+        .proposal-wizard .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .proposal-wizard .pdf-viewer-section {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+        }
+        
+        .proposal-wizard .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .proposal-wizard .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+        
+        .proposal-wizard .pdf-viewer {
+            width: 100%;
+            height: 800px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .proposal-wizard .pdf-placeholder {
+            text-align: center;
+            color: #666;
+        }
+        
+        .proposal-wizard .pdf-placeholder-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        
+        /* Annotations Panel */
+        .proposal-wizard .annotations-panel {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 2rem;
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        
+        .proposal-wizard .annotation-item {
+            padding: 1rem;
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .proposal-wizard .annotation-item:hover {
+            background: #e8f5e9;
+            border-left-color: #27ae60;
+            transform: translateX(4px);
+        }
+        
+        .proposal-wizard .annotation-category {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #667eea;
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+        
+        .proposal-wizard .annotation-text {
+            font-size: 0.9rem;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        
+        /* Action Buttons */
+        .proposal-wizard .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+        }
+        
+        .proposal-wizard .btn {
+            padding: 0.75rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .proposal-wizard .btn-secondary {
+            background: #e0e0e0;
+            color: #666;
+        }
+        
+        .proposal-wizard .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .proposal-wizard .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .proposal-wizard .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+        }
+        
+        /* Loading State */
+        .proposal-wizard .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem;
+        }
+        
+        .proposal-wizard .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .proposal-wizard .loading-text {
+            margin-top: 1rem;
+            color: #666;
+            font-size: 1rem;
+        }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 992px) {
+            .proposal-wizard .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .proposal-wizard .annotations-panel {
+                max-height: 400px;
+            }
+            
+            .proposal-wizard .pdf-viewer {
+                height: 500px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .proposal-wizard {
+                padding-top: 80px;
+            }
+            
+            .proposal-wizard .container {
+                padding: 1rem;
+            }
+            
+            .proposal-wizard .stepper {
+                padding: 1rem;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+            
+            .proposal-wizard .step {
+                flex-direction: row;
+                gap: 1rem;
+                width: 100%;
+            }
+            
+            .proposal-wizard .step:not(:last-child)::after {
+                display: none;
+            }
+            
+            .proposal-wizard .step-circle {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .proposal-wizard .step-label {
+                margin-top: 0;
+                text-align: left;
+            }
+            
+            .proposal-wizard .pdf-viewer-section,
+            .proposal-wizard .annotations-panel {
+                padding: 1rem;
+                border-radius: 12px;
+            }
+            
+            .proposal-wizard .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .proposal-wizard .section-header > div {
+                width: 100%;
+            }
+            
+            .proposal-wizard .section-header .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .proposal-wizard .pdf-viewer {
+                height: 400px;
+            }
+            
+            .proposal-wizard .action-buttons {
+                flex-direction: column;
+            }
+            
+            .proposal-wizard .action-buttons .btn {
+                width: 100%;
+                text-align: center;
+                justify-content: center;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .proposal-wizard .container {
+                padding: 0.5rem;
+            }
+            
+            .proposal-wizard .section-title {
+                font-size: 1.1rem;
+            }
+            
+            .proposal-wizard .pdf-viewer {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    
+    <div class="proposal-wizard">
+    <div class="container">
+        <!-- Stepper Navigation -->
+        <div class="stepper">
+            <div class="step active">
+                <div class="step-circle">1</div>
+                <div class="step-label">Contract Analysis</div>
+            </div>
+            <div class="step">
+                <div class="step-circle">2</div>
+                <div class="step-label">Build Team</div>
+            </div>
+            <div class="step">
+                <div class="step-circle">3</div>
+                <div class="step-label">Pricing & Review</div>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- PDF Viewer Section -->
+            <div class="pdf-viewer-section">
+                <div class="section-header">
+                    <div class="section-title">📄 Contract Document</div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn btn-secondary" onclick="uploadContractPDF()">
+                            📤 Upload PDF
+                        </button>
+                        <button class="btn btn-secondary" onclick="analyzeContract()" id="analyzeBtn">
+                            🤖 Analyze with AI
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="pdf-viewer" id="pdfViewer">
+                    <div class="pdf-placeholder">
+                        <div class="pdf-placeholder-icon">📄</div>
+                        <h3>Loading Contract PDF...</h3>
+                        <p>Extracting contract from detail link</p>
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            <div class="loading-text">Please wait...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Annotations Panel -->
+            <div class="annotations-panel">
+                <div class="section-title" style="margin-bottom: 1.5rem;">💡 AI Findings</div>
+                
+                <div id="annotationsList">
+                    <div style="text-align: center; color: #999; padding: 2rem;">
+                        <p>Click "Analyze with AI" to generate strategic annotations</p>
+                        <p style="font-size: 0.85rem; margin-top: 0.5rem;">AI will analyze:</p>
+                        <ul style="text-align: left; display: inline-block; margin-top: 1rem;">
+                            <li>Key requirements & deliverables</li>
+                            <li>Small print & critical clauses</li>
+                            <li>Compliance requirements</li>
+                            <li>Risk factors & opportunities</li>
+                            <li>Win strategy recommendations</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button type="button" class="btn btn-secondary" onclick="goBack()">
+                ← Back to AI Assistant
+            </button>
+            <button type="button" class="btn btn-primary" onclick="nextStep()" id="nextBtn">
+                Continue to Team Building →
+            </button>
+        </div>
+    </div>
+    </div>
+    
+    <input type="file" id="pdfUpload" accept=".pdf" style="display: none;" onchange="handlePDFUpload(event)">
+    
+    <script>
+        const contractHash = '{{ contract_hash }}';
+        const contractData = {{ contract_data|tojson if contract_data else 'null' }};
+        const contractName = {{ (contract_name or "")|tojson }} || null;
+        const userId = '{{ user_id }}';
+        let draftId = '{{ draft_id }}' || null;
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            // First check if PDF already exists in Firebase Storage (from previous upload)
+            checkExistingPDF();
+        });
+        
+        // Check if PDF already exists in Firebase Storage
+        async function checkExistingPDF() {
+            try {
+                // Try to load from the proxy endpoint (which serves from Firebase Storage)
+                const proxyUrl = `/api/contract_pdf/${contractHash}`;
+                const response = await fetch(proxyUrl, {
+                    method: 'HEAD',
+                    credentials: 'same-origin'
+                });
+                
+                if (response.ok) {
+                    // PDF exists in Firebase Storage, load it
+                    loadPDFViewer(proxyUrl);
+                    return;
+                }
+            } catch (error) {
+                console.log('No existing PDF in Firebase, checking detail link...');
+            }
+            
+            // If no existing PDF, try to fetch from detail link
+            if (contractData) {
+                fetchContractPDF();
+            } else {
+                showPDFUploadOption();
+            }
+        }
+        
+        // Fetch contract PDF from detail link
+        async function fetchContractPDF() {
+            try {
+                const response = await fetch(`${window.location.origin}/api/fetch_contract_pdf`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contract_hash: contractHash,
+                        detail_link: contractData.detail_link
+                    }),
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    showPDFUploadOption();
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.pdf_url) {
+                    loadPDFViewer(data.pdf_url);
+                } else {
+                    showPDFUploadOption();
+                }
+            } catch (error) {
+                console.error('Error fetching PDF:', error);
+                showPDFUploadOption();
+            }
+        }
+        
+        // Load PDF in viewer using PDF.js for cross-browser compatibility
+        function loadPDFViewer(pdfUrl) {
+            const viewer = document.getElementById('pdfViewer');
+            // Use PDF.js viewer for reliable cross-browser PDF rendering (without thumbnail sidebar)
+            const pdfjsViewerUrl = `{{ url_for('static', filename='pdfjs/web/viewer.html') }}?file=${encodeURIComponent(pdfUrl)}&noThumbnails=true`;
+            viewer.innerHTML = `<iframe src="${pdfjsViewerUrl}" width="100%" height="100%" style="border: none; border-radius: 8px;"></iframe>`;
+        }
+        
+        // Show PDF upload option if automatic fetch fails
+        function showPDFUploadOption() {
+            const viewer = document.getElementById('pdfViewer');
+            viewer.innerHTML = `
+                <div class="pdf-placeholder">
+                    <div class="pdf-placeholder-icon">📄</div>
+                    <h3>Contract PDF Not Found</h3>
+                    <p>We couldn't automatically extract the PDF from the contract link.</p>
+                    <button class="btn btn-primary" onclick="uploadContractPDF()" style="margin-top: 1rem;">
+                        📤 Upload Contract PDF
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Upload contract PDF
+        function uploadContractPDF() {
+            document.getElementById('pdfUpload').click();
+        }
+        
+        // Handle PDF upload
+        async function handlePDFUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('pdf', file);
+            formData.append('contract_hash', contractHash);
+            
+            const viewer = document.getElementById('pdfViewer');
+            viewer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">Uploading PDF...</div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`${window.location.origin}/api/upload_contract_pdf`, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+                
+                if (!response.ok) {
+                    let errorMessage = 'Failed to upload PDF';
+                    try {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        }
+                        if (response.status === 401) {
+                            errorMessage = 'Session expired. Please refresh the page and log in again.';
+                        }
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                    }
+                    showError(errorMessage);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.pdf_url) {
+                    loadPDFViewer(data.pdf_url);
+                } else {
+                    showError(data.error || 'Failed to upload PDF');
+                }
+            } catch (error) {
+                console.error('Error uploading PDF:', error);
+                showError('Network error. Please check your connection and try again.');
+            }
+        }
+        
+        // Analyze contract with AI
+        async function analyzeContract() {
+            const btn = document.getElementById('analyzeBtn');
+            btn.disabled = true;
+            btn.textContent = '🤖 Analyzing...';
+            
+            const annotationsList = document.getElementById('annotationsList');
+            annotationsList.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <div class="loading-text">AI is analyzing the contract...<br>This may take 1-2 minutes</div>
+                </div>
+            `;
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
+            
+            try {
+                const response = await fetch(`${window.location.origin}/api/analyze_contract`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contract_hash: contractHash,
+                        user_id: userId,
+                        contract_name: contractName || (contractData ? contractData.bid_name : ''),
+                        contract_description: contractData ? contractData.bid_description : '',
+                        naics_code: contractData ? contractData.naics_code : '',
+                        organization: contractData ? contractData.organization : ''
+                    }),
+                    signal: controller.signal,
+                    credentials: 'same-origin'
+                });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    let errorMessage = 'Failed to analyze contract';
+                    try {
+                        const contentType = response.headers.get('content-type');
+                        if (contentType && contentType.includes('application/json')) {
+                            const errorData = await response.json();
+                            errorMessage = errorData.error || errorMessage;
+                        }
+                        if (response.status === 401) {
+                            errorMessage = 'Session expired. Please refresh the page and try again.';
+                        } else if (response.status === 402) {
+                            errorMessage = 'Insufficient credits. Please purchase more credits to continue.';
+                        } else if (response.status === 404) {
+                            errorMessage = 'Contract PDF not found. Please upload the contract PDF first.';
+                        }
+                    } catch (e) {
+                        console.error('Error parsing error response:', e);
+                    }
+                    showAnnotationsError(errorMessage);
+                    return;
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.annotations) {
+                    draftId = data.draft_id;
+                    displayAnnotations(data.annotations);
+                } else {
+                    showAnnotationsError(data.error || 'Failed to analyze contract');
+                }
+            } catch (error) {
+                clearTimeout(timeoutId);
+                console.error('Error analyzing contract:', error);
+                if (error.name === 'AbortError') {
+                    showAnnotationsError('Analysis timed out. The contract may be too large or complex. Please try again or contact support.');
+                } else {
+                    showAnnotationsError('Network error. Please check your connection and try again.');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🤖 Analyze with AI';
+            }
+        }
+        
+        // Display annotations
+        function displayAnnotations(annotations) {
+            const annotationsList = document.getElementById('annotationsList');
+            annotationsList.innerHTML = '';
+            
+            annotations.forEach(annotation => {
+                const item = document.createElement('div');
+                item.className = 'annotation-item';
+                item.innerHTML = `
+                    <div class="annotation-category">${annotation.category}</div>
+                    <div class="annotation-text">${annotation.text}</div>
+                `;
+                annotationsList.appendChild(item);
+            });
+        }
+        
+        // Navigate to next step
+        function nextStep() {
+            if (!draftId) {
+                alert('Please analyze the contract first before proceeding');
+                return;
+            }
+            window.location.href = `/proposal/team?draft_id=${draftId}`;
+        }
+        
+        // Go back to AI Assistant
+        function goBack() {
+            if (contractHash) {
+                let url = `/ai-assistant?hash_value=${encodeURIComponent(contractHash)}`;
+                if (contractName) {
+                    url += `&name=${encodeURIComponent(contractName)}`;
+                }
+                window.location.href = url;
+            } else {
+                const params = new URLSearchParams(window.location.search);
+                const hash = params.get('contract_hash') || params.get('hash') || params.get('hash_value') || params.get('contract');
+                if (hash) {
+                    let url = `/ai-assistant?hash_value=${encodeURIComponent(hash)}`;
+                    if (contractName) {
+                        url += `&name=${encodeURIComponent(contractName)}`;
+                    }
+                    window.location.href = url;
+                } else {
+                    window.location.href = '/welcome';
+                }
+            }
+        }
+        
+        // Show error in PDF viewer
+        function showError(message) {
+            const viewer = document.getElementById('pdfViewer');
+            viewer.innerHTML = `
+                <div class="pdf-placeholder">
+                    <div class="pdf-placeholder-icon">⚠️</div>
+                    <h3>Error</h3>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+        
+        // Show error in annotations panel
+        function showAnnotationsError(message) {
+            const annotationsList = document.getElementById('annotationsList');
+            annotationsList.innerHTML = `
+                <div style="text-align: center; padding: 2rem; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107;">
+                    <div style="font-size: 2rem; margin-bottom: 1rem;">⚠️</div>
+                    <h4 style="color: #856404; margin: 0 0 0.5rem 0;">Analysis Failed</h4>
+                    <p style="color: #856404; margin: 0;">${message}</p>
+                </div>
+            `;
+        }
+    </script>
+    
+    {% include 'scripts.html' %}
+</body>
+</html>

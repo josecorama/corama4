@@ -54,7 +54,41 @@
         </div>
     </div>
     
+    <!-- Site Alert Modal -->
+    <div class="site-modal" id="siteAlertModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 2rem; border-radius: 16px; max-width: 450px; width: 90%; box-shadow: 0 20px 40px rgba(0,0,0,0.2); position: fixed; top: 120px; left: 50%; transform: translateX(-50%);">
+            <h4 id="siteAlertTitle" style="margin-bottom: 1rem; color: var(--text-dark);">Notification</h4>
+            <p id="siteAlertMessage" style="margin-bottom: 1.5rem; color: var(--text-light);"></p>
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn btn-primary" onclick="closeSiteAlert()" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); border: none;">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // Site Alert Modal Helpers
+        let siteAlertResolve = null;
+        
+        function showSiteAlert(message, title = 'Notification') {
+            return new Promise(resolve => {
+                siteAlertResolve = resolve;
+                document.getElementById('siteAlertTitle').textContent = title;
+                document.getElementById('siteAlertMessage').textContent = message;
+                const modal = document.getElementById('siteAlertModal');
+                window.scrollTo(0, 0);
+                modal.style.display = 'flex';
+            });
+        }
+        
+        function closeSiteAlert() {
+            document.getElementById('siteAlertModal').style.display = 'none';
+            if (siteAlertResolve) {
+                const resolve = siteAlertResolve;
+                siteAlertResolve = null;
+                resolve();
+            }
+        }
+
         function purchaseCredits(credits, price) {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/create_credit_checkout', true);
@@ -66,20 +100,20 @@
                     if (data.checkout_url) {
                         window.location.href = data.checkout_url;
                     } else {
-                        alert('Error creating checkout session: ' + (data.error || 'Unknown error'));
+                        showSiteAlert(data.error || 'Unknown error occurred while creating checkout session.', 'Error');
                     }
                 } else {
                     try {
                         const data = JSON.parse(xhr.responseText);
-                        alert('Error: ' + (data.error || 'Unknown error'));
+                        showSiteAlert(data.error || 'An error occurred. Please try again.', 'Error');
                     } catch (e) {
-                        alert('Error processing request');
+                        showSiteAlert('An error occurred while processing your request. Please try again.', 'Error');
                     }
                 }
             };
             
             xhr.onerror = function() {
-                alert('Error processing request');
+                showSiteAlert('Unable to connect to the server. Please check your internet connection and try again.', 'Connection Error');
             };
             
             xhr.send(JSON.stringify({

@@ -57,3 +57,36 @@ p, .content {
 .btn-secondary:hover {
     background-color: #568aa4;
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+    
+    p, .content {
+        font-size: 0.95rem;
+    }
+    
+    .btn-primary, .btn-secondary {
+        padding: 8px 16px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: 10px;
+    }
+    
+    p, .content {
+        font-size: 0.9rem;
+    }
+    
+    .btn-primary, .btn-secondary {
+        padding: 8px 14px;
+        font-size: 0.9rem;
+        width: 100%;
+        text-align: center;
+    }
+}

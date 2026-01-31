@@ -19,7 +19,7 @@ class ContractOpportunityScorer:
         """Score contract opportunity based on multiple factors"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": """You are an expert government contracting analyst. Score this contract opportunity on a scale of 0-100 based on:
                     1. Company capability alignment (30%)
@@ -51,7 +51,7 @@ class CompetitiveIntelligence:
         """Analyze competitive landscape for the contract"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": """Analyze the competitive landscape for this government contract. Provide:
                     1. Likely competitor types and profiles
@@ -81,7 +81,7 @@ class ProposalOptimizer:
         """Provide pricing optimization recommendations"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": """You are a government contracting pricing strategist. Analyze the contract requirements and provide:
                     1. Optimal pricing strategy (cost-plus, fixed-price, etc.)
@@ -105,7 +105,7 @@ class ProposalOptimizer:
         """Enhance technical approach section of proposal"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": """Enhance the technical approach for this government contract proposal. Focus on:
                     1. Innovative solutions that exceed requirements
@@ -232,7 +232,7 @@ class IndustryTemplateLibrary:
             template = self.templates.get(industry.upper(), self.templates['PROFESSIONAL_SERVICES'])
             
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"""Customize this proposal template for the specific contract and company. 
                     Base template sections: {template['sections']}

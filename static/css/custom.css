@@ -121,3 +121,72 @@ body {
         margin-bottom: 10px;
     }
 }
+
+/* ============================================
+   PDF Preview - Responsive styles for Terms/Privacy pages
+   ============================================ */
+#pdf-preview {
+    width: 70% !important;
+    max-width: 960px;
+    margin: 0 auto 40px !important;
+}
+
+@media (max-width: 992px) {
+    #pdf-preview {
+        width: 85% !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #pdf-preview {
+        width: 95% !important;
+        margin: 0 auto 24px !important;
+        padding: 0 0.5rem;
+    }
+    
+    #pdf-preview iframe {
+        height: 600px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #pdf-preview {
+        width: 100% !important;
+        padding: 0;
+    }
+    
+    #pdf-preview iframe {
+        height: 500px !important;
+        border-radius: 0 !important;
+    }
+}
+
+/* ============================================
+   MODAL FIXES - Reduce backdrop darkness
+   ============================================ */
+
+/* Bootstrap 5.2+ CSS variable approach */
+.modal-backdrop {
+    --bs-backdrop-opacity: 0.35;
+}
+
+/* Fallback for older Bootstrap 5.x and to ensure precedence */
+.modal-backdrop.show {
+    opacity: 0.35 !important;
+    background-color: rgba(0, 0, 0, 0.85);
+}
+
+/* Ensure modal content is above backdrop */
+.modal {
+    z-index: 1060;
+}
+
+.modal-backdrop {
+    z-index: 1050;
+}
+
+/* Ensure modal content is readable */
+.modal-content {
+    position: relative;
+    z-index: 1061;
+}
