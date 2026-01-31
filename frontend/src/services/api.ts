@@ -9,6 +9,7 @@ export interface User {
   first_name: string;
   last_name: string;
   company: string;
+  username: string;
   credits_balance: number;
   has_capability_statement: boolean;
 }
@@ -122,9 +123,23 @@ class ApiService {
     return data.user;
   }
 
-  // Contracts
-  async getContracts(page: number = 1): Promise<{contracts: Contract[], total_pages: number, total_contracts: number, top_categories?: {name: string, count: number, percentage: number}[]}> {
-    const res = await fetch(`${API_BASE()}/contracts?page=${page}`);
+  // Contracts - with cursor-based pagination support
+  async getContracts(
+    page: number = 1, 
+    limit: number = 50, 
+    cursor?: string
+  ): Promise<{
+    contracts: Contract[], 
+    total_pages: number, 
+    total_contracts: number, 
+    next_cursor?: string | null,
+    has_more?: boolean,
+    top_categories?: {name: string, count: number, percentage: number}[]
+  }> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (cursor) params.append('cursor', cursor);
+    
+    const res = await fetch(`${API_BASE()}/contracts?${params}`);
     if (!res.ok) {
       if (res.status === 401) {
         window.location.href = '/login';
@@ -135,12 +150,20 @@ class ApiService {
     return res.json();
   }
 
-  async searchContracts(
-    query: string, 
-    page: number = 1, 
-    contractType: string = 'all', 
-    states: string[] = []
-  ): Promise<{success: boolean, contracts: Contract[], total_pages: number, total_contracts: number, top_categories?: {name: string, count: number, percentage: number}[]}> {
+    async searchContracts(
+      query: string, 
+      page: number = 1, 
+      contractType: string = 'all', 
+      states: string[] = []
+    ): Promise<{
+      success: boolean, 
+      contracts: Contract[], 
+      total_pages: number, 
+      total_contracts: number, 
+      next_cursor?: string | null,
+      has_more?: boolean,
+      top_categories?: {name: string, count: number, percentage: number}[]
+    }> {
     const res = await fetch(apiUrl('/dashboard_search'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -153,8 +176,9 @@ class ApiService {
   // Top Five
   async getTopFiveContracts(
     contractType?: string,
-    states?: string[]
-  ): Promise<{success: boolean, matches: ContractMatch[], has_matches: boolean, filtered_count?: number}> {
+    states?: string[],
+    offset?: number
+  ): Promise<{success: boolean, matches: ContractMatch[], has_matches: boolean, filtered_count?: number, total_available?: number, has_more?: boolean, next_offset?: number | null, current_offset?: number}> {
     const params = new URLSearchParams();
     if (contractType && contractType !== 'all' && contractType !== '') {
       params.append('contract_type', contractType);
@@ -164,6 +188,9 @@ class ApiService {
       if (filteredStates.length > 0) {
         params.append('states', filteredStates.join(','));
       }
+    }
+    if (offset !== undefined && offset > 0) {
+      params.append('offset', offset.toString());
     }
     const qs = params.toString();
     const url = qs ? `${API_BASE()}/top-five-contracts?${qs}` : `${API_BASE()}/top-five-contracts`;
@@ -266,6 +293,31 @@ class ApiService {
     return res.json();
   }
 
+  // Deduct credits for an action
+  async deductCredits(
+    amount: number, 
+    actionType: string, 
+    description: string
+  ): Promise<{success: boolean, new_balance?: number, error?: string}> {
+    const res = await fetch(`${API_BASE()}/deduct-credits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount, action_type: actionType, description })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      if (res.status === 402) {
+        return { success: false, error: 'Insufficient credits. Please purchase more credits.' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to deduct credits' }));
+      return { success: false, error: errorData.error || 'Failed to deduct credits' };
+    }
+    return res.json();
+  }
+
   // Upload CS
   async uploadCapabilityStatement(file: File, contractTypes: string[], states: string[]): Promise<{success: boolean, message: string, redirect?: string}> {
     const formData = new FormData();
@@ -313,36 +365,46 @@ class ApiService {
   }
 
   // Directory Profile
-  async getDirectoryProfile(): Promise<{success: boolean, user_id: string, profile: DirectoryProfile}> {
-    const res = await fetch(`${API_BASE()}/get_directory_profile`);
+  // Note: This endpoint is used to check if user has a directory profile.
+  // We don't redirect on 401 here because this is often called as a capability check,
+  // not as a critical auth-required operation. Let the caller handle auth errors.
+  async getDirectoryProfile(): Promise<{success: boolean, user_id?: string, profile?: DirectoryProfile, error?: string}> {
+    const res = await fetch(`${API_BASE()}/get_directory_profile`, {
+      credentials: 'include'
+    });
     if (!res.ok) {
+      // Don't redirect on 401 - let the caller handle it gracefully
+      // This prevents logout when just checking if user has a directory profile
       if (res.status === 401) {
-        window.location.href = '/login';
-        throw new Error('Not authenticated');
+        return { success: false, error: 'Not authenticated' };
       }
-      throw new Error('Failed to fetch directory profile');
+      return { success: false, error: 'Failed to fetch directory profile' };
     }
     return res.json();
   }
 
-  async updateDirectoryProfile(data: Partial<DirectoryProfile>): Promise<{success: boolean, error?: string}> {
+  async updateDirectoryProfile(data: Partial<DirectoryProfile>): Promise<{success: boolean, error?: string, authorization_error?: boolean}> {
     const res = await fetch(`${API_BASE()}/update_directory_profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to update directory profile');
+    // Don't throw on 403 - let the caller handle authorization errors
+    if (!res.ok && res.status !== 403) throw new Error('Failed to update directory profile');
     return res.json();
   }
 
-  async uploadDirectoryLogo(file: File): Promise<{success: boolean, logo_url?: string, error?: string}> {
+  async uploadDirectoryLogo(file: File): Promise<{success: boolean, logo_url?: string, error?: string, authorization_error?: boolean}> {
     const formData = new FormData();
     formData.append('logo', file);
     const res = await fetch(`${API_BASE()}/upload_directory_logo`, {
       method: 'POST',
+      credentials: 'include',
       body: formData
     });
-    if (!res.ok) throw new Error('Failed to upload logo');
+    // Don't throw on 403 - let the caller handle authorization errors
+    if (!res.ok && res.status !== 403) throw new Error('Failed to upload logo');
     return res.json();
   }
 
@@ -672,6 +734,106 @@ class ApiService {
   // Download Proposal DOCX - Opens download in new window
   downloadProposalDocx(draftId: string): void {
     window.open(`${API_BASE()}/download_proposal_pdf?draft_id=${draftId}`, '_blank');
+  }
+
+  // Send Team Assignment Emails - Notifies team members added from Corama Directory
+  async sendTeamAssignmentEmails(data: {
+    team_members: Array<{name: string; role: string; email?: string; phone?: string}>;
+    contract_name: string;
+  }): Promise<{success: boolean; emails_sent?: number; errors?: string[]; error?: string}> {
+    const res = await fetch(`${API_BASE()}/send-team-assignment-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to send emails' }));
+      return { success: false, error: errorData.error || 'Failed to send emails' };
+    }
+    return res.json();
+  }
+
+  // ============================================================================
+  // ADMIN API ENDPOINTS
+  // ============================================================================
+
+  // Check if current user has admin privileges
+  async checkAdminStatus(): Promise<{success: boolean; is_admin: boolean; email?: string; error?: string}> {
+    const res = await fetch(`${API_BASE()}/admin/check-status`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, is_admin: false, error: 'Not authenticated' };
+      }
+      return { success: false, is_admin: false, error: 'Failed to check admin status' };
+    }
+    return res.json();
+  }
+
+  // Get all directory listings (admin only)
+  async adminGetDirectoryListings(): Promise<{
+    success: boolean;
+    listings?: Array<{
+      user_id: string;
+      company: string;
+      contact_name: string;
+      email: string;
+      phone: string;
+      listed: boolean;
+      updated_at?: string;
+    }>;
+    count?: number;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/admin/directory/list`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      if (res.status === 403) {
+        return { success: false, error: 'Admin access required' };
+      }
+      return { success: false, error: 'Failed to load directory listings' };
+    }
+    return res.json();
+  }
+
+  // Delete a directory listing (admin only)
+  async adminDeleteDirectoryListing(userId: string): Promise<{
+    success: boolean;
+    message?: string;
+    deleted_user_id?: string;
+    error?: string;
+  }> {
+    const res = await fetch(`${API_BASE()}/admin/directory/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ user_id: userId })
+    });
+    if (!res.ok) {
+      if (res.status === 401) {
+        return { success: false, error: 'Not authenticated' };
+      }
+      if (res.status === 403) {
+        return { success: false, error: 'Admin access required' };
+      }
+      if (res.status === 404) {
+        return { success: false, error: 'Directory listing not found' };
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to delete listing' }));
+      return { success: false, error: errorData.error || 'Failed to delete listing' };
+    }
+    return res.json();
   }
 
   // Logout

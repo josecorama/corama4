@@ -15,6 +15,8 @@ const RemoveIcon = '/static/app/team-builder/Remove.svg'
 const AddIcon = '/static/app/team-builder/Add.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 const GenerateFinalProposalIcon = '/static/app/proposal-summary/GenerateFinalProposal.svg'
+const ClosePopupButtonIcon = '/static/app/proposal-summary/ClosePopupButton.svg'
+const CreditsIcon = '/static/app/proposal-summary/CreditsIcon.svg'
 
 interface ProposalSummaryState {
   contractName?: string
@@ -42,10 +44,63 @@ interface MaterialItem {
   cost: number
 }
 
+// Discard Changes Popup Component
+interface DiscardChangesPopupProps {
+  isOpen: boolean
+  onStayHere: () => void
+  onDiscard: () => void
+}
+
+const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPopupProps) => {
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      <div 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onStayHere}
+      />
+      <div className="relative bg-[#1C4262] rounded-2xl p-8 max-w-md mx-4 shadow-2xl border border-white/20">
+        <div className="flex justify-center mb-6">
+          <img 
+            src="/static/app/dashboard/WarnIcon.svg" 
+            alt="Warning" 
+            className="w-16 h-16"
+          />
+        </div>
+        <h2 className="text-white font-poppins font-bold text-xl text-center mb-3">
+          Discard Unsaved Changes?
+        </h2>
+        <p className="text-gray-300 font-poppins text-sm text-center mb-8">
+          You have unsaved progress in this workflow. If you leave now, your changes will be lost.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={onStayHere}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-white text-[#1C4262] font-poppins font-bold rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            Stay Here
+          </button>
+          <button
+            onClick={onDiscard}
+            className="flex items-center justify-center gap-2 px-6 py-3 bg-red-500 text-white font-poppins font-bold rounded-lg hover:bg-red-600 transition-colors"
+          >
+            Discard & Go Back
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const ProposalSummary = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const locationState = location.state as ProposalSummaryState | null
+  
+  // Discard changes popup state
+  const [showDiscardPopup, setShowDiscardPopup] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
   
   // Progress - steps 1 and 2 are complete, step 3 when profit margin and risk reserve are filled
   const step1Complete = true
@@ -106,6 +161,10 @@ const ProposalSummary = () => {
   // Saving state
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
+  
+  // Credit confirmation popup state
+  const [showCreditPopup, setShowCreditPopup] = useState(false)
+  const [isDeductingCredits, setIsDeductingCredits] = useState(false)
   
   // Generate unique ID
   const generateId = () => Math.random().toString(36).substr(2, 9)
@@ -303,6 +362,72 @@ const ProposalSummary = () => {
     navigate('/proposal-team', { state: locationState })
   }
   
+  // Handle staying on the page
+  const handleStayHere = () => {
+    setShowDiscardPopup(false)
+    setPendingNavigation(null)
+  }
+  
+  // Handle discarding changes and navigating away
+  const handleDiscard = () => {
+    setShowDiscardPopup(false)
+    if (pendingNavigation) {
+      navigate(pendingNavigation)
+    } else {
+      navigate(-1)
+    }
+  }
+  
+  // Handle Generate Final Proposal button click - show credit confirmation popup
+  const handleGenerateFinalProposalClick = () => {
+    setShowCreditPopup(true)
+  }
+  
+  // Handle credit confirmation - deduct 15 credits and navigate to next page
+  const handleConfirmSpendCredits = async () => {
+    setIsDeductingCredits(true)
+    
+    try {
+      // Deduct 15 credits for generating final proposal
+      const response = await api.deductCredits(15, 'generate_final_proposal', 'Generate Final Proposal')
+      
+      if (response.success) {
+        // Close popup and navigate to the next page
+        setShowCreditPopup(false)
+        navigate('/public-bid-proposal-generator', { 
+          state: { 
+            contractId, 
+            contractName, 
+            aiFindings, 
+            aiSuggestions, 
+            aiStrategy,
+            teamMembers,
+            laborCosts,
+            materials,
+            profitMarginPct,
+            riskReservePct,
+            laborTotal,
+            materialsTotal,
+            subtotal,
+            profitMargin,
+            riskReserve,
+            totalBidAmount
+          } 
+        })
+      } else {
+        // Show error message
+        setSaveMessage(response.error || 'Failed to deduct credits. Please try again.')
+        setShowCreditPopup(false)
+      }
+    } catch (error) {
+      console.error('Error deducting credits:', error)
+      setSaveMessage('Failed to deduct credits. Please try again.')
+      setShowCreditPopup(false)
+    } finally {
+      setIsDeductingCredits(false)
+    }
+  }
+  
     // Format currency
     const formatCurrency = (amount: number) => {
       return amount.toFixed(2) + '$'
@@ -310,12 +435,32 @@ const ProposalSummary = () => {
 
     return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
+      {/* Discard Changes Popup */}
+      <DiscardChangesPopup
+        isOpen={showDiscardPopup}
+        onStayHere={handleStayHere}
+        onDiscard={handleDiscard}
+      />
+      
       <Header credits={5} />
       
       <div className="flex flex-1 overflow-hidden">
         <div className="hidden lg:block fixed left-0 right-0 top-16 h-px bg-white z-50" aria-hidden="true" />
         
-        <Sidebar onGoBack={handleGoBack} />
+        <Sidebar 
+          onGoBack={handleGoBack}
+          onBeforeNavigate={(to) => {
+            const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis', '/proposal-team', '/public-bid-proposal-generator']
+            const isLeavingWorkflow = !workflowPages.some(page => to.startsWith(page))
+            
+            if (isLeavingWorkflow) {
+              setPendingNavigation(to)
+              setShowDiscardPopup(true)
+              return false
+            }
+            return true
+          }}
+        />
       
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
@@ -603,26 +748,7 @@ const ProposalSummary = () => {
               </button>
 
               <button
-                onClick={() => navigate('/public-bid-proposal-generator', { 
-                  state: { 
-                    contractId, 
-                    contractName, 
-                    aiFindings, 
-                    aiSuggestions, 
-                    aiStrategy,
-                    teamMembers,
-                    laborCosts,
-                    materials,
-                    profitMarginPct,
-                    riskReservePct,
-                    laborTotal,
-                    materialsTotal,
-                    subtotal,
-                    profitMargin,
-                    riskReserve,
-                    totalBidAmount
-                  } 
-                })}
+                onClick={handleGenerateFinalProposalClick}
                                                             className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden"
                                                             style={{ backgroundColor: '#27456e', width: '388px', height: '32px' }}
                             >
@@ -633,6 +759,60 @@ const ProposalSummary = () => {
           </main>
         </div>
       </div>
+      
+      {/* Credit Confirmation Popup */}
+      {showCreditPopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div 
+            className="relative rounded-2xl p-8 flex items-center gap-6"
+            style={{ backgroundColor: '#0B2C48', minWidth: '500px' }}
+          >
+            {/* Close Button */}
+            <button
+              onClick={() => setShowCreditPopup(false)}
+              className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+            >
+              <img src={ClosePopupButtonIcon} alt="Close" className="w-6 h-6" />
+            </button>
+            
+            {/* Credits Icon */}
+            <div className="flex-shrink-0">
+              <img src={CreditsIcon} alt="Credits" className="w-20 h-20" />
+            </div>
+            
+            {/* Content */}
+            <div className="flex flex-col gap-4">
+              <div>
+                <h3 className="text-white font-poppins font-bold text-xl mb-1">
+                  This action costs credits
+                </h3>
+                <p className="text-gray-300 font-poppins text-sm">
+                  This will deduct 15 credits from your balance.
+                </p>
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={handleConfirmSpendCredits}
+                  disabled={isDeductingCredits}
+                  className="px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                  style={{ backgroundColor: '#5CBFC0' }}
+                >
+                  {isDeductingCredits ? 'Processing...' : 'Spend 15 credits'}
+                </button>
+                <button
+                  onClick={() => setShowCreditPopup(false)}
+                  className="px-6 py-2 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
+                  style={{ backgroundColor: '#27456e' }}
+                >
+                  Not now
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

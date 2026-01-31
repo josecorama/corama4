@@ -703,6 +703,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.companyName}
                       onChange={(e) => handleInputChange('companyName', e.target.value)}
+                      placeholder="Type your company name"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -712,6 +713,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.website}
                       onChange={(e) => handleInputChange('website', e.target.value)}
+                      placeholder="Type your company website URL"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -721,6 +723,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.contactName}
                       onChange={(e) => handleInputChange('contactName', e.target.value)}
+                      placeholder="Type primary contact name"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -730,6 +733,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.title}
                       onChange={(e) => handleInputChange('title', e.target.value)}
+                      placeholder="Type contact's job title"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -739,6 +743,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
+                      placeholder="Type phone number"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -748,6 +753,7 @@ const CapabilityBuilder = () => {
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
+                      placeholder="Type email address"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -757,6 +763,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.address}
                       onChange={(e) => handleInputChange('address', e.target.value)}
+                      placeholder="Type street address"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -766,6 +773,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.city}
                       onChange={(e) => handleInputChange('city', e.target.value)}
+                      placeholder="Type city"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -775,6 +783,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.state}
                       onChange={(e) => handleInputChange('state', e.target.value)}
+                      placeholder="Type state"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -784,6 +793,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.zipCode}
                       onChange={(e) => handleInputChange('zipCode', e.target.value)}
+                      placeholder="Type zip code"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -828,6 +838,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.companyDescription}
                       onChange={(e) => handleInputChange('companyDescription', e.target.value)}
+                      placeholder="Type a brief description of your company"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -882,6 +893,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.ueiCode}
                       onChange={(e) => handleInputChange('ueiCode', e.target.value)}
+                      placeholder="Type your Unique Entity Identifier"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -891,6 +903,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.cageCode}
                       onChange={(e) => handleInputChange('cageCode', e.target.value)}
+                      placeholder="Type your CAGE code"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -919,6 +932,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.clientAgency}
                       onChange={(e) => handleInputChange('clientAgency', e.target.value)}
+                      placeholder="Type client or agency name"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -928,6 +942,7 @@ const CapabilityBuilder = () => {
                       type="text"
                       value={formData.contractValue}
                       onChange={(e) => handleInputChange('contractValue', e.target.value)}
+                      placeholder="Type contract value (e.g., $500,000)"
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                     />
                   </div>
@@ -938,6 +953,7 @@ const CapabilityBuilder = () => {
                                 type="text"
                                 value={formData.projectDescription}
                                 onChange={(e) => handleInputChange('projectDescription', e.target.value)}
+                                placeholder="Describe the project scope and deliverables"
                                 className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder-gray-400"
                               />
                             </div>

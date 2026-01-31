@@ -66,7 +66,7 @@ class EnhancedAIAssistant:
         """Extract key requirements from contract using AI"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": """You are an expert contract analyst. Extract and categorize the key requirements from this government contract. Focus on:
                     1. Technical requirements and specifications
@@ -92,7 +92,7 @@ class EnhancedAIAssistant:
         """Calculate win probability based on capability alignment"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": """You are an expert bid strategist. Analyze the alignment between a company's capabilities and contract requirements. 
                     Provide a win probability score (0-100) and detailed reasoning including:
@@ -123,7 +123,7 @@ class EnhancedAIAssistant:
                     docs_context += f"{doc['filename']}: {doc['content_excerpt'][:200]}...\n"
             
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"""You are an expert government contracting analyst for {company_name}. Provide a comprehensive contract opportunity analysis.
                     
@@ -178,7 +178,7 @@ class EnhancedAIAssistant:
         """Generate compliance checklist for the contract"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"""Create a comprehensive compliance checklist for {company_name} for this government contract bid. Include:
                     1. Mandatory requirements and certifications
@@ -221,7 +221,7 @@ class EnhancedAIAssistant:
         """Suggest optimal bidding strategy"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"""Analyze the contract and {company_name}'s capabilities to suggest an optimal bid strategy. Consider:
                     1. Competitive positioning for {company_name}
@@ -311,7 +311,7 @@ class EnhancedAIAssistant:
             """
             
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_query}
@@ -329,7 +329,7 @@ class EnhancedAIAssistant:
         """Generate detailed proposal outline"""
         try:
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"""Create a comprehensive proposal outline for {company_name} for this government contract. Include:
                     1. Executive Summary structure highlighting {company_name}'s value
@@ -369,7 +369,7 @@ class EnhancedAIAssistant:
                 contact_details = f"\n\nContact: {contact_info.get('name', '')}\n{contact_info.get('title', '')}\n{contact_info.get('email', '')}\n{contact_info.get('phone', '')}"
             
             response = self.client.chat.completions.create(
-                model="gpt-4",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": f"""Create a professional cover letter (1-2 pages) for {company_name}'s government contract proposal. Include:
                     1. Date and recipient information (placeholder format)
@@ -453,7 +453,7 @@ class EnhancedAIAssistant:
     def _generate_executive_summary(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed executive summary section"""
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""Create a comprehensive 3-4 page executive summary for {company_name}'s government contract proposal. 
 
@@ -483,7 +483,7 @@ Write 3-4 full pages with professional government contracting language, specific
     def _generate_technical_approach(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed technical approach section"""
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""Create a comprehensive 10-15 page technical approach section for {company_name}'s proposal.
 
@@ -515,7 +515,7 @@ Write 10-15 full pages with specific, actionable details that demonstrate {compa
     def _generate_management_plan(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed management plan section"""
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""Create a comprehensive 8-10 page management plan section for {company_name}'s proposal.
 
@@ -547,7 +547,7 @@ Write 8-10 full pages demonstrating {company_name}'s proven management capabilit
     def _generate_past_performance(self, capability_statement, user_documents, company_name="your company"):
         """Generate detailed past performance section"""
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""Create a comprehensive 6-8 page past performance section for {company_name}'s proposal.
 
@@ -577,7 +577,7 @@ Write 6-8 full pages highlighting {company_name}'s directly relevant experience 
     def _generate_pricing_strategy(self, contract_requirements, capability_statement, company_name="your company"):
         """Generate detailed pricing strategy section"""
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""Create a comprehensive 4-6 page pricing strategy section for {company_name}'s proposal.
 
@@ -608,7 +608,7 @@ Write 4-6 full pages with transparent, competitive pricing that demonstrates {co
     def _generate_quality_assurance(self, contract_requirements, company_name="your company"):
         """Generate detailed quality assurance section"""
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""Create a comprehensive 3-4 page quality assurance section for {company_name}'s proposal.
 
@@ -638,7 +638,7 @@ Write 3-4 full pages demonstrating {company_name}'s unwavering commitment to del
     def _generate_risk_management(self, contract_requirements, company_name="your company"):
         """Generate detailed risk management section"""
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""Create a comprehensive 2-3 page risk management section for {company_name}'s proposal.
 
@@ -675,7 +675,7 @@ Write 2-3 full pages demonstrating {company_name}'s proactive and mature risk ma
                 docs_context += f"- {doc['filename']}: {doc['content_excerpt'][:200]}...\n"
         
         response = self.client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": f"""You are an expert proposal writer creating a comprehensive 30-50 page government contract proposal for {company_name}. Generate a complete, detailed proposal with the following sections:
 

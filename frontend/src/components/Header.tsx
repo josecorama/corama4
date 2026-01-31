@@ -10,7 +10,8 @@ interface HeaderProps {
 }
 
 const Header = ({ credits: propCredits }: HeaderProps) => {
-  const [credits, setCredits] = useState(propCredits ?? 0)
+  const [credits, setCredits] = useState<number | null>(propCredits ?? null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     loadUserData()
@@ -22,6 +23,8 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
       setCredits(user.credits_balance)
     } catch (error) {
       console.error('Failed to load user data:', error)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -77,7 +80,9 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           <div className="flex items-center gap-2 sm:gap-4 lg:gap-6">
             <Link to="/get-more-credits" className="flex items-center gap-1 sm:gap-2 text-white hover:text-corama-teal transition-colors">
               <img src="/static/app/dashboard/Credits.svg" alt="" className="h-5 w-5" aria-hidden="true" />
-              <span className="font-poppins text-xs sm:text-sm">{credits}</span>
+              {!isLoading && credits !== null && (
+                <span className="font-poppins text-xs sm:text-sm">{credits}</span>
+              )}
               <span className="hidden sm:inline font-poppins text-xs sm:text-sm">Credits</span>
             </Link>
             

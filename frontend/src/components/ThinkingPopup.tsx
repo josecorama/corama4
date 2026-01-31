@@ -40,10 +40,9 @@ const ThinkingPopup: React.FC<ThinkingPopupProps> = ({ isVisible, text = 'Thinki
 interface InlineLoadingProps {
   text?: string
   size?: 'small' | 'medium' | 'large'
-  darkMode?: boolean
 }
 
-export const InlineLoading: React.FC<InlineLoadingProps> = ({ text = 'Thinking', size = 'medium', darkMode = false }) => {
+export const InlineLoading: React.FC<InlineLoadingProps> = ({ text = 'Thinking', size = 'medium' }) => {
   const sizeClasses = {
     small: { container: 'w-16 h-16', text: 'text-sm' },
     medium: { container: 'w-24 h-24', text: 'text-base' },
@@ -53,7 +52,7 @@ export const InlineLoading: React.FC<InlineLoadingProps> = ({ text = 'Thinking',
   return (
     <div className="flex flex-col items-center justify-center py-4">
       {/* Text with animated ellipsis - now above the animation */}
-      <div className={`${darkMode ? 'text-white' : 'text-gray-600'} font-poppins font-semibold ${sizeClasses[size].text} mb-2`}>
+      <div className={`text-white font-poppins font-semibold ${sizeClasses[size].text} mb-2`}>
         {text}
         <span className="inline-block">
           <span className="animate-ellipsis">...</span>

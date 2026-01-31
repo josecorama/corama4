@@ -11,6 +11,8 @@ const EditDirectoryProfile = () => {
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [credits, setCredits] = useState(0)
+  const [_hasListing, setHasListing] = useState(false)
+  const [_authError, setAuthError] = useState<string | null>(null)
   const [profile, setProfile] = useState<DirectoryProfile>({
     company: '',
     contact_name: '',
@@ -38,9 +40,20 @@ const EditDirectoryProfile = () => {
       const data = await api.getDirectoryProfile()
       if (data.success && data.profile) {
         setProfile(data.profile)
+        // Check if user has an existing listing (listed: true)
+        if (data.profile.listed === true) {
+          setHasListing(true)
+        } else {
+          // User doesn't have a listing yet - allow them to create one
+          setHasListing(false)
+        }
+      } else {
+        // No profile exists yet - allow user to create one
+        setHasListing(false)
       }
     } catch (error) {
       console.error('Failed to load profile:', error)
+      setAuthError('Failed to load profile. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -82,7 +95,12 @@ const EditDirectoryProfile = () => {
       if (data.success && data.logo_url) {
         setProfile(prev => ({ ...prev, logo_url: data.logo_url || '' }))
       } else {
-        alert(data.error || 'Failed to upload logo')
+        // Handle authorization error from backend
+        if (data.authorization_error) {
+          setAuthError(data.error || 'You must have an existing directory listing to upload a logo.')
+        } else {
+          alert(data.error || 'Failed to upload logo')
+        }
       }
     } catch (error) {
       console.error('Failed to upload logo:', error)
@@ -102,7 +120,12 @@ const EditDirectoryProfile = () => {
       if (data.success) {
         navigate('/corama-directory')
       } else {
-        alert(data.error || 'Failed to save profile')
+        // Handle authorization error from backend
+        if (data.authorization_error) {
+          setAuthError(data.error || 'You must have an existing directory listing to edit your profile.')
+        } else {
+          alert(data.error || 'Failed to save profile')
+        }
       }
     } catch (error) {
       console.error('Failed to save profile:', error)
@@ -226,17 +249,17 @@ const EditDirectoryProfile = () => {
                 
                 <div 
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-500 rounded-lg p-8 text-center cursor-pointer hover:border-corama-teal transition-colors"
+                  className="bg-white border-2 border-[#1C4262] rounded-xl p-6 sm:p-8 lg:p-10 text-center cursor-pointer hover:border-corama-teal transition-colors"
                 >
                   {profile.logo_url ? (
                     <div className="flex flex-col items-center">
                       <img src={profile.logo_url} alt="Company logo" className="max-h-24 mb-2" />
-                      <span className="text-gray-400 font-poppins text-sm">Click to change</span>
+                      <span className="text-gray-600 font-poppins text-sm">Click to change</span>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center">
                       <img src="/static/app/dashboard/AddFile.svg" alt="" className="w-12 h-12 mb-2" aria-hidden="true" />
-                      <span className="text-corama-teal font-poppins text-sm">
+                      <span className="text-[#1C4262] font-poppins text-sm font-medium">
                         {uploading ? 'Uploading...' : 'Add your file'}
                       </span>
                     </div>
@@ -333,13 +356,11 @@ const EditDirectoryProfile = () => {
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex items-center gap-4 bg-[#2F3C4F] border border-corama-teal/30 rounded-xl px-8 py-4 hover:bg-corama-darker transition-colors disabled:opacity-50"
+                className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
               >
-                <div className="text-left">
-                  <h3 className="text-white font-poppins font-bold text-base">Save Profile</h3>
-                  <p className="text-gray-400 font-poppins text-xs">Click to finalize your registration.</p>
-                </div>
-                <img src="/static/app/dashboard/EditProfile.svg" alt="" className="w-8 h-8" aria-hidden="true" />
+                <span className="font-bold text-base">Save Profile</span>
+                <img src="/static/app/dashboard/EditProfile.svg" alt="" className="w-6 h-6" aria-hidden="true" />
               </button>
             </div>
           </div>

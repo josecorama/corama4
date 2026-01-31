@@ -52,6 +52,7 @@ from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
+from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 
 # Load environment variables - use override=True to ensure .env values take precedence
 # over any system environment variables (fixes API key issues)
@@ -97,6 +98,32 @@ else:
 proposal_jobs = {}
 job_lock = threading.Lock()
 
+# ============================================================================
+# RATE LIMITING CONFIGURATION
+# ============================================================================
+# SECURITY: Rate limiting to prevent abuse of expensive endpoints
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
+def get_rate_limit_key():
+    """Get rate limit key - use user_id if authenticated, otherwise IP address."""
+    if 'user_data' in session and session['user_data'].get('user_id'):
+        return f"user:{session['user_data']['user_id']}"
+    return f"ip:{get_remote_address()}"
+
+limiter = Limiter(
+    app=app,
+    key_func=get_rate_limit_key,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://",
+    strategy="fixed-window"
+)
+
+# Exempt health check and static files from rate limiting
+@limiter.request_filter
+def exempt_health_check():
+    return request.path == "/healthz" or request.path.startswith("/static/")
+
 
 # Health Check Path
 @app.route("/healthz")
@@ -138,6 +165,118 @@ def admin_clear_caches():
             "QDRANT_CONTRACTS_CACHE"
         ]
     }), 200
+
+
+# ============================================================================
+# SECURITY HELPER FUNCTIONS
+# ============================================================================
+
+def is_safe_url_for_ssrf(url):
+    """
+    SECURITY: Validate URL to prevent SSRF (Server-Side Request Forgery) attacks.
+    
+    This function checks if a URL is safe to fetch by:
+    1. Ensuring it uses http or https scheme
+    2. Blocking private/internal IP ranges
+    3. Blocking localhost and loopback addresses
+    4. Blocking cloud metadata endpoints
+    
+    Returns:
+        tuple: (is_safe: bool, error_message: str or None)
+    """
+    import socket
+    import ipaddress
+    from urllib.parse import urlparse
+    
+    try:
+        parsed = urlparse(url)
+        
+        # Check scheme
+        if parsed.scheme not in ('http', 'https'):
+            return False, f"Invalid URL scheme: {parsed.scheme}. Only http and https are allowed."
+        
+        # Get hostname
+        hostname = parsed.hostname
+        if not hostname:
+            return False, "Invalid URL: no hostname found"
+        
+        # Block localhost and common internal hostnames
+        blocked_hostnames = [
+            'localhost', 'localhost.localdomain', 
+            'internal', 'intranet', 'corp',
+            'metadata', 'metadata.google.internal',
+            '169.254.169.254',  # AWS/GCP metadata
+            'instance-data', 'instance-data.ec2.internal'
+        ]
+        if hostname.lower() in blocked_hostnames:
+            return False, f"Blocked hostname: {hostname}"
+        
+        # Resolve hostname to IP and check if it's private
+        try:
+            ip_addresses = socket.getaddrinfo(hostname, None)
+            for addr_info in ip_addresses:
+                ip_str = addr_info[4][0]
+                try:
+                    ip = ipaddress.ip_address(ip_str)
+                    
+                    # Block private, loopback, link-local, and reserved addresses
+                    if ip.is_private:
+                        return False, f"Private IP address not allowed: {ip_str}"
+                    if ip.is_loopback:
+                        return False, f"Loopback address not allowed: {ip_str}"
+                    if ip.is_link_local:
+                        return False, f"Link-local address not allowed: {ip_str}"
+                    if ip.is_reserved:
+                        return False, f"Reserved address not allowed: {ip_str}"
+                    if ip.is_multicast:
+                        return False, f"Multicast address not allowed: {ip_str}"
+                        
+                    # Block AWS/GCP metadata IP range
+                    if ip_str.startswith('169.254.'):
+                        return False, f"Cloud metadata IP not allowed: {ip_str}"
+                        
+                except ValueError:
+                    continue  # Skip if not a valid IP
+                    
+        except socket.gaierror:
+            # DNS resolution failed - could be a non-existent domain
+            # Let the actual request handle this error
+            pass
+            
+        return True, None
+        
+    except Exception as e:
+        return False, f"URL validation error: {str(e)}"
+
+
+def safe_requests_get(url, **kwargs):
+    """
+    SECURITY: Wrapper around requests.get that validates URL for SSRF protection.
+    
+    Use this instead of requests.get() when fetching user-provided URLs.
+    
+    Args:
+        url: The URL to fetch
+        **kwargs: Additional arguments to pass to requests.get()
+        
+    Returns:
+        requests.Response object
+        
+    Raises:
+        ValueError: If URL fails SSRF validation
+        requests.exceptions.RequestException: If request fails
+    """
+    is_safe, error = is_safe_url_for_ssrf(url)
+    if not is_safe:
+        raise ValueError(f"SSRF protection: {error}")
+    
+    # Set reasonable defaults if not provided
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = 30
+    if 'allow_redirects' not in kwargs:
+        kwargs['allow_redirects'] = True
+        
+    return requests.get(url, **kwargs)
 
 
 # ============================================================================
@@ -192,12 +331,790 @@ def verify_recaptcha(token):
         return True  # Fail open to not block users if Google is down
 
 
+# ============================================================================
+# DISPOSABLE EMAIL BLOCKING (COMPREHENSIVE MULTI-LAYER DETECTION)
+# ============================================================================
+
+# Import tldextract for proper domain parsing (handles subdomains correctly)
+try:
+    import tldextract
+    TLDEXTRACT_AVAILABLE = True
+except ImportError:
+    TLDEXTRACT_AVAILABLE = False
+    app.logger.warning("[Email Validation] tldextract not installed, subdomain detection will be limited")
+
+# Load disposable email domains blocklist from package
+try:
+    from disposable_email_domains import blocklist as PACKAGE_BLOCKLIST
+    app.logger.info(f"[Email Validation] Loaded {len(PACKAGE_BLOCKLIST)} domains from disposable-email-domains package")
+except ImportError:
+    app.logger.warning("[Email Validation] disposable-email-domains package not installed")
+    PACKAGE_BLOCKLIST = set()
+
+# Additional comprehensive blocklist of known disposable/temporary email domains
+# This supplements the package blocklist with domains that may be missing
+ADDITIONAL_DISPOSABLE_DOMAINS = {
+    # Popular temp mail services (frequently used, often missing from lists)
+    'tempmail.com', 'temp-mail.org', 'temp-mail.io', 'tempmail.net', 'tempmail.de',
+    'guerrillamail.com', 'guerrillamail.org', 'guerrillamail.net', 'guerrillamail.biz', 'guerrillamail.de',
+    'guerrillamail.info', 'grr.la', 'sharklasers.com', 'guerrilla.email',
+    'mailinator.com', 'mailinator.net', 'mailinator.org', 'mailinator2.com',
+    '10minutemail.com', '10minutemail.net', '10minutemail.org', '10minmail.com',
+    '10minemail.com', '10minutesemail.net', '10minutesmail.com',
+    'throwaway.email', 'throwawaymail.com', 'throam.com',
+    'fakeinbox.com', 'fakemailgenerator.com', 'fakemail.net',
+    'tempinbox.com', 'tempinbox.co.uk', 'tempr.email', 'tempemail.net',
+    'dispostable.com', 'disposableemailaddresses.com', 'disposable-email.ml',
+    'yopmail.com', 'yopmail.fr', 'yopmail.net', 'cool.fr.nf', 'jetable.fr.nf',
+    'nospam.ze.tc', 'nomail.xl.cx', 'mega.zik.dj', 'speed.1s.fr', 'courriel.fr.nf',
+    'moncourrier.fr.nf', 'monemail.fr.nf', 'monmail.fr.nf',
+    'maildrop.cc', 'mailnesia.com', 'mailcatch.com', 'mail-temp.com',
+    'mohmal.com', 'mohmal.im', 'mohmal.tech', 'mohmal.in',
+    'getnada.com', 'nada.email', 'tempail.com',
+    'emailondeck.com', 'emailfake.com', 'email-fake.com',
+    'trashmail.com', 'trashmail.net', 'trashmail.org', 'trashmail.me', 'trashmail.ws',
+    'trash-mail.com', 'trash-mail.at', 'trash-mail.de',
+    'spamgourmet.com', 'spamgourmet.net', 'spamgourmet.org',
+    'mailnull.com', 'e4ward.com', 'spamex.com', 'spamfree24.org',
+    'mytrashmail.com', 'mt2009.com', 'thankyou2010.com',
+    'dodgeit.com', 'dodgemail.de', 'dodgit.com', 'dodgit.org',
+    'mintemail.com', 'tempmailer.com', 'tempmailer.de',
+    'spambox.us', 'spambox.xyz', 'spambox.irishspringrealty.com',
+    'mailexpire.com', 'mailmoat.com', 'mailscrap.com',
+    'incognitomail.com', 'incognitomail.net', 'incognitomail.org',
+    'anonymbox.com', 'anonymmail.net', 'anonbox.net', 'anonmails.de',
+    'bugmenot.com', 'bumpymail.com', 'casualdx.com',
+    'chogmail.com', 'choicemail1.com', 'cool.fr.nf',
+    'correo.blogos.net', 'cosmorph.com', 'courrieltemporaire.com',
+    'curryworld.de', 'cust.in', 'dacoolest.com', 'dandikmail.com',
+    'deadaddress.com', 'despam.it', 'despammed.com', 'devnullmail.com',
+    'dfgh.net', 'digitalsanctuary.com', 'discardmail.com', 'discardmail.de',
+    'disposableaddress.com', 'disposableemailaddresses.com', 'disposableinbox.com',
+    'dispose.it', 'dispostable.com', 'dm.w3internet.co.uk', 'dodgeit.com',
+    'dodgit.com', 'donemail.ru', 'dontreg.com', 'dontsendmespam.de',
+    'drdrb.com', 'dump-email.info', 'dumpandjunk.com', 'dumpmail.de',
+    'dumpyemail.com', 'e-mail.com', 'e-mail.org', 'e4ward.com',
+    'easytrashmail.com', 'einmalmail.de', 'email60.com', 'emaildienst.de',
+    'emailgo.de', 'emailias.com', 'emailigo.de', 'emailinfive.com',
+    'emaillime.com', 'emailmiser.com', 'emailsensei.com', 'emailtemporanea.com',
+    'emailtemporanea.net', 'emailtemporar.ro', 'emailtemporario.com.br',
+    'emailthe.net', 'emailtmp.com', 'emailto.de', 'emailwarden.com',
+    'emailx.at.hm', 'emailxfer.com', 'emz.net', 'enterto.com',
+    'ephemail.net', 'etranquil.com', 'etranquil.net', 'etranquil.org',
+    'evopo.com', 'explodemail.com', 'express.net.ua', 'eyepaste.com',
+    'fakeinbox.com', 'fakeinformation.com', 'fansworldwide.de', 'fastacura.com',
+    'fastchevy.com', 'fastchrysler.com', 'fastkawasaki.com', 'fastmazda.com',
+    'fastmitsubishi.com', 'fastnissan.com', 'fastsubaru.com', 'fastsuzuki.com',
+    'fasttoyota.com', 'fastyamaha.com', 'filzmail.com', 'fixmail.tk',
+    'fizmail.com', 'flyspam.com', 'fr33mail.info', 'frapmail.com',
+    'friendlymail.co.uk', 'front14.org', 'fuckingduh.com', 'fudgerub.com',
+    'garliclife.com', 'gehensiull.com', 'get1mail.com', 'get2mail.fr',
+    'getairmail.com', 'getmails.eu', 'getonemail.com', 'getonemail.net',
+    'ghosttexter.de', 'giantmail.de', 'girlsundertheinfluence.com',
+    'gishpuppy.com', 'goemailgo.com', 'gorillaswithdirtyarmpits.com',
+    'gotmail.com', 'gotmail.net', 'gotmail.org', 'gotti.otherinbox.com',
+    'gowikibooks.com', 'gowikicampus.com', 'gowikicars.com', 'gowikifilms.com',
+    'gowikigames.com', 'gowikimusic.com', 'gowikinetwork.com', 'gowikitravel.com',
+    'gowikitv.com', 'grandmamail.com', 'grandmasmail.com', 'great-host.in',
+    'greensloth.com', 'gsrv.co.uk', 'guerillamail.biz', 'guerillamail.com',
+    'guerillamail.de', 'guerillamail.info', 'guerillamail.net', 'guerillamail.org',
+    'guerrillamail.biz', 'guerrillamail.com', 'guerrillamail.de', 'guerrillamail.info',
+    'guerrillamail.net', 'guerrillamail.org', 'guerrillamailblock.com',
+    'h8s.org', 'haltospam.com', 'harakirimail.com', 'hartbot.de',
+    'hatespam.org', 'herp.in', 'hidemail.de', 'hidzz.com',
+    'hmamail.com', 'hochsitze.com', 'hopemail.biz', 'hotpop.com',
+    'hulapla.de', 'ieatspam.eu', 'ieatspam.info', 'ieh-mail.de',
+    'ihateyoualot.info', 'iheartspam.org', 'imails.info', 'imgof.com',
+    'imgv.de', 'imstations.com', 'inbax.tk', 'inbox.si',
+    'inboxalias.com', 'inboxclean.com', 'inboxclean.org', 'inboxproxy.com',
+    'incognitomail.com', 'incognitomail.net', 'incognitomail.org', 'infocom.zp.ua',
+    'insorg-mail.info', 'instant-mail.de', 'instantemailaddress.com', 'iozak.com',
+    'ipoo.org', 'irish2me.com', 'iwi.net', 'jetable.com',
+    'jetable.fr.nf', 'jetable.net', 'jetable.org', 'jnxjn.com',
+    'jourrapide.com', 'jsrsolutions.com', 'junk1.com', 'kasmail.com',
+    'kaspop.com', 'keepmymail.com', 'killmail.com', 'killmail.net',
+    'kimsdisk.com', 'kingsq.ga', 'kiois.com', 'klassmaster.com',
+    'klassmaster.net', 'klzlv.com', 'kook.ml', 'kulturbetrieb.info',
+    'kurzepost.de', 'lawlita.com', 'lazyinbox.com', 'letthemeatspam.com',
+    'lhsdv.com', 'lifebyfood.com', 'link2mail.net', 'litedrop.com',
+    'loadby.us', 'login-email.ml', 'lol.ovpn.to', 'lookugly.com',
+    'lopl.co.cc', 'lortemail.dk', 'lovemeleaveme.com', 'lr78.com',
+    'lroid.com', 'lukop.dk', 'm4ilweb.info', 'maboard.com',
+    'mail-hierarchie.net', 'mail-temporaire.fr', 'mail.by', 'mail.mezimages.net',
+    'mail.zp.ua', 'mail114.net', 'mail2rss.org', 'mail333.com',
+    'mail4trash.com', 'mailbidon.com', 'mailblocks.com', 'mailbucket.org',
+    'mailcat.biz', 'mailcatch.com', 'mailde.de', 'mailde.info',
+    'maildrop.cc', 'maildrop.cf', 'maildrop.ga', 'maildrop.gq',
+    'maildrop.ml', 'maildu.de', 'maildx.com', 'mailed.ro',
+    'maileme101.com', 'mailexpire.com', 'mailfa.tk', 'mailfork.com',
+    'mailfreeonline.com', 'mailguard.me', 'mailhazard.com', 'mailhazard.us',
+    'mailhz.me', 'mailimate.com', 'mailin8r.com', 'mailinater.com',
+    'mailinator.com', 'mailinator.gq', 'mailinator.net', 'mailinator.org',
+    'mailinator.us', 'mailinator2.com', 'mailincubator.com', 'mailismagic.com',
+    'mailjunk.cf', 'mailjunk.ga', 'mailjunk.gq', 'mailjunk.ml',
+    'mailjunk.tk', 'mailmate.com', 'mailme.gq', 'mailme.ir',
+    'mailme.lv', 'mailme24.com', 'mailmetrash.com', 'mailmoat.com',
+    'mailnator.com', 'mailnesia.com', 'mailnull.com', 'mailorg.org',
+    'mailpick.biz', 'mailproxsy.com', 'mailquack.com', 'mailrock.biz',
+    'mailsac.com', 'mailseal.de', 'mailshell.com', 'mailsiphon.com',
+    'mailslapping.com', 'mailslite.com', 'mailtemp.info', 'mailtome.de',
+    'mailtothis.com', 'mailtrash.net', 'mailtv.net', 'mailtv.tv',
+    'mailzilla.com', 'mailzilla.org', 'makemetheking.com', 'manybrain.com',
+    'mbx.cc', 'mega.zik.dj', 'meinspamschutz.de', 'meltmail.com',
+    'messagebeamer.de', 'mezimages.net', 'mierdamail.com', 'migmail.pl',
+    'migumail.com', 'mintemail.com', 'mjukgansen.nu', 'moakt.com',
+    'mobi.web.id', 'mobileninja.co.uk', 'moburl.com', 'moncourrier.fr.nf',
+    'monemail.fr.nf', 'monmail.fr.nf', 'monumentmail.com', 'ms9.mailslite.com',
+    'msb.minsmail.com', 'msg.mailslite.com', 'mspeciosa.com', 'mswork.ru',
+    'mt2009.com', 'mt2014.com', 'myalias.pw', 'mycleaninbox.net',
+    'myemailboxy.com', 'mymail-in.net', 'mymailoasis.com', 'mynetstore.de',
+    'mypacks.net', 'mypartyclip.de', 'myphantomemail.com', 'mysamp.de',
+    'myspaceinc.com', 'myspaceinc.net', 'myspacepimpedup.com', 'myspamless.com',
+    'mytempemail.com', 'mytempmail.com', 'mytrashmail.com', 'nabuma.com',
+    'neomailbox.com', 'nepwk.com', 'nervmich.net', 'nervtmansen.de',
+    'netmails.com', 'netmails.net', 'netzidiot.de', 'neverbox.com',
+    'nice-4u.com', 'nincsmail.hu', 'nmail.cf', 'no-spam.ws',
+    'nobulk.com', 'noclickemail.com', 'nogmailspam.info', 'nomail.xl.cx',
+    'nomail2me.com', 'nomorespamemails.com', 'nospam.ze.tc', 'nospam4.us',
+    'nospamfor.us', 'nospammail.net', 'nospamthanks.info', 'notmailinator.com',
+    'notsharingmy.info', 'nowhere.org', 'nowmymail.com', 'ntlhelp.net',
+    'nurfuerspam.de', 'nus.edu.sg', 'nwldx.com', 'objectmail.com',
+    'obobbo.com', 'odnorazovoe.ru', 'one-time.email', 'oneoffemail.com',
+    'onewaymail.com', 'onlatedotcom.info', 'online.ms', 'oopi.org',
+    'opayq.com', 'ordinaryamerican.net', 'otherinbox.com', 'ourklips.com',
+    'outlawspam.com', 'ovpn.to', 'owlpic.com', 'pancakemail.com',
+    'pjjkp.com', 'plexolan.de', 'poczta.onet.pl', 'politikerclub.de',
+    'poofy.org', 'pookmail.com', 'privacy.net', 'privatdemail.net',
+    'privy-mail.com', 'privymail.de', 'proxymail.eu', 'prtnx.com',
+    'punkass.com', 'putthisinyourspamdatabase.com', 'pwrby.com', 'qisdo.com',
+    'qisoa.com', 'quickinbox.com', 'quickmail.nl', 'rainmail.biz',
+    'rcpt.at', 're-gister.com', 'reallymymail.com', 'realtyalerts.ca',
+    'recode.me', 'recursor.net', 'recyclemail.dk', 'regbypass.com',
+    'regbypass.comsafe-mail.net', 'rejectmail.com', 'remail.cf', 'remail.ga',
+    'rhyta.com', 'rklips.com', 'rmqkr.net', 'royal.net',
+    'rppkn.com', 'rtrtr.com', 's0ny.net', 'safe-mail.net',
+    'safersignup.de', 'safetymail.info', 'safetypost.de', 'sandelf.de',
+    'saynotospams.com', 'schafmail.de', 'schrott-email.de', 'secretemail.de',
+    'secure-mail.biz', 'selfdestructingmail.com', 'senseless-entertainment.com',
+    'server.ms.selfip.net', 'sharklasers.com', 'shieldemail.com', 'shiftmail.com',
+    'shitmail.me', 'shitmail.org', 'shortmail.net', 'shut.name',
+    'shut.ws', 'sibmail.com', 'sinnlos-mail.de', 'siteposter.net',
+    'skeefmail.com', 'slaskpost.se', 'slave-auctions.net', 'slopsbox.com',
+    'slushmail.com', 'smashmail.de', 'smellfear.com', 'snakemail.com',
+    'sneakemail.com', 'sneakmail.de', 'snkmail.com', 'sofimail.com',
+    'sofort-mail.de', 'softpls.asia', 'sogetthis.com', 'sohu.com',
+    'soisz.com', 'solvemail.info', 'soodonims.com', 'spam.la',
+    'spam.su', 'spam4.me', 'spamail.de', 'spamarrest.com',
+    'spamavert.com', 'spambob.com', 'spambob.net', 'spambob.org',
+    'spambog.com', 'spambog.de', 'spambog.net', 'spambog.ru',
+    'spambox.info', 'spambox.irishspringrealty.com', 'spambox.us', 'spamcannon.com',
+    'spamcannon.net', 'spamcero.com', 'spamcon.org', 'spamcorptastic.com',
+    'spamcowboy.com', 'spamcowboy.net', 'spamcowboy.org', 'spamday.com',
+    'spamex.com', 'spamfree.eu', 'spamfree24.com', 'spamfree24.de',
+    'spamfree24.eu', 'spamfree24.info', 'spamfree24.net', 'spamfree24.org',
+    'spamgoes.in', 'spamgourmet.com', 'spamgourmet.net', 'spamgourmet.org',
+    'spamherelots.com', 'spamhereplease.com', 'spamhole.com', 'spamify.com',
+    'spaminator.de', 'spamkill.info', 'spaml.com', 'spaml.de',
+    'spamlot.net', 'spammotel.com', 'spamobox.com', 'spamoff.de',
+    'spamsalad.in', 'spamslicer.com', 'spamspot.com', 'spamstack.net',
+    'spamthis.co.uk', 'spamthisplease.com', 'spamtrail.com', 'spamtroll.net',
+    'speed.1s.fr', 'spoofmail.de', 'squizzy.de', 'ssoia.com',
+    'startkeys.com', 'stinkefinger.net', 'stop-my-spam.cf', 'stop-my-spam.com',
+    'stop-my-spam.ga', 'stop-my-spam.ml', 'stop-my-spam.tk', 'streetwisemail.com',
+    'stuffmail.de', 'super-auswahl.de', 'supergreatmail.com', 'supermailer.jp',
+    'superrito.com', 'superstachel.de', 'suremail.info', 'svk.jp',
+    'sweetxxx.de', 'tafmail.com', 'tagyourself.com', 'talkinator.com',
+    'tapchicuoihoi.com', 'techemail.com', 'techgroup.me', 'teewars.org',
+    'teleosaurs.xyz', 'teleworm.com', 'teleworm.us', 'temp-mail.de',
+    'temp-mail.org', 'temp-mail.ru', 'temp.emeraldwebmail.com', 'temp.headstrong.de',
+    'tempail.com', 'tempalias.com', 'tempe-mail.com', 'tempemail.biz',
+    'tempemail.co.za', 'tempemail.com', 'tempemail.net', 'tempinbox.co.uk',
+    'tempinbox.com', 'tempmail.co', 'tempmail.de', 'tempmail.eu',
+    'tempmail.it', 'tempmail.net', 'tempmail.us', 'tempmail2.com',
+    'tempmaildemo.com', 'tempmailer.com', 'tempmailer.de', 'tempomail.fr',
+    'temporarily.de', 'temporarioemail.com.br', 'temporaryemail.net', 'temporaryemail.us',
+    'temporaryforwarding.com', 'temporaryinbox.com', 'temporarymailaddress.com', 'tempthe.net',
+    'tempymail.com', 'thanksnospam.info', 'thankyou2010.com', 'thc.st',
+    'thelimestones.com', 'thisisnotmyrealemail.com', 'thismail.net', 'thismail.ru',
+    'throam.com', 'throwam.com', 'throwawayemailaddress.com', 'throwawaymail.com',
+    'tilien.com', 'tittbit.in', 'tmailinator.com', 'tmail.ws',
+    'toiea.com', 'tokenmail.de', 'tonymanso.com', 'toomail.biz',
+    'topranklist.de', 'tradermail.info', 'trash-amil.com', 'trash-mail.at',
+    'trash-mail.com', 'trash-mail.de', 'trash-mail.ga', 'trash-mail.gq',
+    'trash-mail.ml', 'trash-mail.tk', 'trash2009.com', 'trash2010.com',
+    'trash2011.com', 'trashbox.eu', 'trashdevil.com', 'trashdevil.de',
+    'trashemail.de', 'trashmail.at', 'trashmail.com', 'trashmail.de',
+    'trashmail.me', 'trashmail.net', 'trashmail.org', 'trashmail.ws',
+    'trashmailer.com', 'trashymail.com', 'trashymail.net', 'trbvm.com',
+    'trickmail.net', 'trillianpro.com', 'tryalert.com', 'turual.com',
+    'twinmail.de', 'tyldd.com', 'uggsrock.com', 'umail.net',
+    'upliftnow.com', 'uplipht.com', 'uroid.com', 'us.af',
+    'valemail.net', 'venompen.com', 'veryrealemail.com', 'viditag.com',
+    'viewcastmedia.com', 'viewcastmedia.net', 'viewcastmedia.org', 'viralplays.com',
+    'vkcode.ru', 'vmani.com', 'vomoto.com', 'vpn.st',
+    'vsimcard.com', 'vubby.com', 'wasteland.rfc822.org', 'webemail.me',
+    'webm4il.info', 'webuser.in', 'wee.my', 'weg-werf-email.de',
+    'wegwerf-email-addressen.de', 'wegwerf-emails.de', 'wegwerfadresse.de', 'wegwerfemail.com',
+    'wegwerfemail.de', 'wegwerfmail.de', 'wegwerfmail.info', 'wegwerfmail.net',
+    'wegwerfmail.org', 'wetrainbayarea.com', 'wetrainbayarea.org', 'wh4f.org',
+    'whatiaas.com', 'whatpaas.com', 'whopy.com', 'whtjddn.33mail.com',
+    'whyspam.me', 'willhackforfood.biz', 'willselfdestruct.com', 'winemaven.info',
+    'wolfsmail.tk', 'wollan.info', 'worldspace.link', 'wronghead.com',
+    'wuzup.net', 'wuzupmail.net', 'wwwnew.eu', 'x.ip6.li',
+    'xagloo.co', 'xagloo.com', 'xemaps.com', 'xents.com',
+    'xmaily.com', 'xoxy.net', 'yapped.net', 'yeah.net',
+    'yep.it', 'yogamaven.com', 'yopmail.com', 'yopmail.fr',
+    'yopmail.gq', 'yopmail.net', 'you-spam.com', 'ypmail.webarnak.fr.eu.org',
+    'yuurok.com', 'z1p.biz', 'za.com', 'zehnminuten.de',
+    'zehnminutenmail.de', 'zetmail.com', 'zippymail.info', 'zoaxe.com',
+    'zoemail.com', 'zoemail.net', 'zoemail.org', 'zomg.info',
+    'zxcv.com', 'zxcvbnm.com', 'zzz.com',
+    # Recent/new disposable email services (2023-2024)
+    'tempmailo.com', 'tempmailaddress.com', 'emailnax.com', 'emailna.co',
+    'fexbox.org', 'fexbox.ru', 'fexpost.com', 'fextemp.com',
+    'mailsac.com', 'inboxes.com', 'mailpoof.com', 'tempemailco.com',
+    'burnermail.io', 'burner.kiwi', 'mailgw.com', 'emailfreedom.ml',
+    'dropmail.me', 'getairmail.com', 'mailforspam.com', 'tempr.email',
+    'fakemailgenerator.net', 'emailondeck.com', 'tempemailgen.com',
+    'emailfake.com', 'generator.email', 'fakemailgenerator.com',
+    'crazymailing.com', 'tempsky.com', 'tempmailgen.com',
+    'mail.tm', 'mail.gw', 'internxt.com', 'simplelogin.io',
+    'anonaddy.com', 'anonaddy.me', 'duckduckgo.com',
+    # Common wildcard base domains (subdomains of these should be blocked)
+    '33mail.com', 'spamgourmet.com', 'mailinator.com', 'guerrillamail.com',
+}
+
+# Wildcard domains - any subdomain of these should be blocked
+WILDCARD_DISPOSABLE_DOMAINS = {
+    '33mail.com', 'anonaddy.com', 'anonaddy.me', 'spamgourmet.com',
+    'mailinator.com', 'guerrillamail.com', 'guerrillamail.org', 'guerrillamail.net',
+    'guerrillamail.biz', 'guerrillamail.de', 'guerrillamail.info',
+    'sharklasers.com', 'grr.la', 'guerrilla.email',
+    'yopmail.com', 'yopmail.fr', 'yopmail.net',
+    'tempmail.com', 'temp-mail.org', 'tempmail.net',
+    'maildrop.cc', 'mailnesia.com', 'trashmail.com',
+    'mohmal.com', 'getnada.com', 'emailondeck.com',
+    'throwawaymail.com', 'fakeinbox.com', 'dispostable.com',
+    'spambox.us', 'mailexpire.com', 'incognitomail.com',
+    'anonbox.net', 'bugmenot.com', 'mailcatch.com',
+    'mintemail.com', 'spamfree24.org', 'mytrashmail.com',
+    'dodgeit.com', 'mailnull.com', 'e4ward.com',
+    'jetable.org', 'trash-mail.com', 'trash-mail.de',
+}
+
+# Pattern-based detection for common disposable email naming conventions
+DISPOSABLE_PATTERNS = [
+    r'^temp[-_]?mail',
+    r'^trash[-_]?mail',
+    r'^fake[-_]?mail',
+    r'^throw[-_]?away',
+    r'^disposable',
+    r'^burner[-_]?mail',
+    r'^spam[-_]?mail',
+    r'^junk[-_]?mail',
+    r'^10[-_]?min',
+    r'^guerr?illa',
+    r'^anon[-_]?mail',
+    r'^anon[-_]?box',
+    r'^mail[-_]?temp',
+    r'^mail[-_]?drop',
+    r'^mail[-_]?catch',
+    r'^mail[-_]?expire',
+    r'^no[-_]?spam',
+    r'^anti[-_]?spam',
+    r'tempmail',
+    r'trashmail',
+    r'throwaway',
+    r'disposable',
+    r'burnermail',
+    r'fakeemail',
+    r'fakemail',
+    r'spammail',
+    r'junkmail',
+    r'10minute',
+    r'guerilla',
+    r'guerrilla',
+]
+
+# Compile patterns for efficiency
+import re
+DISPOSABLE_PATTERN_REGEX = re.compile('|'.join(DISPOSABLE_PATTERNS), re.IGNORECASE)
+
+# Combine all blocklists into one set for O(1) lookup
+COMBINED_DISPOSABLE_BLOCKLIST = set()
+COMBINED_DISPOSABLE_BLOCKLIST.update(PACKAGE_BLOCKLIST)
+COMBINED_DISPOSABLE_BLOCKLIST.update(ADDITIONAL_DISPOSABLE_DOMAINS)
+app.logger.info(f"[Email Validation] Combined blocklist has {len(COMBINED_DISPOSABLE_BLOCKLIST)} unique domains")
+
+# Optional allowlist for domains that should never be blocked (env var: EMAIL_DOMAIN_ALLOWLIST=domain1.com,domain2.com)
+EMAIL_DOMAIN_ALLOWLIST = set(
+    d.strip().lower() for d in os.getenv('EMAIL_DOMAIN_ALLOWLIST', '').split(',') if d.strip()
+)
+
+# Major legitimate email providers that should never be blocked (safety net)
+LEGITIMATE_EMAIL_PROVIDERS = {
+    'gmail.com', 'googlemail.com', 'google.com',
+    'outlook.com', 'hotmail.com', 'live.com', 'msn.com', 'microsoft.com',
+    'yahoo.com', 'yahoo.co.uk', 'yahoo.fr', 'yahoo.de', 'yahoo.es', 'yahoo.it',
+    'icloud.com', 'me.com', 'mac.com', 'apple.com',
+    'aol.com', 'aim.com',
+    'protonmail.com', 'proton.me', 'pm.me',
+    'zoho.com', 'zohomail.com',
+    'mail.com', 'email.com',
+    'gmx.com', 'gmx.net', 'gmx.de',
+    'fastmail.com', 'fastmail.fm',
+    'tutanota.com', 'tutanota.de', 'tuta.io',
+    'yandex.com', 'yandex.ru',
+    'mail.ru', 'inbox.ru', 'list.ru', 'bk.ru',
+    'qq.com', '163.com', '126.com', 'sina.com',
+    'att.net', 'sbcglobal.net', 'bellsouth.net',
+    'verizon.net', 'comcast.net', 'cox.net', 'charter.net',
+    'earthlink.net', 'juno.com', 'netzero.net',
+    'corama.ai',  # Our own domain
+}
+
+def is_disposable_email(email: str) -> tuple:
+    """
+    Check if an email address uses a disposable/temporary email domain.
+    Uses multi-layer detection:
+    1. Allowlist check (legitimate providers)
+    2. Exact domain match against combined blocklist
+    3. Subdomain/wildcard detection
+    4. Pattern-based heuristics
+    
+    Returns:
+        tuple: (is_disposable: bool, domain: str, reason: str)
+    """
+    if not email or '@' not in email:
+        return False, '', 'invalid_email'
+    
+    try:
+        # Extract and normalize domain
+        full_domain = email.split('@')[-1].strip().lower()
+        
+        # Remove trailing dot if present
+        if full_domain.endswith('.'):
+            full_domain = full_domain[:-1]
+        
+        # Check user-defined allowlist first
+        if full_domain in EMAIL_DOMAIN_ALLOWLIST:
+            return False, full_domain, 'user_allowlist'
+        
+        # Check legitimate providers (safety net)
+        if full_domain in LEGITIMATE_EMAIL_PROVIDERS:
+            return False, full_domain, 'legitimate_provider'
+        
+        # Layer 1: Exact domain match against combined blocklist
+        if full_domain in COMBINED_DISPOSABLE_BLOCKLIST:
+            app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - exact match in blocklist")
+            return True, full_domain, 'exact_blocklist_match'
+        
+        # Layer 2: Subdomain/wildcard detection using tldextract
+        if TLDEXTRACT_AVAILABLE:
+            extracted = tldextract.extract(full_domain)
+            # Get the registrable domain (e.g., 'mail.guerrillamail.com' -> 'guerrillamail.com')
+            registrable_domain = f"{extracted.domain}.{extracted.suffix}" if extracted.suffix else extracted.domain
+            
+            # Check if the registrable domain is in wildcard list
+            if registrable_domain in WILDCARD_DISPOSABLE_DOMAINS:
+                app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - subdomain of wildcard '{registrable_domain}'")
+                return True, full_domain, f'wildcard_subdomain_of_{registrable_domain}'
+            
+            # Check if the registrable domain is in the main blocklist
+            if registrable_domain != full_domain and registrable_domain in COMBINED_DISPOSABLE_BLOCKLIST:
+                app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - subdomain of blocked '{registrable_domain}'")
+                return True, full_domain, f'subdomain_of_{registrable_domain}'
+        else:
+            # Fallback: simple subdomain check by splitting on dots
+            parts = full_domain.split('.')
+            if len(parts) > 2:
+                # Try parent domains
+                for i in range(1, len(parts) - 1):
+                    parent_domain = '.'.join(parts[i:])
+                    if parent_domain in WILDCARD_DISPOSABLE_DOMAINS or parent_domain in COMBINED_DISPOSABLE_BLOCKLIST:
+                        app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - subdomain of '{parent_domain}'")
+                        return True, full_domain, f'subdomain_of_{parent_domain}'
+        
+        # Layer 3: Pattern-based heuristics
+        if DISPOSABLE_PATTERN_REGEX.search(full_domain):
+            app.logger.info(f"[EMAIL_BLOCK] Blocked domain '{full_domain}' - matches disposable pattern")
+            return True, full_domain, 'pattern_match'
+        
+        # Not detected as disposable
+        return False, full_domain, 'not_disposable'
+        
+    except Exception as e:
+        app.logger.warning(f"[Email Validation] Error checking disposable email '{email}': {e}")
+        # Fail closed for security - if we can't check, block it
+        return True, '', f'error_checking_{str(e)}'
+
+
+# ============================================================================
+# OTP EMAIL VERIFICATION SYSTEM
+# ============================================================================
+
+def generate_otp():
+    """Generate a cryptographically secure 6-digit OTP code."""
+    import secrets
+    return str(secrets.randbelow(900000) + 100000)  # 100000-999999
+
+
+def hash_otp(otp: str) -> str:
+    """Hash OTP using HMAC-SHA256 for secure storage (never store in plain text)."""
+    import hmac
+    import hashlib
+    secret_key = os.getenv('OTP_SECRET_KEY', os.getenv('SECRET_KEY', 'default-otp-secret'))
+    return hmac.new(secret_key.encode(), otp.encode(), hashlib.sha256).hexdigest()
+
+
+def verify_otp_hash(otp: str, stored_hash: str) -> bool:
+    """Verify OTP against stored hash using constant-time comparison."""
+    import hmac
+    return hmac.compare_digest(hash_otp(otp), stored_hash)
+
+
+def check_otp_rate_limit(email: str) -> tuple:
+    """
+    Check if user is rate-limited for OTP requests.
+    
+    Rate limits:
+    - Max 3 OTP requests per 15 minutes
+    - 60 second cooldown between requests
+    
+    Returns: (is_allowed: bool, error_message: str or None, seconds_until_retry: int or None)
+    """
+    import time
+    try:
+        # Use Firebase Admin SDK for rate limit data
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        rate_limit_ref = admin_db.reference(f'otp_rate_limits/{email.replace(".", "_dot_").replace("@", "_at_")}')
+        rate_data = rate_limit_ref.get() or {}
+        
+        current_time = time.time()
+        last_request = rate_data.get('last_request', 0)
+        request_count = rate_data.get('request_count', 0)
+        window_start = rate_data.get('window_start', current_time)
+        
+        # Check 60 second cooldown
+        seconds_since_last = current_time - last_request
+        if seconds_since_last < 60:
+            return False, "Please wait before requesting another code", int(60 - seconds_since_last)
+        
+        # Check 15-minute window (900 seconds)
+        if current_time - window_start > 900:
+            # Reset window
+            return True, None, None
+        
+        # Check max 3 requests per window
+        if request_count >= 3:
+            seconds_remaining = int(900 - (current_time - window_start))
+            return False, "Too many OTP requests. Please try again later", seconds_remaining
+        
+        return True, None, None
+        
+    except Exception as e:
+        app.logger.warning(f"[OTP] Rate limit check failed (allowing request): {e}")
+        return True, None, None  # Fail open
+
+
+def update_otp_cooldown(email: str):
+    """Update cooldown timestamp immediately when OTP request is made.
+    
+    This prevents rapid clicking/hammering but doesn't count against the
+    request limit until email is actually sent successfully.
+    """
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        rate_limit_ref = admin_db.reference(f'otp_rate_limits/{email.replace(".", "_dot_").replace("@", "_at_")}')
+        rate_data = rate_limit_ref.get() or {}
+        
+        current_time = time.time()
+        window_start = rate_data.get('window_start', current_time)
+        
+        # Reset window if expired (15 minutes)
+        if current_time - window_start > 900:
+            rate_limit_ref.set({
+                'last_request': current_time,
+                'request_count': rate_data.get('request_count', 0),  # Don't increment yet
+                'window_start': current_time
+            })
+        else:
+            rate_limit_ref.update({
+                'last_request': current_time
+                # Don't increment request_count - that happens on success
+            })
+            
+    except Exception as e:
+        app.logger.warning(f"[OTP] Failed to update cooldown: {e}")
+
+
+def increment_otp_success_count(email: str):
+    """Increment the successful send count after email is actually sent.
+    
+    Called only when email delivery succeeds, so failed sends don't
+    burn the user's rate limit quota.
+    """
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        rate_limit_ref = admin_db.reference(f'otp_rate_limits/{email.replace(".", "_dot_").replace("@", "_at_")}')
+        rate_data = rate_limit_ref.get() or {}
+        
+        current_time = time.time()
+        window_start = rate_data.get('window_start', current_time)
+        
+        # Reset window if expired (15 minutes)
+        if current_time - window_start > 900:
+            rate_limit_ref.set({
+                'last_request': current_time,
+                'request_count': 1,
+                'window_start': current_time
+            })
+        else:
+            rate_limit_ref.update({
+                'request_count': rate_data.get('request_count', 0) + 1
+            })
+        
+        app.logger.info(f"[OTP] Incremented success count for {email}")
+            
+    except Exception as e:
+        app.logger.warning(f"[OTP] Failed to increment success count: {e}")
+
+
+def store_email_verification(email: str, otp: str, user_id: str):
+    """Store hashed OTP in Firebase with 15-minute expiration."""
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        verification_ref = admin_db.reference(f'email_verifications/{user_id}')
+        verification_ref.set({
+            'email': email,
+            'otp_hash': hash_otp(otp),
+            'created_at': time.time(),
+            'expires_at': time.time() + 900,  # 15 minutes
+            'attempts': 0,
+            'verified': False
+        })
+        app.logger.info(f"[OTP] Stored verification for {email}")
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Failed to store verification: {e}")
+        raise
+
+
+def verify_email_otp(user_id: str, otp: str) -> tuple:
+    """
+    Verify OTP code for email verification.
+    
+    Returns: (success: bool, error_message: str or None)
+    """
+    import time
+    try:
+        import firebase_admin
+        from firebase_admin import db as admin_db
+        
+        verification_ref = admin_db.reference(f'email_verifications/{user_id}')
+        verification_data = verification_ref.get()
+        
+        if not verification_data:
+            return False, "No verification pending. Please sign up again."
+        
+        # Check if already verified
+        if verification_data.get('verified'):
+            return False, "Email already verified. Please log in."
+        
+        # Check expiration
+        if time.time() > verification_data.get('expires_at', 0):
+            return False, "Verification code expired. Please request a new one."
+        
+        # Check max attempts (5)
+        attempts = verification_data.get('attempts', 0)
+        if attempts >= 5:
+            return False, "Too many failed attempts. Please request a new code."
+        
+        # Increment attempts
+        verification_ref.update({'attempts': attempts + 1})
+        
+        # Verify OTP
+        if not verify_otp_hash(otp, verification_data.get('otp_hash', '')):
+            remaining = 5 - (attempts + 1)
+            return False, f"Invalid code. {remaining} attempts remaining."
+        
+        # Mark as verified
+        verification_ref.update({'verified': True})
+        return True, None
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Verification error: {e}")
+        return False, "Verification failed. Please try again."
+
+
+def send_otp_email(email: str, otp: str) -> bool:
+    """Send OTP verification email using configured SMTP.
+    
+    Returns:
+        bool: True if email was sent successfully, False otherwise
+    """
+    try:
+        subject = "Corama - Verify Your Email"
+        
+        html_body = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+            body {{
+                font-family: 'Poppins', sans-serif;
+                background-color: #0F172A;
+                margin: 0;
+                padding: 0;
+            }}
+            .container {{
+                max-width: 600px;
+                margin: 40px auto;
+                background-color: #1C4262;
+                border-radius: 12px;
+                padding: 40px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            }}
+            .logo {{
+                text-align: center;
+                margin-bottom: 30px;
+            }}
+            .logo img {{
+                max-width: 180px;
+                height: auto;
+                display: block;
+                margin: 0 auto;
+            }}
+            .code {{
+                font-size: 36px;
+                font-weight: 700;
+                text-align: center;
+                letter-spacing: 10px;
+                color: #6BB4B5;
+                background-color: #15324D;
+                padding: 25px;
+                border-radius: 8px;
+                margin: 30px 0;
+                border: 1px solid #6BB4B5;
+            }}
+            .message {{
+                text-align: center;
+                color: #FFFFFF;
+                line-height: 1.6;
+            }}
+            .welcome-text {{
+                font-weight: 700;
+                font-size: 18px;
+                margin-bottom: 10px;
+                display: block;
+            }}
+            .footer {{
+                text-align: center;
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                font-size: 13px;
+                color: #E0E0E0;
+                line-height: 1.5;
+                font-weight: 400;
+            }}
+            .footer p {{
+                margin: 5px 0;
+            }}
+            .footer a {{
+                color: #6BB4B5;
+                text-decoration: none;
+                font-weight: 600;
+            }}
+            .copyright {{
+                margin-top: 20px;
+                font-size: 11px;
+                opacity: 0.7;
+            }}
+        </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="logo">
+                    <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+                </div>
+                <div class="message">
+                    <p class="welcome-text">
+                        Welcome to Corama!<br>
+                        Please verify your email address by entering the code below:
+                    </p>
+                </div>
+                <div class="code">{otp}</div>
+                <div class="message">
+                    <p>This code will expire in 15 minutes.</p>
+                    <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">If you didn't create an account with Corama, you can safely ignore this email.</p>
+                </div>
+                <div class="footer">
+                    <p style="font-weight: 700; font-size: 14px;">Corama</p>
+                    <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+                    <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                    <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+                    <div class="copyright">
+                                <p>&copy; 2026 Corama. All rights reserved.</p>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+        
+                # Use existing send_email_smtp function and CHECK the return value
+        success, error_msg = send_email_smtp(email, subject, html_body)
+        
+        if success:
+            app.logger.info(f"[OTP] Verification email sent successfully to {email}")
+            return True
+        else:
+            app.logger.error(f"[OTP] Failed to send verification email to {email}: {error_msg}")
+            return False
+        
+    except Exception as e:
+        app.logger.error(f"[OTP] Exception sending verification email to {email}: {e}")
+        return False
+
+
+def mark_user_email_verified(user_id: str, id_token: str):
+    """Mark user as email verified in Firebase database."""
+    try:
+        db.child("users").child(user_id).update({
+            "email_verified": True,
+            "email_verified_at": datetime.now().isoformat()
+        }, id_token)
+        app.logger.info(f"[OTP] User {user_id} marked as email verified")
+    except Exception as e:
+        app.logger.error(f"[OTP] Failed to mark user as verified: {e}")
+        raise
+
+
 @app.route('/api/auth/login', methods=['POST'])
 def api_auth_login():
-    """API endpoint for React login page.
+    """API endpoint for React login page with email verification check.
     
     Expects JSON: { email, password, recaptcha_token }
-    Returns JSON: { success, redirect, error }
+    Returns JSON: { success, redirect, error, requires_verification }
+    
+    If user has email_verified=false, returns requires_verification=true
+    and redirects to /verify-email instead of /dashboard.
     """
     session.clear()
     
@@ -247,15 +1164,59 @@ def api_auth_login():
                 "credits_balance": 100,
                 "credits_used": 0,
                 "last_credit_update": datetime.now().isoformat(),
-                "credit_purchase_history": []
+                "credit_purchase_history": [],
+                "email_verified": True  # Legacy users are considered verified
             }
             
             db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
             user_data = default_user_data
             app.logger.info(f"Created default user data for {email}")
 
+        # CHECK EMAIL VERIFICATION STATUS
+        # Legacy users without email_verified field are considered verified (backwards compatibility)
+        email_verified = user_data.get('email_verified', True)
+        
+        if not email_verified:
+            app.logger.warning(f"[Auth API] User {email} has not verified their email")
+            
+            # Generate new OTP and send verification email
+            otp = generate_otp()
+            try:
+                store_email_verification(email, otp, local_id)
+                update_otp_rate_limit(email)
+                
+                # Send OTP email (non-blocking)
+                import threading
+                email_thread = threading.Thread(target=send_otp_email, args=(email, otp))
+                email_thread.daemon = True
+                email_thread.start()
+            except Exception as e:
+                app.logger.warning(f"[Auth API] Failed to send verification email: {e}")
+            
+            return jsonify({
+                "success": False,
+                "error": "Please verify your email address before logging in.",
+                "requires_verification": True,
+                "redirect": "/verify-email"
+            }), 403
+
         session['is_subscriber'] = True
         session['is_logged_in'] = True
+        
+        # CRITICAL FIX: Also set session['user_data'] for endpoints that require it
+        # (e.g., /api/upload_directory_logo, /api/initialize-proposal-draft via ensure_session_from_auth)
+        # Previously, only signup set user_data, causing 401 errors for logged-in users
+        session['user_data'] = {
+            "first_name": user_data.get('first_name', ''),
+            "last_name": user_data.get('last_name', ''),
+            "company": user_data.get('company', ''),
+            "email": email,
+            "username": user_data.get('username', email.split('@')[0]),
+            "idToken": refreshed_user['idToken'],
+            "refreshToken": refreshed_user['refreshToken'],
+            "user_id": local_id
+        }
+        
         app.logger.info(f"[Auth API] User logged in successfully: {email}")
         
         return jsonify({
@@ -289,12 +1250,59 @@ def api_auth_login():
         return jsonify({"success": False, "error": error_message}), 401
 
 
+@app.route('/api/auth/check-username', methods=['POST'])
+def api_auth_check_username():
+    """Check if a username is available for registration.
+    
+    Expects JSON: { username }
+    Returns JSON: { available: bool, error?: string }
+    """
+    data = request.get_json() or {}
+    username = data.get('username', '').strip().lower()
+    
+    if not username:
+        return jsonify({"available": False, "error": "Username is required"}), 400
+    
+    if len(username) < 3:
+        return jsonify({"available": False, "error": "Username must be at least 3 characters"}), 400
+    
+    if len(username) > 30:
+        return jsonify({"available": False, "error": "Username must be 30 characters or less"}), 400
+    
+    # Only allow alphanumeric characters and underscores
+    import re
+    if not re.match(r'^[a-z0-9_]+$', username):
+        return jsonify({"available": False, "error": "Username can only contain letters, numbers, and underscores"}), 400
+    
+    try:
+        if admin_initialized and admin_db:
+            users_ref = admin_db.reference('users')
+            all_users = users_ref.get() or {}
+            for user_id, user_data in all_users.items():
+                if user_data and user_data.get('username', '').lower() == username:
+                    return jsonify({"available": False, "error": "This username is already taken"})
+            return jsonify({"available": True})
+        else:
+            # If admin SDK not available, assume available (will be checked again at signup)
+            app.logger.warning("[Auth API] Admin SDK not initialized, cannot check username")
+            return jsonify({"available": True})
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error checking username: {e}")
+        return jsonify({"available": True})  # Fail open - will be checked again at signup
+
+
 @app.route('/api/auth/signup', methods=['POST'])
 def api_auth_signup():
-    """API endpoint for React signup page.
+    """API endpoint for React signup page with 2-step email verification.
     
     Expects JSON: { first_name, last_name, company, email, username, password, recaptcha_token }
     Returns JSON: { success, next, error }
+    
+    Flow:
+    1. Create Firebase user with email_verified=false
+    2. Generate 6-digit OTP and store hashed in Firebase
+    3. Send OTP email
+    4. Redirect to /verify-email
     """
     data = request.get_json() or {}
     
@@ -315,9 +1323,46 @@ def api_auth_signup():
     if not first_name or not last_name:
         return jsonify({"success": False, "error": "First name and last name are required"}), 400
     
+    if not username:
+        return jsonify({"success": False, "error": "Username is required"}), 400
+    
+    # Store original username for display, normalize for login matching
+    display_name = username.strip()  # Preserve original casing for display
+    username = username.strip().lower()  # Lowercase for case-insensitive login
+    
+    # Validate password requirements
+    if len(password) < 8:
+        return jsonify({"success": False, "error": "Password must be at least 8 characters long"}), 400
+    if not any(c.isupper() for c in password):
+        return jsonify({"success": False, "error": "Password must contain at least one uppercase letter"}), 400
+    if not any(c.isdigit() for c in password):
+        return jsonify({"success": False, "error": "Password must contain at least one number"}), 400
+    if not any(c in '!@#$%^&*()_+-=[]{}|;:,.<>?/~`' for c in password):
+        return jsonify({"success": False, "error": "Password must contain at least one special character"}), 400
+    
+    # Check if username already exists
+    try:
+        if admin_initialized and admin_db:
+            users_ref = admin_db.reference('users')
+            all_users = users_ref.get() or {}
+            for user_id, user_data in all_users.items():
+                if user_data and user_data.get('username', '').lower() == username:
+                    return jsonify({"success": False, "error": "This username is already taken. Please choose a different one."}), 400
+        else:
+            app.logger.warning("[Auth API] Admin SDK not initialized, skipping username uniqueness check")
+    except Exception as e:
+        app.logger.error(f"[Auth API] Error checking username uniqueness: {e}")
+        # Continue with signup even if check fails - Firebase will be the source of truth
+    
     # Verify reCAPTCHA
     if not verify_recaptcha(recaptcha_token):
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    # Check for disposable/temporary email domains (multi-layer detection)
+    is_disposable, domain, reason = is_disposable_email(email)
+    if is_disposable:
+        app.logger.warning(f"[EMAIL_BLOCK] domain={domain} reason={reason} ip={request.remote_addr}")
+        return jsonify({"success": False, "error": "Please use a non-temporary email address. Disposable email domains are not allowed."}), 400
     
     app.logger.info(f"[Auth API] Signup attempt for email: {email}")
     
@@ -329,20 +1374,18 @@ def api_auth_signup():
         
         app.logger.info(f"[Auth API] Firebase user created: {user_id}")
         
-        # Send Welcome Email (non-blocking)
-        import threading
-        email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
-        email_thread.daemon = True
-        email_thread.start()
-        app.logger.info("[Auth API] Welcome email thread started")
+        # Generate OTP for email verification
+        otp = generate_otp()
+        app.logger.info(f"[Auth API] Generated OTP for {email}")
         
-        # Store User Data in Session
+        # Store User Data in Session (for verify-email page)
         session['user_data'] = {
             "first_name": first_name,
             "last_name": last_name,
             "company": company,
             "email": email,
             "username": username,
+            "display_name": display_name,  # Original casing for display
             "account_type": account_type,
             "subscription_end_date": subscription_end_date,
             "user_id": user_id
@@ -356,26 +1399,49 @@ def api_auth_signup():
             'refreshToken': user_logged_in['refreshToken']
         }
         
-        # Store User Data in Firebase Database
-        db.child("users").child(user_id).set({
+        # CRITICAL: Write user data to Firebase DB immediately with email_verified=false
+        # This ensures login will properly block unverified users
+        user_db_data = {
             "first_name": first_name,
             "last_name": last_name,
             "company": company,
             "email": email,
             "username": username,
+            "display_name": display_name,  # Original casing for display
             "account_type": account_type,
             "subscription_end_date": subscription_end_date,
-            "uploads_dir": create_user_directory(user_id),
+            "is_stripe_customer": False,
             "credits_balance": 100,
             "credits_used": 0,
-            "directory_listed": False
-        }, user_logged_in['idToken'])
+            "last_credit_update": datetime.now().isoformat(),
+            "credit_purchase_history": [],
+            "email_verified": False  # CRITICAL: User must verify email before login
+        }
+        db.child("users").child(user_id).set(user_db_data, user_logged_in['idToken'])
+        app.logger.info(f"[Auth API] User data written to Firebase DB with email_verified=false")
         
-        app.logger.info(f"[Auth API] User data stored in Firebase for {email}")
+        # Store OTP verification data and update cooldown
+        try:
+            store_email_verification(email, otp, user_id)
+            update_otp_cooldown(email)  # Only update cooldown, not success count
+        except Exception as e:
+            app.logger.warning(f"[Auth API] Failed to store OTP (continuing anyway): {e}")
+        
+        # Send OTP email (non-blocking) - increment success count only if email succeeds
+        def send_otp_with_tracking(email_addr, otp_code):
+            success = send_otp_email(email_addr, otp_code)
+            if success:
+                increment_otp_success_count(email_addr)
+        
+        import threading
+        email_thread = threading.Thread(target=send_otp_with_tracking, args=(email, otp))
+        email_thread.daemon = True
+        email_thread.start()
+        app.logger.info("[Auth API] OTP email thread started")
         
         return jsonify({
             "success": True,
-            "next": "/confirm-terms"
+            "next": "/verify-email"  # NEW: Redirect to email verification
         })
     
     except Exception as e:
@@ -396,6 +1462,161 @@ def api_auth_signup():
             error_message = "Too many failed attempts. Please try again later."
         
         return jsonify({"success": False, "error": error_message}), 400
+
+
+@app.route('/api/auth/verify-email', methods=['POST'])
+def api_auth_verify_email():
+    """API endpoint to verify email with OTP code.
+    
+    Expects JSON: { code: "123456" }
+    Returns JSON: { success, redirect, error }
+    
+    After successful verification, this endpoint:
+    1. Writes user data to Firebase Database (deferred from signup)
+    2. Creates user directory
+    3. Marks user as email verified
+    """
+    data = request.get_json() or {}
+    otp = data.get('code', '').strip()
+    
+    if not otp or len(otp) != 6 or not otp.isdigit():
+        return jsonify({"success": False, "error": "Please enter a valid 6-digit code"}), 400
+    
+    # Get user from session
+    user = session.get('user')
+    user_data = session.get('user_data')
+    
+    if not user:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    user_id = user.get('localId')
+    id_token = user.get('idToken')
+    email = user.get('email')
+    
+    app.logger.info(f"[Auth API] Email verification attempt for {email}")
+    
+    # Verify OTP
+    success, error = verify_email_otp(user_id, otp)
+    
+    if not success:
+        app.logger.warning(f"[Auth API] Email verification failed for {email}: {error}")
+        return jsonify({"success": False, "error": error}), 400
+    
+    # NOW write user data to Firebase Database (deferred from signup)
+    if user_data:
+        try:
+            # Use Firebase Admin SDK for reliability (doesn't depend on idToken expiration)
+            import firebase_admin
+            from firebase_admin import db as admin_db
+            
+            user_ref = admin_db.reference(f'users/{user_id}')
+            user_ref.set({
+                "first_name": user_data.get('first_name'),
+                "last_name": user_data.get('last_name'),
+                "company": user_data.get('company'),
+                "email": user_data.get('email'),
+                "username": user_data.get('username'),
+                "account_type": user_data.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS'),
+                "subscription_end_date": user_data.get('subscription_end_date', '9999-12-31'),
+                "uploads_dir": create_user_directory(user_id),
+                "credits_balance": 100,
+                "credits_used": 0,
+                "directory_listed": False,
+                "email_verified": True  # Already verified!
+            })
+            app.logger.info(f"[Auth API] User data written to Firebase for {email} after verification")
+        except Exception as e:
+            app.logger.error(f"[Auth API] Failed to write user data to Firebase: {e}")
+            # Try fallback with idToken
+            try:
+                db.child("users").child(user_id).set({
+                    "first_name": user_data.get('first_name'),
+                    "last_name": user_data.get('last_name'),
+                    "company": user_data.get('company'),
+                    "email": user_data.get('email'),
+                    "username": user_data.get('username'),
+                    "account_type": user_data.get('account_type', 'CONTRACT_RADAR_MAXIMIZER_ESSENTIALS'),
+                    "subscription_end_date": user_data.get('subscription_end_date', '9999-12-31'),
+                    "uploads_dir": create_user_directory(user_id),
+                    "credits_balance": 100,
+                    "credits_used": 0,
+                    "directory_listed": False,
+                    "email_verified": True
+                }, id_token)
+                app.logger.info(f"[Auth API] User data written to Firebase (fallback) for {email}")
+            except Exception as e2:
+                app.logger.error(f"[Auth API] Fallback also failed: {e2}")
+                return jsonify({"success": False, "error": "Failed to create user account. Please try again."}), 500
+    else:
+        # Legacy path: user_data not in session, just mark as verified
+        try:
+            mark_user_email_verified(user_id, id_token)
+        except Exception as e:
+            app.logger.error(f"[Auth API] Failed to mark user as verified: {e}")
+            # Continue anyway - the OTP was valid
+    
+    app.logger.info(f"[Auth API] Email verified successfully for {email}")
+    
+    return jsonify({
+        "success": True,
+        "redirect": "/confirm-terms"
+    })
+
+
+@app.route('/api/auth/resend-otp', methods=['POST'])
+def api_auth_resend_otp():
+    """API endpoint to resend OTP verification code.
+    
+    Returns JSON: { success, error, seconds_until_retry }
+    """
+    # Get user from session
+    user = session.get('user')
+    if not user:
+        return jsonify({"success": False, "error": "Session expired. Please sign up again."}), 401
+    
+    user_id = user.get('localId')
+    email = user.get('email')
+    
+    app.logger.info(f"[Auth API] Resend OTP request for {email}")
+    
+    # Check rate limit
+    is_allowed, error_msg, seconds_remaining = check_otp_rate_limit(email)
+    
+    if not is_allowed:
+        return jsonify({
+            "success": False,
+            "error": error_msg,
+            "seconds_until_retry": seconds_remaining
+        }), 429
+    
+    # Generate new OTP
+    otp = generate_otp()
+    
+    # Store new OTP and update cooldown
+    try:
+        store_email_verification(email, otp, user_id)
+        update_otp_cooldown(email)  # Only update cooldown, not success count
+    except Exception as e:
+        app.logger.error(f"[Auth API] Failed to store new OTP: {e}")
+        return jsonify({"success": False, "error": "Failed to generate new code. Please try again."}), 500
+    
+    # Send OTP email (non-blocking) - increment success count only if email succeeds
+    def send_otp_with_tracking(email_addr, otp_code):
+        success = send_otp_email(email_addr, otp_code)
+        if success:
+            increment_otp_success_count(email_addr)
+    
+    import threading
+    email_thread = threading.Thread(target=send_otp_with_tracking, args=(email, otp))
+    email_thread.daemon = True
+    email_thread.start()
+    
+    app.logger.info(f"[Auth API] Resent OTP to {email}")
+    
+    return jsonify({
+        "success": True,
+        "message": "Verification code sent"
+    })
 
 
 @app.route('/api/auth/confirm-terms', methods=['POST'])
@@ -447,10 +1668,22 @@ def api_auth_confirm_terms():
 
 
 def send_email_smtp(to_email, subject, html_body):
-    """Unified email sending function using SMTP.
+    """Unified email sending function using SMTP with configurable provider support.
     
-    This function sends emails via Gmail SMTP. It's used for all transactional emails
-    including welcome emails and password reset emails.
+    Supports multiple SMTP providers via environment variables:
+    - Office 365 (STARTTLS on port 587)
+    - Gmail (SSL on port 465)
+    - Other SMTP providers
+    
+    Environment Variables:
+        SMTP_HOST: SMTP server hostname (e.g., "smtp.office365.com")
+        SMTP_PORT: SMTP port (e.g., "587" for TLS, "465" for SSL)
+        SMTP_USER: Email address for authentication
+        SMTP_PASSWORD: App password or account password
+        SMTP_MODE: Connection mode - "tls" for STARTTLS, "ssl" for SSL
+        
+    Fallback (legacy):
+        EMAIL_GOOGLE_USER / EMAIL_GOOGLE_PASS: Gmail credentials (deprecated)
     
     Args:
         to_email: Recipient email address
@@ -462,18 +1695,39 @@ def send_email_smtp(to_email, subject, html_body):
     """
     import socket
     
-    sender_email = os.getenv('EMAIL_GOOGLE_USER')
-    sender_password = os.getenv('EMAIL_GOOGLE_PASS')
+    # Load SMTP configuration from environment variables
+    # Accept both SMTP_PASSWORD and SMTP_PASS for flexibility
+    smtp_host = os.getenv('SMTP_HOST')
+    smtp_port = os.getenv('SMTP_PORT')
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_password = os.getenv('SMTP_PASSWORD') or os.getenv('SMTP_PASS')
+    smtp_mode = os.getenv('SMTP_MODE', 'tls').lower()  # Default to TLS for Office 365
     
-    if not sender_email or not sender_password:
-        app.logger.error(f"[Email] Credentials not configured (EMAIL_GOOGLE_USER or EMAIL_GOOGLE_PASS missing)")
+    # Fallback to legacy Gmail credentials if new vars not set
+    if not smtp_host or not smtp_user or not smtp_password:
+        smtp_host = 'smtp.gmail.com'
+        smtp_port = '465'
+        smtp_user = os.getenv('EMAIL_GOOGLE_USER')
+        smtp_password = os.getenv('EMAIL_GOOGLE_PASS')
+        smtp_mode = 'ssl'
+        app.logger.info("[Email] Using legacy Gmail credentials (EMAIL_GOOGLE_USER/PASS)")
+    
+    if not smtp_user or not smtp_password:
+        app.logger.error("[Email] SMTP credentials not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_MODE")
         return False, "Email service not configured"
+    
+    # Parse port as integer
+    try:
+        smtp_port_int = int(smtp_port) if smtp_port else (587 if smtp_mode == 'tls' else 465)
+    except ValueError:
+        app.logger.error(f"[Email] Invalid SMTP_PORT value: {smtp_port}")
+        return False, "Invalid SMTP port configuration"
     
     try:
         # Create MIME message
         msg = MIMEMultipart("alternative")
         msg['Subject'] = subject
-        msg['From'] = sender_email
+        msg['From'] = f"Corama <{smtp_user}>"
         msg['To'] = to_email
         
         # Attach HTML part
@@ -482,17 +1736,33 @@ def send_email_smtp(to_email, subject, html_body):
         
         # Set socket timeout
         old_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(15)
+        socket.setdefaulttimeout(30)  # Increased timeout for Office 365
         
         try:
-            app.logger.info(f"[Email] Connecting to smtp.gmail.com:465...")
-            with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=15) as server:
-                app.logger.info(f"[Email] Connected, attempting login...")
-                server.login(sender_email, sender_password)
-                app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
-                server.sendmail(sender_email, to_email, msg.as_string())
-                app.logger.info(f"[Email] Email sent successfully to {to_email}")
-                return True, None
+            app.logger.info(f"[Email] Connecting to {smtp_host}:{smtp_port_int} (mode={smtp_mode})...")
+            
+            if smtp_mode == 'ssl':
+                # SSL mode (Gmail default) - connect with SSL from the start
+                with smtplib.SMTP_SSL(smtp_host, smtp_port_int, timeout=30) as server:
+                    app.logger.info(f"[Email] SSL connected, attempting login as {smtp_user}...")
+                    server.login(smtp_user, smtp_password)
+                    app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                    server.sendmail(smtp_user, to_email, msg.as_string())
+                    app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                    return True, None
+            else:
+                # TLS mode (Office 365) - connect plain, then upgrade with STARTTLS
+                with smtplib.SMTP(smtp_host, smtp_port_int, timeout=30) as server:
+                    app.logger.info(f"[Email] Connected, initiating STARTTLS...")
+                    server.ehlo()  # Identify ourselves to the server
+                    server.starttls()  # Upgrade connection to TLS
+                    server.ehlo()  # Re-identify after TLS upgrade
+                    app.logger.info(f"[Email] TLS established, attempting login as {smtp_user}...")
+                    server.login(smtp_user, smtp_password)
+                    app.logger.info(f"[Email] Login successful, sending email to {to_email}...")
+                    server.sendmail(smtp_user, to_email, msg.as_string())
+                    app.logger.info(f"[Email] Email sent successfully to {to_email}")
+                    return True, None
         finally:
             socket.setdefaulttimeout(old_timeout)
             
@@ -500,8 +1770,15 @@ def send_email_smtp(to_email, subject, html_body):
         app.logger.error(f"[Email] SMTP timeout sending to {to_email}: {e}")
         return False, "Email service timeout"
     except smtplib.SMTPAuthenticationError as e:
-        app.logger.error(f"[Email] SMTP authentication failed: {e}")
-        return False, "Email authentication failed"
+        # Clear error message for authentication issues
+        error_code = e.smtp_code if hasattr(e, 'smtp_code') else 'unknown'
+        error_msg = e.smtp_error.decode() if hasattr(e, 'smtp_error') and isinstance(e.smtp_error, bytes) else str(e)
+        app.logger.error(f"[Email] SMTP authentication failed (code {error_code}): {error_msg}")
+        app.logger.error(f"[Email] Check SMTP_USER ({smtp_user}) and SMTP_PASSWORD are correct. For Office 365, use an App Password.")
+        return False, f"Email authentication failed (code {error_code})"
+    except smtplib.SMTPException as e:
+        app.logger.error(f"[Email] SMTP error sending to {to_email}: {type(e).__name__}: {e}")
+        return False, f"SMTP error: {str(e)}"
     except Exception as e:
         app.logger.error(f"[Email] Error sending to {to_email}: {type(e).__name__}: {e}")
         return False, str(e)
@@ -517,29 +1794,147 @@ def send_password_reset_email(to_email, reset_link):
     Returns:
         tuple: (success: bool, error_message: str or None)
     """
+    app.logger.info(f"[Password Reset] Preparing to send reset email to {to_email}")
+    
     subject = "Reset Your CORAMA Password"
     
     html_body = f"""
+    <!DOCTYPE html>
     <html>
-      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; color: #333; padding: 20px;">
-        <div style="max-width: 600px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #7AB8B9; text-align: center;">Reset Your Password</h2>
-          <p>Hi,</p>
-          <p>We received a request to reset your password for your CORAMA account.</p>
-          <p>Click the button below to set a new password:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="{reset_link}" style="background-color: #7AB8B9; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">Reset Password</a>
-          </div>
-          <p style="font-size: 0.9em; color: #666;">This link will expire in 1 hour for security reasons.</p>
-          <p style="font-size: 0.9em; color: #666;">If you didn't request a password reset, you can safely ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="text-align: center; font-size: 0.85em; color: #aaa;">&copy; 2025 CORAMA - Contract Radar Maximizer</p>
+    <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {{
+            font-family: 'Poppins', sans-serif;
+            background-color: #0F172A;
+            margin: 0;
+            padding: 0;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 40px auto;
+            background-color: #1C4262;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            text-align: center;
+        }}
+        .logo {{
+            margin-bottom: 30px;
+        }}
+        .logo img {{
+            max-width: 180px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }}
+        .btn-reset {{
+            display: inline-block;
+            background-color: #6BB4B5;
+            color: #FFFFFF;
+            text-decoration: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 30px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }}
+        .message {{
+            color: #FFFFFF;
+            line-height: 1.6;
+        }}
+        .welcome-text {{
+            font-weight: 700;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: block;
+        }}
+        .link-fallback {{
+            font-size: 12px;
+            color: #AABDD1;
+            margin-top: 20px;
+            word-break: break-all;
+        }}
+        .link-fallback a {{
+            color: #6BB4B5;
+        }}
+        .footer {{
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 13px;
+            color: #E0E0E0;
+            line-height: 1.5;
+            font-weight: 400;
+        }}
+        .footer p {{
+            margin: 5px 0;
+        }}
+        .footer a {{
+            color: #6BB4B5;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+        .copyright {{
+            margin-top: 20px;
+            font-size: 11px;
+            opacity: 0.7;
+        }}
+    </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="logo">
+                <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+            </div>
+            <div class="message">
+                <p class="welcome-text">
+                    Reset your password
+                </p>
+                <p style="font-weight: 400;">
+                    We received a request to reset your password for your Corama account.<br>
+                    Click the button below to choose a new one:
+                </p>
+            </div>
+            <a href="{reset_link}" class="btn-reset" style="display: inline-block; background-color: #6BB4B5; color: #FFFFFF !important; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 30px 0;">Reset Password</a>
+            <div class="message">
+                <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
+                    This link will expire in 24 hours.
+                </p>
+                <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
+                    If you didn't request a password reset, you can safely ignore this email. Your password will not change.
+                </p>
+            </div>
+            <div class="link-fallback">
+                <p>Button not working? Copy and paste this link into your browser:</p>
+                <p><a href="{reset_link}">{reset_link}</a></p>
+            </div>
+            <div class="footer">
+                <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+                <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+                <div class="copyright">
+                    <p>&copy; 2026 Corama. All rights reserved.</p>
+                </div>
+            </div>
         </div>
-      </body>
+    </body>
     </html>
     """
     
-    return send_email_smtp(to_email, subject, html_body)
+    app.logger.info(f"[Password Reset] Calling send_email_smtp for {to_email}")
+    success, error = send_email_smtp(to_email, subject, html_body)
+    
+    if success:
+        app.logger.info(f"[Password Reset] Email sent successfully to {to_email}")
+    else:
+        app.logger.error(f"[Password Reset] Failed to send email to {to_email}: {error}")
+    
+    return success, error
 
 
 @app.route('/api/auth/reset-password', methods=['POST'])
@@ -556,30 +1951,62 @@ def api_auth_reset_password():
     email = data.get('email')
     recaptcha_token = data.get('recaptcha_token')
     
+    app.logger.info(f"[Auth API] Password reset request received for email: {email}")
+    app.logger.info(f"[Auth API] reCAPTCHA token present: {bool(recaptcha_token)}")
+    
     if not email:
+        app.logger.warning("[Auth API] Password reset failed: email not provided")
         return jsonify({"success": False, "error": "Email is required"}), 400
     
     # Verify reCAPTCHA
     if not verify_recaptcha(recaptcha_token):
+        app.logger.warning(f"[Auth API] Password reset failed: reCAPTCHA verification failed for {email}")
         return jsonify({"success": False, "error": "reCAPTCHA verification failed. Please try again."}), 400
+    
+    app.logger.info(f"[Auth API] reCAPTCHA passed for {email}, generating reset link...")
     
     try:
         # Import firebase_admin auth module
         from firebase_admin import auth as admin_auth
+        import firebase_admin
+        from urllib.parse import urlparse, parse_qs, urlencode
         
-        # Get the base URL for the reset link
-        # In production, this should be the actual domain
+        # Get the base URL for our custom reset page
         base_url = os.getenv('APP_BASE_URL', 'https://corama.ai')
         
-        # Generate password reset link using Firebase Admin SDK
-        # The link will point to our custom reset confirmation page
-        action_code_settings = admin_auth.ActionCodeSettings(
-            url=f"{base_url}/reset-password/confirm",
-            handle_code_in_app=True
-        )
+        app.logger.info(f"[Auth API] APP_BASE_URL env var: {os.getenv('APP_BASE_URL', '(not set, using default)')}")
         
-        reset_link = admin_auth.generate_password_reset_link(email, action_code_settings)
-        app.logger.info(f"[Auth API] Generated password reset link for {email}")
+        # Log Firebase project info
+        try:
+            firebase_app = firebase_admin.get_app()
+            app.logger.info(f"[Auth API] Firebase project ID: {firebase_app.project_id}")
+        except Exception as fb_err:
+            app.logger.warning(f"[Auth API] Could not get Firebase project info: {fb_err}")
+        
+        # Generate password reset link using Firebase Admin SDK
+        # This generates a Firebase-hosted link with an oobCode parameter
+        firebase_reset_link = admin_auth.generate_password_reset_link(email)
+        app.logger.info(f"[Auth API] Generated Firebase reset link for {email}")
+        app.logger.info(f"[Auth API] Firebase link (for debugging): {firebase_reset_link[:100]}...")
+        
+        # Extract the oobCode from the Firebase link
+        # Firebase links look like: https://xxx.firebaseapp.com/__/auth/action?mode=resetPassword&oobCode=XXX&...
+        parsed_firebase_url = urlparse(firebase_reset_link)
+        query_params = parse_qs(parsed_firebase_url.query)
+        
+        oob_code = query_params.get('oobCode', [None])[0]
+        if not oob_code:
+            app.logger.error(f"[Auth API] Could not extract oobCode from Firebase link")
+            raise Exception("Failed to generate password reset link")
+        
+        app.logger.info(f"[Auth API] Extracted oobCode: {oob_code[:20]}...")
+        
+        # Build our custom Corama reset link that points to our React page
+        # The ResetPasswordConfirm.tsx page expects: ?mode=resetPassword&oobCode=XXX
+        custom_reset_link = f"{base_url}/reset-password-confirm?mode=resetPassword&oobCode={oob_code}"
+        app.logger.info(f"[Auth API] Custom reset link: {custom_reset_link[:80]}...")
+        
+        reset_link = custom_reset_link
         
         # Send the reset email via our SMTP service
         success, error = send_password_reset_email(email, reset_link)
@@ -1262,6 +2689,8 @@ def clear_all_caches():
     global AI_NAICS_CACHE, AI_CATEGORY_CACHE, AI_GOODS_SUBCATEGORY_CACHE
     global AI_CONSTRUCTION_SUBCATEGORY_CACHE, QDRANT_ANALYTICS_CACHE
     global QDRANT_ANALYTICS_SIGNATURE, QDRANT_CONTRACTS_CACHE, QDRANT_CONTRACTS_SIGNATURE
+    global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
+    global _dashboard_contracts_signature, _dashboard_contracts_last_check
     
     AI_NAICS_CACHE = {}
     AI_CATEGORY_CACHE = {}
@@ -1271,6 +2700,13 @@ def clear_all_caches():
     QDRANT_ANALYTICS_SIGNATURE = None
     QDRANT_CONTRACTS_CACHE = None
     QDRANT_CONTRACTS_SIGNATURE = None
+    
+    # Clear dashboard contracts cache (will be refreshed on next request)
+    _dashboard_contracts_cache = None
+    _dashboard_contracts_total = 0
+    _dashboard_contracts_hash_index = None
+    _dashboard_contracts_signature = None
+    _dashboard_contracts_last_check = 0
     
     logging.info("[Cache] All in-memory caches cleared")
 
@@ -2772,7 +4208,11 @@ _FALLBACK_CATEGORY_INDEX = 0
 def get_main_category_for_payload(payload):
     """
     Map a contract payload to one of the main categories.
-    Uses NAICS codes first, then compute_category_score, with balanced fallback for zero-score cases.
+    
+    UPDATED: Now delegates to the shared category_mapping module for consistent
+    categorization across both the web app and background worker.
+    
+    Uses NAICS codes first, then keyword matching, with 'Other' as fallback.
     
     This function is designed to be called from both /api/contracts and /dashboard_search.
     
@@ -2780,32 +4220,23 @@ def get_main_category_for_payload(payload):
         payload: Dict with contract data (naics_code, title/bid_name, summary/bid_description, etc.)
     
     Returns:
-        One of MAIN_CATEGORIES strings
+        One of DASHBOARD_CATEGORIES strings
     """
-    global _FALLBACK_CATEGORY_INDEX
+    # Delegate to shared category mapping module for consistency with worker
+    category = shared_map_payload_to_category(payload)
     
-    # 1) Try NAICS code mapping first (most reliable)
-    naics_raw = str(payload.get('naics_code', '') or '')
-    if naics_raw:
-        codes = parse_naics_codes(naics_raw)
-        for code in codes:
-            if code in NAICS_TO_CATEGORY:
-                return NAICS_TO_CATEGORY[code]
-    
-    # 2) Use compute_category_score to find best match based on keywords
-    scores = {cat: compute_category_score(payload, cat) for cat in MAIN_CATEGORIES}
-    best_cat = max(scores, key=scores.get)
-    best_score = scores[best_cat]
-    
-    # 3) If we have a positive score, use the best category
-    if best_score > 0:
-        return best_cat
-    
-    # 4) For zero-score cases, distribute evenly across categories (not just Goods/Supplies)
-    # This prevents any single category from becoming too dominant
-    fallback_cat = MAIN_CATEGORIES[_FALLBACK_CATEGORY_INDEX % len(MAIN_CATEGORIES)]
-    _FALLBACK_CATEGORY_INDEX += 1
-    return fallback_cat
+    # Map any categories not in MAIN_CATEGORIES to the closest match
+    # This ensures backward compatibility with existing code that expects MAIN_CATEGORIES
+    if category in MAIN_CATEGORIES:
+        return category
+    elif category == 'Healthcare':
+        return 'Professional Services'  # Healthcare maps to Professional Services
+    elif category == 'Transportation':
+        return 'Goods/Supplies'  # Transportation maps to Goods/Supplies
+    elif category == 'Other':
+        return 'Goods/Supplies'  # Default fallback
+    else:
+        return 'Professional Services'  # Any other category defaults to Professional Services
 
 def compute_main_category_counts(payloads):
     """
@@ -3527,35 +4958,166 @@ capability_processed_file = 'capability_statements_processed.csv'
 # [START OF CS BUILDER ] 3/10/2025 UPDATED]
 # ---------------------------------------------------------------------
 
-#CS GENERATION
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'svg'}
+# ============================================================================
+# SECURE FILE UPLOAD HANDLING
+# ============================================================================
+# SECURITY: File upload validation with magic byte checking and path traversal prevention
 
-#CS GENERATION
+# Magic bytes for allowed file types
+FILE_SIGNATURES = {
+    'pdf': [b'%PDF'],
+    'png': [b'\x89PNG\r\n\x1a\n'],
+    'jpg': [b'\xff\xd8\xff'],
+    'jpeg': [b'\xff\xd8\xff'],
+    'gif': [b'GIF87a', b'GIF89a'],
+}
+
+# Maximum file sizes per type (in bytes)
+MAX_FILE_SIZES = {
+    'pdf': 50 * 1024 * 1024,  # 50MB for PDFs
+    'png': 10 * 1024 * 1024,  # 10MB for images
+    'jpg': 10 * 1024 * 1024,
+    'jpeg': 10 * 1024 * 1024,
+    'gif': 5 * 1024 * 1024,
+    'svg': 1 * 1024 * 1024,  # 1MB for SVGs (text-based, can be dangerous)
+}
+
+def allowed_file(filename):
+    """Check if filename has an allowed extension."""
+    if not filename or '.' not in filename:
+        return False
+    ext = filename.rsplit('.', 1)[1].lower()
+    return ext in {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'svg'}
+
+def get_file_extension(filename):
+    """Safely get file extension."""
+    if not filename or '.' not in filename:
+        return None
+    return filename.rsplit('.', 1)[1].lower()
+
+def validate_file_magic_bytes(file_content, expected_ext):
+    """
+    SECURITY: Validate file content matches expected type using magic bytes.
+    
+    This prevents attackers from uploading malicious files with fake extensions.
+    """
+    if expected_ext == 'svg':
+        # SVG is text-based, check for XML/SVG markers
+        try:
+            content_start = file_content[:1000].decode('utf-8', errors='ignore').lower()
+            if '<svg' in content_start or '<?xml' in content_start:
+                # Additional check: block potentially dangerous SVG content
+                if '<script' in content_start or 'javascript:' in content_start:
+                    return False, "SVG contains potentially dangerous script content"
+                return True, None
+            return False, "File does not appear to be a valid SVG"
+        except Exception:
+            return False, "Could not validate SVG content"
+    
+    signatures = FILE_SIGNATURES.get(expected_ext)
+    if not signatures:
+        return True, None  # No signature check for this type
+    
+    for sig in signatures:
+        if file_content[:len(sig)] == sig:
+            return True, None
+    
+    return False, f"File content does not match expected {expected_ext.upper()} format"
+
+def secure_file_upload(file, user_id=None):
+    """
+    SECURITY: Securely handle file upload with comprehensive validation.
+    
+    Checks:
+    1. Filename extension is allowed
+    2. Filename is sanitized (no path traversal)
+    3. File size is within limits
+    4. File content matches expected type (magic bytes)
+    5. Unique filename to prevent overwrites
+    
+    Args:
+        file: FileStorage object from request.files
+        user_id: Optional user ID for user-specific upload directory
+        
+    Returns:
+        tuple: (success: bool, file_path_or_error: str)
+    """
+    if not file or not file.filename:
+        return False, "No file provided"
+    
+    # Check extension
+    if not allowed_file(file.filename):
+        return False, "File type not allowed"
+    
+    ext = get_file_extension(file.filename)
+    
+    # Sanitize filename - this prevents path traversal attacks
+    filename = secure_filename(file.filename)
+    if not filename:
+        return False, "Invalid filename"
+    
+    # Read file content for validation
+    file_content = file.read()
+    file.seek(0)  # Reset file pointer for later saving
+    
+    # Check file size
+    max_size = MAX_FILE_SIZES.get(ext, 10 * 1024 * 1024)  # Default 10MB
+    if len(file_content) > max_size:
+        return False, f"File too large. Maximum size for {ext.upper()} is {max_size // (1024*1024)}MB"
+    
+    # Validate magic bytes
+    is_valid, error = validate_file_magic_bytes(file_content, ext)
+    if not is_valid:
+        app.logger.warning(f"[SECURITY] File upload rejected - magic byte mismatch: {error}")
+        return False, error
+    
+    # Generate unique filename to prevent overwrites
+    unique_id = secrets.token_hex(8)
+    safe_filename = f"{unique_id}_{filename}"
+    
+    # Determine upload directory
+    if user_id:
+        upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"user_{user_id}")
+    else:
+        upload_dir = app.config['UPLOAD_FOLDER']
+    
+    os.makedirs(upload_dir, exist_ok=True)
+    
+    # Final path validation - ensure we're still within upload folder
+    file_path = os.path.join(upload_dir, safe_filename)
+    real_path = os.path.realpath(file_path)
+    real_upload_dir = os.path.realpath(app.config['UPLOAD_FOLDER'])
+    
+    if not real_path.startswith(real_upload_dir):
+        app.logger.warning(f"[SECURITY] Path traversal attempt detected: {file_path}")
+        return False, "Invalid file path"
+    
+    # Save file
+    try:
+        with open(file_path, 'wb') as f:
+            f.write(file_content)
+        return True, file_path
+    except Exception as e:
+        app.logger.error(f"[SECURITY] File save error: {str(e)}")
+        return False, "Failed to save file"
+
 def handle_file_upload(file):
+    """Legacy wrapper for secure_file_upload - maintains backward compatibility."""
     if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-        return file_path
+        success, result = secure_file_upload(file)
+        if success:
+            return result
     return None
 
-#CS GENERATION
 def handle_multiple_file_uploads(files):
+    """Legacy wrapper for multiple file uploads - maintains backward compatibility."""
     paths = []
     for file in files:
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-            paths.append(file_path)
+            success, result = secure_file_upload(file)
+            if success:
+                paths.append(result)
     return paths
-
-
-# CS GENERATION
-@app.route('/form')
-def form():
-    return render_template('form.html')
 
 
 # CS GENERATION
@@ -4147,24 +5709,6 @@ def Landingpage():
     return send_from_directory(app_dir, 'index.html')
 
 
-#ABOUT US PAGE  ROUTE FUNCTION
-@app.route('/aboutus', methods=['GET'])
-def Aboutus():
-    if 'user' not in session:
-        return render_template('aboutUs.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-
-
-    return render_template('aboutUs.html')
-
-
-
-
 
 @app.route('/top_five_results')
 def top_five_results():
@@ -4173,386 +5717,9 @@ def top_five_results():
         return redirect(url_for('Login'))
     return redirect('/app/top-five-contracts')
 
-@app.route('/contracts', methods=['GET'])
-def Contracts():
-    try:
-        # ---------------------------------------------------------------------
-        # STEP A: Ensure there's a user in session
-        # ---------------------------------------------------------------------
-        if 'user' not in session:
-            return redirect(url_for('Login'))
 
-        # Extract user info from session
-        user = session['user']
-        user_id = user['localId']
 
-        # ---------------------------------------------------------------------
-        # STEP B: Refresh the Firebase token
-        #        (Same approach used in /smartsearch and /welcome)
-        # ---------------------------------------------------------------------
-        try:
-            user_logged_in = auth.refresh(user['refreshToken'])
-            logging.info(f"Token refreshed successfully for user ID: {user_id}")
-        except Exception as token_error:
-            logging.error(f"Token refresh failed for user ID {user_id}: {token_error}")
-            return render_template('error.html', error="Session expired. Please log in again.")
 
-        # ---------------------------------------------------------------------
-        # STEP C: Retrieve user data from Firebase
-        # ---------------------------------------------------------------------
-        user_data = None
-        for _ in range(2):  # attempt a retry if needed
-            try:
-                user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-                if user_data:
-                    break
-            except Exception as data_error:
-                logging.warning(f"Retrying Firebase fetch for user {user_id}: {data_error}")
-
-        if not user_data:
-            logging.error(f"No user data found in Firebase for user ID {user_id}")
-            return render_template('error.html', error="Error retrieving user data. Contact support.")
-
-        logging.info(f"✅ FREE ACCESS granted to /contracts for user {user_id} - Contract Radar Maximizer is completely free!")
-
-        # ---------------------------------------------------------------------
-        # STEP E: Original Contracts Logic (UNCHANGED)
-        # ---------------------------------------------------------------------
-        user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-        cs_name = None
-        top_matches = []
-        filtered_bids = []
-        unique_categories = set()
-
-        # Attempt to get the name of the uploaded capability statement (PDF)
-        for filename in os.listdir(user_uploads_dir):
-            if filename.lower().endswith('.pdf'):
-                cs_name = filename
-                break
-
-        # Choose the matches file:
-        # Prioritize matches.csv (updated by top-5 capability statement search)
-        # over matches_SMART_SEARCH.csv
-        rag_matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-        smart_search_matches_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-        if os.path.exists(rag_matches_file):
-            matches_file_path = rag_matches_file
-        elif os.path.exists(smart_search_matches_file):
-            matches_file_path = smart_search_matches_file
-        else:
-            matches_file_path = None
-
-        # Load top matches (limit to top 5) if a matches file exists
-        if matches_file_path:
-            try:
-                with open(matches_file_path, 'r', encoding='utf-8') as file:
-                    reader = csv.DictReader(file)
-                    top_matches = sorted(
-                        list(reader),
-                        key=lambda x: float(x.get('Similarity_Score', '0').replace('%', '').strip()),
-                        reverse=True
-                    )[:5]
-            except Exception as e:
-                app.logger.error(f"Error loading matches file: {matches_file_path}. Error: {e}")
-                top_matches = []
-
-        # Load all bids from embedded_bids.csv
-        embedded_bids_file = os.path.join(user_uploads_dir, 'embedded_bids.csv')
-        if os.path.exists(embedded_bids_file):
-            try:
-                with open(embedded_bids_file, 'r', encoding='utf-8') as file:
-                    reader = csv.DictReader(file)
-                    embedded_bids = list(reader)
-                    for bid in embedded_bids:
-                        if bid.get('Category'):
-                            unique_categories.add(bid['Category'])
-                    filtered_bids = embedded_bids
-            except Exception as e:
-                app.logger.error(f"Error loading embedded_bids.csv: {e}", exc_info=True)
-                embedded_bids = []
-
-        # Optionally, apply filters based on URL query parameters
-        budget_filter = request.args.get('budget')
-        category_filter = request.args.get('category')
-        due_date_filter = request.args.get('due_date')
-        match_percentage_filter = request.args.get('match_percentage')
-
-        if budget_filter:
-            min_budget, max_budget = map(float, budget_filter.split('-'))
-            filtered_bids = [
-                bid for bid in filtered_bids
-                if budget_in_range(bid.get('Budget'), min_budget, max_budget)
-            ]
-
-        if category_filter:
-            filtered_bids = [bid for bid in filtered_bids if bid.get('Category') == category_filter]
-
-        if due_date_filter:
-            def is_due_in_range(due_date_str, days):
-                try:
-                    bid_due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-                    end_date = datetime.now() + timedelta(days=days)
-                    return bid_due_date <= end_date
-                except ValueError:
-                    return False
-
-            if due_date_filter == "open_until_contracted":
-                filtered_bids = [bid for bid in filtered_bids if bid.get('Due Date') == "Open Until Contracted"]
-            elif due_date_filter != "all":
-                days = int(due_date_filter)
-                filtered_bids = [bid for bid in filtered_bids if is_due_in_range(bid.get('Due Date'), days)]
-
-        if match_percentage_filter:
-            min_match, max_match = map(float, match_percentage_filter.split('-'))
-            filtered_bids = [
-                bid for bid in filtered_bids
-                if percentage_in_range(bid.get('Match_Percentage', '0'), min_match, max_match)
-            ]
-
-        return render_template(
-            'contracts.html',
-            cs_name=cs_name if cs_name else 'No file uploaded',
-            matches=top_matches,
-            embedded_bids=filtered_bids,
-            categories=sorted(unique_categories)
-        )
-
-    except Exception as e:
-        logging.error(f"Unexpected error in /contracts route: {e}", exc_info=True)
-        return render_template('error.html', error="An unexpected error occurred in /contracts.")
-
-
-
-
-
-
-
-
-#contracts for rag and smart search 
-@app.route('/contractsSmartSearch', methods=['GET'])
-def ContractsSmartSearch():
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-    # Initialize variables for matches and uploaded capability statement
-    cs_name = None
-    top_matches = []
-    filtered_bids = []
-    unique_categories = set()
-
-    # Get the name of the last uploaded capability statement
-    for filename in os.listdir(user_uploads_dir):
-        if filename.endswith('.pdf'):
-            cs_name = filename
-            break
-
-    # Load matches from `matches_SMART_SEARCH.csv` if it exists
-    smart_search_matches_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-    rag_matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-
-    if os.path.exists(smart_search_matches_file):
-        matches_file_path = smart_search_matches_file
-        cs_name = "Smart Search Results"
-    elif os.path.exists(rag_matches_file):
-        matches_file_path = rag_matches_file
-    else:
-        matches_file_path = None
-
-    # Load matches.csv for top matches if a matches file exists
-    if matches_file_path:
-        try:
-            with open(matches_file_path, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                top_matches = sorted(
-                    list(reader),
-                    key=lambda x: float(x.get('Similarity_Score', '0').replace('%', '').strip()),
-                    reverse=True
-                )[:5]  # Limit to top 5 matches
-        except Exception as e:
-            app.logger.error(f"Error loading matches file: {matches_file_path}. Error: {e}")
-            top_matches = []
-
-    # Load all bids from `embedded_bids.csv`
-    embedded_bids_file = os.path.join(user_uploads_dir, 'embedded_bids.csv')
-
-    if os.path.exists(embedded_bids_file):
-        try:
-            with open(embedded_bids_file, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                embedded_bids = list(reader)
-                for bid in embedded_bids:
-                    if bid.get('Category'):
-                        unique_categories.add(bid['Category'])
-                filtered_bids = embedded_bids
-        except Exception as e:
-            app.logger.error(f"Error loading embedded_bids.csv: {e}", exc_info=True)
-            embedded_bids = []
-
-    # Apply filters to embedded bids if requested
-    budget_filter = request.args.get('budget')
-    category_filter = request.args.get('category')
-    due_date_filter = request.args.get('due_date')
-    match_percentage_filter = request.args.get('match_percentage')
-
-    if budget_filter:
-        min_budget, max_budget = map(float, budget_filter.split('-'))
-        filtered_bids = [bid for bid in filtered_bids if budget_in_range(bid.get('Budget'), min_budget, max_budget)]
-
-    if category_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Category') == category_filter]
-
-    if due_date_filter:
-        def is_due_in_range(due_date_str, days):
-            try:
-                bid_due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-                end_date = datetime.now() + timedelta(days=days)
-                return bid_due_date <= end_date
-            except ValueError:
-                return False
-
-        if due_date_filter == "open_until_contracted":
-            filtered_bids = [bid for bid in filtered_bids if bid.get('Due Date') == "Open Until Contracted"]
-        elif due_date_filter != "all":
-            days = int(due_date_filter)
-            filtered_bids = [bid for bid in filtered_bids if is_due_in_range(bid.get('Due Date'), days)]
-
-    if match_percentage_filter:
-        min_match, max_match = map(float, match_percentage_filter.split('-'))
-        filtered_bids = [
-            bid for bid in filtered_bids
-            if percentage_in_range(bid.get('Match_Percentage', '0'), min_match, max_match)
-        ]
-
-    # Render contracts.html with all necessary data
-    return render_template(
-        'contractsSmartSearch.html',
-        cs_name=cs_name if cs_name else 'No file uploaded',
-        matches=top_matches,
-        embedded_bids=filtered_bids,
-        categories=sorted(unique_categories)
-    )
-
-
-
-
-
-
-
-
-
-#contracts for rag and smart search 
-# contracts for RAG and SMART search
-@app.route('/contractsAll', methods=['GET'])
-def ContractsAll():
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-
-    # Initialize variables for matches and uploaded capability statement
-    cs_name = None
-    top_matches = []
-    filtered_bids = []
-    unique_categories = set()
-    unique_industries = set()
-    unique_organizations = set()
-    unique_departments = set()  # FIXED: Departments were not being populated
-
-    # Get the name of the last uploaded capability statement
-    for filename in os.listdir(user_uploads_dir):
-        if filename.endswith('.pdf'):
-            cs_name = filename
-            break
-
-    # Load all bids from `embedded_bids.csv`
-    embedded_bids_file = os.path.join(user_uploads_dir, 'embedded_bids.csv')
-
-    if os.path.exists(embedded_bids_file):
-        try:
-            with open(embedded_bids_file, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                embedded_bids = list(reader)
-                for bid in embedded_bids:
-                    if bid.get('Category'):
-                        unique_categories.add(bid['Category'])
-                    if bid.get('Industry'):
-                        unique_industries.add(bid['Industry'])
-                    if bid.get('Organization'):
-                        unique_organizations.add(bid['Organization'])
-                    if bid.get('Department'):  # FIXED: Now extracting departments
-                        unique_departments.add(bid['Department'])
-                filtered_bids = embedded_bids
-        except Exception as e:
-            app.logger.error(f"Error loading embedded_bids.csv: {e}", exc_info=True)
-            embedded_bids = []
-
-    # Apply filters to embedded bids if requested
-    budget_filter = request.args.get('budget')
-    category_filter = request.args.get('category')
-    due_date_filter = request.args.get('due_date')
-    match_percentage_filter = request.args.get('match_percentage')
-    industry_filter = request.args.get('industry')
-    organization_filter = request.args.get('organization')
-    department_filter = request.args.get('department')
-
-    if budget_filter:
-        min_budget, max_budget = map(float, budget_filter.split('-'))
-        filtered_bids = [bid for bid in filtered_bids if budget_in_range(bid.get('Budget'), min_budget, max_budget)]
-
-    if category_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Category') == category_filter]
-
-    if due_date_filter:
-        def is_due_in_range(due_date_str, days):
-            try:
-                bid_due_date = datetime.strptime(due_date_str, "%Y-%m-%d")
-                end_date = datetime.now() + timedelta(days=days)
-                return bid_due_date <= end_date
-            except ValueError:
-                return False
-
-        if due_date_filter == "open_until_contracted":
-            filtered_bids = [bid for bid in filtered_bids if bid.get('Due Date') == "Open Until Contracted"]
-        elif due_date_filter != "all":
-            days = int(due_date_filter)
-            filtered_bids = [bid for bid in filtered_bids if is_due_in_range(bid.get('Due Date'), days)]
-
-    if match_percentage_filter:
-        min_match, max_match = map(float, match_percentage_filter.split('-'))
-        filtered_bids = [
-            bid for bid in filtered_bids
-            if percentage_in_range(bid.get('Match_Percentage', '0'), min_match, max_match)
-        ]
-
-    if industry_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Industry') == industry_filter]
-
-    if organization_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Organization') == organization_filter]
-
-    if department_filter:
-        filtered_bids = [bid for bid in filtered_bids if bid.get('Department') == department_filter]
-
-    # Render contracts.html with all necessary data
-    return render_template(
-        'contractsAll.html',
-        cs_name=cs_name if cs_name else 'No file uploaded',
-        matches=top_matches,
-        embedded_bids=filtered_bids,
-        categories=sorted(unique_categories),
-        industries=sorted(unique_industries),
-        organizations=sorted(unique_organizations),
-        departments=sorted(unique_departments)  # FIXED: Passing the correct variable
-    )
 
 
 
@@ -4586,62 +5753,6 @@ def is_due_in_range(due_date_str, days):
         return False
 
 
-
-
-
-
-#UPDATED ON 2/20
-#Updated on 3/4/2025 with zirong's changes
-@app.route('/viewcontractdetails', methods=['GET'])
-def Viewcontractdetails():
-    hash_value_received = request.args.get('hash_value')
-    contract_details = None
-    user = session.get('user')
-    if not user:
-        return redirect(url_for('Login'))
-    user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
-    user_uploads_dir = os.path.abspath(user_data.get('uploads_dir', 'uploads/'))
-    app.logger.debug(f"用户上传目录: {user_uploads_dir}")
-    matches_file = os.path.join(user_uploads_dir, 'matches.csv')
-    if os.path.exists(matches_file):
-        try:
-            with open(matches_file, 'r', encoding='utf-8') as file:
-                reader = csv.DictReader(file)
-                app.logger.debug(f"CSV 列名: {reader.fieldnames}")
-                found_matches = 0
-                for row in reader:
-                    # 清理键名（以防存在空格问题）
-                    row = {k.strip(): v for k, v in row.items()}
-                    # 提取 Detail_Link 和 Bid_Number（兼容不同的列名）
-                    detail_link = row.get('Detail Link') or row.get('Detail_Link') or '#'
-                    bid_number = row.get('Bid Number') or row.get('Bid_Number') or ''
-                    # 生成 hash 值
-                    hash_input = f"{detail_link}{bid_number}"
-                    computed_hash = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
-                    app.logger.debug(f"计算哈希值: {computed_hash}, 合同编号: {bid_number}")
-                    found_matches += 1
-                    if computed_hash == hash_value_received:
-                        contract_details = row
-                        app.logger.info(f"找到匹配的合同: {bid_number}")
-                        break
-                app.logger.info(f"共检查了 {found_matches} 个合同")
-        except Exception as e:
-            app.logger.error(f"读取 CSV 文件错误: {str(e)}", exc_info=True)
-    else:
-        app.logger.warning(f"Matches 文件不存在: {matches_file}")
-    # 同样可以添加 embedded_bids.csv 的查找逻辑（如果需要）
-    if contract_details:
-        hash_value_received = request.args.get('hash_value')
-        # 确保字段存在，添加缺少的字段
-        for field in ['Bid_Description', 'Bid Description']:
-            if field not in contract_details:
-                app.logger.warning(f"合同缺少 '{field}' 字段")
-                if 'Bid_Description' not in contract_details and 'Bid Description' not in contract_details:
-                    contract_details['Bid Description'] = 'No description available'
-        return render_template('viewcontractdetails.html', contract=contract_details, hash_value_received=hash_value_received)
-    else:
-        app.logger.error(f"未找到哈希值 {hash_value_received} 对应的合同")
-        return "Contract details not found", 404
 
 
 
@@ -4839,102 +5950,30 @@ def Signup():
 @app.route('/confirm-terms', methods=['GET'])
 @app.route('/confirm_terms', methods=['GET'])  # Keep old URL for backwards compatibility
 def confirm_terms():
-    """Serve React SPA for confirm terms page"""
+    """Serve React SPA for confirm terms page - requires authentication"""
+    # Require authentication - users must be logged in to access confirm-terms
+    # This prevents unauthenticated users from accessing the page directly via URL
+    if 'user' not in session:
+        return redirect(url_for('Login'))
+    
     app_dir = os.path.join(app.static_folder, 'app')
     return send_from_directory(app_dir, 'index.html')
 
 
-#updated 3/4/25
-@app.route('/signupCSBuilder', methods=['GET', 'POST'])
-def signupCSBuilder():
-    # Clear unrelated session data to ensure clean state
-    session.pop('user', None)
-    session.pop('form_data', None)
-    session.pop('file_paths', None)
+# Verify email page - now served by React SPA
+# This page requires the user to have gone through the signup flow
+@app.route('/verify-email', methods=['GET'])
+def verify_email_page():
+    """Serve React SPA for verify email page - requires signup flow session data"""
+    # Require user_data in session - this is set during signup flow
+    # This prevents users from accessing the page directly via URL without signing up first
+    if 'user_data' not in session:
+        return redirect(url_for('Login'))
+    
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
-    if request.method == 'POST':
-        first_name = request.form.get('first_name')
-        last_name = request.form.get('last_name')
-        company = request.form.get('company')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        username = request.form.get('username')
 
-        account_type = "CS_BUILDER_PRODUCT"
-        subscription_end_date = "9999-12-31"
-
-        if not email or not password:
-            return render_template('signupCSBuilder.html', error="Please provide both email and password.")
-
-        try:
-            # Create user in Firebase Auth
-            user = auth.create_user_with_email_and_password(email, password)
-            user_id = user.get('localId')
-            user_logged_in = auth.sign_in_with_email_and_password(email, password)
-
-            data = {
-                "first_name": first_name,
-                "last_name": last_name,
-                "company": company,
-                "email": email,
-                "username": username,
-                "account_type": account_type,
-                "subscription_end_date": subscription_end_date,
-            }
-            db.child("users").child(user_id).set(data, user_logged_in['idToken'])
-
-            stripe_customer = stripe.Customer.create(
-                email=email,
-                description=f"{first_name} {last_name} from {company}"
-            )
-
-            # ✅ Send Welcome Email (non-blocking)
-            app.logger.info("📨 Starting welcome email in background thread...")
-            import threading
-            email_thread = threading.Thread(target=send_welcome_email, args=(email, email))
-            email_thread.daemon = True
-            email_thread.start()
-            app.logger.info("📨 Welcome email thread started, continuing with signup...")
-
-            db.child("users").child(user_id).update(
-                {"stripe_customer_id": stripe_customer['id']},
-                user_logged_in['idToken']
-            )
-
-            session['user'] = {
-                'localId': user_id,
-                'idToken': user_logged_in['idToken'],
-                'email': email,
-                'refreshToken': user_logged_in['refreshToken'],
-            }
-
-            logging.info(f"CSBuilder user {user_id} signed up and logged in successfully.")
-            return redirect(url_for('form'))
-
-        except Exception as e:
-            logging.exception(f"SignupCSBuilder error for {email}: {e}")
-
-            error_message = "An unexpected error occurred during signup. Please try again."
-
-            if hasattr(e, 'args') and len(e.args) > 0:
-                try:
-                    error_detail = e.args[0]
-                    if isinstance(error_detail, str) and 'EMAIL_EXISTS' in error_detail:
-                        error_message = "The email you entered is already registered. Please log in instead."
-                    elif isinstance(error_detail, dict):
-                        firebase_error = error_detail.get('error', {}).get('message', '')
-                        if firebase_error == "EMAIL_EXISTS":
-                            error_message = "The email you entered is already registered. Please log in instead."
-                        elif firebase_error == "INVALID_EMAIL":
-                            error_message = "The email format is invalid. Please check your email."
-                        elif firebase_error == "WEAK_PASSWORD":
-                            error_message = "Password is too weak. Please choose a stronger password."
-                except Exception as parse_error:
-                    logging.warning(f"Failed to parse Firebase error: {parse_error}")
-
-            return render_template('signupCSBuilder.html', error=error_message)
-
-    return render_template('signupCSBuilder.html', firebase_config=config)
 
 
 
@@ -4944,116 +5983,117 @@ def signupCSBuilder():
 
 def get_qdrant_analytics():
     """
-    Compute analytics from ALL contracts in Qdrant for the dashboard.
-    This ensures Top Contract Categories shows totals from all 1,160+ contracts.
+    Get analytics for the dashboard.
     
-    Uses balanced category assignment to ensure:
-    1. No "Other" or "Unknown" categories appear
-    2. No single category becomes too dominant (max 25% per category)
+    SCALABLE ARCHITECTURE: Reads pre-computed stats from Firebase snapshot
+    instead of computing on each request. The background worker calculates
+    these stats periodically and saves them to 'dashboard_stats_snapshot'.
     
-    Uses signature-based cache invalidation to detect Qdrant changes:
-    - Only recomputes analytics when the collection signature changes
-    - This allows detecting new/deleted contracts without expensive rescans
+    Falls back to Qdrant count() + estimated percentages if snapshot not available.
     """
     global QDRANT_ANALYTICS_CACHE, QDRANT_ANALYTICS_SIGNATURE
     
     from datetime import datetime
-    from collections import Counter
     
     try:
-        # Check if we can use cached analytics
-        current_signature = get_qdrant_collection_signature()
+        # First, try to read pre-computed stats from Firebase snapshot
+        # This is the scalable approach - stats are computed by background worker
+        try:
+            if admin_initialized and admin_db:
+                stats_ref = admin_db.reference('dashboard_stats_snapshot')
+                snapshot = stats_ref.get()
+                
+                if snapshot and snapshot.get('total_contracts'):
+                    # Convert category_distribution from list format [{name, count, percentage}] to {cat: count}
+                    # The worker now stores as a list to avoid Firebase key restrictions (/ in category names)
+                    cat_dist = snapshot.get('category_distribution', [])
+                    category_distribution = {}
+                    if isinstance(cat_dist, list):
+                        # New list format: [{name: 'Goods/Supplies', count: 100, percentage: 10.5}, ...]
+                        for cat_item in cat_dist:
+                            if isinstance(cat_item, dict) and 'name' in cat_item:
+                                category_distribution[cat_item['name']] = cat_item.get('count', 0)
+                    elif isinstance(cat_dist, dict):
+                        # Legacy dict format: {'Goods_Supplies': {count: 100, percentage: 10.5}, ...}
+                        for cat_name, cat_data in cat_dist.items():
+                            if isinstance(cat_data, dict):
+                                category_distribution[cat_name] = cat_data.get('count', 0)
+                            else:
+                                category_distribution[cat_name] = cat_data
+                    
+                    total_contracts = snapshot.get('total_contracts', 0)
+                    status_dist = snapshot.get('status_distribution', {})
+                    
+                    result = {
+                        'total_contracts': total_contracts,
+                        'win_probability': 70.0,
+                        'open_contracts': status_dist.get('active', int(total_contracts * 0.6)),
+                        'upcoming_deadlines': 0,
+                        'high_score_opportunities': int(total_contracts * 0.2),
+                        'top_categories': snapshot.get('top_categories', []),
+                        'category_distribution': category_distribution,
+                        'status_distribution': status_dist,
+                        'top_agencies': {},
+                        'analysis_date': snapshot.get('generated_at', datetime.now().strftime('%Y-%m-%d')),
+                        '_from_snapshot': True,
+                        '_snapshot_age': snapshot.get('generated_at')
+                    }
+                    
+                    logging.info(f"[Qdrant Analytics] Using pre-computed snapshot: {total_contracts} contracts")
+                    QDRANT_ANALYTICS_CACHE = result
+                    QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
+                    return result
+        except Exception as snapshot_error:
+            logging.warning(f"[Qdrant Analytics] Could not read snapshot: {snapshot_error}")
         
-        if (QDRANT_ANALYTICS_CACHE is not None and 
-            QDRANT_ANALYTICS_SIGNATURE is not None and
-            current_signature is not None and
-            QDRANT_ANALYTICS_SIGNATURE == current_signature):
-            logging.info(f"[Qdrant] Using cached analytics (signature: {current_signature})")
-            return QDRANT_ANALYTICS_CACHE
+        # Fallback: Get real total count using qdrant_client.count() - fast and accurate
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
         
-        logging.info(f"[Qdrant] Recomputing analytics (signature changed: {QDRANT_ANALYTICS_SIGNATURE} -> {current_signature})")
+        total_contracts = 0
+        if qdrant_url and qdrant_api_key:
+            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+            count_result = client.count(
+                collection_name="government_contracts",
+                exact=True
+            )
+            total_contracts = count_result.count
+            logging.info(f"[Qdrant Analytics] Fallback count from Qdrant: {total_contracts}")
+        else:
+            current_signature = get_qdrant_collection_signature()
+            if current_signature:
+                try:
+                    total_contracts = int(current_signature)
+                except (ValueError, TypeError):
+                    pass
         
-        # Get ALL contracts from Qdrant
-        all_contracts, total_contracts, _ = get_dashboard_contracts_from_qdrant(1, 10000)
-        
-        if not all_contracts:
-            logging.warning("No contracts found in Qdrant, using fallback values")
-            return {
-                'total_contracts': 0,
-                'win_probability': 0,
-                'open_contracts': 0,
-                'upcoming_deadlines': 0,
-                'high_score_opportunities': 0,
-                'top_categories': [],
-                'category_distribution': {},
-                'status_distribution': {},
-                'top_agencies': {},
-                'analysis_date': datetime.now().strftime('%Y-%m-%d')
-            }
-        
-        total_contracts = len(all_contracts)
-        
-        # Category distribution using NAICS descriptions from contracts
-        # The category field now contains NAICS descriptions (from Qdrant or lookup table)
-        # This provides better distribution than the old "Goods/Supplies" catch-all
-        naics_categories = []
-        for c in all_contracts:
-            cat = c.get('category', '')
-            # Skip empty, "Unknown", or generic categories
-            if cat and cat.strip() and cat.lower() not in ('unknown', 'other', 'nan', 'none'):
-                naics_categories.append(cat.strip())
-        
-        category_counts = Counter(naics_categories)
-        
-        # Sort all categories by count (highest first)
-        sorted_categories = sorted(category_counts.items(), key=lambda x: x[1], reverse=True)
-        
-        # Take top 5 categories
-        max_categories = 5
-        top_categories_with_counts = sorted_categories[:max_categories]
-        
-        top_categories = [cat for cat, _ in top_categories_with_counts]
-        # Create ordered dict for category_distribution (descending order)
-        category_distribution_ordered = {cat: count for cat, count in top_categories_with_counts}
-        
-        # Status distribution
-        status_counts = Counter(c.get('status', 'active') for c in all_contracts)
-        open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
-        
-        # Calculate win probability based on category diversity
-        category_diversity = len(category_counts)
-        win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
-        
-        # High score opportunities
-        high_score_categories = ['Construction', 'Information Technology', 'Professional Services', 'Solicitation', 'Award Notice']
-        high_score_count = sum(1 for c in all_contracts if any(cat.lower() in c.get('category', '').lower() for cat in high_score_categories))
-        
-        logging.info(f"Qdrant analytics: {total_contracts} total contracts, {len(category_counts)} categories")
-        logging.info(f"Top categories (with 'Other' moved to end): {top_categories}")
-        
-        # Cache the results with the current signature
-        analytics_result = {
+        # Return analytics with estimated percentages (snapshot not available)
+        result = {
             'total_contracts': total_contracts,
-            'win_probability': round(win_probability, 1),
-            'open_contracts': open_contracts,
+            'win_probability': 70.0,
+            'open_contracts': int(total_contracts * 0.6),
             'upcoming_deadlines': 0,
-            'high_score_opportunities': high_score_count,
-            'top_categories': top_categories,
-            'category_distribution': category_distribution_ordered,  # Sorted by count descending (left-to-right)
-            'status_distribution': dict(status_counts),
+            'high_score_opportunities': int(total_contracts * 0.2),
+            'top_categories': ['Professional Services', 'Construction', 'Information Technology', 'Goods/Supplies'],
+            'category_distribution': {
+                'Professional Services': int(total_contracts * 0.25),
+                'Construction': int(total_contracts * 0.20),
+                'Information Technology': int(total_contracts * 0.15),
+                'Goods/Supplies': int(total_contracts * 0.15),
+            },
+            'status_distribution': {'active': int(total_contracts * 0.6), 'closed': int(total_contracts * 0.4)},
             'top_agencies': {},
-            'analysis_date': datetime.now().strftime('%Y-%m-%d')
+            'analysis_date': datetime.now().strftime('%Y-%m-%d'),
+            '_from_snapshot': False
         }
         
-        # Update the cache
-        QDRANT_ANALYTICS_CACHE = analytics_result
-        QDRANT_ANALYTICS_SIGNATURE = current_signature
-        logging.info(f"[Qdrant] Cached analytics with signature: {current_signature}")
+        QDRANT_ANALYTICS_CACHE = result
+        QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
         
-        return analytics_result
+        return result
         
     except Exception as e:
-        logging.error(f"Error computing Qdrant analytics: {e}")
+        logging.error(f"Error getting Qdrant analytics: {e}")
         return {
             'total_contracts': 0,
             'win_probability': 0,
@@ -5066,6 +6106,36 @@ def get_qdrant_analytics():
             'top_agencies': {},
             'analysis_date': datetime.now().strftime('%Y-%m-%d')
         }
+
+
+@app.route('/api/dashboard/stats', methods=['GET'])
+def get_dashboard_stats_api():
+    """
+    API endpoint to get pre-computed dashboard statistics.
+    
+    SCALABLE ARCHITECTURE: Returns stats from Firebase snapshot computed by background worker.
+    This endpoint is designed to be extremely fast (<50ms) as it only reads from Firebase.
+    
+    Returns:
+    - total_contracts: Total number of contracts in Qdrant
+    - category_distribution: Top categories with counts and percentages
+    - status_distribution: Active vs closed counts
+    - top_categories: List of top 4 category names
+    - generated_at: When the stats were last computed
+    - _from_snapshot: Boolean indicating if data is from pre-computed snapshot
+    """
+    try:
+        stats = get_qdrant_analytics()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        logging.error(f"[Dashboard Stats API] Error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 # updated 3/17/25 - Permanent Stripe Validation Fix
@@ -5087,28 +6157,48 @@ def Welcome():
 
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
-    """API endpoint to get contract data for the dashboard with pagination.
+    """API endpoint to get contract data for the dashboard with SERVER-SIDE PAGINATION.
     
-    NOW FETCHES DATA FROM QDRANT (CSV data is obsolete).
-    Also includes category analytics for the Top Contract Categories section.
-    Uses MAIN categories (Goods/Supplies, Construction, etc.) instead of subcategories.
+    Supports cursor-based pagination for efficient browsing of 100k+ contracts:
+    - First request: /api/contracts?limit=50
+    - Subsequent requests: /api/contracts?limit=50&cursor=<next_cursor>
+    
+    Query params:
+    - page: Page number (1-indexed) - for display only
+    - limit: Number of contracts per page (default 50, max 100)
+    - cursor: Qdrant scroll offset token for cursor-based pagination
+    
+    Returns:
+    - contracts: Array of contract objects
+    - total_contracts: Total count from Qdrant (real count, not cache)
+    - current_page: Current page number
+    - total_pages: Total pages available
+    - next_cursor: Offset token for next page (null if no more pages)
+    - has_more: Boolean indicating if more pages exist
+    - top_categories: Category distribution for analytics
     """
     try:
         # Get pagination parameters
         page = request.args.get('page', 1, type=int)
-        items_per_page = 10
+        limit = request.args.get('limit', 50, type=int)
+        cursor = request.args.get('cursor', None, type=str)
         
-        # Fetch contracts from Qdrant with pagination
-        contracts, total_contracts, total_pages = get_dashboard_contracts_from_qdrant(page, items_per_page)
+        # Validate limit (max 100 to prevent OOM)
+        limit = min(max(limit, 1), 100)
         
-        # Get ALL contracts for main category calculation (not just current page)
-        all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+        # Fetch contracts from Qdrant with server-side pagination
+        contracts, total_contracts, total_pages, next_cursor = get_dashboard_contracts_from_qdrant(
+            page=page,
+            items_per_page=limit,
+            cursor=cursor
+        )
         
-        # Compute main category distribution using the global helper
-        main_category_counts = compute_main_category_counts(all_contracts)
+        # Get analytics with real count from Qdrant
+        analytics = get_qdrant_analytics()
+        category_distribution = analytics.get('category_distribution', {})
         
-        # Build top_categories with counts and percentages (sorted by count descending)
-        sorted_categories = sorted(main_category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
+        # Build top_categories from analytics
+        sorted_categories = sorted(category_distribution.items(), key=lambda x: x[1], reverse=True)[:4]
         top_categories = []
         for cat_name, count in sorted_categories:
             percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
@@ -5118,13 +6208,15 @@ def get_contracts_api():
                 'percentage': percentage
             })
         
-        logging.info(f"✅ /api/contracts: Returning {len(contracts)} contracts from Qdrant (page {page}/{total_pages})")
+        logging.info(f"/api/contracts: Returning {len(contracts)} contracts (page {page}, limit {limit}, has_more: {next_cursor is not None})")
         
         return jsonify({
             "contracts": contracts,
             "total_contracts": total_contracts,
             "current_page": page,
             "total_pages": total_pages,
+            "next_cursor": next_cursor,
+            "has_more": next_cursor is not None,
             "top_categories": top_categories
         })
     except Exception as e:
@@ -5134,6 +6226,8 @@ def get_contracts_api():
             "total_contracts": 0,
             "current_page": 1,
             "total_pages": 1,
+            "next_cursor": None,
+            "has_more": False,
             "top_categories": [],
             "error": "Failed to load contracts from database"
         })
@@ -5356,6 +6450,118 @@ def backfill_naics_api():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@app.route('/api/queue_naics_enrichment', methods=['POST'])
+def queue_naics_enrichment_api():
+    """
+    Queue a NAICS enrichment job for background processing.
+    
+    This endpoint creates a job in Firebase that the background worker will pick up
+    and process concurrently using a thread pool. This is the recommended way to
+    enrich contracts with AI-predicted NAICS codes without blocking the web service.
+    
+    Request body (optional):
+    {
+        "batch_size": 50,      // Contracts per batch (default: 50)
+        "max_contracts": 500   // Max contracts to process in this job (default: 500)
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "job_id": "...",
+        "message": "NAICS enrichment job queued"
+    }
+    """
+    import uuid
+    
+    try:
+        # Verify admin access (optional - can be removed if you want any user to trigger)
+        admin_secret = request.headers.get('X-Admin-Secret')
+        expected_secret = os.getenv('ADMIN_SECRET_KEY')
+        if expected_secret and admin_secret != expected_secret:
+            return jsonify({"success": False, "error": "Unauthorized"}), 401
+        
+        data = request.get_json() or {}
+        batch_size = data.get('batch_size', 50)
+        max_contracts = data.get('max_contracts', 500)
+        
+        # Validate parameters
+        if not isinstance(batch_size, int) or batch_size < 1 or batch_size > 100:
+            return jsonify({"success": False, "error": "batch_size must be between 1 and 100"}), 400
+        if not isinstance(max_contracts, int) or max_contracts < 1 or max_contracts > 5000:
+            return jsonify({"success": False, "error": "max_contracts must be between 1 and 5000"}), 400
+        
+        # Create job in Firebase
+        job_id = str(uuid.uuid4())
+        job_data = {
+            'status': 'queued',
+            'created_at': time.time(),
+            'batch_size': batch_size,
+            'max_contracts': max_contracts,
+            'requested_by': session.get('email', 'api'),
+            'contracts_processed': 0,
+            'contracts_success': 0,
+            'contracts_failed': 0
+        }
+        
+        # Use Firebase Admin SDK to create the job
+        try:
+            from firebase_admin import db as admin_db
+            job_ref = admin_db.reference(f'naics_enrichment_jobs/{job_id}')
+            job_ref.set(job_data)
+            app.logger.info(f"[NAICS_ENRICHMENT] Queued job {job_id} (batch_size={batch_size}, max={max_contracts})")
+        except Exception as fb_error:
+            app.logger.error(f"[NAICS_ENRICHMENT] Failed to create job in Firebase: {fb_error}")
+            return jsonify({"success": False, "error": f"Failed to create job: {str(fb_error)}"}), 500
+        
+        return jsonify({
+            "success": True,
+            "job_id": job_id,
+            "message": f"NAICS enrichment job queued (batch_size={batch_size}, max_contracts={max_contracts})",
+            "status_endpoint": f"/api/naics_enrichment_status/{job_id}"
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[NAICS_ENRICHMENT] Error queuing job: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route('/api/naics_enrichment_status/<job_id>', methods=['GET'])
+def naics_enrichment_status_api(job_id):
+    """
+    Get the status of a NAICS enrichment job.
+    
+    Returns:
+    {
+        "success": true,
+        "job": {
+            "status": "running|completed|error|queued",
+            "progress": "...",
+            "contracts_processed": N,
+            "contracts_success": N,
+            "contracts_failed": N,
+            ...
+        }
+    }
+    """
+    try:
+        from firebase_admin import db as admin_db
+        job_ref = admin_db.reference(f'naics_enrichment_jobs/{job_id}')
+        job_data = job_ref.get()
+        
+        if not job_data:
+            return jsonify({"success": False, "error": "Job not found"}), 404
+        
+        return jsonify({
+            "success": True,
+            "job": job_data
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[NAICS_ENRICHMENT] Error getting job status: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route('/dashboard_search', methods=['POST'])
 def dashboard_search():
     """Search contracts for dashboard with real-time filtering and analytics update"""
@@ -5429,12 +6635,16 @@ def dashboard_search():
             
             return top_categories
 
+        # PHASE 1 HOTFIX: Limit max contracts to prevent worker timeouts
+        # Instead of loading all 10000+ contracts, we limit to 500 max for search/filter operations
+        MAX_SEARCH_RESULTS = 500
+        
         # Check if query is a NAICS code(4-6 digit number) - use exact matching instead of vector search
         naics_match = re.fullmatch(r'\d{4,6}', user_query)
         if naics_match:
-            logging.info(f"🔍 NAICS code search detected: {user_query}")
-            # Get all contracts from Qdrant for NAICS filtering
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+            logging.info(f"NAICS code search detected: {user_query}")
+            # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
             
             import pandas as pd
             df = pd.DataFrame(all_contracts)
@@ -5450,7 +6660,7 @@ def dashboard_search():
                 # Apply contract type and state filters
                 df = apply_contract_filters(df, contract_type, selected_states)
                 
-                logging.info(f"✅ NAICS search found {len(df)} contracts with code {naics_code}")
+                logging.info(f"NAICS search found {len(df)} contracts with code {naics_code}")
             
             total_contracts = len(df)
             total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
@@ -5460,38 +6670,23 @@ def dashboard_search():
             paginated_df = df.iloc[start:end]
             contracts = paginated_df.to_dict('records')
             
-            # Build analytics from filtered results
-            if len(df) > 0:
-                category_counts = df['category'].value_counts().to_dict()
-                status_counts = df['status'].value_counts().to_dict()
-                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
-                
-                category_diversity = len(category_counts)
-                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
-                
-                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
-                high_score_contracts = df[df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)]
-                high_score_count = len(high_score_contracts)
-                
-                analytics = {
-                    'total_contracts': total_contracts,
-                    'category_distribution': category_counts,
-                    'status_distribution': status_counts,
-                    'win_probability': round(win_probability, 1),
-                    'open_contracts': open_contracts,
-                    'upcoming_deadlines': 0,
-                    'high_score_opportunities': high_score_count
-                }
-            else:
-                analytics = {
-                    'total_contracts': 0,
-                    'category_distribution': {},
-                    'status_distribution': {},
-                    'win_probability': 0,
-                    'open_contracts': 0,
-                    'upcoming_deadlines': 0,
-                    'high_score_opportunities': 0
-                }
+            # PHASE 1 HOTFIX: Use cached analytics instead of computing from filtered results
+            cached_analytics = get_qdrant_analytics()
+            analytics = {
+                'total_contracts': total_contracts,
+                'category_distribution': cached_analytics.get('category_distribution', {}),
+                'status_distribution': cached_analytics.get('status_distribution', {}),
+                'win_probability': cached_analytics.get('win_probability', 70.0),
+                'open_contracts': cached_analytics.get('open_contracts', 0),
+                'upcoming_deadlines': 0,
+                'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
+            }
+            
+            # Use cached top_categories
+            top_categories = []
+            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
+                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
+                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
             
             return jsonify({
                 "success": True,
@@ -5500,14 +6695,14 @@ def dashboard_search():
                 "current_page": page,
                 "total_pages": total_pages,
                 "analytics": analytics,
-                "top_categories": compute_top_categories(df, total_contracts)
+                "top_categories": top_categories
             })
 
         if not user_query:
-            # No query provided - return all contracts from Qdrant (CSV data is obsolete)
-            # Get all contracts first for filtering
+            # No query provided - return contracts from Qdrant with pagination
+            # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
             import pandas as pd
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
             df = pd.DataFrame(all_contracts)
             
             # Apply contract type and state filters
@@ -5523,40 +6718,28 @@ def dashboard_search():
             if len(df) > 0:
                 paginated_df = df.iloc[start:end]
                 contracts = paginated_df.to_dict('records')
-                
-                category_counts = df['category'].value_counts().to_dict()
-                status_counts = df['status'].value_counts().to_dict()
-                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
-                
-                category_diversity = len(category_counts)
-                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
-                
-                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
-                high_score_contracts = df[df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)]
-                high_score_count = len(high_score_contracts)
-                
-                analytics = {
-                    'total_contracts': total_contracts,
-                    'category_distribution': category_counts,
-                    'status_distribution': status_counts,
-                    'win_probability': round(win_probability, 1),
-                    'open_contracts': open_contracts,
-                    'upcoming_deadlines': 0,
-                    'high_score_opportunities': high_score_count
-                }
             else:
                 contracts = []
-                analytics = {
-                    'total_contracts': 0,
-                    'category_distribution': {},
-                    'status_distribution': {},
-                    'win_probability': 0,
-                    'open_contracts': 0,
-                    'upcoming_deadlines': 0,
-                    'high_score_opportunities': 0
-                }
             
-            logging.info(f"✅ /dashboard_search (no query, filter={contract_type}): Returning {len(contracts)} contracts from Qdrant")
+            # PHASE 1 HOTFIX: Use cached analytics instead of computing from filtered results
+            cached_analytics = get_qdrant_analytics()
+            analytics = {
+                'total_contracts': total_contracts,
+                'category_distribution': cached_analytics.get('category_distribution', {}),
+                'status_distribution': cached_analytics.get('status_distribution', {}),
+                'win_probability': cached_analytics.get('win_probability', 70.0),
+                'open_contracts': cached_analytics.get('open_contracts', 0),
+                'upcoming_deadlines': 0,
+                'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
+            }
+            
+            # Use cached top_categories
+            top_categories = []
+            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
+                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
+                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
+            
+            logging.info(f"/dashboard_search (no query, filter={contract_type}): Returning {len(contracts)} contracts from Qdrant")
             
             return jsonify({
                 "success": True,
@@ -5565,15 +6748,15 @@ def dashboard_search():
                 "current_page": page,
                 "total_pages": total_pages,
                 "analytics": analytics,
-                "top_categories": compute_top_categories(df, total_contracts)
+                "top_categories": top_categories
             })
 
         if not vector_store:
-            # Vector store not initialized - use Qdrant directly with basic text search (CSV data is obsolete)
+            # Vector store not initialized - use Qdrant directly with basic text search
             logging.warning("Vector store not initialized, using Qdrant with basic text search")
             
-            # Get all contracts from Qdrant for text search
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, 10000)
+            # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
             
             import pandas as pd
             df = pd.DataFrame(all_contracts)
@@ -5606,7 +6789,6 @@ def dashboard_search():
                     df.loc[df['bid_number'].str.lower() == query_lower, 'rank_score'] += 100
                     df.loc[df['bid_name'].str.lower() == query_lower, 'rank_score'] += 50
                     df.loc[df['bid_name'].str.lower().str.startswith(query_lower), 'rank_score'] += 25
-                    # Count token matches in bid_name (more relevant than description)
                     for token in tokens:
                         df.loc[df['bid_name'].str.lower().str.contains(token, regex=False), 'rank_score'] += 5
                     
@@ -5624,44 +6806,31 @@ def dashboard_search():
             start = (page - 1) * items_per_page
             end = start + items_per_page
             
-            paginated_df = df.iloc[start:end]
-            contracts = paginated_df.to_dict('records')
-            
             if len(df) > 0:
-                category_counts = df['category'].value_counts().to_dict()
-                status_counts = df['status'].value_counts().to_dict()
-                open_contracts = status_counts.get('open', 0) + status_counts.get('active', 0)
-                
-                category_diversity = len(category_counts)
-                win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20))) if total_contracts > 0 else 0
-                
-                high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
-                high_score_contracts = df[
-                    df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)
-                ]
-                high_score_count = len(high_score_contracts)
-
-                analytics = {
-                    'total_contracts': total_contracts,
-                    'category_distribution': category_counts,
-                    'status_distribution': status_counts,
-                    'win_probability': round(win_probability, 1),
-                    'open_contracts': open_contracts,
-                    'upcoming_deadlines': 0,
-                    'high_score_opportunities': high_score_count
-                }
+                paginated_df = df.iloc[start:end]
+                contracts = paginated_df.to_dict('records')
             else:
-                analytics = {
-                    'total_contracts': 0,
-                    'category_distribution': {},
-                    'status_distribution': {},
-                    'win_probability': 0,
-                    'open_contracts': 0,
-                    'upcoming_deadlines': 0,
-                    'high_score_opportunities': 0
-                }
+                contracts = []
             
-            logging.info(f"✅ /dashboard_search (no vector_store): Returning {len(contracts)} contracts from Qdrant")
+            # PHASE 1 HOTFIX: Use cached analytics instead of computing from filtered results
+            cached_analytics = get_qdrant_analytics()
+            analytics = {
+                'total_contracts': total_contracts,
+                'category_distribution': cached_analytics.get('category_distribution', {}),
+                'status_distribution': cached_analytics.get('status_distribution', {}),
+                'win_probability': cached_analytics.get('win_probability', 70.0),
+                'open_contracts': cached_analytics.get('open_contracts', 0),
+                'upcoming_deadlines': 0,
+                'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
+            }
+            
+            # Use cached top_categories
+            top_categories = []
+            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
+                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
+                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
+            
+            logging.info(f"/dashboard_search (no vector_store): Returning {len(contracts)} contracts from Qdrant")
 
             return jsonify({
                 "success": True,
@@ -5670,7 +6839,7 @@ def dashboard_search():
                 "current_page": page,
                 "total_pages": total_pages,
                 "analytics": analytics,
-                "top_categories": compute_top_categories(df, total_contracts)
+                "top_categories": top_categories
             })
 
         valid, msg = validate_query(user_query)
@@ -5679,10 +6848,11 @@ def dashboard_search():
             return jsonify({"success": False, "message": msg}), 400
 
         user_query_embedding = generate_query_embedding(user_query)
+        # PHASE 1 HOTFIX: Limit top_k to MAX_SEARCH_RESULTS instead of 10000
         search_results = find_matches_with_query(
             query_embedding=user_query_embedding,
             bid_store=vector_store,
-            top_k=10000
+            top_k=MAX_SEARCH_RESULTS
         )
         
         # Sort by similarity score in descending order (highest similarity first)
@@ -5788,8 +6958,9 @@ def dashboard_search():
 @app.route('/ai-assistant')
 def ai_assistant_room():
     """Redirect to React AI assistant page - old Jinja2 UI is deprecated"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
@@ -5806,8 +6977,9 @@ def ai_assistant_room():
 @app.route('/proposal/start')
 def proposal_start():
     """Screen 1: Contract Analysis & PDF Annotations"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     contract_hash = request.args.get('hash_value') or request.args.get('hash')
@@ -5816,7 +6988,7 @@ def proposal_start():
     if not contract_hash:
         return redirect('/app/dashboard')
     
-    user_id = user['localId']
+    user_id = user_data['user_id']
     current_credits = 0
     
     try:
@@ -5860,15 +7032,16 @@ def proposal_start():
 @app.route('/proposal/team')
 def proposal_team():
     """Screen 2: Team & Subcontractor Builder"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     draft_id = request.args.get('draft_id')
     if not draft_id:
         return redirect('/app/dashboard')
     
-    user_id = user['localId']
+    user_id = user_data['user_id']
     current_credits = 0
     
     try:
@@ -5888,15 +7061,16 @@ def proposal_team():
 @app.route('/proposal/pricing')
 def proposal_pricing():
     """Screen 3: Pricing Strategy & Review"""
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_data = get_current_user_secure()
+    if not user_data:
         return redirect(url_for('Login'))
     
     draft_id = request.args.get('draft_id')
     if not draft_id:
         return redirect('/app/dashboard')
     
-    user_id = user['localId']
+    user_id = user_data['user_id']
     current_credits = 0
     
     try:
@@ -5912,33 +7086,6 @@ def proposal_pricing():
                          draft_id=draft_id,
                          current_credits=current_credits,
                          user_id=user_id)
-
-
-
-
-#Trustedpartner ROUTE FUNCTION 
-@app.route('/trustedpartner', methods=['GET']) 
-def Trustedpartner():
-    return render_template('trustedpartner.html')
-
-
-#Finalist ROUTE FUNCTION 
-@app.route('/finalist', methods=['GET']) 
-def Finalist():
-    return render_template('finalist.html')
-
-
-@app.route('/contact', methods=['GET']) 
-def Contact():
-    return render_template('contact.html')
-
-
-
-
-#businessplan ROUTE FUNCTION 
-@app.route('/businessplan', methods=['GET']) 
-def Businessplan():
-    return render_template('businessplan.html')
 
 
 
@@ -5959,17 +7106,6 @@ def privacy_notice():
     return render_template('privacy_notice.html')
 
 
-#TEAM DETAIL PAGE ROUTE FUNCTION
-@app.route('/businesspartner', methods=['GET']) 
-def Businesspartner():
-    return render_template('businesspartner.html')
-
-
-
-    #TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/businesspartnerdetail', methods=['GET']) 
-def Businesspartnerdetail():
-    return render_template('businesspartnerdetail.html')
 
 
 
@@ -6128,19 +7264,6 @@ def upload_and_process():
         # 
         #    Example (pseudo-code):
         if selected_contract_types or selected_states or not hash_value:
-            # Example: re-run your Qdrant or RAG logic to produce “matches.csv”
-            # (the same steps from your original upload_and_process).
-            # Use OPENAI_API_KEY as primary key for all AI features (including Top 5 enrichment)
-            openai_key = os.getenv('OPENAI_API_KEY')
-            handler = CSQueryHandler(
-                openai_api_key=openai_key,
-                qdrant_url=os.getenv('QDRANT_URL'),
-                qdrant_api_key=os.getenv('QDRANT_API_KEY'),
-                user_upload_dir=user_upload_dir
-            )
-            with open(file_path, 'rb') as pdf_file:
-                results = handler.process_query(pdf_file, contract_types=selected_contract_types, states=selected_states)
-            
             try:
                 app.logger.info(f"Starting Qdrant matching with contract_types: {selected_contract_types}, states: {selected_states}")
                 
@@ -7332,11 +8455,15 @@ def api_capability_import_url():
         return jsonify({'success': False, 'message': 'URL is required'}), 400
 
     try:
-        # Fetch the PDF from URL
+        # SECURITY: Validate URL for SSRF protection
         app.logger.info(f"[api_capability_import_url] Fetching URL: {url}")
-        resp = requests.get(url, timeout=30, headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        })
+        try:
+            resp = safe_requests_get(url, timeout=30, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+        except ValueError as ssrf_error:
+            app.logger.warning(f"[api_capability_import_url] SSRF blocked: {str(ssrf_error)}")
+            return jsonify({'success': False, 'message': 'URL not allowed for security reasons'}), 400
         resp.raise_for_status()
         
         # Verify it's a PDF
@@ -9023,21 +10150,6 @@ def create_proposal_timeline():
         app.logger.error(f"Error creating timeline: {str(e)}")
         return jsonify({"error": f"Timeline creation error: {str(e)}"}), 500
 
-@app.route('/upcoming_deadlines', methods=['GET'])
-def get_upcoming_deadlines():
-    """Get upcoming proposal deadlines for user"""
-    try:
-        user = session['user']
-        user_id = user['localId']
-        
-        days_ahead = request.args.get('days', 7, type=int)
-        deadlines = deadline_manager.get_upcoming_deadlines(user_id, days_ahead)
-        
-        return jsonify({"deadlines": deadlines})
-        
-    except Exception as e:
-        app.logger.error(f"Error getting deadlines: {str(e)}")
-        return jsonify({"error": f"Deadlines error: {str(e)}"}), 500
 
 @app.route('/industry_template', methods=['POST'])
 def get_industry_template():
@@ -9138,10 +10250,6 @@ def tailor_cs_for_contract():
 
 
 
-#SUCCESS PAGE ROUTE FUNCTION 
-@app.route('/success')
-def success():
-    return render_template('success.html')
 
 
 
@@ -9363,38 +10471,6 @@ def download_proposal():
 
 
 
-# Route for displaying the top 5 fitting contracts
-@app.route('/view_matches', methods=['GET'])
-def view_matches():
-    if 'user' not in session:
-        return jsonify({"success": False, "message": "User not logged in."})
-
-    user_id = session['user']['localId']
-    cloud_path = f"matches/{user_id}/matches.csv"
-
-    try:
-        # Step 1: Read the matches.csv file directly from Firebase Storage
-        file_data = storage.child(cloud_path).get()  # Get the file content as bytes
-
-        # Step 2: Convert the file data to a readable format using io.StringIO
-        csv_file = io.StringIO(file_data.decode('utf-8'))  # Decode bytes to string
-
-        # Step 3: Parse the CSV file in memory
-        matches = []
-        reader = csv.DictReader(csv_file)
-        for row in reader:
-            app.logger.info(f"CSV Row Data: {row}")  # Log each row to the console
-            matches.append(row)
-
-        # Step 4: Log the entire matches data to the console
-        app.logger.info(f"Full Matches Data: {matches}")
-
-        # Step 5: Send the matches data to the template for rendering
-        return render_template('your_template.html', matches=matches)
-
-    except Exception as e:
-        app.logger.error(f"Error reading matches.csv: {str(e)}", exc_info=True)
-        return jsonify({"success": False, "message": "Error reading the matches file."})
 
 
 
@@ -9818,21 +10894,13 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         fallback = payload.get("notice_type") or payload.get("category") or payload.get("Category") or ""
         if isinstance(fallback, str):
             fallback = fallback.strip()
-        # If fallback is also "Other" or "Unknown", try AI prediction
+        # PHASE 1 HOTFIX: Do NOT call predict_naics_with_description() here!
+        # AI prediction must happen in background worker or during ingestion, not in HTTP request path.
+        # This was causing Gunicorn worker timeouts due to OpenAI API calls for every contract.
         if fallback.lower() in ('other', 'unknown', 'nan', 'none', ''):
-            # Use AI to predict NAICS code and description for Unclassified contracts
-            ai_code, ai_description = predict_naics_with_description(
-                bid_name_value, 
-                organization_value, 
-                hash_value
-            )
-            if ai_code and ai_description:
-                # Update both category and NAICS code with AI prediction
-                category_value = ai_description
-                naics_code_str = ai_code
-            else:
-                # Use keyword-based fallback to avoid "Unclassified" category
-                category_value = fallback_category_from_text(bid_name_value, bid_description_value, organization_value)
+            # Use keyword-based fallback only (no AI) to avoid "Unclassified" category
+            # This is instant and doesn't cause worker timeouts
+            category_value = fallback_category_from_text(bid_name_value, bid_description_value, organization_value)
         else:
             category_value = fallback
     
@@ -9953,96 +11021,265 @@ def get_contracts_from_qdrant_by_ids(point_ids):
         return []
 
 
-# Module-level cache for dashboard contracts
-# TODO: This assumes the Qdrant collection is updated infrequently and isn't huge (< 2000 contracts)
-# For larger or frequently-updated collections, implement proper pagination with scroll tokens
+# Module-level cache for dashboard contracts with signature-based invalidation
+# The cache automatically refreshes when new contracts are added to Qdrant (detected via points_count)
+# TTL prevents checking signature on every request (checks at most once per 60 seconds)
 _dashboard_contracts_cache = None
 _dashboard_contracts_total = 0
 _dashboard_contracts_hash_index = None  # Hash -> contract lookup for fast search matching
+_dashboard_contracts_signature = None  # Signature to detect Qdrant changes
+_dashboard_contracts_last_check = 0  # Timestamp of last signature check
+_DASHBOARD_CACHE_TTL_SECONDS = 60  # Check signature at most once per 60 seconds
+
+# Lock and flag for async refresh to prevent concurrent refreshes and serve stale while refreshing
+_dashboard_refresh_lock = threading.Lock()
+_dashboard_refresh_in_progress = False
+
+# Fields to fetch from Qdrant for dashboard (reduces memory usage significantly)
+# These are the only fields needed by qdrant_payload_to_dashboard_contract()
+_DASHBOARD_PAYLOAD_FIELDS = [
+    # Primary fields (snake_case format)
+    "detail_link", "bid_number", "bid_name", "bid_description", "organization",
+    "due_date", "status", "state", "budget", "category", "notice_type",
+    "naics_code", "naics_codes_all", "naics_description", "source",
+    # Title Case with spaces format (some records use this)
+    "Detail Link", "Bid Number", "Bid Name", "Bid Description", "Organization",
+    "Due Date", "Status", "State", "Budget", "Category", "NAICS Code",
+    # Old format fields
+    "source_url", "contract_number", "title", "summary", "agency", "budget_estimate",
+    # NAICS fields
+    "NAICS_CODE", "NAICS_CODES_ALL", "NAICS_TITLE", "NAICS Description",
+    # Contract type for filtering
+    "Contract Type", "contract_type",
+]
 
 
-def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10):
+def _refresh_dashboard_contracts_cache():
     """
-    Fetch contracts from Qdrant for dashboard display with pagination.
-    Uses module-level caching to avoid repeated Qdrant queries.
+    Internal function to refresh the dashboard contracts cache from Qdrant.
+    Builds the cache and hash index atomically to avoid race conditions.
     
-    Args:
-        page: Page number (1-indexed)
-        items_per_page: Number of contracts per page
+    CRITICAL FIX: Capped to 50 contracts to prevent OOM crashes.
+    The "scroll all" loop was accumulating 20k+ objects in Flask process memory,
+    causing SIGKILL/OOM even with micro-batches.
+    
+    Settings:
+    - limit=50 (hard cap, no loop)
+    - with_vectors=False (critical for memory)
+    - with_payload=True (safe for 50 items, avoids 400 errors)
     
     Returns:
-        Tuple of (contracts_list, total_contracts, total_pages)
+        Tuple of (success: bool, signature: str or None)
     """
     global _dashboard_contracts_cache, _dashboard_contracts_total, _dashboard_contracts_hash_index
+    global _dashboard_contracts_signature, _dashboard_refresh_in_progress
     
-    # Initialize cache on first call
-    if _dashboard_contracts_cache is None:
-        try:
-            qdrant_url = os.getenv('QDRANT_URL')
-            qdrant_api_key = os.getenv('QDRANT_API_KEY')
-            
-            if not qdrant_url or not qdrant_api_key:
-                logging.error("Qdrant credentials not configured for dashboard")
-                return [], 0, 0
-            
-            client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-            
-            # Fetch all contracts from Qdrant using scroll (up to 3000)
-            # Qdrant currently has ~2320 contracts
-            logging.info("🔄 Fetching contracts from Qdrant for dashboard cache...")
-            scroll_result = client.scroll(
-                collection_name="government_contracts",
-                limit=3000,
-                with_vectors=False,
-                with_payload=True
-            )
-            
-            points = scroll_result[0]  # scroll returns (points, next_page_offset)
-            
-            # Map each point to dashboard format (lowercase keys)
-            _dashboard_contracts_cache = []
+    # HARD LIMIT: Only fetch 50 contracts to prevent OOM
+    # Full dataset access will be via Phase 3 cursor-based pagination
+    DASHBOARD_CACHE_LIMIT = 50
+    
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("Qdrant credentials not configured for dashboard")
+            return False, None
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Get collection info for signature (total count for reference)
+        collection_info = client.get_collection("government_contracts")
+        points_count = collection_info.points_count
+        current_signature = str(points_count)
+        
+        logging.info(f"[Dashboard Cache] Fetching top {DASHBOARD_CACHE_LIMIT} contracts from Qdrant (total in collection: {points_count})...")
+        
+        # Build new cache in local variables (atomic swap at the end)
+        new_cache = []
+        new_hash_index = {}
+        
+        # SINGLE FETCH - NO LOOP: Fetch only 50 contracts to prevent OOM
+        # with_payload=True is safe for 50 items (~50MB max) and avoids 400 errors
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=DASHBOARD_CACHE_LIMIT,  # Hard cap at 50
+            offset=None,  # First page only
+            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
+            with_payload=True  # Full payload - safe for 50 items, no serialization issues
+        )
+        
+        points, _ = scroll_result  # Ignore next_offset - no loop
+        
+        if points:
+            # Process contracts - immediately project to minimal dashboard dict
+            # This discards large payload fields (ocr_text, etc.) and keeps memory low
             for point in points:
                 contract = qdrant_payload_to_dashboard_contract(
                     point.payload,
                     point_id=point.id,
                     score=None
                 )
-                _dashboard_contracts_cache.append(contract)
-            
-            _dashboard_contracts_total = len(_dashboard_contracts_cache)
-            
-            # Build hash index for fast lookups during search
-            _dashboard_contracts_hash_index = {}
-            for contract in _dashboard_contracts_cache:
+                new_cache.append(contract)
                 h = contract.get('hash_value')
                 if h:
-                    _dashboard_contracts_hash_index[h] = contract
+                    new_hash_index[h] = contract
+        
+        # Atomic swap of globals
+        _dashboard_contracts_cache = new_cache
+        _dashboard_contracts_total = len(new_cache)
+        _dashboard_contracts_hash_index = new_hash_index
+        _dashboard_contracts_signature = current_signature
+        
+        logging.info(f"[Dashboard Cache] Cached {_dashboard_contracts_total} contracts (collection total: {points_count}, hash index: {len(new_hash_index)} entries)")
+        return True, current_signature
+        
+    except Exception as e:
+        logging.error(f"[Dashboard Cache] Error fetching contracts from Qdrant: {e}", exc_info=True)
+        return False, None
+
+
+def _async_refresh_dashboard_cache():
+    """
+    Background thread function to refresh dashboard cache.
+    Uses lock to prevent concurrent refreshes across threads.
+    """
+    global _dashboard_refresh_in_progress
+    
+    # Try to acquire lock - if another thread is refreshing, skip
+    if not _dashboard_refresh_lock.acquire(blocking=False):
+        logging.debug("[Dashboard Cache] Async refresh skipped - another refresh in progress")
+        return
+    
+    try:
+        _dashboard_refresh_in_progress = True
+        logging.info("[Dashboard Cache] Starting async background refresh...")
+        success, new_signature = _refresh_dashboard_contracts_cache()
+        if success:
+            logging.info(f"[Dashboard Cache] Async refresh completed (signature: {new_signature})")
+        else:
+            logging.warning("[Dashboard Cache] Async refresh failed")
+    finally:
+        _dashboard_refresh_in_progress = False
+        _dashboard_refresh_lock.release()
+
+
+def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
+    """
+    Fetch contracts from Qdrant for dashboard display with SERVER-SIDE PAGINATION.
+    
+    This function queries Qdrant directly on each request instead of using an
+    in-memory cache. This allows browsing all 100k+ contracts while only holding
+    one page (e.g., 50 items) in RAM at a time.
+    
+    PAGINATION FIX: Now uses OFFSET-BASED pagination with page numbers.
+    The frontend passes page=1, page=2, etc. and we calculate the offset.
+    This is simpler and works correctly with the frontend's page state.
+    
+    For page N, we scroll through (N-1) pages to reach the correct offset,
+    then return the Nth page of results.
+    
+    Args:
+        page: Page number (1-indexed) - used to calculate offset
+        items_per_page: Number of contracts per page (default 10)
+        cursor: DEPRECATED - kept for backwards compatibility but not used
+    
+    Returns:
+        Tuple of (contracts_list, total_contracts, total_pages, next_cursor)
+    """
+    try:
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            logging.error("[Server-Side Pagination] Qdrant credentials not configured")
+            return [], 0, 0, None
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Get total count using count() API - fast and accurate
+        count_result = client.count(
+            collection_name="government_contracts",
+            exact=True
+        )
+        total_contracts = count_result.count
+        total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
+        
+        # OFFSET-BASED PAGINATION FIX:
+        # For page N, we need to skip (N-1) * items_per_page contracts
+        # Qdrant scroll doesn't support numeric offset, so we scroll through pages sequentially
+        # This is O(N) for page N, but acceptable for reasonable page numbers (< 100)
+        
+        target_offset = (page - 1) * items_per_page
+        logging.info(f"[Server-Side Pagination] Fetching page {page} (offset={target_offset}, limit={items_per_page})")
+        
+        # Scroll through pages until we reach the target offset
+        current_offset = None
+        contracts_skipped = 0
+        
+        while contracts_skipped < target_offset:
+            # Calculate how many to fetch in this scroll (up to remaining offset)
+            remaining = target_offset - contracts_skipped
+            fetch_limit = min(remaining, 100)  # Scroll in batches of 100 max for efficiency
             
-            logging.info(f"✅ Cached {_dashboard_contracts_total} contracts from Qdrant for dashboard (hash index: {len(_dashboard_contracts_hash_index)} entries)")
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=fetch_limit,
+                offset=current_offset,
+                with_vectors=False,
+                with_payload=False  # Don't need payload for skipped items
+            )
             
-        except Exception as e:
-            logging.error(f"Error fetching dashboard contracts from Qdrant: {e}", exc_info=True)
-            _dashboard_contracts_cache = []
-            _dashboard_contracts_total = 0
-            _dashboard_contracts_hash_index = {}
-            return [], 0, 0
-    
-    # Paginate the cached contracts
-    total_contracts = _dashboard_contracts_total
-    total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
-    
-    start = (page - 1) * items_per_page
-    end = start + items_per_page
-    
-    paginated_contracts = _dashboard_contracts_cache[start:end]
-    
-    logging.info(f"📄 Dashboard page {page}/{total_pages}: returning {len(paginated_contracts)} contracts")
-    return paginated_contracts, total_contracts, total_pages
+            points, current_offset = scroll_result
+            
+            if not points:
+                # No more data - requested page is beyond available data
+                logging.warning(f"[Server-Side Pagination] Page {page} is beyond available data (only {contracts_skipped} contracts exist)")
+                return [], total_contracts, total_pages, None
+            
+            contracts_skipped += len(points)
+            
+            if current_offset is None:
+                # Reached end of collection before target offset
+                break
+        
+        # Now fetch the actual page we want
+        scroll_result = client.scroll(
+            collection_name="government_contracts",
+            limit=items_per_page,
+            offset=current_offset,  # Continue from where we left off
+            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
+            with_payload=True  # Full payload for this page only
+        )
+        
+        points, next_cursor = scroll_result
+        
+        # Convert Qdrant points to dashboard contract format
+        contracts = []
+        for point in points:
+            contract = qdrant_payload_to_dashboard_contract(
+                point.payload,
+                point_id=point.id,
+                score=None
+            )
+            contracts.append(contract)
+        
+        has_more = next_cursor is not None and page < total_pages
+        logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts from Qdrant (total: {total_contracts}, has_more: {has_more})")
+        
+        return contracts, total_contracts, total_pages, next_cursor if has_more else None
+        
+    except Exception as e:
+        logging.error(f"[Server-Side Pagination] Error fetching contracts from Qdrant: {e}", exc_info=True)
+        return [], 0, 0, None
 
 
 def load_all_contracts(client):
     """
-    分页加载集合中所有合同数据，使用 offset 参数实现分页
+    Load all contracts from Qdrant collection using pagination.
+    
+    IMPORTANT: Uses with_vectors=False to prevent OOM crashes.
+    Only fetches payload fields needed for contract display.
     """
     all_contracts = []
     offset = 0
@@ -10050,8 +11287,8 @@ def load_all_contracts(client):
         scroll_result = client.scroll(
             collection_name="government_contracts",
             limit=1000,
-            with_vectors=True,
-            offset=offset  # 使用 offset 分页（请确保你的 qdrant_client 版本支持此参数，否则请升级）
+            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
+            offset=offset
         )
         points = scroll_result[0]
         all_contracts.extend(points)
@@ -10284,432 +11521,8 @@ def process_smartsearch():
 
 
 
-# ---------------------------------------------------------------------------
-# SMART SEARCH
-# ---------------------------------------------------------------------------
-@app.route('/smartsearch', methods=['GET', 'POST'])
-def Smartsearch():
-    try:
-        # ---------------------------------------------------------------------
-        # Step 0: Ensure user is authenticated
-        # ---------------------------------------------------------------------
-        user = auth.current_user
-        if not user:
-            logging.warning("No authenticated user found. Redirecting to login.")
-            return redirect(url_for('Login'))
-
-        user_id = user['localId']
-        logging.info(f"Authenticated user ID: {user_id}")
-
-        # ---------------------------------------------------------------------
-        # Step 1: Refresh the user's token
-        # ---------------------------------------------------------------------
-        try:
-            user_logged_in = auth.refresh(user['refreshToken'])
-            logging.info(f"Token refreshed successfully for user ID: {user_id}")
-        except Exception as token_error:
-            logging.error(f"Token refresh failed for user ID {user_id}: {token_error}")
-            flash("Session issue detected. Please try again.", "error")
-            return redirect(url_for('Smartsearch'))  # or handle as needed
-
-        # ---------------------------------------------------------------------
-        # Step 2: Retrieve user data from Firebase
-        # ---------------------------------------------------------------------
-        user_data = None
-        for _ in range(2):
-            try:
-                user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-                if user_data:
-                    break
-            except Exception as data_error:
-                logging.warning(f"Retrying Firebase fetch for user {user_id}: {data_error}")
-
-        if not user_data:
-            return render_template('error.html', error="Temporary issue retrieving user data. Please try again.")
-
-        email = user_data.get('email', '').strip().lower()
-        company_name = user_data.get('company', 'No Company')
-        first_name = user_data.get('first_name', 'User')
-        logging.info(f"✅ FREE ACCESS granted to /smartsearch for user {user_id} - Contract Radar Maximizer is completely free!")
-
-        # ---------------------------------------------------------------------
-        # Step 4: Pull the user's uploads directory with fallback creation
-        # ---------------------------------------------------------------------
-        user_uploads_dir = user_data.get('uploads_dir')
-        if not user_uploads_dir:
-            try:
-                app.logger.info(f"🔧 Creating missing uploads directory for user {user_id}")
-                user_uploads_dir = create_user_directory(user_id)
-                
-                # Update Firebase with the new uploads directory path
-                db.child("users").child(user_id).update({
-                    "uploads_dir": user_uploads_dir
-                }, user_logged_in['idToken'])
-                
-                app.logger.info(f"✅ Successfully created and updated uploads directory for user {user_id}: {user_uploads_dir}")
-            except Exception as e:
-                app.logger.error(f"❌ Failed to create uploads directory for user {user_id}: {e}")
-                return render_template('error.html', error="Unable to initialize user directory. Please contact support.")
-        
-        if not os.path.exists(user_uploads_dir):
-            app.logger.warning(f"⚠️ Directory path exists in Firebase but not on filesystem: {user_uploads_dir}")
-            try:
-                os.makedirs(user_uploads_dir, exist_ok=True)
-                # Copy embedded CSV file if it exists
-                embedded_csv_file = os.path.join(os.getcwd(), "embedded_bids.csv")
-                if os.path.exists(embedded_csv_file):
-                    shutil.copy(embedded_csv_file, user_uploads_dir)
-                app.logger.info(f"✅ Recreated missing directory: {user_uploads_dir}")
-            except Exception as e:
-                app.logger.error(f"❌ Failed to recreate directory {user_uploads_dir}: {e}")
-                return render_template('error.html', error="Directory initialization failed. Please contact support.")
-
-        # ---------------------------------------------------------------------
-        # NEW: Determine the company_name from capability_statements_processed.csv
-        # ---------------------------------------------------------------------
-        detected_company_name = "Unknown"
-        cs_file = os.path.join(user_uploads_dir, "capability_statements_processed.csv")
-        if os.path.exists(cs_file):
-            try:
-                cs_df = pd.read_csv(cs_file, dtype=str)
-                if "Company" in cs_df.columns and not cs_df.empty:
-                    detected_company_name = cs_df["Company"].iloc[0]
-                    logging.info(f"[SMARTSEARCH] Found company name in CSV: {detected_company_name}")
-            except Exception as e:
-                logging.warning(f"[SMARTSEARCH] Error reading company name from CSV: {e}")
-
-        # ---------------------------------------------------------------------
-        # Step 5: Handle the user’s search query (unchanged logic)
-        #         - If query == '' => show all
-        #         - Else => do embedding-based search
-        # ---------------------------------------------------------------------
-        query = request.args.get('query', '').strip()
-        try:
-            page = int(request.args.get('page', 1))
-        except ValueError:
-            page = 1
-        items_per_page = 50
-
-        # Initialize Qdrant client
-        qdrant_url    = os.getenv('QDRANT_URL')
-        qdrant_api_key = os.getenv('QDRANT_API_KEY')
-        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
-
-        def normalize_payload(payload):
-            new_payload = {}
-            for k, v in payload.items():
-                new_payload[k.lower().replace(" ", "_")] = v
-            return new_payload
-
-        def read_contracts_from_qdrant(offset, limit):
-            """Helper to read 'raw' contract data from Qdrant with pagination."""
-            try:
-                scroll_result = client.scroll(
-                    collection_name="government_contracts",
-                    limit=limit,
-                    with_vectors=True,
-                    offset=offset
-                )
-                points = scroll_result[0]
-                contracts_list = []
-                for p in points:
-                    payload = p.payload
-                    row = {
-                        'bid_number':      payload.get('contract_number') or payload.get('bid_number') or '',
-                        'bid_name':        payload.get('title') or payload.get('bid_name') or '',
-                        'organization':    payload.get('agency') or payload.get('organization') or '',
-                        'status':          payload.get('status') or 'open',
-                        'available_date':  payload.get('available_date') or payload.get('posted_date') or '',
-                        'due_date':        payload.get('due_date') or '',
-                        'industry':        payload.get('industry') or '',
-                        'category':        payload.get('category') or '',
-                        'budget_estimate': payload.get('budget_estimate') or '',
-                        'department':      payload.get('department') or '',
-                        'state':           payload.get('state') or '',
-                        'duration':        payload.get('duration') or '',
-                        'detail_link':     payload.get('source_url') or payload.get('detail_link') or '#',
-                    }
-                    detail_link  = row['detail_link']
-                    bid_number   = row['bid_number']
-                    hash_input   = f"{detail_link}{bid_number}"
-                    row["hash_value"] = hashlib.sha256(hash_input.encode("utf-8")).hexdigest()
-                    contracts_list.append(row)
-                return contracts_list
-            except Exception as e:
-                logging.error(f"Error reading from Qdrant: {e}", exc_info=True)
-                return []
-
-        def generate_query_embedding(query_text):
-            try:
-                response = client_SMART_SEARCH_OPENAI_API_KEY.embeddings.create(
-                    input=[query_text],
-                    model="text-embedding-ada-002"
-                )
-                embedding_data = response.to_dict()
-                return embedding_data["data"][0]["embedding"]
-            except Exception as emb_err:
-                logging.error(f"Error generating embedding: {emb_err}", exc_info=True)
-                return None
-
-        def qdrant_search(vector, top_k=10000):
-            search_result = []
-            if vector is None:
-                return search_result
-            try:
-                hits = client.search(
-                    collection_name="government_contracts",
-                    query_vector=vector,
-                    limit=top_k,
-                    score_threshold=0.70
-                )
-                for hit in hits:
-                    payload = hit.payload
-                    row = {
-                        'bid_number':       payload.get('contract_number') or payload.get('bid_number') or '',
-                        'bid_name':         payload.get('title') or payload.get('bid_name') or '',
-                        'organization':     payload.get('agency') or payload.get('organization') or '',
-                        'status':           payload.get('status') or 'open',
-                        'due_date':         payload.get('due_date') or '',
-                        'category':         payload.get('category') or '',
-                        'industry':         payload.get('industry') or '',
-                        'department':       payload.get('department') or '',
-                        'state':            payload.get('state') or '',
-                        'detail_link':      payload.get('source_url') or payload.get('detail_link') or '#',
-                        'Similarity_Score': hit.score,
-                    }
-                    detail_link = row['detail_link']
-                    bnum        = row['bid_number']
-                    row['hash_value'] = hashlib.sha256(f"{detail_link}{bnum}".encode('utf-8')).hexdigest()
-                    search_result.append(row)
-            except Exception as srch_err:
-                logging.error(f"Error searching in Qdrant: {srch_err}", exc_info=True)
-            return search_result
-
-        # ---------------------------------------------------------------------
-        # If user’s query is empty => Show ALL contracts (unchanged logic)
-        # ---------------------------------------------------------------------
-        if query == "":
-            total_response = client.count(collection_name="government_contracts")
-            total_contracts = total_response.count
-            offset = (page - 1) * items_per_page
-            contracts = read_contracts_from_qdrant(offset, items_per_page)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
-            display_title = "All Contracts"
-
-            # Write them into matches_SMART_SEARCH.csv
-            smartsearch_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-            with open(smartsearch_file, 'w', newline='', encoding='utf-8') as f:
-                fieldnames = [
-                    'Company',
-                    'Bid_Number',
-                    'Bid_Name',
-                    'Bid_Description',
-                    'Status',
-                    'Category',
-                    'Due_Date',
-                    'Detail_Link',
-                    'State',
-                    'Organization',
-                    'Budget',
-                    'Similarity_Score',
-                    'hash_value'
-                ]
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
-
-                for c in contracts:
-                    writer.writerow({
-                        'Company':         detected_company_name,
-                        'Bid_Number':      c['bid_number'],
-                        'Bid_Name':        c['bid_name'],
-                        'Bid_Description': "",
-                        'Status':          c['status'],
-                        'Category':        c['category'],
-                        'Due_Date':        c['due_date'],
-                        'Detail_Link':     c['detail_link'],
-                        'State':           c['state'],
-                        'Organization':    c['organization'],
-                        'Budget':          c.get('budget_estimate', ''),
-                        'Similarity_Score': c.get('Similarity_Score', ''),
-                        'hash_value':      c['hash_value']
-                    })
-
-        # ---------------------------------------------------------------------
-        # Else => Do AI-based search with the user’s query (unchanged logic)
-        # ---------------------------------------------------------------------
-        else:
-            embedding = generate_query_embedding(query)
-            if not embedding:
-                flash("Error generating embedding for search query.", "error")
-                return render_template(
-                    'smartsearch.html', 
-                    company_name=company_name, 
-                    first_name=first_name, 
-                    contracts=[], 
-                    categories_list=[],
-                    industries_list=[],
-                    current_page=page,
-                    total_pages=0,
-                    total_matches=0,
-                    display_title="Error",
-                    query=query
-                )
-
-            search_results = qdrant_search(embedding, top_k=10000)
-            total_contracts = len(search_results)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
-            start = (page - 1) * items_per_page
-            end = start + items_per_page
-            contracts = search_results[start:end]
-            display_title = f"Search Results for '{query}'"
-
-            # Write them to matches_SMART_SEARCH.csv
-            smartsearch_file = os.path.join(user_uploads_dir, 'matches_SMART_SEARCH.csv')
-            with open(smartsearch_file, 'w', newline='', encoding='utf-8') as f:
-                fieldnames = [
-                    'Company',
-                    'Bid_Number',
-                    'Bid_Name',
-                    'Bid_Description',
-                    'Status',
-                    'Category',
-                    'Due_Date',
-                    'Detail_Link',
-                    'State',
-                    'Organization',
-                    'Budget',
-                    'Similarity_Score',
-                    'hash_value'
-                ]
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
-                writer.writeheader()
-
-                for c in contracts:
-                    writer.writerow({
-                        'Company':         detected_company_name,
-                        'Bid_Number':      c.get('bid_number', ''),
-                        'Bid_Name':        c.get('bid_name', ''),
-                        'Bid_Description': "",
-                        'Status':          c.get('status', ''),
-                        'Category':        c.get('category', ''),
-                        'Due_Date':        c.get('due_date', ''),
-                        'Detail_Link':     c.get('detail_link', ''),
-                        'State':           c.get('state', ''),
-                        'Organization':    c.get('organization', ''),
-                        'Budget':          c.get('budget_estimate', ''),
-                        'Similarity_Score': c.get('Similarity_Score', ''),
-                        'hash_value':      c.get('hash_value', '')
-                    })
-
-        # ---------------------------------------------------------------------
-        # After building `contracts`, gather categories, industries, etc. (unchanged)
-        # ---------------------------------------------------------------------
-        categories_list = sorted({c['category'] for c in contracts if c['category']})
-        industries_list = sorted({c.get('industry', '') for c in contracts if c.get('industry', '')})
-
-        return render_template(
-            'smartsearch.html',
-            company_name=company_name,
-            first_name=first_name,
-            contracts=contracts,
-            categories_list=categories_list,
-            industries_list=industries_list,
-            current_page=page,
-            total_pages=total_pages,
-            total_matches=total_contracts,
-            display_title=display_title,
-            query=query
-        )
-
-    except Exception as e:
-        logging.error(f"Unexpected error in /smartsearch route: {e}", exc_info=True)
-        return render_template('error.html', error="An unexpected error occurred.")
 
 
-# ---------------------------------------------------------------------------
-# MEMBERSHIP STATUS (unchanged)
-# ---------------------------------------------------------------------------
-@app.route('/membershipstatus', methods=['GET', 'POST'])
-def membershipstatus():
-    try:
-        # Get the authenticated user
-        user = auth.current_user
-        if user:
-            user_id = user['localId']
-            logging.info(f"Authenticated user ID: {user_id}")
-
-            # Refresh user's token
-            try:
-                user_logged_in = auth.refresh(user['refreshToken'])
-                logging.info(f"Token refreshed successfully for user ID: {user_id}")
-            except Exception as token_error:
-                logging.error(f"Token refresh failed for user ID {user_id}: {token_error}")
-                return redirect(url_for('Login'))
-
-            # Retrieve user data from Firebase
-            try:
-                user_data = db.child("users").child(user_id).get(user_logged_in['idToken']).val()
-                logging.info(f"User data retrieved for user ID {user_id}: {user_data}")
-            except Exception as data_error:
-                logging.error(f"Failed to retrieve user data for user ID {user_id}: {data_error}")
-                return render_template('error.html', error="Failed to retrieve user data.")
-
-            if user_data:
-                # Extract user details
-                company_name = user_data.get('company', 'No Company')
-                first_name = user_data.get('first_name', 'User')
-                account_type = user_data.get('account_type', 'Not Available')
-                subscription_end_date = user_data.get('subscription_end_date', 'Not Available')
-                stripe_customer_id = user_data.get('stripe_customer_id')
-
-                # If Stripe Customer ID is missing, fetch it from Stripe using the user's email
-                if not stripe_customer_id:
-                    user_email = user_data.get('email', '')
-                    try:
-                        # Fetch the Stripe customer object using email
-                        stripe_customers = stripe.Customer.list(email=user_email).data
-                        if stripe_customers:
-                            stripe_customer = stripe_customers[0]
-                            stripe_customer_id = stripe_customer.id
-                            logging.info(f"Fetched Stripe Customer ID from API: {stripe_customer_id}")
-
-                            # Update Firebase with the retrieved Stripe Customer ID
-                            db.child("users").child(user_id).update({
-                                "stripe_customer_id": stripe_customer_id
-                            }, user_logged_in['idToken'])
-                        else:
-                            logging.warning(f"No Stripe customer found for email: {user_email}")
-                            stripe_customer_id = "No Stripe ID Found"
-                    except Exception as stripe_error:
-                        logging.error(f"Error fetching Stripe Customer ID for email {user_email}: {stripe_error}")
-                        stripe_customer_id = "Error Fetching Stripe ID"
-
-                # Log the Stripe customer ID and other details
-                logging.info(f"Stripe Customer ID for user ID {user_id}: {stripe_customer_id}")
-                logging.info(f"Account type: {account_type}, Subscription end date: {subscription_end_date}")
-
-                # Check allowed account types and render page
-                allowed_account_types = ["CORAMA_ESSENTIALS", "CORAMA_SUPPLY_CHAIN_VISIBILITY", "TRUSTED_PARTNER", "CONTRACT_RADAR_MAXIMIZER_ESSENTIALS", "CONTRACT_RADAR_MAXIMIZER_SUPPLY_CHAIN_VISIBILITY"]
-                if account_type in allowed_account_types:
-                    return render_template(
-                        'membershipstatus.html',
-                        company_name=company_name,
-                        first_name=first_name,
-                        account_type=account_type,
-                        subscription_end_date=subscription_end_date,
-                        stripe_customer_id=stripe_customer_id  # Pass to template
-                    )
-                else:
-                    logging.warning(f"Unauthorized access attempt by user ID: {user_id} with account type: {account_type}")
-                    return redirect('/app/dashboard')
-
-        logging.warning("No authenticated user found. Redirecting to login.")
-        return redirect(url_for('Login'))
-
-    except Exception as e:
-        # Handle unexpected errors
-        logging.error(f"Unexpected error in /membershipstatus route: {e}")
-        return render_template('error.html', error=str(e))
 
 
 # ---------------------------------------------------------------------------
@@ -10787,18 +11600,18 @@ def upgrade_success():
 @app.route('/cancel_membership', methods=['POST'])
 def cancel_membership():
     try:
-        # Authenticate the user
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             logging.warning("No authenticated user found. Redirecting to login.")
             return jsonify({"error": "User not authenticated"}), 401
 
-        user_id = user['localId']
+        user_id = user_session['user_id']
         logging.info(f"Authenticated user ID: {user_id}")
 
         # Refresh the user's token
         try:
-            user_logged_in = auth.refresh(user['refreshToken'])
+            user_logged_in = auth.refresh(user_session['refreshToken'])
             logging.info(f"Token refreshed successfully for user ID: {user_id}")
         except Exception as token_error:
             logging.error(f"Failed to refresh token for user ID {user_id}: {token_error}")
@@ -10977,17 +11790,6 @@ def handle_failed_payment(invoice):
 
 
 
-#demo page
-@app.route('/demo', methods=['GET']) 
-def demoPage():
-    if 'user' not in session:
-        return render_template('demo.html')
-
-    # Get authenticated user
-    user = session['user']
-    user_id = user['localId']
-    user_uploads_dir = os.path.abspath(f"uploads/bid_uploads_{user_id}")
-    return render_template('demo.html')
 
 
 
@@ -12631,6 +13433,222 @@ def initialize_proposal_draft():
         logging.error(f"Error initializing proposal draft: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@app.route('/api/send-team-assignment-email', methods=['POST'])
+def send_team_assignment_email():
+    """Send notification emails to team members added from Corama Directory.
+    
+    This endpoint is called when the user reaches the proposal draft generator page
+    to notify team members that they have been added to a work team.
+    """
+    ensure_session_from_auth()
+    
+    try:
+        if 'user' not in session:
+            return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        team_members = data.get('team_members', [])
+        contract_name = data.get('contract_name', 'a contract')
+        
+        if not team_members:
+            return jsonify({'success': True, 'message': 'No team members to notify', 'emails_sent': 0})
+        
+        # Get current user info
+        user_data = session.get('user_data', {})
+        user_name = f"{user_data.get('first_name', '')} {user_data.get('last_name', '')}".strip()
+        if not user_name:
+            user_name = user_data.get('username', 'A Corama user')
+        user_email = user_data.get('email', session.get('user', {}).get('email', ''))
+        
+        emails_sent = 0
+        errors = []
+        
+        for member in team_members:
+            member_email = member.get('email', '')
+            if not member_email:
+                continue
+            
+            # Build the HTML email using the team assignment template
+            html_body = f'''<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+
+<style>
+    body {{ 
+        font-family: 'Poppins', sans-serif; 
+        background-color: #0f172a; 
+        margin: 0;
+        padding: 0;
+    }}
+    .container {{ 
+        max-width: 600px; 
+        margin: 40px auto; 
+        background-color: #1C4262; 
+        border-radius: 12px; 
+        padding: 40px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.25); 
+        text-align: center; 
+    }}
+    .logo {{ 
+        margin-bottom: 30px; 
+    }}
+    .logo img {{
+        max-width: 180px; 
+        height: auto;
+        display: block;
+        margin: 0 auto;
+    }}
+    .btn-reset {{ 
+        display: inline-block;
+        background-color: #6bb4b5; 
+        color: #ffffff;
+        text-decoration: none;
+        padding: 16px 40px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 16px;
+        margin: 30px 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        transition: background-color 0.3s ease;
+    }}
+    .btn-reset:hover {{
+        background-color: #5aa1a2; 
+    }}
+    .message {{ 
+        color: #ffffff; 
+        line-height: 1.6; 
+    }}
+    .welcome-text {{
+        font-weight: 700; 
+        font-size: 20px;
+        margin-bottom: 15px;
+        display: block;
+    }}
+    .link-fallback {{
+        font-size: 12px;
+        color: #aabdd1;
+        margin-top: 20px;
+        word-break: break-all; 
+    }}
+    .link-fallback a {{
+        color: #6bb4b5;
+    }}
+    .footer {{ 
+        margin-top: 40px; 
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1); 
+        font-size: 13px; 
+        color: #e0e0e0; 
+        line-height: 1.5;
+        font-weight: 400;
+    }}
+    .footer p {{
+        margin: 5px 0;
+    }}
+    .footer a {{
+        color: #6bb4b5; 
+        text-decoration: none;
+        font-weight: 600;
+    }}
+    .copyright {{
+        margin-top: 20px;
+        font-size: 11px;
+        opacity: 0.7;
+    }}
+    .highlight {{
+        color: #6bb4b5;
+        font-weight: 600;
+    }}
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+        </div>
+        
+        <div class="message">
+            <p class="welcome-text">
+                New Team Assignment
+            </p>
+            <p style="font-weight: 400;">
+                Hello,
+                <br><br>
+                You have been added to a work team by <span class="highlight">{user_name}</span> via the Corama Directory.
+            </p>
+            <p style="font-weight: 400;">
+                This assignment is for the contract:
+                <br>
+                <span class="highlight" style="font-size: 18px;">{contract_name}</span>
+            </p>
+            <p style="font-weight: 400;">
+                For more information regarding this assignment, please contact them directly by clicking the button below.
+            </p>
+        </div>
+        
+        <a href="mailto:{user_email}?subject=Inquiry regarding contract: {contract_name}" class="btn-reset">Contact {user_name}</a>
+        
+        <div class="message">
+            <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
+                If you believe this was a mistake, you can ignore this email.
+            </p>
+        </div>
+
+        <div class="link-fallback">
+            <p>Button not working? You can email them directly at:</p>
+            <p><a href="mailto:{user_email}">{user_email}</a></p>
+        </div>
+        
+        <div class="footer">
+
+            <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
+            <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+            <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+            
+            <div class="copyright">
+                <p>&copy; 2026 Corama. All rights reserved.</p>
+            </div>
+            
+            <div style="margin-top: 15px; font-size: 11px;">
+                <a href="https://ihccbusiness.net/" target="_blank">About IHCC</a> | 
+                <a href="https://corama.ai/terms-of-use">Terms of Use</a> | 
+                <a href="https://corama.ai/static/docs/policy.pdf">Policy</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>'''
+            
+            subject = f"New Team Assignment: {contract_name}"
+            
+            try:
+                success, error_msg = send_email_smtp(member_email, subject, html_body)
+                if success:
+                    emails_sent += 1
+                    app.logger.info(f"[Team Assignment] Email sent to {member_email} for contract '{contract_name}'")
+                else:
+                    errors.append(f"{member_email}: {error_msg}")
+                    app.logger.warning(f"[Team Assignment] Failed to send email to {member_email}: {error_msg}")
+            except Exception as email_error:
+                errors.append(f"{member_email}: {str(email_error)}")
+                app.logger.error(f"[Team Assignment] Error sending email to {member_email}: {email_error}")
+        
+        return jsonify({
+            'success': True,
+            'emails_sent': emails_sent,
+            'errors': errors if errors else None
+        })
+        
+    except Exception as e:
+        logging.error(f"Error sending team assignment emails: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/proposal-summary', methods=['POST'])
 def save_proposal_summary():
     """Save proposal summary checkpoint for a contract"""
@@ -12910,11 +13928,12 @@ def get_draft_team():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_data = draft_ref.get()
             
             if draft_data and 'team_members' in draft_data:
@@ -12944,11 +13963,12 @@ def add_team_member():
             return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_data = draft_ref.get()
             
             if not draft_data:
@@ -13480,11 +14500,12 @@ def update_draft_team():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_ref.update({'team_members': team_members})
         
         return jsonify({'success': True})
@@ -13505,12 +14526,13 @@ def suggest_team():
             logging.warning("[suggest_team] Missing draft_id in request")
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             logging.warning("[suggest_team] User not authenticated")
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user['localId']
+        user_id = user_session['user_id']
         logging.info(f"[suggest_team] Looking up draft: user_id={user_id}, draft_id={draft_id}")
         
         if not admin_initialized or not admin_db:
@@ -13656,11 +14678,12 @@ def get_draft_pricing():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_data = draft_ref.get()
             
             if draft_data and 'pricing' in draft_data:
@@ -13695,11 +14718,12 @@ def update_draft_pricing():
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
         if admin_initialized and admin_db:
-            user = auth.current_user
-            if not user:
+            # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+            user_session = get_current_user_secure()
+            if not user_session:
                 return jsonify({'success': False, 'error': 'Not authenticated'}), 401
             
-            draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+            draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
             draft_ref.update({'pricing': pricing})
         
         return jsonify({'success': True})
@@ -13731,11 +14755,12 @@ def generate_pricing_strategy():
         if not admin_initialized or not admin_db:
             return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        draft_ref = admin_db.reference(f'proposal_drafts/{user["localId"]}/{draft_id}')
+        draft_ref = admin_db.reference(f'proposal_drafts/{user_session["user_id"]}/{draft_id}')
         draft_data = draft_ref.get()
         
         if not draft_data:
@@ -13829,11 +14854,12 @@ def generate_final_proposal():
         if not admin_initialized or not admin_db:
             return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user["localId"]
+        user_id = user_session["user_id"]
         
         # Get draft data
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
@@ -13910,11 +14936,12 @@ def proposal_result_page():
     if not draft_id:
         return redirect('/app/dashboard')
     
-    user = auth.current_user
-    if not user:
+    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    user_session = get_current_user_secure()
+    if not user_session:
         return redirect(url_for('Login'))
     
-    return render_template('proposal_result.html', draft_id=draft_id, user_id=user["localId"])
+    return render_template('proposal_result.html', draft_id=draft_id, user_id=user_session["user_id"])
 
 @app.route('/api/generate_proposal_sections', methods=['POST'])
 def generate_proposal_sections():
@@ -13935,11 +14962,12 @@ def generate_proposal_sections():
         if not admin_initialized or not admin_db:
             return jsonify({'success': False, 'error': 'Firebase not initialized'}), 500
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user["localId"]
+        user_id = user_session["user_id"]
         
         # Get draft data to validate it exists
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
@@ -13970,13 +14998,22 @@ def generate_proposal_sections():
 # See proposal_worker.py for the background worker implementation.
 @app.route('/api/generate_proposal_sections/events/<job_id>')
 def proposal_generation_events(job_id):
-    """SSE endpoint for streaming proposal generation progress"""
+    """SSE endpoint for streaming proposal generation progress
+    
+    PHASE 1 HOTFIX: This endpoint is DEPRECATED. Frontend should use polling to
+    /api/generate_proposal_sections/status/<job_id> instead.
+    
+    The max_wait_time has been reduced from 300s to 25s to prevent Gunicorn worker
+    timeouts. Clients should reconnect if they need longer monitoring.
+    """
     import json
     
     def generate_events():
         """Generator that yields SSE events"""
         last_event_index = 0
-        max_wait_time = 300  # 5 minutes max
+        # PHASE 1 HOTFIX: Reduced from 300s to 25s to prevent Gunicorn worker timeouts
+        # Frontend should use polling to /status/<job_id> instead
+        max_wait_time = 25
         start_time = time_module.time()
         
         while True:
@@ -14230,11 +15267,12 @@ def download_proposal_docx():
         if not draft_id:
             return jsonify({'success': False, 'error': 'Missing draft_id'}), 400
         
-        user = auth.current_user
-        if not user:
+        # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+        user_session = get_current_user_secure()
+        if not user_session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
-        user_id = user["localId"]
+        user_id = user_session["user_id"]
         
         # Get the generated proposal from Firebase
         draft_ref = admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
@@ -14340,40 +15378,285 @@ def download_proposal_docx():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 def ensure_session_from_auth():
-    """Helper function to populate session from auth.current_user if session is missing"""
-    if 'user_data' not in session:
-        user = auth.current_user
-        if user:
-            # Repopulate session from auth.current_user
-            session['user_data'] = {
-                'user_id': user.get('localId'),
-                'idToken': user.get('idToken'),
-                'refreshToken': user.get('refreshToken'),
-                'email': user.get('email', ''),
-                'first_name': user.get('first_name', ''),
-                'last_name': user.get('last_name', ''),
-                'company': user.get('company', '')
-            }
-            session.permanent = True
-            app.logger.info(f"✅ Repopulated session from auth.current_user for user {user.get('localId')}")
-            return True
-        return False
-    return True
-
-@app.route('/directory-profile')
-def directory_profile():
-    """Directory profile management page"""
-    if not ensure_session_from_auth():
-        return redirect(url_for('Login'))
+    """
+    SECURITY FIX: This function now ONLY checks if session exists.
     
-    return render_template('directory_profile.html')
+    IMPORTANT: We no longer use auth.current_user because it's a global singleton
+    in Pyrebase that can contain another user's data in a multi-user server environment.
+    This was causing cross-user data access vulnerabilities.
+    
+    The session is populated during login/signup and should be the ONLY source of
+    user identity for request handlers.
+    
+    Returns:
+        True if session['user_data'] exists, False otherwise
+    """
+    return 'user_data' in session
+
+
+def get_current_user_secure():
+    """
+    SECURITY: Get current user data from session only.
+    
+    This is the secure way to get user identity - never use auth.current_user directly
+    as it's a global singleton that can contain another user's data.
+    
+    Returns:
+        dict with user_id, idToken, etc. if authenticated, None otherwise
+    """
+    if 'user_data' not in session:
+        return None
+    return session['user_data']
+
+
+def require_auth():
+    """
+    SECURITY: Decorator-style check that returns user data or raises 401.
+    
+    Usage:
+        user_data = require_auth()
+        if isinstance(user_data, tuple):  # It's an error response
+            return user_data
+        user_id = user_data['user_id']
+    
+    Returns:
+        dict with user data if authenticated, or (jsonify response, 401) tuple if not
+    """
+    user_data = get_current_user_secure()
+    if not user_data:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    return user_data
+
+
+# ============================================================================
+# ADMIN AUTHENTICATION SYSTEM
+# ============================================================================
+
+def check_admin_status(user_id: str, email: str = None) -> bool:
+    """
+    SECURITY: Check if a user has admin privileges.
+    
+    Checks two sources (in order):
+    1. ADMIN_EMAILS environment variable (bootstrap/emergency access)
+    2. /admins/{user_id} collection in Firebase (primary source)
+    
+    Args:
+        user_id: Firebase user ID
+        email: User's email (optional, for env var check)
+    
+    Returns:
+        True if user is admin, False otherwise
+    """
+    # Check 1: Environment variable whitelist (bootstrap/emergency)
+    admin_emails = os.getenv('ADMIN_EMAILS', '')
+    if email and admin_emails:
+        admin_email_list = [e.strip().lower() for e in admin_emails.split(',') if e.strip()]
+        if email.lower() in admin_email_list:
+            app.logger.info(f"[Admin] User {email} granted admin via ADMIN_EMAILS env var")
+            return True
+    
+    # Check 2: Firebase /admins/{user_id} collection
+    if admin_initialized and admin_db:
+        try:
+            admin_ref = admin_db.reference(f'admins/{user_id}')
+            admin_data = admin_ref.get()
+            if admin_data and admin_data.get('is_admin', False):
+                app.logger.info(f"[Admin] User {user_id} granted admin via Firebase /admins collection")
+                return True
+        except Exception as e:
+            app.logger.warning(f"[Admin] Error checking admin status for {user_id}: {e}")
+    
+    return False
+
+
+def require_admin():
+    """
+    SECURITY: Check that user is authenticated AND has admin privileges.
+    
+    Re-checks admin status on every request for quick revocation.
+    
+    Usage:
+        result = require_admin()
+        if isinstance(result, tuple):  # It's an error response
+            return result
+        user_data = result
+    
+    Returns:
+        dict with user data if admin, or (jsonify response, status_code) tuple if not
+    """
+    user_data = get_current_user_secure()
+    if not user_data:
+        return jsonify({'success': False, 'error': 'Not authenticated'}), 401
+    
+    user_id = user_data.get('user_id')
+    email = user_data.get('email')
+    
+    # Re-check admin status on every request (not cached) for quick revocation
+    if not check_admin_status(user_id, email):
+        app.logger.warning(f"[Admin] Unauthorized admin access attempt by {email} ({user_id})")
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    return user_data
+
+
+def log_admin_action(user_id: str, email: str, action: str, details: dict = None):
+    """
+    SECURITY: Log admin actions for audit trail.
+    
+    Args:
+        user_id: Admin's Firebase user ID
+        email: Admin's email
+        action: Description of the action taken
+        details: Additional details about the action
+    """
+    log_entry = {
+        'timestamp': datetime.now().isoformat(),
+        'admin_user_id': user_id,
+        'admin_email': email,
+        'action': action,
+        'details': details or {},
+        'ip_address': request.remote_addr,
+        'user_agent': request.headers.get('User-Agent', 'Unknown')
+    }
+    
+    app.logger.info(f"[Admin Audit] {email} performed: {action} - {details}")
+    
+    # Store audit log in Firebase
+    if admin_initialized and admin_db:
+        try:
+            audit_ref = admin_db.reference('admin_audit_logs')
+            audit_ref.push(log_entry)
+        except Exception as e:
+            app.logger.error(f"[Admin Audit] Failed to store audit log: {e}")
+
+
+# ============================================================================
+# ADMIN API ENDPOINTS
+# ============================================================================
+
+@app.route('/api/admin/check-status', methods=['GET'])
+def api_admin_check_status():
+    """Check if current user has admin privileges."""
+    user_data = get_current_user_secure()
+    if not user_data:
+        return jsonify({'success': False, 'is_admin': False, 'error': 'Not authenticated'}), 401
+    
+    user_id = user_data.get('user_id')
+    email = user_data.get('email')
+    is_admin = check_admin_status(user_id, email)
+    
+    return jsonify({
+        'success': True,
+        'is_admin': is_admin,
+        'email': email
+    })
+
+
+@app.route('/api/admin/directory/list', methods=['GET'])
+def api_admin_directory_list():
+    """Admin endpoint to list all directory entries."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    try:
+        all_listings = []
+        
+        if admin_initialized and admin_db:
+            directory_ref = admin_db.reference('corama_directory')
+            all_directory_data = directory_ref.get()
+            
+            if all_directory_data:
+                for user_id, listing in all_directory_data.items():
+                    if listing:
+                        listing['user_id'] = user_id
+                        all_listings.append(listing)
+        
+        log_admin_action(
+            admin_data['user_id'],
+            admin_data['email'],
+            'VIEW_ALL_DIRECTORY_LISTINGS',
+            {'count': len(all_listings)}
+        )
+        
+        return jsonify({
+            'success': True,
+            'listings': all_listings,
+            'count': len(all_listings)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error listing directory entries: {e}")
+        return jsonify({'success': False, 'error': 'Failed to load directory listings'}), 500
+
+
+@app.route('/api/admin/directory/delete', methods=['POST'])
+def api_admin_directory_delete():
+    """Admin endpoint to delete a directory entry."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    data = request.get_json() or {}
+    target_user_id = data.get('user_id')
+    
+    if not target_user_id:
+        return jsonify({'success': False, 'error': 'user_id is required'}), 400
+    
+    try:
+        # Get listing info before deletion for audit log
+        listing_info = None
+        if admin_initialized and admin_db:
+            directory_ref = admin_db.reference(f'corama_directory/{target_user_id}')
+            listing_info = directory_ref.get()
+            
+            if not listing_info:
+                return jsonify({'success': False, 'error': 'Directory listing not found'}), 404
+            
+            # Delete the directory entry
+            directory_ref.delete()
+            
+            # Also update the user's directory_listed flag
+            try:
+                user_ref = admin_db.reference(f'users/{target_user_id}')
+                user_ref.update({'directory_listed': False})
+            except Exception as user_update_error:
+                app.logger.warning(f"[Admin] Could not update directory_listed flag for {target_user_id}: {user_update_error}")
+        
+        log_admin_action(
+            admin_data['user_id'],
+            admin_data['email'],
+            'DELETE_DIRECTORY_LISTING',
+            {
+                'deleted_user_id': target_user_id,
+                'deleted_company': listing_info.get('company', 'Unknown') if listing_info else 'Unknown'
+            }
+        )
+        
+        app.logger.info(f"[Admin] Directory listing deleted for user {target_user_id} by admin {admin_data['email']}")
+        
+        return jsonify({
+            'success': True,
+            'message': f"Directory listing deleted successfully",
+            'deleted_user_id': target_user_id
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error deleting directory entry for {target_user_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to delete directory listing'}), 500
+
 
 @app.route('/api/get_directory_profile', methods=['GET'])
 def get_directory_profile():
     """Get user's directory profile"""
     try:
-        # Ensure session is populated from auth.current_user if needed
-        if not ensure_session_from_auth():
+        # SECURITY FIX: Do NOT use ensure_session_from_auth() here!
+        # That function uses auth.current_user which is a global singleton in Pyrebase
+        # and can contain another user's data in a multi-user server environment.
+        # This was causing cross-user profile editing vulnerability.
+        if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = session['user_data']['user_id']
@@ -14447,7 +15730,9 @@ def get_directory_profile():
 def update_directory_profile():
     """Update user's directory profile"""
     try:
-        # Use session-based authentication instead of auth.current_user
+        # SECURITY FIX: Do NOT use ensure_session_from_auth() here!
+        # That function uses auth.current_user which is a global singleton in Pyrebase
+        # and can contain another user's data in a multi-user server environment.
         if 'user_data' not in session:
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
@@ -14460,6 +15745,34 @@ def update_directory_profile():
         
         if not user_data:
             return jsonify({'success': False, 'error': 'User data not found'}), 404
+        
+        # AUTHORIZATION CHECK: Only users with existing directory listings can edit their profile
+        # This prevents users who are not listed from creating/editing directory entries
+        existing_directory_data = None
+        try:
+            existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
+        except Exception as dir_read_error:
+            app.logger.warning(f"Could not read existing directory data for user {user_id}: {dir_read_error}")
+            # Try Admin SDK fallback for reading
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                    existing_directory_data = directory_ref.get()
+                except Exception as admin_read_error:
+                    app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
+        
+        # Check if user has an existing listing (listed: true)
+        if not existing_directory_data or not existing_directory_data.get('listed', False):
+            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to edit directory profile without existing listing")
+            return jsonify({
+                'success': False, 
+                'error': 'You must have an existing directory listing to edit your profile. Please contact support to get listed.',
+                'authorization_error': True
+            }), 403
+        
+        # SECURITY: Don't trust client-provided 'listed' value - preserve existing value
+        # The 'listed' status should only be changed by admins, not by users
+        existing_listed_status = existing_directory_data.get('listed', False)
         
         profile_data = {
             'company': data.get('company', user_data.get('company', '')).strip(),
@@ -14475,7 +15788,7 @@ def update_directory_profile():
             'team_size': data.get('team_size', '').strip(),
             'years_in_business': data.get('years_in_business', '').strip(),
             'logo_url': data.get('logo_url', ''),
-            'listed': data.get('listed', False),
+            'listed': existing_listed_status,  # SECURITY: Preserve existing listed status, don't trust client
             'updated_at': datetime.now().isoformat()
         }
         
@@ -14554,6 +15867,28 @@ def upload_directory_logo():
             return jsonify({'success': False, 'error': 'Not authenticated'}), 401
         
         user_id = session['user_data']['user_id']
+        id_token = session['user_data']['idToken']
+        
+        # AUTHORIZATION CHECK: Only users with existing directory listings can upload logos
+        existing_directory_data = None
+        try:
+            existing_directory_data = db.child("corama_directory").child(user_id).get(id_token).val()
+        except Exception as dir_read_error:
+            app.logger.warning(f"Could not read existing directory data for logo upload user {user_id}: {dir_read_error}")
+            if admin_initialized and admin_db:
+                try:
+                    directory_ref = admin_db.reference(f'corama_directory/{user_id}')
+                    existing_directory_data = directory_ref.get()
+                except Exception as admin_read_error:
+                    app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
+        
+        if not existing_directory_data or not existing_directory_data.get('listed', False):
+            app.logger.warning(f"AUTHORIZATION DENIED: User {user_id} attempted to upload logo without existing listing")
+            return jsonify({
+                'success': False, 
+                'error': 'You must have an existing directory listing to upload a logo.',
+                'authorization_error': True
+            }), 403
         
         if 'logo' not in request.files:
             app.logger.warning(f"Logo upload for user {user_id}: No logo file in request")
@@ -14719,15 +16054,6 @@ def get_directory_companies():
         app.logger.error(f"Error getting directory companies: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@app.route('/directory')
-def directory_browse():
-    """Public directory browse page - no login required"""
-    return render_template('directory_browse.html')
-
-@app.route('/directory/company/<user_id>')
-def directory_company_profile(user_id):
-    """Individual company profile page - no login required"""
-    return render_template('directory_company_profile.html', company_user_id=user_id)
 
 
 # =============================================================================
@@ -14736,7 +16062,7 @@ def directory_company_profile(user_id):
 
 # Serve React app - SPA routing
 # Public paths that don't require authentication (landing page and auth pages)
-REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'confirm-terms', 'reset-password', 'faq', 'about-us'}
+REACT_PUBLIC_PATHS = {'', 'landing', 'login', 'signup', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq', 'about-us'}
 
 # React page routes - these will be handled by the SPA
 REACT_PAGE_ROUTES = {
@@ -14744,8 +16070,8 @@ REACT_PAGE_ROUTES = {
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
     'proposal-summary', 'public-bid-proposal-generator', 'landing',
-    'login', 'signup', 'confirm-terms', 'reset-password', 'faq',
-    'about', 'about-us'
+    'login', 'signup', 'confirm-terms', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq',
+    'about-us', 'support', 'admin'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
@@ -14805,6 +16131,9 @@ def api_get_user():
         cs_file = os.path.join(user_upload_dir, "capability_statements_processed.csv")
         has_cs = os.path.exists(cs_file)
         
+        # Use display_name if available, otherwise fall back to username or first_name
+        display_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or user_data.get('email', '').split('@')[0]
+        
         return jsonify({
             "success": True,
             "user": {
@@ -14813,6 +16142,7 @@ def api_get_user():
                 "first_name": user_data.get('first_name', ''),
                 "last_name": user_data.get('last_name', ''),
                 "company": user_data.get('company', ''),
+                "username": display_name,  # Return display_name with original casing
                 "credits_balance": user_data.get('credits_balance', 0),
                 "has_capability_statement": has_cs
             }
@@ -15025,7 +16355,11 @@ def api_top_five_contracts():
     states_param = request.args.get('states', '')  # comma-separated list of state codes
     selected_states = [s.strip().upper() for s in states_param.split(',') if s.strip()] if states_param else []
     
-    logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}")
+    # Pagination parameters
+    offset = request.args.get('offset', 0, type=int)  # Starting index for pagination
+    limit = request.args.get('limit', 5, type=int)  # Number of results per page (default 5)
+    
+    logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}, offset={offset}, limit={limit}")
     
     # Check if session has top5_results (newer approach - CSV is fallback)
     session_results = session.get('top5_results')
@@ -15319,13 +16653,29 @@ def api_top_five_contracts():
     else:
         logging.info(f"[top5] No matches file found at {matches_file}")
     
+    # Apply pagination - slice matches based on offset and limit
+    paginated_matches = matches[offset:offset + limit]
+    
+    # Update ranks to reflect pagination (rank = offset + index + 1)
+    for i, match in enumerate(paginated_matches):
+        match['rank'] = offset + i + 1
+    
     # Clean NaN values before returning JSON
-    cleaned_matches = clean_for_json(matches[:5])
+    cleaned_matches = clean_for_json(paginated_matches)
+    
+    # Calculate if there are more results available
+    has_more = (offset + limit) < len(matches)
+    next_offset = offset + limit if has_more else None
+    
     return jsonify({
         "success": True,
         "matches": cleaned_matches,
         "has_matches": total_matches > 0,  # True if user has ANY matches (before filtering)
-        "filtered_count": len(matches)  # Count after filtering
+        "filtered_count": len(matches),  # Count after filtering
+        "total_available": len(matches),  # Total matches available for pagination
+        "has_more": has_more,  # Whether more results are available
+        "next_offset": next_offset,  # Next offset to use for pagination
+        "current_offset": offset  # Current offset used
     })
 
 
@@ -15364,6 +16714,57 @@ def api_get_credits():
         })
     except Exception as e:
         logging.error(f"Error in /api/credits: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# API: Deduct credits for an action
+@app.route('/api/deduct-credits', methods=['POST'])
+def api_deduct_credits():
+    """Deduct credits from user's balance for a specific action"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    try:
+        data = request.get_json()
+        amount = data.get('amount', 0)
+        action_type = data.get('action_type', 'unknown')
+        description = data.get('description', '')
+        
+        if amount <= 0:
+            return jsonify({"success": False, "error": "Invalid credit amount"}), 400
+        
+        # Use credit manager to deduct credits
+        credit_manager = CreditManager(db)
+        
+        if admin_initialized and admin_db:
+            success, message, new_balance = credit_manager.deduct_credits_admin(
+                user_id, amount, action_type, description, admin_db
+            )
+        else:
+            success, message = credit_manager.deduct_credits(
+                user_id, user['idToken'], amount, action_type, description
+            )
+            if success:
+                new_balance = credit_manager.get_user_credits(user_id, user['idToken'])
+            else:
+                new_balance = 0
+        
+        if success:
+            logging.info(f"[CREDITS] Deducted {amount} credits from user {user_id} for {action_type}: {description}")
+            return jsonify({
+                "success": True,
+                "new_balance": new_balance,
+                "message": message
+            })
+        else:
+            logging.warning(f"[CREDITS] Failed to deduct credits for user {user_id}: {message}")
+            return jsonify({"success": False, "error": message}), 402
+            
+    except Exception as e:
+        logging.error(f"Error in /api/deduct-credits: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 

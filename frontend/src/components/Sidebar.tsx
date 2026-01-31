@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { api } from '../services/api'
 
 interface SidebarProps {
   mobileOpen?: boolean
   onMobileToggle?: () => void
   onGoBack?: () => void
+  onBeforeNavigate?: (to: string) => boolean // Return false to prevent navigation
 }
 
 interface MenuItem {
@@ -12,12 +14,27 @@ interface MenuItem {
   label: string
   icon: string
   badge?: boolean
+  external?: boolean
 }
 
-const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }: SidebarProps) => {
+const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, onBeforeNavigate }: SidebarProps) => {
   const location = useLocation()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  
+  // Check admin status on mount
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const result = await api.checkAdminStatus()
+        setIsAdmin(result.success && result.is_admin)
+      } catch {
+        setIsAdmin(false)
+      }
+    }
+    checkAdmin()
+  }, [])
   
   // Initialize isExpanded from localStorage to persist across page navigation
   const [isExpanded, setIsExpanded] = useState(() => {
@@ -70,7 +87,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
     { path: '/corama-directory', label: 'CORAMA Directory', icon: '/static/app/dashboard/CORAMADirectory.svg' },
     { path: '/get-more-credits', label: 'Get More Credits', icon: '/static/app/dashboard/Credits.svg' },
     { path: '/support', label: 'Support', icon: '/static/app/dashboard/Support.svg' },
-    { path: '/about', label: 'About Us', icon: '/static/app/dashboard/AboutUs.svg' },
+    { path: '/about-us', label: 'About Us', icon: '/static/app/dashboard/AboutUs.svg', external: true },
   ]
 
   const closeMobile = () => {
@@ -175,33 +192,111 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack }:
                     aria-hidden="true"
                   />
                 )}
-                <Link
-                  to={item.path}
-                  onClick={closeMobile}
-                  className={`relative flex items-center h-full px-4 transition-all ${
-                    isActive 
-                      ? 'text-white' 
-                      : 'text-gray-300 group-hover:text-white'
-                  }`}
-                  style={{ gap: '8px' }}
-                >
-                  <img 
-                    src={item.icon} 
-                    alt="" 
-                    className="w-[25px] h-[25px]" 
-                    style={{ marginLeft: isCapabilityBuilder ? '4px' : '0' }}
-                    aria-hidden="true" 
-                  />
-                  {isExpanded && (
-                    <span className="font-poppins text-sm">{item.label}</span>
-                  )}
-                  {item.badge && (
-                    <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
-                  )}
-                </Link>
+                {item.external ? (
+                  <a
+                    href={item.path}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={closeMobile}
+                    className={`relative flex items-center h-full px-4 transition-all text-gray-300 group-hover:text-white`}
+                    style={{ gap: '8px' }}
+                  >
+                    <img 
+                      src={item.icon} 
+                      alt="" 
+                      className="w-[25px] h-[25px]" 
+                      style={{ marginLeft: isCapabilityBuilder ? '4px' : '0' }}
+                      aria-hidden="true" 
+                    />
+                    {isExpanded && (
+                      <span className="font-poppins text-sm">{item.label}</span>
+                    )}
+                    {item.badge && (
+                      <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
+                    )}
+                  </a>
+                ) : (
+                  <Link
+                    to={item.path}
+                    onClick={(e) => {
+                      // If onBeforeNavigate is provided and returns false, prevent navigation
+                      if (onBeforeNavigate && !onBeforeNavigate(item.path)) {
+                        e.preventDefault()
+                        return
+                      }
+                      closeMobile()
+                    }}
+                    className={`relative flex items-center h-full px-4 transition-all ${
+                      isActive 
+                        ? 'text-white' 
+                        : 'text-gray-300 group-hover:text-white'
+                    }`}
+                    style={{ gap: '8px' }}
+                  >
+                    <img 
+                      src={item.icon} 
+                      alt="" 
+                      className="w-[25px] h-[25px]" 
+                      style={{ marginLeft: isCapabilityBuilder ? '4px' : '0' }}
+                      aria-hidden="true" 
+                    />
+                    {isExpanded && (
+                      <span className="font-poppins text-sm">{item.label}</span>
+                    )}
+                    {item.badge && (
+                      <span className="ml-auto w-2 h-2 bg-corama-teal rounded-full"></span>
+                    )}
+                  </Link>
+                )}
               </div>
             )
           })}
+          
+          {/* Admin Link - only shown for admin users */}
+          {isAdmin && (
+            <div className="relative group mt-2" style={{ height: '51px' }}>
+              {/* Hover background layer */}
+              {location.pathname !== '/admin/directory' && (
+                <div 
+                  className="absolute top-0 left-0 bottom-0 bg-corama-darker opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                  style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                  aria-hidden="true"
+                />
+              )}
+              {/* Active highlight */}
+              {location.pathname === '/admin/directory' && (
+                <img 
+                  src={isExpanded ? '/static/app/dashboard/Highlight.svg' : '/static/app/dashboard/HighlightCollapsed.svg'}
+                  alt="" 
+                  className={`absolute top-0 left-0 bottom-0 h-full object-cover ${isExpanded ? 'object-left' : 'object-right'}`}
+                  style={{ width: isExpanded ? '258px' : '76px' }}
+                  aria-hidden="true"
+                />
+              )}
+              <Link
+                to="/admin/directory"
+                onClick={closeMobile}
+                className={`relative flex items-center h-full px-4 transition-all ${
+                  location.pathname === '/admin/directory'
+                    ? 'text-white' 
+                    : 'text-amber-400 group-hover:text-amber-300'
+                }`}
+                style={{ gap: '8px' }}
+              >
+                <svg 
+                  className="w-[25px] h-[25px]" 
+                  fill="currentColor" 
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                </svg>
+                {isExpanded && (
+                  <span className="font-poppins text-sm">Admin: Directory</span>
+                )}
+              </Link>
+            </div>
+          )}
           
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
