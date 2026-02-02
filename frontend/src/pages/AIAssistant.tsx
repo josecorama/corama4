@@ -484,18 +484,6 @@ const AIAssistant = () => {
             if (!response.cached) {
               setHeaderKey(k => k + 1)
             }
-            // Add follow-up PDF question after a delay (after typing animation)
-            setTimeout(() => {
-              const pdfFollowUp: Message = {
-                id: Date.now() + 1,
-                sender: 'ai',
-                content: 'Would you like me to give you a PDF with this information?',
-                timestamp: formatTime(),
-                isTyping: true,
-                visibleContent: '',
-              }
-              setMessages(prev => [...prev, pdfFollowUp])
-            }, 10000) // Wait for typing animation to finish
           } else {
             addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
           }

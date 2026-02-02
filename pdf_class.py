@@ -2,8 +2,8 @@ from fpdf import FPDF
 from PIL import Image
 import os
 
-PRIMARY_BLUE = (46, 76, 139)  # #2E4C8B - Rich blue for headers
-LIGHT_BLUE = (168, 213, 226)  # #A8D5E2 - Light blue for section backgrounds
+PRIMARY_BLUE = (11, 44, 72)  # #0B2C48 - Primary color for headers
+LIGHT_BLUE = (153, 200, 202)  # #99C8CA - Secondary color for section backgrounds
 LIGHT_GRAY = (240, 240, 240)  # #F0F0F0 - Light gray for alternate sections
 DARK_GRAY = (45, 45, 45)  # #2D2D2D - Dark gray for footer
 FOOTER_GRAY = (87, 88, 90)  # #57585a - Footer background color

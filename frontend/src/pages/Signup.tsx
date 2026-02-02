@@ -391,7 +391,7 @@ const Signup = () => {
             {/* Links */}
             <div className="text-center mt-5">
               <p className="text-gray-400 font-poppins text-sm">
-                Already have an account? <a href="/login" className="text-corama-teal hover:text-[#99c8ca] transition-colors">Sign in here</a>
+                Already have an account? <a href="/login" className="text-corama-teal hover:text-[#6BA4A7] transition-colors">Sign in here</a>
               </p>
             </div>
           </div>

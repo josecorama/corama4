@@ -183,7 +183,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
           className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4"
           style={{
             backgroundColor: '#0B2C48',
-            color: '#99C8CA',
+            color: '#6BA4A7',
             boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
           }}
         >
@@ -501,7 +501,7 @@ const AboutUsPublic = () => {
                 </p>
                 <a 
                   href="/login" 
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#6BA4A7] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#6BA4A7] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
                 >
                   Get Started
                 </a>
@@ -545,7 +545,7 @@ const AboutUsPublic = () => {
                   </p>
                   <a 
                     href="/login" 
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#99c8ca] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#99c8ca] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
+                    className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#6BA4A7] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#6BA4A7] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
                   >
                     Get Started
                   </a>

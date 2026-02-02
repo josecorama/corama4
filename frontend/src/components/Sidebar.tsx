@@ -239,7 +239,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                         className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${isActive ? 'opacity-100' : 'opacity-0'}`}
                         style={{ 
                           width: isExpanded ? '258px' : '76px',
-                          background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
+                          background: 'linear-gradient(180deg, #6BB4B5 51.44%, #6BA4A7 100%)',
                           borderRadius: '0 9999px 9999px 0'
                         }}
                         aria-hidden="true"
@@ -304,48 +304,93 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
             )
           })}
           
-          {/* Admin Link - only shown for admin users */}
+          {/* Admin Links - only shown for admin users */}
           {isAdmin && (
-            <div className="relative group mt-2" style={{ height: '51px' }}>
-              {/* Hover background layer - smooth resize transition */}
-              <div 
-                className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
-                style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
-                aria-hidden="true"
-              />
-              {/* Active highlight - CSS gradient with smooth resize transition (teal gradient from original SVG) */}
-              <div 
-                className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
-                style={{ 
-                  width: isExpanded ? '258px' : '76px',
-                  background: 'linear-gradient(180deg, #6BB4B5 51.44%, #99C8CA 100%)',
-                  borderRadius: '0 9999px 9999px 0'
-                }}
-                aria-hidden="true"
-              />
-              <Link
-                to="/admin/directory"
-                onClick={closeMobile}
-                className={`relative flex items-center h-full px-4 transition-all ${
-                  location.pathname === '/admin/directory'
-                    ? 'text-white' 
-                    : 'text-amber-400 group-hover:text-amber-300'
-                }`}
-                style={{ gap: '8px' }}
-              >
-                <svg 
-                  className="w-[25px] h-[25px]" 
-                  fill="currentColor" 
-                  viewBox="0 0 24 24"
+            <>
+              {/* Admin Directory Link */}
+              <div className="relative group mt-2" style={{ height: '51px' }}>
+                {/* Hover background layer - smooth resize transition */}
+                <div 
+                  className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${location.pathname !== '/admin/directory' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                  style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
                   aria-hidden="true"
+                />
+                {/* Active highlight - CSS gradient with smooth resize transition (teal gradient from original SVG) */}
+                <div 
+                  className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/directory' ? 'opacity-100' : 'opacity-0'}`}
+                  style={{ 
+                    width: isExpanded ? '258px' : '76px',
+                    background: 'linear-gradient(180deg, #6BB4B5 51.44%, #6BA4A7 100%)',
+                    borderRadius: '0 9999px 9999px 0'
+                  }}
+                  aria-hidden="true"
+                />
+                <Link
+                  to="/admin/directory"
+                  onClick={closeMobile}
+                  className={`relative flex items-center h-full px-4 transition-all ${
+                    location.pathname === '/admin/directory'
+                      ? 'text-white' 
+                      : 'text-amber-400 group-hover:text-amber-300'
+                  }`}
+                  style={{ gap: '8px' }}
                 >
-                  <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
-                </svg>
-                {isExpanded && (
-                  <span className="font-poppins text-sm">{t('adminDirectory')}</span>
-                )}
-              </Link>
-            </div>
+                  <svg 
+                    className="w-[25px] h-[25px]" 
+                    fill="currentColor" 
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+                  </svg>
+                  {isExpanded && (
+                    <span className="font-poppins text-sm">{t('adminDirectory')}</span>
+                  )}
+                </Link>
+              </div>
+              
+              {/* Admin Contracts Link */}
+              <div className="relative group" style={{ height: '51px' }}>
+                {/* Hover background layer - smooth resize transition */}
+                <div 
+                  className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${location.pathname !== '/admin/contracts' ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
+                  style={{ width: isExpanded ? '258px' : '76px', borderRadius: '27px' }}
+                  aria-hidden="true"
+                />
+                {/* Active highlight - CSS gradient with smooth resize transition (teal gradient from original SVG) */}
+                <div 
+                  className={`absolute top-0 left-0 bottom-0 h-full transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] ${location.pathname === '/admin/contracts' ? 'opacity-100' : 'opacity-0'}`}
+                  style={{ 
+                    width: isExpanded ? '258px' : '76px',
+                    background: 'linear-gradient(180deg, #6BB4B5 51.44%, #6BA4A7 100%)',
+                    borderRadius: '0 9999px 9999px 0'
+                  }}
+                  aria-hidden="true"
+                />
+                <Link
+                  to="/admin/contracts"
+                  onClick={closeMobile}
+                  className={`relative flex items-center h-full px-4 transition-all ${
+                    location.pathname === '/admin/contracts'
+                      ? 'text-white' 
+                      : 'text-amber-400 group-hover:text-amber-300'
+                  }`}
+                  style={{ gap: '8px' }}
+                >
+                  <svg 
+                    className="w-[25px] h-[25px]" 
+                    fill="currentColor" 
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                  </svg>
+                  {isExpanded && (
+                    <span className="font-poppins text-sm">Admin: Contracts</span>
+                  )}
+                </Link>
+              </div>
+            </>
           )}
           
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}

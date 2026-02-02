@@ -410,7 +410,7 @@ const TopFiveContracts = () => {
                   <div className="absolute top-4 right-4 lg:top-6 lg:right-6">
                     <span 
                       className="font-poppins text-sm font-bold px-5 py-2 rounded-full text-white"
-                      style={{ background: 'radial-gradient(ellipse at 50% 150%, #6BB4B5 0%, #99C8CA 100%)' }}
+                      style={{ background: 'radial-gradient(ellipse at 50% 150%, #6BB4B5 0%, #6BA4A7 100%)' }}
                     >
                       {Number.isFinite(contract.matchPercentage) ? `${contract.matchPercentage}% ${t('match')}` : t('matchPending')}
                     </span>
@@ -430,13 +430,13 @@ const TopFiveContracts = () => {
 
                     {/* Contract Details - right side */}
                     <div className="flex-1 w-full">
-                      {/* Row 1: Contract Value, Submission Deadline, NAICS Code */}
+                      {/* Row 1: Name, Submission Deadline, NAICS Code */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-4">
                         <div>
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                                                      {t('contractValue')}
+                                                      {t('name')}
                                                     </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.name}</p>
                         </div>
                         <div>
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
@@ -452,13 +452,13 @@ const TopFiveContracts = () => {
                         </div>
                       </div>
 
-                      {/* Row 2: Name, Contracting Agency, Action Buttons */}
+                      {/* Row 2: Contract Value, Contracting Agency, Action Buttons */}
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6">
                         <div>
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
-                                                      {t('name')}
+                                                      {t('contractValue')}
                                                     </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.name}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
                         </div>
                         <div>
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">

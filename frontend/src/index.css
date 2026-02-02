@@ -349,7 +349,7 @@ body {
 
 /* Radar Animation Styles */
 :root {
-  --radar-cyan-main: #99C8CA;
+  --radar-cyan-main: #6BA4A7;
   --radar-grad-mid: #6BB4B5;
   --radar-grad-end: #BFE3E5;
   --radar-line-color: rgba(153, 200, 202, 0.25);
@@ -368,7 +368,7 @@ body {
 
 .radar-particle {
   position: absolute;
-  background: #99C8CA;
+  background: #6BA4A7;
   border-radius: 50%;
   opacity: 0;
   box-shadow: 0 0 4px rgba(153, 200, 202, 0.6);
@@ -487,7 +487,7 @@ body {
 }
 
 .prelogin-nav a:hover {
-  color: #99C8CA !important;
+  color: #6BA4A7 !important;
 }
 
 .prelogin-nav:has(a:hover) a:not(:hover) {
@@ -507,7 +507,7 @@ body {
     #6BB4B5 72deg,
     #0B2C48 144deg,
     #1C4262 216deg,
-    #99C8CA 288deg,
+    #6BA4A7 288deg,
     hsla(175, 30%, 70%, 1) 360deg
   );
   mask:

@@ -181,7 +181,7 @@ const Login = () => {
 
             {/* Links */}
             <div className="text-center mt-6">
-              <a href="/reset-password" className="text-corama-teal font-poppins text-sm hover:text-[#99c8ca] transition-colors">
+              <a href="/reset-password" className="text-corama-teal font-poppins text-sm hover:text-[#6BA4A7] transition-colors">
                 Forgot your password?
               </a>
             </div>

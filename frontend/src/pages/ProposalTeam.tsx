@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
-import { InlineLoading } from '../components/ThinkingPopup'
+import ThinkingPopup, { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
@@ -523,6 +523,9 @@ const ProposalTeam = () => {
 
   return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
+      {/* Extracting popup for website data extraction */}
+      <ThinkingPopup isVisible={isExtracting} text="Extracting" />
+
       {/* Discard Changes Popup */}
       <DiscardChangesPopup
         isOpen={showDiscardPopup}
@@ -645,7 +648,7 @@ const ProposalTeam = () => {
                         className={`flex-shrink-0 w-[80%] snap-center relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                           selectedOption === 'from-directory' ? 'ring-2 ring-blue-500' : ''
                         }`}
-                        style={{ backgroundColor: '#99C8CA' }}
+                        style={{ backgroundColor: '#6BA4A7' }}
                       >
                         <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
                         <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
@@ -658,7 +661,7 @@ const ProposalTeam = () => {
                         className={`flex-shrink-0 w-[80%] snap-center relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                           selectedOption === 'manual-entry' ? 'ring-2 ring-blue-500' : ''
                         }`}
-                        style={{ backgroundColor: '#99C8CA' }}
+                        style={{ backgroundColor: '#6BA4A7' }}
                       >
                         <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
                         <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
@@ -671,7 +674,7 @@ const ProposalTeam = () => {
                         className={`flex-shrink-0 w-[80%] snap-center relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                           selectedOption === 'from-site' ? 'ring-2 ring-blue-500' : ''
                         }`}
-                        style={{ backgroundColor: '#99C8CA' }}
+                        style={{ backgroundColor: '#6BA4A7' }}
                       >
                         <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
                         <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
@@ -688,7 +691,7 @@ const ProposalTeam = () => {
                       className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                         selectedOption === 'from-directory' ? 'ring-2 ring-blue-500' : ''
                       }`}
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                     >
                       <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
                       <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
@@ -701,7 +704,7 @@ const ProposalTeam = () => {
                       className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                         selectedOption === 'manual-entry' ? 'ring-2 ring-blue-500' : ''
                       }`}
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                     >
                       <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
                       <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
@@ -714,7 +717,7 @@ const ProposalTeam = () => {
                       className={`relative rounded-xl p-4 cursor-pointer transition-all hover:shadow-lg min-h-[140px] ${
                         selectedOption === 'from-site' ? 'ring-2 ring-blue-500' : ''
                       }`}
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                     >
                       <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
                       <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
@@ -744,7 +747,7 @@ const ProposalTeam = () => {
                       type="button"
                       onClick={handleCancelAddFromWebsite}
                       className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                       disabled={isExtracting}
                     >
                       <span>Cancel</span>
@@ -755,7 +758,7 @@ const ProposalTeam = () => {
                       type="button"
                       onClick={handleAddFromWebsite}
                       className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                       disabled={isExtracting || !websiteUrl}
                     >
                       <span>{isExtracting ? 'Extracting...' : 'Add to team'}</span>
@@ -983,7 +986,7 @@ const ProposalTeam = () => {
                       type="button"
                       onClick={handleCancelManualEntry}
                       className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                     >
                       <span>Cancel</span>
                       <img src={CancelIcon} alt="" className="w-7 h-7" />
@@ -993,7 +996,7 @@ const ProposalTeam = () => {
                       type="button"
                       onClick={handleAddManualEntry}
                       className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                       disabled={!manualCompanyName}
                     >
                       <span>Add to team</span>
@@ -1097,7 +1100,7 @@ const ProposalTeam = () => {
                       className={`px-6 py-3 rounded-full font-poppins font-semibold text-white transition-all ${
                         deleteButtonSelected === 'yes' ? 'ring-2 ring-white' : ''
                       }`}
-                      style={{ backgroundColor: '#99C8CA' }}
+                      style={{ backgroundColor: '#6BA4A7' }}
                     >
                       Yes, Remove it
                     </button>
@@ -1123,7 +1126,7 @@ const ProposalTeam = () => {
               <button
                 onClick={handleContinue}
                 className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold hover:opacity-90 transition-opacity overflow-hidden"
-                style={{ backgroundColor: '#99C8CA', color: 'white', width: '414px', height: '48px' }}
+                style={{ backgroundColor: '#6BA4A7', color: 'white', width: '414px', height: '48px' }}
               >
                 <span className="text-center">Continue</span>
                 <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />

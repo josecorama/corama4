@@ -258,7 +258,7 @@ const PublicBidProposalGenerator = () => {
       clearInterval(pollingIntervalRef.current)
     }
 
-    // Poll every 2.5 seconds for progress updates
+    // Poll every 4 seconds for progress updates (increased from 2.5s to reduce 429 rate limit errors)
     const pollInterval = setInterval(async () => {
       try {
         const statusResult = await api.getProposalJobStatus(jobId)

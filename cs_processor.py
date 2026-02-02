@@ -230,39 +230,63 @@ Respond with ONLY valid JSON array, no other text:
             print("All Contracts selected, no filter conditions added")
             return None
 
-        match_values = []
+        must_conditions = []
         
-        # Handle federal contracts
+        # Handle contract type filtering (Federal vs State)
+        contract_type_values = []
         if "federal" in contract_types:
-            match_values.append("Federal")
+            contract_type_values.append("Federal")
             print("Added Federal condition")
         
-        # Handle state contracts
         if "state" in contract_types:
             # If "All state" is selected, automatically use all specific states
             if "All state" in states:
-                # Ensure this list matches the states that exist in the database
                 ALL_STATES = ["IL", "IN"]
                 for s in ALL_STATES:
-                    match_values.append(f"State-{s.upper()}")
+                    contract_type_values.append(f"State-{s.upper()}")
                     print(f"Added All state condition: State-{s.upper()}")
             else:
                 for s in states:
-                    match_values.append(f"State-{s.upper()}")
+                    contract_type_values.append(f"State-{s.upper()}")
                     print(f"Added State condition: State-{s.upper()}")
+        
+        if contract_type_values:
+            must_conditions.append(
+                models.FieldCondition(
+                    key='Contract Type',
+                    match=models.MatchAny(any=contract_type_values)
+                )
+            )
+        
+        # Handle geographic state filtering (filter by actual State field)
+        # This filters contracts by their geographic location
+        if states and len(states) > 0:
+            # Filter out 'all' and 'All state' from the states list
+            filtered_states = [s for s in states if s.lower() not in ('all', 'all state')]
+            if filtered_states:
+                # Normalize state values - handle both abbreviations and full names
+                state_values = []
+                for s in filtered_states:
+                    state_values.append(s)  # Original value
+                    state_values.append(s.upper())  # Uppercase
+                    state_values.append(s.lower())  # Lowercase
+                    state_values.append(s.title())  # Title case
+                # Remove duplicates while preserving order
+                state_values = list(dict.fromkeys(state_values))
+                
+                must_conditions.append(
+                    models.FieldCondition(
+                        key='State',
+                        match=models.MatchAny(any=state_values)
+                    )
+                )
+                print(f"Added State geographic filter: {state_values}")
 
-        if not match_values:
+        if not must_conditions:
             print("No valid match conditions, returning None")
             return None
 
-        filter_condition = models.Filter(
-            must=[
-                models.FieldCondition(
-                    key='Contract Type',  # Fixed: removed embedded quotes
-                    match=models.MatchAny(any=match_values)
-                )
-            ]
-        )
+        filter_condition = models.Filter(must=must_conditions)
         print("Built filter condition:", filter_condition.dict())
         return filter_condition
 
@@ -278,37 +302,45 @@ Respond with ONLY valid JSON array, no other text:
                 if contract_types:
                     filter_conditions = self.build_filter_conditions(contract_types, states or [])
                 
-                # Execute search
+                # Execute search using query_points (new API)
                 print("Filter conditions used:", filter_conditions.dict() if filter_conditions else None)
                 
-                results = self.qdrant_client.search(
+                results = self.qdrant_client.query_points(
                     collection_name=self.collection_name,
-                    query_vector=vector,
+                    query=vector,
                     query_filter=filter_conditions,
                     with_payload=True,
                     limit=limit
                 )
                 
-                print(f"\nSearch completed, found {len(results)} results")
+                # Extract points from QueryResponse
+                points = results.points if hasattr(results, 'points') else []
                 
-                if results:
+                print(f"\nSearch completed, found {len(points)} results")
+                
+                if points:
                     print("\nTop 3 results:")
-                    for i, res in enumerate(results[:3], 1):
+                    for i, res in enumerate(points[:3], 1):
                         ct = res.payload.get('Contract Type')
                         state = res.payload.get('State')
                         score = res.score
                         print(f"Result {i}: Contract Type={ct}, State={state}, Score={score:.4f}")
                 
-                return results
+                return points
                 
             except Exception as e:
                 print(f"Search error: {str(e)}")
-                return self.qdrant_client.search(
-                    collection_name=self.collection_name,
-                    query_vector=vector,
-                    with_payload=True,
-                    limit=limit
-                )
+                try:
+                    results = self.qdrant_client.query_points(
+                        collection_name=self.collection_name,
+                        query=vector,
+                        with_payload=True,
+                        limit=limit
+                    )
+                    return results.points if hasattr(results, 'points') else []
+                except Exception as e2:
+                    print(f"Fallback search also failed: {str(e2)}")
+                    return []
 
     
     def process_query(self, pdf_file, contract_types=None, states=None, limit=50):
@@ -368,9 +400,17 @@ Respond with ONLY valid JSON array, no other text:
                     query_params["query_filter"] = filter_conditions  # Pass object directly, not .dict()
                 print("\nFilter conditions used:", filter_conditions.dict() if filter_conditions else None)
             
-            # 5. Execute search
+            # 5. Execute search using query_points (new API)
             print("\nExecuting search...")
-            results = self.qdrant_client.search(**query_params)
+            query_response = self.qdrant_client.query_points(
+                collection_name=self.collection_name,
+                query=vector,
+                query_filter=filter_conditions,
+                with_payload=True,
+                limit=limit
+            )
+            # Extract points from QueryResponse
+            results = query_response.points if hasattr(query_response, 'points') else []
 
             print(f"\n[MATCHING] Stage 1 - Raw Qdrant results: {len(results)} (limit={limit})")
             for idx, res in enumerate(results, 1):

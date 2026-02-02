@@ -177,7 +177,7 @@ const ResetPassword = () => {
 
             {/* Links */}
             <div className="text-center mt-6">
-              <a href="/login" className="text-corama-teal font-poppins text-sm hover:text-[#99c8ca] transition-colors">
+              <a href="/login" className="text-corama-teal font-poppins text-sm hover:text-[#6BA4A7] transition-colors">
                 Back to Sign In
               </a>
             </div>

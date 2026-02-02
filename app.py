@@ -8598,6 +8598,204 @@ def capability_builder_enhanced():
             current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
     return render_template('capability_builder_enhanced.html', current_credits=current_credits)
 
+# ============= Proposal Assistant API Endpoints =============
+
+@app.route('/api/proposal-suggestions', methods=['POST'])
+def api_proposal_suggestions():
+    """Generate AI suggestions for a contract proposal.
+    
+    Returns:
+    - suggestions: Main AI suggestions for the proposal
+    - marketInsights: Initial market value insights
+    - teamComposition: Initial team composition recommendations
+    """
+    ensure_session_from_auth()
+    
+    if 'user' not in session and 'user_id' not in session:
+        return jsonify({"success": False, "error": "User not authenticated"}), 401
+    
+    try:
+        data = request.get_json() or {}
+        contract_name = data.get('contract_name', 'this contract')
+        contract_id = data.get('contract_id', '')
+        contract_description = data.get('contract_description', '')
+        
+        # Sanitize inputs
+        contract_name = contract_name[:500] if contract_name else 'this contract'
+        contract_description = contract_description[:2000] if contract_description else ''
+        
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            return jsonify({
+                "success": False,
+                "error": "OpenAI API key not configured"
+            }), 500
+        
+        client = OpenAI(api_key=openai_api_key)
+        
+        # Generate main suggestions
+        main_prompt = f"""You are an expert government contract proposal advisor. Analyze the following contract and provide strategic suggestions for creating a winning bid proposal.
+
+Contract Name: {contract_name}
+{f'Contract Description: {contract_description}' if contract_description else ''}
+
+Provide comprehensive suggestions covering:
+1. Key requirements to address
+2. Competitive advantages to highlight
+3. Potential risks and mitigation strategies
+4. Pricing considerations
+5. Compliance requirements
+
+Keep your response concise but actionable. Use markdown formatting."""
+
+        main_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an expert government contract proposal advisor helping businesses win bids."},
+                {"role": "user", "content": main_prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.7
+        )
+        
+        main_suggestions = main_response.choices[0].message.content
+        
+        # Generate market insights
+        market_prompt = f"""Based on the contract "{contract_name}", provide initial market value insights including:
+- Typical contract values for similar projects
+- Market trends affecting pricing
+- Competitive landscape overview
+
+Keep it brief (2-3 paragraphs). Use markdown formatting."""
+
+        market_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a market analyst specializing in government contracts."},
+                {"role": "user", "content": market_prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        market_insights = market_response.choices[0].message.content
+        
+        # Generate team composition recommendations
+        team_prompt = f"""Based on the contract "{contract_name}", suggest an ideal team composition including:
+- Key roles needed
+- Required skills and certifications
+- Team structure recommendations
+
+Keep it brief (2-3 paragraphs). Use markdown formatting."""
+
+        team_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are an HR and project management expert specializing in government contract teams."},
+                {"role": "user", "content": team_prompt}
+            ],
+            max_tokens=500,
+            temperature=0.7
+        )
+        
+        team_composition = team_response.choices[0].message.content
+        
+        return jsonify({
+            "success": True,
+            "suggestions": main_suggestions,
+            "marketInsights": market_insights,
+            "teamComposition": team_composition
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in api_proposal_suggestions: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": f"Failed to generate suggestions: {str(e)}"}), 500
+
+
+@app.route('/api/proposal-suggestions/chat', methods=['POST'])
+def api_proposal_suggestions_chat():
+    """Chat with AI about specific proposal suggestion topics.
+    
+    Topics:
+    - market_value: Questions about market value and pricing
+    - team_composition: Questions about team structure and roles
+    """
+    ensure_session_from_auth()
+    
+    if 'user' not in session and 'user_id' not in session:
+        return jsonify({"success": False, "error": "User not authenticated"}), 401
+    
+    try:
+        data = request.get_json() or {}
+        topic = data.get('topic', 'market_value')
+        message = data.get('message', '')
+        contract_name = data.get('contract_name', 'this contract')
+        conversation_history = data.get('conversation_history', [])
+        
+        if not message:
+            return jsonify({"success": False, "error": "Message is required"}), 400
+        
+        # Sanitize inputs
+        message = message[:1000]
+        contract_name = contract_name[:500] if contract_name else 'this contract'
+        
+        # Validate topic
+        if topic not in ['market_value', 'team_composition']:
+            return jsonify({"success": False, "error": "Invalid topic"}), 400
+        
+        openai_api_key = os.getenv('OPENAI_API_KEY')
+        if not openai_api_key:
+            return jsonify({
+                "success": False,
+                "error": "OpenAI API key not configured"
+            }), 500
+        
+        client = OpenAI(api_key=openai_api_key)
+        
+        # Build system prompt based on topic
+        if topic == 'market_value':
+            system_prompt = f"""You are a market analyst specializing in government contracts. 
+You are helping a user understand market value and pricing for the contract: "{contract_name}".
+Provide helpful, accurate information about market trends, pricing strategies, and competitive analysis.
+Keep responses concise and actionable. Use markdown formatting when appropriate."""
+        else:  # team_composition
+            system_prompt = f"""You are an HR and project management expert specializing in government contract teams.
+You are helping a user build the ideal team for the contract: "{contract_name}".
+Provide helpful advice about team structure, required roles, skills, and certifications.
+Keep responses concise and actionable. Use markdown formatting when appropriate."""
+        
+        # Build messages array
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # Add conversation history (limit to last 10 messages)
+        for msg in conversation_history[-10:]:
+            role = msg.get('role', 'user')
+            content = msg.get('content', '')
+            if role in ['user', 'assistant'] and content:
+                messages.append({"role": role, "content": content[:1000]})
+        
+        # Add current message
+        messages.append({"role": "user", "content": message})
+        
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=800,
+            temperature=0.7
+        )
+        
+        ai_response = response.choices[0].message.content
+        
+        return jsonify({
+            "success": True,
+            "response": ai_response
+        })
+        
+    except Exception as e:
+        app.logger.error(f"Error in api_proposal_suggestions_chat: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": f"Failed to process chat: {str(e)}"}), 500
+
+
 # ============= React Capability Builder API Endpoints =============
 
 @app.route('/api/capability/import_file', methods=['POST'])
@@ -8952,8 +9150,11 @@ Create professional capability statement content following these guidelines:
    - Emphasize commitment to excellence, innovation, compliance
    - Use strong, confident language
 
-5. CERTIFICATIONS (keep all, enhance descriptions):
-   - Add brief context if needed (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
+5. CERTIFICATIONS (CRITICAL - DO NOT INVENT):
+   - ONLY include certifications that were explicitly provided in the input
+   - If no certifications were provided, return an empty array []
+   - DO NOT make up or assume any certifications
+   - If certifications exist, you may add brief context (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
 
 Return ONLY a JSON object:
 {{
@@ -8961,7 +9162,7 @@ Return ONLY a JSON object:
   "past_performance": ["achievement 1", "achievement 2", ...],
   "core_competencies": ["Service: Description", ...],
   "differentiators": ["Advantage: Explanation", ...],
-  "certifications": ["certification with context", ...]
+  "certifications": ["certification with context", ...] or [] if none provided
 }}"""
 
         response = client.chat.completions.create(
@@ -8988,6 +9189,47 @@ Return ONLY a JSON object:
     except Exception as e:
         logging.error(f"Error enhancing capability statement content: {str(e)}")
         return data
+
+@app.route('/api/enhance-capability-statement', methods=['POST'])
+def api_enhance_capability_statement():
+    """API endpoint to enhance capability statement content using AI"""
+    try:
+        # Check for user authentication - session can have 'user' or 'user_id'
+        if 'user' not in session and 'user_id' not in session:
+            return jsonify({'error': 'User not authenticated'}), 401
+        
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Map frontend form data to the format expected by enhance_capability_statement_content
+        formatted_data = {
+            'company_name': data.get('companyName', ''),
+            'company_description': data.get('companyDescription', ''),
+            'core_competencies': [c.strip() for c in data.get('coreCompetencies', '').split('\n') if c.strip()],
+            'differentiators': [d.strip() for d in data.get('keyDifferentiators', '').split('\n') if d.strip()],
+            'private_performance': [p.strip() for p in data.get('projectDescription', '').split('\n') if p.strip()],
+            'certifications': [c.strip() for c in data.get('certifications', '').split('\n') if c.strip()],
+            'naics_codes': [n.strip() for n in data.get('naicsCodes', '').split('\n') if n.strip()],
+        }
+        
+        # Enhance the content using AI
+        enhanced_data = enhance_capability_statement_content(formatted_data)
+        
+        # Map back to frontend format
+        result = {
+            'companyDescription': enhanced_data.get('company_description', ''),
+            'coreCompetencies': '\n'.join(enhanced_data.get('core_competencies', [])),
+            'keyDifferentiators': '\n'.join(enhanced_data.get('differentiators', [])),
+            'projectDescription': '\n'.join(enhanced_data.get('private_performance', [])),
+            'certifications': '\n'.join(enhanced_data.get('certifications', [])),
+        }
+        
+        return jsonify({'success': True, 'data': result})
+        
+    except Exception as e:
+        logging.error(f"Error in enhance capability statement API: {str(e)}")
+        return jsonify({'error': f'Failed to enhance content: {str(e)}'}), 500
 
 @app.route('/generate-enhanced-pdf', methods=['POST'])
 def generate_enhanced_pdf():
@@ -9048,8 +9290,8 @@ def generate_enhanced_pdf():
             hex_color = hex_color.lstrip('#')
             return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
         
-        primary_color = form_data.get('primaryColor', '#2E4C8B')
-        secondary_color = form_data.get('secondaryColor', '#A8D5E2')
+        primary_color = form_data.get('primaryColor', '#0B2C48')
+        secondary_color = form_data.get('secondaryColor', '#99C8CA')
         
         primary_rgb = hex_to_rgb(primary_color)
         secondary_rgb = hex_to_rgb(secondary_color)
@@ -9104,23 +9346,33 @@ def generate_enhanced_pdf():
                 if client or desc or value
             ]
         
-        formatted_data = enhance_capability_statement_content(formatted_data)
+        # Try to enhance content with AI, but don't fail if it doesn't work
+        try:
+            formatted_data = enhance_capability_statement_content(formatted_data)
+        except Exception as enhance_error:
+            logging.warning(f"AI enhancement failed, using original content: {enhance_error}")
+            # Continue with original content
         
         # Generate PDF
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
         output_path = os.path.join(user_upload_dir, output_filename)
         
-        create_pdf(formatted_data, output_path)
+        try:
+            create_pdf(formatted_data, output_path)
+        except Exception as pdf_error:
+            logging.error(f"PDF creation failed: {pdf_error}")
+            return jsonify({'error': f'PDF creation failed: {str(pdf_error)}'}), 500
         
         if not os.path.exists(output_path):
-            return jsonify({'error': 'PDF generation failed'}), 500
+            logging.error(f"PDF file not created at: {output_path}")
+            return jsonify({'error': 'PDF generation failed - file not created'}), 500
         
         # Return the PDF file
         return send_file(output_path, as_attachment=True, download_name=f"{form_data.get('companyName', 'Company')}_Capability_Statement.pdf")
         
     except Exception as e:
-        logging.error(f"Error generating enhanced PDF: {str(e)}")
-        return jsonify({'error': 'Failed to generate PDF'}), 500
+        logging.error(f"Error generating enhanced PDF: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Failed to generate PDF: {str(e)}'}), 500
 
 @app.route('/process-capability-statement', methods=['POST'])
 def process_capability_statement():
@@ -11401,12 +11653,13 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     in-memory cache. This allows browsing all 100k+ contracts while only holding
     one page (e.g., 50 items) in RAM at a time.
     
+    SORTING: Contracts are sorted by status - Open/Active contracts first, Closed contracts last.
+    For the first few pages, we fetch extra contracts and sort them in memory to ensure
+    Open/Active contracts always appear first.
+    
     PAGINATION FIX: Now uses OFFSET-BASED pagination with page numbers.
     The frontend passes page=1, page=2, etc. and we calculate the offset.
     This is simpler and works correctly with the frontend's page state.
-    
-    For page N, we scroll through (N-1) pages to reach the correct offset,
-    then return the Nth page of results.
     
     Args:
         page: Page number (1-indexed) - used to calculate offset
@@ -11416,6 +11669,19 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     Returns:
         Tuple of (contracts_list, total_contracts, total_pages, next_cursor)
     """
+    from datetime import date
+    
+    def is_contract_open(contract_payload, today_str):
+        """Check if a contract is open (not past due date)"""
+        due_date = contract_payload.get("due_date") or contract_payload.get("Due Date")
+        if not due_date or str(due_date).lower() in ('nan', 'none', '', 'null'):
+            return True  # No due date = open
+        try:
+            date_part = str(due_date).split("T")[0]
+            return date_part >= today_str  # Future or today = open
+        except Exception:
+            return True  # If we can't parse, assume open
+    
     try:
         qdrant_url = os.getenv('QDRANT_URL')
         qdrant_api_key = os.getenv('QDRANT_API_KEY')
@@ -11426,7 +11692,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         
         client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
         
-        # Get total count using count() API - fast and accurate
+        # Get today's date for filtering open vs closed contracts
+        today_str = date.today().isoformat()  # Format: "2026-01-26"
+        
+        # Get total count
         count_result = client.count(
             collection_name="government_contracts",
             exact=True
@@ -11434,69 +11703,135 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         total_contracts = count_result.count
         total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
         
-        # OFFSET-BASED PAGINATION FIX:
-        # For page N, we need to skip (N-1) * items_per_page contracts
-        # Qdrant scroll doesn't support numeric offset, so we scroll through pages sequentially
-        # This is O(N) for page N, but acceptable for reasonable page numbers (< 100)
+        # Get hidden contract IDs to filter them out for normal users
+        hidden_ids = get_hidden_contract_ids()
         
+        # Calculate target offset
         target_offset = (page - 1) * items_per_page
         logging.info(f"[Server-Side Pagination] Fetching page {page} (offset={target_offset}, limit={items_per_page})")
         
-        # Scroll through pages until we reach the target offset
-        current_offset = None
-        contracts_skipped = 0
+        # STRATEGY: For the first 10 pages, fetch extra contracts and sort them in memory
+        # to ensure Open/Active contracts always appear first. For later pages, use simple pagination.
+        MAX_SORTED_PAGES = 10
         
-        while contracts_skipped < target_offset:
-            # Calculate how many to fetch in this scroll (up to remaining offset)
-            remaining = target_offset - contracts_skipped
-            fetch_limit = min(remaining, 100)  # Scroll in batches of 100 max for efficiency
+        if page <= MAX_SORTED_PAGES:
+            # For first 10 pages: Fetch extra contracts, sort by status (open first), then paginate
+            # This ensures the first pages always show Open/Active contracts
             
+            # Calculate how many contracts we need to fetch to cover this page
+            # We need enough to fill all pages up to and including the current page
+            total_needed = page * items_per_page
+            # Fetch 3x to account for filtering and ensure we have enough open contracts
+            fetch_amount = min(total_needed * 3, 500)  # Cap at 500 to avoid memory issues
+            
+            all_contracts = []
+            current_offset = None
+            
+            # Fetch contracts in batches
+            while len(all_contracts) < fetch_amount:
+                batch_size = min(100, fetch_amount - len(all_contracts))
+                scroll_result = client.scroll(
+                    collection_name="government_contracts",
+                    limit=batch_size,
+                    offset=current_offset,
+                    with_vectors=False,
+                    with_payload=True
+                )
+                
+                points, current_offset = scroll_result
+                
+                if not points:
+                    break
+                
+                for point in points:
+                    # Skip hidden contracts
+                    if str(point.id) in hidden_ids:
+                        continue
+                    
+                    contract = qdrant_payload_to_dashboard_contract(
+                        point.payload,
+                        point_id=point.id,
+                        score=None
+                    )
+                    # Add is_open flag for sorting
+                    contract['_is_open'] = is_contract_open(point.payload, today_str)
+                    all_contracts.append(contract)
+                
+                if current_offset is None:
+                    break
+            
+            # Sort contracts: Open first, then Closed
+            all_contracts.sort(key=lambda c: (0 if c.get('_is_open', True) else 1))
+            
+            # Remove the temporary _is_open flag
+            for contract in all_contracts:
+                contract.pop('_is_open', None)
+            
+            # Extract the page we need
+            start_idx = target_offset
+            end_idx = start_idx + items_per_page
+            contracts = all_contracts[start_idx:end_idx]
+            
+            logging.info(f"[Server-Side Pagination] Page {page}: sorted {len(all_contracts)} contracts, returning {len(contracts)} (open first)")
+        
+        else:
+            # For pages beyond MAX_SORTED_PAGES: Use simple offset-based pagination
+            # At this point, most open contracts should have been shown already
+            
+            current_offset = None
+            contracts_skipped = 0
+            contracts = []
+            
+            # Skip to the target offset
+            while contracts_skipped < target_offset:
+                remaining = target_offset - contracts_skipped
+                fetch_limit = min(remaining, 100)
+                
+                scroll_result = client.scroll(
+                    collection_name="government_contracts",
+                    limit=fetch_limit,
+                    offset=current_offset,
+                    with_vectors=False,
+                    with_payload=False  # Don't need payload for skipped items
+                )
+                
+                points, current_offset = scroll_result
+                
+                if not points:
+                    break
+                
+                contracts_skipped += len(points)
+                
+                if current_offset is None:
+                    break
+            
+            # Fetch the actual page
             scroll_result = client.scroll(
                 collection_name="government_contracts",
-                limit=fetch_limit,
+                limit=items_per_page,
                 offset=current_offset,
                 with_vectors=False,
-                with_payload=False  # Don't need payload for skipped items
+                with_payload=True
             )
             
-            points, current_offset = scroll_result
+            points, _ = scroll_result
             
-            if not points:
-                # No more data - requested page is beyond available data
-                logging.warning(f"[Server-Side Pagination] Page {page} is beyond available data (only {contracts_skipped} contracts exist)")
-                return [], total_contracts, total_pages, None
+            for point in points:
+                if str(point.id) in hidden_ids:
+                    continue
+                
+                contract = qdrant_payload_to_dashboard_contract(
+                    point.payload,
+                    point_id=point.id,
+                    score=None
+                )
+                contracts.append(contract)
             
-            contracts_skipped += len(points)
-            
-            if current_offset is None:
-                # Reached end of collection before target offset
-                break
+            logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts (simple pagination)")
         
-        # Now fetch the actual page we want
-        scroll_result = client.scroll(
-            collection_name="government_contracts",
-            limit=items_per_page,
-            offset=current_offset,  # Continue from where we left off
-            with_vectors=False,  # CRITICAL: Prevent OOM by not loading vectors
-            with_payload=True  # Full payload for this page only
-        )
+        has_more = page < total_pages
         
-        points, next_cursor = scroll_result
-        
-        # Convert Qdrant points to dashboard contract format
-        contracts = []
-        for point in points:
-            contract = qdrant_payload_to_dashboard_contract(
-                point.payload,
-                point_id=point.id,
-                score=None
-            )
-            contracts.append(contract)
-        
-        has_more = next_cursor is not None and page < total_pages
-        logging.info(f"[Server-Side Pagination] Page {page}: fetched {len(contracts)} contracts from Qdrant (total: {total_contracts}, has_more: {has_more})")
-        
-        return contracts, total_contracts, total_pages, next_cursor if has_more else None
+        return contracts, total_contracts, total_pages, "next" if has_more else None
         
     except Exception as e:
         logging.error(f"[Server-Side Pagination] Error fetching contracts from Qdrant: {e}", exc_info=True)
@@ -13278,8 +13613,9 @@ def create_contract_analysis_job():
         import uuid
         job_id = str(uuid.uuid4())
         
-        # Upload PDF to Firebase Storage
+        # Upload PDF to Firebase Storage or local fallback
         storage_path = f'contract_analysis/{user_id}/{job_id}.pdf'
+        local_pdf_path = None
         
         try:
             from firebase_admin import storage
@@ -13288,8 +13624,19 @@ def create_contract_analysis_job():
             blob.upload_from_file(file, content_type='application/pdf')
             logging.info(f"Uploaded PDF to Firebase Storage: {storage_path}")
         except Exception as upload_error:
-            logging.error(f"Failed to upload PDF to Firebase Storage: {upload_error}")
-            return jsonify({'success': False, 'error': 'Failed to upload PDF'}), 500
+            logging.warning(f"Firebase Storage not available, using local fallback: {upload_error}")
+            # Fallback to local storage
+            try:
+                local_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"contract_analysis/{user_id}")
+                os.makedirs(local_upload_dir, exist_ok=True)
+                local_pdf_path = os.path.join(local_upload_dir, f"{job_id}.pdf")
+                file.seek(0)  # Reset file pointer
+                file.save(local_pdf_path)
+                storage_path = f"local:{local_pdf_path}"
+                logging.info(f"Saved PDF locally: {local_pdf_path}")
+            except Exception as local_error:
+                logging.error(f"Failed to save PDF locally: {local_error}")
+                return jsonify({'success': False, 'error': 'Failed to upload PDF'}), 500
         
         # Create job entry in Firebase Realtime Database
         job_data = {
@@ -16180,6 +16527,254 @@ def api_admin_directory_delete():
         return jsonify({'success': False, 'error': 'Failed to delete directory listing'}), 500
 
 
+# ============================================================================
+# ADMIN CONTRACT VISIBILITY MANAGEMENT
+# ============================================================================
+
+def get_hidden_contract_ids():
+    """Get set of hidden contract IDs from Firebase."""
+    hidden_ids = set()
+    if admin_initialized and admin_db:
+        try:
+            hidden_ref = admin_db.reference('hidden_contracts')
+            hidden_data = hidden_ref.get()
+            if hidden_data:
+                hidden_ids = set(hidden_data.keys())
+        except Exception as e:
+            app.logger.warning(f"[Admin] Error fetching hidden contracts: {e}")
+    return hidden_ids
+
+
+def is_contract_hidden(contract_id):
+    """Check if a specific contract is hidden."""
+    if admin_initialized and admin_db:
+        try:
+            hidden_ref = admin_db.reference(f'hidden_contracts/{contract_id}')
+            return hidden_ref.get() is not None
+        except Exception as e:
+            app.logger.warning(f"[Admin] Error checking hidden status for {contract_id}: {e}")
+    return False
+
+
+@app.route('/api/admin/contracts/list', methods=['GET'])
+def api_admin_contracts_list():
+    """Admin endpoint to list all contracts with their hidden status."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        search = request.args.get('search', '', type=str).strip().lower()
+        
+        # Limit per_page to prevent abuse
+        per_page = min(per_page, 100)
+        
+        # Get all contracts from Qdrant
+        qdrant_url = os.getenv('QDRANT_URL')
+        qdrant_api_key = os.getenv('QDRANT_API_KEY')
+        
+        if not qdrant_url or not qdrant_api_key:
+            return jsonify({'success': False, 'error': 'Qdrant not configured'}), 500
+        
+        client = QdrantClient(url=qdrant_url, api_key=qdrant_api_key)
+        
+        # Get collection info for total count
+        collection_info = client.get_collection("government_contracts")
+        total_contracts = collection_info.points_count
+        
+        # Use query_points with offset for proper pagination
+        offset = (page - 1) * per_page
+        
+        # Use query_points to get contracts with proper offset-based pagination
+        from qdrant_client.models import Filter, FieldCondition, MatchText
+        
+        # Build filter if search is provided
+        query_filter = None
+        if search:
+            # Search in title field
+            query_filter = Filter(
+                should=[
+                    FieldCondition(key="Title", match=MatchText(text=search)),
+                    FieldCondition(key="title", match=MatchText(text=search)),
+                ]
+            )
+        
+        # Use scroll with proper cursor-based pagination
+        # First, get all points up to the offset + limit
+        all_points = []
+        scroll_offset = None
+        points_needed = offset + per_page
+        
+        while len(all_points) < points_needed:
+            scroll_result = client.scroll(
+                collection_name="government_contracts",
+                limit=min(1000, points_needed - len(all_points)),  # Batch size
+                offset=scroll_offset,
+                with_payload=True,
+                with_vectors=False,
+                scroll_filter=query_filter
+            )
+            
+            points, next_offset = scroll_result
+            if not points:
+                break
+            
+            all_points.extend(points)
+            scroll_offset = next_offset
+            
+            if next_offset is None:
+                break
+        
+        # Get the page slice
+        page_points = all_points[offset:offset + per_page]
+        
+        contracts = []
+        hidden_ids = get_hidden_contract_ids()
+        
+        for point in page_points:
+            payload = point.payload
+            contract_id = str(point.id)
+            
+            contracts.append({
+                'id': contract_id,
+                'title': payload.get('Title') or payload.get('title') or 'Untitled',
+                'state': payload.get('State') or payload.get('state') or 'N/A',
+                'contract_type': payload.get('Contract Type') or payload.get('contract_type') or 'N/A',
+                'agency': payload.get('Agency') or payload.get('agency') or 'N/A',
+                'deadline': payload.get('Deadline') or payload.get('deadline') or 'N/A',
+                'hidden': contract_id in hidden_ids
+            })
+        
+        # Recalculate total if search filter is applied
+        if search:
+            total_contracts = len(all_points)
+        
+        total_pages = (total_contracts + per_page - 1) // per_page
+        
+        return jsonify({
+            'success': True,
+            'contracts': contracts,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': total_contracts,
+                'total_pages': total_pages
+            },
+            'hidden_count': len(hidden_ids)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error listing contracts: {e}")
+        return jsonify({'success': False, 'error': 'Failed to load contracts'}), 500
+
+
+@app.route('/api/admin/contracts/hide', methods=['POST'])
+def api_admin_contracts_hide():
+    """Admin endpoint to hide a contract from normal users."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    data = request.get_json() or {}
+    contract_id = data.get('contract_id')
+    
+    if not contract_id:
+        return jsonify({'success': False, 'error': 'contract_id is required'}), 400
+    
+    try:
+        if admin_initialized and admin_db:
+            hidden_ref = admin_db.reference(f'hidden_contracts/{contract_id}')
+            hidden_ref.set({
+                'hidden_at': datetime.now().isoformat(),
+                'hidden_by': admin_data['email']
+            })
+            
+            log_admin_action(
+                admin_data['user_id'],
+                admin_data['email'],
+                'HIDE_CONTRACT',
+                {'contract_id': contract_id}
+            )
+            
+            app.logger.info(f"[Admin] Contract {contract_id} hidden by {admin_data['email']}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Contract hidden successfully',
+                'contract_id': contract_id
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Firebase Admin not initialized'}), 500
+            
+    except Exception as e:
+        app.logger.error(f"[Admin] Error hiding contract {contract_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to hide contract'}), 500
+
+
+@app.route('/api/admin/contracts/unhide', methods=['POST'])
+def api_admin_contracts_unhide():
+    """Admin endpoint to unhide a contract (make visible to normal users again)."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    admin_data = result
+    
+    data = request.get_json() or {}
+    contract_id = data.get('contract_id')
+    
+    if not contract_id:
+        return jsonify({'success': False, 'error': 'contract_id is required'}), 400
+    
+    try:
+        if admin_initialized and admin_db:
+            hidden_ref = admin_db.reference(f'hidden_contracts/{contract_id}')
+            hidden_ref.delete()
+            
+            log_admin_action(
+                admin_data['user_id'],
+                admin_data['email'],
+                'UNHIDE_CONTRACT',
+                {'contract_id': contract_id}
+            )
+            
+            app.logger.info(f"[Admin] Contract {contract_id} unhidden by {admin_data['email']}")
+            
+            return jsonify({
+                'success': True,
+                'message': 'Contract unhidden successfully',
+                'contract_id': contract_id
+            })
+        else:
+            return jsonify({'success': False, 'error': 'Firebase Admin not initialized'}), 500
+            
+    except Exception as e:
+        app.logger.error(f"[Admin] Error unhiding contract {contract_id}: {e}")
+        return jsonify({'success': False, 'error': 'Failed to unhide contract'}), 500
+
+
+@app.route('/api/admin/contracts/hidden', methods=['GET'])
+def api_admin_contracts_hidden_list():
+    """Admin endpoint to get list of all hidden contract IDs."""
+    result = require_admin()
+    if isinstance(result, tuple):
+        return result
+    
+    try:
+        hidden_ids = list(get_hidden_contract_ids())
+        return jsonify({
+            'success': True,
+            'hidden_contract_ids': hidden_ids,
+            'count': len(hidden_ids)
+        })
+        
+    except Exception as e:
+        app.logger.error(f"[Admin] Error getting hidden contracts list: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get hidden contracts'}), 500
+
+
 @app.route('/api/get_directory_profile', methods=['GET'])
 def get_directory_profile():
     """Get user's directory profile"""
@@ -16583,9 +17178,9 @@ REACT_PAGE_ROUTES = {
     'dashboard', 'capability-builder', 'top-five-contracts', 'ai-assistant',
     'get-more-credits', 'corama-directory', 'edit-directory-profile',
     'no-capability-statement', 'contract-analysis', 'proposal-team',
-    'proposal-summary', 'public-bid-proposal-generator', 'landing',
+    'proposal-summary', 'public-bid-proposal-generator', 'proposal-assistant', 'landing',
     'login', 'signup', 'confirm-terms', 'reset-password', 'reset-password-confirm', 'verify-email', 'faq',
-    'about-us', 'support', 'admin'
+    'about-us', 'support', 'admin', 'settings'
 }
 
 # Backwards compatibility: redirect /app/* to /* (clean URLs)
@@ -17072,17 +17667,71 @@ def api_top_five_contracts():
             
             # Helper function to enrich row with NAICS from dashboard cache
             def enrich_with_naics(row_dict):
+                # Skip if already has NAICS code
+                existing_naics = row_dict.get('NAICS_Code', '')
+                if existing_naics and existing_naics != 'N/A' and existing_naics != '':
+                    return row_dict
+                
                 # Try to find this contract in the dashboard cache using computed hash
                 detail_link = row_dict.get('Detail_Link', '')
                 bid_number = row_dict.get('Bid_Number', '')
+                contract_id = row_dict.get('contract_id', '')
+                
+                # Method 1: Hash lookup (fastest)
                 if detail_link and bid_number and _dashboard_contracts_hash_index:
                     computed_hash = compute_hash(detail_link, bid_number)
                     cached_contract = _dashboard_contracts_hash_index.get(computed_hash)
                     if cached_contract:
                         naics_code = cached_contract.get('naics_code', '')
-                        if naics_code:
+                        if naics_code and naics_code != 'N/A':
                             row_dict['NAICS_Code'] = naics_code
-                            logging.info(f"[top5] Found NAICS {naics_code} for {bid_number}")
+                            return row_dict
+                
+                # Method 2: Fallback - search by contract_id in dashboard cache
+                if contract_id and _dashboard_contracts_cache:
+                    for cached_contract in _dashboard_contracts_cache:
+                        if str(cached_contract.get('id', '')) == str(contract_id):
+                            naics_code = cached_contract.get('naics_code', '')
+                            if naics_code and naics_code != 'N/A':
+                                row_dict['NAICS_Code'] = naics_code
+                                return row_dict
+                            break
+                
+                # Method 3: Fallback - search by bid_number in dashboard cache
+                if bid_number and _dashboard_contracts_cache:
+                    for cached_contract in _dashboard_contracts_cache:
+                        if cached_contract.get('bid_number', '') == bid_number:
+                            naics_code = cached_contract.get('naics_code', '')
+                            if naics_code and naics_code != 'N/A':
+                                row_dict['NAICS_Code'] = naics_code
+                                return row_dict
+                            break
+                
+                # Method 4: Generate NAICS codes with AI if still not found
+                # Build payload for AI generation
+                ai_payload = {
+                    'bid_name': row_dict.get('Bid_Name', ''),
+                    'bid_description': row_dict.get('Bid_Description', ''),
+                    'organization': row_dict.get('Organization', ''),
+                    'category': row_dict.get('Category', '')
+                }
+                
+                # Compute hash for caching
+                hash_value = None
+                if detail_link and bid_number:
+                    hash_value = compute_hash(detail_link, bid_number)
+                
+                # Only generate if we have some content to work with
+                if ai_payload.get('bid_name') or ai_payload.get('bid_description'):
+                    try:
+                        generated_naics = generate_naics_codes_with_ai(ai_payload, hash_value)
+                        if generated_naics:
+                            row_dict['NAICS_Code'] = generated_naics
+                            logging.info(f"[top5] Generated NAICS for '{ai_payload.get('bid_name', '')[:30]}': {generated_naics}")
+                            return row_dict
+                    except Exception as e:
+                        logging.warning(f"[top5] Failed to generate NAICS with AI: {e}")
+                
                 return row_dict
             
             # Apply filters if provided

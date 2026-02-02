@@ -244,7 +244,7 @@ const VerifyEmail = () => {
               <button
                 onClick={handleResend}
                 disabled={resendCooldown > 0 || resendLoading}
-                className="text-corama-teal hover:text-[#99c8ca] font-poppins text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto"
+                className="text-corama-teal hover:text-[#6BA4A7] font-poppins text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mx-auto"
               >
                 {resendLoading ? (
                   <>
@@ -268,7 +268,7 @@ const VerifyEmail = () => {
             {/* Login Link */}
             <div className="text-center mt-5">
               <p className="text-gray-400 font-poppins text-sm">
-                Remembered your password? <a href="/login" className="text-corama-teal hover:text-[#99c8ca] transition-colors">Log In</a>
+                Remembered your password? <a href="/login" className="text-corama-teal hover:text-[#6BA4A7] transition-colors">Log In</a>
               </p>
             </div>
           </div>
