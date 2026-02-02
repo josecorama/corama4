@@ -233,6 +233,9 @@ const ProposalAssistantAnalysis = () => {
   const [showErrorPopup, setShowErrorPopup] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
 
+  // Animation state for first checkmark
+  const firstAnimationShown = useRef(false)
+  const [showFirstCheckAnimation, setShowFirstCheckAnimation] = useState(false)
   
   // PDF viewer plugins
   const pageNavigationPluginInstance = pageNavigationPlugin()
