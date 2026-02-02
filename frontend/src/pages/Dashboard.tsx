@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
@@ -123,6 +123,7 @@ interface Contract {
 const Dashboard = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [currentPage, setCurrentPage] = useState(1)
   const [totalContracts, setTotalContracts] = useState(0)
   const [_totalPages, setTotalPages] = useState(1)
@@ -151,6 +152,37 @@ const Dashboard = () => {
   useEffect(() => {
     loadUserData()
   }, [])
+
+  // Process credit purchase if redirected from Stripe checkout
+  useEffect(() => {
+    const purchaseSuccess = searchParams.get('purchase_success')
+    const sessionId = searchParams.get('session_id')
+    
+    if (purchaseSuccess === 'true' && sessionId) {
+      // Call API to process the credit purchase
+      const processPurchase = async () => {
+        try {
+          const response = await fetch('/api/credits/process-purchase', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId })
+          })
+          const data = await response.json()
+          if (data.success) {
+            // Refresh user data to show updated credits
+            loadUserData()
+          }
+        } catch (error) {
+          console.error('Failed to process credit purchase:', error)
+        }
+        
+        // Remove query params from URL to prevent reprocessing on refresh
+        setSearchParams({})
+      }
+      
+      processPurchase()
+    }
+  }, [searchParams, setSearchParams])
 
   useEffect(() => {
     loadContracts()

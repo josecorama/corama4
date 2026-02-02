@@ -12730,7 +12730,7 @@ def create_credit_checkout():
                     'quantity': 1,
                 }],
                 mode='payment',
-                success_url=url_for('credit_purchase_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
+                success_url=url_for('dashboard', _external=True) + '?purchase_success=true&session_id={CHECKOUT_SESSION_ID}',
                 cancel_url=url_for('purchase_credits', _external=True),
                 metadata={
                     'user_id': user['localId'],
@@ -12797,6 +12797,54 @@ def credit_purchase_success():
             logging.error(f"Error retrieving checkout session: {e}")
     
     return redirect(url_for('purchase_credits'))
+
+@app.route('/api/credits/process-purchase', methods=['POST'])
+def api_process_credit_purchase():
+    """Process credit purchase from Stripe session ID - called by React dashboard after redirect"""
+    if 'user' not in session:
+        return jsonify({"success": False, "error": "Not authenticated"}), 401
+    
+    user = session['user']
+    user_id = user['localId']
+    
+    data = request.get_json() or {}
+    session_id = data.get('session_id')
+    
+    if not session_id:
+        return jsonify({"success": False, "error": "Missing session_id"}), 400
+    
+    try:
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+        credits = int(checkout_session.metadata.get('credits', 0))
+        metadata_user_id = checkout_session.metadata.get('user_id')
+        
+        if metadata_user_id != user_id:
+            return jsonify({"success": False, "error": "Session does not belong to this user"}), 403
+        
+        if credits <= 0:
+            return jsonify({"success": False, "error": "Invalid credits amount"}), 400
+        
+        # Idempotency check: prevent duplicate credit additions
+        if is_stripe_session_processed(session_id):
+            app.logger.info(f"⏭️ Session {session_id} already processed, skipping credit addition (API)")
+            return jsonify({"success": True, "credits": credits, "already_processed": True})
+        
+        credit_manager = CreditManager(db)
+        success, new_balance = credit_manager.add_credits_admin(
+            user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
+        )
+        
+        if success:
+            mark_stripe_session_processed(session_id, user_id, credits)
+            app.logger.info(f"✅ Credits added via API for user {user_id}: {credits} credits, new balance: {new_balance}")
+            return jsonify({"success": True, "credits": credits, "new_balance": new_balance})
+        else:
+            app.logger.error(f"❌ Failed to add credits via API for user {user_id}")
+            return jsonify({"success": False, "error": "Failed to add credits"}), 500
+            
+    except Exception as e:
+        logging.error(f"Error processing credit purchase: {e}")
+        return jsonify({"success": False, "error": "Failed to process purchase"}), 500
 
 @app.route('/credit_history', methods=['GET'])
 def credit_history():
