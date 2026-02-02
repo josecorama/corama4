@@ -104,14 +104,14 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   return (
     <div 
       ref={cardRef}
-      className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full"
+      className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 lg:p-[1.5vw] xl:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       {/* Card content - icon at top with 2-layer parallax */}
-      <div className="flex justify-center mb-5 sm:mb-6 relative z-10">
+      <div className="flex justify-center mb-5 sm:mb-6 lg:mb-[1.5vw] xl:mb-6 relative z-10">
         <div 
-          className="relative w-16 h-16 sm:w-20 sm:h-20"
+          className="relative w-16 h-16 sm:w-20 sm:h-20 lg:w-[5vw] lg:h-[5vw] lg:min-w-[50px] lg:min-h-[50px] lg:max-w-[80px] lg:max-h-[80px]"
           style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
         >
           {/* Layer 1 - Background (shadow/glow) */}
@@ -133,11 +133,17 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
           </div>
         </div>
       </div>
-      <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center relative z-10">{title}</h3>
-      <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
+      <h3 
+        className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 lg:mb-[1vw] min-h-[56px] lg:min-h-[3vw] text-center relative z-10"
+        style={{ fontSize: 'clamp(1rem, 1.3vw, 1.25rem)' }}
+      >{title}</h3>
+      <p 
+        className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10"
+        style={{ fontSize: 'clamp(0.75rem, 1vw, 0.875rem)' }}
+      >
         {description}
       </p>
-      <div className="mt-5 sm:mt-6 text-center relative z-10">
+      <div className="mt-5 sm:mt-6 lg:mt-[1.5vw] text-center relative z-10">
         <button onClick={onLearnMore} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
           Learn more <ArrowRight size={14} />
         </button>
@@ -451,12 +457,18 @@ const LandingPage = () => {
         </div>
         
         {/* Layer 10: Content */}
-        <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
-          <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
+        <div className="max-w-[90%] lg:max-w-[80%] xl:max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
+          <h1 
+            className="font-poppins font-black text-5xl sm:text-6xl text-white mb-4 sm:mb-6 leading-tight tracking-tight"
+            style={{ fontSize: 'clamp(3rem, 8vw, 6rem)' }}
+          >
             Find contracts<br />
             in seconds
           </h1>
-          <p className="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
+          <p 
+            className="text-white font-poppins text-sm sm:text-base max-w-[90%] lg:max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed"
+            style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.125rem)' }}
+          >
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
           </p>
           <a 
@@ -577,9 +589,9 @@ const LandingPage = () => {
           </div>
         </div>
         
-        {/* Desktop: Grid layout */}
-        <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-3 gap-6 items-stretch">
+        {/* Desktop: Grid layout - responsive to screen size */}
+        <div className="hidden lg:block max-w-[90%] xl:max-w-6xl mx-auto relative z-10 px-4">
+          <div className="grid grid-cols-3 gap-[2vw] xl:gap-6 items-stretch">
             <FeatureCard
               icon="/static/app/landing/SmartContractMatching.svg"
               title="Smart Contract Matching"
@@ -628,22 +640,28 @@ const LandingPage = () => {
       >
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-6xl mx-auto relative z-10 mb-8 lg:mb-16 parallax-section"
+          className="max-w-[90%] xl:max-w-6xl mx-auto relative z-10 mb-8 lg:mb-[4vh] parallax-section"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-16 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-[4vw] items-center">
             <div className="parallax-image">
               <img 
                 src="/static/app/landing/Scope.svg" 
                 alt="Scope of Work Station" 
-                className="w-full h-40 sm:h-56 lg:h-80 object-contain"
+                className="w-full h-40 sm:h-56 lg:h-[25vh] xl:h-80 object-contain"
               />
             </div>
             <div className="text-center md:text-left parallax-text">
-              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 leading-relaxed">
+              <h2 
+                className="font-poppins font-bold text-2xl sm:text-3xl text-white mb-3 sm:mb-5 lg:mb-[2vh]"
+                style={{ fontSize: 'clamp(1.5rem, 4vw, 3rem)' }}
+              >Scope Of Work Station</h2>
+              <p 
+                className="text-gray-400 font-poppins text-sm sm:text-base mb-4 sm:mb-6 lg:mb-[3vh] leading-relaxed"
+                style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.125rem)' }}
+              >
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
               <a 
@@ -657,11 +675,17 @@ const LandingPage = () => {
         </div>
 
         {/* Revolutionizing Government Contracting */}
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6 leading-tight">
+        <div className="max-w-[90%] xl:max-w-4xl mx-auto text-center relative z-10">
+          <h2 
+            className="font-poppins font-bold text-2xl sm:text-3xl text-white mb-3 sm:mb-5 lg:mb-[2vh] leading-tight"
+            style={{ fontSize: 'clamp(1.5rem, 4vw, 3rem)' }}
+          >
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
-          <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+          <p 
+            className="text-[#6bb4b5] font-poppins text-sm sm:text-base mb-4 sm:mb-6 lg:mb-[3vh] max-w-[90%] xl:max-w-3xl mx-auto px-2 leading-relaxed"
+            style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1.125rem)' }}
+          >
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
           <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-sm sm:text-base hover:gap-3 transition-all">
