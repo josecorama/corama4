@@ -17,7 +17,7 @@ const useCarousel3D = (cardCount: number, cardWidth: number = 320) => {
   const translateZ = useMemo(() => {
     const anglePerCard = (2 * Math.PI) / cardCount
     const radius = (cardWidth / 2) / Math.tan(anglePerCard / 2)
-    return Math.max(radius * 1.15, 380) // Increased gap for better spacing
+    return Math.max(radius * 0.5, 180) // Reduced radius to fill center gap when rotating
   }, [cardCount, cardWidth])
   
   const updateCards = useCallback(() => {
