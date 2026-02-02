@@ -424,8 +424,8 @@ const LandingPage = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
   
-  // 3D Carousel for feature cards (3 groups of 2 cards, ~500px width each group)
-  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(3, 500)
+  // 3D Carousel for feature cards (3 groups of 2 cards, ~490px width each group)
+  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(3, 490)
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -748,7 +748,7 @@ const LandingPage = () => {
               }}
             >
               {/* Group 1: Cards 1 & 2 */}
-              <div className="carousel-card absolute flex gap-4" style={{ width: '500px', left: '-250px', top: '-160px' }}>
+              <div className="carousel-card absolute flex gap-2" style={{ width: '490px', left: '-245px', top: '-160px' }}>
                 <div style={{ width: '240px', flexShrink: 0 }}>
                   <FeatureCard
                     icon="/static/app/landing/SmartContractMatching.svg"
@@ -767,7 +767,7 @@ const LandingPage = () => {
                 </div>
               </div>
               {/* Group 2: Cards 3 & 4 */}
-              <div className="carousel-card absolute flex gap-4" style={{ width: '500px', left: '-250px', top: '-160px' }}>
+              <div className="carousel-card absolute flex gap-2" style={{ width: '490px', left: '-245px', top: '-160px' }}>
                 <div style={{ width: '240px', flexShrink: 0 }}>
                   <FeatureCard
                     icon="/static/app/landing/ComplianceIntelligence.svg"
@@ -786,7 +786,7 @@ const LandingPage = () => {
                 </div>
               </div>
               {/* Group 3: Cards 5 & 6 */}
-              <div className="carousel-card absolute flex gap-4" style={{ width: '500px', left: '-250px', top: '-160px' }}>
+              <div className="carousel-card absolute flex gap-2" style={{ width: '490px', left: '-245px', top: '-160px' }}>
                 <div style={{ width: '240px', flexShrink: 0 }}>
                   <FeatureCard
                     icon="/static/app/landing/IntelligentMarketResearch.svg"
