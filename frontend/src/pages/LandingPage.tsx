@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import Waves from '../components/Waves'
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
-const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'footer']
+const SECTION_IDS = ['hero', 'features-row1', 'scope-of-work', 'features-row2', 'revolutionizing', 'footer']
 
 // FeatureCard component with animation elements
 interface FeatureCardProps {
@@ -295,7 +295,7 @@ const LandingPage = () => {
   }, [isScrolling])
 
   const scrollToFeatures = () => {
-    scrollToSection(1) // Features is index 1
+    scrollToSection(1) // Features row 1 is index 1
   }
 
   // Handle wheel events for snap scrolling
@@ -468,31 +468,27 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Features Grid */}
+      {/* Features Row 1 - Win Probability, Intelligent Market Research, Smart Deadline */}
       <section 
-        id="features" 
-        ref={setSectionRef('features')}
-        data-section="features"
-        className={`h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-0 sm:px-4 lg:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features')}`}
+        id="features-row1" 
+        ref={setSectionRef('features-row1')}
+        data-section="features-row1"
+        className={`h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-0 sm:px-4 lg:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features-row1')}`}
       >
-        {/* Decorative stars with twinkling effect - positioned closer to cards (75% bigger) */}
-        {/* Left side stars - closer to the cards */}
+        {/* Decorative stars with twinkling effect - positioned closer to cards */}
         <div className="absolute left-[8%] sm:left-[10%] lg:left-[12%] top-1/2 -translate-y-1/2 hidden lg:block">
-          {/* Small star 1 - top left */}
           <img 
             src="/static/app/landing/StarCardLeft1.svg" 
             alt="" 
             className="absolute -top-12 left-2 w-7 h-7 animate-twinkle"
             style={{ animationDelay: '0s' }}
           />
-          {/* Small star 2 - left of big star */}
           <img 
             src="/static/app/landing/StarCardLeft2.svg" 
             alt="" 
             className="absolute top-2 -left-4 w-5 h-5 animate-twinkle"
             style={{ animationDelay: '0.5s' }}
           />
-          {/* Big star - main left star */}
           <img 
             src="/static/app/landing/BigStarCardLeft.svg" 
             alt="" 
@@ -501,16 +497,13 @@ const LandingPage = () => {
           />
         </div>
         
-        {/* Right side stars - closer to the cards */}
         <div className="absolute right-[8%] sm:right-[10%] lg:right-[12%] bottom-[15%] lg:bottom-[18%] hidden lg:block">
-          {/* Small star - above big star */}
           <img 
             src="/static/app/landing/StarCardRight.svg" 
             alt="" 
             className="absolute -top-10 right-2 w-7 h-7 animate-twinkle"
             style={{ animationDelay: '0.3s' }}
           />
-          {/* Big star - main right star */}
           <img 
             src="/static/app/landing/BigStarCardRight.svg" 
             alt="" 
@@ -519,7 +512,145 @@ const LandingPage = () => {
           />
         </div>
         
-        {/* Mobile: Horizontal scrollable carousel */}
+        {/* Mobile: Horizontal scrollable carousel for row 1 */}
+        <div className="lg:hidden w-full relative z-10">
+          <div 
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-4 scrollbar-hide"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/WinProbabilityScoring.svg"
+                title="Win Probability Scoring"
+                description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/IntelligentMarketResearch.svg"
+                title="Intelligent Market Research"
+                description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+            <div className="flex-shrink-0 w-[80vw] snap-center">
+              <FeatureCard
+                icon="/static/app/landing/SmartDeadlineManagement.svg"
+                title="Smart Deadline Management"
+                description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
+                onLearnMore={scrollToFeatures}
+              />
+            </div>
+          </div>
+        </div>
+        
+        {/* Desktop: Grid layout for row 1 */}
+        <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
+          <div className="grid grid-cols-3 gap-6 items-stretch">
+            <FeatureCard
+              icon="/static/app/landing/WinProbabilityScoring.svg"
+              title="Win Probability Scoring"
+              description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
+              onLearnMore={scrollToFeatures}
+            />
+            <FeatureCard
+              icon="/static/app/landing/IntelligentMarketResearch.svg"
+              title="Intelligent Market Research"
+              description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
+              onLearnMore={scrollToFeatures}
+            />
+            <FeatureCard
+              icon="/static/app/landing/SmartDeadlineManagement.svg"
+              title="Smart Deadline Management"
+              description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
+              onLearnMore={scrollToFeatures}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Scope of Work Section */}
+      <section 
+        ref={setSectionRef('scope-of-work')}
+        data-section="scope-of-work"
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-of-work')}`}
+      >
+        <div 
+          className="max-w-6xl mx-auto relative z-10 parallax-section"
+          onMouseMove={handleParallaxMove}
+          onMouseLeave={handleParallaxLeave}
+          style={parallaxStyle}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-16 items-center">
+            <div className="parallax-image">
+              <img 
+                src="/static/app/landing/Scope.svg" 
+                alt="Scope of Work Station" 
+                className="w-full h-40 sm:h-56 lg:h-80 object-contain"
+              />
+            </div>
+            <div className="text-center md:text-left parallax-text">
+              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6">Scope Of Work Station</h2>
+              <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 leading-relaxed">
+                Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
+              </p>
+              <a 
+                href="/login" 
+                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
+              >
+                Get Started
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Row 2 - Smart Contract Matching, Automated Proposal, Compliance */}
+      <section 
+        id="features-row2" 
+        ref={setSectionRef('features-row2')}
+        data-section="features-row2"
+        className={`h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-0 sm:px-4 lg:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features-row2')}`}
+      >
+        {/* Decorative stars */}
+        <div className="absolute left-[8%] sm:left-[10%] lg:left-[12%] top-1/2 -translate-y-1/2 hidden lg:block">
+          <img 
+            src="/static/app/landing/StarCardLeft1.svg" 
+            alt="" 
+            className="absolute -top-12 left-2 w-7 h-7 animate-twinkle"
+            style={{ animationDelay: '0.2s' }}
+          />
+          <img 
+            src="/static/app/landing/StarCardLeft2.svg" 
+            alt="" 
+            className="absolute top-2 -left-4 w-5 h-5 animate-twinkle"
+            style={{ animationDelay: '0.7s' }}
+          />
+          <img 
+            src="/static/app/landing/BigStarCardLeft.svg" 
+            alt="" 
+            className="w-[70px] h-[70px] animate-twinkle"
+            style={{ animationDelay: '1.2s' }}
+          />
+        </div>
+        
+        <div className="absolute right-[8%] sm:right-[10%] lg:right-[12%] bottom-[15%] lg:bottom-[18%] hidden lg:block">
+          <img 
+            src="/static/app/landing/StarCardRight.svg" 
+            alt="" 
+            className="absolute -top-10 right-2 w-7 h-7 animate-twinkle"
+            style={{ animationDelay: '0.5s' }}
+          />
+          <img 
+            src="/static/app/landing/BigStarCardRight.svg" 
+            alt="" 
+            className="w-[70px] h-[70px] animate-twinkle"
+            style={{ animationDelay: '1s' }}
+          />
+        </div>
+        
+        {/* Mobile: Horizontal scrollable carousel for row 2 */}
         <div className="lg:hidden w-full relative z-10">
           <div 
             className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-4 pb-4 scrollbar-hide"
@@ -549,34 +680,10 @@ const LandingPage = () => {
                 onLearnMore={scrollToFeatures}
               />
             </div>
-            <div className="flex-shrink-0 w-[80vw] snap-center">
-              <FeatureCard
-                icon="/static/app/landing/WinProbabilityScoring.svg"
-                title="Win Probability Scoring"
-                description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-                onLearnMore={scrollToFeatures}
-              />
-            </div>
-            <div className="flex-shrink-0 w-[80vw] snap-center">
-              <FeatureCard
-                icon="/static/app/landing/IntelligentMarketResearch.svg"
-                title="Intelligent Market Research"
-                description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-                onLearnMore={scrollToFeatures}
-              />
-            </div>
-            <div className="flex-shrink-0 w-[80vw] snap-center">
-              <FeatureCard
-                icon="/static/app/landing/SmartDeadlineManagement.svg"
-                title="Smart Deadline Management"
-                description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-                onLearnMore={scrollToFeatures}
-              />
-            </div>
           </div>
         </div>
         
-        {/* Desktop: Grid layout */}
+        {/* Desktop: Grid layout for row 2 */}
         <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
           <div className="grid grid-cols-3 gap-6 items-stretch">
             <FeatureCard
@@ -597,65 +704,16 @@ const LandingPage = () => {
               description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
               onLearnMore={scrollToFeatures}
             />
-            <FeatureCard
-              icon="/static/app/landing/WinProbabilityScoring.svg"
-              title="Win Probability Scoring"
-              description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/IntelligentMarketResearch.svg"
-              title="Intelligent Market Research"
-              description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/SmartDeadlineManagement.svg"
-              title="Smart Deadline Management"
-              description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-              onLearnMore={scrollToFeatures}
-            />
           </div>
         </div>
       </section>
 
-      {/* Scope of Work + Revolutionizing Section (Grouped) */}
+      {/* Revolutionizing Government Contracting Section */}
       <section 
-        ref={setSectionRef('scope-revolution')}
-        data-section="scope-revolution"
-        className={`min-h-[60vh] lg:h-[calc(100vh-80px)] px-4 sm:px-6 py-8 lg:py-0 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-revolution')}`}
+        ref={setSectionRef('revolutionizing')}
+        data-section="revolutionizing"
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('revolutionizing')}`}
       >
-        {/* Scope of Work - with parallax effect */}
-        <div 
-          className="max-w-6xl mx-auto relative z-10 mb-8 lg:mb-16 parallax-section"
-          onMouseMove={handleParallaxMove}
-          onMouseLeave={handleParallaxLeave}
-          style={parallaxStyle}
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-16 items-center">
-            <div className="parallax-image">
-              <img 
-                src="/static/app/landing/Scope.svg" 
-                alt="Scope of Work Station" 
-                className="w-full h-40 sm:h-56 lg:h-80 object-contain"
-              />
-            </div>
-            <div className="text-center md:text-left parallax-text">
-              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 leading-relaxed">
-                Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
-              </p>
-              <a 
-                href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
-              >
-                Get Started
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Revolutionizing Government Contracting */}
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
