@@ -126,9 +126,8 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
       style={{
         background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%)',
         border: '1px solid rgba(107, 180, 181, 0.3)',
-        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.15)',
         transformStyle: 'preserve-3d',
-        willChange: 'transform, box-shadow'
+        willChange: 'transform'
       }}
     >
       {/* Glow effect overlay */}
@@ -182,8 +181,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
           className="inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4"
           style={{
             backgroundColor: '#0B2C48',
-            color: '#6BA4A7',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
+            color: '#FFFFFF'
           }}
         >
           {role}
