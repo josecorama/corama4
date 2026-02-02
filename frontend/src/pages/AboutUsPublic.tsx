@@ -122,7 +122,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
   return (
     <div
       ref={cardRef}
-      className="relative flex flex-col w-full max-w-[280px] h-[360px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
+      className="relative flex flex-col w-full max-w-[342px] h-[432px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
       style={{
         background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%)',
         border: '1px solid rgba(107, 180, 181, 0.3)',
@@ -332,9 +332,9 @@ const AboutUsPublic = () => {
           <section 
             ref={setSectionRef('team')}
             data-section="team"
-            className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-6 lg:py-0 snap-start ${getSectionClass('team')}`}
+            className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-8 lg:py-0 snap-start ${getSectionClass('team')}`}
           >
-            <div className="max-w-6xl mx-auto relative z-10 w-full">
+            <div className="max-w-7xl mx-auto relative z-10 w-full">
               <div className="w-full text-center mb-4 lg:mb-6">
                 <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2 tracking-tight font-poppins">
                   Meet the Team
@@ -345,28 +345,28 @@ const AboutUsPublic = () => {
                 </p>
               </div>
 
-              {/* Mobile: Horizontal scrollable carousel */}
-              <div className="lg:hidden w-full overflow-visible">
-                <div 
-                  className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-2 pb-4 scrollbar-hide -mx-2"
-                  style={{ WebkitOverflowScrolling: 'touch' }}
-                >
-                  {teamMembers.map((member) => (
-                    <div key={member.name} className="flex-shrink-0 w-[75vw] max-w-[280px] snap-center first:ml-2 last:mr-2">
-                      <TeamMemberCard
-                        name={member.name}
-                        role={member.role}
-                        description={member.description}
-                        imageUrl={member.imageUrl}
-                        linkedinUrl={member.linkedinUrl}
-                      />
-                    </div>
-                  ))}
+                {/* Mobile: Horizontal scrollable carousel */}
+                <div className="lg:hidden w-full overflow-visible">
+                  <div 
+                    className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-2 pb-4 scrollbar-hide -mx-2"
+                    style={{ WebkitOverflowScrolling: 'touch' }}
+                  >
+                    {teamMembers.map((member) => (
+                      <div key={member.name} className="flex-shrink-0 w-[85vw] max-w-[342px] snap-center first:ml-2 last:mr-2">
+                        <TeamMemberCard
+                          name={member.name}
+                          role={member.role}
+                          description={member.description}
+                          imageUrl={member.imageUrl}
+                          linkedinUrl={member.linkedinUrl}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Desktop: Grid layout */}
-              <div className="hidden lg:grid grid-cols-4 gap-4 w-full max-w-[1200px] mx-auto justify-items-center">
+                {/* Desktop: Grid layout */}
+                <div className="hidden lg:grid grid-cols-4 gap-6 w-full max-w-[1400px] mx-auto justify-items-center">
                 {teamMembers.map((member) => (
                   <TeamMemberCard
                     key={member.name}
