@@ -1,156 +1,6 @@
 import { ArrowRight } from 'lucide-react'
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import Waves from '../components/Waves'
-
-// 3D Carousel Hook for feature cards
-const useCarousel3D = (cardCount: number, cardWidth: number = 320) => {
-  const carouselRef = useRef<HTMLDivElement>(null)
-  const rotationRef = useRef(0)
-  const velocityRef = useRef(0)
-  const isDraggingRef = useRef(false)
-  const lastMouseXRef = useRef(0)
-  const autoRotateRef = useRef(true)
-  const animationFrameRef = useRef<number | null>(null)
-  
-  // Calculate translateZ based on card width to create comfortable gap between cards
-  // Formula: radius = (cardWidth / 2) / tan(PI / cardCount)
-  const translateZ = useMemo(() => {
-    const anglePerCard = (2 * Math.PI) / cardCount
-    const radius = (cardWidth / 2) / Math.tan(anglePerCard / 2)
-    return Math.max(radius * 0.75, 280) // Cube-like depth with balanced spacing
-  }, [cardCount, cardWidth])
-  
-  const updateCards = useCallback(() => {
-    if (!carouselRef.current) return
-    
-    const cards = carouselRef.current.querySelectorAll('.carousel-card') as NodeListOf<HTMLElement>
-    const angleStep = 360 / cardCount
-    
-    cards.forEach((card, index) => {
-      const angle = rotationRef.current + index * angleStep
-      const radians = (angle * Math.PI) / 180
-      
-      // Calculate z-depth using cos - front is positive, back is negative
-      const zDepth = Math.cos(radians)
-      
-      // Wall effect: hide cards in the back half
-      if (zDepth < -0.1) {
-        card.style.opacity = '0'
-        card.style.pointerEvents = 'none'
-      } else {
-        // Smooth opacity transition for cards coming into view
-        const opacity = Math.max(0, Math.min(1, (zDepth + 0.1) * 1.5))
-        card.style.opacity = String(opacity)
-        card.style.pointerEvents = zDepth > 0.3 ? 'auto' : 'none'
-      }
-      
-      // Apply 3D transform
-      card.style.transform = `rotateY(${angle}deg) translateZ(${translateZ}px)`
-      
-      // Adjust z-index based on depth (front cards on top)
-      card.style.zIndex = String(Math.round((zDepth + 1) * 100))
-    })
-  }, [cardCount, translateZ])
-  
-  // Animation loop
-  useEffect(() => {
-    const animate = () => {
-      // Auto-rotation when not dragging
-      if (autoRotateRef.current && !isDraggingRef.current) {
-        rotationRef.current -= 0.15 // Slow continuous rotation
-      }
-      
-      // Apply momentum/velocity when released
-      if (!isDraggingRef.current && Math.abs(velocityRef.current) > 0.01) {
-        rotationRef.current += velocityRef.current
-        velocityRef.current *= 0.95 // Friction
-      }
-      
-      updateCards()
-      animationFrameRef.current = requestAnimationFrame(animate)
-    }
-    
-    animationFrameRef.current = requestAnimationFrame(animate)
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
-      }
-    }
-  }, [updateCards])
-  
-  // Mouse drag handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    isDraggingRef.current = true
-    autoRotateRef.current = false
-    lastMouseXRef.current = e.clientX
-    velocityRef.current = 0
-  }, [])
-  
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDraggingRef.current) return
-    
-    const deltaX = e.clientX - lastMouseXRef.current
-    velocityRef.current = deltaX * 0.3
-    rotationRef.current += deltaX * 0.3
-    lastMouseXRef.current = e.clientX
-  }, [])
-  
-  const handleMouseUp = useCallback(() => {
-    isDraggingRef.current = false
-    // Resume auto-rotation after a delay
-    setTimeout(() => {
-      autoRotateRef.current = true
-    }, 2000)
-  }, [])
-  
-  const handleMouseLeave = useCallback(() => {
-    if (isDraggingRef.current) {
-      isDraggingRef.current = false
-      setTimeout(() => {
-        autoRotateRef.current = true
-      }, 2000)
-    }
-  }, [])
-  
-  // Touch handlers
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    isDraggingRef.current = true
-    autoRotateRef.current = false
-    lastMouseXRef.current = e.touches[0].clientX
-    velocityRef.current = 0
-  }, [])
-  
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDraggingRef.current) return
-    
-    const deltaX = e.touches[0].clientX - lastMouseXRef.current
-    velocityRef.current = deltaX * 0.3
-    rotationRef.current += deltaX * 0.3
-    lastMouseXRef.current = e.touches[0].clientX
-  }, [])
-  
-  const handleTouchEnd = useCallback(() => {
-    isDraggingRef.current = false
-    setTimeout(() => {
-      autoRotateRef.current = true
-    }, 2000)
-  }, [])
-  
-  return {
-    carouselRef,
-    translateZ,
-    handlers: {
-      onMouseDown: handleMouseDown,
-      onMouseMove: handleMouseMove,
-      onMouseUp: handleMouseUp,
-      onMouseLeave: handleMouseLeave,
-      onTouchStart: handleTouchStart,
-      onTouchMove: handleTouchMove,
-      onTouchEnd: handleTouchEnd,
-    }
-  }
-}
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
 const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'footer']
@@ -254,14 +104,14 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
   return (
     <div 
       ref={cardRef}
-      className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-2xl p-4 sm:p-5 hover:border-corama-teal/30 transition-all group flex flex-col h-full"
+      className="feature-card bg-[#1a1b23] border border-corama-teal/10 rounded-3xl p-6 sm:p-8 hover:border-corama-teal/30 transition-all group flex flex-col h-full"
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
     >
       {/* Card content - icon at top with 2-layer parallax */}
-      <div className="flex justify-center mb-3 sm:mb-4 relative z-10">
+      <div className="flex justify-center mb-5 sm:mb-6 relative z-10">
         <div 
-          className="relative w-12 h-12 sm:w-14 sm:h-14"
+          className="relative w-16 h-16 sm:w-20 sm:h-20"
           style={{ perspective: '1000px', transformStyle: 'preserve-3d' }}
         >
           {/* Layer 1 - Background (shadow/glow) */}
@@ -283,13 +133,13 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
           </div>
         </div>
       </div>
-      <h3 className="font-poppins font-bold text-sm sm:text-base text-white mb-2 sm:mb-3 min-h-[40px] text-center relative z-10">{title}</h3>
-      <p className="text-[#B6F8F9] font-poppins text-xs leading-relaxed flex-grow text-center relative z-10">
+      <h3 className="font-poppins font-bold text-lg sm:text-xl text-white mb-3 sm:mb-4 min-h-[56px] text-center relative z-10">{title}</h3>
+      <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
         {description}
       </p>
-      <div className="mt-3 sm:mt-4 text-center relative z-10">
-        <button onClick={onLearnMore} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-xs hover:gap-3 transition-all opacity-80 hover:opacity-100">
-          Learn more <ArrowRight size={12} />
+      <div className="mt-5 sm:mt-6 text-center relative z-10">
+        <button onClick={onLearnMore} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
+          Learn more <ArrowRight size={14} />
         </button>
       </div>
       
@@ -423,9 +273,6 @@ const LandingPage = () => {
   const [parallaxStyle, setParallaxStyle] = useState<React.CSSProperties>({})
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
-  
-  // 3D Carousel for feature cards (6 individual cards in hexagon shape, 260px width each)
-  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(6, 260)
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -730,78 +577,45 @@ const LandingPage = () => {
           </div>
         </div>
         
-        {/* Desktop: 3D Carousel */}
-        <div className="hidden lg:flex justify-center items-center relative z-10 w-full">
-          {/* 3D Scene with perspective */}
-          <div 
-            className="relative w-full h-[380px] cursor-grab active:cursor-grabbing select-none"
-            style={{ perspective: '1000px' }}
-            {...carouselHandlers}
-          >
-            {/* Carousel container with preserve-3d */}
-            <div 
-              ref={carouselRef}
-              className="absolute left-1/2 top-1/2 w-0 h-0"
-              style={{ 
-                transformStyle: 'preserve-3d',
-                transform: 'translate(-50%, -50%)'
-              }}
-            >
-              {/* Card 1 */}
-              <div className="carousel-card absolute" style={{ width: '260px', left: '-130px', top: '-170px' }}>
-                <FeatureCard
-                  icon="/static/app/landing/SmartContractMatching.svg"
-                  title="Smart Contract Matching"
-                  description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
-                  onLearnMore={scrollToFeatures}
-                />
-              </div>
-              {/* Card 2 */}
-              <div className="carousel-card absolute" style={{ width: '260px', left: '-130px', top: '-170px' }}>
-                <FeatureCard
-                  icon="/static/app/landing/AutomatedProposalGeneration.svg"
-                  title="Automated Proposal Generation"
-                  description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
-                  onLearnMore={scrollToFeatures}
-                />
-              </div>
-              {/* Card 3 */}
-              <div className="carousel-card absolute" style={{ width: '260px', left: '-130px', top: '-170px' }}>
-                <FeatureCard
-                  icon="/static/app/landing/ComplianceIntelligence.svg"
-                  title="Compliance Intelligence"
-                  description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
-                  onLearnMore={scrollToFeatures}
-                />
-              </div>
-              {/* Card 4 */}
-              <div className="carousel-card absolute" style={{ width: '260px', left: '-130px', top: '-170px' }}>
-                <FeatureCard
-                  icon="/static/app/landing/WinProbabilityScoring.svg"
-                  title="Win Probability Scoring"
-                  description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-                  onLearnMore={scrollToFeatures}
-                />
-              </div>
-              {/* Card 5 */}
-              <div className="carousel-card absolute" style={{ width: '260px', left: '-130px', top: '-170px' }}>
-                <FeatureCard
-                  icon="/static/app/landing/IntelligentMarketResearch.svg"
-                  title="Intelligent Market Research"
-                  description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-                  onLearnMore={scrollToFeatures}
-                />
-              </div>
-              {/* Card 6 */}
-              <div className="carousel-card absolute" style={{ width: '260px', left: '-130px', top: '-170px' }}>
-                <FeatureCard
-                  icon="/static/app/landing/SmartDeadlineManagement.svg"
-                  title="Smart Deadline Management"
-                  description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-                  onLearnMore={scrollToFeatures}
-                />
-              </div>
-            </div>
+        {/* Desktop: Grid layout */}
+        <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
+          <div className="grid grid-cols-3 gap-6 items-stretch">
+            <FeatureCard
+              icon="/static/app/landing/SmartContractMatching.svg"
+              title="Smart Contract Matching"
+              description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
+              onLearnMore={scrollToFeatures}
+            />
+            <FeatureCard
+              icon="/static/app/landing/AutomatedProposalGeneration.svg"
+              title="Automated Proposal Generation"
+              description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
+              onLearnMore={scrollToFeatures}
+            />
+            <FeatureCard
+              icon="/static/app/landing/ComplianceIntelligence.svg"
+              title="Compliance Intelligence"
+              description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
+              onLearnMore={scrollToFeatures}
+            />
+            <FeatureCard
+              icon="/static/app/landing/WinProbabilityScoring.svg"
+              title="Win Probability Scoring"
+              description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
+              onLearnMore={scrollToFeatures}
+            />
+            <FeatureCard
+              icon="/static/app/landing/IntelligentMarketResearch.svg"
+              title="Intelligent Market Research"
+              description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
+              onLearnMore={scrollToFeatures}
+            />
+            <FeatureCard
+              icon="/static/app/landing/SmartDeadlineManagement.svg"
+              title="Smart Deadline Management"
+              description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
+              onLearnMore={scrollToFeatures}
+            />
           </div>
         </div>
       </section>
@@ -814,27 +628,27 @@ const LandingPage = () => {
       >
         {/* Scope of Work - with parallax effect */}
         <div 
-          className="max-w-5xl mx-auto relative z-10 mb-6 lg:mb-10 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 mb-8 lg:mb-16 parallax-section"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-10 items-center">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-16 items-center">
             <div className="parallax-image">
               <img 
                 src="/static/app/landing/Scope.svg" 
                 alt="Scope of Work Station" 
-                className="w-full h-32 sm:h-40 lg:h-56 object-contain"
+                className="w-full h-40 sm:h-56 lg:h-80 object-contain"
               />
             </div>
             <div className="text-center md:text-left parallax-text">
-              <h2 className="font-poppins font-bold text-xl sm:text-2xl lg:text-3xl text-white mb-2 sm:mb-3 lg:mb-4">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-xs sm:text-sm lg:text-base mb-3 sm:mb-4 lg:mb-5 leading-relaxed">
+              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6">Scope Of Work Station</h2>
+              <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 leading-relaxed">
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
               <a 
                 href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-xs sm:text-sm"
+                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
               >
                 Get Started
               </a>
@@ -843,15 +657,15 @@ const LandingPage = () => {
         </div>
 
         {/* Revolutionizing Government Contracting */}
-        <div className="max-w-3xl mx-auto text-center relative z-10">
-          <h2 className="font-poppins font-bold text-xl sm:text-2xl lg:text-3xl text-white mb-2 sm:mb-3 lg:mb-4 leading-tight">
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
-          <p className="text-[#6bb4b5] font-poppins text-xs sm:text-sm lg:text-base mb-3 sm:mb-4 lg:mb-5 max-w-2xl mx-auto px-2 leading-relaxed">
+          <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
-          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-xs sm:text-sm hover:gap-3 transition-all">
-            Learn More <ArrowRight size={14} />
+          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-sm sm:text-base hover:gap-3 transition-all">
+            Learn More <ArrowRight size={18} />
           </button>
         </div>
       </section>
