@@ -12,12 +12,12 @@ const useCarousel3D = (cardCount: number, cardWidth: number = 320) => {
   const autoRotateRef = useRef(true)
   const animationFrameRef = useRef<number | null>(null)
   
-  // Calculate translateZ based on card width to create tight gap without overlap
+  // Calculate translateZ based on card width to create comfortable gap between cards
   // Formula: radius = (cardWidth / 2) / tan(PI / cardCount)
   const translateZ = useMemo(() => {
     const anglePerCard = (2 * Math.PI) / cardCount
     const radius = (cardWidth / 2) / Math.tan(anglePerCard / 2)
-    return Math.max(radius * 0.85, 280) // Slightly tighter, minimum 280px
+    return Math.max(radius * 1.15, 380) // Increased gap for better spacing
   }, [cardCount, cardWidth])
   
   const updateCards = useCallback(() => {
