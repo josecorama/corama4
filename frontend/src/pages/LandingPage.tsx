@@ -424,8 +424,8 @@ const LandingPage = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
   
-  // 3D Carousel for feature cards (6 cards, ~320px width each)
-  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(6, 320)
+  // 3D Carousel for feature cards (6 cards, ~280px width each)
+  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(6, 280)
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -748,7 +748,7 @@ const LandingPage = () => {
               }}
             >
               {/* Card 1 */}
-              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+              <div className="carousel-card absolute" style={{ width: '280px', left: '-140px', top: '-180px' }}>
                 <FeatureCard
                   icon="/static/app/landing/SmartContractMatching.svg"
                   title="Smart Contract Matching"
@@ -757,7 +757,7 @@ const LandingPage = () => {
                 />
               </div>
               {/* Card 2 */}
-              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+              <div className="carousel-card absolute" style={{ width: '280px', left: '-140px', top: '-180px' }}>
                 <FeatureCard
                   icon="/static/app/landing/AutomatedProposalGeneration.svg"
                   title="Automated Proposal Generation"
@@ -766,7 +766,7 @@ const LandingPage = () => {
                 />
               </div>
               {/* Card 3 */}
-              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+              <div className="carousel-card absolute" style={{ width: '280px', left: '-140px', top: '-180px' }}>
                 <FeatureCard
                   icon="/static/app/landing/ComplianceIntelligence.svg"
                   title="Compliance Intelligence"
@@ -775,7 +775,7 @@ const LandingPage = () => {
                 />
               </div>
               {/* Card 4 */}
-              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+              <div className="carousel-card absolute" style={{ width: '280px', left: '-140px', top: '-180px' }}>
                 <FeatureCard
                   icon="/static/app/landing/WinProbabilityScoring.svg"
                   title="Win Probability Scoring"
@@ -784,7 +784,7 @@ const LandingPage = () => {
                 />
               </div>
               {/* Card 5 */}
-              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+              <div className="carousel-card absolute" style={{ width: '280px', left: '-140px', top: '-180px' }}>
                 <FeatureCard
                   icon="/static/app/landing/IntelligentMarketResearch.svg"
                   title="Intelligent Market Research"
@@ -793,7 +793,7 @@ const LandingPage = () => {
                 />
               </div>
               {/* Card 6 */}
-              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+              <div className="carousel-card absolute" style={{ width: '280px', left: '-140px', top: '-180px' }}>
                 <FeatureCard
                   icon="/static/app/landing/SmartDeadlineManagement.svg"
                   title="Smart Deadline Management"
