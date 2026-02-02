@@ -1,6 +1,156 @@
 import { ArrowRight } from 'lucide-react'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import Waves from '../components/Waves'
+
+// 3D Carousel Hook for feature cards
+const useCarousel3D = (cardCount: number, cardWidth: number = 320) => {
+  const carouselRef = useRef<HTMLDivElement>(null)
+  const rotationRef = useRef(0)
+  const velocityRef = useRef(0)
+  const isDraggingRef = useRef(false)
+  const lastMouseXRef = useRef(0)
+  const autoRotateRef = useRef(true)
+  const animationFrameRef = useRef<number | null>(null)
+  
+  // Calculate translateZ based on card width to create tight gap without overlap
+  // Formula: radius = (cardWidth / 2) / tan(PI / cardCount)
+  const translateZ = useMemo(() => {
+    const anglePerCard = (2 * Math.PI) / cardCount
+    const radius = (cardWidth / 2) / Math.tan(anglePerCard / 2)
+    return Math.max(radius * 0.85, 280) // Slightly tighter, minimum 280px
+  }, [cardCount, cardWidth])
+  
+  const updateCards = useCallback(() => {
+    if (!carouselRef.current) return
+    
+    const cards = carouselRef.current.querySelectorAll('.carousel-card') as NodeListOf<HTMLElement>
+    const angleStep = 360 / cardCount
+    
+    cards.forEach((card, index) => {
+      const angle = rotationRef.current + index * angleStep
+      const radians = (angle * Math.PI) / 180
+      
+      // Calculate z-depth using cos - front is positive, back is negative
+      const zDepth = Math.cos(radians)
+      
+      // Wall effect: hide cards in the back half
+      if (zDepth < -0.1) {
+        card.style.opacity = '0'
+        card.style.pointerEvents = 'none'
+      } else {
+        // Smooth opacity transition for cards coming into view
+        const opacity = Math.max(0, Math.min(1, (zDepth + 0.1) * 1.5))
+        card.style.opacity = String(opacity)
+        card.style.pointerEvents = zDepth > 0.3 ? 'auto' : 'none'
+      }
+      
+      // Apply 3D transform
+      card.style.transform = `rotateY(${angle}deg) translateZ(${translateZ}px)`
+      
+      // Adjust z-index based on depth (front cards on top)
+      card.style.zIndex = String(Math.round((zDepth + 1) * 100))
+    })
+  }, [cardCount, translateZ])
+  
+  // Animation loop
+  useEffect(() => {
+    const animate = () => {
+      // Auto-rotation when not dragging
+      if (autoRotateRef.current && !isDraggingRef.current) {
+        rotationRef.current -= 0.15 // Slow continuous rotation
+      }
+      
+      // Apply momentum/velocity when released
+      if (!isDraggingRef.current && Math.abs(velocityRef.current) > 0.01) {
+        rotationRef.current += velocityRef.current
+        velocityRef.current *= 0.95 // Friction
+      }
+      
+      updateCards()
+      animationFrameRef.current = requestAnimationFrame(animate)
+    }
+    
+    animationFrameRef.current = requestAnimationFrame(animate)
+    
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [updateCards])
+  
+  // Mouse drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    isDraggingRef.current = true
+    autoRotateRef.current = false
+    lastMouseXRef.current = e.clientX
+    velocityRef.current = 0
+  }, [])
+  
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDraggingRef.current) return
+    
+    const deltaX = e.clientX - lastMouseXRef.current
+    velocityRef.current = deltaX * 0.3
+    rotationRef.current += deltaX * 0.3
+    lastMouseXRef.current = e.clientX
+  }, [])
+  
+  const handleMouseUp = useCallback(() => {
+    isDraggingRef.current = false
+    // Resume auto-rotation after a delay
+    setTimeout(() => {
+      autoRotateRef.current = true
+    }, 2000)
+  }, [])
+  
+  const handleMouseLeave = useCallback(() => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false
+      setTimeout(() => {
+        autoRotateRef.current = true
+      }, 2000)
+    }
+  }, [])
+  
+  // Touch handlers
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    isDraggingRef.current = true
+    autoRotateRef.current = false
+    lastMouseXRef.current = e.touches[0].clientX
+    velocityRef.current = 0
+  }, [])
+  
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDraggingRef.current) return
+    
+    const deltaX = e.touches[0].clientX - lastMouseXRef.current
+    velocityRef.current = deltaX * 0.3
+    rotationRef.current += deltaX * 0.3
+    lastMouseXRef.current = e.touches[0].clientX
+  }, [])
+  
+  const handleTouchEnd = useCallback(() => {
+    isDraggingRef.current = false
+    setTimeout(() => {
+      autoRotateRef.current = true
+    }, 2000)
+  }, [])
+  
+  return {
+    carouselRef,
+    translateZ,
+    handlers: {
+      onMouseDown: handleMouseDown,
+      onMouseMove: handleMouseMove,
+      onMouseUp: handleMouseUp,
+      onMouseLeave: handleMouseLeave,
+      onTouchStart: handleTouchStart,
+      onTouchMove: handleTouchMove,
+      onTouchEnd: handleTouchEnd,
+    }
+  }
+}
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
 const SECTION_IDS = ['hero', 'features', 'scope-revolution', 'footer']
@@ -273,6 +423,9 @@ const LandingPage = () => {
   const [parallaxStyle, setParallaxStyle] = useState<React.CSSProperties>({})
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
+  
+  // 3D Carousel for feature cards (6 cards, ~320px width each)
+  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(6, 320)
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -577,45 +730,78 @@ const LandingPage = () => {
           </div>
         </div>
         
-        {/* Desktop: Grid layout */}
-        <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
-          <div className="grid grid-cols-3 gap-6 items-stretch">
-            <FeatureCard
-              icon="/static/app/landing/SmartContractMatching.svg"
-              title="Smart Contract Matching"
-              description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/AutomatedProposalGeneration.svg"
-              title="Automated Proposal Generation"
-              description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/ComplianceIntelligence.svg"
-              title="Compliance Intelligence"
-              description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/WinProbabilityScoring.svg"
-              title="Win Probability Scoring"
-              description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/IntelligentMarketResearch.svg"
-              title="Intelligent Market Research"
-              description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-              onLearnMore={scrollToFeatures}
-            />
-            <FeatureCard
-              icon="/static/app/landing/SmartDeadlineManagement.svg"
-              title="Smart Deadline Management"
-              description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-              onLearnMore={scrollToFeatures}
-            />
+        {/* Desktop: 3D Carousel */}
+        <div className="hidden lg:flex justify-center items-center relative z-10 w-full">
+          {/* 3D Scene with perspective */}
+          <div 
+            className="relative w-full h-[450px] cursor-grab active:cursor-grabbing select-none"
+            style={{ perspective: '1200px' }}
+            {...carouselHandlers}
+          >
+            {/* Carousel container with preserve-3d */}
+            <div 
+              ref={carouselRef}
+              className="absolute left-1/2 top-1/2 w-0 h-0"
+              style={{ 
+                transformStyle: 'preserve-3d',
+                transform: 'translate(-50%, -50%)'
+              }}
+            >
+              {/* Card 1 */}
+              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+                <FeatureCard
+                  icon="/static/app/landing/SmartContractMatching.svg"
+                  title="Smart Contract Matching"
+                  description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
+                  onLearnMore={scrollToFeatures}
+                />
+              </div>
+              {/* Card 2 */}
+              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+                <FeatureCard
+                  icon="/static/app/landing/AutomatedProposalGeneration.svg"
+                  title="Automated Proposal Generation"
+                  description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
+                  onLearnMore={scrollToFeatures}
+                />
+              </div>
+              {/* Card 3 */}
+              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+                <FeatureCard
+                  icon="/static/app/landing/ComplianceIntelligence.svg"
+                  title="Compliance Intelligence"
+                  description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
+                  onLearnMore={scrollToFeatures}
+                />
+              </div>
+              {/* Card 4 */}
+              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+                <FeatureCard
+                  icon="/static/app/landing/WinProbabilityScoring.svg"
+                  title="Win Probability Scoring"
+                  description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
+                  onLearnMore={scrollToFeatures}
+                />
+              </div>
+              {/* Card 5 */}
+              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+                <FeatureCard
+                  icon="/static/app/landing/IntelligentMarketResearch.svg"
+                  title="Intelligent Market Research"
+                  description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
+                  onLearnMore={scrollToFeatures}
+                />
+              </div>
+              {/* Card 6 */}
+              <div className="carousel-card absolute" style={{ width: '320px', left: '-160px', top: '-200px' }}>
+                <FeatureCard
+                  icon="/static/app/landing/SmartDeadlineManagement.svg"
+                  title="Smart Deadline Management"
+                  description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
+                  onLearnMore={scrollToFeatures}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
