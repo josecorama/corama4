@@ -122,7 +122,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
   return (
     <div
       ref={cardRef}
-      className="relative flex flex-col w-full max-w-[342px] h-[432px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
+      className="relative flex flex-col w-full max-w-[342px] h-[400px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
       style={{
         background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%)',
         border: '1px solid rgba(107, 180, 181, 0.3)',
