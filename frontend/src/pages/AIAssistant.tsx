@@ -210,7 +210,7 @@ Ready to build your proposal? Create a competitive bid designed for this specifi
 
 Type "**Start Proposal Assistant**" to begin.
 
-<small>Just need a basic proposal to get started? Type "**Quick Draft Mode**" instead.</small>`
+*Just need a basic proposal to get started? Type "Quick Draft Mode" instead.*`
 }
 
 const AIAssistant = () => {
