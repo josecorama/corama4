@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { ArrowRight } from 'lucide-react'
 
 const HEADER_HEIGHT = 80
-const SECTION_IDS = ['capturing', 'team', 'mission-vision']
+const SECTION_IDS = ['team', 'capturing', 'mission-vision']
 
 // Team member data
 const teamMembers = [
@@ -123,7 +122,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
   return (
     <div
       ref={cardRef}
-      className="relative flex flex-col w-full max-w-[342px] h-[432px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
+      className="relative flex flex-col w-full max-w-[280px] h-[360px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
       style={{
         background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%)',
         border: '1px solid rgba(107, 180, 181, 0.3)',
@@ -329,135 +328,127 @@ const AboutUsPublic = () => {
           msOverflowStyle: 'none',
         }}
       >
-        {/* Section 1: Capturing Major State Procurement Wins */}
-        <section 
-          ref={setSectionRef('capturing')}
-          data-section="capturing"
-          className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('capturing')}`}
-        >
-          <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
-            <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-5 leading-tight">
-              Capturing Major State<br />Procurement Wins
-            </h2>
-            <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
-              "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
-            </p>
-            
-            {/* Hexagons with Learn More */}
-            <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
-              <div
-                className="relative flex items-center justify-center hidden sm:flex"
-                style={{ width: '400px', height: '120px', flexShrink: 1 }}
-              >
-                <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                  style={{
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100px',
-                    background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
-                    filter: 'blur(12px)',
-                    opacity: 0.75,
-                  }}
-                />
-                <img
-                  src="/static/app/landing/hexagons.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="relative z-10 w-full h-auto translate-y-[20px]"
-                  style={{ maxWidth: '100%' }}
-                />
+          {/* Section 1: Meet the Team */}
+          <section 
+            ref={setSectionRef('team')}
+            data-section="team"
+            className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-6 lg:py-0 snap-start ${getSectionClass('team')}`}
+          >
+            <div className="max-w-6xl mx-auto relative z-10 w-full">
+              <div className="w-full text-center mb-4 lg:mb-6">
+                <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2 tracking-tight font-poppins">
+                  Meet the Team
+                </h2>
+                <p className="text-xs sm:text-sm text-white max-w-2xl mx-auto font-light leading-relaxed font-poppins px-2">
+                  Meet the visionary leaders behind Contract Radar Maximizer's
+                  mission to revolutionize government contracting for small businesses.
+                </p>
               </div>
 
-              <button
-                onClick={() => scrollToSection(1)}
-                style={{ flexShrink: 0 }}
-                className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-base hover:gap-3 transition-all whitespace-nowrap px-2"
-              >
-                Learn More <ArrowRight size={18} />
-              </button>
-
-              <div
-                className="relative flex items-center justify-center hidden sm:flex"
-                style={{ width: '400px', height: '120px', flexShrink: 1 }}
-              >
-                <div
-                  className="pointer-events-none absolute left-1/2 -translate-x-1/2"
-                  style={{
-                    top: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: '100%',
-                    height: '100px',
-                    background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
-                    filter: 'blur(12px)',
-                    opacity: 0.75,
-                  }}
-                />
-                <img
-                  src="/static/app/landing/hexagons.png"
-                  alt=""
-                  aria-hidden="true"
-                  className="relative z-10 w-full h-auto translate-y-[20px] scale-x-[-1]"
-                  style={{ maxWidth: '100%' }}
-                />
+              {/* Mobile: Horizontal scrollable carousel */}
+              <div className="lg:hidden w-full overflow-visible">
+                <div 
+                  className="flex gap-3 overflow-x-auto snap-x snap-mandatory px-2 pb-4 scrollbar-hide -mx-2"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
+                >
+                  {teamMembers.map((member) => (
+                    <div key={member.name} className="flex-shrink-0 w-[75vw] max-w-[280px] snap-center first:ml-2 last:mr-2">
+                      <TeamMemberCard
+                        name={member.name}
+                        role={member.role}
+                        description={member.description}
+                        imageUrl={member.imageUrl}
+                        linkedinUrl={member.linkedinUrl}
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </div>
-        </section>
 
-        {/* Section 2: Meet the Team */}
-        <section 
-          ref={setSectionRef('team')}
-          data-section="team"
-          className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-8 lg:py-0 snap-start ${getSectionClass('team')}`}
-        >
-          <div className="max-w-7xl mx-auto relative z-10 w-full">
-            <div className="w-full text-center mb-6 lg:mb-8">
-              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 sm:mb-3 tracking-tight font-poppins">
-                Meet the Team
-              </h2>
-              <p className="text-sm sm:text-base text-white max-w-2xl mx-auto font-light leading-relaxed font-poppins px-2">
-                Meet the visionary leaders behind Contract Radar Maximizer's
-                mission to revolutionize government contracting for small businesses.
-              </p>
-            </div>
-
-            {/* Mobile: Horizontal scrollable carousel */}
-            <div className="lg:hidden w-full overflow-visible">
-              <div 
-                className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-2 pb-4 scrollbar-hide -mx-2"
-                style={{ WebkitOverflowScrolling: 'touch' }}
-              >
+              {/* Desktop: Grid layout */}
+              <div className="hidden lg:grid grid-cols-4 gap-4 w-full max-w-[1200px] mx-auto justify-items-center">
                 {teamMembers.map((member) => (
-                  <div key={member.name} className="flex-shrink-0 w-[85vw] max-w-[342px] snap-center first:ml-2 last:mr-2">
-                    <TeamMemberCard
-                      name={member.name}
-                      role={member.role}
-                      description={member.description}
-                      imageUrl={member.imageUrl}
-                      linkedinUrl={member.linkedinUrl}
-                    />
-                  </div>
+                  <TeamMemberCard
+                    key={member.name}
+                    name={member.name}
+                    role={member.role}
+                    description={member.description}
+                    imageUrl={member.imageUrl}
+                    linkedinUrl={member.linkedinUrl}
+                  />
                 ))}
               </div>
             </div>
+          </section>
 
-            {/* Desktop: Grid layout */}
-            <div className="hidden lg:grid grid-cols-4 gap-6 w-full max-w-[1400px] mx-auto justify-items-center">
-              {teamMembers.map((member) => (
-                <TeamMemberCard
-                  key={member.name}
-                  name={member.name}
-                  role={member.role}
-                  description={member.description}
-                  imageUrl={member.imageUrl}
-                  linkedinUrl={member.linkedinUrl}
-                />
-              ))}
+          {/* Section 2: Capturing Major State Procurement Wins */}
+          <section 
+            ref={setSectionRef('capturing')}
+            data-section="capturing"
+            className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('capturing')}`}
+          >
+            <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
+              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-5 leading-tight">
+                Capturing Major State<br />Procurement Wins
+              </h2>
+              <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base mb-6 max-w-3xl mx-auto px-2 leading-relaxed">
+                "Each year over $17B in government contracts are awarded by the State of Illinois. However, most small businesses miss out on opportunities because of the complicated submission process, lack of capacity, and the process taking too much time, giving larger corporations advantages. Contract Radar Maximizer is an AI tool that gives small businesses a competitive advantage, making it easier and faster to submit government procurements."
+              </p>
+            
+              {/* Hexagons decoration */}
+              <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '16px' }}>
+                <div
+                  className="relative flex items-center justify-center hidden sm:flex"
+                  style={{ width: '400px', height: '120px', flexShrink: 1 }}
+                >
+                  <div
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+                    style={{
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '100%',
+                      height: '100px',
+                      background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
+                      filter: 'blur(12px)',
+                      opacity: 0.75,
+                    }}
+                  />
+                  <img
+                    src="/static/app/landing/hexagons.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="relative z-10 w-full h-auto translate-y-[20px]"
+                    style={{ maxWidth: '100%' }}
+                  />
+                </div>
+
+                <div
+                  className="relative flex items-center justify-center hidden sm:flex"
+                  style={{ width: '400px', height: '120px', flexShrink: 1 }}
+                >
+                  <div
+                    className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+                    style={{
+                      top: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '100%',
+                      height: '100px',
+                      background: 'radial-gradient(ellipse at center, rgba(107,180,181,0.35) 0%, rgba(107,180,181,0.18) 45%, rgba(107,180,181,0.05) 75%, rgba(11,11,15,0) 100%)',
+                      filter: 'blur(12px)',
+                      opacity: 0.75,
+                    }}
+                  />
+                  <img
+                    src="/static/app/landing/hexagons.png"
+                    alt=""
+                    aria-hidden="true"
+                    className="relative z-10 w-full h-auto translate-y-[20px] scale-x-[-1]"
+                    style={{ maxWidth: '100%' }}
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
 
         {/* Section 3: Mission & Vision Combined */}
         <section 
@@ -521,15 +512,6 @@ const AboutUsPublic = () => {
                 </div>
               </div>
 
-              {/* Get Started Button */}
-              <div className="text-center pt-2">
-                <a 
-                  href="/login" 
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#6BA4A7] text-white font-poppins font-semibold px-8 py-3 rounded-lg hover:from-[#6BA4A7] hover:to-corama-teal transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
-                >
-                  Get Started
-                </a>
-              </div>
             </div>
           </div>
 

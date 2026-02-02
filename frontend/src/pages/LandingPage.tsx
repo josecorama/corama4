@@ -1,4 +1,3 @@
-import { ArrowRight } from 'lucide-react'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import Waves from '../components/Waves'
 
@@ -10,10 +9,9 @@ interface FeatureCardProps {
   icon: string
   title: string
   description: string
-  onLearnMore: () => void
 }
 
-const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps) => {
+const FeatureCard = ({ icon, title, description }: FeatureCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null)
   const layer1Ref = useRef<HTMLDivElement>(null)
   const layer2Ref = useRef<HTMLDivElement>(null)
@@ -137,11 +135,6 @@ const FeatureCard = ({ icon, title, description, onLearnMore }: FeatureCardProps
       <p className="text-[#B6F8F9] font-poppins text-sm leading-relaxed flex-grow text-center relative z-10">
         {description}
       </p>
-      <div className="mt-5 sm:mt-6 text-center relative z-10">
-        <button onClick={onLearnMore} className="inline-flex items-center gap-2 text-corama-teal font-poppins text-sm hover:gap-3 transition-all opacity-80 hover:opacity-100">
-          Learn more <ArrowRight size={14} />
-        </button>
-      </div>
       
       {/* Animation overlay elements - positioned below icon area */}
       <div className="card-shine"></div>
@@ -293,10 +286,6 @@ const LandingPage = () => {
     // Cooldown to prevent rapid scrolling
     setTimeout(() => setIsScrolling(false), 800)
   }, [isScrolling])
-
-  const scrollToFeatures = () => {
-    scrollToSection(1) // Features row 1 is index 1
-  }
 
   // Handle wheel events for snap scrolling
   useEffect(() => {
@@ -523,24 +512,21 @@ const LandingPage = () => {
                 icon="/static/app/landing/WinProbabilityScoring.svg"
                 title="Win Probability Scoring"
                 description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-                onLearnMore={scrollToFeatures}
-              />
+                              />
             </div>
             <div className="flex-shrink-0 w-[80vw] snap-center">
               <FeatureCard
                 icon="/static/app/landing/IntelligentMarketResearch.svg"
                 title="Intelligent Market Research"
                 description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-                onLearnMore={scrollToFeatures}
-              />
+                              />
             </div>
             <div className="flex-shrink-0 w-[80vw] snap-center">
               <FeatureCard
                 icon="/static/app/landing/SmartDeadlineManagement.svg"
                 title="Smart Deadline Management"
                 description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-                onLearnMore={scrollToFeatures}
-              />
+                              />
             </div>
           </div>
         </div>
@@ -552,20 +538,17 @@ const LandingPage = () => {
               icon="/static/app/landing/WinProbabilityScoring.svg"
               title="Win Probability Scoring"
               description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-              onLearnMore={scrollToFeatures}
-            />
+                          />
             <FeatureCard
               icon="/static/app/landing/IntelligentMarketResearch.svg"
               title="Intelligent Market Research"
               description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-              onLearnMore={scrollToFeatures}
-            />
+                          />
             <FeatureCard
               icon="/static/app/landing/SmartDeadlineManagement.svg"
               title="Smart Deadline Management"
               description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-              onLearnMore={scrollToFeatures}
-            />
+                          />
           </div>
         </div>
       </section>
@@ -625,24 +608,21 @@ const LandingPage = () => {
                 icon="/static/app/landing/SmartContractMatching.svg"
                 title="Smart Contract Matching"
                 description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
-                onLearnMore={scrollToFeatures}
-              />
+                              />
             </div>
             <div className="flex-shrink-0 w-[80vw] snap-center">
               <FeatureCard
                 icon="/static/app/landing/AutomatedProposalGeneration.svg"
                 title="Automated Proposal Generation"
                 description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
-                onLearnMore={scrollToFeatures}
-              />
+                              />
             </div>
             <div className="flex-shrink-0 w-[80vw] snap-center">
               <FeatureCard
                 icon="/static/app/landing/ComplianceIntelligence.svg"
                 title="Compliance Intelligence"
                 description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
-                onLearnMore={scrollToFeatures}
-              />
+                              />
             </div>
           </div>
         </div>
@@ -654,20 +634,17 @@ const LandingPage = () => {
               icon="/static/app/landing/SmartContractMatching.svg"
               title="Smart Contract Matching"
               description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
-              onLearnMore={scrollToFeatures}
-            />
+                          />
             <FeatureCard
               icon="/static/app/landing/AutomatedProposalGeneration.svg"
               title="Automated Proposal Generation"
               description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
-              onLearnMore={scrollToFeatures}
-            />
+                          />
             <FeatureCard
               icon="/static/app/landing/ComplianceIntelligence.svg"
               title="Compliance Intelligence"
               description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
-              onLearnMore={scrollToFeatures}
-            />
+                          />
           </div>
         </div>
       </section>
@@ -718,12 +695,9 @@ const LandingPage = () => {
           <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
-          <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 max-w-3xl mx-auto px-2 leading-relaxed">
+          <p className="text-[#6bb4b5] font-poppins text-sm sm:text-base lg:text-lg max-w-3xl mx-auto px-2 leading-relaxed">
             Contract Radar Maximizer is a deep data science platform that integrates artificial intelligence and machine learning to assist small businesses in creating capability statements, identifying available government contracts in their area, and generating potential bid responses.
           </p>
-          <button onClick={scrollToFeatures} className="inline-flex items-center gap-2 text-[#6bb4b5] font-poppins text-sm sm:text-base hover:gap-3 transition-all">
-            Learn More <ArrowRight size={18} />
-          </button>
         </div>
       </section>
 
