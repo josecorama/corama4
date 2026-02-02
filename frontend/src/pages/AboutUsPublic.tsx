@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { ArrowRight } from 'lucide-react'
 
 const HEADER_HEIGHT = 80
-const SECTION_IDS = ['capturing', 'team', 'mission', 'vision']
+const SECTION_IDS = ['capturing', 'team', 'mission-vision']
 
 // Team member data
 const teamMembers = [
@@ -125,9 +125,9 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
       ref={cardRef}
       className="relative flex flex-col w-full max-w-[342px] h-[432px] rounded-3xl overflow-hidden cursor-grab transition-transform duration-100"
       style={{
-        background: 'linear-gradient(90deg, rgb(107, 180, 181) 9%, rgb(156, 214, 215) 88%, rgb(133, 196, 199) 100%)',
-        border: '1px solid rgba(255, 255, 255, 0.2)',
-        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
+        background: 'linear-gradient(180deg, #FFFFFF 0%, #F5F5F5 100%)',
+        border: '1px solid rgba(107, 180, 181, 0.3)',
+        boxShadow: '0 4px 30px rgba(0, 0, 0, 0.15)',
         transformStyle: 'preserve-3d',
         willChange: 'transform, box-shadow'
       }}
@@ -459,121 +459,94 @@ const AboutUsPublic = () => {
           </div>
         </section>
 
-        {/* Section 3: Mission */}
+        {/* Section 3: Mission & Vision Combined */}
         <section 
-          ref={setSectionRef('mission')}
-          data-section="mission"
-          className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('mission')}`}
+          ref={setSectionRef('mission-vision')}
+          data-section="mission-vision"
+          className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-between snap-start ${getSectionClass('mission-vision')}`}
         >
-          {/* Soft teal glow background */}
+          {/* Soft teal glow backgrounds */}
           <div className="absolute inset-0 pointer-events-none z-0">
-            <div className="absolute top-1/4 -left-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
+            <div className="absolute top-[10%] -left-32 w-[400px] h-[300px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(26,58,74,0.1)_40%,transparent_70%)] -rotate-6"></div>
+            <div className="absolute bottom-[20%] -right-32 w-[400px] h-[300px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.2)_0%,rgba(26,58,74,0.1)_40%,transparent_70%)] -rotate-6"></div>
           </div>
           
           {/* Twinkling stars */}
           <img 
             src="/static/app/landing/left-star-img.svg" 
             alt="" 
-            className="absolute top-16 left-[8%] w-8 h-8 animate-twinkle hidden lg:block"
+            className="absolute top-[8%] left-[8%] w-6 h-6 animate-twinkle hidden lg:block"
             style={{ animationDelay: '0s' }}
           />
           <img 
-            src="/static/app/landing/left-big-star-img.svg" 
+            src="/static/app/landing/right-star-img.svg" 
             alt="" 
-            className="absolute top-[38%] left-[5%] w-12 h-12 animate-twinkle hidden lg:block"
-            style={{ animationDelay: '0.5s' }}
+            className="absolute top-[45%] right-[8%] w-6 h-6 animate-twinkle hidden lg:block"
+            style={{ animationDelay: '1s' }}
           />
           
-          <div className="max-w-6xl mx-auto relative z-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-              <div className="order-2 md:order-1 flex items-center justify-center">
-                <img 
-                  src="/static/app/landing/Mission.svg" 
-                  alt="Mission" 
-                  className="w-full max-w-[400px] h-auto"
-                />
+          <div className="flex-1 flex flex-col justify-center py-4 lg:py-8">
+            <div className="max-w-6xl mx-auto relative z-10 w-full space-y-8 lg:space-y-12">
+              {/* Mission */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12 items-center">
+                <div className="order-2 md:order-1 flex items-center justify-center">
+                  <img 
+                    src="/static/app/landing/Mission.svg" 
+                    alt="Mission" 
+                    className="w-full max-w-[280px] lg:max-w-[320px] h-auto"
+                  />
+                </div>
+                <div className="order-1 md:order-2 text-center md:text-left">
+                  <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-3 sm:mb-4">Mission</h2>
+                  <p className="text-gray-400 font-poppins text-sm sm:text-base leading-relaxed">
+                    To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
+                  </p>
+                </div>
               </div>
-              <div className="order-1 md:order-2 text-center md:text-left">
-                <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Mission</h2>
-                <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
-                  To facilitate small businesses' access to government contracts using cutting-edge technology to identify opportunities and maximize the probability of securing contracts.
-                </p>
+
+              {/* Vision */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12 items-center">
+                <div className="text-center md:text-left">
+                  <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-3 sm:mb-4">Vision</h2>
+                  <p className="text-gray-400 font-poppins text-sm sm:text-base leading-relaxed">
+                    To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
+                  </p>
+                </div>
+                <div className="flex justify-center order-first md:order-last">
+                  <img 
+                    src="/static/app/landing/Vision.svg" 
+                    alt="Vision" 
+                    className="w-full max-w-[280px] lg:max-w-[320px] h-auto"
+                  />
+                </div>
+              </div>
+
+              {/* Get Started Button */}
+              <div className="text-center pt-2">
                 <a 
                   href="/login" 
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#6BA4A7] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#6BA4A7] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#6BA4A7] text-white font-poppins font-semibold px-8 py-3 rounded-lg hover:from-[#6BA4A7] hover:to-corama-teal transition-all text-sm sm:text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
                 >
                   Get Started
                 </a>
               </div>
             </div>
           </div>
-        </section>
 
-        {/* Section 4: Vision + Footer */}
-        <section 
-          ref={setSectionRef('vision')}
-          data-section="vision"
-          className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-between snap-start ${getSectionClass('vision')}`}
-        >
-          {/* Soft teal glow background */}
-          <div className="absolute inset-0 pointer-events-none z-0">
-            <div className="absolute bottom-1/4 -right-32 w-[600px] h-[400px] bg-[radial-gradient(ellipse_at_center,rgba(107,180,181,0.25)_0%,rgba(26,58,74,0.15)_40%,transparent_70%)] -rotate-6"></div>
-          </div>
-          
-          {/* Twinkling stars */}
-          <img 
-            src="/static/app/landing/right-star-img.svg" 
-            alt="" 
-            className="absolute top-[20%] right-[8%] w-8 h-8 animate-twinkle hidden lg:block"
-            style={{ animationDelay: '1s' }}
-          />
-          <img 
-            src="/static/app/landing/right-big-star-img.svg" 
-            alt="" 
-            className="absolute bottom-[40%] right-[5%] w-12 h-12 animate-twinkle hidden lg:block"
-            style={{ animationDelay: '1.5s' }}
-          />
-          
-          <div className="flex-1 flex items-center">
-            <div className="max-w-6xl mx-auto relative z-10 w-full">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 items-center">
-                <div className="text-center md:text-left">
-                  <h2 className="font-poppins font-bold text-3xl sm:text-4xl lg:text-5xl text-white mb-5 sm:mb-6">Vision</h2>
-                  <p className="text-gray-400 font-poppins text-base sm:text-lg mb-8 leading-relaxed">
-                    To empower communities through access to contracts, decentralizing the public economy by extracting value from the public-generated value.
-                  </p>
-                  <a 
-                    href="/login" 
-                    className="inline-flex items-center gap-2 bg-gradient-to-r from-corama-teal to-[#6BA4A7] text-white font-poppins font-semibold px-8 py-3.5 rounded-lg hover:from-[#6BA4A7] hover:to-corama-teal transition-all text-base shadow-[0_0_30px_rgba(107,180,181,0.3)]"
-                  >
-                    Get Started
-                  </a>
-                </div>
-                <div className="flex justify-center order-first md:order-last">
-                  <img 
-                    src="/static/app/landing/Vision.svg" 
-                    alt="Vision" 
-                    className="w-full max-w-[400px] h-auto"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer - with margin-top to prevent touching elements above */}
-          <footer className="py-6 px-4 sm:px-6 relative mt-8">
+          {/* Footer */}
+          <footer className="py-4 px-4 sm:px-6 relative">
             <div className="max-w-6xl mx-auto relative z-10">
-              <div className="text-center mb-4">
+              <div className="text-center mb-3">
                 <p className="text-white font-poppins text-xs sm:text-sm leading-relaxed">
                   180 North Michigan Avenue Suite 500 Chicago, IL 60601
                 </p>
               </div>
               
-              <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-4 text-xs sm:text-sm">
+              <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-3 text-xs sm:text-sm">
                 <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
-                <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
-                <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
-                <a href="#" className="text-white hover:text-corama-teal font-poppins transition-colors">FAQ</a>
+                <a href="/terms-of-use" className="text-white hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
+                <a href="/static/docs/policy.pdf" target="_blank" className="text-white hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
+                <a href="/faq" className="text-white hover:text-corama-teal font-poppins transition-colors">FAQ</a>
               </div>
               
               {/* CORAMA Logo */}
@@ -581,7 +554,7 @@ const AboutUsPublic = () => {
                 <img 
                   src="/static/app/landing/corama-logo.png" 
                   alt="CORAMA" 
-                  className="h-12 sm:h-16 w-auto"
+                  className="h-10 sm:h-12 w-auto"
                 />
               </div>
             </div>

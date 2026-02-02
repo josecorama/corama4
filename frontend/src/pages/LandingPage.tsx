@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import Waves from '../components/Waves'
 
 const HEADER_HEIGHT = 80 // Height of the fixed header in pixels
-const SECTION_IDS = ['hero', 'features-row1', 'scope-of-work', 'features-row2', 'revolutionizing', 'footer']
+const SECTION_IDS = ['hero', 'features-row1', 'features-row2', 'scope-of-work', 'revolutionizing', 'footer']
 
 // FeatureCard component with animation elements
 interface FeatureCardProps {
@@ -570,42 +570,6 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* Scope of Work Section */}
-      <section 
-        ref={setSectionRef('scope-of-work')}
-        data-section="scope-of-work"
-        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-of-work')}`}
-      >
-        <div 
-          className="max-w-6xl mx-auto relative z-10 parallax-section"
-          onMouseMove={handleParallaxMove}
-          onMouseLeave={handleParallaxLeave}
-          style={parallaxStyle}
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-16 items-center">
-            <div className="parallax-image">
-              <img 
-                src="/static/app/landing/Scope.svg" 
-                alt="Scope of Work Station" 
-                className="w-full h-40 sm:h-56 lg:h-80 object-contain"
-              />
-            </div>
-            <div className="text-center md:text-left parallax-text">
-              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6">Scope Of Work Station</h2>
-              <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 leading-relaxed">
-                Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
-              </p>
-              <a 
-                href="/login" 
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
-              >
-                Get Started
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Features Row 2 - Smart Contract Matching, Automated Proposal, Compliance */}
       <section 
         id="features-row2" 
@@ -704,6 +668,42 @@ const LandingPage = () => {
               description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
               onLearnMore={scrollToFeatures}
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Scope of Work Section */}
+      <section 
+        ref={setSectionRef('scope-of-work')}
+        data-section="scope-of-work"
+        className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-of-work')}`}
+      >
+        <div 
+          className="max-w-6xl mx-auto relative z-10 parallax-section"
+          onMouseMove={handleParallaxMove}
+          onMouseLeave={handleParallaxLeave}
+          style={parallaxStyle}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-16 items-center">
+            <div className="parallax-image">
+              <img 
+                src="/static/app/landing/Scope.svg" 
+                alt="Scope of Work Station" 
+                className="w-full h-40 sm:h-56 lg:h-80 object-contain"
+              />
+            </div>
+            <div className="text-center md:text-left parallax-text">
+              <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6">Scope Of Work Station</h2>
+              <p className="text-gray-400 font-poppins text-sm sm:text-base lg:text-lg mb-4 sm:mb-6 lg:mb-8 leading-relaxed">
+                Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
+              </p>
+              <a 
+                href="/login" 
+                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
+              >
+                Get Started
+              </a>
+            </div>
           </div>
         </div>
       </section>
