@@ -9,6 +9,7 @@ import CoramaDirectory from './pages/CoramaDirectory'
 import EditDirectoryProfile from './pages/EditDirectoryProfile'
 import NoCapabilityStatement from './pages/NoCapabilityStatement'
 import ContractAnalysis from './pages/ContractAnalysis'
+import ProposalAssistantAnalysis from './pages/ProposalAssistantAnalysis'
 import ProposalTeam from './pages/ProposalTeam'
 import ProposalSummary from './pages/ProposalSummary'
 import PublicBidProposalGenerator from './pages/PublicBidProposalGenerator'
@@ -48,6 +49,7 @@ function App() {
         <Route path="/edit-directory-profile" element={<EditDirectoryProfile />} />
         <Route path="/no-capability-statement" element={<NoCapabilityStatement />} />
         <Route path="/contract-analysis" element={<ContractAnalysis />} />
+        <Route path="/proposal-assistant-analysis" element={<ProposalAssistantAnalysis />} />
         <Route path="/proposal-team" element={<ProposalTeam />} />
         <Route path="/proposal-summary" element={<ProposalSummary />} />
                                                   <Route path="/public-bid-proposal-generator" element={<PublicBidProposalGenerator />} />

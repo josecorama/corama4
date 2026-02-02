@@ -197,19 +197,20 @@ const formatTime = (): string => {
 }
 
 const buildInitialMessage = (contractName: string): string => {
-  return `Hi! I'm here to help you win the bid for: ${contractName}
+  return `Hi! I'm here to help you win the bid for: "${contractName}"
 
-Do you need help with a specific task, or do you want to build the full proposal?
+**Quick Actions:**
 
-Pick a specific task:
 - **Analyze Contract** (3 credits)
 - **Check Compliance** (2 credits)
 - **Develop Strategy** (3 credits)
 - **Create Outline** (2 credits)
 
-Ready to build the full proposal? I can guide you step-by-step from start to finish.
+Ready to build your proposal? Create a competitive bid designed for this specific industry. The Proposal Assistant provides Market Value Insights and Team Composition strategies tailored to this contract's field.
 
-To start building it, simply type "**Start Guided Process**" in the chat. This will direct you to the Contract Analysis page, where you'll be able to begin the step-by-step process for creating your proposal.`
+Type "**Start Proposal Assistant**" to begin.
+
+<small>Just need a basic proposal to get started? Type "**Quick Draft Mode**" instead.</small>`
 }
 
 const AIAssistant = () => {
@@ -366,8 +367,8 @@ const AIAssistant = () => {
     const userInput = inputValue.trim()
     const normalizedInput = userInput.toLowerCase()
     
-    // Check for "Start Guided Process" - redirect to Contract Analysis page
-    if (normalizedInput === 'start guided process' || normalizedInput.includes('start guided process')) {
+    // Check for "Start Proposal Assistant" - redirect to Proposal Assistant Contract Analysis page
+    if (normalizedInput === 'start proposal assistant' || normalizedInput.includes('start proposal assistant')) {
       const newMessage: Message = {
         id: messages.length + 1,
         sender: 'user',
@@ -379,7 +380,44 @@ const AIAssistant = () => {
       const aiResponse: Message = {
         id: Date.now(),
         sender: 'ai',
-        content: "Great! I'll open the guided Contract Analysis step for you now. This will help you analyze the contract with AI annotations, build your team, develop pricing strategy, and generate a comprehensive proposal.",
+        content: "Great! I'll open the Proposal Assistant for you now. This will provide Market Value Insights and Team Composition strategies tailored to this contract's industry, helping you create a competitive bid.",
+        timestamp: formatTime(),
+        isTyping: true,
+        visibleContent: '',
+      }
+      
+      setMessages(prev => [...prev, newMessage, aiResponse])
+      setInputValue('')
+      
+      // Navigate to Proposal Assistant Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
+      // Note: Don't include /app prefix since Router basename already adds it
+      setTimeout(() => {
+        navigate('/proposal-assistant-analysis', { 
+          state: { 
+            contractName, 
+            contractId,
+            contractAgency: state?.contractAgency,
+            contractCategory: state?.contractCategory 
+          } 
+        })
+      }, 10000)
+      return
+    }
+    
+    // Check for "Quick Draft Mode" - redirect to Contract Analysis page (original workflow)
+    if (normalizedInput === 'quick draft mode' || normalizedInput.includes('quick draft mode')) {
+      const newMessage: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+      
+      // Add user message and AI response with typing animation
+      const aiResponse: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: "Great! I'll open the Quick Draft Mode for you now. This will help you quickly analyze the contract, build your team, develop pricing strategy, and generate a basic proposal.",
         timestamp: formatTime(),
         isTyping: true,
         visibleContent: '',
