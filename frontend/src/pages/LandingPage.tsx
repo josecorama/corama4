@@ -17,7 +17,7 @@ const useCarousel3D = (cardCount: number, cardWidth: number = 320) => {
   const translateZ = useMemo(() => {
     const anglePerCard = (2 * Math.PI) / cardCount
     const radius = (cardWidth / 2) / Math.tan(anglePerCard / 2)
-    return Math.max(radius * 0.5, 180) // Reduced radius to fill center gap when rotating
+    return Math.max(radius * 0.75, 280) // Cube-like depth with balanced spacing
   }, [cardCount, cardWidth])
   
   const updateCards = useCallback(() => {
@@ -424,8 +424,8 @@ const LandingPage = () => {
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
   
-  // 3D Carousel for feature cards (3 groups of 2 cards, ~490px width each group)
-  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(3, 490)
+  // 3D Carousel for feature cards (3 groups of 2 cards, ~530px width each group)
+  const { carouselRef, handlers: carouselHandlers } = useCarousel3D(3, 530)
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -747,63 +747,63 @@ const LandingPage = () => {
                 transform: 'translate(-50%, -50%)'
               }}
             >
-              {/* Group 1: Cards 1 & 2 */}
-              <div className="carousel-card absolute flex gap-2" style={{ width: '490px', left: '-245px', top: '-160px' }}>
-                <div style={{ width: '240px', flexShrink: 0 }}>
-                  <FeatureCard
-                    icon="/static/app/landing/SmartContractMatching.svg"
-                    title="Smart Contract Matching"
-                    description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
-                    onLearnMore={scrollToFeatures}
-                  />
-                </div>
-                <div style={{ width: '240px', flexShrink: 0 }}>
-                  <FeatureCard
-                    icon="/static/app/landing/AutomatedProposalGeneration.svg"
-                    title="Automated Proposal Generation"
-                    description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
-                    onLearnMore={scrollToFeatures}
-                  />
-                </div>
-              </div>
-              {/* Group 2: Cards 3 & 4 */}
-              <div className="carousel-card absolute flex gap-2" style={{ width: '490px', left: '-245px', top: '-160px' }}>
-                <div style={{ width: '240px', flexShrink: 0 }}>
-                  <FeatureCard
-                    icon="/static/app/landing/ComplianceIntelligence.svg"
-                    title="Compliance Intelligence"
-                    description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
-                    onLearnMore={scrollToFeatures}
-                  />
-                </div>
-                <div style={{ width: '240px', flexShrink: 0 }}>
-                  <FeatureCard
-                    icon="/static/app/landing/WinProbabilityScoring.svg"
-                    title="Win Probability Scoring"
-                    description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
-                    onLearnMore={scrollToFeatures}
-                  />
-                </div>
-              </div>
-              {/* Group 3: Cards 5 & 6 */}
-              <div className="carousel-card absolute flex gap-2" style={{ width: '490px', left: '-245px', top: '-160px' }}>
-                <div style={{ width: '240px', flexShrink: 0 }}>
-                  <FeatureCard
-                    icon="/static/app/landing/IntelligentMarketResearch.svg"
-                    title="Intelligent Market Research"
-                    description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
-                    onLearnMore={scrollToFeatures}
-                  />
-                </div>
-                <div style={{ width: '240px', flexShrink: 0 }}>
-                  <FeatureCard
-                    icon="/static/app/landing/SmartDeadlineManagement.svg"
-                    title="Smart Deadline Management"
-                    description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
-                    onLearnMore={scrollToFeatures}
-                  />
-                </div>
-              </div>
+                            {/* Group 1: Cards 1 & 2 */}
+                            <div className="carousel-card absolute flex gap-2" style={{ width: '530px', left: '-265px', top: '-170px' }}>
+                              <div style={{ width: '260px', flexShrink: 0 }}>
+                                <FeatureCard
+                                  icon="/static/app/landing/SmartContractMatching.svg"
+                                  title="Smart Contract Matching"
+                                  description="Our AI analyzes thousands of contracts in seconds, using advanced vector similarity to find opportunities perfectly matched to your capabilities and experience."
+                                  onLearnMore={scrollToFeatures}
+                                />
+                              </div>
+                              <div style={{ width: '260px', flexShrink: 0 }}>
+                                <FeatureCard
+                                  icon="/static/app/landing/AutomatedProposalGeneration.svg"
+                                  title="Automated Proposal Generation"
+                                  description="Generate compelling, tailored bid responses instantly. Our AI assistant crafts professional proposals that highlight your strengths and address specific requirements."
+                                  onLearnMore={scrollToFeatures}
+                                />
+                              </div>
+                            </div>
+                            {/* Group 2: Cards 3 & 4 */}
+                            <div className="carousel-card absolute flex gap-2" style={{ width: '530px', left: '-265px', top: '-170px' }}>
+                              <div style={{ width: '260px', flexShrink: 0 }}>
+                                <FeatureCard
+                                  icon="/static/app/landing/ComplianceIntelligence.svg"
+                                  title="Compliance Intelligence"
+                                  description="Never miss a requirement again. AI-powered compliance checking ensures your proposals meet all specifications and regulatory standards automatically."
+                                  onLearnMore={scrollToFeatures}
+                                />
+                              </div>
+                              <div style={{ width: '260px', flexShrink: 0 }}>
+                                <FeatureCard
+                                  icon="/static/app/landing/WinProbabilityScoring.svg"
+                                  title="Win Probability Scoring"
+                                  description="Get real-time insights into your chances of success. Our predictive AI analyzes historical data to score opportunities and optimize your bidding strategy."
+                                  onLearnMore={scrollToFeatures}
+                                />
+                              </div>
+                            </div>
+                            {/* Group 3: Cards 5 & 6 */}
+                            <div className="carousel-card absolute flex gap-2" style={{ width: '530px', left: '-265px', top: '-170px' }}>
+                              <div style={{ width: '260px', flexShrink: 0 }}>
+                                <FeatureCard
+                                  icon="/static/app/landing/IntelligentMarketResearch.svg"
+                                  title="Intelligent Market Research"
+                                  description="Stay ahead of the competition with AI-driven market intelligence. Discover trends, analyze competitors, and identify emerging opportunities automatically."
+                                  onLearnMore={scrollToFeatures}
+                                />
+                              </div>
+                              <div style={{ width: '260px', flexShrink: 0 }}>
+                                <FeatureCard
+                                  icon="/static/app/landing/SmartDeadlineManagement.svg"
+                                  title="Smart Deadline Management"
+                                  description="Never miss another deadline. AI-powered scheduling and alerts keep you on track with automated reminders and priority-based task management."
+                                  onLearnMore={scrollToFeatures}
+                                />
+                              </div>
+                            </div>
             </div>
           </div>
         </div>
