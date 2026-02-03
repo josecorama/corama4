@@ -699,21 +699,6 @@ const AIAssistant = () => {
                     <img src={SendMessageIcon} alt="Send" className="w-10 h-10" />
                   </button>
                 </div>
-                
-                {/* Find More Contracts Button */}
-                <div className="mt-3 sm:mt-4">
-                  <button
-                    onClick={() => navigate('/dashboard')}
-                    className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
-                    style={{ backgroundColor: 'rgb(28, 66, 98)' }}
-                  >
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-sm sm:text-base">Find More Contracts</p>
-                      <p className="text-xs sm:text-sm text-gray-300">Go back to the dashboard</p>
-                    </div>
-                    <img src="/static/app/dashboard/Dashboard.svg" alt="" className="w-6 h-6 flex-shrink-0" />
-                  </button>
-                </div>
               </div>
             </div>
           </main>

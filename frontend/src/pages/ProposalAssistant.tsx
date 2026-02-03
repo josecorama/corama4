@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
@@ -11,6 +11,7 @@ import loadingAnimation from '../assets/LoadingAnimationLogo.json'
 const EnterButtonIcon = '/static/app/dashboard/enterbutton.svg'
 const ThreePeopleIcon = '/static/app/dashboard/3people.svg'
 const DollarSignIcon = '/static/app/dashboard/dollarsign.svg'
+const DashboardIcon = '/static/app/dashboard/Dashboard.svg'
 
 interface Message {
   id: number
@@ -156,17 +157,20 @@ const SuggestionCard = ({
 
 const ProposalAssistant = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const state = location.state as {
     contractName?: string
     contractId?: string
     contractAgency?: string
     contractCategory?: string
     contractDescription?: string
+    aiFindings?: string
   } | null
   
   const contractName = state?.contractName || 'this contract'
   const contractId = state?.contractId || ''
-  const contractDescription = state?.contractDescription || ''
+  const aiFindings = state?.aiFindings || ''
+  const contractDescription = aiFindings || state?.contractDescription || ''
   
   // Main AI suggestions state
   const [mainSuggestions, setMainSuggestions] = useState<string>('')
@@ -501,6 +505,21 @@ const ProposalAssistant = () => {
               isLoading={isLoadingTeam}
               inputPlaceholder="Start asking your questions about this recommendations"
             />
+          </div>
+          
+          {/* Find More Contracts Button */}
+          <div className="mt-6">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+              style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+            >
+              <div className="text-left flex-1">
+                <p className="font-bold text-sm sm:text-base">Find More Contracts</p>
+                <p className="text-xs sm:text-sm text-gray-300">Go back to the dashboard</p>
+              </div>
+              <img src={DashboardIcon} alt="" className="w-6 h-6 flex-shrink-0" />
+            </button>
           </div>
         </main>
         </div>
