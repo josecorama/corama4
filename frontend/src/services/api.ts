@@ -1186,7 +1186,8 @@ class ApiService {
     message: string,
     contractName: string,
     contractId?: string,
-    conversationHistory?: Array<{role: string, content: string}>
+    conversationHistory?: Array<{role: string, content: string}>,
+    contractDescription?: string
   ): Promise<{
     success: boolean;
     response: string;
@@ -1200,7 +1201,8 @@ class ApiService {
         message,
         contract_name: contractName,
         contract_id: contractId,
-        conversation_history: conversationHistory || []
+        conversation_history: conversationHistory || [],
+        contract_description: contractDescription || ''
       })
     });
     if (!res.ok) {

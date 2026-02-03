@@ -8788,6 +8788,7 @@ def api_proposal_suggestions_chat():
         topic = data.get('topic', 'market_value')
         message = data.get('message', '')
         contract_name = data.get('contract_name', 'this contract')
+        contract_description = data.get('contract_description', '')
         conversation_history = data.get('conversation_history', [])
         
         if not message:
@@ -8796,6 +8797,7 @@ def api_proposal_suggestions_chat():
         # Sanitize inputs
         message = message[:1000]
         contract_name = contract_name[:500] if contract_name else 'this contract'
+        contract_description = contract_description[:3000] if contract_description else ''
         
         # Validate topic
         if topic not in ['market_value', 'team_composition']:
@@ -8813,19 +8815,30 @@ def api_proposal_suggestions_chat():
         # Build system prompt based on topic - include CORAMA branding and grounding instructions
         chat_system_base = """You are CORAMA's Proposal Assistant, part of the CONTRACT RADAR MAXIMIZER platform that helps small businesses win government contracts.
 
-CRITICAL RULE: Base ALL your responses ONLY on the contract information that was previously analyzed. Do NOT make up, assume, or hallucinate any information. If you don't have specific information from the contract, acknowledge that limitation clearly and suggest what additional research the user might need."""
+CRITICAL RULE: Base ALL your responses ONLY on the contract information provided below. Do NOT make up, assume, or hallucinate any information. If you don't have specific information from the contract, acknowledge that limitation clearly."""
+
+        # Include contract analysis in the system prompt if available
+        contract_context = ""
+        if contract_description:
+            contract_context = f"""
+
+=== CONTRACT ANALYSIS FROM UPLOADED PDF ===
+{contract_description}
+=== END CONTRACT ANALYSIS ===
+
+Use ONLY the information above to answer questions. Do not invent or assume any details not explicitly stated in this analysis."""
 
         if topic == 'market_value':
-            system_prompt = chat_system_base + f"""
+            system_prompt = chat_system_base + contract_context + f"""
 
 You are a market analyst helping a user understand market value and pricing for the contract: "{contract_name}".
-Only provide information about pricing, market trends, or competitive analysis if it was mentioned in the contract analysis. If not, acknowledge this limitation and provide general guidance only.
+Only provide information about pricing, market trends, or competitive analysis if it was mentioned in the contract analysis above. If not, acknowledge this limitation and provide general guidance only.
 Keep responses concise and actionable. Use markdown formatting when appropriate."""
         else:  # team_composition
-            system_prompt = chat_system_base + f"""
+            system_prompt = chat_system_base + contract_context + f"""
 
 You are an HR and project management expert helping a user build the ideal team for the contract: "{contract_name}".
-Only recommend specific roles, certifications, or skills if they were mentioned in the contract requirements. If not, acknowledge this limitation and provide general guidance only.
+Only recommend specific roles, certifications, or skills if they were mentioned in the contract requirements above. If not, acknowledge this limitation and provide general guidance only.
 Keep responses concise and actionable. Use markdown formatting when appropriate."""
         
         # Build messages array

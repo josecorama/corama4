@@ -255,7 +255,8 @@ const ProposalAssistant = () => {
         message,
         contractName,
         contractId,
-        conversationHistory
+        conversationHistory,
+        contractDescription
       )
       
       if (response.success) {
@@ -308,7 +309,8 @@ const ProposalAssistant = () => {
         message,
         contractName,
         contractId,
-        conversationHistory
+        conversationHistory,
+        contractDescription
       )
       
       if (response.success) {
