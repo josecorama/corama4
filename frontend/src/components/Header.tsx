@@ -3,6 +3,7 @@ import { Search } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useTranslation } from '../i18n'
+import SessionTimeout from './SessionTimeout'
 
 // Tool suggestions for the search autocomplete
 const TOOL_SUGGESTIONS = [
@@ -221,7 +222,9 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
   }
 
   return (
-    <header className="sticky top-0 z-30 h-14 lg:h-16 bg-corama-dark border-b border-corama-darker">
+    <>
+      <SessionTimeout />
+      <header className="sticky top-0 z-30 h-14 lg:h-16 bg-corama-dark border-b border-corama-darker">
       <div className="flex items-center h-full">
         {/* Left: Logo column - matches sidebar width (w-64), centered within */}
         <div className="hidden lg:flex items-center justify-center w-64 h-full shrink-0">
@@ -332,6 +335,7 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
         </div>
       </div>
     </header>
+    </>
   )
 }
 

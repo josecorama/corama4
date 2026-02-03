@@ -12688,7 +12688,23 @@ def create_credit_checkout():
             return jsonify({"error": "User not authenticated"}), 401
             
         user = session['user']
-        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        
+        try:
+            user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        except Exception as firebase_error:
+            error_str = str(firebase_error).lower()
+            if 'token' in error_str or 'expired' in error_str or 'invalid' in error_str or 'auth' in error_str:
+                logging.warning(f"Firebase token expired for user {user.get('localId', 'unknown')}: {firebase_error}")
+                session.clear()
+                return jsonify({"error": "Your session has expired. Please log in again."}), 401
+            logging.error(f"Firebase error fetching user data: {firebase_error}", exc_info=True)
+            return jsonify({"error": "Failed to fetch user data. Please try again."}), 500
+        
+        if not user_data:
+            logging.warning(f"No user data found for user {user.get('localId', 'unknown')}")
+            session.clear()
+            return jsonify({"error": "User data not found. Please log in again."}), 401
+            
         stripe_customer_id = user_data.get('stripe_customer_id')
         
         if not stripe_customer_id:
