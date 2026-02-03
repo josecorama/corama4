@@ -10,7 +10,6 @@ const DocxIcon = '/static/app/dashboard/Docx.svg'
 const DashboardIcon = '/static/app/dashboard/DashboardIcon.svg'
 const SaveIcon = '/static/app/dashboard/Save.svg'
 const ReloadIcon = '/static/app/dashboard/Reload.svg'
-const FolderIcon = '/static/app/dashboard/Folder.svg'
 const RegenerateProposalIcon = '/static/app/dashboard/RegenerateProposal.svg'
 
 interface ProposalGeneratorState {
@@ -592,9 +591,6 @@ const PublicBidProposalGenerator = () => {
                   disabled={isGenerating}
                 >
                   <img src={ReloadIcon} alt="Reload" className="w-6 h-6" />
-                </button>
-                <button className="hover:opacity-80 transition-opacity" title="Folder">
-                  <img src={FolderIcon} alt="Folder" className="w-6 h-6" />
                 </button>
               </div>
 
