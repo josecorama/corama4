@@ -8323,6 +8323,8 @@ def sanitize_contract_name(raw: str) -> str:
 # System prompt for AI Assistant - defines role and security constraints
 AI_ASSISTANT_SYSTEM_PROMPT = """You are CORAMA's AI Bid Assistant, a friendly and knowledgeable consultant who helps small businesses win government contracts.
 
+CORAMA stands for CONTRACT RADAR MAXIMIZER - an AI-powered platform that helps small businesses find and win government contracts.
+
 Your personality:
 - Warm and conversational, like a helpful colleague
 - Use "I" occasionally and vary your sentence length
@@ -8346,7 +8348,7 @@ When the user asks to "analyze my capability statement", "check my capabilities"
 
 If you are not sure whether they are asking about the contract or their capability statement, ask a short clarifying question instead of guessing.
 
-CORAMA Platform Knowledge - Guide users to these features when relevant:
+CORAMA (CONTRACT RADAR MAXIMIZER) Platform Features - Guide users to these when relevant:
 
 **Dashboard**: The main page after login. Shows contract opportunities and lets users search for contracts. Users can filter by contract type and state.
 
@@ -8360,7 +8362,9 @@ CORAMA Platform Knowledge - Guide users to these features when relevant:
 
 **AI Assistant**: The current page - helps users analyze contracts and develop proposals. Users arrive here by clicking "Ask AI About This" on a contract.
 
-**Start Guided Process**: If the user asks about building a full proposal or the guided process, simply tell them to type "Start Guided Process" in the chat. Keep it short - don't list all the steps. The system will automatically redirect them to the Contract Analysis page when they type it.
+**Proposal Assistant**: A guided workflow for building proposals. Users upload their contract PDF, the system analyzes it, and then provides AI-powered suggestions for market value insights and team composition.
+
+**Start Proposal Assistant**: If the user asks about building a full proposal or the guided process, simply tell them to type "Start Proposal Assistant" in the chat. Keep it short - don't list all the steps. The system will automatically redirect them to the Proposal Assistant Analysis page when they type it.
 
 When users ask how to do something in CORAMA, give clear step-by-step navigation instructions (e.g., "Click on 'Top Five Contracts' in the left sidebar, then...")."""
 
@@ -8638,73 +8642,96 @@ def api_proposal_suggestions():
         
         client = OpenAI(api_key=openai_api_key, timeout=25.0)
         
-        # Prepare prompts
-        main_prompt = f"""You are an expert government contract proposal advisor. Analyze the following contract and provide strategic suggestions for creating a winning bid proposal.
+        # Prepare prompts - IMPORTANT: All responses must be based ONLY on the provided contract content
+        main_prompt = f"""Analyze the following contract and provide strategic suggestions for creating a winning bid proposal.
+
+IMPORTANT: Base your response ENTIRELY on the contract information provided below. Do not make up or assume any information that is not explicitly stated in the contract analysis. If specific information is not available, acknowledge that limitation.
 
 Contract Name: {contract_name}
-{f'Contract Analysis: {contract_description}' if contract_description else ''}
 
-Provide comprehensive suggestions covering:
-1. Key requirements to address
-2. Competitive advantages to highlight
-3. Potential risks and mitigation strategies
-4. Pricing considerations
-5. Compliance requirements
+CONTRACT ANALYSIS FROM UPLOADED PDF:
+{contract_description if contract_description else 'No contract analysis available. Please upload a contract PDF first.'}
 
-Keep your response concise but actionable. Use markdown formatting."""
+Based ONLY on the information above, provide suggestions covering:
+1. Key requirements to address (cite specific requirements from the contract)
+2. Competitive advantages to highlight (based on contract evaluation criteria if mentioned)
+3. Potential risks and mitigation strategies (based on contract terms)
+4. Pricing considerations (if budget or pricing info is in the contract)
+5. Compliance requirements (based on stated requirements)
 
-        market_prompt = f"""Based on the contract "{contract_name}", provide initial market value insights including:
-- Typical contract values for similar projects
-- Market trends affecting pricing
-- Competitive landscape overview
+If any of these topics are not covered in the contract analysis, say so rather than making assumptions. Keep your response concise but actionable. Use markdown formatting."""
 
-{f'Contract Analysis Context: {contract_description[:1500]}' if contract_description else ''}
+        market_prompt = f"""Based ONLY on the contract information provided below, provide market value insights.
 
-Keep it brief (2-3 paragraphs). Use markdown formatting."""
+IMPORTANT: Your response must be based ENTIRELY on the contract information provided. Do not invent market data or statistics. If the contract does not contain pricing, budget, or market information, acknowledge that limitation and provide general guidance only.
 
-        team_prompt = f"""Based on the contract "{contract_name}", suggest an ideal team composition including:
-- Key roles needed
-- Required skills and certifications
-- Team structure recommendations
+Contract Name: {contract_name}
 
-{f'Contract Analysis Context: {contract_description[:1500]}' if contract_description else ''}
+CONTRACT ANALYSIS FROM UPLOADED PDF:
+{contract_description[:2000] if contract_description else 'No contract analysis available.'}
 
-Keep it brief (2-3 paragraphs). Use markdown formatting."""
+Based ONLY on the information above, discuss:
+- Contract value or budget (if mentioned in the contract)
+- Pricing structure or requirements (if specified)
+- Any competitive or market context mentioned in the contract
+
+If market/pricing information is not in the contract, acknowledge this and suggest what additional research the user might need. Keep it brief (2-3 paragraphs). Use markdown formatting."""
+
+        team_prompt = f"""Based ONLY on the contract information provided below, suggest an ideal team composition.
+
+IMPORTANT: Your response must be based ENTIRELY on the contract requirements provided. Do not assume roles or certifications that are not mentioned. If the contract specifies required personnel, certifications, or experience levels, cite those specifically.
+
+Contract Name: {contract_name}
+
+CONTRACT ANALYSIS FROM UPLOADED PDF:
+{contract_description[:2000] if contract_description else 'No contract analysis available.'}
+
+Based ONLY on the information above, discuss:
+- Key roles needed (cite specific requirements from the contract if mentioned)
+- Required skills and certifications (only those stated in the contract)
+- Team structure recommendations (based on contract scope)
+
+If staffing requirements are not specified in the contract, acknowledge this and provide general guidance. Keep it brief (2-3 paragraphs). Use markdown formatting."""
 
         # Run all 3 OpenAI calls in parallel to avoid timeout
         from concurrent.futures import ThreadPoolExecutor, as_completed
         
+        # System prompt base for all Proposal Assistant calls
+        proposal_system_base = """You are CORAMA's Proposal Assistant, part of the CONTRACT RADAR MAXIMIZER platform that helps small businesses win government contracts.
+
+CRITICAL RULE: Base ALL your responses ONLY on the contract information provided by the user. Do NOT make up, assume, or hallucinate any information that is not explicitly stated in the provided contract analysis. If information is not available, acknowledge that limitation clearly."""
+
         def call_main():
             return client.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=[
-                    {"role": "system", "content": "You are an expert government contract proposal advisor helping businesses win bids."},
+                    {"role": "system", "content": proposal_system_base + " You are an expert government contract proposal advisor helping businesses win bids."},
                     {"role": "user", "content": main_prompt}
                 ],
                 max_tokens=1000,
-                temperature=0.7
+                temperature=0.5
             )
         
         def call_market():
             return client.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=[
-                    {"role": "system", "content": "You are a market analyst specializing in government contracts."},
+                    {"role": "system", "content": proposal_system_base + " You are a market analyst specializing in government contracts."},
                     {"role": "user", "content": market_prompt}
                 ],
                 max_tokens=500,
-                temperature=0.7
+                temperature=0.5
             )
         
         def call_team():
             return client.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=[
-                    {"role": "system", "content": "You are an HR and project management expert specializing in government contract teams."},
+                    {"role": "system", "content": proposal_system_base + " You are an HR and project management expert specializing in government contract teams."},
                     {"role": "user", "content": team_prompt}
                 ],
                 max_tokens=500,
-                temperature=0.7
+                temperature=0.5
             )
         
         main_suggestions = "Unable to generate suggestions at this time."
@@ -8783,16 +8810,22 @@ def api_proposal_suggestions_chat():
         
         client = OpenAI(api_key=openai_api_key)
         
-        # Build system prompt based on topic
+        # Build system prompt based on topic - include CORAMA branding and grounding instructions
+        chat_system_base = """You are CORAMA's Proposal Assistant, part of the CONTRACT RADAR MAXIMIZER platform that helps small businesses win government contracts.
+
+CRITICAL RULE: Base ALL your responses ONLY on the contract information that was previously analyzed. Do NOT make up, assume, or hallucinate any information. If you don't have specific information from the contract, acknowledge that limitation clearly and suggest what additional research the user might need."""
+
         if topic == 'market_value':
-            system_prompt = f"""You are a market analyst specializing in government contracts. 
-You are helping a user understand market value and pricing for the contract: "{contract_name}".
-Provide helpful, accurate information about market trends, pricing strategies, and competitive analysis.
+            system_prompt = chat_system_base + f"""
+
+You are a market analyst helping a user understand market value and pricing for the contract: "{contract_name}".
+Only provide information about pricing, market trends, or competitive analysis if it was mentioned in the contract analysis. If not, acknowledge this limitation and provide general guidance only.
 Keep responses concise and actionable. Use markdown formatting when appropriate."""
         else:  # team_composition
-            system_prompt = f"""You are an HR and project management expert specializing in government contract teams.
-You are helping a user build the ideal team for the contract: "{contract_name}".
-Provide helpful advice about team structure, required roles, skills, and certifications.
+            system_prompt = chat_system_base + f"""
+
+You are an HR and project management expert helping a user build the ideal team for the contract: "{contract_name}".
+Only recommend specific roles, certifications, or skills if they were mentioned in the contract requirements. If not, acknowledge this limitation and provide general guidance only.
 Keep responses concise and actionable. Use markdown formatting when appropriate."""
         
         # Build messages array
