@@ -445,10 +445,9 @@ const ProposalAssistant = () => {
           
           {/* Main AI Suggestions Card - Fixed height with scrollbar */}
           <div 
-            className="rounded-xl p-6 mb-6"
+            className="rounded-2xl p-6 mb-6 border-2 border-white"
             style={{ 
               background: 'white',
-              border: '1px solid rgba(240, 240, 240, 0.2)',
               height: '300px',
               display: 'flex',
               flexDirection: 'column'

@@ -8711,7 +8711,7 @@ Based ONLY on the information above, discuss:
 If staffing requirements are not specified in the contract, acknowledge this and provide general guidance. Keep it brief (2-3 paragraphs). Use markdown formatting."""
 
         # Run all 3 OpenAI calls in parallel to avoid timeout
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeoutError
         
         # System prompt base for all Proposal Assistant calls
         proposal_system_base = """You are CORAMA's Proposal Assistant, part of the CONTRACT RADAR MAXIMIZER platform that helps small businesses win government contracts.
@@ -8783,18 +8783,21 @@ Organize your response clearly using these principles as a guide - adapt based o
                 executor.submit(call_team): 'team'
             }
             
-            for future in as_completed(futures, timeout=20):
-                call_type = futures[future]
-                try:
-                    response = future.result()
-                    if call_type == 'main':
-                        main_suggestions = response.choices[0].message.content
-                    elif call_type == 'market':
-                        market_insights = response.choices[0].message.content
-                    elif call_type == 'team':
-                        team_composition = response.choices[0].message.content
-                except Exception as e:
-                    app.logger.error(f"Error in {call_type} call: {str(e)}")
+            try:
+                for future in as_completed(futures, timeout=25):
+                    call_type = futures[future]
+                    try:
+                        response = future.result()
+                        if call_type == 'main':
+                            main_suggestions = response.choices[0].message.content
+                        elif call_type == 'market':
+                            market_insights = response.choices[0].message.content
+                        elif call_type == 'team':
+                            team_composition = response.choices[0].message.content
+                    except Exception as e:
+                        app.logger.error(f"Error in {call_type} call: {str(e)}")
+            except FuturesTimeoutError:
+                app.logger.warning("Some API calls timed out, returning partial results")
         
         return jsonify({
             "success": True,
