@@ -169,8 +169,17 @@ const Dashboard = () => {
           })
           const data = await response.json()
           if (data.success) {
-            // Refresh user data to show updated credits
-            loadUserData()
+            if (data.new_balance !== undefined) {
+              // Dispatch event to trigger Header credit animation
+              window.dispatchEvent(new CustomEvent('creditsChanged', { 
+                detail: { credits: data.new_balance } 
+              }))
+              // Also update local state
+              setCredits(data.new_balance)
+            } else {
+              // Already processed case - fetch current balance
+              loadUserData()
+            }
           }
         } catch (error) {
           console.error('Failed to process credit purchase:', error)
