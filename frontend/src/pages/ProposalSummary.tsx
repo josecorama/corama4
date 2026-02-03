@@ -624,7 +624,7 @@ const ProposalSummary = () => {
                                                                       <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Hours</span>
                                                                       <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
                                                                       <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
-                                                                      <div style={{ width: '100px' }}></div>
+                                                                      <div style={{ width: '150px' }}></div>
                                                                       <div style={{ width: '28px' }}></div>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
@@ -632,7 +632,7 @@ const ProposalSummary = () => {
                                                                       <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.hours} readOnly />
                                                                       <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.rate} readOnly />
                                                                       <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency(item.cost)} readOnly />
-                                                                      <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#6BA4A7', width: '100px', height: '32px' }}>
+                                                                      <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#6BA4A7', width: '150px', height: '32px' }}>
                                                                         <span>Edit Role</span>
                                                                         <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                       </button>
