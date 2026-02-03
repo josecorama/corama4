@@ -8622,7 +8622,7 @@ def api_proposal_suggestions():
         
         # Sanitize inputs
         contract_name = contract_name[:500] if contract_name else 'this contract'
-        contract_description = contract_description[:2000] if contract_description else ''
+        contract_description = contract_description[:4000] if contract_description else ''
         
         openai_api_key = os.getenv('OPENAI_API_KEY')
         if not openai_api_key:
@@ -8631,13 +8631,13 @@ def api_proposal_suggestions():
                 "error": "OpenAI API key not configured"
             }), 500
         
-        client = OpenAI(api_key=openai_api_key)
+        client = OpenAI(api_key=openai_api_key, timeout=25.0)
         
-        # Generate main suggestions
+        # Prepare prompts
         main_prompt = f"""You are an expert government contract proposal advisor. Analyze the following contract and provide strategic suggestions for creating a winning bid proposal.
 
 Contract Name: {contract_name}
-{f'Contract Description: {contract_description}' if contract_description else ''}
+{f'Contract Analysis: {contract_description}' if contract_description else ''}
 
 Provide comprehensive suggestions covering:
 1. Key requirements to address
@@ -8648,57 +8648,83 @@ Provide comprehensive suggestions covering:
 
 Keep your response concise but actionable. Use markdown formatting."""
 
-        main_response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are an expert government contract proposal advisor helping businesses win bids."},
-                {"role": "user", "content": main_prompt}
-            ],
-            max_tokens=1000,
-            temperature=0.7
-        )
-        
-        main_suggestions = main_response.choices[0].message.content
-        
-        # Generate market insights
         market_prompt = f"""Based on the contract "{contract_name}", provide initial market value insights including:
 - Typical contract values for similar projects
 - Market trends affecting pricing
 - Competitive landscape overview
 
+{f'Contract Analysis Context: {contract_description[:1500]}' if contract_description else ''}
+
 Keep it brief (2-3 paragraphs). Use markdown formatting."""
 
-        market_response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a market analyst specializing in government contracts."},
-                {"role": "user", "content": market_prompt}
-            ],
-            max_tokens=500,
-            temperature=0.7
-        )
-        
-        market_insights = market_response.choices[0].message.content
-        
-        # Generate team composition recommendations
         team_prompt = f"""Based on the contract "{contract_name}", suggest an ideal team composition including:
 - Key roles needed
 - Required skills and certifications
 - Team structure recommendations
 
+{f'Contract Analysis Context: {contract_description[:1500]}' if contract_description else ''}
+
 Keep it brief (2-3 paragraphs). Use markdown formatting."""
 
-        team_response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are an HR and project management expert specializing in government contract teams."},
-                {"role": "user", "content": team_prompt}
-            ],
-            max_tokens=500,
-            temperature=0.7
-        )
+        # Run all 3 OpenAI calls in parallel to avoid timeout
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         
-        team_composition = team_response.choices[0].message.content
+        def call_main():
+            return client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contract proposal advisor helping businesses win bids."},
+                    {"role": "user", "content": main_prompt}
+                ],
+                max_tokens=1000,
+                temperature=0.7
+            )
+        
+        def call_market():
+            return client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are a market analyst specializing in government contracts."},
+                    {"role": "user", "content": market_prompt}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+        
+        def call_team():
+            return client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an HR and project management expert specializing in government contract teams."},
+                    {"role": "user", "content": team_prompt}
+                ],
+                max_tokens=500,
+                temperature=0.7
+            )
+        
+        main_suggestions = "Unable to generate suggestions at this time."
+        market_insights = "Unable to generate market insights at this time."
+        team_composition = "Unable to generate team recommendations at this time."
+        
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = {
+                executor.submit(call_main): 'main',
+                executor.submit(call_market): 'market',
+                executor.submit(call_team): 'team'
+            }
+            
+            for future in as_completed(futures, timeout=20):
+                call_type = futures[future]
+                try:
+                    response = future.result()
+                    if call_type == 'main':
+                        main_suggestions = response.choices[0].message.content
+                    elif call_type == 'market':
+                        market_insights = response.choices[0].message.content
+                    elif call_type == 'team':
+                        team_composition = response.choices[0].message.content
+                except Exception as e:
+                    app.logger.error(f"Error in {call_type} call: {str(e)}")
         
         return jsonify({
             "success": True,
