@@ -99,6 +99,11 @@ proposal_jobs = {}
 job_lock = threading.Lock()
 
 # ============================================================================
+# FINE-TUNED MODEL CONFIGURATION
+# ============================================================================
+CORAMA_FINE_TUNED_MODEL = "ft:gpt-4o-mini-2024-07-18:corama:contractexpert-sft:D2mNPsEW"
+
+# ============================================================================
 # RATE LIMITING CONFIGURATION
 # ============================================================================
 # SECURITY: Rate limiting to prevent abuse of expensive endpoints
@@ -8538,10 +8543,10 @@ def ai_assistant_action():
         try:
             messages = build_ai_assistant_messages(action, contract_name, conversation_history)
             
-            # Use the existing OpenAI client (client_SMART_SEARCH_OPENAI_API_KEY)
+            # Use the existing OpenAI client with fine-tuned ContractExpert model
             # Higher temperature (0.5) for more natural, human-like responses
             completion = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-                model="gpt-4o-mini",
+                model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
                 temperature=0.5,
                 max_tokens=800,
@@ -8671,7 +8676,7 @@ Keep it brief (2-3 paragraphs). Use markdown formatting."""
         
         def call_main():
             return client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=CORAMA_FINE_TUNED_MODEL,
                 messages=[
                     {"role": "system", "content": "You are an expert government contract proposal advisor helping businesses win bids."},
                     {"role": "user", "content": main_prompt}
@@ -8682,7 +8687,7 @@ Keep it brief (2-3 paragraphs). Use markdown formatting."""
         
         def call_market():
             return client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=CORAMA_FINE_TUNED_MODEL,
                 messages=[
                     {"role": "system", "content": "You are a market analyst specializing in government contracts."},
                     {"role": "user", "content": market_prompt}
@@ -8693,7 +8698,7 @@ Keep it brief (2-3 paragraphs). Use markdown formatting."""
         
         def call_team():
             return client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=CORAMA_FINE_TUNED_MODEL,
                 messages=[
                     {"role": "system", "content": "You are an HR and project management expert specializing in government contract teams."},
                     {"role": "user", "content": team_prompt}
@@ -8804,7 +8809,7 @@ Keep responses concise and actionable. Use markdown formatting when appropriate.
         messages.append({"role": "user", "content": message})
         
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=CORAMA_FINE_TUNED_MODEL,
             messages=messages,
             max_tokens=800,
             temperature=0.7
