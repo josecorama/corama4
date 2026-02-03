@@ -12777,8 +12777,8 @@ def create_credit_checkout():
                     'quantity': 1,
                 }],
                 mode='payment',
-                success_url=url_for('dashboard', _external=True) + '?purchase_success=true&session_id={CHECKOUT_SESSION_ID}',
-                cancel_url=url_for('purchase_credits', _external=True),
+                success_url=request.host_url.rstrip('/') + '/dashboard?purchase_success=true&session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=request.host_url.rstrip('/') + '/get-more-credits',
                 metadata={
                     'user_id': user['localId'],
                     'credits': credits,
