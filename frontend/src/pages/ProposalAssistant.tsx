@@ -70,7 +70,7 @@ const SuggestionCard = ({
 
   return (
     <div 
-      className="relative rounded-2xl p-6 flex flex-col h-[500px] overflow-hidden border border-white"
+      className="relative rounded-2xl p-6 flex flex-col h-[700px] overflow-hidden border border-white"
       style={{ 
         backgroundColor: 'rgb(47, 65, 97)'
       }}
