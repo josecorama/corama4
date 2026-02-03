@@ -60,19 +60,23 @@ const printStyles = `
     background-color: transparent !important;
   }
   
-  /* Hide trophy images */
+  /* Show trophy images in print */
   .print-card img {
-    display: none !important;
+    display: block !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   
-  /* Show rank number prominently */
-  .print-rank-number {
-    display: inline-block !important;
-    font-size: 20px !important;
-    font-weight: bold !important;
-    color: #1C4262 !important;
-    margin-right: 12px !important;
-    min-width: 30px !important;
+  /* Trophy container for print */
+  .print-trophy-container {
+    width: 100px !important;
+    height: 100px !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .print-trophy-container img {
+    width: 100% !important;
+    height: 100% !important;
   }
   
   /* State name as header */
@@ -130,15 +134,9 @@ const printStyles = `
     flex-direction: column !important;
   }
   
-  /* Hide trophy container */
-  .print-trophy-hide {
-    display: none !important;
-  }
-  
   /* Show print-only elements */
-  .print-title.hidden,
-  .print-rank-number.hidden {
-    display: inline-block !important;
+  .print-title.hidden {
+    display: block !important;
   }
   
   /* Position match badge for print */
@@ -470,11 +468,8 @@ const TopFiveContracts = () => {
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
                 <div key={contract.rank} className="print-card rounded-2xl p-4 sm:p-5 lg:p-6 relative border border-white" style={{ backgroundColor: '#2F3C4F' }}>
-                  {/* State name - top left with rank for print */}
-                  <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">
-                    <span className="print-rank-number hidden">#{contract.rank}</span>
-                    {contract.state}
-                  </h3>
+                  {/* State name - top left */}
+                  <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
                   
                   {/* Match badge - absolute positioned at top right with radial gradient */}
                   <div className="absolute top-4 right-4 lg:top-6 lg:right-6 print-match-badge">
@@ -487,8 +482,8 @@ const TopFiveContracts = () => {
                   </div>
 
                   <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
-                    {/* Top Sign - Trophy with background and rank number overlay - hidden in print */}
-                    <div className="relative flex-shrink-0 print-trophy-hide" style={{ width: '160px', height: '160px' }}>
+                    {/* Top Sign - Trophy with background and rank number overlay */}
+                    <div className="relative flex-shrink-0 print-trophy-container" style={{ width: '160px', height: '160px' }}>
                       {/* Trophy with teal circle background and rank number overlay */}
                       <div className="relative w-32 h-32 lg:w-36 lg:h-36">
                         <img src={TrophyBackgroundIcon} alt="" className="absolute inset-0 w-full h-full" />
