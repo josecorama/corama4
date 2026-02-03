@@ -8341,7 +8341,6 @@ RESPONSE GUIDELINES FOR DETAILED ANALYSIS:
 When providing detailed analysis (contract analysis, compliance checks, strategy, outlines), organize your response clearly using these principles as a guide - adapt based on what's relevant:
 
 - Start with a clear title or problem statement in plain language
-- Lead with a brief TL;DR (1-2 sentences) summarizing the core finding and what it means
 - Include key numbers when available: ranges, medians, estimates - always label estimates clearly
 - Explain the practical implications (the "so what")
 - Call out risks, unknowns, and assumptions explicitly
@@ -8723,7 +8722,7 @@ RESPONSE GUIDELINES:
 Organize your response clearly using these principles as a guide - adapt based on what's relevant:
 
 - Start with a clear title or problem statement in plain language
-- Lead with a brief TL;DR (1-2 sentences) summarizing the core finding and what it means
+- Lead with a brief summary (1-2 sentences) of the core finding and what it means
 - Include key numbers when available: ranges, medians, estimates - always label estimates clearly
 - Explain the practical implications (the "so what")
 - Call out risks, unknowns, and assumptions explicitly
@@ -8857,7 +8856,7 @@ RESPONSE GUIDELINES:
 Organize your response clearly using these principles as a guide - adapt based on what's relevant:
 
 - Start with a clear title or problem statement in plain language
-- Lead with a brief TL;DR (1-2 sentences) summarizing the core finding and what it means
+- Lead with a brief summary (1-2 sentences) of the core finding and what it means
 - Include key numbers when available: ranges, medians, estimates - always label estimates clearly
 - Explain the practical implications (the "so what")
 - Call out risks, unknowns, and assumptions explicitly

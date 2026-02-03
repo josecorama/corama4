@@ -97,20 +97,20 @@ const SuggestionCard = ({
             key={message.id}
             className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div 
-              className={`max-w-[85%] rounded-lg px-4 py-2 ${
-                message.sender === 'user' 
-                  ? 'bg-corama-teal text-white' 
-                  : 'bg-white/10 text-white'
-              }`}
-            >
-              {message.sender === 'ai' ? (
-                <div className="prose prose-invert prose-sm max-w-none">
+                        <div 
+                          className={`max-w-[85%] rounded-lg px-4 py-2 ${
+                            message.sender === 'user' 
+                              ? 'bg-corama-teal text-white' 
+                              : 'bg-white text-black'
+                          }`}
+                        >
+                          {message.sender === 'ai' ? (
+                            <div className="prose prose-sm max-w-none">
                   <ReactMarkdown>
                     {message.isTyping ? (message.visibleContent || '') : message.content}
                   </ReactMarkdown>
-                  {message.isTyping && (
-                    <span className="inline-block w-2 h-4 bg-white/70 animate-pulse ml-1" />
+                                    {message.isTyping && (
+                                      <span className="inline-block w-2 h-4 bg-black/70 animate-pulse ml-1" />
                   )}
                 </div>
               ) : (
