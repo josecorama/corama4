@@ -12,82 +12,146 @@ import { useTranslation } from '../i18n'
 const printStyles = `
 @media print {
   /* Hide non-essential elements */
-  aside, header, button, .no-print {
+  aside, header, button, .no-print, nav, .sidebar {
     display: none !important;
   }
   
-  /* Reset page layout */
-  body, html {
+  /* Reset page layout - white background */
+  body, html, * {
     background: white !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    background-color: white !important;
   }
   
   /* Make main content full width */
   main {
-    padding: 0 !important;
+    padding: 20px !important;
     margin: 0 !important;
+    width: 100% !important;
   }
   
-  .flex {
+  /* Print title */
+  .print-title {
     display: block !important;
-  }
-  
-  /* Style contract cards for print */
-  .print-card {
-    background: #2F3C4F !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    page-break-inside: avoid !important;
-    margin-bottom: 20px !important;
-    border: 2px solid #333 !important;
-    border-radius: 12px !important;
-    padding: 16px !important;
-  }
-  
-  /* Ensure text is visible */
-  .print-card * {
-    color: black !important;
-  }
-  
-  .print-card h3, .print-card .text-white {
-    color: #1a1a1a !important;
-  }
-  
-  /* Match badge styling for print */
-  .print-badge {
-    background: #6BB4B5 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color: white !important;
-    padding: 4px 12px !important;
-    border-radius: 20px !important;
-  }
-  
-  /* Trophy/rank styling for print */
-  .print-rank {
     font-size: 24px !important;
+    font-weight: bold !important;
+    color: #1a1a1a !important;
+    margin-bottom: 24px !important;
+    text-align: center !important;
+    border-bottom: 2px solid #333 !important;
+    padding-bottom: 12px !important;
+  }
+  
+  /* Style contract cards for print - clean white cards with border */
+  .print-card {
+    background: white !important;
+    background-color: white !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 24px !important;
+    border: 1px solid #ccc !important;
+    border-radius: 8px !important;
+    padding: 16px !important;
+    box-shadow: none !important;
+  }
+  
+  /* All text should be black */
+  .print-card *, .print-card h3, .print-card p, .print-card span {
+    color: #1a1a1a !important;
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+  
+  /* Hide trophy images */
+  .print-card img {
+    display: none !important;
+  }
+  
+  /* Show rank number prominently */
+  .print-rank-number {
+    display: inline-block !important;
+    font-size: 20px !important;
     font-weight: bold !important;
     color: #1C4262 !important;
+    margin-right: 12px !important;
+    min-width: 30px !important;
   }
   
-  /* Label badges for print */
-  .print-label {
-    background: #f0f0f0 !important;
-    border: 1px solid #ccc !important;
-    padding: 4px 12px !important;
-    border-radius: 20px !important;
-    font-weight: bold !important;
-    font-size: 12px !important;
-  }
-  
-  /* Page title for print */
-  .print-title {
-    font-size: 24px !important;
+  /* State name as header */
+  .print-card h3 {
+    font-size: 16px !important;
     font-weight: bold !important;
     color: #1a1a1a !important;
-    margin-bottom: 20px !important;
-    display: block !important;
+    margin-bottom: 12px !important;
+    border-bottom: 1px solid #eee !important;
+    padding-bottom: 8px !important;
+  }
+  
+  /* Match badge - simple text */
+  .print-match-badge {
+    display: inline-block !important;
+    font-size: 14px !important;
+    font-weight: bold !important;
+    color: #1C4262 !important;
+    float: right !important;
+    border: 1px solid #1C4262 !important;
+    padding: 4px 12px !important;
+    border-radius: 4px !important;
+    background: white !important;
+  }
+  
+  /* Label badges - simple bold text */
+  .print-card .inline-block {
+    display: inline !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    font-weight: bold !important;
+    font-size: 12px !important;
+    color: #666 !important;
+  }
+  
+  /* Grid layout for print */
+  .print-card .grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 16px !important;
+  }
+  
+  /* Hide action buttons in print */
+  .print-card button {
+    display: none !important;
+  }
+  
+  /* Flex containers */
+  .print-card .flex {
+    display: flex !important;
+  }
+  
+  .print-card .flex-col {
+    flex-direction: column !important;
+  }
+  
+  /* Hide trophy container */
+  .print-trophy-hide {
+    display: none !important;
+  }
+  
+  /* Show print-only elements */
+  .print-title.hidden,
+  .print-rank-number.hidden {
+    display: inline-block !important;
+  }
+  
+  /* Position match badge for print */
+  .print-match-badge {
+    position: static !important;
+    float: right !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .print-match-badge span {
+    background: transparent !important;
+    border: 1px solid #1C4262 !important;
+    color: #1C4262 !important;
   }
 }
 `
@@ -339,8 +403,11 @@ const TopFiveContracts = () => {
         
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
+              {/* Print-only title */}
+              <h1 className="print-title hidden">Top Contract Matches</h1>
+              
               {/* Page Title and Action Buttons */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 no-print">
                 <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">{t('topFiveMatchesTitle')}</h1>
                 <div className="flex items-center gap-3">
                   <button 
@@ -403,11 +470,14 @@ const TopFiveContracts = () => {
             <div className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
                 <div key={contract.rank} className="print-card rounded-2xl p-4 sm:p-5 lg:p-6 relative border border-white" style={{ backgroundColor: '#2F3C4F' }}>
-                  {/* State name - top left */}
-                  <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">{contract.state}</h3>
+                  {/* State name - top left with rank for print */}
+                  <h3 className="text-white font-poppins font-bold text-lg lg:text-xl mb-4">
+                    <span className="print-rank-number hidden">#{contract.rank}</span>
+                    {contract.state}
+                  </h3>
                   
                   {/* Match badge - absolute positioned at top right with radial gradient */}
-                  <div className="absolute top-4 right-4 lg:top-6 lg:right-6">
+                  <div className="absolute top-4 right-4 lg:top-6 lg:right-6 print-match-badge">
                     <span 
                       className="font-poppins text-sm font-bold px-5 py-2 rounded-full text-white"
                       style={{ background: 'radial-gradient(ellipse at 50% 150%, #6BB4B5 0%, #6BA4A7 100%)' }}
@@ -417,8 +487,8 @@ const TopFiveContracts = () => {
                   </div>
 
                   <div className="flex flex-col lg:flex-row items-start gap-4 lg:gap-6">
-                    {/* Top Sign - Trophy with background and rank number overlay */}
-                    <div className="relative flex-shrink-0" style={{ width: '160px', height: '160px' }}>
+                    {/* Top Sign - Trophy with background and rank number overlay - hidden in print */}
+                    <div className="relative flex-shrink-0 print-trophy-hide" style={{ width: '160px', height: '160px' }}>
                       {/* Trophy with teal circle background and rank number overlay */}
                       <div className="relative w-32 h-32 lg:w-36 lg:h-36">
                         <img src={TrophyBackgroundIcon} alt="" className="absolute inset-0 w-full h-full" />
