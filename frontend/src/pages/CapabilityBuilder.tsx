@@ -746,7 +746,7 @@ const CapabilityBuilder = () => {
                     {/* Content wrapper with padding */}
                     <div className="p-3 sm:p-4 lg:p-6">
                     {/* Import Existing Capability Statement */}
-                    <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6">
+                    <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6 animate-fade-in-up animate-delay-100">
             <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4 sm:mb-5">Import Existing Capability Statement</h2>
             <div className="flex flex-col sm:flex-row gap-4 lg:gap-6 items-stretch sm:items-center">
               {/* Upload File Section */}
@@ -819,7 +819,7 @@ const CapabilityBuilder = () => {
             {/* Left Column - Form */}
             <div className="space-y-4 lg:space-y-6">
               {/* Company Information */}
-              <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
+              <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 animate-fade-in-up animate-delay-200">
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Information</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
@@ -926,7 +926,7 @@ const CapabilityBuilder = () => {
               </div>
 
               {/* Company Details */}
-              <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
+              <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 animate-fade-in-up animate-delay-300">
                 <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Details</h2>
                 <div className="space-y-3 sm:space-y-4">
                   <div>

@@ -233,10 +233,10 @@ const Settings = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-in-up animate-delay-100">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* Left Column - Profile & Security */}
             <div className="space-y-6 lg:space-y-8">
-              <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
+              <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30 animate-fade-in-up animate-delay-100">
                 <h2 className="text-white font-poppins font-semibold text-base mb-6">
                   {t.profileSecurity}
                 </h2>
@@ -355,7 +355,7 @@ const Settings = () => {
             {/* Right Column - Credits Usage & Support */}
             <div className="space-y-6 lg:space-y-8">
                             {/* Credits Usage */}
-                            <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
+                            <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30 animate-fade-in-up animate-delay-200">
                               <div className="flex justify-between items-center mb-6">
                                 <h2 className="text-white font-poppins font-semibold text-base">
                                   {t.creditsUsage}
@@ -406,7 +406,7 @@ const Settings = () => {
               </div>
 
                             {/* Contact Support */}
-                            <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">
+                            <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30 animate-fade-in-up animate-delay-300">
                               <h2 className="text-white font-poppins font-semibold text-base mb-2 flex items-center gap-2">
                                 {t.contactSupport}
                               </h2>

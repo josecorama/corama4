@@ -532,7 +532,7 @@ const LandingPage = () => {
         </div>
         
         {/* Desktop: Grid layout for row 1 */}
-        <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
+        <div className="hidden lg:block max-w-6xl mx-auto relative z-10 animate-fade-in-up">
           <div className="grid grid-cols-3 gap-6 items-stretch">
             <FeatureCard
               icon="/static/app/landing/WinProbabilityScoring.svg"
@@ -628,7 +628,7 @@ const LandingPage = () => {
         </div>
         
         {/* Desktop: Grid layout for row 2 */}
-        <div className="hidden lg:block max-w-6xl mx-auto relative z-10">
+        <div className="hidden lg:block max-w-6xl mx-auto relative z-10 animate-fade-in-up">
           <div className="grid grid-cols-3 gap-6 items-stretch">
             <FeatureCard
               icon="/static/app/landing/SmartContractMatching.svg"

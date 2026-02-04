@@ -71,7 +71,7 @@ const AnimatedCategoryCard = ({
   const strokeDasharray = `${animatedPercentage * 2.2} 220`
   
   return (
-    <div className="rounded-xl p-4 border border-white flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
+    <div className="rounded-xl p-4 border border-white flex items-center gap-4 animate-fade-in-scale" style={{ backgroundColor: '#0b2c48', animationDelay: `${index * 100}ms` }}>
       {/* Percentage graph on the left */}
       <div className="relative w-20 h-20 flex-shrink-0">
         <svg className="w-20 h-20 transform -rotate-90">
@@ -132,6 +132,7 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState('')
   const [_credits, setCredits] = useState(0)
   const [userName, setUserName] = useState('')
+  const [contractsKey, setContractsKey] = useState(0) // Key to trigger animation when contracts load
   
   
   // Filter state
@@ -238,6 +239,8 @@ const Dashboard = () => {
       
       // Always replace contracts (traditional pagination)
       setContracts(transformedContracts)
+      // Increment key to trigger animation when contracts load
+      setContractsKey(prev => prev + 1)
       
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
@@ -404,7 +407,7 @@ const Dashboard = () => {
           </div>
 
                     {/* Available Contracts/Grants Table */}
-                    <div className="rounded-xl p-3 sm:p-4 lg:p-6 border animate-fade-in-up animate-delay-200" style={{ backgroundColor: '#2f3c4f', borderColor: '#98C9CA' }}>
+                    <div key={`contracts-${contractsKey}`} className="rounded-xl p-3 sm:p-4 lg:p-6 border animate-fade-in-up" style={{ backgroundColor: '#2f3c4f', borderColor: '#98C9CA' }}>
                       {/* Single row: Heading LEFT, Search CENTER, Filter/Pagination RIGHT */}
                       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4 lg:mb-6">
                         {/* Left: Available Contracts/Grants heading */}

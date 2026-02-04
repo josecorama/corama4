@@ -147,11 +147,12 @@ const GetMoreCredits = () => {
             <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8 animate-fade-in">{t('getMoreCredits')}</h1>
 
             {/* Credit Packs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 lg:mb-12 animate-fade-in-up animate-delay-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 lg:mb-12">
               {creditPacks.map((pack, index) => (
                 <div
                   key={index}
-                  className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient-original hover:bg-white text-white hover:text-corama-dark border-2 border-transparent hover:border-corama-teal transition-all duration-200 flex flex-col h-full"
+                  className="group rounded-xl p-4 sm:p-5 lg:p-6 card-gradient-original hover:bg-white text-white hover:text-corama-dark border-2 border-transparent hover:border-corama-teal transition-all duration-200 flex flex-col h-full animate-fade-in-scale"
+                  style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400 group-hover:text-gray-600 text-center">
                     {pack.credits} Credits

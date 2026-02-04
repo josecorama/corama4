@@ -152,9 +152,9 @@ const CoramaDirectory = () => {
             </div>
 
             {/* Company Cards */}
-            <div className="space-y-4 lg:space-y-6">
-              {companies.map((company) => (
-                <div key={company.id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-6">
+            <div className="space-y-4 lg:space-y-6 animate-fade-in-up animate-delay-100">
+              {companies.map((company, index) => (
+                <div key={company.id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-6 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
                   {/* Company Logo and Stats Column */}
                   <div className="flex flex-col items-center sm:items-start">
                     {/* Company Logo */}
