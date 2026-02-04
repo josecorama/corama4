@@ -290,6 +290,30 @@ const AboutUsPublic = () => {
     }`
   }
 
+  // Scroll-triggered fade-in animations
+  useEffect(() => {
+    const fadeElements = document.querySelectorAll('.scroll-fade-in')
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('fade-in-visible')
+          entry.target.classList.remove('fade-in-hidden')
+        } else {
+          entry.target.classList.remove('fade-in-visible')
+          entry.target.classList.add('fade-in-hidden')
+        }
+      })
+    }, { threshold: 0.2 })
+    
+    fadeElements.forEach((el) => {
+      el.classList.add('fade-in-hidden')
+      observer.observe(el)
+    })
+    
+    return () => observer.disconnect()
+  }, [])
+
   return (
     <div className="h-screen bg-[#0B0B0F] flex flex-col overflow-hidden relative">
       {/* Flicker Background */}
@@ -333,7 +357,7 @@ const AboutUsPublic = () => {
             className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-8 lg:py-0 snap-start ${getSectionClass('team')}`}
           >
             <div className="max-w-7xl mx-auto relative z-10 w-full">
-              <div className="w-full text-center mb-4 lg:mb-6 animate-fade-in">
+              <div className="w-full text-center mb-4 lg:mb-6 scroll-fade-in">
                 <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2 tracking-tight font-poppins">
                   Meet the Team
                 </h2>
@@ -364,7 +388,7 @@ const AboutUsPublic = () => {
                 </div>
 
                 {/* Desktop: Grid layout */}
-                <div className="hidden lg:grid grid-cols-4 gap-6 w-full max-w-[1400px] mx-auto justify-items-center">
+                <div className="hidden lg:grid grid-cols-4 gap-6 w-full max-w-[1400px] mx-auto justify-items-center scroll-fade-in">
                 {teamMembers.map((member) => (
                   <TeamMemberCard
                     key={member.name}
@@ -385,7 +409,7 @@ const AboutUsPublic = () => {
             data-section="capturing"
             className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('capturing')}`}
           >
-            <div className="max-w-7xl mx-auto text-center relative z-10 px-4">
+            <div className="max-w-7xl mx-auto text-center relative z-10 px-4 scroll-fade-in">
               <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-4 sm:mb-5 leading-tight">
                 Capturing Major State<br />Procurement Wins
               </h2>
@@ -477,7 +501,7 @@ const AboutUsPublic = () => {
           <div className="flex-1 flex flex-col justify-center py-4 lg:py-8">
             <div className="max-w-6xl mx-auto relative z-10 w-full space-y-8 lg:space-y-12">
               {/* Mission */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12 items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12 items-center scroll-fade-in">
                 <div className="order-2 md:order-1 flex items-center justify-center">
                   <img 
                     src="/static/app/landing/Mission.svg" 
@@ -494,7 +518,7 @@ const AboutUsPublic = () => {
               </div>
 
               {/* Vision */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12 items-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-12 items-center scroll-fade-in">
                 <div className="text-center md:text-left">
                   <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-4xl text-white mb-3 sm:mb-4">Vision</h2>
                   <p className="text-gray-400 font-poppins text-sm sm:text-base leading-relaxed">
