@@ -488,43 +488,6 @@ const LandingPage = () => {
         data-section="features-row1"
         className={`h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-0 sm:px-4 lg:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features-row1')}`}
       >
-        {/* Decorative stars with twinkling effect - positioned closer to cards */}
-        <div className="absolute left-[8%] sm:left-[10%] lg:left-[12%] top-1/2 -translate-y-1/2 hidden lg:block">
-          <img 
-            src="/static/app/landing/StarCardLeft1.svg" 
-            alt="" 
-            className="absolute -top-12 left-2 w-7 h-7 animate-twinkle"
-            style={{ animationDelay: '0s' }}
-          />
-          <img 
-            src="/static/app/landing/StarCardLeft2.svg" 
-            alt="" 
-            className="absolute top-2 -left-4 w-5 h-5 animate-twinkle"
-            style={{ animationDelay: '0.5s' }}
-          />
-          <img 
-            src="/static/app/landing/BigStarCardLeft.svg" 
-            alt="" 
-            className="w-[70px] h-[70px] animate-twinkle"
-            style={{ animationDelay: '1s' }}
-          />
-        </div>
-        
-        <div className="absolute right-[8%] sm:right-[10%] lg:right-[12%] bottom-[15%] lg:bottom-[18%] hidden lg:block">
-          <img 
-            src="/static/app/landing/StarCardRight.svg" 
-            alt="" 
-            className="absolute -top-10 right-2 w-7 h-7 animate-twinkle"
-            style={{ animationDelay: '0.3s' }}
-          />
-          <img 
-            src="/static/app/landing/BigStarCardRight.svg" 
-            alt="" 
-            className="w-[70px] h-[70px] animate-twinkle"
-            style={{ animationDelay: '0.8s' }}
-          />
-        </div>
-        
         {/* Mobile: Horizontal scrollable carousel for row 1 */}
         <div className="lg:hidden w-full relative z-10">
           <div 
@@ -584,43 +547,6 @@ const LandingPage = () => {
         data-section="features-row2"
         className={`h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-0 sm:px-4 lg:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('features-row2')}`}
       >
-        {/* Decorative stars */}
-        <div className="absolute left-[8%] sm:left-[10%] lg:left-[12%] top-1/2 -translate-y-1/2 hidden lg:block">
-          <img 
-            src="/static/app/landing/StarCardLeft1.svg" 
-            alt="" 
-            className="absolute -top-12 left-2 w-7 h-7 animate-twinkle"
-            style={{ animationDelay: '0.2s' }}
-          />
-          <img 
-            src="/static/app/landing/StarCardLeft2.svg" 
-            alt="" 
-            className="absolute top-2 -left-4 w-5 h-5 animate-twinkle"
-            style={{ animationDelay: '0.7s' }}
-          />
-          <img 
-            src="/static/app/landing/BigStarCardLeft.svg" 
-            alt="" 
-            className="w-[70px] h-[70px] animate-twinkle"
-            style={{ animationDelay: '1.2s' }}
-          />
-        </div>
-        
-        <div className="absolute right-[8%] sm:right-[10%] lg:right-[12%] bottom-[15%] lg:bottom-[18%] hidden lg:block">
-          <img 
-            src="/static/app/landing/StarCardRight.svg" 
-            alt="" 
-            className="absolute -top-10 right-2 w-7 h-7 animate-twinkle"
-            style={{ animationDelay: '0.5s' }}
-          />
-          <img 
-            src="/static/app/landing/BigStarCardRight.svg" 
-            alt="" 
-            className="w-[70px] h-[70px] animate-twinkle"
-            style={{ animationDelay: '1s' }}
-          />
-        </div>
-        
         {/* Mobile: Horizontal scrollable carousel for row 2 */}
         <div className="lg:hidden w-full relative z-10">
           <div 

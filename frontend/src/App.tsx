@@ -26,6 +26,7 @@ import AdminDirectory from './pages/AdminDirectory'
 import AdminContracts from './pages/AdminContracts'
 import ProposalAssistant from './pages/ProposalAssistant'
 import Settings from './pages/Settings'
+import NotFound from './pages/NotFound'
 
 function App() {
   return (
@@ -57,8 +58,9 @@ function App() {
                                                                                                     <Route path="/admin/directory" element={<AdminDirectory />} />
                                                                                                                                                                                                         <Route path="/admin/contracts" element={<AdminContracts />} />
                                                                                                                                                                                                         <Route path="/proposal-assistant" element={<ProposalAssistant />} />
-                                                                                                                                                                                                        <Route path="/settings" element={<Settings />} />
-                                                </Routes>
+                                                                                                                                                                                                                                                        <Route path="/settings" element={<Settings />} />
+                                                        <Route path="*" element={<NotFound />} />
+                                                      </Routes>
     </Router>
   )
 }
