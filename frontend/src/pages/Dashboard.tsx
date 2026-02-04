@@ -140,8 +140,8 @@ const Dashboard = () => {
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>([])
   
-  // Toggle state for Grants/Contracts view
-  const [showGrants, setShowGrants] = useState(false)
+  // Toggle state for Grants/Contracts view (commented out - to be improved later)
+  const [showGrants, _setShowGrants] = useState(false)
   
   // Top categories from backend (calculated from ALL contracts, not just current page)
   const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
