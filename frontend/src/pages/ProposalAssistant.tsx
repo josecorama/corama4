@@ -12,6 +12,7 @@ const EnterButtonIcon = '/static/app/dashboard/enterbutton.svg'
 const ThreePeopleIcon = '/static/app/dashboard/3people.svg'
 const DollarSignIcon = '/static/app/dashboard/dollarsign.svg'
 const DashboardIcon = '/static/app/dashboard/Dashboard.svg'
+const TopFiveContractsIcon = '/static/app/dashboard/TopFiveContracts.svg'
 
 interface Message {
   id: number
@@ -127,6 +128,23 @@ const SuggestionCard = ({
         {isLoading && messages.length === 0 && (
           <div className="flex justify-center items-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-corama-teal" />
+          </div>
+        )}
+        
+        {/* Show thinking message while waiting for AI response */}
+        {isLoading && messages.length > 0 && (
+          <div 
+            className="flex justify-start animate-message-pop"
+            style={{
+              transformOrigin: 'bottom left',
+              animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+            }}
+          >
+            <div className="max-w-[85%] rounded-lg px-4 py-2 bg-white text-black">
+              <p className="font-poppins text-sm">
+                Thinking<span className="animate-ellipsis">...</span>
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -512,18 +530,29 @@ const ProposalAssistant = () => {
             />
           </div>
           
-          {/* Find More Contracts Button */}
-          <div className="mt-6">
+          {/* Navigation Buttons */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               onClick={() => navigate('/dashboard')}
               className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
               style={{ backgroundColor: 'rgb(28, 66, 98)' }}
             >
               <div className="text-left flex-1">
-                <p className="font-bold text-sm sm:text-base">Find More Contracts</p>
+                <p className="font-bold text-sm sm:text-base">Explore Contracts</p>
                 <p className="text-xs sm:text-sm text-gray-300">Go back to the dashboard</p>
               </div>
               <img src={DashboardIcon} alt="" className="w-6 h-6 flex-shrink-0" />
+            </button>
+            <button
+              onClick={() => navigate('/top-five-contracts')}
+              className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+              style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+            >
+              <div className="text-left flex-1">
+                <p className="font-bold text-sm sm:text-base">See Matched Contracts</p>
+                <p className="text-xs sm:text-sm text-gray-300">Go to Top Five Matches</p>
+              </div>
+              <img src={TopFiveContractsIcon} alt="" className="w-6 h-6 flex-shrink-0" />
             </button>
           </div>
         </main>
