@@ -57,7 +57,7 @@ const ConfirmTerms = () => {
 
             {/* Main Content */}
             <div className="relative z-10 pt-24 sm:pt-32 pb-16 px-4 sm:px-6 flex-1">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto animate-fade-in">
           {/* Title Section */}
           <div className="text-center mb-10">
             <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white mb-3">

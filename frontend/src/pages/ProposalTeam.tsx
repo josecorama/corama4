@@ -561,7 +561,7 @@ const ProposalTeam = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
-            <div className="text-center mb-4 flex-shrink-0">
+            <div className="text-center mb-4 flex-shrink-0 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Build Your Team</h1>
               
                             {/* Progress Circles - Static check for step 1 (completed on previous page), animated check for step 2 when team member added, empty for step 3 */}

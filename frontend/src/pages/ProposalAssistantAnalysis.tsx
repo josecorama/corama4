@@ -599,12 +599,12 @@ const ProposalAssistantAnalysis = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
-            <div className="text-center mb-3 flex-shrink-0">
+            <div className="text-center mb-3 flex-shrink-0 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-8">Proposal Assistant</h1>
             </div>
 
             {/* Main Content - Two Cards Side by Side - Fixed height with scrollable content */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0 mb-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0 mb-3 animate-fade-in-up animate-delay-100">
               {/* Left Card - Upload PDF / View Contract */}
               <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
                 <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-1 flex-shrink-0">Upload PDF</h2>

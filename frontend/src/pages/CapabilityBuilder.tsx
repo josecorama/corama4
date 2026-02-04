@@ -714,7 +714,7 @@ const CapabilityBuilder = () => {
                 <main className="flex-1 overflow-y-auto overflow-x-hidden">
                   {/* Sticky Page Title and Steps */}
                   <div className="sticky top-0 z-20 bg-corama-dark px-3 sm:px-4 lg:px-6 pb-3 pt-3">
-            <div className="text-center mb-3 lg:mb-4">
+            <div className="text-center mb-3 lg:mb-4 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
               <div className="flex justify-center gap-4 sm:gap-6">
                 {stepsCompleted.map((completed, index) => (

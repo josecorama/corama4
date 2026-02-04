@@ -173,7 +173,7 @@ const AdminDirectory = () => {
         
         <div className="flex-1 flex flex-col min-w-0">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
-            <div className="card-gradient rounded-xl p-3 sm:p-4 lg:p-6">
+            <div className="card-gradient rounded-xl p-3 sm:p-4 lg:p-6 animate-fade-in">
               {/* Page Title */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                 <div>

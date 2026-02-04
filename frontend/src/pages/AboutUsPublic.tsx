@@ -333,7 +333,7 @@ const AboutUsPublic = () => {
             className={`min-h-[calc(100vh-80px)] lg:h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-visible lg:overflow-hidden flex flex-col justify-start lg:justify-center py-8 lg:py-0 snap-start ${getSectionClass('team')}`}
           >
             <div className="max-w-7xl mx-auto relative z-10 w-full">
-              <div className="w-full text-center mb-4 lg:mb-6">
+              <div className="w-full text-center mb-4 lg:mb-6 animate-fade-in">
                 <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-2 tracking-tight font-poppins">
                   Meet the Team
                 </h2>

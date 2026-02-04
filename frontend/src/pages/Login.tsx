@@ -106,7 +106,7 @@ const Login = () => {
 
             {/* Login Form */}
             <div className="relative z-10 pt-24 sm:pt-32 pb-16 px-4 sm:px-6 flex items-center justify-center flex-1">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md animate-fade-in">
           <div className="bg-gradient-to-br from-[#1c4262] to-[#0f1419] border border-corama-teal/20 rounded-2xl p-8 sm:p-12 shadow-2xl">
             {/* Logo */}
             <div className="text-center mb-8">

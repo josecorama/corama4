@@ -84,12 +84,12 @@ const FAQ = () => {
       <div className="relative z-10 flex-1 pt-24 sm:pt-32 pb-40 sm:pb-32 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
           {/* Title */}
-          <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white text-center mb-12 sm:mb-16">
+          <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white text-center mb-12 sm:mb-16 animate-fade-in">
             Frequently Asked Questions
           </h1>
 
                     {/* FAQ Grid - 2 columns */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative animate-fade-in-up animate-delay-100">
                       {/* Left Column: Q1, Q2, Q3 */}
                       <div className="flex flex-col gap-6 relative">
                         {[0, 1, 2].map((idx) => (

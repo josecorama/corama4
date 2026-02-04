@@ -553,7 +553,7 @@ const Support = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: '#0B2C48' }}>
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col" style={{ backgroundColor: '#0B2C48' }}>
             {/* Header Section */}
-            <div className="w-full text-center mb-16">
+            <div className="w-full text-center mb-16 animate-fade-in">
               <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
                 Meet Your Expert Advisors
               </h2>
@@ -563,7 +563,7 @@ const Support = () => {
             </div>
 
             {/* Team Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center mb-8 animate-fade-in-up animate-delay-100">
               {teamMembers.map((member) => (
                 <TeamMemberCard
                   key={member.name}
@@ -577,7 +577,7 @@ const Support = () => {
             </div>
 
             {/* Expert Advisors Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 w-full max-w-[1600px] mx-auto justify-items-center animate-fade-in-up animate-delay-200">
               {expertAdvisors.map((advisor) => (
                 <ExpertAdvisorCard
                   key={advisor.name}

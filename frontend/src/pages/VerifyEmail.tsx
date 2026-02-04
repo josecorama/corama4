@@ -160,7 +160,7 @@ const VerifyEmail = () => {
 
       {/* Verification Form */}
       <div className="relative z-10 pt-24 sm:pt-28 pb-32 px-4 sm:px-6 flex items-center justify-center min-h-screen">
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md animate-fade-in">
           <div className="bg-gradient-to-br from-[#1c4262]/80 to-[#0f1419]/90 border border-corama-teal/20 rounded-2xl p-8 sm:p-10 shadow-2xl backdrop-blur-sm">
             {/* Logo */}
             <div className="text-center mb-6">
