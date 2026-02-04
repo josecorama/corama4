@@ -369,25 +369,13 @@ const TopFiveContracts = () => {
     try {
       const container = contractsContainerRef.current
       
-      // Capture the contracts container as canvas, hiding action buttons
+      // Capture the contracts container as canvas - preserving exact visual appearance
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#1C2B3A',
-        logging: false,
-        onclone: (clonedDoc) => {
-          // Hide elements with no-pdf class in the cloned document
-          const noPdfElements = clonedDoc.querySelectorAll('.no-pdf')
-          noPdfElements.forEach((el) => {
-            (el as HTMLElement).style.display = 'none'
-          })
-          // Fix text alignment - ensure proper line-height for better rendering
-          const textElements = clonedDoc.querySelectorAll('.font-poppins')
-          textElements.forEach((el) => {
-            (el as HTMLElement).style.lineHeight = '1.4'
-          })
-        }
+        logging: false
       })
       
       const imgData = canvas.toDataURL('image/png')
@@ -558,8 +546,8 @@ const TopFiveContracts = () => {
                                                     </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.contractingAgency}</p>
                         </div>
-                        {/* Action Buttons - hidden in PDF */}
-                        <div className="flex flex-col gap-2 justify-start items-start no-pdf">
+                        {/* Action Buttons */}
+                        <div className="flex flex-col gap-2 justify-start items-start">
                           <button 
                             onClick={() => handleVisitSite(contract.detailLink)}
                             className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
