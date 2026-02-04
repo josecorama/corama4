@@ -660,8 +660,23 @@ def search_text_in_pdf_worker(pdf_path, quote, page_hint=None):
 
 
 def download_pdf_from_firebase(storage_path: str) -> str:
-    """Download PDF from Firebase Storage to a temp file"""
+    """Download PDF from Firebase Storage to a temp file, or use local path if prefixed with 'local:'"""
     try:
+        # Check if this is a local file path (used when Firebase Storage isn't available)
+        if storage_path.startswith('local:'):
+            local_path = storage_path[6:]  # Remove 'local:' prefix
+            if os.path.exists(local_path):
+                logger.info(f"Using local PDF file: {local_path}")
+                # Copy to temp file to maintain consistent behavior
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                    tmp_path = tmp_file.name
+                import shutil
+                shutil.copy(local_path, tmp_path)
+                return tmp_path
+            else:
+                raise FileNotFoundError(f"Local PDF file not found: {local_path}")
+        
+        # Download from Firebase Storage
         from firebase_admin import storage
         bucket = storage.bucket()
         blob = bucket.blob(storage_path)
