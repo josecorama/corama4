@@ -8,121 +8,90 @@ import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 import { useTranslation } from '../i18n'
 
-// Print styles - injected into document head
+// Print styles - injected into document head - preserves original design
 const printStyles = `
 @media print {
-  /* Hide non-essential elements */
-  aside, header, button, .no-print, nav, .sidebar {
+  /* Force print background colors and images */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Hide non-essential UI elements only */
+  aside, header, nav, .sidebar, .no-print {
     display: none !important;
   }
   
-  /* Reset page layout - white background */
-  body, html, * {
-    background: white !important;
-    background-color: white !important;
+  /* Hide buttons but keep the card structure */
+  button {
+    display: none !important;
   }
   
   /* Make main content full width */
   main {
-    padding: 20px !important;
+    padding: 10px !important;
     margin: 0 !important;
     width: 100% !important;
   }
   
-  /* Print title */
-  .print-title {
-    display: block !important;
-    font-size: 24px !important;
-    font-weight: bold !important;
-    color: #1a1a1a !important;
-    margin-bottom: 24px !important;
-    text-align: center !important;
-    border-bottom: 2px solid #333 !important;
-    padding-bottom: 12px !important;
+  /* Keep the dark background for the page */
+  body, html {
+    background: #1C2B3A !important;
+    background-color: #1C2B3A !important;
   }
   
-  /* Style contract cards for print - clean white cards with border */
+  /* Style contract cards - preserve original dark design */
   .print-card {
-    background: white !important;
-    background-color: white !important;
+    background: #2F3C4F !important;
+    background-color: #2F3C4F !important;
     page-break-inside: avoid !important;
-    margin-bottom: 24px !important;
-    border: 1px solid #ccc !important;
-    border-radius: 8px !important;
+    margin-bottom: 16px !important;
+    border: 1px solid white !important;
+    border-radius: 16px !important;
     padding: 16px !important;
-    box-shadow: none !important;
+    position: relative !important;
   }
   
-  /* All text should be black */
-  .print-card *, .print-card h3, .print-card p, .print-card span {
-    color: #1a1a1a !important;
-    background: transparent !important;
-    background-color: transparent !important;
+  /* Keep white text */
+  .print-card h3,
+  .print-card p,
+  .print-card .text-white {
+    color: white !important;
   }
   
-  /* Show trophy images in print */
+  /* Keep trophy images visible */
   .print-card img {
     display: block !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
   }
   
-  /* Trophy container for print */
+  /* Trophy container */
   .print-trophy-container {
-    width: 100px !important;
-    height: 100px !important;
+    width: 120px !important;
+    height: 120px !important;
     flex-shrink: 0 !important;
   }
   
-  .print-trophy-container img {
-    width: 100% !important;
-    height: 100% !important;
-  }
-  
-  /* State name as header */
-  .print-card h3 {
-    font-size: 16px !important;
-    font-weight: bold !important;
-    color: #1a1a1a !important;
-    margin-bottom: 12px !important;
-    border-bottom: 1px solid #eee !important;
-    padding-bottom: 8px !important;
-  }
-  
-  /* Match badge - simple text */
-  .print-match-badge {
-    display: inline-block !important;
-    font-size: 14px !important;
-    font-weight: bold !important;
-    color: #1C4262 !important;
-    float: right !important;
-    border: 1px solid #1C4262 !important;
-    padding: 4px 12px !important;
-    border-radius: 4px !important;
-    background: white !important;
-  }
-  
-  /* Label badges - simple bold text */
+  /* Keep label badges with white background */
   .print-card .inline-block {
-    display: inline !important;
-    background: transparent !important;
-    border: none !important;
-    padding: 0 !important;
-    font-weight: bold !important;
-    font-size: 12px !important;
-    color: #666 !important;
+    background: white !important;
+    background-color: white !important;
+    color: #2F3C4F !important;
+    border-radius: 20px !important;
+    padding: 4px 12px !important;
   }
   
-  /* Grid layout for print */
+  /* Match badge styling */
+  .print-match-badge span {
+    background: linear-gradient(to bottom, #6BB4B5, #6BA4A7) !important;
+    color: white !important;
+  }
+  
+  /* Grid layout for contract details */
   .print-card .grid {
     display: grid !important;
     grid-template-columns: repeat(3, 1fr) !important;
-    gap: 16px !important;
-  }
-  
-  /* Hide action buttons in print */
-  .print-card button {
-    display: none !important;
+    gap: 12px !important;
   }
   
   /* Flex containers */
@@ -134,22 +103,20 @@ const printStyles = `
     flex-direction: column !important;
   }
   
-  /* Show print-only elements */
-  .print-title.hidden {
+  /* Hide print-only title since we preserve original design */
+  .print-title {
+    display: none !important;
+  }
+  
+  /* Ensure page breaks work properly */
+  .space-y-4, .space-y-6 {
     display: block !important;
   }
   
-  /* Position match badge for print */
-  .print-match-badge {
-    position: static !important;
-    float: right !important;
-    margin-bottom: 8px !important;
-  }
-  
-  .print-match-badge span {
-    background: transparent !important;
-    border: 1px solid #1C4262 !important;
-    color: #1C4262 !important;
+  /* Scale down cards slightly to fit more on page */
+  .print-card {
+    transform: scale(0.95) !important;
+    transform-origin: top left !important;
   }
 }
 `
