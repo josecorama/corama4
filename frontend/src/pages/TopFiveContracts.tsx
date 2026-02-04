@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -7,6 +7,8 @@ import { InlineLoading } from '../components/ThinkingPopup'
 import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 import { useTranslation } from '../i18n'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 
 // Print styles - injected into document head - preserves original design
 const printStyles = `
@@ -157,6 +159,10 @@ const TopFiveContracts = () => {
   const [currentOffset, setCurrentOffset] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [totalAvailable, setTotalAvailable] = useState(0)
+  
+  // PDF generation state
+  const [generatingPdf, setGeneratingPdf] = useState(false)
+  const contractsContainerRef = useRef<HTMLDivElement>(null)
 
   // Inject print styles into document head
   useEffect(() => {
@@ -354,6 +360,48 @@ const TopFiveContracts = () => {
     handleRerunMatching(newContractType, newStates)
   }
 
+  // Generate PDF from the contracts container
+  const handleGeneratePdf = async () => {
+    if (!contractsContainerRef.current || contracts.length === 0) return
+    
+    setGeneratingPdf(true)
+    
+    try {
+      const container = contractsContainerRef.current
+      
+      // Capture the contracts container as canvas
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#1C2B3A',
+        logging: false
+      })
+      
+      const imgData = canvas.toDataURL('image/png')
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
+      
+      // Create PDF - A4 size
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth / 2, imgHeight / 2]
+      })
+      
+      // Add the image to PDF
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2)
+      
+      // Download the PDF
+      pdf.save('top-five-contracts.pdf')
+    } catch (error) {
+      console.error('Failed to generate PDF:', error)
+      alert('Failed to generate PDF. Please try again.')
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
+
     return (
       <div className="h-screen bg-corama-dark overflow-y-auto">
         {/* Header spans full width at top */}
@@ -432,7 +480,7 @@ const TopFiveContracts = () => {
                 </button>
               </div>
             ) : (
-            <div className="space-y-4 lg:space-y-6">
+            <div ref={contractsContainerRef} className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
                 <div key={contract.rank} className="print-card rounded-2xl p-4 sm:p-5 lg:p-6 relative border border-white" style={{ backgroundColor: '#2F3C4F' }}>
                   {/* State name - top left */}
@@ -526,13 +574,14 @@ const TopFiveContracts = () => {
               {/* Bottom Action Buttons */}
               <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8 no-print">
                 <button 
-                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50"
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
-                  onClick={() => window.print()}
+                  onClick={handleGeneratePdf}
+                  disabled={generatingPdf}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">{t('printResults')}</p>
-                    <p className="text-xs sm:text-sm text-gray-300">{t('clickToPrint')}</p>
+                    <p className="font-bold text-sm sm:text-base">{generatingPdf ? 'Generating PDF...' : t('printResults')}</p>
+                    <p className="text-xs sm:text-sm text-gray-300">{generatingPdf ? 'Please wait' : 'Download as PDF'}</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
                 </button>
