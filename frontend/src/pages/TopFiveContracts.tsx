@@ -420,7 +420,7 @@ const TopFiveContracts = () => {
               <h1 className="print-title hidden">Top Contract Matches</h1>
               
               {/* Page Title and Action Buttons */}
-              <div className="flex items-center justify-between mb-6 no-print">
+              <div className="flex items-center justify-between mb-6 no-print animate-fade-in">
                 <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">{t('topFiveMatchesTitle')}</h1>
                 <div className="flex items-center gap-3">
                   <button 

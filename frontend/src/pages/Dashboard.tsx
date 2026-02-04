@@ -293,7 +293,7 @@ const Dashboard = () => {
         <div className="flex-1 flex flex-col min-w-0">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Overview Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6 animate-fade-in">
             <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
             
             {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
@@ -345,7 +345,7 @@ const Dashboard = () => {
           </div>
 
           {/* Top Contract/Grant Categories */}
-          <div className="mb-6 lg:mb-8">
+          <div className="mb-6 lg:mb-8 animate-fade-in-up animate-delay-100">
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">{showGrants ? t('topGrantCategories') : t('topContractCategories')}</h2>
             
             {/* Desktop: Grid layout */}
@@ -404,7 +404,7 @@ const Dashboard = () => {
           </div>
 
                     {/* Available Contracts/Grants Table */}
-                    <div className="rounded-xl p-3 sm:p-4 lg:p-6 border" style={{ backgroundColor: '#2f3c4f', borderColor: '#98C9CA' }}>
+                    <div className="rounded-xl p-3 sm:p-4 lg:p-6 border animate-fade-in-up animate-delay-200" style={{ backgroundColor: '#2f3c4f', borderColor: '#98C9CA' }}>
                       {/* Single row: Heading LEFT, Search CENTER, Filter/Pagination RIGHT */}
                       <div className="flex flex-col lg:flex-row lg:items-center gap-3 mb-4 lg:mb-6">
                         {/* Left: Available Contracts/Grants heading */}

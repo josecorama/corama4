@@ -144,10 +144,10 @@ const GetMoreCredits = () => {
           <div className="flex-1 flex flex-col min-w-0">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
             {/* Page Title */}
-            <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8">{t('getMoreCredits')}</h1>
+            <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-6 lg:mb-8 animate-fade-in">{t('getMoreCredits')}</h1>
 
             {/* Credit Packs */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 lg:mb-12">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8 lg:mb-12 animate-fade-in-up animate-delay-100">
               {creditPacks.map((pack, index) => (
                 <div
                   key={index}
@@ -185,8 +185,8 @@ const GetMoreCredits = () => {
             </div>
 
                         {/* How Credits Work */}
-                        <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6">{t('howCreditsWork')}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <h2 className="text-white font-poppins font-bold text-lg sm:text-xl mb-4 sm:mb-6 animate-fade-in animate-delay-200">{t('howCreditsWork')}</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 animate-fade-in-up animate-delay-300">
               {creditFeatures.map((feature, index) => (
                 <div key={index} className={`${feature.bgColor} rounded-xl p-4 sm:p-5 lg:p-6`}>
                   <div className="mb-3 sm:mb-4">

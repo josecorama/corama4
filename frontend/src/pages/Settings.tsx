@@ -224,7 +224,7 @@ const Settings = () => {
       <div className="flex flex-1">
         <Sidebar />
         <main className="flex-1 p-3 sm:p-4 lg:p-12">
-          <div className="mb-6 lg:mb-8">
+          <div className="mb-6 lg:mb-8 animate-fade-in">
             <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl uppercase tracking-wider">
               {t.accountSettings}
             </h1>
@@ -233,7 +233,7 @@ const Settings = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 animate-fade-in-up animate-delay-100">
             {/* Left Column - Profile & Security */}
             <div className="space-y-6 lg:space-y-8">
               <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30">

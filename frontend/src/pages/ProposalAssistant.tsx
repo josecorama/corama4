@@ -439,13 +439,13 @@ const ProposalAssistant = () => {
         <div className="flex-1 flex flex-col min-w-0">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Page Title */}
-          <h1 className="text-white font-poppins font-bold text-2xl sm:text-3xl text-center mb-6">
+          <h1 className="text-white font-poppins font-bold text-2xl sm:text-3xl text-center mb-6 animate-fade-in">
             Proposal Assistant
           </h1>
           
           {/* Main AI Suggestions Card - Fixed height with scrollbar */}
           <div 
-            className="rounded-2xl p-6 mb-6 border-2 border-white"
+            className="rounded-2xl p-6 mb-6 border-2 border-white animate-fade-in-up animate-delay-100"
             style={{ 
               background: 'white',
               height: '300px',
@@ -484,7 +484,7 @@ const ProposalAssistant = () => {
           </div>
           
           {/* Two Suggestion Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up animate-delay-200">
             {/* Market Value Insights Card */}
             <SuggestionCard
               title="Market Value Insights"

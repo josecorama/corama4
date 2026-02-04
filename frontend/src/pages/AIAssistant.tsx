@@ -19,33 +19,33 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onStayHere}
       />
-      
+
       {/* Popup */}
-      <div 
+      <div
         className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
         style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
       >
         {/* Close button */}
-        <button 
+        <button
           className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
           onClick={onStayHere}
         >
           <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
         </button>
-        
+
         {/* Warning Icon */}
         <div className="flex-shrink-0">
-          <img 
-            src="/static/app/proposal-summary/WarnIcon.svg" 
-            alt="Warning" 
+          <img
+            src="/static/app/proposal-summary/WarnIcon.svg"
+            alt="Warning"
             className="w-16 h-16 sm:w-20 sm:h-20"
           />
         </div>
-        
+
         {/* Content */}
         <div className="flex flex-col gap-4 text-center sm:text-left">
           <div>
@@ -57,7 +57,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
               If you go back now, your progress in this page will not be saved.
             </p>
           </div>
-          
+
           {/* Buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
             <button
@@ -125,39 +125,39 @@ const ACTION_PATTERNS: Record<string, string[]> = {
 // Uses keyword combination detection for flexible matching
 function isCapabilityStatementQuery(text: string): boolean {
   const normalized = text.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim()
-  
+
   // Check for "capability statement" mention
-  const hasCapabilityStatement = normalized.includes('capability statement') || 
+  const hasCapabilityStatement = normalized.includes('capability statement') ||
                                   normalized.includes('capabilitystatement')
-  
+
   // Check for "cs" as a standalone word (not part of another word like "costs")
-  const hasCSMention = /\bcs\b/.test(normalized) && 
-                       (normalized.includes('my cs') || 
-                        normalized.includes('the cs') || 
+  const hasCSMention = /\bcs\b/.test(normalized) &&
+                       (normalized.includes('my cs') ||
+                        normalized.includes('the cs') ||
                         normalized.includes('our cs') ||
                         normalized.includes('analyze cs') ||
                         normalized.includes('review cs') ||
                         normalized.includes('check cs'))
-  
+
   // Analysis/review verbs
   const analysisVerbs = ['analyze', 'analyse', 'review', 'evaluate', 'assess', 'check', 'improve', 'strengthen', 'feedback', 'critique', 'look at', 'examine']
   const hasAnalysisVerb = analysisVerbs.some(verb => normalized.includes(verb))
-  
+
   // Company/business context
-  const hasCompanyContext = normalized.includes('my company') || 
-                            normalized.includes('my business') || 
+  const hasCompanyContext = normalized.includes('my company') ||
+                            normalized.includes('my business') ||
                             normalized.includes('our company') ||
                             normalized.includes('am i') ||
                             normalized.includes('do i qualify') ||
                             normalized.includes('my qualifications') ||
                             normalized.includes('my strengths') ||
                             normalized.includes('my weaknesses')
-  
+
   // Return true if:
   // 1. Mentions "capability statement" with an analysis verb
   // 2. Mentions "cs" in proper context with an analysis verb
   // 3. Asks about company qualifications/fit (implies CS analysis)
-  return (hasCapabilityStatement && hasAnalysisVerb) || 
+  return (hasCapabilityStatement && hasAnalysisVerb) ||
          (hasCSMention && hasAnalysisVerb) ||
          (hasCompanyContext && hasAnalysisVerb && !normalized.includes('contract'))
 }
@@ -165,22 +165,22 @@ function isCapabilityStatementQuery(text: string): boolean {
 // Get action key from user input with flexible matching
 function getActionKeyFromInput(raw: string): string | null {
   let text = raw.toLowerCase().trim()
-  
+
   // Strip leading bullet/number patterns like "- " or "1. "
   text = text.replace(/^[-*\d.\s]+/, '')
-  
+
   // Remove the credits suffix if present (e.g., "(3 credits)")
   text = text.replace(/\(\s*\d+\s*credits?\s*\)/i, '').trim()
-  
+
   // Collapse whitespace
   text = text.replace(/\s+/g, ' ')
-  
+
   for (const [actionKey, patterns] of Object.entries(ACTION_PATTERNS)) {
     if (patterns.some((p) => text.startsWith(p) || text === p)) {
       return actionKey
     }
   }
-  
+
   return null
 }
 
@@ -219,16 +219,16 @@ const AIAssistant = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string } | null
-  
+
   // Get contract name from state first, then from URL params (for returning from NoCS page)
   const contractNameFromState = state?.contractName
   const contractNameFromUrl = searchParams.get('contractName')
   const contractName = contractNameFromState || contractNameFromUrl || 'this contract'
   const contractId = state?.contractId || searchParams.get('contractId') || ''
-  
+
   // Check if user has capability statement on load
   const [hasCapabilityStatement, setHasCapabilityStatement] = useState<boolean | null>(null)
-  
+
   useEffect(() => {
     const checkCapabilityStatement = async () => {
       try {
@@ -247,7 +247,7 @@ const AIAssistant = () => {
     }
     checkCapabilityStatement()
   }, [navigate, contractName, contractId])
-  
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
@@ -262,20 +262,20 @@ const AIAssistant = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [headerKey, setHeaderKey] = useState(0)
   const chatContainerRef = useRef<HTMLDivElement>(null)
-  
+
   // Discard changes popup state
   const [showDiscardPopup, setShowDiscardPopup] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
-  
+
   // Check if user has made progress (more than just the initial AI message)
   const hasUnsavedProgress = messages.length > 1
-  
+
   // Handle staying on the page
   const handleStayHere = () => {
     setShowDiscardPopup(false)
     setPendingNavigation(null)
   }
-  
+
   // Handle discarding changes and navigating away
   const handleDiscard = () => {
     setShowDiscardPopup(false)
@@ -285,7 +285,7 @@ const AIAssistant = () => {
       navigate(-1) // Go back if no specific path
     }
   }
-  
+
   // Warn user before leaving the page via browser navigation
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -294,7 +294,7 @@ const AIAssistant = () => {
         e.returnValue = ''
       }
     }
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [hasUnsavedProgress])
@@ -366,7 +366,7 @@ const AIAssistant = () => {
 
     const userInput = inputValue.trim()
     const normalizedInput = userInput.toLowerCase()
-    
+
     // Check for "Start Proposal Assistant" - redirect to Proposal Assistant Contract Analysis page
     if (normalizedInput === 'start proposal assistant' || normalizedInput.includes('start proposal assistant')) {
       const newMessage: Message = {
@@ -375,7 +375,7 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      
+
       // Add user message and AI response with typing animation
       const aiResponse: Message = {
         id: Date.now(),
@@ -385,25 +385,25 @@ const AIAssistant = () => {
         isTyping: true,
         visibleContent: '',
       }
-      
+
       setMessages(prev => [...prev, newMessage, aiResponse])
       setInputValue('')
-      
+
       // Navigate to Proposal Assistant Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
       // Note: Don't include /app prefix since Router basename already adds it
       setTimeout(() => {
-        navigate('/proposal-assistant-analysis', { 
-          state: { 
-            contractName, 
+        navigate('/proposal-assistant-analysis', {
+          state: {
+            contractName,
             contractId,
             contractAgency: state?.contractAgency,
-            contractCategory: state?.contractCategory 
-          } 
+            contractCategory: state?.contractCategory
+          }
         })
       }, 10000)
       return
     }
-    
+
     // Check for "Quick Draft Mode" - redirect to Contract Analysis page (original workflow)
     if (normalizedInput === 'quick draft mode' || normalizedInput.includes('quick draft mode')) {
       const newMessage: Message = {
@@ -412,7 +412,7 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      
+
       // Add user message and AI response with typing animation
       const aiResponse: Message = {
         id: Date.now(),
@@ -422,25 +422,25 @@ const AIAssistant = () => {
         isTyping: true,
         visibleContent: '',
       }
-      
+
       setMessages(prev => [...prev, newMessage, aiResponse])
       setInputValue('')
-      
+
       // Navigate to Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
       // Note: Don't include /app prefix since Router basename already adds it
       setTimeout(() => {
-        navigate('/contract-analysis', { 
-          state: { 
-            contractName, 
+        navigate('/contract-analysis', {
+          state: {
+            contractName,
             contractId,
             contractAgency: state?.contractAgency,
-            contractCategory: state?.contractCategory 
-          } 
+            contractCategory: state?.contractCategory
+          }
         })
       }, 10000)
       return
     }
-    
+
     const newMessage: Message = {
       id: messages.length + 1,
       sender: 'user',
@@ -507,7 +507,7 @@ const AIAssistant = () => {
 
       // Check if this is one of the action commands using flexible matching
       const actionKey = getActionKeyFromInput(userInput)
-      
+
       if (actionKey) {
         // Call backend API for AI action with conversation history
         try {
@@ -515,7 +515,7 @@ const AIAssistant = () => {
           // Generate idempotency key to prevent double-click duplicate charges
           const idempotencyKey = `ai_assistant_${actionKey}_${contractId}_${Date.now()}`
           const response = await api.aiAssistantAction(actionKey, contractName, conversationHistory, idempotencyKey)
-          
+
           if (response.success) {
             addAiMessage(response.message)
             // Force Header to refresh credits (skip if cached response)
@@ -537,7 +537,7 @@ const AIAssistant = () => {
           // Generate idempotency key to prevent double-click duplicate charges
           const idempotencyKey = `ai_assistant_conversation_${contractId}_${Date.now()}`
           const response = await api.aiAssistantAction('conversation', contractName, conversationHistory, idempotencyKey)
-          
+
           if (response.success) {
             addAiMessage(response.message)
             // Force Header to refresh credits (skip if cached response)
@@ -574,21 +574,21 @@ const AIAssistant = () => {
           onStayHere={handleStayHere}
           onDiscard={handleDiscard}
         />
-        
+
         {/* Header spans full width at top */}
         <Header key={headerKey} />
-        
+
         {/* Sidebar + Content row below header */}
         <div className="flex flex-1 overflow-hidden">
           {/* Horizontal separator line across entire viewport width, below header (lg only) */}
           <div className="hidden lg:block absolute right-4 top-0 bottom-0 w-px" aria-hidden="true" style={{ backgroundColor: 'rgb(45, 81, 112)', boxShadow: 'rgba(45, 81, 112, 0.5) 0px 0px 8px' }} />
-          
-          <Sidebar 
+
+          <Sidebar
             onBeforeNavigate={(to) => {
               // Define workflow pages that should show the discard popup when leaving
               const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis', '/proposal-team', '/public-bid-proposal-generator']
               const isLeavingWorkflow = !workflowPages.some(page => to.startsWith(page))
-              
+
               // If user is leaving the workflow, show popup
               if (isLeavingWorkflow) {
                 setPendingNavigation(to)
@@ -598,25 +598,25 @@ const AIAssistant = () => {
               return true // Allow navigation
             }}
           />
-        
+
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
             <main className="flex-1 p-3 sm:p-4 lg:p-12 flex flex-col overflow-hidden">
             {/* Page Title */}
-            <div className="mb-4 lg:mb-6 flex-shrink-0">
+            <div className="mb-4 lg:mb-6 flex-shrink-0 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl">
                 <span className="text-corama-teal">AI BID ASSISTANT FOR </span>{contractName}
               </h1>
             </div>
 
             {/* Chat Area - flex-1 to take remaining space, with scrollable messages */}
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+ positi            <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in-up animate-delay-100">
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden ai-chat-scrollbar">
               <div className="space-y-3 sm:space-y-4 pr-2">
                 {messages.map((message) => (
-                  <div 
-                    key={message.id} 
+                  <div
+                    key={message.id}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} animate-message-pop`}
-                    style={{ 
+                    style={{
                       transformOrigin: message.sender === 'user' ? 'bottom right' : 'bottom left',
                       animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
                     }}
@@ -660,9 +660,9 @@ const AIAssistant = () => {
                 ))}
                 {/* Show thinking text while waiting for AI response */}
                               {isProcessing && (
-                                <div 
+                                <div
                                   className="flex justify-start animate-message-pop"
-                                  style={{ 
+                                  style={{
                                     transformOrigin: 'bottom left',
                                     animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
                                   }}
