@@ -569,8 +569,8 @@ const TopFiveContracts = () => {
                                                     </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.contractingAgency}</p>
                         </div>
-                        {/* Action Buttons - hidden in PDF */}
-                        <div className="flex flex-col gap-2 justify-start items-start no-pdf">
+                        {/* Action Buttons - visible in PDF */}
+                        <div className="flex flex-col gap-2 justify-start items-start">
                           <button 
                             onClick={() => handleVisitSite(contract.detailLink)}
                             className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
