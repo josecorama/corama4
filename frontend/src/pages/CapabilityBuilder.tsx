@@ -1245,7 +1245,7 @@ const CapabilityBuilder = () => {
                                                             {/* Right Column - Preview & Actions (sticky on desktop) */}
                                                 <div className="space-y-4 lg:space-y-6 lg:sticky lg:top-40 lg:self-start">
               {/* Preview Area with Toolbar */}
-              <div className="rounded-xl border-2 border-[#1C4262] overflow-hidden">
+              <div className="rounded-xl border-2 border-[#1C4262] overflow-hidden animate-fade-in">
                 {/* Toolbar Header */}
                 <div className="bg-[#2A3F54] flex justify-around items-center px-4 py-3 rounded-t-lg">
                   <button 

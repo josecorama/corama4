@@ -656,7 +656,7 @@ const LandingPage = () => {
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('scope-of-work')}`}
       >
         <div 
-          className="max-w-6xl mx-auto relative z-10 parallax-section"
+          className="max-w-6xl mx-auto relative z-10 parallax-section animate-fade-in"
           onMouseMove={handleParallaxMove}
           onMouseLeave={handleParallaxLeave}
           style={parallaxStyle}
@@ -691,7 +691,7 @@ const LandingPage = () => {
         data-section="revolutionizing"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('revolutionizing')}`}
       >
-        <div className="max-w-4xl mx-auto text-center relative z-10">
+        <div className="max-w-4xl mx-auto text-center relative z-10 animate-fade-in">
           <h2 className="font-poppins font-bold text-2xl sm:text-3xl lg:text-5xl text-white mb-3 sm:mb-5 lg:mb-6 leading-tight">
             Revolutionizing Government<br />Contracting for Small<br />Businesses
           </h2>
@@ -708,7 +708,7 @@ const LandingPage = () => {
         className={`min-h-[40vh] lg:h-[calc(100vh-80px)] px-2 sm:px-4 relative overflow-hidden flex flex-col justify-end snap-start ${getSectionClass('footer')}`}
       >
         {/* Footer - at bottom of section */}
-        <footer className="py-4 sm:py-6 px-2 sm:px-4 lg:px-6 relative">
+        <footer className="py-4 sm:py-6 px-2 sm:px-4 lg:px-6 relative animate-fade-in">
           <div className="max-w-6xl mx-auto relative z-10">
             <div className="text-center mb-2 sm:mb-4">
               <p className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm leading-relaxed">
