@@ -382,6 +382,22 @@ const TopFiveContracts = () => {
           noPdfElements.forEach((el) => {
             (el as HTMLElement).style.display = 'none'
           })
+          // Fix text fitting - ensure proper word wrapping and sizing
+          const textElements = clonedDoc.querySelectorAll('.font-poppins')
+          textElements.forEach((el) => {
+            const htmlEl = el as HTMLElement
+            htmlEl.style.wordBreak = 'break-word'
+            htmlEl.style.overflowWrap = 'break-word'
+            htmlEl.style.lineHeight = '1.3'
+          })
+          // Ensure contract name and agency text fits properly
+          const breakWordsElements = clonedDoc.querySelectorAll('.break-words')
+          breakWordsElements.forEach((el) => {
+            const htmlEl = el as HTMLElement
+            htmlEl.style.wordBreak = 'break-word'
+            htmlEl.style.overflowWrap = 'break-word'
+            htmlEl.style.whiteSpace = 'normal'
+          })
         }
       })
       
@@ -579,7 +595,7 @@ const TopFiveContracts = () => {
               ))}
 
               {/* Bottom Action Buttons */}
-              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8 no-print">
+              <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mt-6 lg:mt-8 no-print no-pdf">
                 <button 
                   className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50"
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
