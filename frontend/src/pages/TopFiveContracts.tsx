@@ -369,13 +369,20 @@ const TopFiveContracts = () => {
     try {
       const container = contractsContainerRef.current
       
-      // Capture the contracts container as canvas - preserving exact visual appearance
+      // Capture the contracts container as canvas - hiding buttons and preserving visual appearance
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#1C2B3A',
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          // Hide elements with no-pdf class (action buttons, bottom buttons)
+          const noPdfElements = clonedDoc.querySelectorAll('.no-pdf')
+          noPdfElements.forEach((el) => {
+            (el as HTMLElement).style.display = 'none'
+          })
+        }
       })
       
       const imgData = canvas.toDataURL('image/png')
@@ -546,8 +553,8 @@ const TopFiveContracts = () => {
                                                     </span>
                           <p className="text-white font-poppins font-bold text-base lg:text-lg whitespace-normal break-words">{contract.contractingAgency}</p>
                         </div>
-                        {/* Action Buttons */}
-                        <div className="flex flex-col gap-2 justify-start items-start">
+                        {/* Action Buttons - hidden in PDF */}
+                        <div className="flex flex-col gap-2 justify-start items-start no-pdf">
                           <button 
                             onClick={() => handleVisitSite(contract.detailLink)}
                             className="inline-flex items-center justify-center gap-3 text-white font-poppins text-sm font-medium px-6 py-2.5 rounded-full hover:opacity-90 transition-colors"
