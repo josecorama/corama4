@@ -8646,8 +8646,13 @@ def api_proposal_suggestions():
         contract_id = data.get('contract_id', '')
         contract_description = data.get('contract_description', '')
         
-        # Sanitize inputs
+        # Sanitize inputs - ensure they are strings before slicing
+        if not isinstance(contract_name, str):
+            contract_name = str(contract_name) if contract_name else 'this contract'
         contract_name = contract_name[:500] if contract_name else 'this contract'
+        
+        if not isinstance(contract_description, str):
+            contract_description = str(contract_description) if contract_description else ''
         contract_description = contract_description[:4000] if contract_description else ''
         
         openai_api_key = os.getenv('OPENAI_API_KEY')
@@ -8835,9 +8840,17 @@ def api_proposal_suggestions_chat():
         if not message:
             return jsonify({"success": False, "error": "Message is required"}), 400
         
-        # Sanitize inputs
+        # Sanitize inputs - ensure they are strings before slicing
+        if not isinstance(message, str):
+            message = str(message) if message else ''
         message = message[:1000]
+        
+        if not isinstance(contract_name, str):
+            contract_name = str(contract_name) if contract_name else 'this contract'
         contract_name = contract_name[:500] if contract_name else 'this contract'
+        
+        if not isinstance(contract_description, str):
+            contract_description = str(contract_description) if contract_description else ''
         contract_description = contract_description[:3000] if contract_description else ''
         
         # Validate topic
