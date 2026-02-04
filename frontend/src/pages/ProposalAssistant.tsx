@@ -149,8 +149,8 @@ const SuggestionCard = ({
         )}
       </div>
       
-      {/* Input area */}
-      <div className="relative z-10">
+      {/* Input area - positioned lower with margin top */}
+      <div className="relative z-10 mt-4">
         <div 
           className="flex items-center rounded-full px-4 py-2"
           style={{ backgroundColor: '#2F3C4F' }}

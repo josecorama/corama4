@@ -299,7 +299,7 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6 animate-fade-in">
             <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
             
-            {/* Toggle Button for Grants/Contracts - centered between Overview and Accounts */}
+            {/* Toggle Button for Grants/Contracts - HIDDEN FOR NOW (to be improved later)
             <button
               onClick={() => {
                 setShowGrants(!showGrants)
@@ -310,7 +310,6 @@ const Dashboard = () => {
               aria-pressed={showGrants}
               aria-label="Toggle between Grants and Contracts"
             >
-              {/* Moving thumb - 28px (36px - 4px*2 padding) */}
               <span
                 className="relative z-10 block w-[28px] h-[28px] bg-white rounded-full shadow-md transition-transform duration-500"
                 style={{ 
@@ -318,7 +317,6 @@ const Dashboard = () => {
                   transitionTimingFunction: 'cubic-bezier(0.4, 0.0, 0.2, 1)'
                 }}
               />
-              {/* Contracts View label (visible when OFF) */}
               <span 
                 className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-500"
                 style={{ 
@@ -328,7 +326,6 @@ const Dashboard = () => {
               >
                 {t('contractsView')}
               </span>
-              {/* Grants View label (visible when ON) */}
               <span 
                 className="absolute inset-0 flex items-center justify-center text-[15px] font-medium pointer-events-none z-0 transition-opacity duration-500"
                 style={{ 
@@ -339,6 +336,7 @@ const Dashboard = () => {
                 {t('grantsView')}
               </span>
             </button>
+            */}
             
             <div className="flex items-center gap-2 text-white font-poppins text-xs sm:text-sm">
               <span>{t('accounts')}</span>
