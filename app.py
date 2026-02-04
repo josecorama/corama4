@@ -12789,7 +12789,11 @@ def cancel():
 
 @app.errorhandler(404)
 def not_found_error(error):
-    return render_template('404.html'), 404
+    # Check if this is an API request - return JSON error
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Not found'}), 404
+    # For all other routes, serve the React app and let React Router handle 404
+    return send_from_directory('static/app', 'index.html')
 
 @app.errorhandler(500)
 def internal_error(error):
