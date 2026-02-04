@@ -28,7 +28,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         onClick={onStayHere}
       />
       <div 
-        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop"
         style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
       >
         <button 
@@ -604,7 +604,7 @@ const ProposalTeam = () => {
             </div>
 
             {/* Main Content Container with border */}
-            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-white p-4">
+            <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden rounded-2xl border border-white p-4 animate-fade-in-up animate-delay-100">
               {viewMode === 'default' ? (
                 <>
                   {/* AI Suggestions Section - White card, fixed height matching option cards */}

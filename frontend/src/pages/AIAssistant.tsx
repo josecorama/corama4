@@ -26,7 +26,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
 
       {/* Popup */}
       <div
-        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop"
         style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
       >
         {/* Close button */}
@@ -609,7 +609,7 @@ const AIAssistant = () => {
             </div>
 
             {/* Chat Area - flex-1 to take remaining space, with scrollable messages */}
- positi            <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in-up animate-delay-100">
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in-up animate-delay-100">
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden ai-chat-scrollbar">
               <div className="space-y-3 sm:space-y-4 pr-2">
                 {messages.map((message) => (

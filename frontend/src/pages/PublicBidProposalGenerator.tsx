@@ -130,7 +130,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         onClick={onStayHere}
       />
       <div 
-        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop"
         style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
       >
         <button 
@@ -178,7 +178,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
   )
 }
 
-const PublicBidProposalGenerator = () => {
+const PublicBidProposalGenerator= () => {
   const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -513,13 +513,13 @@ const PublicBidProposalGenerator = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
-            <div className="text-center mb-3 flex-shrink-0">
+            <div className="text-center mb-3 flex-shrink-0 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Public Bid Proposal Generator</h1>
               <p className="text-white font-poppins text-sm">AI-powered 8-section proposal generation</p>
             </div>
 
             {/* Important Disclaimer */}
-            <div className="bg-white rounded-2xl p-4 mb-4 flex-shrink-0">
+            <div className="bg-white rounded-2xl p-4 mb-4 flex-shrink-0 animate-fade-in-up animate-delay-100">
               <h2 className="text-gray-800 font-poppins font-semibold text-base mb-2">Important Disclaimer</h2>
               <p className="text-gray-600 font-poppins text-sm leading-relaxed">
                 This tool generates a DRAFT proposal using AI. The output is NOT a final, complete, or legally 
@@ -547,7 +547,7 @@ const PublicBidProposalGenerator = () => {
             )}
 
             {/* Section Cards Grid - 2 rows of 4 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 flex-shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 flex-shrink-0 animate-fade-in-up animate-delay-200">
               {sectionTitles.map((title, index) => (
                 <SectionCard
                   key={index}
@@ -560,7 +560,7 @@ const PublicBidProposalGenerator = () => {
             </div>
 
             {/* How To Use This Draft */}
-            <div className="bg-white rounded-2xl p-4 mb-4 flex-shrink-0">
+            <div className="bg-white rounded-2xl p-4 mb-4 flex-shrink-0 animate-fade-in-up animate-delay-300">
               <h2 className="text-gray-800 font-poppins font-semibold text-base mb-2">How To Use This Draft</h2>
               <ol className="text-gray-600 font-poppins text-sm space-y-1 list-decimal list-inside">
                 <li>Review: Carefully read each section for accuracy and completeness.</li>

@@ -602,6 +602,44 @@ body {
   opacity: 0;
 }
 
+/* Message pop animation for chat messages */
+@keyframes messagePop {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+  50% {
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-message-pop {
+  animation: messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Popup pop animation */
+@keyframes popupPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-popup-pop {
+  animation: popupPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
 /* Scroll-triggered fade-in animations for landing page */
 .scroll-fade-in {
   transition: opacity 0.6s ease-out, transform 0.6s ease-out;

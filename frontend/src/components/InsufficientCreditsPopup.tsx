@@ -15,7 +15,7 @@ const InsufficientCreditsPopup = ({ isOpen, creditsRequired, onGetCredits, onClo
         onClick={onClose}
       />
       <div 
-        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4"
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 animate-popup-pop"
         style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
       >
         <button 

@@ -33,7 +33,7 @@ const AIAssistantPopup = ({ isOpen, type, title, message, onClose }: AIPopupProp
         onClick={onClose}
       />
       <div 
-        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop"
         style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '180px' }}
       >
         <button 

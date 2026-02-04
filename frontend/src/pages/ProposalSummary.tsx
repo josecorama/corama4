@@ -63,7 +63,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         onClick={onStayHere}
       />
       <div 
-        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20"
+        className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop"
         style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}
       >
         <button 
@@ -111,7 +111,7 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
   )
 }
 
-const ProposalSummary = () => {
+const ProposalSummary= () => {
   const { t: _t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -510,7 +510,7 @@ const ProposalSummary = () => {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
-            <div className="text-center mb-2 flex-shrink-0">
+            <div className="text-center mb-2 flex-shrink-0 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
               
                                                                 {/* Progress Circles - Static checks for steps 1 & 2 (completed on previous pages), animated check for step 3 */}
@@ -557,7 +557,7 @@ const ProposalSummary = () => {
             </div>
 
                                                 {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
-                                                <div className="bg-white rounded-2xl border border-white p-4 mb-8 flex-shrink-0">
+                                                <div className="bg-white rounded-2xl border border-white p-4 mb-8 flex-shrink-0 animate-fade-in-up animate-delay-100">
                           <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
                           <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
                             {isLoadingStrategy ? (
@@ -585,7 +585,7 @@ const ProposalSummary = () => {
                         </div>
 
                                                                                                                                     {/* Labor Costs Section - Responsive: 2x2 grid on mobile, horizontal on desktop */}
-                                                                                                <div className="rounded-2xl border border-white p-3 mb-8 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
+                                                                                                <div className="rounded-2xl border border-white p-3 mb-8 flex-shrink-0 animate-fade-in-up animate-delay-200" style={{ backgroundColor: '#333c4d' }}>
                                                   <h3 className="text-white font-poppins font-semibold text-sm sm:text-base mb-2">Labor Costs</h3>
               
                                                                                                   {/* Existing labor cost items */}

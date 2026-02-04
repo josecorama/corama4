@@ -95,7 +95,11 @@ const SuggestionCard = ({
         {messages.map((message) => (
           <div 
             key={message.id}
-            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+            className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} animate-message-pop`}
+            style={{
+              transformOrigin: message.sender === 'user' ? 'bottom right' : 'bottom left',
+              animation: 'messagePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards'
+            }}
           >
                         <div 
                           className={`max-w-[85%] rounded-lg px-4 py-2 ${
