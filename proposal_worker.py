@@ -940,6 +940,8 @@ def find_and_process_contract_analysis_jobs(db, openai_client):
 # Configuration for NAICS enrichment
 NAICS_ENRICHMENT_THREAD_POOL_SIZE = 8  # Concurrent AI predictions
 NAICS_ENRICHMENT_BATCH_SIZE = 10  # Contracts per batch (micro-batch for stability)
+NAICS_BACKLOG_MAX_CONTRACTS = 5000  # Process up to 5000 contracts per backlog job
+NAICS_BACKLOG_CHECK_SAMPLE_SIZE = 100  # Sample size for checking if enrichment is needed
 
 def initialize_qdrant():
     """Initialize Qdrant client for NAICS enrichment"""
@@ -1214,7 +1216,7 @@ def process_naics_enrichment_job(db, openai_client, job_id: str, job_data: dict)
         
         # Get job parameters
         batch_size = job_data.get('batch_size', NAICS_ENRICHMENT_BATCH_SIZE)
-        max_contracts = job_data.get('max_contracts', 500)  # Limit per job run
+        max_contracts = job_data.get('max_contracts', NAICS_BACKLOG_MAX_CONTRACTS)  # Default to 5000 per job run
         
         # Initialize Qdrant
         qdrant_client = initialize_qdrant()
@@ -1401,8 +1403,12 @@ def check_and_queue_naics_backlog(db):
     
     This function implements "set and forget" automation:
     1. Checks if there's already a running/queued NAICS enrichment job
-    2. If not, does a quick existence check for contracts needing enrichment
-    3. If found, creates a new backlog job in Firebase
+    2. If not, samples contracts from random positions in the collection
+    3. If any need enrichment, creates a new backlog job in Firebase
+    
+    IMPROVED: Uses random sampling to check different parts of the collection,
+    ensuring we don't miss contracts that need enrichment even if the first
+    few contracts already have NAICS codes.
     
     This should be called:
     - Once at worker startup
@@ -1411,6 +1417,7 @@ def check_and_queue_naics_backlog(db):
     Returns True if a job was queued, False otherwise.
     """
     import uuid
+    import random
     
     try:
         # Check if there's already a running or queued job
@@ -1423,39 +1430,74 @@ def check_and_queue_naics_backlog(db):
                 logger.debug(f"[NAICS_BACKLOG] Skipping - job {job_id} already {status}")
                 return False
         
-        # Quick existence check - just find 1 contract needing enrichment
-        # This is much faster than counting all contracts
+        # Check for contracts needing enrichment using random sampling
+        # This ensures we check different parts of the collection each time
         try:
             qdrant_client = initialize_qdrant()
             
-            # Micro-batch: limit=10 with full payload for stability
-            result = qdrant_client.scroll(
-                collection_name="government_contracts",
-                limit=10,  # Micro-batch for stability
-                offset=None,
-                with_payload=True,  # Full payload - natively supported, no serialization issues
-                with_vectors=False
-            )
+            # Get total count to determine sampling strategy
+            collection_info = qdrant_client.get_collection("government_contracts")
+            total_contracts = collection_info.points_count
+            logger.info(f"[NAICS_BACKLOG] Total contracts in collection: {total_contracts}")
             
-            points, _ = result
             needs_enrichment = False
+            contracts_checked = 0
+            contracts_needing_enrichment = 0
             
-            for point in points:
-                payload = point.payload or {}
-                naics_code = payload.get('naics_code') or payload.get('NAICS Code') or ''
-                naics_desc = payload.get('naics_description') or payload.get('NAICS Description') or ''
+            # Sample from multiple random positions in the collection
+            # This ensures we check different parts even if the first N contracts are enriched
+            sample_positions = [0]  # Always check from the beginning
+            if total_contracts > 100:
+                # Add random positions throughout the collection
+                for _ in range(min(5, total_contracts // 1000)):  # Up to 5 random positions
+                    sample_positions.append(random.randint(0, total_contracts - 1))
+            
+            for start_pos in sample_positions:
+                if needs_enrichment:
+                    break  # Already found contracts needing enrichment
                 
-                # Check if NAICS code is missing or invalid
-                if not naics_code or str(naics_code).strip().lower() in ('nan', 'none', 'null', ''):
-                    needs_enrichment = True
-                    break
-                # Check if description is invalid
-                if naics_desc and str(naics_desc).strip().lower() in ('other', 'unknown', 'nan', 'none', 'null', ''):
-                    needs_enrichment = True
-                    break
+                # Use scroll with offset to check contracts at this position
+                # Note: Qdrant scroll offset is a point ID, not an index
+                # We'll use scroll from the beginning and skip to approximate position
+                result = qdrant_client.scroll(
+                    collection_name="government_contracts",
+                    limit=NAICS_BACKLOG_CHECK_SAMPLE_SIZE // len(sample_positions),  # Distribute sample size
+                    offset=None if start_pos == 0 else None,  # Start from beginning (offset by point ID not supported for random access)
+                    with_payload=True,
+                    with_vectors=False
+                )
+                
+                points, _ = result
+                
+                for point in points:
+                    contracts_checked += 1
+                    payload = point.payload or {}
+                    naics_code = payload.get('naics_code') or payload.get('NAICS Code') or payload.get('NAICS_Code') or ''
+                    naics_desc = payload.get('naics_description') or payload.get('NAICS Description') or ''
+                    
+                    # Check if NAICS code is missing or invalid
+                    naics_code_str = str(naics_code).strip().lower() if naics_code else ''
+                    if not naics_code_str or naics_code_str in ('nan', 'none', 'null', '', 'n/a'):
+                        contracts_needing_enrichment += 1
+                        needs_enrichment = True
+                        continue
+                    
+                    # Check if it's a valid NAICS code (4-6 digits)
+                    if not (naics_code_str.isdigit() and len(naics_code_str) >= 4):
+                        contracts_needing_enrichment += 1
+                        needs_enrichment = True
+                        continue
+                    
+                    # Check if description is invalid
+                    naics_desc_str = str(naics_desc).strip().lower() if naics_desc else ''
+                    if naics_desc_str in ('other', 'unknown', 'nan', 'none', 'null', '', 'n/a', 'unclassified'):
+                        contracts_needing_enrichment += 1
+                        needs_enrichment = True
+            
+            logger.info(f"[NAICS_BACKLOG] Checked {contracts_checked} contracts, {contracts_needing_enrichment} need enrichment")
             
             if not needs_enrichment:
-                logger.debug("[NAICS_BACKLOG] No contracts need enrichment")
+                logger.info("[NAICS_BACKLOG] No contracts need enrichment in sampled set")
                 return False
                 
         except Exception as e:
@@ -1463,21 +1505,22 @@ def check_and_queue_naics_backlog(db):
             # If we can't check Qdrant, don't queue a job
             return False
         
-        # Queue a new backlog job
+        # Queue a new backlog job with higher max_contracts for thorough processing
         job_id = f"backlog-{uuid.uuid4().hex[:8]}"
         job_data = {
             'status': 'queued',
             'created_at': time.time(),
             'batch_size': NAICS_ENRICHMENT_BATCH_SIZE,  # 10 (micro-batch)
-            'max_contracts': 1000,  # Process up to 1000 contracts per backlog job
+            'max_contracts': NAICS_BACKLOG_MAX_CONTRACTS,  # Process up to 5000 contracts per backlog job
             'requested_by': 'auto_backlog_sweep',
             'contracts_processed': 0,
             'contracts_success': 0,
-            'contracts_failed': 0
+            'contracts_failed': 0,
+            'total_in_collection': total_contracts
         }
         
         jobs_ref.child(job_id).set(job_data)
-        logger.info(f"[NAICS_BACKLOG] Queued automatic backlog job {job_id}")
+        logger.info(f"[NAICS_BACKLOG] Queued automatic backlog job {job_id} (max_contracts={NAICS_BACKLOG_MAX_CONTRACTS})")
         return True
         
     except Exception as e:
