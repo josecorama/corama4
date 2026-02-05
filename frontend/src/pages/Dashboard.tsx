@@ -144,7 +144,10 @@ const Dashboard = () => {
   // Search suggestions state
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
+  const [suggestionResults, setSuggestionResults] = useState<Contract[]>([])
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const searchContainerRef = useRef<HTMLDivElement>(null)
+  const suggestionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   
   // Toggle state for Grants/Contracts view (commented out - to be improved later)
   const [showGrants, _setShowGrants] = useState(false)
@@ -154,12 +157,6 @@ const Dashboard = () => {
 
   const contractsPerPage = 10 // Fixed batch size for traditional pagination
 
-  const filteredContractSuggestions = searchQuery.trim()
-    ? contracts.filter(c =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.category.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, 6)
-    : []
   const startItem = (currentPage - 1) * contractsPerPage + 1
   const endItem = Math.min(currentPage * contractsPerPage, totalContracts)
 
@@ -176,6 +173,38 @@ const Dashboard = () => {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSuggestionResults([])
+      return
+    }
+    if (suggestionDebounceRef.current) clearTimeout(suggestionDebounceRef.current)
+    suggestionDebounceRef.current = setTimeout(async () => {
+      setSuggestionsLoading(true)
+      try {
+        const data = await api.searchContracts(searchQuery, 1, contractType, selectedStates)
+        const results: Contract[] = data.contracts.map((c, i) => ({
+          id: i + 1,
+          name: c.bid_name,
+          category: c.category,
+          naicsCode: c.naics_code || 'N/A',
+          dueDate: c.due_date,
+          status: c.status || 'Open',
+          detailLink: c.detail_link,
+          hashValue: c.hash_value
+        }))
+        setSuggestionResults(results.slice(0, 6))
+      } catch {
+        setSuggestionResults([])
+      } finally {
+        setSuggestionsLoading(false)
+      }
+    }, 300)
+    return () => {
+      if (suggestionDebounceRef.current) clearTimeout(suggestionDebounceRef.current)
+    }
+  }, [searchQuery, contractType, selectedStates])
 
   // Process credit purchase if redirected from Stripe checkout
   useEffect(() => {
@@ -298,17 +327,17 @@ const Dashboard = () => {
   }
 
   const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showSuggestions || filteredContractSuggestions.length === 0) return
+    if (!showSuggestions || suggestionResults.length === 0) return
 
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setSelectedSuggestionIndex(prev => (prev < filteredContractSuggestions.length - 1 ? prev + 1 : prev))
+      setSelectedSuggestionIndex(prev => (prev < suggestionResults.length - 1 ? prev + 1 : prev))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : prev))
     } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
       e.preventDefault()
-      const selected = filteredContractSuggestions[selectedSuggestionIndex]
+      const selected = suggestionResults[selectedSuggestionIndex]
       navigate('/ai-assistant', { state: { contractName: selected.name, contractCategory: selected.category } })
       setShowSuggestions(false)
       setSelectedSuggestionIndex(-1)
@@ -510,7 +539,7 @@ const Dashboard = () => {
                             </svg>
                           </form>
 
-                          {showSuggestions && filteredContractSuggestions.length > 0 && (
+                          {showSuggestions && (suggestionResults.length > 0 || suggestionsLoading) && (
                             <div
                               className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50"
                               style={{
@@ -522,7 +551,15 @@ const Dashboard = () => {
                               }}
                             >
                               <div className="py-2">
-                                {filteredContractSuggestions.map((contract, index) => (
+                                {suggestionsLoading ? Array.from({ length: 3 }).map((_, i) => (
+                                  <div key={`sug-skeleton-${i}`} className="w-full px-4 py-3 flex items-center gap-3">
+                                    <div className="skeleton w-4 h-4 rounded-full flex-shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="skeleton h-4 w-3/4 mb-1" />
+                                      <div className="skeleton h-3 w-1/2" />
+                                    </div>
+                                  </div>
+                                )) : suggestionResults.map((contract, index) => (
                                   <button
                                     key={contract.id}
                                     onClick={() => handleSelectContractSuggestion(contract)}
