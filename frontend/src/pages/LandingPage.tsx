@@ -422,8 +422,8 @@ const LandingPage = () => {
             <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-6">
               <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
               <a href="/about-us" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
+              <a href="/login" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">Log In</a>
             </nav>
-            <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
             <a href="/signup" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
           </div>
         </div>
