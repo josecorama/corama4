@@ -35,7 +35,7 @@ const translations = {
     cost: 'Cost',
     loadingHistory: 'Loading credit history...',
     noTransactions: 'No credit transactions yet',
-    viewFullHistory: 'View Full History',
+    viewFullHistory: 'Show more',
     contactSupport: 'Contact Support',
     needHelp: 'Need help with your account or finding contracts?',
     howCanWeHelp: 'How can we help?',
@@ -63,7 +63,7 @@ const translations = {
     cost: 'Costo',
     loadingHistory: 'Cargando historial de créditos...',
     noTransactions: 'Sin transacciones de créditos aún',
-    viewFullHistory: 'Ver Historial Completo',
+    viewFullHistory: 'Mostrar más',
     contactSupport: 'Contactar Soporte',
     needHelp: '¿Necesita ayuda con su cuenta o encontrar contratos?',
     howCanWeHelp: '¿Cómo podemos ayudarle?',
@@ -88,6 +88,7 @@ const Settings = () => {
   const [saveMessage, setSaveMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
   const [creditHistory, setCreditHistory] = useState<CreditHistoryItem[]>([])
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [supportStatus, setSupportStatus] = useState<{type: 'success' | 'error', message: string} | null>(null)
 
@@ -385,7 +386,7 @@ const Settings = () => {
                           </td>
                         </tr>
                       ) : (
-                        creditHistory.map((item) => (
+                        creditHistory.slice(0, visibleHistoryCount).map((item) => (
                           <tr key={item.id} className="hover:bg-white/5 transition">
                             <td className="px-4 py-3">{item.date}</td>
                             <td className="px-4 py-3">{item.action}</td>
@@ -398,8 +399,11 @@ const Settings = () => {
                     </tbody>
                   </table>
                 </div>
-                {creditHistory.length > 0 && (
-                  <button className="w-full mt-4 text-center text-[#6BA4A7] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition">
+                {creditHistory.length > visibleHistoryCount && (
+                  <button
+                    onClick={() => setVisibleHistoryCount(prev => prev + 5)}
+                    className="w-full mt-4 text-center text-[#6BA4A7] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition"
+                  >
                     {t.viewFullHistory}
                   </button>
                 )}
