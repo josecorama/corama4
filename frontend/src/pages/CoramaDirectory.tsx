@@ -32,9 +32,10 @@ const CoramaDirectory = () => {
   const [companies, setCompanies] = useState<Company[]>([])
   const [_loading, setLoading] = useState(true)
   const [hasDirectoryProfile, setHasDirectoryProfile] = useState<boolean | null>(null)
-  const companiesPerPage = 10
+  const companiesPerPage = 5
   const startItem = totalCompanies > 0 ? (currentPage - 1) * companiesPerPage + 1 : 0
   const endItem = Math.min(currentPage * companiesPerPage, totalCompanies)
+  const hasMorePages = endItem < totalCompanies
 
   useEffect(() => {
     loadDirectory()
@@ -137,13 +138,15 @@ const CoramaDirectory = () => {
                   <span>{startItem}-{endItem} of {totalCompanies}</span>
                   <button 
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="p-1 hover:opacity-80"
+                    disabled={currentPage === 1}
+                    className="p-1 hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <img src="/static/app/dashboard/LeftArrow.svg" alt="Previous" className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => setCurrentPage(p => p + 1)}
-                    className="p-1 hover:opacity-80"
+                    disabled={!hasMorePages}
+                    className="p-1 hover:opacity-80 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     <img src="/static/app/dashboard/RightArrow.svg" alt="Next" className="w-4 h-4" />
                   </button>

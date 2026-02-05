@@ -60,8 +60,45 @@ const EditDirectoryProfile = () => {
   }
 
 
+  const formatPhoneNumber = (value: string): string => {
+    const digits = value.replace(/\D/g, '')
+    
+    if (digits.length === 0) return ''
+    
+    let formatted = '+1 '
+    
+    if (digits.startsWith('1')) {
+      const remaining = digits.slice(1)
+      if (remaining.length > 0) {
+        formatted += '(' + remaining.slice(0, 3)
+        if (remaining.length >= 3) {
+          formatted += ') '
+          formatted += remaining.slice(3, 6)
+          if (remaining.length > 6) {
+            formatted += ' ' + remaining.slice(6, 10)
+          }
+        }
+      }
+    } else {
+      formatted += '(' + digits.slice(0, 3)
+      if (digits.length >= 3) {
+        formatted += ') '
+        formatted += digits.slice(3, 6)
+        if (digits.length > 6) {
+          formatted += ' ' + digits.slice(6, 10)
+        }
+      }
+    }
+    
+    return formatted
+  }
+
   const handleInputChange = (field: keyof DirectoryProfile, value: string | boolean) => {
-    setProfile(prev => ({ ...prev, [field]: value }))
+    if (field === 'phone' && typeof value === 'string') {
+      setProfile(prev => ({ ...prev, [field]: formatPhoneNumber(value) }))
+    } else {
+      setProfile(prev => ({ ...prev, [field]: value }))
+    }
   }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
