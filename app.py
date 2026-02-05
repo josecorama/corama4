@@ -18027,31 +18027,42 @@ def api_top_five_contracts():
                             break
                 
                 # Method 4: Look up NAICS directly from Qdrant (worker-generated codes)
-                # This is the primary source of truth for NAICS codes
+                # Compute hash using available fields - try multiple combinations
                 computed_hash = None
+                bid_name = row_dict.get('Bid_Name', '')
+                
                 if detail_link and bid_number:
                     computed_hash = compute_hash(detail_link, bid_number)
+                elif detail_link and bid_name:
+                    computed_hash = compute_hash(detail_link, bid_name)
+                elif bid_number and bid_name:
+                    computed_hash = compute_hash(bid_number, bid_name)
+                elif bid_name:
+                    computed_hash = compute_hash(bid_name, str(row_dict.get('Organization', '')))
+                
+                if computed_hash:
                     qdrant_naics = lookup_naics_from_qdrant(computed_hash)
                     if qdrant_naics:
                         row_dict['NAICS_Code'] = qdrant_naics
-                        logging.info(f"[top5] Found NAICS from Qdrant for '{row_dict.get('Bid_Name', '')[:30]}': {qdrant_naics}")
+                        logging.info(f"[top5] Found NAICS from Qdrant for '{bid_name[:30]}': {qdrant_naics}")
                         return row_dict
                 
-                # Method 5: Generate NAICS on-demand and store in Qdrant
-                # This ensures Top Five contracts always have NAICS codes
+                # Method 5: Generate NAICS on-demand using AI
+                # This ensures Top Five contracts ALWAYS have NAICS codes
                 ai_payload = {
-                    'bid_name': row_dict.get('Bid_Name', ''),
+                    'bid_name': bid_name,
                     'bid_description': row_dict.get('Bid_Description', ''),
                     'organization': row_dict.get('Organization', ''),
                     'category': row_dict.get('Category', '')
                 }
                 
-                if ai_payload.get('bid_name') or ai_payload.get('bid_description'):
+                # Always try to generate if we have ANY useful info
+                if bid_name or ai_payload.get('bid_description') or ai_payload.get('organization'):
                     try:
                         generated_naics = generate_naics_codes_with_ai(ai_payload, computed_hash)
                         if generated_naics:
                             row_dict['NAICS_Code'] = generated_naics
-                            logging.info(f"[top5] Generated NAICS for '{ai_payload.get('bid_name', '')[:30]}': {generated_naics}")
+                            logging.info(f"[top5] Generated NAICS for '{bid_name[:30] if bid_name else 'unknown'}': {generated_naics}")
                             
                             # Store the generated NAICS code in Qdrant for future requests
                             if computed_hash:
@@ -18063,6 +18074,27 @@ def api_top_five_contracts():
                             return row_dict
                     except Exception as e:
                         logging.warning(f"[top5] Failed to generate NAICS with AI: {e}")
+                
+                # If all else fails, try to infer a generic NAICS code from category
+                category = row_dict.get('Category', '')
+                if category:
+                    category_naics_map = {
+                        'construction': '236220',
+                        'it services': '541512',
+                        'professional services': '541611',
+                        'goods/supplies': '339999',
+                        'maintenance/operations': '561210',
+                        'research': '541715',
+                        'healthcare': '621999',
+                        'transportation': '484110',
+                        'environmental': '562910'
+                    }
+                    category_lower = category.lower()
+                    for cat_key, naics in category_naics_map.items():
+                        if cat_key in category_lower:
+                            row_dict['NAICS_Code'] = naics
+                            logging.info(f"[top5] Inferred NAICS {naics} from category '{category}'")
+                            return row_dict
                 
                 return row_dict
             
