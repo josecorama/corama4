@@ -322,19 +322,24 @@ const AboutUsPublic = () => {
       {/* Header */}
       <header className="h-16 sm:h-20 flex-shrink-0 bg-[#0B0B0F] backdrop-blur-sm z-50">
         <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 h-full flex items-center justify-between">
-          <a href="/" className="flex items-center gap-2">
-            <img src="/static/app/landing/CoramaText.svg" alt="CORAMA" className="h-2.5 sm:h-3 lg:h-3.5 w-auto" />
-          </a>
+          {/* Logo Group (Left Side) */}
+          <div className="flex items-center gap-3 sm:gap-5">
+            <a href="/">
+              <img src="/static/app/landing/corama-logo-new.png" alt="CORAMA" className="h-6 sm:h-8 lg:h-8 w-auto" />
+            </a>
+            <div className="h-6 w-px bg-white/20"></div>
+            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer">
+              <img src="/static/app/dashboard/IHCC-new.png" alt="IHCC" className="h-5 sm:h-6 lg:h-6 w-auto" />
+            </a>
+          </div>
           
-          {/* Navigation - visible on all screens with smaller text on mobile */}
-          <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-8">
-            <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">IHCC</a>
-            <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
-            <a href="/about-us" className="text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
-          </nav>
-          
-          <div className="flex items-center gap-1 sm:gap-2 lg:gap-4">
-            <a href="/login" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center border border-white">Log In</a>
+          {/* Navigation and Buttons (Right Side) */}
+          <div className="flex items-center gap-2 sm:gap-4 lg:gap-8">
+            <nav className="prelogin-nav flex items-center gap-2 sm:gap-4 lg:gap-6">
+              <a href="/faq" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">FAQ</a>
+              <a href="/about-us" className="text-white font-poppins text-[10px] sm:text-sm transition-colors">About Us</a>
+              <a href="/login" className="text-gray-300 hover:text-white font-poppins text-[10px] sm:text-sm transition-colors">Log In</a>
+            </nav>
             <a href="/signup" className="text-white font-poppins text-[10px] sm:text-xs lg:text-sm font-semibold px-3 sm:px-4 lg:px-6 py-1.5 sm:py-2 lg:py-2.5 rounded-lg hover:opacity-90 transition-all text-center" style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}>Sign up</a>
           </div>
         </div>
