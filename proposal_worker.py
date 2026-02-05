@@ -74,6 +74,9 @@ MAX_SECTIONS_PARALLEL = 8  # parallel sections per job (matches current behavior
 # Global flag for graceful shutdown
 shutdown_requested = False
 
+# Track contract count for change detection
+_last_known_contract_count = 0
+
 
 def signal_handler(signum, frame):
     """Handle shutdown signals gracefully"""
@@ -973,11 +976,16 @@ def predict_naics_single(openai_client, contract: dict) -> dict:
     organization = contract.get('organization', '')
     
     try:
-        # Build the prompt
+        # Build the prompt with detailed NAICS hierarchical structure explanation
         system_prompt = (
-            "You are an expert in US federal procurement classification. "
-            "Given a government contract bid name and organization, "
-            "determine the most likely NAICS code and its official description. "
+            "You are an expert in US federal procurement classification using the NAICS (North American Industry Classification System). "
+            "NAICS codes are 6-digit hierarchical codes that classify businesses based on their primary production activities:\n"
+            "- 1st-2nd Digits (Sector): Identifies the largest economic sector (e.g., 23 for Construction, 31-33 for Manufacturing)\n"
+            "- 3rd Digit (Subsector): Defines the subsector (e.g., 236 for Construction of Buildings)\n"
+            "- 4th Digit (Industry Group): Defines the industry group (e.g., 2361 for Residential Building Construction)\n"
+            "- 5th Digit (NAICS Industry): Specifies the NAICS industry\n"
+            "- 6th Digit (National Industry): Provides the most granular detail specific to the country\n\n"
+            "Given a government contract bid name, determine the most appropriate 6-digit NAICS code. "
             "Use official US NAICS 2022 codes and descriptions. "
             "Return ONLY a JSON object, no extra text."
         )
@@ -986,14 +994,23 @@ def predict_naics_single(openai_client, contract: dict) -> dict:
 Bid Name: {bid_name}
 Organization: {organization}
 
+NAICS Code Structure (for reference):
+- Sector (2 digits): 11=Agriculture, 21=Mining, 22=Utilities, 23=Construction, 31-33=Manufacturing, 42=Wholesale, 44-45=Retail, 48-49=Transportation, 51=Information, 52=Finance, 53=Real Estate, 54=Professional Services, 55=Management, 56=Admin/Support, 61=Education, 62=Healthcare, 71=Arts/Entertainment, 72=Accommodation/Food, 81=Other Services, 92=Public Admin
+- Subsector (3 digits): More specific within sector
+- Industry Group (4 digits): Even more specific
+- NAICS Industry (5 digits): Comparable across US, Canada, Mexico
+- National Industry (6 digits): Most granular, country-specific
+
 Requirements:
 - Output a JSON object with exactly these keys:
-  - "code": a single 6-digit NAICS code string (e.g. "332999")
-  - "description": the official NAICS description for that code (e.g. "All Other Miscellaneous Fabricated Metal Product Manufacturing")
-- ALWAYS provide a code and description based on your best guess from the bid name.
-- For cryptic titles like "30--ROD,PISTON" or part numbers, infer the industry from component names.
-- Use the OFFICIAL NAICS description, not a made-up one.
-- Do NOT include any explanation or text outside of the JSON."""
+  - "code": a single 6-digit NAICS code string (e.g. "236220" for Commercial and Institutional Building Construction)
+  - "description": the official NAICS description for that code
+- Analyze the bid name carefully to determine the PRIMARY activity/industry
+- For cryptic titles like "30--ROD,PISTON" or part numbers, infer the industry from component names (e.g., piston rod = manufacturing)
+- For construction projects, use 236xxx codes; for IT services, use 541xxx codes; for professional services, use 541xxx codes
+- ALWAYS provide a valid 6-digit code - never return partial codes or N/A
+- Use the OFFICIAL NAICS description, not a made-up one
+- Do NOT include any explanation or text outside of the JSON"""
         
         response = openai_client.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -1525,6 +1542,51 @@ def check_and_queue_naics_backlog(db):
         
     except Exception as e:
         logger.error(f"[NAICS_BACKLOG] Error checking/queueing backlog: {e}", exc_info=True)
+        return False
+
+
+# ============================================================================
+# CONTRACT COUNT CHANGE DETECTION
+# ============================================================================
+
+def check_contract_count_and_enrich(db):
+    """
+    Check if the total contract count has changed and trigger NAICS enrichment if so.
+    
+    This function:
+    1. Gets the current contract count from Qdrant
+    2. Compares it to the last known count
+    3. If changed, immediately queues a NAICS enrichment job
+    
+    This ensures new contracts get NAICS codes as soon as they're added.
+    """
+    global _last_known_contract_count
+    
+    try:
+        qdrant_client = initialize_qdrant()
+        collection_info = qdrant_client.get_collection("government_contracts")
+        current_count = collection_info.points_count
+        
+        if _last_known_contract_count == 0:
+            # First run - just record the count
+            _last_known_contract_count = current_count
+            logger.info(f"[CONTRACT_MONITOR] Initial contract count: {current_count}")
+            return False
+        
+        if current_count != _last_known_contract_count:
+            diff = current_count - _last_known_contract_count
+            logger.info(f"[CONTRACT_MONITOR] Contract count changed: {_last_known_contract_count} -> {current_count} (diff: {diff:+d})")
+            _last_known_contract_count = current_count
+            
+            # Trigger NAICS enrichment for new contracts
+            if diff > 0:
+                logger.info(f"[CONTRACT_MONITOR] {diff} new contracts detected - triggering NAICS enrichment")
+                return check_and_queue_naics_backlog(db)
+        
+        return False
+        
+    except Exception as e:
+        logger.warning(f"[CONTRACT_MONITOR] Error checking contract count: {e}")
         return False
 
 
@@ -2063,7 +2125,15 @@ def main():
     cleanup_counter = 0
     backlog_check_counter = 0
     stats_check_counter = 0
+    contract_count_check_counter = 0
     BACKLOG_CHECK_INTERVAL = 60  # Check every 60 iterations (~5 minutes at 5s poll interval)
+    CONTRACT_COUNT_CHECK_INTERVAL = 12  # Check every 12 iterations (~1 minute at 5s poll interval)
+    
+    # Initialize contract count tracking at startup
+    try:
+        check_contract_count_and_enrich(db)
+    except Exception as e:
+        logger.warning(f"[CONTRACT_MONITOR] Startup count check failed (non-fatal): {e}")
     
     # Main loop
     while not shutdown_requested:
@@ -2089,6 +2159,16 @@ def main():
                 cleanup_stale_contract_analysis_jobs(db)
                 cleanup_stale_naics_enrichment_jobs(db)
                 cleanup_counter = 0
+            
+            # CONTRACT COUNT CHANGE DETECTION: Every ~1 minute, check if new contracts were added
+            # This triggers immediate NAICS enrichment when the contract count changes
+            contract_count_check_counter += 1
+            if contract_count_check_counter >= CONTRACT_COUNT_CHECK_INTERVAL:
+                try:
+                    check_contract_count_and_enrich(db)
+                except Exception as e:
+                    logger.warning(f"[CONTRACT_MONITOR] Periodic check failed (non-fatal): {e}")
+                contract_count_check_counter = 0
             
             # PERIODIC BACKLOG CHECK: Every ~5 minutes, check if we need to queue a NAICS enrichment job
             # This ensures new contracts get enriched automatically without manual intervention
