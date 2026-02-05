@@ -408,13 +408,35 @@ const Dashboard = () => {
             
             {/* Desktop: Grid layout */}
             <div className="hidden lg:grid grid-cols-4 gap-4">
-              {topCategories.map((cat, index) => (
+              {loading ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={`cat-skeleton-${i}`} className="rounded-xl p-4 border border-white/20 flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
+                  <div className="relative w-20 h-20 flex-shrink-0 flex items-center justify-center">
+                    <div className="skeleton w-[70px] h-[70px] rounded-full" />
+                  </div>
+                  <div className="flex flex-col justify-center gap-2 flex-1">
+                    <div className="skeleton h-4 w-3/4" />
+                    <div className="skeleton h-3 w-1/2" />
+                  </div>
+                </div>
+              )) : topCategories.map((cat, index) => (
                 <AnimatedCategoryCard key={index} cat={cat} index={index} />
               ))}
             </div>
             
             {/* Mobile/Tablet: Horizontal scrollable carousel with snap */}
             <div className="lg:hidden">
+              {loading ? (
+                <div className="rounded-xl p-4 border border-white/20 flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
+                  <div className="relative w-20 h-20 flex-shrink-0 flex items-center justify-center">
+                    <div className="skeleton w-[70px] h-[70px] rounded-full" />
+                  </div>
+                  <div className="flex flex-col justify-center gap-2 flex-1">
+                    <div className="skeleton h-4 w-3/4" />
+                    <div className="skeleton h-3 w-1/2" />
+                  </div>
+                </div>
+              ) : (
+                <>
               <div 
                 className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-hide"
                 style={{ WebkitOverflowScrolling: 'touch' }}
@@ -458,6 +480,8 @@ const Dashboard = () => {
                   />
                 ))}
               </div>
+                </>
+              )}
             </div>
           </div>
 
