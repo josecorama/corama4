@@ -503,8 +503,8 @@ const ProposalAssistantAnalysis = () => {
         }
       }
       
-      // Start polling every 4 seconds (increased from 2s to reduce 429 rate limit errors)
-      jobPollingRef.current = setInterval(pollJob, 4000)
+      // Start polling every 8 seconds (increased from 4s to reduce 429 rate limit errors)
+      jobPollingRef.current = setInterval(pollJob, 8000)
       // Also poll immediately
       pollJob()
       

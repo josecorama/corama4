@@ -543,6 +543,9 @@ class ApiService {
         window.location.href = '/login';
         throw new Error('Not authenticated');
       }
+      if (res.status === 429) {
+        return { success: false, error: '429 rate_limit: Too many requests, retrying...' };
+      }
       const errorData = await res.json().catch(() => ({ error: 'Failed to get job status' }));
       return { success: false, error: errorData.error || 'Failed to get job status' };
     }
