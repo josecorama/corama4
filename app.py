@@ -18711,6 +18711,72 @@ def api_change_password():
         session['user']['refreshToken'] = new_token_data.get('refreshToken')
         
         logging.info(f"[Settings] Password changed successfully for {user_email}")
+
+        try:
+            password_change_html = """<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    body { font-family: 'Poppins', sans-serif; background-color: #0f172a; margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    .container { max-width: 600px; margin: 40px auto; background-color: #1C4262; border-radius: 12px; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.25); text-align: center; color: #ffffff; }
+    .logo { margin-bottom: 30px; }
+    .logo img { max-width: 180px; height: auto; display: block; margin: 0 auto; }
+    .welcome-text { font-weight: 700; font-size: 20px; margin-bottom: 20px; display: block; color: #ffffff; }
+    .text-body { font-weight: 400; line-height: 1.6; font-size: 16px; margin-bottom: 20px; color: #ffffff; }
+    .text-small { font-weight: 400; line-height: 1.5; font-size: 14px; margin-bottom: 15px; color: #ffffff; opacity: 0.9; }
+    .btn-contact { display: inline-block; background-color: #6bb4b5; color: #ffffff !important; text-decoration: none; padding: 14px 30px; border-radius: 8px; font-weight: 600; font-size: 16px; margin: 0 0 20px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+    .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1); font-size: 12px; color: #e0e0e0; line-height: 1.5; font-weight: 400; }
+    .footer p { margin: 5px 0; }
+    .footer a { color: #6bb4b5; text-decoration: none; font-weight: 600; margin: 0 5px; }
+    .footer-links { margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255, 255, 255, 0.05); }
+    .copyright { margin-top: 20px; font-size: 11px; opacity: 0.6; }
+    @media only screen and (max-width: 600px) { .container { width: 100% !important; margin: 0 !important; border-radius: 0 !important; padding: 20px !important; } .btn-contact { display: block; width: auto; } }
+</style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="https://corama.ai/static/app/landing/corama-logo.png" alt="Corama Logo">
+        </div>
+        <div class="message">
+            <span class="welcome-text">Password updated successfully</span>
+            <p class="text-body">
+                This email is to confirm that your password was recently changed via the <strong>Corama Settings page</strong>.
+            </p>
+            <p class="text-small">
+                If you did not authorize this change, please contact our support team immediately to secure your account:
+            </p>
+            <a href="mailto:contact@corama.ai" class="btn-contact">contact@corama.ai</a>
+        </div>
+        <div class="footer">
+            <p>180 North Michigan Avenue, Suite 500<br>Chicago, IL 60601</p>
+            <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+            <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
+            <div class="footer-links">
+                <p>
+                    <a href="https://ihccbusiness.net/" target="_blank">About IHCC</a> &bull;
+                    <a href="https://corama.ai/terms-of-use">Terms</a> &bull;
+                    <a href="https://corama.ai/static/docs/policy.pdf" target="_blank">Policy</a> &bull;
+                    <a href="https://corama.ai/faq">FAQ</a>
+                </p>
+            </div>
+            <div class="copyright">
+                <p>&copy; 2026 Corama. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>"""
+            send_email_smtp(user_email, "Your Corama password has been changed", password_change_html)
+            logging.info(f"[Settings] Password change notification email sent to {user_email}")
+        except Exception as email_err:
+            logging.warning(f"[Settings] Failed to send password change notification email to {user_email}: {email_err}")
+
         return jsonify({"success": True, "message": "Password changed successfully!"})
         
     except Exception as e:
