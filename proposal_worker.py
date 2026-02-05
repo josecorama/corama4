@@ -1694,7 +1694,7 @@ def calculate_dashboard_stats(db):
             'total_contracts': total_contracts,
             'category_distribution': category_distribution,  # Now a list, not a dict
             'status_distribution': status_counts,
-            'top_categories': [cat[0] for cat in top_categories[:4]],
+            'top_categories': [cat[0] for cat in top_categories[:5]],
             'generated_at': datetime.now().isoformat(),
             'generated_by': WORKER_ID,
             'calculation_time_seconds': round(time.time() - start_time, 2)
