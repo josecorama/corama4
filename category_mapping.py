@@ -47,6 +47,7 @@ NAICS_SECTOR_TO_CATEGORY = {
 }
 
 NAICS_3DIGIT_TO_CATEGORY = {
+    '334': 'IT & Telecommunications',
     '511': 'IT & Telecommunications',
     '517': 'IT & Telecommunications',
     '518': 'IT & Telecommunications',
@@ -75,15 +76,55 @@ NAICS_3DIGIT_TO_CATEGORY = {
     '493': 'Commodities, Equipment & Logistics',
 }
 
+MEDICAL_NAICS_CODES = {
+    '339112', '339113', '339115',
+    '325411', '325412', '325413', '325414',
+    '621910', '621999',
+}
+
 IT_NAICS_CODES = {
-    '511210',
-    '518210',
-    '541511',
-    '541512',
-    '541513',
-    '541519',
-    '541611',
-    '561621',
+    '511210', '518210',
+    '541511', '541512', '541513', '541519',
+    '541611', '561621',
+    '334111', '334112', '334118',
+    '334210', '334220', '334290',
+    '334310', '334412', '334413', '334416', '334417', '334418', '334419',
+    '334510', '334511', '334512', '334513', '334514', '334515', '334516', '334519',
+}
+
+FSC_TO_CATEGORY = {
+    '6505': 'Medical & Human Services',
+    '6508': 'Medical & Human Services',
+    '6510': 'Medical & Human Services',
+    '6515': 'Medical & Human Services',
+    '6520': 'Medical & Human Services',
+    '6525': 'Medical & Human Services',
+    '6530': 'Medical & Human Services',
+    '6532': 'Medical & Human Services',
+    '6540': 'Medical & Human Services',
+    '6545': 'Medical & Human Services',
+    '6550': 'Medical & Human Services',
+    '6630': 'Medical & Human Services',
+    '6640': 'Medical & Human Services',
+    '6660': 'Medical & Human Services',
+    '6665': 'Medical & Human Services',
+    '6670': 'Medical & Human Services',
+    '6680': 'Medical & Human Services',
+    '6695': 'Medical & Human Services',
+    '7010': 'IT & Telecommunications',
+    '7020': 'IT & Telecommunications',
+    '7025': 'IT & Telecommunications',
+    '7030': 'IT & Telecommunications',
+    '7035': 'IT & Telecommunications',
+    '7040': 'IT & Telecommunications',
+    '7045': 'IT & Telecommunications',
+    '7050': 'IT & Telecommunications',
+}
+
+FSC_2DIGIT_TO_CATEGORY = {
+    '58': 'IT & Telecommunications',
+    '70': 'IT & Telecommunications',
+    '75': 'IT & Telecommunications',
 }
 
 CATEGORY_KEYWORDS = {
@@ -113,19 +154,46 @@ CATEGORY_KEYWORDS = {
         'writing', 'editing', 'translation', 'documentation',
         'project management', 'program management', 'contract management',
         'human resources', 'hr', 'recruitment', 'personnel',
+        'feasibility study', 'optimization', 'inspection', 'testing services',
+        'appraisal', 'support services', 'counsel', 'notary', 'valuation',
+        'interpreter', 'court report', 'mediator', 'arbitration',
+        'actuarial', 'claims adjuster', 'real estate', 'property management',
+        'title search', 'insurance', 'underwriting', 'risk management',
+        'public affairs', 'government relations', 'lobbying',
+        'graphic design', 'photography', 'videography', 'media',
+        'printing services', 'publishing', 'advertising',
+        'scientific', 'technical services', 'laboratory services',
+        'calibration', 'quality assurance', 'quality control',
+        'geotechnical', 'surveying', 'mapping', 'gis services',
+        'environmental remediation', 'hazardous waste', 'asbestos',
+        'lead abatement', 'mold remediation',
+        'temporary staffing', 'temp agency', 'employment agency',
+        'background check', 'drug testing', 'pre-employment',
     ],
     'IT & Telecommunications': [
         'software', 'computer', 'it services', 'information technology',
         'cybersecurity', 'cyber security', 'network', 'database', 'cloud',
         'programming', 'developer', 'web development', 'application',
-        'data center', 'hosting', 'saas', 'hardware', 'server', 'tech support',
+        'data center', 'hosting', 'saas', 'server', 'tech support',
         'helpdesk', 'help desk', 'it support', 'systems integration',
         'telecommunications', 'telecom', 'voip', 'video conferencing',
         'internet', 'wifi', 'broadband', 'fiber optic', 'wireless',
-        'mobile', 'app', 'digital', 'electronic', 'online', 'virtual',
-        'firewall', 'antivirus', 'encryption', 'cyber', 'data',
+        'firewall', 'antivirus', 'encryption', 'cyber',
         'managed services', 'automation', 'analytics', 'artificial intelligence',
         'machine learning', 'website', 'portal', 'platform',
+        'radio frequency', 'radar', 'satellite', 'gps',
+        'antenna', 'rf module', 'transponder', 'transceiver',
+        'etherhaul', 'switch,network', 'router', 'modem',
+        'circuit board', 'printed circuit', 'circuit card',
+        'semiconductor', 'microprocessor', 'integrated circuit',
+        'display,electronic', 'monitor', 'lcd', 'led display',
+        'camera system', 'surveillance system', 'cctv',
+        'drone', 'unmanned aerial', 'uav', 'uas',
+        'erp', 'oracle', 'sap system', 'enterprise resource',
+        'telephone', 'phone system', 'pbx', 'voip',
+        'scanner', 'printer', 'copier', 'multifunction',
+        'data storage', 'nas', 'san', 'backup system',
+        'gis', 'geographic information', 'lidar',
     ],
     'Medical & Human Services': [
         'healthcare', 'health care', 'medical', 'hospital', 'clinical',
@@ -136,17 +204,37 @@ CATEGORY_KEYWORDS = {
         'childcare', 'child welfare', 'disability', 'veterans', 'homeless',
         'substance abuse', 'public health', 'epidemiology', 'vaccine',
         'nutritional', 'dietary', 'wellness', 'fitness',
+        'surgical', 'prosthetic', 'orthopedic', 'ophthalmic',
+        'eyeglass', 'optical', 'hearing aid', 'audiolog',
+        'endoscop', 'catheter', 'stent', 'implant',
+        'reagent', 'cytometry', 'hematology', 'pathology',
+        'radiology', 'x-ray', 'mri', 'ct scan', 'imaging',
+        'ultrasound', 'microscope', 'centrifuge', 'steriliz',
+        'defibrillator', 'ventilator', 'oxygen', 'nitrous',
+        'bioplex', 'dexcom', 'glucose monitor',
+        'radiopharmaceutical', 'nuclear medicine',
+        'sober living', 'residential treatment', 'group home',
+        'foster care', 'adoption', 'youth services',
+        'domestic violence', 'crisis intervention', 'hotline',
+        'food bank', 'meals on wheels', 'congregate meal',
+        'home health', 'hospice', 'palliative', 'respite care',
+        'occupational therapy', 'physical therapy', 'speech therapy',
+        'psychiatr', 'psycholog', 'neurolog', 'oncolog',
+        'pharmacist', 'pharmacy', 'prescription', 'dispensing',
+        'blood bank', 'transfusion', 'dialysis', 'transplant',
+        'biomedical', 'biohazard', 'infection control',
+        'ppe', 'personal protective', 'respirator',
+        'first aid', 'trauma', 'triage',
     ],
     'Commodities, Equipment & Logistics': [
-        'supplies', 'equipment', 'materials', 'parts', 'furniture',
-        'office supplies', 'tools', 'machinery', 'commodities', 'products',
-        'procurement', 'purchase', 'acquisition', 'delivery', 'shipment',
+        'office supplies', 'tools', 'machinery', 'commodities',
+        'procurement', 'shipment',
         'transportation', 'shipping', 'freight', 'logistics', 'trucking',
         'fleet', 'vehicle', 'transit', 'bus', 'rail', 'air cargo',
-        'warehouse', 'inventory', 'supply chain', 'distribution',
-        'fuel', 'oil', 'gas', 'chemical', 'food', 'clothing', 'textile',
-        'battery', 'cable', 'wire', 'valve', 'pump', 'motor', 'engine',
-        'generator', 'compressor', 'filter', 'bearing', 'seal', 'gasket',
+        'warehouse', 'inventory', 'supply chain',
+        'fuel', 'clothing', 'textile',
+        'valve', 'pump', 'motor', 'engine',
+        'generator', 'compressor', 'bearing', 'seal', 'gasket',
         'bolt', 'nut', 'screw', 'fastener', 'tire', 'brake',
     ]
 }
@@ -198,7 +286,8 @@ def map_naics_to_category(naics_code):
     
     code = str(naics_code).strip()
     
-    # Check specific IT codes first (highest priority)
+    if code in MEDICAL_NAICS_CODES:
+        return 'Medical & Human Services'
     if code in IT_NAICS_CODES:
         return 'IT & Telecommunications'
     
@@ -214,6 +303,26 @@ def map_naics_to_category(naics_code):
         if sector in NAICS_SECTOR_TO_CATEGORY:
             return NAICS_SECTOR_TO_CATEGORY[sector]
     
+    return None
+
+
+def map_fsc_to_category(title):
+    import re
+    if not title:
+        return None
+    m = re.match(r'^(\d{2,4})--', title.strip())
+    if not m:
+        return None
+    fsc = m.group(1)
+    if fsc in FSC_TO_CATEGORY:
+        return FSC_TO_CATEGORY[fsc]
+    fsc2 = fsc[:2]
+    if fsc2 in FSC_2DIGIT_TO_CATEGORY:
+        return FSC_2DIGIT_TO_CATEGORY[fsc2]
+    if fsc2 == '65':
+        return 'Medical & Human Services'
+    if fsc2 == '66':
+        return 'Medical & Human Services'
     return None
 
 
@@ -237,21 +346,20 @@ def map_text_to_category(title, description):
     if not text.strip():
         return None
     
-    # Score each category based on keyword matches
     scores = {}
     for category, keywords in CATEGORY_KEYWORDS.items():
         score = 0
         for keyword in keywords:
             if keyword in text:
-                # Keywords in title get higher weight
                 if title and keyword in title.lower():
                     score += 3
                 else:
                     score += 1
         if score > 0:
+            if category != 'Commodities, Equipment & Logistics':
+                score *= 1.5
             scores[category] = score
     
-    # Return category with highest score if any matches
     if scores:
         best_category = max(scores, key=scores.get)
         return best_category
@@ -298,8 +406,13 @@ def map_payload_to_category(payload):
         if category:
             return category
     
-    # 3. Try title and description for keywords
+    # 3. Try FSC code from title
     title = payload.get('title') or payload.get('bid_name') or payload.get('Title') or ''
+    fsc_category = map_fsc_to_category(title)
+    if fsc_category:
+        return fsc_category
+    
+    # 4. Try title and description for keywords
     description = (payload.get('summary') or payload.get('bid_description') or 
                    payload.get('description') or payload.get('Description') or '')
     
