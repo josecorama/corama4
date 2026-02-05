@@ -2735,144 +2735,144 @@ def get_qdrant_collection_signature():
 # NAICS-to-category mapping built from existing Qdrant data
 # This mapping was derived from contracts that have good categories (not Other/Unknown)
 NAICS_TO_CATEGORY = {
-    '238220': 'Construction',
-    '325992': 'Goods/Supplies',
-    '424690': 'Goods/Supplies',
-    '423610': 'Goods/Supplies',
-    '518210': 'IT Services',
-    '811310': 'Maintenance/Operations',
-    '561621': 'IT Services',
-    '237310': 'Construction',
-    '112519': 'Goods/Supplies',
-    '451211': 'Goods/Supplies',
-    '511210': 'IT Services',
-    '811219': 'Maintenance/Operations',
-    '237990': 'Construction',
-    '541110': 'Professional Services',
-    '238160': 'Construction',
-    '541613': 'Professional Services',
-    '562998': 'Maintenance/Operations',
-    '238290': 'Maintenance/Operations',
-    '541360': 'Professional Services',
-    '238210': 'Maintenance/Operations',
-    '332312': 'Goods/Supplies',
-    '444190': 'Goods/Supplies',
-    '331511': 'Goods/Supplies',
-    '212399': 'Construction',
-    '531210': 'Professional Services',
-    '236220': 'Construction',
-    '238910': 'Construction',
-    '541512': 'IT Services',
-    '541519': 'IT Services',
-    '541611': 'Professional Services',
-    '541618': 'Professional Services',
-    '541690': 'Professional Services',
-    '541990': 'Professional Services',
-    '561210': 'Professional Services',
-    '561320': 'Professional Services',
-    '561720': 'Maintenance/Operations',
-    '561730': 'Maintenance/Operations',
-    '561790': 'Maintenance/Operations',
-    '562111': 'Maintenance/Operations',
-    '562119': 'Maintenance/Operations',
-    '611430': 'Professional Services',
-    '621999': 'Professional Services',
-    '811111': 'Maintenance/Operations',
-    '811118': 'Maintenance/Operations',
-    '811121': 'Maintenance/Operations',
-    '811122': 'Maintenance/Operations',
-    '811191': 'Maintenance/Operations',
-    '811192': 'Maintenance/Operations',
-    '811198': 'Maintenance/Operations',
-    '811212': 'Maintenance/Operations',
-    '811213': 'Maintenance/Operations',
-    '236210': 'Construction',
-    '237110': 'Construction',
-    '237120': 'Construction',
-    '237130': 'Construction',
-    '238110': 'Construction',
-    '238120': 'Construction',
-    '238130': 'Construction',
-    '238140': 'Construction',
-    '238150': 'Construction',
-    '238170': 'Construction',
-    '238190': 'Construction',
-    '238310': 'Construction',
-    '238320': 'Construction',
-    '238330': 'Construction',
-    '238340': 'Construction',
-    '238350': 'Construction',
-    '238390': 'Construction',
-    '238990': 'Construction',
-    '423310': 'Goods/Supplies',
-    '423320': 'Goods/Supplies',
-    '423390': 'Goods/Supplies',
-    '423410': 'Goods/Supplies',
-    '423420': 'Goods/Supplies',
-    '423430': 'Goods/Supplies',
-    '423440': 'Goods/Supplies',
-    '423450': 'Goods/Supplies',
-    '423460': 'Goods/Supplies',
-    '423490': 'Goods/Supplies',
-    '423510': 'Goods/Supplies',
-    '423520': 'Goods/Supplies',
-    '423620': 'Goods/Supplies',
-    '423690': 'Goods/Supplies',
-    '423710': 'Goods/Supplies',
-    '423720': 'Goods/Supplies',
-    '423730': 'Goods/Supplies',
-    '423740': 'Goods/Supplies',
-    '423810': 'Goods/Supplies',
-    '423820': 'Goods/Supplies',
-    '423830': 'Goods/Supplies',
-    '423840': 'Goods/Supplies',
-    '423850': 'Goods/Supplies',
-    '423860': 'Goods/Supplies',
-    '423910': 'Goods/Supplies',
-    '423920': 'Goods/Supplies',
-    '423930': 'Goods/Supplies',
-    '423940': 'Goods/Supplies',
-    '423990': 'Goods/Supplies',
-    '424110': 'Goods/Supplies',
-    '424120': 'Goods/Supplies',
-    '424130': 'Goods/Supplies',
-    '424210': 'Goods/Supplies',
-    '424310': 'Goods/Supplies',
-    '424320': 'Goods/Supplies',
-    '424330': 'Goods/Supplies',
-    '424340': 'Goods/Supplies',
-    '424410': 'Goods/Supplies',
-    '424420': 'Goods/Supplies',
-    '424430': 'Goods/Supplies',
-    '424440': 'Goods/Supplies',
-    '424450': 'Goods/Supplies',
-    '424460': 'Goods/Supplies',
-    '424470': 'Goods/Supplies',
-    '424480': 'Goods/Supplies',
-    '424490': 'Goods/Supplies',
-    '424510': 'Goods/Supplies',
-    '424520': 'Goods/Supplies',
-    '424590': 'Goods/Supplies',
-    '424610': 'Goods/Supplies',
-    '424710': 'Goods/Supplies',
-    '424720': 'Goods/Supplies',
-    '424810': 'Goods/Supplies',
-    '424820': 'Goods/Supplies',
-    '424910': 'Goods/Supplies',
-    '424920': 'Goods/Supplies',
-    '424930': 'Goods/Supplies',
-    '424940': 'Goods/Supplies',
-    '424950': 'Goods/Supplies',
-    '424990': 'Goods/Supplies',
+    '238220': 'Infrastructure & Construction',
+    '325992': 'Commodities, Equipment & Logistics',
+    '424690': 'Commodities, Equipment & Logistics',
+    '423610': 'Commodities, Equipment & Logistics',
+    '518210': 'IT & Telecommunications',
+    '811310': 'Infrastructure & Construction',
+    '561621': 'IT & Telecommunications',
+    '237310': 'Infrastructure & Construction',
+    '112519': 'Commodities, Equipment & Logistics',
+    '451211': 'Commodities, Equipment & Logistics',
+    '511210': 'IT & Telecommunications',
+    '811219': 'Infrastructure & Construction',
+    '237990': 'Infrastructure & Construction',
+    '541110': 'Professional & Technical Services',
+    '238160': 'Infrastructure & Construction',
+    '541613': 'Professional & Technical Services',
+    '562998': 'Infrastructure & Construction',
+    '238290': 'Infrastructure & Construction',
+    '541360': 'Professional & Technical Services',
+    '238210': 'Infrastructure & Construction',
+    '332312': 'Commodities, Equipment & Logistics',
+    '444190': 'Commodities, Equipment & Logistics',
+    '331511': 'Commodities, Equipment & Logistics',
+    '212399': 'Infrastructure & Construction',
+    '531210': 'Professional & Technical Services',
+    '236220': 'Infrastructure & Construction',
+    '238910': 'Infrastructure & Construction',
+    '541512': 'IT & Telecommunications',
+    '541519': 'IT & Telecommunications',
+    '541611': 'Professional & Technical Services',
+    '541618': 'Professional & Technical Services',
+    '541690': 'Professional & Technical Services',
+    '541990': 'Professional & Technical Services',
+    '561210': 'Professional & Technical Services',
+    '561320': 'Professional & Technical Services',
+    '561720': 'Infrastructure & Construction',
+    '561730': 'Infrastructure & Construction',
+    '561790': 'Infrastructure & Construction',
+    '562111': 'Infrastructure & Construction',
+    '562119': 'Infrastructure & Construction',
+    '611430': 'Professional & Technical Services',
+    '621999': 'Medical & Human Services',
+    '811111': 'Infrastructure & Construction',
+    '811118': 'Infrastructure & Construction',
+    '811121': 'Infrastructure & Construction',
+    '811122': 'Infrastructure & Construction',
+    '811191': 'Infrastructure & Construction',
+    '811192': 'Infrastructure & Construction',
+    '811198': 'Infrastructure & Construction',
+    '811212': 'Infrastructure & Construction',
+    '811213': 'Infrastructure & Construction',
+    '236210': 'Infrastructure & Construction',
+    '237110': 'Infrastructure & Construction',
+    '237120': 'Infrastructure & Construction',
+    '237130': 'Infrastructure & Construction',
+    '238110': 'Infrastructure & Construction',
+    '238120': 'Infrastructure & Construction',
+    '238130': 'Infrastructure & Construction',
+    '238140': 'Infrastructure & Construction',
+    '238150': 'Infrastructure & Construction',
+    '238170': 'Infrastructure & Construction',
+    '238190': 'Infrastructure & Construction',
+    '238310': 'Infrastructure & Construction',
+    '238320': 'Infrastructure & Construction',
+    '238330': 'Infrastructure & Construction',
+    '238340': 'Infrastructure & Construction',
+    '238350': 'Infrastructure & Construction',
+    '238390': 'Infrastructure & Construction',
+    '238990': 'Infrastructure & Construction',
+    '423310': 'Commodities, Equipment & Logistics',
+    '423320': 'Commodities, Equipment & Logistics',
+    '423390': 'Commodities, Equipment & Logistics',
+    '423410': 'Commodities, Equipment & Logistics',
+    '423420': 'Commodities, Equipment & Logistics',
+    '423430': 'Commodities, Equipment & Logistics',
+    '423440': 'Commodities, Equipment & Logistics',
+    '423450': 'Commodities, Equipment & Logistics',
+    '423460': 'Commodities, Equipment & Logistics',
+    '423490': 'Commodities, Equipment & Logistics',
+    '423510': 'Commodities, Equipment & Logistics',
+    '423520': 'Commodities, Equipment & Logistics',
+    '423620': 'Commodities, Equipment & Logistics',
+    '423690': 'Commodities, Equipment & Logistics',
+    '423710': 'Commodities, Equipment & Logistics',
+    '423720': 'Commodities, Equipment & Logistics',
+    '423730': 'Commodities, Equipment & Logistics',
+    '423740': 'Commodities, Equipment & Logistics',
+    '423810': 'Commodities, Equipment & Logistics',
+    '423820': 'Commodities, Equipment & Logistics',
+    '423830': 'Commodities, Equipment & Logistics',
+    '423840': 'Commodities, Equipment & Logistics',
+    '423850': 'Commodities, Equipment & Logistics',
+    '423860': 'Commodities, Equipment & Logistics',
+    '423910': 'Commodities, Equipment & Logistics',
+    '423920': 'Commodities, Equipment & Logistics',
+    '423930': 'Commodities, Equipment & Logistics',
+    '423940': 'Commodities, Equipment & Logistics',
+    '423990': 'Commodities, Equipment & Logistics',
+    '424110': 'Commodities, Equipment & Logistics',
+    '424120': 'Commodities, Equipment & Logistics',
+    '424130': 'Commodities, Equipment & Logistics',
+    '424210': 'Commodities, Equipment & Logistics',
+    '424310': 'Commodities, Equipment & Logistics',
+    '424320': 'Commodities, Equipment & Logistics',
+    '424330': 'Commodities, Equipment & Logistics',
+    '424340': 'Commodities, Equipment & Logistics',
+    '424410': 'Commodities, Equipment & Logistics',
+    '424420': 'Commodities, Equipment & Logistics',
+    '424430': 'Commodities, Equipment & Logistics',
+    '424440': 'Commodities, Equipment & Logistics',
+    '424450': 'Commodities, Equipment & Logistics',
+    '424460': 'Commodities, Equipment & Logistics',
+    '424470': 'Commodities, Equipment & Logistics',
+    '424480': 'Commodities, Equipment & Logistics',
+    '424490': 'Commodities, Equipment & Logistics',
+    '424510': 'Commodities, Equipment & Logistics',
+    '424520': 'Commodities, Equipment & Logistics',
+    '424590': 'Commodities, Equipment & Logistics',
+    '424610': 'Commodities, Equipment & Logistics',
+    '424710': 'Commodities, Equipment & Logistics',
+    '424720': 'Commodities, Equipment & Logistics',
+    '424810': 'Commodities, Equipment & Logistics',
+    '424820': 'Commodities, Equipment & Logistics',
+    '424910': 'Commodities, Equipment & Logistics',
+    '424920': 'Commodities, Equipment & Logistics',
+    '424930': 'Commodities, Equipment & Logistics',
+    '424940': 'Commodities, Equipment & Logistics',
+    '424950': 'Commodities, Equipment & Logistics',
+    '424990': 'Commodities, Equipment & Logistics',
 }
 
 # Allowed categories for classification
 ALLOWED_CATEGORIES = [
-    'Goods/Supplies',
-    'Construction',
-    'Maintenance/Operations',
-    'IT Services',
-    'Professional Services',
+    'Infrastructure & Construction',
+    'Professional & Technical Services',
+    'IT & Telecommunications',
+    'Medical & Human Services',
+    'Commodities, Equipment & Logistics',
     'Award Notice',
     'Combined Synopsis/Solicitation',
     'Presolicitation',
@@ -3766,11 +3766,11 @@ def predict_category_with_ai(payload, hash_value=None):
         # Build the prompt
         system_prompt = """You are a classifier for government procurement contracts.
 Your job is to assign each contract to exactly one category from this fixed list:
-- Goods/Supplies
-- Construction
-- Maintenance/Operations
-- IT Services
-- Professional Services
+- Infrastructure & Construction
+- Professional & Technical Services
+- IT & Telecommunications
+- Medical & Human Services
+- Commodities, Equipment & Logistics
 
 Use NAICS code and NAICS description as the primary signal when available.
 Use the contract title, description, and organization as secondary signals.
@@ -3787,15 +3787,14 @@ NAICS code(s): {naics_code or "N/A"}
 NAICS description(s): {naics_description or "N/A"}
 
 Allowed categories:
-- Goods/Supplies
-- Construction
-- Maintenance/Operations
-- IT Services
-- Professional Services
+- Infrastructure & Construction
+- Professional & Technical Services
+- IT & Telecommunications
+- Medical & Human Services
+- Commodities, Equipment & Logistics
 
 Respond with exactly one category from the list above."""
 
-        # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -3808,11 +3807,8 @@ Respond with exactly one category from the list above."""
         
         predicted = response.choices[0].message.content.strip()
         
-        # Validate the prediction is in our allowed list
-        main_categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
-        if predicted not in main_categories:
-            # Try to match partial
-            for cat in main_categories:
+        if predicted not in MAIN_CATEGORIES:
+            for cat in MAIN_CATEGORIES:
                 if cat.lower() in predicted.lower():
                     predicted = cat
                     break
@@ -4108,17 +4104,19 @@ BALANCED_CATEGORIES_INITIALIZED = False
 
 # Keyword dictionaries for category scoring
 CATEGORY_KEYWORDS = {
-    'Goods/Supplies': [
-        'supply', 'supplies', 'vehicle', 'hardware', 'parts', 'kit', 
+    'Commodities, Equipment & Logistics': [
+        'supply', 'supplies', 'vehicle', 'hardware', 'parts', 'kit',
         'tool', 'inventory', 'warehouse', 'spare', 'component', 'commodity', 'furniture',
-        'clothing', 'textile', 'food', 'pharmaceutical', 'chemical', 'fuel', 'oil',
+        'clothing', 'textile', 'food', 'chemical', 'fuel', 'oil',
         'gas', 'battery', 'cable', 'wire', 'valve', 'pump', 'motor', 'engine', 'generator',
         'compressor', 'filter', 'bearing', 'seal', 'gasket', 'bolt', 'nut', 'screw', 'fastener',
         'rod', 'piston', 'cylinder', 'hose', 'tube', 'fitting', 'connector', 'adapter', 'bracket',
         'mount', 'clamp', 'spring', 'gear', 'shaft', 'wheel', 'tire', 'brake', 'clutch', 'transmission',
-        'purchase', 'procurement', 'delivery', 'shipment', 'order'
+        'purchase', 'procurement', 'delivery', 'shipment', 'order',
+        'transportation', 'shipping', 'freight', 'logistics', 'trucking',
+        'fleet', 'transit', 'bus', 'rail', 'air cargo', 'distribution', 'supply chain',
     ],
-    'Construction': [
+    'Infrastructure & Construction': [
         'construction', 'renovation', 'build', 'replacement', 'demolition', 'facility',
         'structural', 'roofing', 'paving', 'site work', 'excavation', 'foundation', 'concrete',
         'masonry', 'steel', 'framing', 'drywall', 'painting', 'flooring', 'ceiling', 'window',
@@ -4126,49 +4124,56 @@ CATEGORY_KEYWORDS = {
         'asphalt', 'bridge', 'road', 'highway', 'tunnel', 'dam', 'water treatment', 'sewer',
         'remodel', 'upgrade', 'improvement', 'modernization', 'expansion', 'addition',
         'install', 'installation', 'contractor', 'general contractor', 'subcontractor',
-        'building', 'infrastructure', 'project', 'site', 'work', 'phase', 'bid',
-        'architect', 'blueprint', 'permit', 'code', 'zoning', 'inspection'
-    ],
-    'Maintenance/Operations': [
+        'building', 'infrastructure', 'project', 'site',
         'maintenance', 'janitorial', 'cleaning', 'custodial', 'operations', 'support services',
         'facility management', 'groundskeeping', 'repair services', 'preventive', 'corrective',
-        'calibration', 'lubrication', 'overhaul', 'refurbishment',
-        'restoration', 'upkeep', 'care', 'preservation', 'sanitation', 'waste',
+        'calibration', 'overhaul', 'refurbishment',
+        'restoration', 'upkeep', 'sanitation', 'waste',
         'recycling', 'pest control', 'lawn', 'snow removal', 'security', 'guard', 'patrol',
-        'repair', 'service', 'servicing', 'maintain', 'maintaining', 'operated', 'operating',
-        'fleet', 'vehicle maintenance', 'equipment maintenance', 'building maintenance',
-        'hvac maintenance', 'elevator', 'escalator', 'fire alarm', 'sprinkler',
-        'landscaping services', 'grounds', 'mowing', 'trimming', 'irrigation',
-        'trash', 'garbage', 'disposal', 'hauling', 'collection',
-        'monitoring', 'surveillance', 'alarm', 'access control', 'badge'
+        'repair', 'service', 'servicing',
+        'elevator', 'escalator', 'fire alarm', 'sprinkler',
+        'grounds', 'mowing', 'trimming', 'irrigation',
+        'trash', 'garbage', 'disposal', 'hauling',
+        'monitoring', 'surveillance', 'alarm', 'access control',
     ],
-    'IT Services': [
+    'IT & Telecommunications': [
         'software', 'system integration', 'it support', 'cybersecurity', 'data center', 'cloud',
         'networking', 'help desk', 'application development', 'database', 'server', 'storage',
         'backup', 'recovery', 'virtualization', 'automation', 'analytics', 'artificial intelligence',
         'machine learning', 'web', 'mobile', 'app', 'programming', 'coding', 'development',
-        'qa', 'devops', 'infrastructure', 'telecommunications', 'voip', 'video',
+        'qa', 'devops', 'telecommunications', 'voip', 'video',
         'computer', 'laptop', 'desktop', 'workstation', 'network', 'internet', 'wifi',
-        'firewall', 'antivirus', 'encryption', 'security', 'cyber', 'data',
+        'firewall', 'antivirus', 'encryption', 'cyber', 'data',
         'information technology', 'it services', 'technical support', 'tech support',
         'managed services', 'hosting', 'saas', 'paas', 'iaas', 'api',
         'website', 'portal', 'platform', 'system', 'solution', 'integration',
-        'digital', 'electronic', 'online', 'virtual', 'remote'
+        'digital', 'electronic', 'online', 'virtual', 'remote',
+        'telecom', 'broadband', 'fiber optic', 'wireless',
     ],
-    'Professional Services': [
+    'Professional & Technical Services': [
         'consulting', 'training', 'advisory', 'legal', 'financial', 'audit', 'management support',
         'staffing', 'professional services', 'engineering', 'architecture', 'design', 'planning',
         'research', 'analysis', 'study', 'assessment', 'evaluation', 'review', 'survey',
         'investigation', 'certification', 'accreditation', 'licensing',
-        'compliance', 'regulatory', 'environmental', 'health', 'safety', 'quality', 'assurance',
+        'compliance', 'regulatory', 'environmental', 'safety', 'quality', 'assurance',
         'consultant', 'advisor', 'specialist', 'expert', 'analyst', 'manager',
         'project management', 'program management', 'contract management',
         'accounting', 'bookkeeping', 'payroll', 'tax', 'budget', 'fiscal',
         'human resources', 'hr', 'recruitment', 'hiring', 'personnel', 'employee',
         'marketing', 'communications', 'public relations', 'media', 'advertising',
         'writing', 'editing', 'translation', 'interpretation', 'documentation',
-        'testing', 'inspection', 'medical', 'healthcare', 'clinical', 'laboratory'
-    ]
+        'testing', 'inspection',
+    ],
+    'Medical & Human Services': [
+        'medical', 'healthcare', 'health care', 'clinical', 'laboratory',
+        'pharmaceutical', 'nursing', 'patient', 'diagnostic', 'therapy',
+        'dental', 'ambulance', 'emergency medical', 'physician',
+        'mental health', 'behavioral health', 'social services', 'social work',
+        'counseling', 'rehabilitation', 'assisted living', 'elder care',
+        'childcare', 'child welfare', 'disability', 'veterans', 'homeless',
+        'substance abuse', 'public health', 'epidemiology', 'vaccine',
+        'nutritional', 'dietary', 'wellness', 'fitness',
+    ],
 }
 
 def compute_category_score(payload, category):
@@ -4206,43 +4211,21 @@ def compute_category_score(payload, category):
     return score
 
 # Main categories for Top Contract Categories display
-MAIN_CATEGORIES = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+MAIN_CATEGORIES = [
+    'Infrastructure & Construction',
+    'Professional & Technical Services',
+    'IT & Telecommunications',
+    'Medical & Human Services',
+    'Commodities, Equipment & Logistics',
+]
 
-# Global counter for balanced fallback distribution (rotates through categories for zero-score contracts)
 _FALLBACK_CATEGORY_INDEX = 0
 
 def get_main_category_for_payload(payload):
-    """
-    Map a contract payload to one of the main categories.
-    
-    UPDATED: Now delegates to the shared category_mapping module for consistent
-    categorization across both the web app and background worker.
-    
-    Uses NAICS codes first, then keyword matching, with 'Other' as fallback.
-    
-    This function is designed to be called from both /api/contracts and /dashboard_search.
-    
-    Args:
-        payload: Dict with contract data (naics_code, title/bid_name, summary/bid_description, etc.)
-    
-    Returns:
-        One of DASHBOARD_CATEGORIES strings
-    """
-    # Delegate to shared category mapping module for consistency with worker
     category = shared_map_payload_to_category(payload)
-    
-    # Map any categories not in MAIN_CATEGORIES to the closest match
-    # This ensures backward compatibility with existing code that expects MAIN_CATEGORIES
     if category in MAIN_CATEGORIES:
         return category
-    elif category == 'Healthcare':
-        return 'Professional Services'  # Healthcare maps to Professional Services
-    elif category == 'Transportation':
-        return 'Goods/Supplies'  # Transportation maps to Goods/Supplies
-    elif category == 'Other':
-        return 'Goods/Supplies'  # Default fallback
-    else:
-        return 'Professional Services'  # Any other category defaults to Professional Services
+    return 'Commodities, Equipment & Logistics'
 
 def compute_main_category_counts(payloads):
     """
@@ -4320,7 +4303,7 @@ def build_balanced_category_mapping():
         logging.info(f"Loaded {len(all_points)} contracts directly from Qdrant")
         
         # Define categories and generic labels
-        categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
+        categories = MAIN_CATEGORIES
         generic_labels = {'Other', 'Others', 'OTHER', 'other', 'others', 'Unknown', 'UNKNOWN', 'unknown', ''}
         
         # Count existing non-generic contracts per category
@@ -4471,11 +4454,9 @@ def get_effective_category(payload, hash_value=None):
     
     # Fallback: compute score on-the-fly for contracts not in the mapping
     # This handles new contracts added after startup
-    categories = ['Goods/Supplies', 'Construction', 'Maintenance/Operations', 'IT Services', 'Professional Services']
-    scores = {cat: compute_category_score(payload, cat) for cat in categories}
+    scores = {cat: compute_category_score(payload, cat) for cat in MAIN_CATEGORIES}
     best_cat = max(scores, key=scores.get)
     
-    # Cache the result using the recomputed hash
     BALANCED_CATEGORY_BY_HASH[recomputed_hash] = best_cat
     
     return best_cat
@@ -4789,143 +4770,105 @@ def fallback_category_from_text(bid_name, bid_description, organization):
     Determine a category based on keywords in bid name, description, and organization.
     This is used as a fallback when AI prediction fails, to avoid "Unclassified" category.
     
-    Returns a category string that matches existing top categories in the system.
+    Returns one of the 5 main categories.
     """
-    # Combine all text for keyword matching
     text = f"{bid_name} {bid_description} {organization}".lower()
     
-    # Category keyword mappings - ordered by specificity (most specific first)
-    # These categories align with the existing top categories in the dashboard
     category_keywords = [
-        # Construction and related
-        ("Other Aircraft Parts and Auxiliary Equipment Manufacturing", [
-            "aircraft", "aviation", "aerospace", "airplane", "helicopter", "rotor", "propeller",
-            "landing gear", "fuselage", "wing", "airframe"
+        ("Medical & Human Services", [
+            "medical", "healthcare", "health care", "clinical", "laboratory",
+            "pharmaceutical", "nursing", "patient", "diagnostic", "therapy",
+            "dental", "ambulance", "emergency medical", "physician",
+            "mental health", "behavioral health", "social services", "social work",
+            "counseling", "rehabilitation", "assisted living", "elder care",
+            "childcare", "child welfare", "disability", "veterans", "homeless",
+            "substance abuse", "public health", "epidemiology", "vaccine",
+            "nutritional", "dietary", "wellness", "fitness",
+            "medical equipment", "medical supplies", "surgical", "medical device",
+            "drug", "medication", "medicine",
         ]),
-        ("Industrial Valve Manufacturing", [
-            "valve", "industrial valve", "gate valve", "ball valve", "check valve", 
-            "control valve", "pressure valve", "hydraulic valve"
+        ("IT & Telecommunications", [
+            "software", "programming", "application development", "web development",
+            "mobile app", "database", "coding", "system design", "it services",
+            "cybersecurity", "cyber security", "data center", "cloud",
+            "data processing", "hosting", "server", "data storage", "backup",
+            "networking", "help desk", "virtualization", "automation", "analytics",
+            "artificial intelligence", "machine learning", "devops",
+            "telecommunications", "voip", "video conferencing",
+            "computer", "laptop", "desktop", "workstation", "network", "internet",
+            "firewall", "antivirus", "encryption", "cyber", "information technology",
+            "managed services", "saas", "paas", "iaas", "api",
+            "website", "portal", "platform", "digital", "electronic",
+            "telecom", "broadband", "fiber optic", "wireless",
         ]),
-        ("Gasket, Packing, and Sealing Device Manufacturing", [
-            "gasket", "packing", "seal", "sealing", "o-ring", "washer", "rubber seal"
+        ("Infrastructure & Construction", [
+            "construction", "renovation", "demolition", "facility",
+            "roofing", "paving", "excavation", "foundation", "concrete",
+            "masonry", "steel", "framing", "drywall", "painting", "flooring",
+            "hvac", "plumbing", "electrical", "wiring", "electrician",
+            "landscaping", "fencing", "asphalt", "bridge", "road", "highway",
+            "tunnel", "dam", "water treatment", "sewer", "water line", "pipeline",
+            "drainage", "storm drain", "remodel", "upgrade", "modernization",
+            "install", "installation", "contractor", "building", "infrastructure",
+            "janitorial", "cleaning", "custodial", "sanitation",
+            "facility management", "groundskeeping", "repair", "maintenance",
+            "preventive", "corrective", "calibration", "overhaul", "refurbishment",
+            "waste", "recycling", "pest control", "lawn", "snow removal",
+            "security", "guard", "patrol", "surveillance", "alarm",
+            "elevator", "escalator", "fire alarm", "sprinkler",
+            "ventilation", "ductwork", "pipe fitting", "boiler",
+            "building construction", "commercial construction",
+            "power distribution", "lighting installation",
         ]),
-        ("Bolt, Nut, Screw, Rivet, and Washer Manufacturing", [
-            "bolt", "nut", "screw", "rivet", "washer", "fastener", "hardware",
-            "threaded", "cap screw", "machine screw"
-        ]),
-        ("Plumbing, Heating, and Air-Conditioning Contractors", [
-            "plumbing", "hvac", "heating", "air conditioning", "air-conditioning",
-            "ventilation", "ductwork", "pipe fitting", "boiler"
-        ]),
-        ("Commercial and Institutional Building Construction", [
-            "building construction", "commercial construction", "institutional",
-            "office building", "school construction", "hospital construction"
-        ]),
-        ("Highway, Street, and Bridge Construction", [
-            "highway", "road", "street", "bridge", "pavement", "asphalt", "concrete road"
-        ]),
-        ("Water and Sewer Line and Related Structures Construction", [
-            "water line", "sewer", "pipeline", "water main", "drainage", "storm drain"
-        ]),
-        ("Electrical Contractors and Other Wiring Installation Contractors", [
-            "electrical", "wiring", "electrician", "power distribution", "lighting installation"
-        ]),
-        # IT and Technology
-        ("Custom Computer Programming Services", [
-            "software", "programming", "development", "application", "web development",
-            "mobile app", "database", "coding"
-        ]),
-        ("Computer Systems Design Services", [
-            "system design", "it services", "network", "infrastructure", "cloud",
-            "cybersecurity", "cyber security", "data center"
-        ]),
-        ("Data Processing, Hosting, and Related Services", [
-            "data processing", "hosting", "server", "data storage", "backup"
-        ]),
-        # Professional Services
-        ("Engineering Services", [
+        ("Professional & Technical Services", [
+            "consulting", "management", "advisory", "strategy", "business consulting",
             "engineering", "engineer", "civil engineering", "mechanical engineering",
-            "structural", "design engineering"
+            "architectural", "architect", "building design", "space planning",
+            "administrative", "organizational", "operations consulting",
+            "environmental", "remediation", "pollution", "hazardous waste",
+            "training", "education", "professional development", "workshop", "seminar",
+            "research", "r&d", "scientific", "study", "analysis",
+            "investigation", "background check", "screening", "vetting",
+            "legal", "financial", "audit", "staffing",
+            "accounting", "bookkeeping", "payroll", "tax", "budget",
+            "human resources", "hr", "recruitment", "hiring", "personnel",
+            "marketing", "communications", "public relations", "media", "advertising",
+            "writing", "editing", "translation", "documentation",
+            "testing", "inspection", "certification", "compliance", "regulatory",
         ]),
-        ("Architectural Services", [
-            "architectural", "architect", "building design", "space planning"
-        ]),
-        ("Management Consulting Services", [
-            "consulting", "management", "advisory", "strategy", "business consulting"
-        ]),
-        ("Administrative Management and General Management Consulting Services", [
-            "administrative", "general management", "organizational", "operations consulting"
-        ]),
-        ("Environmental Consulting Services", [
-            "environmental", "environmental consulting", "remediation", "pollution",
-            "hazardous waste", "environmental assessment"
-        ]),
-        # Healthcare
-        ("Medical Equipment and Supplies Manufacturing", [
-            "medical equipment", "medical supplies", "healthcare equipment", "surgical",
-            "diagnostic", "medical device"
-        ]),
-        ("Pharmaceutical Preparation Manufacturing", [
-            "pharmaceutical", "drug", "medication", "medicine"
-        ]),
-        # Supplies and Equipment
-        ("Office Supplies (except Paper) Manufacturing", [
-            "office supplies", "stationery", "office equipment"
-        ]),
-        ("Motor Vehicle Parts Manufacturing", [
-            "automotive", "vehicle parts", "car parts", "truck parts", "motor vehicle"
-        ]),
-        ("All Other Miscellaneous Manufacturing", [
-            "manufacturing", "fabrication", "production", "assembly"
-        ]),
-        # Services
-        ("Janitorial Services", [
-            "janitorial", "cleaning", "custodial", "housekeeping", "sanitation"
-        ]),
-        ("Security Guards and Patrol Services", [
-            "security", "guard", "patrol", "protection", "surveillance"
-        ]),
-        ("Facilities Support Services", [
-            "facilities", "facility management", "building maintenance", "property management"
-        ]),
-        ("Investigation and Personal Background Check Services", [
-            "investigation", "background check", "screening", "vetting"
-        ]),
-        # Training and Education
-        ("Professional and Management Development Training", [
-            "training", "education", "professional development", "workshop", "seminar"
-        ]),
-        # Research
-        ("Research and Development in the Physical, Engineering, and Life Sciences", [
-            "research", "r&d", "laboratory", "scientific", "study", "analysis"
-        ]),
-        # Transportation
-        ("General Freight Trucking, Long-Distance", [
-            "trucking", "freight", "shipping", "transportation", "logistics", "delivery"
-        ]),
-        # Default fallback - General Services (never return Unclassified)
-        ("General Services", [
-            "service", "support", "assistance", "contract", "agreement"
+        ("Commodities, Equipment & Logistics", [
+            "supply", "supplies", "vehicle", "hardware", "parts", "kit",
+            "tool", "inventory", "warehouse", "spare", "component", "commodity",
+            "furniture", "clothing", "textile", "food", "chemical", "fuel", "oil",
+            "gas", "battery", "cable", "wire", "valve", "pump", "motor", "engine",
+            "generator", "compressor", "filter", "bearing", "seal", "gasket",
+            "bolt", "nut", "screw", "fastener", "rod", "piston", "cylinder",
+            "hose", "tube", "fitting", "connector", "adapter", "bracket",
+            "mount", "clamp", "spring", "gear", "shaft", "wheel", "tire",
+            "purchase", "procurement", "delivery", "shipment", "order",
+            "transportation", "shipping", "freight", "logistics", "trucking",
+            "fleet", "transit", "bus", "rail", "air cargo", "distribution",
+            "aircraft", "aviation", "aerospace", "airplane", "helicopter",
+            "automotive", "vehicle parts", "car parts", "truck parts",
+            "manufacturing", "fabrication", "production", "assembly",
+            "office supplies", "stationery", "office equipment",
         ]),
     ]
     
-    # Check each category's keywords
     for category, keywords in category_keywords:
         for keyword in keywords:
             if keyword in text:
                 return category
     
-    # Final fallback - use organization type hints
     org_lower = organization.lower() if organization else ""
     if "army" in org_lower or "navy" in org_lower or "air force" in org_lower or "defense" in org_lower:
-        return "All Other Miscellaneous Manufacturing"
+        return "Commodities, Equipment & Logistics"
     if "health" in org_lower or "hospital" in org_lower or "medical" in org_lower:
-        return "Medical Equipment and Supplies Manufacturing"
+        return "Medical & Human Services"
     if "transportation" in org_lower or "transit" in org_lower:
-        return "General Freight Trucking, Long-Distance"
+        return "Commodities, Equipment & Logistics"
     
-    # Absolute fallback - never return "Unclassified"
-    return "General Services"
+    return "Commodities, Equipment & Logistics"
 
 
 if os.getenv('OPENAI_API_KEY'):
@@ -6181,12 +6124,13 @@ def get_qdrant_analytics():
             'open_contracts': int(total_contracts * 0.6),
             'upcoming_deadlines': 0,
             'high_score_opportunities': int(total_contracts * 0.2),
-            'top_categories': ['Professional Services', 'Construction', 'Information Technology', 'Goods/Supplies'],
+            'top_categories': MAIN_CATEGORIES,
             'category_distribution': {
-                'Professional Services': int(total_contracts * 0.25),
-                'Construction': int(total_contracts * 0.20),
-                'Information Technology': int(total_contracts * 0.15),
-                'Goods/Supplies': int(total_contracts * 0.15),
+                'Infrastructure & Construction': int(total_contracts * 0.25),
+                'Professional & Technical Services': int(total_contracts * 0.20),
+                'IT & Telecommunications': int(total_contracts * 0.20),
+                'Medical & Human Services': int(total_contracts * 0.15),
+                'Commodities, Equipment & Logistics': int(total_contracts * 0.20),
             },
             'status_distribution': {'active': int(total_contracts * 0.6), 'closed': int(total_contracts * 0.4)},
             'top_agencies': {},
@@ -6227,7 +6171,7 @@ def get_dashboard_stats_api():
     - total_contracts: Total number of contracts in Qdrant
     - category_distribution: Top categories with counts and percentages
     - status_distribution: Active vs closed counts
-    - top_categories: List of top 4 category names
+    - top_categories: List of top 5 category names
     - generated_at: When the stats were last computed
     - _from_snapshot: Boolean indicating if data is from pre-computed snapshot
     """
@@ -6312,7 +6256,7 @@ def get_contracts_api():
             if cat.lower() not in excluded_cats
         }
         
-        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:4]
+        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
         top_categories = []
         for cat_name, count in sorted_categories:
             percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
@@ -6465,7 +6409,7 @@ def get_grants_api():
             if cat.lower() not in EXCLUDED_CATEGORIES
         }
         
-        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:4]
+        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
         top_categories = []
         for cat_name, count in sorted_categories:
             percentage = round((count / total_grants * 100), 1) if total_grants > 0 else 0
@@ -7224,7 +7168,7 @@ def dashboard_search():
         category_diversity = len(category_counts)
         win_probability = min(85, max(55, (category_diversity * 5) + (open_contracts / total_contracts * 20)))
         
-        high_score_categories = ['Construction', 'Information Technology', 'Professional Services']
+        high_score_categories = ['Infrastructure & Construction', 'IT & Telecommunications', 'Professional & Technical Services']
         high_score_contracts = filtered_df[
             filtered_df['category'].str.contains('|'.join(high_score_categories), case=False, na=False)
         ]

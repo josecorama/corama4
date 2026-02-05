@@ -301,7 +301,7 @@ const Dashboard = () => {
       // Sort by count descending to ensure left-to-right order is highest to lowest
       if (data.top_categories && data.top_categories.length > 0) {
         const sorted = [...data.top_categories].sort((a, b) => b.count - a.count)
-        setTopCategories(sorted.slice(0, 4)) // Top 4 for the grid
+        setTopCategories(sorted.slice(0, 5)) // Top 5 for the grid
       } else {
         setTopCategories([]) // Clear categories when no results
       }
@@ -436,8 +436,8 @@ const Dashboard = () => {
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">{showGrants ? t('topGrantCategories') : t('topContractCategories')}</h2>
             
             {/* Desktop: Grid layout */}
-            <div className="hidden lg:grid grid-cols-4 gap-4">
-              {loading ? Array.from({ length: 4 }).map((_, i) => (
+            <div className="hidden lg:grid grid-cols-5 gap-4">
+              {loading ? Array.from({ length: 5 }).map((_, i) => (
                 <div key={`cat-skeleton-${i}`} className="rounded-xl p-4 border border-white/20 flex items-center gap-4" style={{ backgroundColor: '#0b2c48' }}>
                   <div className="relative w-20 h-20 flex-shrink-0 flex items-center justify-center">
                     <div className="skeleton w-[70px] h-[70px] rounded-full" />
