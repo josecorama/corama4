@@ -98,7 +98,7 @@ const Login = () => {
             </a>
             <div className="h-6 w-px bg-white/20"></div>
             <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer">
-              <img src="/static/app/dashboard/IHCC-new.png" alt="IHCC" className="h-6 sm:h-8 lg:h-8 w-auto" />
+              <img src="/static/app/dashboard/IHCC-new.png" alt="IHCC" className="h-5 sm:h-6 lg:h-6 w-auto" />
             </a>
           </div>
           
