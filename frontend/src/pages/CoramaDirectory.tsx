@@ -30,7 +30,7 @@ const CoramaDirectory = () => {
   const [totalCompanies, setTotalCompanies] = useState(0)
   const [_totalPages, setTotalPages] = useState(1)
   const [companies, setCompanies] = useState<Company[]>([])
-  const [_loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [hasDirectoryProfile, setHasDirectoryProfile] = useState<boolean | null>(null)
   const companiesPerPage = 5
   const startItem = totalCompanies > 0 ? (currentPage - 1) * companiesPerPage + 1 : 0
@@ -156,7 +156,29 @@ const CoramaDirectory = () => {
 
             {/* Company Cards */}
             <div className="space-y-4 lg:space-y-6 animate-fade-in-up animate-delay-100">
-              {companies.map((company, index) => (
+              {loading ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={`dir-skeleton-${i}`} className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-6">
+                  <div className="flex flex-col items-center sm:items-start">
+                    <div className="skeleton w-40 h-40 sm:w-44 sm:h-44 lg:w-48 lg:h-48 rounded-lg flex-shrink-0" />
+                    <div className="flex items-center gap-4 mt-3">
+                      <div className="skeleton h-4 w-28" />
+                      <div className="skeleton h-4 w-20" />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="skeleton h-6 w-1/2 mb-2" />
+                    <div className="skeleton h-4 w-1/4 mb-2" />
+                    <div className="skeleton h-4 w-full mb-1" />
+                    <div className="skeleton h-4 w-full mb-1" />
+                    <div className="skeleton h-4 w-3/4 mb-4" />
+                    <div className="flex flex-wrap gap-4">
+                      <div className="skeleton h-4 w-32" />
+                      <div className="skeleton h-4 w-40" />
+                      <div className="skeleton h-4 w-36" />
+                    </div>
+                  </div>
+                </div>
+              )) : companies.map((company, index) => (
                 <div key={company.id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 lg:gap-6 animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
                   {/* Company Logo and Stats Column */}
                   <div className="flex flex-col items-center sm:items-start">
