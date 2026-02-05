@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Search } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
@@ -128,7 +129,7 @@ const Dashboard = () => {
   const [totalContracts, setTotalContracts] = useState(0)
   const [_totalPages, setTotalPages] = useState(1)
   const [contracts, setContracts] = useState<Contract[]>([])
-  const [_loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [_credits, setCredits] = useState(0)
   const [userName, setUserName] = useState('')
@@ -139,6 +140,11 @@ const Dashboard = () => {
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>([])
+
+  // Search suggestions state
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
   
   // Toggle state for Grants/Contracts view (commented out - to be improved later)
   const [showGrants, _setShowGrants] = useState(false)
@@ -147,11 +153,28 @@ const Dashboard = () => {
   const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
 
   const contractsPerPage = 10 // Fixed batch size for traditional pagination
+
+  const filteredContractSuggestions = searchQuery.trim()
+    ? contracts.filter(c =>
+        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.category.toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 6)
+    : []
   const startItem = (currentPage - 1) * contractsPerPage + 1
   const endItem = Math.min(currentPage * contractsPerPage, totalContracts)
 
   useEffect(() => {
     loadUserData()
+  }, [])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   // Process credit purchase if redirected from Stripe checkout
@@ -262,8 +285,42 @@ const Dashboard = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
+    setShowSuggestions(false)
     setCurrentPage(1)
     loadContracts()
+  }
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setSearchQuery(value)
+    setShowSuggestions(value.trim().length > 0)
+    setSelectedSuggestionIndex(-1)
+  }
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || filteredContractSuggestions.length === 0) return
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedSuggestionIndex(prev => (prev < filteredContractSuggestions.length - 1 ? prev + 1 : prev))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : prev))
+    } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
+      e.preventDefault()
+      const selected = filteredContractSuggestions[selectedSuggestionIndex]
+      navigate('/ai-assistant', { state: { contractName: selected.name, contractCategory: selected.category } })
+      setShowSuggestions(false)
+      setSelectedSuggestionIndex(-1)
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSelectContractSuggestion = (contract: Contract) => {
+    setShowSuggestions(false)
+    setSelectedSuggestionIndex(-1)
+    navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })
   }
 
   const handleApplyFilter = (newContractType: string, newStates: string[]) => {
@@ -412,19 +469,56 @@ const Dashboard = () => {
                         <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">{showGrants ? t('availableGrants') : t('availableContracts')}</h2>
                         
                         {/* Center: Search Bar */}
-                        <form onSubmit={handleSearch} className="relative flex-1 max-w-xl mx-auto">
-                          <input
-                            type="text"
-                            placeholder={showGrants ? t('searchGrants') : t('searchContracts')}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="border rounded-full py-2 pl-10 pr-6 text-white placeholder-gray-400 focus:outline-none w-full text-sm font-poppins tracking-wide"
-                            style={{ backgroundColor: '#2f3c4f', borderColor: '#5a7a8a' }}
-                          />
-                          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </form>
+                        <div ref={searchContainerRef} className="relative flex-1 max-w-xl mx-auto">
+                          <form onSubmit={handleSearch}>
+                            <input
+                              type="text"
+                              placeholder={showGrants ? t('searchGrants') : t('searchContracts')}
+                              value={searchQuery}
+                              onChange={handleSearchInputChange}
+                              onKeyDown={handleSearchKeyDown}
+                              onFocus={() => searchQuery.trim() && setShowSuggestions(true)}
+                              className="border rounded-full py-2 pl-10 pr-6 text-white placeholder-gray-400 focus:outline-none w-full text-sm font-poppins tracking-wide"
+                              style={{ backgroundColor: '#2f3c4f', borderColor: '#5a7a8a' }}
+                            />
+                            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                          </form>
+
+                          {showSuggestions && filteredContractSuggestions.length > 0 && (
+                            <div
+                              className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50"
+                              style={{
+                                background: 'rgba(255, 255, 255, 0.1)',
+                                backdropFilter: 'blur(10px)',
+                                border: '2px solid transparent',
+                                borderImage: 'linear-gradient(135deg, rgba(153, 200, 202, 0.6), rgba(11, 44, 72, 0.6)) 1',
+                                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+                              }}
+                            >
+                              <div className="py-2">
+                                {filteredContractSuggestions.map((contract, index) => (
+                                  <button
+                                    key={contract.id}
+                                    onClick={() => handleSelectContractSuggestion(contract)}
+                                    className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${
+                                      index === selectedSuggestionIndex
+                                        ? 'bg-white/20 text-white'
+                                        : 'text-white/70 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                  >
+                                    <Search size={16} className="text-gray-400 flex-shrink-0" />
+                                    <div className="min-w-0">
+                                      <span className="font-poppins text-sm block truncate">{contract.name}</span>
+                                      <span className="font-poppins text-xs text-gray-400 block truncate">{contract.category}</span>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                         
                         {/* Right: Filter and pagination */}
                         <div className="flex items-center gap-2 sm:gap-4">
@@ -469,7 +563,17 @@ const Dashboard = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            {contracts.map((contract) => (
+                            {loading ? Array.from({ length: 5 }).map((_, i) => (
+                              <tr key={`skeleton-${i}`}>
+                                <td className="py-4 pr-6"><div className="skeleton h-4 w-3/4" /></td>
+                                <td className="py-4"><div className="skeleton h-4 w-2/3" /></td>
+                                <td className="py-4 px-4"><div className="skeleton h-4 w-16 mx-auto" /></td>
+                                <td className="py-4 px-4"><div className="skeleton h-4 w-20 mx-auto" /></td>
+                                <td className="py-4 px-4"><div className="skeleton h-4 w-14 mx-auto" /></td>
+                                <td className="py-4 px-4"><div className="skeleton h-6 w-6 rounded-full mx-auto" /></td>
+                                <td className="py-4 px-4"><div className="skeleton h-6 w-6 rounded-full mx-auto" /></td>
+                              </tr>
+                            )) : contracts.map((contract) => (
                               <tr key={contract.id} className="hover:bg-corama-darker/30">
                                 <td 
                                   className="py-4 pr-6 text-white font-poppins font-semibold cursor-pointer hover:text-corama-teal transition-colors"
@@ -508,7 +612,22 @@ const Dashboard = () => {
 
                       {/* Mobile/Tablet Card View */}
                       <div className="lg:hidden space-y-3">
-                        {contracts.map((contract) => (
+                        {loading ? Array.from({ length: 3 }).map((_, i) => (
+                          <div key={`skeleton-mobile-${i}`} className="rounded-lg p-3 sm:p-4" style={{ backgroundColor: '#2F3C4F' }}>
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="skeleton h-4 w-3/4" />
+                              <div className="skeleton h-4 w-12" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              <div><div className="skeleton h-3 w-16 mb-1" /><div className="skeleton h-4 w-24" /></div>
+                              <div><div className="skeleton h-3 w-16 mb-1" /><div className="skeleton h-4 w-20" /></div>
+                            </div>
+                            <div className="flex gap-4">
+                              <div className="skeleton h-5 w-24" />
+                              <div className="skeleton h-5 w-20" />
+                            </div>
+                          </div>
+                        )) : contracts.map((contract) => (
                           <div key={contract.id} className="rounded-lg p-3 sm:p-4" style={{ backgroundColor: '#2F3C4F' }}>
                             <div className="flex justify-between items-start mb-2">
                               <h3 
