@@ -4,13 +4,23 @@
     <!-- Custom dark header for login page -->
     <header class="login-header">
         <div class="login-header-container">
-            <a href="/app" class="login-header-logo">CORAMA</a>
+            <!-- Logo Group (Left Side) -->
+            <div class="login-logo-group">
+                <a href="/app" class="login-header-logo-link">
+                    <img src="{{ url_for('static', filename='app/landing/corama-logo-new.png') }}" alt="CORAMA" class="login-header-logo-img">
+                </a>
+                
+                <div class="login-logo-divider"></div>
+                
+                <a href="https://ihccbusiness.net/" target="_blank" class="login-header-ihcc-link">
+                    <img src="{{ url_for('static', filename='app/dashboard/IHCC.svg') }}" alt="IHCC" class="login-header-ihcc-img">
+                </a>
+            </div>
             
             <nav class="login-header-nav">
-                <a href="https://ihccbusiness.net/" target="_blank" class="login-header-link">IHCC</a>
                 <a href="#" class="login-header-link">Support</a>
-                <a href="#" class="login-header-link">FAQ</a>
-                <a href="#" class="login-header-link">About Us</a>
+                <a href="/faq" class="login-header-link">FAQ</a>
+                <a href="/about-us" class="login-header-link">About Us</a>
             </nav>
             
             <div class="login-header-actions">
@@ -51,17 +61,38 @@
             justify-content: space-between;
         }
         
-        .login-header-logo {
-            color: #6bb4b5;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            font-size: 1.25rem;
-            text-decoration: none;
+        .login-logo-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
         
-        .login-header-logo:hover {
-            color: #6bb4b5;
-            text-decoration: none;
+        .login-header-logo-link {
+            display: flex;
+            align-items: center;
+        }
+        
+        .login-header-logo-img {
+            height: 40px;
+            width: auto;
+            display: block;
+        }
+        
+        .login-logo-divider {
+            height: 24px;
+            width: 1px;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .login-header-ihcc-link {
+            display: flex;
+            align-items: center;
+        }
+        
+        .login-header-ihcc-img {
+            height: 35px;
+            width: auto;
+            display: block;
         }
         
         .login-header-nav {

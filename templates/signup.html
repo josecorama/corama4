@@ -3,13 +3,23 @@
     <!-- Custom dark header for signup page -->
     <header class="signup-header">
         <div class="signup-header-container">
-            <a href="/app" class="signup-header-logo">CORAMA</a>
+            <!-- Logo Group (Left Side) -->
+            <div class="signup-logo-group">
+                <a href="/app" class="signup-header-logo-link">
+                    <img src="{{ url_for('static', filename='app/landing/corama-logo-new.png') }}" alt="CORAMA" class="signup-header-logo-img">
+                </a>
+                
+                <div class="signup-logo-divider"></div>
+                
+                <a href="https://ihccbusiness.net/" target="_blank" class="signup-header-ihcc-link">
+                    <img src="{{ url_for('static', filename='app/dashboard/IHCC.svg') }}" alt="IHCC" class="signup-header-ihcc-img">
+                </a>
+            </div>
             
             <nav class="signup-header-nav">
-                <a href="https://ihccbusiness.net/" target="_blank" class="signup-header-link">IHCC</a>
                 <a href="#" class="signup-header-link">Support</a>
-                <a href="#" class="signup-header-link">FAQ</a>
-                <a href="#" class="signup-header-link">About Us</a>
+                <a href="/faq" class="signup-header-link">FAQ</a>
+                <a href="/about-us" class="signup-header-link">About Us</a>
             </nav>
             
             <div class="signup-header-actions">
@@ -50,17 +60,38 @@
             justify-content: space-between;
         }
         
-        .signup-header-logo {
-            color: #6bb4b5;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 700;
-            font-size: 1.25rem;
-            text-decoration: none;
+        .signup-logo-group {
+            display: flex;
+            align-items: center;
+            gap: 20px;
         }
         
-        .signup-header-logo:hover {
-            color: #6bb4b5;
-            text-decoration: none;
+        .signup-header-logo-link {
+            display: flex;
+            align-items: center;
+        }
+        
+        .signup-header-logo-img {
+            height: 40px;
+            width: auto;
+            display: block;
+        }
+        
+        .signup-logo-divider {
+            height: 24px;
+            width: 1px;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .signup-header-ihcc-link {
+            display: flex;
+            align-items: center;
+        }
+        
+        .signup-header-ihcc-img {
+            height: 35px;
+            width: auto;
+            display: block;
         }
         
         .signup-header-nav {
