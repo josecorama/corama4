@@ -13937,6 +13937,7 @@ def create_contract_analysis_job():
 
 
 @app.route('/api/contract-analysis/jobs/<job_id>', methods=['GET'])
+@limiter.exempt
 def get_contract_analysis_job(job_id):
     """Get the status and results of a contract analysis job"""
     ensure_session_from_auth()
