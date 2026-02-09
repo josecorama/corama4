@@ -72,10 +72,9 @@ const AnimatedCategoryCard = ({
   const strokeDasharray = `${animatedPercentage * 2.2} 220`
   
   return (
-    <div className="rounded-xl p-4 border border-white flex items-center gap-4 animate-fade-in-scale" style={{ backgroundColor: '#0b2c48', animationDelay: `${index * 100}ms` }}>
-      {/* Percentage graph on the left */}
-      <div className="relative w-20 h-20 flex-shrink-0">
-        <svg className="w-20 h-20 transform -rotate-90">
+    <div className="rounded-xl p-3 sm:p-4 border border-white flex items-center gap-3 sm:gap-4 animate-fade-in-scale min-w-0" style={{ backgroundColor: '#0b2c48', animationDelay: `${index * 100}ms` }}>
+      <div className="relative w-14 h-14 sm:w-20 sm:h-20 flex-shrink-0">
+        <svg className="w-14 h-14 sm:w-20 sm:h-20 transform -rotate-90" viewBox="0 0 80 80">
           <circle
             cx="40"
             cy="40"
@@ -96,15 +95,14 @@ const AnimatedCategoryCard = ({
             style={{ transition: 'stroke-dasharray 0.1s ease-out' }}
           />
         </svg>
-        <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-base font-bold">
+        <span className="absolute inset-0 flex items-center justify-center text-white font-poppins text-xs sm:text-base font-bold">
           {animatedPercentage}%
         </span>
       </div>
       
-      {/* Category name and contract count to the right of graph */}
-      <div className="flex flex-col justify-center">
-        <h3 className="text-white font-poppins font-semibold text-sm">{cat.name}</h3>
-        <p className="text-corama-teal font-poppins text-sm">{animatedCount} contracts</p>
+      <div className="flex flex-col justify-center min-w-0">
+        <h3 className="text-white font-poppins font-semibold text-xs sm:text-sm leading-tight break-words">{cat.name}</h3>
+        <p className="text-corama-teal font-poppins text-xs sm:text-sm">{animatedCount} contracts</p>
       </div>
     </div>
   )

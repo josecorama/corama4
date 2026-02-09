@@ -7338,15 +7338,23 @@ def proposal_pricing():
 #TERMS OF USE ROUTE FUNCTION
 @app.route('/terms_of_use', methods=['GET'])
 def terms_of_use():
-    # Render HTML template with embedded PDF iframe for better browser compatibility
-    return render_template('terms_of_use.html')
+    return redirect('/terms-of-use')
+
+@app.route('/terms-of-use', methods=['GET'])
+def terms_of_use_react():
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 #PRIVACY NOTICE ROUTE FUNCTION
 @app.route('/privacy_notice', methods=['GET'])
 def privacy_notice():
-    # Render HTML template with embedded PDF iframe for better browser compatibility
-    return render_template('privacy_notice.html')
+    return redirect('/privacy-notice')
+
+@app.route('/privacy-notice', methods=['GET'])
+def privacy_notice_react():
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 
 
@@ -11191,18 +11199,18 @@ def serve_pdf(filename):
 
    
 #TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/terms_of_use', methods=['GET']) 
+@app.route('/terms_of_use_legacy', methods=['GET']) 
 def termsofuse():
-    return render_template('terms_of_use.html')
+    return redirect('/terms-of-use')
 
 
 
 
    
 #TEAM DETAIL PAGE ROUTE FUNCTION 
-@app.route('/privacy_notice', methods=['GET']) 
+@app.route('/privacy_notice_legacy', methods=['GET']) 
 def privacynotice():
-    return render_template('privacy_notice.html')
+    return redirect('/privacy-notice')
 
 
 

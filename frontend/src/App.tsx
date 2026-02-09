@@ -26,6 +26,8 @@ import AdminDirectory from './pages/AdminDirectory'
 import AdminContracts from './pages/AdminContracts'
 import ProposalAssistant from './pages/ProposalAssistant'
 import Settings from './pages/Settings'
+import PrivacyNotice from './pages/PrivacyNotice'
+import TermsOfUse from './pages/TermsOfUse'
 import NotFound from './pages/NotFound'
 
 function App() {
@@ -41,6 +43,8 @@ function App() {
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="/faq" element={<FAQ />} />
         <Route path="/about-us" element={<AboutUsPublic />} />
+        <Route path="/privacy-notice" element={<PrivacyNotice />} />
+        <Route path="/terms-of-use" element={<TermsOfUse />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/capability-builder" element={<CapabilityBuilder />} />
         <Route path="/top-five-contracts" element={<TopFiveContracts />} />
