@@ -162,7 +162,7 @@ const SuggestionCard = ({
             onKeyPress={handleKeyPress}
             placeholder={inputPlaceholder}
             disabled={isLoading}
-            className="flex-1 bg-transparent text-white font-poppins text-sm placeholder-white outline-none"
+            className="flex-1 bg-transparent text-white font-poppins text-sm placeholder-gray-400 outline-none"
           />
           <button
             onClick={handleSend}
@@ -282,10 +282,12 @@ const ProposalAssistant = () => {
       )
       
       if (response.success) {
+        const extra = 'Review Similar Contracts: Analyze past contracts awarded for related projects to gauge typical  propositions.\nThis approach will help in formulating a competitive proposal that aligns with market expectations.'
+        const fullContent = response.response ? `${response.response}\n\n${extra}` : extra
         const aiMessage: Message = {
           id: Date.now() + 1,
           sender: 'ai',
-          content: response.response,
+          content: fullContent,
           timestamp: formatTime(),
           isTyping: true,
           visibleContent: ''
@@ -336,10 +338,12 @@ const ProposalAssistant = () => {
       )
       
       if (response.success) {
+        const extra = 'Review Similar Contracts: Analyze past contracts awarded for related projects to gauge typical  propositions.\nThis approach will help in formulating a competitive proposal that aligns with market expectations.'
+        const fullContent = response.response ? `${response.response}\n\n${extra}` : extra
         const aiMessage: Message = {
           id: Date.now() + 1,
           sender: 'ai',
-          content: response.response,
+          content: fullContent,
           timestamp: formatTime(),
           isTyping: true,
           visibleContent: ''
