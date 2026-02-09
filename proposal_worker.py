@@ -732,7 +732,7 @@ def process_contract_analysis_job(db, openai_client, job_id: str, job_data: dict
             
             # Combine text with page markers using per-page budgeting
             total_pages = len(pages_text)
-            max_total_chars = 80000
+            max_total_chars = 40000
             chars_per_page = max_total_chars // total_pages if total_pages > 0 else max_total_chars
             
             combined_text = ""
@@ -780,7 +780,7 @@ IMPORTANT: The "quote" field MUST contain exact text from the contract document.
 Respond ONLY with valid JSON, no other text."""
 
             response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",
                 messages=[
                     {"role": "system", "content": "You are an expert government contract analyst. Always respond with valid JSON only."},
                     {"role": "user", "content": structured_prompt}
@@ -1594,7 +1594,7 @@ def check_contract_count_and_enrich(db):
 # DASHBOARD STATS CALCULATION
 # ============================================================================
 
-STATS_CALCULATION_INTERVAL = 60  # Check every 60 iterations (~5 minutes at 5s poll interval)
+STATS_CALCULATION_INTERVAL = 180  # Check every 180 iterations (~15 minutes at 5s poll interval)
 
 def calculate_dashboard_stats(db):
     """
