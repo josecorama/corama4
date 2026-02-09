@@ -595,23 +595,23 @@ const ProposalSummary= () => {
                                                                   {/* Mobile: 2x2 Grid Layout */}
                                                                   <div className="grid grid-cols-2 gap-2 sm:hidden">
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Role</span>
-                                                                      <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.role} readOnly />
+                                                                                                                                            <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('role')}</span>
+                                                                                                                                            <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.role} readOnly />
                                                                     </div>
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Hours</span>
-                                                                      <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.hours} readOnly />
+                                                                                                                                            <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('hours')}</span>
+                                                                                                                                            <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.hours} readOnly />
                                                                     </div>
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
-                                                                      <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.rate} readOnly />
+                                                                                                                                            <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('ratePerHour')}</span>
+                                                                                                                                            <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.rate} readOnly />
                                                                     </div>
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                       <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={formatCurrency(item.cost)} readOnly />
                                                                     </div>
                                                                     <button className="col-span-2 relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-xs hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#6BA4A7', height: '32px' }}>
-                                                                      <span>Edit Role</span>
+                                                                      <span>{_t('editRole')}</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button onClick={() => setLaborCosts(prev => prev.filter((_, i) => i !== index))} className="col-span-2 flex justify-center p-1 hover:opacity-80">
@@ -621,10 +621,10 @@ const ProposalSummary= () => {
                                                                   {/* Desktop: Horizontal Layout */}
                                                                   <div className="hidden sm:block">
                                                                     <div className="flex items-end mb-1 gap-2">
-                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Role</span>
-                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Hours</span>
-                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
-                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('role')}</span>
+                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('hours')}</span>
+                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('ratePerHour')}</span>
+                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                       <div style={{ width: '150px' }}></div>
                                                                       <div style={{ width: '28px' }}></div>
                                                                     </div>
@@ -634,7 +634,7 @@ const ProposalSummary= () => {
                                                                       <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.rate} readOnly />
                                                                       <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency(item.cost)} readOnly />
                                                                       <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#6BA4A7', width: '150px', height: '32px' }}>
-                                                                        <span>Edit Role</span>
+                                                                        <span>{_t('editRole')}</span>
                                                                         <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                       </button>
                                                                       <button onClick={() => setLaborCosts(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80 flex-shrink-0">
@@ -650,33 +650,33 @@ const ProposalSummary= () => {
                                                                 {/* Mobile: 2x2 Grid Layout */}
                                                                 <div className="grid grid-cols-2 gap-2 sm:hidden">
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Role</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('role')}</span>
                                                                     <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} placeholder="Project Manager" value={laborRole} onChange={e => setLaborRole(e.target.value)} />
                                                                   </div>
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Hours</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('hours')}</span>
                                                                     <input type="number" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} placeholder="40" value={laborHours} onChange={e => setLaborHours(e.target.value)} />
                                                                   </div>
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('ratePerHour')}</span>
                                                                     <input type="number" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
                                                                   </div>
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                     <input type="text" className="w-full rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-xs" style={{ height: '28px' }} value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
                                                                   </div>
                                                                   <button onClick={handleAddLaborRole} className="col-span-2 relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-xs hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#6BA4A7', height: '32px' }}>
-                                                                    <span className="mr-6">Add Role</span>
+                                                                    <span className="mr-6">{_t('addRole')}</span>
                                                                     <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                   </button>
                                                                 </div>
                                                                 {/* Desktop: Horizontal Layout */}
                                                                 <div className="hidden sm:block">
                                                                   <div className="flex items-end mb-1 gap-2">
-                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Role</span>
-                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Hours</span>
-                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Rate ($/hr)</span>
-                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('role')}</span>
+                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('hours')}</span>
+                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('ratePerHour')}</span>
+                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                                                                                       <div style={{ width: '150px' }}></div>
                                                                                                                                       <div style={{ width: '28px' }}></div>
                                                                                                                                     </div>
@@ -686,7 +686,7 @@ const ProposalSummary= () => {
                                                                                                                                       <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="75" value={laborRate} onChange={e => setLaborRate(e.target.value)} />
                                                                                                                                       <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency((parseFloat(laborHours) || 0) * (parseFloat(laborRate) || 0))} readOnly />
                                                                                                                                       <button onClick={handleAddLaborRole} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#6BA4A7', width: '150px', height: '32px' }}>
-                                                                      <span className="mr-6">Add Role</span>
+                                                                      <span className="mr-6">{_t('addRole')}</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button className="p-1 opacity-30 flex-shrink-0">
@@ -707,19 +707,19 @@ const ProposalSummary= () => {
                                                                   {/* Mobile: 2x2 Grid Layout */}
                                                                   <div className="grid grid-cols-2 gap-2 sm:hidden">
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Item</span>
+                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('itemLabel')}</span>
                                                                       <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.item} readOnly />
                                                                     </div>
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Quantity</span>
+                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('quantity')}</span>
                                                                       <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.quantity} readOnly />
                                                                     </div>
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Unit Cost</span>
+                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('unitCost')}</span>
                                                                       <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={item.unit_cost} readOnly />
                                                                     </div>
                                                                     <div>
-                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                      <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                       <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={formatCurrency(item.cost)} readOnly />
                                                                     </div>
                                                                     <button className="col-span-2 relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-xs hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#6BA4A7', height: '32px' }}>
@@ -733,10 +733,10 @@ const ProposalSummary= () => {
                                                                   {/* Desktop: Horizontal Layout */}
                                                                   <div className="hidden sm:block">
                                                                     <div className="flex items-end mb-1 gap-2">
-                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Item</span>
-                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Quantity</span>
-                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Unit Cost</span>
-                                                                                                                                          <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('itemLabel')}</span>
+                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('quantity')}</span>
+                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('unitCost')}</span>
+                                                                                                                                          <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                                                                                           <div style={{ width: '150px' }}></div>
                                                                                                                                           <div style={{ width: '28px' }}></div>
                                                                                                                                         </div>
@@ -762,19 +762,19 @@ const ProposalSummary= () => {
                                                                 {/* Mobile: 2x2 Grid Layout */}
                                                                 <div className="grid grid-cols-2 gap-2 sm:hidden">
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Item</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('itemLabel')}</span>
                                                                     <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} placeholder="Laptop" value={materialItem} onChange={e => setMaterialItem(e.target.value)} />
                                                                   </div>
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Quantity</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('quantity')}</span>
                                                                     <input type="number" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} placeholder="5" value={materialQuantity} onChange={e => setMaterialQuantity(e.target.value)} />
                                                                   </div>
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Unit Cost</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('unitCost')}</span>
                                                                     <input type="number" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
                                                                   </div>
                                                                   <div>
-                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                    <span className="font-poppins text-xs" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                     <input type="text" className="w-full rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-xs" style={{ height: '28px' }} value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
                                                                   </div>
                                                                   <button onClick={handleAddMaterial} className="col-span-2 relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-xs hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#6BA4A7', height: '32px' }}>
@@ -785,10 +785,10 @@ const ProposalSummary= () => {
                                                                 {/* Desktop: Horizontal Layout */}
                                                                 <div className="hidden sm:block">
                                                                   <div className="flex items-end mb-1 gap-2">
-                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Item</span>
-                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Quantity</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Unit Cost</span>
-                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>Cost</span>
+                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('itemLabel')}</span>
+                                                                    <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('quantity')}</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('unitCost')}</span>
+                                                                                                                                      <span className="flex-1 font-poppins text-sm" style={{ color: '#9bb9bc' }}>{_t('cost')}</span>
                                                                                                                                       <div style={{ width: '150px' }}></div>
                                                                                                                                       <div style={{ width: '28px' }}></div>
                                                                                                                                     </div>

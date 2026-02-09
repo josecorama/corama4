@@ -617,7 +617,7 @@ const PublicBidProposalGenerator= () => {
                       }}
                       className="px-4 py-2 bg-corama-teal text-white rounded-lg font-poppins hover:opacity-90"
                     >
-                      Try Again
+                      {_t('tryAgain')}
                     </button>
                   </div>
                 </div>

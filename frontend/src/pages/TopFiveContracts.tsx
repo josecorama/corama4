@@ -391,7 +391,13 @@ const TopFiveContracts = () => {
         backgroundColor: '#1C2B3A',
         logging: false,
         onclone: (clonedDoc) => {
-          // Hide elements with no-pdf class (action buttons, bottom buttons)
+          const pdfContainer = clonedDoc.querySelector('[data-pdf-container]')
+          if (pdfContainer) {
+            const titleEl = clonedDoc.createElement('h1')
+            titleEl.textContent = t('topFiveMatchesTitle')
+            titleEl.style.cssText = 'color: white; font-family: Poppins, sans-serif; font-weight: 700; font-size: 24px; margin-bottom: 24px;'
+            pdfContainer.prepend(titleEl)
+          }
           const noPdfElements = clonedDoc.querySelectorAll('.no-pdf')
           noPdfElements.forEach((el) => {
             (el as HTMLElement).style.display = 'none'
@@ -517,7 +523,7 @@ const TopFiveContracts = () => {
                 </button>
               </div>
             ) : (
-            <div ref={contractsContainerRef} className="space-y-4 lg:space-y-6">
+            <div ref={contractsContainerRef} data-pdf-container className="space-y-4 lg:space-y-6">
               {contracts.map((contract) => (
                 <div key={contract.rank} className="print-card rounded-2xl p-4 sm:p-5 lg:p-6 relative border border-white" style={{ backgroundColor: '#2F3C4F' }}>
                   {/* State name - top left */}
