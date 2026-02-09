@@ -162,17 +162,12 @@ const TopFiveContracts = () => {
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
   const [rerunning, setRerunning] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [hasMatches, setHasMatches] = useState<boolean | null>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>(['all'])
   const [noFilterResults, setNoFilterResults] = useState(false)
   
-  // Pagination state
-  const [currentOffset, setCurrentOffset] = useState(0)
-  const [hasMore, setHasMore] = useState(false)
-  const [totalAvailable, setTotalAvailable] = useState(0)
   
   // PDF generation state
   const [generatingPdf, setGeneratingPdf] = useState(false)
@@ -239,9 +234,6 @@ const TopFiveContracts = () => {
         })
         setContracts(transformedContracts)
         setHasMatches(data.has_matches)
-        setCurrentOffset(offset)
-        setHasMore(data.has_more || false)
-        setTotalAvailable(data.total_available || 0)
         
         // Check if filters produced no results but user has matches overall
         if (data.has_matches && transformedContracts.length === 0) {
@@ -258,51 +250,6 @@ const TopFiveContracts = () => {
     }
   }
   
-  // Load more contracts (next 5)
-  const handleLoadMore = async () => {
-    if (!hasMore || loadingMore) return
-    
-    setLoadingMore(true)
-    try {
-      const nextOffset = currentOffset + 5
-      const data = await api.getTopFiveContracts(
-        contractType !== 'all' ? contractType : undefined,
-        selectedStates.filter(s => s !== 'all'),
-        nextOffset
-      )
-      if (data.success) {
-        const transformedContracts: ContractMatch[] = (data.matches || []).map((m: ApiContractMatch) => {
-          let matchPct = 0
-          const simScore = m.Similarity_Score
-          if (typeof simScore === 'string') {
-            matchPct = parseFloat(simScore.replace('%', '')) || 0
-          } else if (typeof simScore === 'number') {
-            matchPct = simScore > 1 ? simScore : simScore * 100
-          }
-          
-          return {
-            rank: m.rank,
-            state: m.State || 'N/A',
-            contractValue: m.Budget || 'TBD',
-            submissionDeadline: m.Due_Date || 'N/A',
-            naicsCode: m.NAICS_Code || 'N/A',
-            name: m.Bid_Name,
-            contractingAgency: m.Organization || m.Company || 'N/A',
-            matchPercentage: Math.round(matchPct),
-            detailLink: m.Detail_Link
-          }
-        })
-        // Append new contracts to existing ones
-        setContracts(prev => [...prev, ...transformedContracts])
-        setCurrentOffset(nextOffset)
-        setHasMore(data.has_more || false)
-      }
-    } catch (error) {
-      console.error('Failed to load more contracts:', error)
-    } finally {
-      setLoadingMore(false)
-    }
-  }
 
   const handleVisitSite = (url?: string) => {
     if (url) {
@@ -627,24 +574,6 @@ const TopFiveContracts = () => {
                       <p className="text-xs sm:text-sm text-gray-300">{generatingPdf ? 'Please wait' : t('downloadAsPdf')}</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
-                </button>
-                <button 
-                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50"
-                  style={{ backgroundColor: 'rgb(28, 66, 98)' }}
-                  onClick={handleLoadMore}
-                  disabled={!hasMore || loadingMore}
-                >
-                  <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">
-                      {loadingMore ? t('loading') : hasMore ? t('loadMore') : t('noMoreContracts')}
-                    </p>
-                                        <p className="text-xs sm:text-sm text-gray-300">
-                                          {hasMore 
-                                            ? `${t('showingContracts')} ${currentOffset + 1}-${currentOffset + contracts.length} ${t('of')} ${totalAvailable}` 
-                                            : t('allContractsLoaded')}
-                                        </p>
-                  </div>
-                  <img src="/static/app/dashboard/MoreContractsIcon.svg" alt="More Contracts" className="w-6 h-6" />
                 </button>
                 <button 
                   className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
