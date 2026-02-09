@@ -13878,14 +13878,6 @@ def create_contract_analysis_job():
         if not file.filename.lower().endswith('.pdf'):
             return jsonify({'success': False, 'error': 'Only PDF files are supported'}), 400
         
-        try:
-            existing_jobs = admin_database.reference('contract_analysis_jobs').get() or {}
-            for ej_id, ej_data in existing_jobs.items():
-                if isinstance(ej_data, dict) and ej_data.get('user_id') == user_id and ej_data.get('status') in ('queued', 'running'):
-                    return jsonify({'success': True, 'job_id': ej_id, 'message': 'Existing job in progress'})
-        except Exception:
-            pass
-        
         # Generate unique job ID
         import uuid
         job_id = str(uuid.uuid4())

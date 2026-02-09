@@ -388,7 +388,6 @@ const ProposalAssistantAnalysis = () => {
   // State for async job progress
   const [jobProgress, setJobProgress] = useState<string>('')
   const jobPollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const jobSubmittedRef = useRef(false)
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -405,8 +404,6 @@ const ProposalAssistantAnalysis = () => {
       return
     }
 
-    if (jobSubmittedRef.current || isGeneratingFindings) return
-    jobSubmittedRef.current = true
     setIsGeneratingFindings(true)
     setJobProgress('Uploading PDF...')
     
@@ -501,13 +498,12 @@ const ProposalAssistantAnalysis = () => {
           }
           setIsGeneratingFindings(false)
           setJobProgress('')
-          jobSubmittedRef.current = false
           alert(errorMessage || 'Failed to get analysis results')
         }
       }
       
-      // Start polling every 4 seconds
-      jobPollingRef.current = setInterval(pollJob, 4000)
+      // Start polling every 8 seconds (increased from 4s to reduce 429 rate limit errors)
+      jobPollingRef.current = setInterval(pollJob, 8000)
       // Also poll immediately
       pollJob()
       
@@ -515,7 +511,6 @@ const ProposalAssistantAnalysis = () => {
       console.error('Error generating findings:', error)
       setIsGeneratingFindings(false)
       setJobProgress('')
-      jobSubmittedRef.current = false
       alert(error instanceof Error ? error.message : 'Failed to generate AI findings. Please try again.')
     }
   }
