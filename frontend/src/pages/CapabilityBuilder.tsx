@@ -6,7 +6,7 @@ import ThinkingPopup from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api, CapabilityStatementData } from '../services/api'
-import { useTranslation } from '../i18n'
+import { useTranslation, t as tGlobal } from '../i18n'
 
 // AI Assistant Popup Component
 interface AIPopupProps {
@@ -64,7 +64,7 @@ const AIAssistantPopup = ({ isOpen, type, title, message, onClose }: AIPopupProp
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: buttonColor }}
             >
-              OK
+              {tGlobal('okButton')}
             </button>
           </div>
         </div>
@@ -73,7 +73,7 @@ const AIAssistantPopup = ({ isOpen, type, title, message, onClose }: AIPopupProp
   )
 }
 
-interface ImportResult {
+interface ImportResult{
   success: boolean
   error?: string
   data?: CapabilityStatementData
@@ -183,7 +183,7 @@ const TagInput: React.FC<TagInputProps> = ({ label, value, onChange, placeholder
 }
 
 const CapabilityBuilder = () => {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const imagesInputRef = useRef<HTMLInputElement>(null)
@@ -715,7 +715,7 @@ const CapabilityBuilder = () => {
                   {/* Sticky Page Title and Steps */}
                   <div className="sticky top-0 z-20 bg-corama-dark px-3 sm:px-4 lg:px-6 pb-3 pt-3">
             <div className="text-center mb-3 lg:mb-4 animate-fade-in">
-              <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">Capability Builder</h1>
+              <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">{t('capabilityBuilder')}</h1>
               <div className="flex justify-center gap-4 sm:gap-6">
                 {stepsCompleted.map((completed, index) => (
                   <div
@@ -747,11 +747,11 @@ const CapabilityBuilder = () => {
                     <div className="p-3 sm:p-4 lg:p-6">
                     {/* Import Existing Capability Statement */}
                     <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 mb-4 lg:mb-6 animate-fade-in-up animate-delay-100">
-            <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4 sm:mb-5">Import Existing Capability Statement</h2>
+            <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4 sm:mb-5">{t('importExistingCapability')}</h2>
             <div className="flex flex-col sm:flex-row gap-4 lg:gap-6 items-stretch sm:items-center">
               {/* Upload File Section */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
-                <span className="text-white font-poppins text-sm whitespace-nowrap">Upload File</span>
+                <span className="text-white font-poppins text-sm whitespace-nowrap">{t('uploadFile')}</span>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -770,7 +770,7 @@ const CapabilityBuilder = () => {
                   }`}
                 >
                   <span className="text-gray-500 font-poppins text-sm truncate block">
-                    {selectedFile ? selectedFile.name : 'Click here to browse your pdf file'}
+                    {selectedFile ? selectedFile.name : t('clickHereToBrowse')}
                   </span>
                 </div>
                 {selectedFile && (
@@ -779,14 +779,14 @@ const CapabilityBuilder = () => {
                     disabled={uploading}
                     className="bg-corama-teal text-white rounded-lg py-2 px-4 text-sm hover:bg-corama-teal/80 transition-colors disabled:opacity-50 w-full sm:w-auto"
                   >
-                    {uploading ? 'Importing...' : 'Import'}
+                    {uploading ? t('importingText') : t('importBtn')}
                   </button>
                 )}
               </div>
 
               {/* Or Import from URL Section */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full lg:flex-1">
-                <span className="text-white font-poppins text-sm whitespace-nowrap">Or Import from URL</span>
+                <span className="text-white font-poppins text-sm whitespace-nowrap">{t('orImportFromUrl')}</span>
                 <div className="flex items-center gap-2 w-full lg:flex-1">
                   <input
                     type="text"
@@ -820,105 +820,105 @@ const CapabilityBuilder = () => {
             <div className="space-y-4 lg:space-y-6">
               {/* Company Information */}
               <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 animate-fade-in-up animate-delay-200">
-                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Information</h2>
+                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">{t('companyInformation')}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Company Name</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('companyName')}</label>
                     <input
                       type="text"
                       value={formData.companyName}
                       onChange={(e) => handleInputChange('companyName', e.target.value)}
-                      placeholder="Type your company name"
+                      placeholder={t('typeCompanyName')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Website</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('website')}</label>
                     <input
                       type="text"
                       value={formData.website}
                       onChange={(e) => handleInputChange('website', e.target.value)}
-                      placeholder="Type your company website URL"
+                      placeholder={t('typeWebsiteUrl')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Contact Name</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('contactName')}</label>
                     <input
                       type="text"
                       value={formData.contactName}
                       onChange={(e) => handleInputChange('contactName', e.target.value)}
-                      placeholder="Type primary contact name"
+                      placeholder={t('typeContactName')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Title</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('titleLabel')}</label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(e) => handleInputChange('title', e.target.value)}
-                      placeholder="Type contact's job title"
+                      placeholder={t('typeJobTitle')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Phone</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('phone')}</label>
                     <input
                       type="text"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="Type phone number"
+                      placeholder={t('typePhoneNumber')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Email</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('email')}</label>
                     <input
                       type="email"
                       value={formData.email}
                       onChange={(e) => handleInputChange('email', e.target.value)}
-                      placeholder="Type email address"
+                      placeholder={t('typeEmailAddress')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Address</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('address')}</label>
                     <input
                       type="text"
                       value={formData.address}
                       onChange={(e) => handleInputChange('address', e.target.value)}
-                      placeholder="Type street address"
+                      placeholder={t('typeStreetAddress')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">City</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('city')}</label>
                     <input
                       type="text"
                       value={formData.city}
                       onChange={(e) => handleInputChange('city', e.target.value)}
-                      placeholder="Type city"
+                      placeholder={t('typeCity')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">State</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('stateLabel')}</label>
                     <input
                       type="text"
                       value={formData.state}
                       onChange={(e) => handleInputChange('state', e.target.value)}
-                      placeholder="Type state"
+                      placeholder={t('typeState')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Zip Code</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('zipCode')}</label>
                     <input
                       type="text"
                       value={formData.zipCode}
                       onChange={(e) => handleInputChange('zipCode', e.target.value)}
-                      placeholder="Type zip code"
+                      placeholder={t('typeZipCode')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
@@ -927,17 +927,17 @@ const CapabilityBuilder = () => {
 
               {/* Company Details */}
               <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6 animate-fade-in-up animate-delay-300">
-                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Details</h2>
+                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">{t('companyDetails')}</h2>
                 <div className="space-y-3 sm:space-y-4">
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Industry Focus</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('industryFocus')}</label>
                     <select
                       value={formData.industryFocus}
                       onChange={(e) => handleInputChange('industryFocus', e.target.value)}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#1C4262] appearance-none cursor-pointer"
                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%239ca3af'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.25rem' }}
                     >
-                      <option value="" className="bg-corama-darker text-gray-400">Select Industry Focus</option>
+                      <option value="" className="bg-corama-darker text-gray-400">{t('selectIndustryFocus')}</option>
                       {INDUSTRY_OPTIONS.map((option) => (
                         <option key={option} value={option} className="bg-corama-darker text-white">
                           {option}
@@ -946,24 +946,24 @@ const CapabilityBuilder = () => {
                     </select>
                   </div>
                   <TagInput
-                    label="Core Competencies"
+                    label={t('coreCompetencies')}
                     value={formData.coreCompetencies}
                     onChange={(value) => handleInputChange('coreCompetencies', value)}
-                    placeholder="Type a competency and press Enter"
+                    placeholder={t('typeCompetencyEnter')}
                   />
                   <TagInput
-                    label="Key Differentiators"
+                    label={t('keyDifferentiators')}
                     value={formData.keyDifferentiators}
                     onChange={(value) => handleInputChange('keyDifferentiators', value)}
-                    placeholder="Type a differentiator and press Enter"
+                    placeholder={t('typeDifferentiatorEnter')}
                   />
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Company Description</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('companyDescription')}</label>
                     <input
                       type="text"
                       value={formData.companyDescription}
                       onChange={(e) => handleInputChange('companyDescription', e.target.value)}
-                      placeholder="Type a brief description of your company"
+                      placeholder={t('typeBriefDescription')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
@@ -972,7 +972,7 @@ const CapabilityBuilder = () => {
 
               {/* Company Logo & Images */}
               <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
-                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Logo</h2>
+                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">{t('companyLogo')}</h2>
                 <input
                   type="file"
                   ref={logoInputRef}
@@ -989,7 +989,7 @@ const CapabilityBuilder = () => {
                     {logoFile ? logoFile.name : 'Add your file'}
                   </p>
                 </div>
-                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Company Images</h2>
+                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">{t('companyImages')}</h2>
                 <input
                   type="file"
                   ref={imagesInputRef}
@@ -1010,75 +1010,75 @@ const CapabilityBuilder = () => {
 
                             {/* Government Codes & Certifications */}
               <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
-                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Government Codes & Certifications</h2>
+                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">{t('govCodesCertifications')}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">UEI Code</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('ueiCode')}</label>
                     <input
                       type="text"
                       value={formData.ueiCode}
                       onChange={(e) => handleInputChange('ueiCode', e.target.value)}
-                      placeholder="Type your Unique Entity Identifier"
+                      placeholder={t('typeUeiCode')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">CAGE Code</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('cageCode')}</label>
                     <input
                       type="text"
                       value={formData.cageCode}
                       onChange={(e) => handleInputChange('cageCode', e.target.value)}
-                      placeholder="Type your CAGE code"
+                      placeholder={t('typeCageCode')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <TagInput
-                    label="NAICS Codes"
+                    label={t('naicsCodes')}
                     value={formData.naicsCodes}
                     onChange={(value) => handleInputChange('naicsCodes', value)}
-                    placeholder="Type a NAICS code and press Enter"
+                    placeholder={t('typeNaicsCode')}
                   />
                   <TagInput
-                    label="Certifications"
+                    label={t('certifications')}
                     value={formData.certifications}
                     onChange={(value) => handleInputChange('certifications', value)}
-                    placeholder="Type a certification and press Enter"
+                    placeholder={t('typeCertification')}
                   />
                 </div>
               </div>
 
               {/* Past Performance */}
               <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
-                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Past Performance</h2>
+                <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">{t('pastPerformance')}</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Client/Agency</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('clientAgency')}</label>
                     <input
                       type="text"
                       value={formData.clientAgency}
                       onChange={(e) => handleInputChange('clientAgency', e.target.value)}
-                      placeholder="Type client or agency name"
+                      placeholder={t('typeClientAgency')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                   <div>
-                    <label className="text-white font-poppins text-sm mb-1 block">Contract Value</label>
+                    <label className="text-white font-poppins text-sm mb-1 block">{t('contractValueLabel')}</label>
                     <input
                       type="text"
                       value={formData.contractValue}
                       onChange={(e) => handleInputChange('contractValue', e.target.value)}
-                      placeholder="Type contract value (e.g., $500,000)"
+                      placeholder={t('typeContractValue')}
                       className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                     />
                   </div>
                 </div>
                             <div className="mt-4">
-                              <label className="text-white font-poppins text-sm mb-1 block">Project Description</label>
+                              <label className="text-white font-poppins text-sm mb-1 block">{t('projectDescription')}</label>
                               <input
                                 type="text"
                                 value={formData.projectDescription}
                                 onChange={(e) => handleInputChange('projectDescription', e.target.value)}
-                                placeholder="Describe the project scope and deliverables"
+                                placeholder={t('typeProjectDescription')}
                                 className="w-full bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-3 text-sm text-gray-900 focus:outline-none focus:border-[#1C4262] placeholder:text-xs placeholder:text-gray-400"
                               />
                             </div>
@@ -1086,7 +1086,7 @@ const CapabilityBuilder = () => {
 
                           {/* Color Scheme */}
                           <div className="card-gradient rounded-xl p-4 sm:p-5 lg:p-6">
-                            <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">Color Scheme</h2>
+                            <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-3 sm:mb-4">{t('colorScheme')}</h2>
                             
                             {/* Color Gradient Picker */}
                             <div className="mb-6 rounded-lg overflow-hidden">
@@ -1151,7 +1151,7 @@ const CapabilityBuilder = () => {
                             {/* Primary Color Section */}
                             <div className="mb-6 flex flex-col items-center">
                               <div className="inline-block">
-                                <label className="text-white font-poppins text-sm mb-2 block">Primary Color (Headers/Accents)</label>
+                                <label className="text-white font-poppins text-sm mb-2 block">{t('primaryColorHeadersAccents')}</label>
                                 <div className={`bg-white rounded-xl overflow-hidden ${activeColorField === 'primary' ? 'ring-2 ring-blue-500' : ''}`}>
                                   {/* Hex Input */}
                                   <div 
@@ -1197,7 +1197,7 @@ const CapabilityBuilder = () => {
                             {/* Secondary Color Section */}
                             <div className="flex flex-col items-center">
                               <div className="inline-block">
-                                <label className="text-white font-poppins text-sm mb-2 block">Secondary Color (Sections/Backgrounds)</label>
+                                <label className="text-white font-poppins text-sm mb-2 block">{t('secondaryColorSectionsBg')}</label>
                                 <div className={`bg-white rounded-xl overflow-hidden ${activeColorField === 'secondary' ? 'ring-2 ring-blue-500' : ''}`}>
                                   {/* Hex Input */}
                                   <div 
@@ -1305,13 +1305,13 @@ const CapabilityBuilder = () => {
                       )}
                       {formData.companyDescription && (
                         <div>
-                          <h3 className="font-bold text-[#1C4262] text-sm mb-1">About Us</h3>
+                          <h3 className="font-bold text-[#1C4262] text-sm mb-1">{t('aboutUsLabel')}</h3>
                           <p className="text-xs">{formData.companyDescription}</p>
                         </div>
                       )}
                       {formData.keyDifferentiators && (
                         <div>
-                          <h3 className="font-bold text-[#1C4262] text-sm mb-1">Differentiators</h3>
+                          <h3 className="font-bold text-[#1C4262] text-sm mb-1">{t('differentiators')}</h3>
                           <p className="text-xs">{formData.keyDifferentiators}</p>
                         </div>
                       )}
@@ -1347,7 +1347,7 @@ const CapabilityBuilder = () => {
                   <p className="font-bold text-sm sm:text-base">
                     {generatingPdf ? 'Generating...' : 'Generate PDF'}
                   </p>
-                  <p className="text-xs sm:text-sm text-gray-300">Create your Capability Statement</p>
+                  <p className="text-xs sm:text-sm text-gray-300">{t('createYourCapabilityStatement')}</p>
                 </div>
                 {generatingPdf ? (
                   <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />
@@ -1365,9 +1365,9 @@ const CapabilityBuilder = () => {
               >
                 <div className="text-left flex-1">
                   <p className="font-bold text-sm sm:text-base">
-                    {enhancingContent ? 'Enhancing...' : 'AI Assistant'}
+                    {enhancingContent ? t('enhancingContent') : 'AI Assistant'}
                   </p>
-                  <p className="text-xs sm:text-sm text-gray-300">Use AI to enhance your content</p>
+                  <p className="text-xs sm:text-sm text-gray-300">{t('useAiToEnhance')}</p>
                 </div>
                 {enhancingContent ? (
                   <div className="w-6 h-6 border-2 border-corama-teal border-t-transparent rounded-full animate-spin flex-shrink-0" />

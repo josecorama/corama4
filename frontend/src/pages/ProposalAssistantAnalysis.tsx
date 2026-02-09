@@ -5,7 +5,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
 import { api } from '../services/api'
-import { useTranslation } from '../i18n'
+import { useTranslation, t as tGlobal } from '../i18n'
 
 // PDF Viewer imports
 import { Viewer, Worker } from '@react-pdf-viewer/core'
@@ -55,7 +55,7 @@ const ErrorPopup = ({ isOpen, message, onClose }: ErrorPopupProps) => {
         <div className="flex flex-col gap-4 text-center sm:text-left">
           <div>
             <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-              Invalid File Type
+              {tGlobal('invalidFileType')}
             </h3>
             <p className="text-gray-300 font-poppins text-xs sm:text-sm">
               {message}
@@ -67,7 +67,7 @@ const ErrorPopup = ({ isOpen, message, onClose }: ErrorPopupProps) => {
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(92, 191, 192)' }}
             >
-              OK
+              {tGlobal('okButton')}
             </button>
           </div>
         </div>
@@ -112,11 +112,10 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         <div className="flex flex-col gap-4 text-center sm:text-left">
           <div>
             <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-              Discard unsaved changes?
+              {tGlobal('discardUnsavedChanges')}
             </h3>
             <p className="text-gray-300 font-poppins text-xs sm:text-sm">
-              You're in the middle of a workflow.<br />
-              If you go back now, your progress in this page will not be saved.
+              {tGlobal('workflowMiddleWarning')}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -125,14 +124,14 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(92, 191, 192)' }}
             >
-              Stay Here
+              {tGlobal('stayHere')}
             </button>
             <button
               onClick={onDiscard}
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(39, 69, 110)' }}
             >
-              Discard & Go Back
+              {tGlobal('discardAndGoBack')}
             </button>
           </div>
         </div>
@@ -182,7 +181,7 @@ interface ContractAnalysisState {
 }
 
 const ProposalAssistantAnalysis = () => {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as ContractAnalysisState | null
@@ -360,7 +359,7 @@ const ProposalAssistantAnalysis = () => {
       const url = URL.createObjectURL(file)
       setPdfUrl(url)
     } else if (file) {
-      setErrorMessage('Please select a PDF file. Only PDF documents are supported for contract analysis.')
+      setErrorMessage(t('pleaseSelectPdf'))
       setShowErrorPopup(true)
     }
   }
@@ -377,7 +376,7 @@ const ProposalAssistantAnalysis = () => {
       const url = URL.createObjectURL(file)
       setPdfUrl(url)
     } else {
-      setErrorMessage('Please drop a PDF file. Only PDF documents are supported for contract analysis.')
+      setErrorMessage(t('pleaseDropPdf'))
       setShowErrorPopup(true)
     }
   }
@@ -401,7 +400,7 @@ const ProposalAssistantAnalysis = () => {
 
   const handleGenerateFindings = async () => {
     if (!pdfFile) {
-      alert('Please upload a contract PDF first')
+      alert(t('pleaseUploadFirst'))
       return
     }
 
@@ -600,15 +599,15 @@ const ProposalAssistantAnalysis = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-3 flex-shrink-0 animate-fade-in">
-              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-8">Proposal Assistant</h1>
+              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-8">{t('proposalAssistantPageTitle')}</h1>
             </div>
 
             {/* Main Content - Two Cards Side by Side - Fixed height with scrollable content */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 flex-1 min-h-0 mb-3 animate-fade-in-up animate-delay-100">
               {/* Left Card - Upload PDF / View Contract */}
               <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
-                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-1 flex-shrink-0">Upload PDF</h2>
-                <p className="text-gray-600 font-poppins text-sm mb-3 flex-shrink-0">Contract Document</p>
+                <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-1 flex-shrink-0">{t('uploadPdf')}</h2>
+                <p className="text-gray-600 font-poppins text-sm mb-3 flex-shrink-0">{t('contractDocument')}</p>
                 
                 {pdfUrl ? (
                   <div className="flex-1 min-h-0 border border-gray-200 rounded-lg overflow-hidden">
@@ -629,8 +628,8 @@ const ProposalAssistantAnalysis = () => {
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                   >
-                    <img src={UploadContractPDFIcon} alt="Upload Contract" className="h-32 sm:h-48 lg:h-[308px] mb-3" />
-                    <p className="text-gray-500 font-poppins text-sm">Click or drag to upload PDF</p>
+                    <img src={UploadContractPDFIcon} alt={t('uploadContractLabel')} className="h-32 sm:h-48 lg:h-[308px] mb-3" />
+                    <p className="text-gray-500 font-poppins text-sm">{t('clickOrDragUpload')}</p>
                   </div>
                 )}
                 
@@ -652,7 +651,7 @@ const ProposalAssistantAnalysis = () => {
               {/* Right Card - AI Findings */}
               <div className="bg-white rounded-2xl p-4 flex flex-col min-h-0 overflow-hidden">
                 <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <h2 className="text-gray-800 font-poppins font-semibold text-lg">Contract Insights</h2>
+                  <h2 className="text-gray-800 font-poppins font-semibold text-lg">{t('contractInsights')}</h2>
                   {annotatedPdfUrl && (
                     <a
                       href={annotatedPdfUrl}
@@ -660,7 +659,7 @@ const ProposalAssistantAnalysis = () => {
                       className="px-3 py-1 rounded-full font-poppins text-xs font-semibold text-white hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: '#6bb4b5' }}
                     >
-                      Download Annotated PDF
+                      {t('downloadAnnotatedPdf')}
                     </a>
                   )}
                 </div>
@@ -694,7 +693,7 @@ const ProposalAssistantAnalysis = () => {
                       !f.type.toLowerCase().includes('risk assessment')
                     ).length > 0 && (
                       <div className="space-y-4 border-t border-gray-200 pt-4">
-                        <p className="text-xs text-gray-500 font-poppins font-semibold uppercase tracking-wide">Source References</p>
+                        <p className="text-xs text-gray-500 font-poppins font-semibold uppercase tracking-wide">{t('sourceReferences')}</p>
                         {structuredFindings
                           .filter(f => 
                             !f.type.toLowerCase().includes('strategic') && 
@@ -717,7 +716,7 @@ const ProposalAssistantAnalysis = () => {
                                       : 'text-corama-teal hover:text-corama-teal/80 hover:underline'
                                   }`}
                                 >
-                                  View in PDF (Page {coord.page + 1}) →
+                                  {t('viewInPdfPage')} {coord.page + 1}) →
                                 </button>
                               )}
                             </div>
@@ -733,7 +732,7 @@ const ProposalAssistantAnalysis = () => {
                                 ) : (
                   <div className="flex-1 min-h-0 flex flex-col items-center justify-center">
                     <img src={AIFindingsIcon} alt="Contract Insights" className="h-32 sm:h-48 lg:h-[356px] mb-3" />
-                    <p className="text-gray-500 font-poppins text-sm">Upload a PDF to generate insights</p>
+                    <p className="text-gray-500 font-poppins text-sm">{t('uploadPdfToGenerate')}</p>
                   </div>
                 )}
               </div>
@@ -747,7 +746,7 @@ const ProposalAssistantAnalysis = () => {
                 className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold disabled:opacity-50 hover:opacity-90 transition-opacity overflow-hidden"
                 style={{ backgroundColor: '#6BA4A7', color: 'white', width: '414px', height: '48px' }}
               >
-                <span className="text-center">Continue</span>
+                <span className="text-center">{t('continueLabel')}</span>
                 <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>

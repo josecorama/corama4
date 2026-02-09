@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
-import { useTranslation } from '../i18n'
+import { useTranslation, t } from '../i18n'
 
 // Team member data (CORAMA team)
 const teamMembers = [
   {
     name: 'Adrian Rodriguez',
     role: 'Co-Founder',
+    roleKey: 'roleCoFounder' as const,
+    descKey: 'descAdrian' as const,
     description: 'Visionary entrepreneur dedicated to empowering small businesses through innovative AI-powered solutions for government contracting.',
     imageUrl: '/static/app/about/adrian2.png',
     linkedinUrl: 'https://www.linkedin.com/in/adrianerodriguez/'
@@ -15,6 +17,8 @@ const teamMembers = [
   {
     name: 'Jaime Di Paulo',
     role: 'Co-Founder',
+    roleKey: 'roleCoFounder' as const,
+    descKey: 'descJaime' as const,
     description: "Technology leader driving Contract Radar Maximizer's AI and machine learning innovations to transform the government contracting landscape.",
     imageUrl: '/static/app/about/jaime2.png',
     linkedinUrl: 'https://www.linkedin.com/in/jaime-di-paulo-zozaya-738a7217/'
@@ -22,6 +26,8 @@ const teamMembers = [
   {
     name: 'Mario Ornelas',
     role: 'AI Software Engineer',
+    roleKey: 'roleAiSoftwareEngineer' as const,
+    descKey: 'descMario' as const,
     description: "Developing the intelligent systems that power Contract Radar Maximizer's next-generation automation, analytics, and AI-driven decision tools.",
     imageUrl: '/static/app/about/mario2.png',
     linkedinUrl: 'https://www.linkedin.com/in/mario-adrian-ornelas-cortes-724589304'
@@ -29,6 +35,8 @@ const teamMembers = [
   {
     name: 'Armando Delgado',
     role: 'Product Engineer',
+    roleKey: 'roleProductEngineer' as const,
+    descKey: 'descArmando' as const,
     description: 'Experience-focused engineer designing secure and intuitive user interfaces by combining UI/UX and cybersecurity backgrounds.',
     imageUrl: '/static/app/about/armando2.png',
     linkedinUrl: 'https://www.linkedin.com/in/jos%C3%A9-armando-delgado-l%C3%B3pez-00a993315'
@@ -40,6 +48,8 @@ const expertAdvisors = [
   {
     name: 'Marcela Cartagena',
     role: 'Chief of Staff',
+    roleKey: 'roleChiefOfStaff' as const,
+    descKey: 'descMarcela' as const,
     description: "Leads the chamber's day-to-day operations and oversees all projects. Background in journalism and communications with over two decades of experience.",
     imageUrl: '/static/app/advisors/Marcela-updated.webp',
     email: 'marcela@ihccbusiness.net'
@@ -47,6 +57,8 @@ const expertAdvisors = [
   {
     name: 'Jacqueline Valle',
     role: 'Grants Manager',
+    roleKey: 'roleGrantsManager' as const,
+    descKey: 'descJacqueline' as const,
     description: 'Manages the full lifecycle of grant acquisition, budgeting, and compliance. Acts as the primary liaison for funders, leveraging a degree in Human Resources Management.',
     imageUrl: '/static/app/advisors/Jacqui.webp',
     email: 'jacqueline@ihccbusiness.net'
@@ -54,6 +66,8 @@ const expertAdvisors = [
   {
     name: 'Andres Solares',
     role: 'Government and Community Relations Director',
+    roleKey: 'roleGovRelationsDir' as const,
+    descKey: 'descAndres' as const,
     description: 'Spearheads advocacy initiatives and builds strategic partnerships with government officials and community stakeholders. Brings extensive experience in public policy and legislative affairs.',
     imageUrl: '/static/app/advisors/Andres-Headshot-Web.webp',
     email: 'asolarte@ihccbusiness.net'
@@ -61,6 +75,8 @@ const expertAdvisors = [
   {
     name: 'Silvia Bonilla',
     role: 'Illinois Small Business Development Center Director',
+    roleKey: 'roleSbdcDirector' as const,
+    descKey: 'descSilvia' as const,
     description: 'Director of the Illinois SBDC at IHCC. Expert in small business development, supporting entrepreneurs from underserved communities.',
     imageUrl: '/static/app/advisors/Silvia-Headshot-Web-1-1.webp',
     email: 'sbonilla@ihccbusiness.net'
@@ -68,6 +84,8 @@ const expertAdvisors = [
   {
     name: 'Keila Terrazas',
     role: 'Cook County Small Business Source Program Director',
+    roleKey: 'roleCookCountyDir' as const,
+    descKey: 'descKeila' as const,
     description: 'Program Director with a Bachelor of Science in Marketing from UIC. Assists small businesses with marketing strategies and event promotions.',
     imageUrl: '/static/app/advisors/Keila-1.webp',
     email: 'kterrazas@ihccbusiness.net'
@@ -75,6 +93,8 @@ const expertAdvisors = [
   {
     name: 'Marisa Alcantar',
     role: 'Director of the IHCC Western-Area Office',
+    roleKey: 'roleWesternAreaDir' as const,
+    descKey: 'descMarisa' as const,
     description: 'Business advisor with over five years of experience supporting Latino small business owners with resources for business expansion.',
     imageUrl: '/static/app/advisors/Marisa-Headshot-Website.webp',
     email: 'malcantar@ihccbusiness.net'
@@ -82,6 +102,8 @@ const expertAdvisors = [
   {
     name: 'Michael Mendez Silva',
     role: 'Illinois Tollway Program Manager',
+    roleKey: 'roleTollwayManager' as const,
+    descKey: 'descMichael' as const,
     description: 'Tollway Program Manager. Educates, trains, and prepares small and diverse firms to compete for opportunities on the Tollway system.',
     imageUrl: '/static/app/advisors/Michael-Headshot-Web.webp',
     email: 'mmendez@ihccbusiness.net'
@@ -89,6 +111,8 @@ const expertAdvisors = [
   {
     name: 'Alejandra Natera',
     role: 'Interim Illinois APEX Accelerator Program Director',
+    roleKey: 'roleApexDir' as const,
+    descKey: 'descAlejandra' as const,
     description: 'Director for the Illinois APEX Accelerator Program. Provides guidance to business owners on government contracting opportunities.',
     imageUrl: '/static/app/advisors/Ale-Headshot-Web.webp',
     email: 'anatera@ihccbusiness.net'
@@ -96,6 +120,8 @@ const expertAdvisors = [
   {
     name: 'Hilda Alvarez Rodriguez',
     role: 'Special Projects Manager',
+    roleKey: 'roleSpecialProjects' as const,
+    descKey: 'descHilda' as const,
     description: 'Special Projects Manager with a degree in International Relations and Diplomacy. Passionate about assisting others to succeed.',
     imageUrl: '/static/app/advisors/HILDA-Website-Headshot-600x700-1.webp',
     email: 'hilda@ihccbusiness.net'
@@ -103,6 +129,8 @@ const expertAdvisors = [
   {
     name: 'Rosa Ivette Orozco',
     role: 'Events and Membership Director',
+    roleKey: 'roleEventsMembership' as const,
+    descKey: 'descRosa' as const,
     description: 'Events and Membership Director with 15 years of diplomatic career experience in government at the Consulate General of Mexico in Chicago.',
     imageUrl: '/static/app/advisors/Ivette-Headshot-Website.webp',
     email: 'ivette.orozco@ihccbusiness.net'
@@ -110,6 +138,8 @@ const expertAdvisors = [
   {
     name: 'Edgar Estrada',
     role: 'Marketing & Communications Manager',
+    roleKey: 'roleMarketingComm' as const,
+    descKey: 'descEdgar' as const,
     description: "Marketing and Communications Manager. Manages all communications including social media, website content, and press releases.",
     imageUrl: '/static/app/advisors/Edgar-Headshot-Web.webp',
     email: 'edgar@ihccbusiness.net'
@@ -117,6 +147,8 @@ const expertAdvisors = [
   {
     name: 'Uriel Mendez',
     role: 'Cook County Small Business Source Business Advisor',
+    roleKey: 'roleCookCountyAdvisor' as const,
+    descKey: 'descUriel' as const,
     description: 'Business Advisor providing one-on-one counseling, licensing guidance, and strategic support for entrepreneurs and small business owners.',
     imageUrl: '/static/app/advisors/Uriel-Headshot-Web.webp',
     email: 'umendez@ihccbusiness.net'
@@ -124,6 +156,8 @@ const expertAdvisors = [
   {
     name: 'Julian Almanza',
     role: 'Illinois Small Business Development Center Business Advisor',
+    roleKey: 'roleSbdcAdvisor' as const,
+    descKey: 'descJulian' as const,
     description: 'Business Advisor providing counseling for entrepreneurs. Fully bilingual in English and Spanish, empowering Latino business owners.',
     imageUrl: '/static/app/advisors/Julian-Headshot-Web.webp',
     email: 'jalmanza@ihccbusiness.net'
@@ -131,6 +165,8 @@ const expertAdvisors = [
   {
     name: 'Eneyda Nunez-Valencia',
     role: 'Assistant Events Coordinator',
+    roleKey: 'roleAssistantEvents' as const,
+    descKey: 'descEneyda' as const,
     description: 'Assistant Events Coordinator with background in human resources liaison work at the Mexican Consulate in Chicago.',
     imageUrl: '/static/app/advisors/Eneyda-Headshot-Web.webp',
     email: 'eneyda@ihccbusiness.net'
@@ -138,6 +174,8 @@ const expertAdvisors = [
   {
     name: 'Danna Gallegos',
     role: 'Marketing & Communications Assistant',
+    roleKey: 'roleMarketingAssistant' as const,
+    descKey: 'descDanna' as const,
     description: 'Supports the execution of digital marketing campaigns and content creation to enhance brand visibility. Skilled in social media management and graphic design.',
     imageUrl: '/static/app/advisors/Danna-Headshot-Web.webp',
     email: 'dgallegos@ihccbusiness.net'
@@ -145,6 +183,8 @@ const expertAdvisors = [
   {
     name: 'Clarissa Roa',
     role: 'Illinois Tollway Program Administrator',
+    roleKey: 'roleTollwayAdmin' as const,
+    descKey: 'descClarissa' as const,
     description: 'Oversees technical assistance programs to guide businesses through Tollway procurement opportunities.',
     imageUrl: '/static/app/advisors/Clarissa-1.webp',
     email: 'croa@ihccbusiness.net'
@@ -176,9 +216,11 @@ interface TeamMemberCardProps {
   description: string
   imageUrl: string
   linkedinUrl: string
+  roleKey?: string
+  descKey?: string
 }
 
-const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: TeamMemberCardProps) => {
+const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl, roleKey, descKey }: TeamMemberCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -312,7 +354,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
             boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
           }}
         >
-          {role}
+          {roleKey ? t(roleKey as any) : role}
         </div>
 
         {/* Description - flex-1 to take remaining space and push button to bottom */}
@@ -321,7 +363,7 @@ const TeamMemberCard = ({ name, role, description, imageUrl, linkedinUrl }: Team
             className="text-xs leading-relaxed font-medium"
             style={{ color: '#0B2C48' }}
           >
-            {description}
+            {descKey ? t(descKey as any) : description}
           </p>
         </div>
 
@@ -353,9 +395,11 @@ interface ExpertAdvisorCardProps {
   description: string
   imageUrl: string
   email: string
+  roleKey?: string
+  descKey?: string
 }
 
-const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertAdvisorCardProps) => {
+const ExpertAdvisorCard = ({ name, role, description, imageUrl, email, roleKey, descKey }: ExpertAdvisorCardProps) => {
   const cardRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -489,7 +533,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
             boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
           }}
         >
-          {role}
+          {roleKey ? t(roleKey as any) : role}
         </div>
 
         {/* Description - flex-1 to take remaining space and push button to bottom */}
@@ -498,7 +542,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
             className="text-xs leading-relaxed font-medium"
             style={{ color: '#0B2C48' }}
           >
-            {description}
+            {descKey ? t(descKey as any) : description}
           </p>
         </div>
 
@@ -514,7 +558,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
           }}
         >
           <MailIcon />
-          <span>Send Mail</span>
+          <span>{t('sendMail')}</span>
         </a>
       </div>
     </div>
@@ -522,7 +566,7 @@ const ExpertAdvisorCard = ({ name, role, description, imageUrl, email }: ExpertA
 }
 
 const Support = () => {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   // Override body background color for this page only
   useEffect(() => {
     const originalBodyBg = document.body.style.backgroundColor
@@ -549,10 +593,10 @@ const Support = () => {
             {/* Header Section */}
             <div className="w-full text-center mb-16 animate-fade-in">
               <h2 className="text-4xl md:text-6xl font-bold text-white mb-4 tracking-tight font-poppins">
-                Meet Your Expert Advisors
+                {t('meetYourExpertAdvisors')}
               </h2>
               <p className="text-lg text-white max-w-3xl mx-auto font-light leading-relaxed font-poppins">
-                Connect with the vetted proposal writers, legal consultants, and compliance specialists dedicated to guiding your business through the complexities of government contracting.
+                {t('supportPageDescription')}
               </p>
             </div>
 
@@ -566,6 +610,8 @@ const Support = () => {
                   description={member.description}
                   imageUrl={member.imageUrl}
                   linkedinUrl={member.linkedinUrl}
+                  roleKey={(member as any).roleKey}
+                  descKey={(member as any).descKey}
                 />
               ))}
             </div>
@@ -580,6 +626,8 @@ const Support = () => {
                   description={advisor.description}
                   imageUrl={advisor.imageUrl}
                   email={advisor.email}
+                  roleKey={(advisor as any).roleKey}
+                  descKey={(advisor as any).descKey}
                 />
               ))}
             </div>

@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
-import { useTranslation } from '../i18n'
+import { useTranslation, t as tFunc } from '../i18n'
 
 // Discard Changes Popup Component
 interface DiscardChangesPopupProps {
@@ -50,11 +50,10 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         <div className="flex flex-col gap-4 text-center sm:text-left">
           <div>
             <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-              Discard unsaved changes?
+              {tFunc('discardUnsavedChanges')}
             </h3>
             <p className="text-gray-300 font-poppins text-xs sm:text-sm">
-              You're in the middle of a workflow.<br />
-              If you go back now, your progress in this page will not be saved.
+              {tFunc('workflowMiddleWarning')}
             </p>
           </div>
 
@@ -65,14 +64,14 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(92, 191, 192)' }}
             >
-              Stay Here
+              {tFunc('stayHere')}
             </button>
             <button
               onClick={onDiscard}
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(39, 69, 110)' }}
             >
-              Discard & Go Back
+              {tFunc('discardAndGoBack')}
             </button>
           </div>
         </div>
@@ -197,24 +196,24 @@ const formatTime = (): string => {
 }
 
 const buildInitialMessage = (contractName: string): string => {
-  return `Hi! I'm here to help you win the bid for: "${contractName}"
+  return `${tFunc('hiImHereToHelp')} "${contractName}"
 
-**Quick Actions:**
+**${tFunc('quickActionsLabel')}**
 
-- **Analyze Contract** (3 credits)
-- **Check Compliance** (2 credits)
-- **Develop Strategy** (3 credits)
-- **Create Outline** (2 credits)
+- **${tFunc('analyzeContractCredits')}** (3 credits)
+- **${tFunc('checkComplianceCredits')}** (2 credits)
+- **${tFunc('developStrategyCredits')}** (3 credits)
+- **${tFunc('createOutlineCredits')}** (2 credits)
 
-Ready to build your proposal? Create a competitive bid designed for this specific industry. The Proposal Assistant provides Market Value Insights and Team Composition strategies tailored to this contract's field.
+${tFunc('readyToBuildProposal')}
 
-Type "**Start Proposal Assistant**" to begin.
+${tFunc('typeStartProposal')}
 
-*Just need a basic proposal to get started? Type "Quick Draft Mode" instead.*`
+*${tFunc('typeQuickDraft')}*`
 }
 
 const AIAssistant = () => {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -380,7 +379,7 @@ const AIAssistant = () => {
       const aiResponse: Message = {
         id: Date.now(),
         sender: 'ai',
-        content: "Great! I'll open the Proposal Assistant for you now. This will provide Market Value Insights and Team Composition strategies tailored to this contract's industry, helping you create a competitive bid.",
+        content: t('openingProposalAssistant'),
         timestamp: formatTime(),
         isTyping: true,
         visibleContent: '',
@@ -417,7 +416,7 @@ const AIAssistant = () => {
       const aiResponse: Message = {
         id: Date.now(),
         sender: 'ai',
-        content: "Great! I'll open the Quick Draft Mode for you now. This will help you quickly analyze the contract, build your team, develop pricing strategy, and generate a basic proposal.",
+        content: t('openingQuickDraft'),
         timestamp: formatTime(),
         isTyping: true,
         visibleContent: '',
@@ -561,7 +560,7 @@ const AIAssistant = () => {
     if (hasCapabilityStatement === null) {
       return (
         <div className="h-screen bg-corama-dark flex items-center justify-center">
-          <div className="text-white font-poppins">Loading...</div>
+          <div className="text-white font-poppins">{t('loadingPage')}</div>
         </div>
       )
     }
@@ -604,7 +603,7 @@ const AIAssistant = () => {
             {/* Page Title */}
             <div className="mb-4 lg:mb-6 flex-shrink-0 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl">
-                <span className="text-corama-teal">AI BID ASSISTANT FOR </span>{contractName}
+                <span className="text-corama-teal">{t('aiBidAssistantFor')}</span>{contractName}
               </h1>
             </div>
 
@@ -671,7 +670,7 @@ const AIAssistant = () => {
                                     <p className="text-gray-400 font-poppins text-xs mb-1">{formatTime()}</p>
                                     <div className="rounded-xl sm:rounded-2xl p-3 sm:p-4 bg-white text-gray-800">
                                       <p className="font-poppins text-xs sm:text-sm">
-                                        Thinking<span className="animate-ellipsis">...</span>
+                                        {t('thinkingText')}<span className="animate-ellipsis">...</span>
                                       </p>
                                     </div>
                                   </div>
@@ -688,7 +687,7 @@ const AIAssistant = () => {
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Ask questions here..."
+                    placeholder={t('askQuestionsHere')}
                     className="w-full border border-corama-teal/30 rounded-full py-3 sm:py-4 pl-4 sm:pl-6 pr-14 sm:pr-16 text-white placeholder-gray-400 focus:outline-none focus:border-corama-teal text-xs sm:text-sm truncate"
                     style={{ backgroundColor: '#333c4d' }}
                   />

@@ -6,6 +6,7 @@ import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
 import loadingAnimation from '../assets/LoadingAnimationLogo.json'
+import { useTranslation, t as tGlobal } from '../i18n'
 
 // Icon paths
 const EnterButtonIcon = '/static/app/dashboard/enterbutton.svg'
@@ -142,7 +143,7 @@ const SuggestionCard = ({
           >
             <div className="max-w-[85%] rounded-lg px-4 py-2 bg-white text-black">
               <p className="font-poppins text-sm">
-                Thinking<span className="animate-ellipsis">...</span>
+                {tGlobal('thinkingText')}<span className="animate-ellipsis">...</span>
               </p>
             </div>
           </div>
@@ -178,6 +179,7 @@ const SuggestionCard = ({
 }
 
 const ProposalAssistant = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as {
@@ -300,10 +302,10 @@ const ProposalAssistant = () => {
       const errorMessage: Message = {
         id: Date.now() + 1,
         sender: 'ai',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: t('aiErrorMessage'),
         timestamp: formatTime(),
         isTyping: false,
-        visibleContent: 'Sorry, I encountered an error. Please try again.'
+        visibleContent: t('aiErrorMessage')
       }
       setMarketMessages(prev => [...prev, errorMessage])
     } finally {
@@ -356,10 +358,10 @@ const ProposalAssistant = () => {
       const errorMessage: Message = {
         id: Date.now() + 1,
         sender: 'ai',
-        content: 'Sorry, I encountered an error. Please try again.',
+        content: t('aiErrorMessage'),
         timestamp: formatTime(),
         isTyping: false,
-        visibleContent: 'Sorry, I encountered an error. Please try again.'
+        visibleContent: t('aiErrorMessage')
       }
       setTeamMessages(prev => [...prev, errorMessage])
     } finally {
@@ -466,7 +468,7 @@ const ProposalAssistant = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Page Title */}
           <h1 className="text-white font-poppins font-bold text-2xl sm:text-3xl text-center mb-6 animate-fade-in">
-            Proposal Assistant
+            {t('proposalAssistantPageTitle')}
           </h1>
           
           {/* Main AI Suggestions Card - Fixed height with scrollbar */}
@@ -480,7 +482,7 @@ const ProposalAssistant = () => {
             }}
           >
             <h2 className="text-black font-poppins font-bold text-xl mb-4 flex-shrink-0">
-              AI Suggestions For a Wise Bid Proposal
+              {t('aiSuggestionsWiseBid')}
             </h2>
             
             {isLoadingMain ? (
@@ -493,7 +495,7 @@ const ProposalAssistant = () => {
                   />
                 </div>
                 <div className="text-gray-600 font-poppins font-semibold text-sm mt-2">
-                  Loading
+                  {t('thinkingText')}
                   <span className="inline-block">
                     <span className="animate-ellipsis">...</span>
                   </span>
@@ -513,24 +515,24 @@ const ProposalAssistant = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up animate-delay-200">
             {/* Market Value Insights Card */}
             <SuggestionCard
-              title="Market Value Insights"
-              subtitle="Recommendations based on current valuation data."
+              title={t('marketValueInsightsTitle')}
+              subtitle={t('marketValueSubtitle')}
               iconSrc={DollarSignIcon}
               messages={marketMessages}
               onSendMessage={handleMarketMessage}
               isLoading={isLoadingMarket}
-              inputPlaceholder="Start asking your questions about this recommendations"
+              inputPlaceholder={t('startAskingQuestions')}
             />
             
             {/* Recommended Team Composition Card */}
             <SuggestionCard
-              title="Recommended Team Composition"
-              subtitle="Suggested strategy based on project requirements and skills."
+              title={t('recommendedTeamComposition')}
+              subtitle={t('recommendedTeamSubtitle')}
               iconSrc={ThreePeopleIcon}
               messages={teamMessages}
               onSendMessage={handleTeamMessage}
               isLoading={isLoadingTeam}
-              inputPlaceholder="Start asking your questions about this recommendations"
+              inputPlaceholder={t('startAskingQuestions')}
             />
           </div>
           
@@ -542,8 +544,8 @@ const ProposalAssistant = () => {
               style={{ backgroundColor: 'rgb(28, 66, 98)' }}
             >
               <div className="text-left flex-1">
-                <p className="font-bold text-sm sm:text-base">Explore Contracts</p>
-                <p className="text-xs sm:text-sm text-gray-300">Go back to the dashboard</p>
+                <p className="font-bold text-sm sm:text-base">{t('exploreContracts')}</p>
+                <p className="text-xs sm:text-sm text-gray-300">{t('goBackToDashboard')}</p>
               </div>
               <img src={DashboardIcon} alt="" className="w-6 h-6 flex-shrink-0" />
             </button>
@@ -553,8 +555,8 @@ const ProposalAssistant = () => {
               style={{ backgroundColor: 'rgb(28, 66, 98)' }}
             >
               <div className="text-left flex-1">
-                <p className="font-bold text-sm sm:text-base">See Matched Contracts</p>
-                <p className="text-xs sm:text-sm text-gray-300">Go to Top Five Matches</p>
+                <p className="font-bold text-sm sm:text-base">{t('seeMatchedContracts')}</p>
+                <p className="text-xs sm:text-sm text-gray-300">{t('goToTopFiveMatches')}</p>
               </div>
               <img src={TopFiveContractsIcon} alt="" className="w-6 h-6 flex-shrink-0" />
             </button>

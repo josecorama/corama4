@@ -5,6 +5,8 @@ import { api, CreditPackage } from '../services/api'
 import { useTranslation } from '../i18n'
 
 interface CreditPack {
+  nameKey?: string
+  descKey?: string
   credits: number
   name: string
   priceCents: number
@@ -69,10 +71,10 @@ const GetMoreCredits = () => {
       console.error('Failed to load credits data:', error)
       // Set default packages on error
       setCreditPacks([
-        { credits: 50, name: 'Starter Pack', priceCents: 1000, displayPrice: 10.00, description: 'Perfect for small projects' },
-        { credits: 150, name: 'Professional Pack', priceCents: 2500, displayPrice: 25.00, description: 'Great for multiple proposals' },
-        { credits: 500, name: 'Enterprise Pack', priceCents: 7500, displayPrice: 75.00, description: 'Best value for frequent users', highlighted: true },
-        { credits: 1500, name: 'Agency Pack', priceCents: 20000, displayPrice: 200.00, description: 'For consulting firms and agencies' },
+        { credits: 50, name: 'Starter Pack', nameKey: 'starterPack', priceCents: 1000, displayPrice: 10.00, description: 'Perfect for small projects', descKey: 'perfectForSmallProjects' },
+        { credits: 150, name: 'Professional Pack', nameKey: 'professionalPack', priceCents: 2500, displayPrice: 25.00, description: 'Great for multiple proposals', descKey: 'greatForMultipleProposals' },
+        { credits: 500, name: 'Enterprise Pack', nameKey: 'enterprisePack', priceCents: 7500, displayPrice: 75.00, description: 'Best value for frequent users', descKey: 'bestValueFrequentUsers', highlighted: true },
+        { credits: 1500, name: 'Agency Pack', nameKey: 'agencyPack', priceCents: 20000, displayPrice: 200.00, description: 'For consulting firms and agencies', descKey: 'forConsultingFirms' },
       ])
     } finally {
       setLoading(false)
@@ -88,7 +90,7 @@ const GetMoreCredits = () => {
       }
     } catch (error) {
       console.error('Failed to create checkout:', error)
-      alert('Failed to start checkout. Please try again.')
+      alert(t('failedCheckout'))
     } finally {
       setPurchasing(null)
     }
@@ -155,11 +157,11 @@ const GetMoreCredits = () => {
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <p className="font-poppins text-xs sm:text-sm mb-2 text-gray-400 group-hover:text-gray-600 text-center">
-                    {pack.credits} Credits
+                    {pack.credits} {t('creditsWord')}
                   </p>
                   <div className="flex justify-center mb-3 sm:mb-4">
                     <div className="inline-block px-3 sm:px-4 py-1 rounded-full border border-corama-teal/30 text-corama-teal group-hover:bg-corama-teal/20 group-hover:border-corama-teal/50 transition-all">
-                      <span className="font-poppins font-semibold text-sm sm:text-base">{pack.name}</span>
+                      <span className="font-poppins font-semibold text-sm sm:text-base">{pack.nameKey ? t(pack.nameKey as any) : pack.name}</span>
                     </div>
                   </div>
                   <div className="mb-3 sm:mb-4 flex flex-col items-center">
@@ -169,10 +171,10 @@ const GetMoreCredits = () => {
                         {pack.displayPrice.toFixed(2)}
                       </span>
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-400 group-hover:text-gray-600 mt-1">/each</span>
+                    <span className="text-xs sm:text-sm text-gray-400 group-hover:text-gray-600 mt-1">{t('perEach')}</span>
                   </div>
                   <p className="font-poppins text-xs sm:text-sm mb-4 sm:mb-6 text-gray-400 group-hover:text-gray-600 flex-grow text-center">
-                    {pack.description}
+                    {pack.descKey ? t(pack.descKey as any) : pack.description}
                   </p>
                   <button
                     onClick={() => handlePurchase(pack)}
