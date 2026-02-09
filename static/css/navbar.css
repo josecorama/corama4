@@ -99,6 +99,16 @@ a.btn.btn-outline-primary-custom:hover,
   text-decoration: none;
 }
 
+.logo-group {
+  gap: 20px;
+}
+
+.logo-divider {
+  height: 24px;
+  width: 1px;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
 .ihcc-logo {
   height: 32px;
   width: auto;
@@ -250,6 +260,17 @@ a.btn.btn-outline-primary-custom:hover,
     width: 100%;
     text-align: center;
     padding: var(--spacing-md) var(--spacing-lg);
+  }
+  
+  /* Fix: make outline button visible on white mobile menu background */
+  .navbar-professional .navbar-collapse .navbar-actions .btn-outline-primary-custom {
+    border-color: #1e3a8a !important;
+    color: #1e3a8a !important;
+    background-color: transparent !important;
+  }
+  
+  .navbar-professional .navbar-collapse .navbar-actions .btn-outline-primary-custom:hover {
+    background-color: rgba(30, 64, 175, 0.1) !important;
   }
   
   .navbar-collapse .navbar-nav .nav-item .nav-link {

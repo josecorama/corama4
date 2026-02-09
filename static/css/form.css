@@ -494,4 +494,86 @@ body {
   .page-title-section .subtitle {
     font-size: 1rem;
   }
+  
+  /* Enhanced mobile form styles */
+  .form {
+    padding: 15px;
+    border-radius: 10px;
+  }
+  
+  .form-title {
+    font-size: 1.75rem;
+    margin-bottom: 30px;
+  }
+  
+  .card-TitleHeader {
+    padding: 15px;
+    font-size: 1.5rem;
+  }
+  
+  .form-group label {
+    font-size: 0.9rem;
+  }
+  
+  .form-control {
+    font-size: 16px; /* Prevents zoom on iOS */
+    padding: 12px;
+    min-height: 44px;
+  }
+  
+  .btn-custom,
+  .btn-add,
+  .btn-primary {
+    width: 100%;
+    padding: 12px 20px;
+    font-size: 1rem;
+    min-height: 44px;
+  }
+  
+  /* Step progress mobile */
+  .step {
+    min-width: 70px;
+  }
+  
+  .step .circle {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+  
+  .step .label {
+    font-size: 10px;
+    max-width: 65px;
+  }
+  
+  /* Custom select mobile */
+  .custom-select-trigger {
+    padding: 12px;
+    min-height: 44px;
+  }
+  
+  .custom-options {
+    column-count: 2;
+  }
+  
+  .custom-option {
+    width: 80px;
+    height: 40px;
+  }
+  
+  /* Dropdown mobile */
+  .dropdown-menu {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  /* Certifications mobile */
+  .certification-radio-group {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .certification-item {
+    flex-wrap: wrap;
+  }
 }
