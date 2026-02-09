@@ -1646,9 +1646,11 @@ def calculate_dashboard_stats(db):
                 for point in points:
                     payload = point.payload or {}
                     
-                    # Use NAICS-based category mapping instead of raw category field
-                    # This ensures consistent categorization based on NAICS codes and keywords
-                    category = map_payload_to_category(payload)
+                    stored_cat = payload.get('category', '')
+                    if stored_cat in DASHBOARD_CATEGORIES:
+                        category = stored_cat
+                    else:
+                        category = map_payload_to_category(payload)
                     
                     category_counts[category] = category_counts.get(category, 0) + 1
                     
