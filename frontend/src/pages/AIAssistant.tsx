@@ -367,7 +367,7 @@ const AIAssistant = () => {
     const normalizedInput = userInput.toLowerCase()
 
     // Check for "Start Proposal Assistant" - redirect to Proposal Assistant Contract Analysis page
-    if (normalizedInput === 'start proposal assistant' || normalizedInput.includes('start proposal assistant')) {
+    if (normalizedInput === 'start proposal assistant' || normalizedInput.includes('start proposal assistant') || normalizedInput === 'iniciar asistente de propuestas' || normalizedInput.includes('iniciar asistente de propuestas')) {
       const newMessage: Message = {
         id: messages.length + 1,
         sender: 'user',
@@ -404,7 +404,7 @@ const AIAssistant = () => {
     }
 
     // Check for "Quick Draft Mode" - redirect to Contract Analysis page (original workflow)
-    if (normalizedInput === 'quick draft mode' || normalizedInput.includes('quick draft mode')) {
+    if (normalizedInput === 'quick draft mode' || normalizedInput.includes('quick draft mode') || normalizedInput === 'modo borrador rápido' || normalizedInput.includes('modo borrador rápido')) {
       const newMessage: Message = {
         id: messages.length + 1,
         sender: 'user',

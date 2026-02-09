@@ -444,6 +444,21 @@ export const translations = {
       goBackToDashboard: 'Go back to the dashboard',
       seeMatchedContracts: 'See Matched Contracts',
       goToTopFiveMatches: 'Go to Top Five Matches',
+
+    // Corama Directory page
+    editProfileTitle: 'Edit Profile',
+    clickToEditRegistration: 'Click to edit your registration.',
+    joinTheList: 'Join the list',
+    increaseVisibility: 'Increase your visibility and connect with businesses seeking your expertise.',
+    employeesLabel: 'Employees',
+
+    // No Capability Statement page
+    capabilityStatementRequired: 'Capability Statement Required',
+    getPersonalizedAI: 'Get personalized AI responses based on your company\'s profile',
+    createInCorama: 'Create in Corama',
+    uploadFileBtn: 'Upload File',
+    uploadingBtn: 'Uploading...',
+
     // Support page - full
     meetYourExpertAdvisors: 'Meet Your Expert Advisors',
     supportPageDescription: 'Connect with the vetted proposal writers, legal consultants, and compliance specialists dedicated to guiding your business through the complexities of government contracting.',
@@ -1024,6 +1039,21 @@ export const translations = {
     goBackToDashboard: 'Regresar al panel',
     seeMatchedContracts: 'Ver Contratos Coincidentes',
     goToTopFiveMatches: 'Ir a las Cinco Mejores Coincidencias',
+
+    // Corama Directory page
+    editProfileTitle: 'Editar Perfil',
+    clickToEditRegistration: 'Haga clic para editar su registro.',
+    joinTheList: 'Unirse a la lista',
+    increaseVisibility: 'Aumente su visibilidad y con\u00e9ctese con empresas que buscan su experiencia.',
+    employeesLabel: 'Empleados',
+
+    // No Capability Statement page
+    capabilityStatementRequired: 'Declaraci\u00f3n de Capacidades Requerida',
+    getPersonalizedAI: 'Obtenga respuestas de IA personalizadas basadas en el perfil de su empresa',
+    createInCorama: 'Crear en Corama',
+    uploadFileBtn: 'Subir Archivo',
+    uploadingBtn: 'Subiendo...',
+
     // Support page - full
     meetYourExpertAdvisors: 'Conozca a Sus Asesores Expertos',
     supportPageDescription: 'Con\u00e9ctese con los redactores de propuestas, consultores legales y especialistas en cumplimiento dedicados a guiar su negocio a trav\u00e9s de las complejidades de la contrataci\u00f3n gubernamental.',

@@ -11,7 +11,7 @@ const ExclamationMarkIcon = '/static/app/dashboard/ExclamationMark.svg'
 const NoCSImage = '/static/app/dashboard/NoCSImage.svg'
 
 const NoCapabilityStatement = () => {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -64,8 +64,8 @@ const NoCapabilityStatement = () => {
             <div className="flex items-center gap-4 mb-8">
               <img src={ExclamationMarkIcon} alt="" className="w-12 h-12 lg:w-16 lg:h-16" />
               <div>
-                <h2 className="text-white font-poppins font-bold text-xl lg:text-2xl">Capability Statement Required</h2>
-                <p className="text-gray-300 font-poppins text-sm lg:text-base">Get personalized AI responses based on your company's profile</p>
+                <h2 className="text-white font-poppins font-bold text-xl lg:text-2xl">{t('capabilityStatementRequired')}</h2>
+                <p className="text-gray-300 font-poppins text-sm lg:text-base">{t('getPersonalizedAI')}</p>
               </div>
             </div>
             
@@ -84,14 +84,14 @@ const NoCapabilityStatement = () => {
                 onClick={() => navigate('/capability-builder')}
                 className="flex-1 sm:flex-none bg-corama-teal text-white font-poppins font-semibold px-8 py-4 rounded-full hover:bg-corama-teal/90 transition-colors text-center"
               >
-                Create in Corama
+                {t('createInCorama')}
               </button>
               <button 
                 onClick={handleUploadClick}
                 disabled={uploading}
                 className="flex-1 sm:flex-none bg-[#3D4F5F] text-white font-poppins font-semibold px-8 py-4 rounded-full hover:bg-[#4D5F6F] transition-colors text-center disabled:opacity-50"
               >
-                {uploading ? 'Uploading...' : 'Upload File'}
+                {uploading ? t('uploadingBtn') : t('uploadFileBtn')}
               </button>
               <input
                 ref={fileInputRef}

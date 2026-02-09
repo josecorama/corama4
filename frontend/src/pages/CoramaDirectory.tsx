@@ -23,7 +23,7 @@ interface Company {
 }
 
 const CoramaDirectory = () => {
-  const { t: _t } = useTranslation()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -112,8 +112,8 @@ const CoramaDirectory = () => {
           <div className="card-gradient rounded-xl p-3 sm:p-4 lg:p-6 animate-fade-in">
             {/* Page Title */}
             <div className="mb-4 lg:mb-6">
-              <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl uppercase tracking-wider">CORAMA Partner Directory</h1>
-              <p className="text-gray-400 font-poppins text-sm">Search Companies</p>
+              <h1 className="text-white font-poppins font-bold text-lg sm:text-xl lg:text-2xl uppercase tracking-wider">{t('coramaPartnerDirectory')}</h1>
+              <p className="text-gray-400 font-poppins text-sm">{t('searchCompanies')}</p>
             </div>
 
             {/* Search Bar */}
@@ -122,14 +122,14 @@ const CoramaDirectory = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by company name, services, or description..."
+                placeholder={t('searchByCompanyPlaceholder')}
                 className="w-full bg-white border border-gray-200 rounded-full py-2 sm:py-3 px-4 sm:px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm sm:text-base"
               />
             </form>
 
             {/* Results Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6">
-              <h2 className="text-corama-teal font-poppins font-semibold text-sm sm:text-base">Available Companies</h2>
+              <h2 className="text-corama-teal font-poppins font-semibold text-sm sm:text-base">{t('availableCompanies')}</h2>
               <div className="flex items-center gap-3 sm:gap-4">
                 <button className="hover:opacity-80">
                   <img src="/static/app/dashboard/Filter.svg" alt="Filter" className="w-4 h-4" />
@@ -194,11 +194,11 @@ const CoramaDirectory = () => {
                     <div className="flex items-center gap-4 mt-3">
                       <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                         <img src="/static/app/dashboard/Employees.svg" alt="" className="w-4 h-4" />
-                        <span>{company.employees} Employees</span>
+                        <span>{company.employees} {t('employeesLabel')}</span>
                       </div>
                       <div className="flex items-center gap-2 text-gray-400 font-poppins text-xs sm:text-sm">
                         <img src="/static/app/dashboard/YearsInBusiness.svg" alt="" className="w-4 h-4" />
-                        <span>{company.yearsInBusiness} years</span>
+                        <span>{company.yearsInBusiness} {t('yearsLabel')}</span>
                       </div>
                     </div>
                   </div>
@@ -256,8 +256,8 @@ const CoramaDirectory = () => {
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Edit Profile</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Click to edit your registration.</p>
+                    <p className="font-bold text-sm sm:text-base">{t('editProfileTitle')}</p>
+                    <p className="text-xs sm:text-sm text-gray-300">{t('clickToEditRegistration')}</p>
                   </div>
                   <img src="/static/app/dashboard/EditProfile.svg" alt="" className="w-6 h-6 flex-shrink-0" />
                 </button>
@@ -268,8 +268,8 @@ const CoramaDirectory = () => {
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">Join the list</p>
-                    <p className="text-xs sm:text-sm text-gray-300">Increase your visibility and connect with businesses seeking your expertise.</p>
+                    <p className="font-bold text-sm sm:text-base">{t('joinTheList')}</p>
+                    <p className="text-xs sm:text-sm text-gray-300">{t('increaseVisibility')}</p>
                   </div>
                   <img src="/static/app/dashboard/JoinTheList.svg" alt="" className="w-6 h-6" />
                 </button>
