@@ -551,11 +551,11 @@ Respond with ONLY valid JSON array, no other text:
                     'Bid_Description': clean_value(res.payload.get('summary') or res.payload.get('bid_description') or res.payload.get('Bid Description'), 'No description available'),
                     'Status': 'Open',  # Qdrant doesn't have status field
                     'Category': clean_value(res.payload.get('category') or res.payload.get('Category'), 'Unknown'),
-                    'Due_Date': clean_value(res.payload.get('due_date') or res.payload.get('Due Date'), 'Not Specified'),
+                    'Due_Date': clean_value(res.payload.get('due_date') or res.payload.get('Due Date'), 'Classified'),
                     'Detail_Link': clean_value(res.payload.get('source_url') or res.payload.get('detail_link') or res.payload.get('Detail Link'), '#'),
                     'State': clean_value(res.payload.get('location') or res.payload.get('Location') or res.payload.get('state') or res.payload.get('State'), 'Unknown'),
                     'Organization': clean_value(res.payload.get('agency') or res.payload.get('organization') or res.payload.get('Organization'), 'Unknown'),
-                    'Budget': clean_value(res.payload.get('budget') or res.payload.get('Budget'), 'Not Specified'),
+                    'Budget': clean_value(res.payload.get('budget') or res.payload.get('Budget'), 'Classified'),
                     'Similarity_Score': f"{res.score * 100:.2f}%",
                     'NAICS_Code': naics_code,  # Use mixed case to match frontend expectation
                     'NAICS_CODE': naics_code,  # Keep uppercase for backward compatibility

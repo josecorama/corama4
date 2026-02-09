@@ -444,13 +444,13 @@
                     
                     <div class="detail-item">
                         <div class="detail-label">💰 Contract Value</div>
-                        <div class="detail-value">{{ match.Budget or 'Not Specified' }}</div>
+                        <div class="detail-value">{{ match.Budget or 'Classified' }}</div>
                     </div>
                     
                     <div class="detail-item">
                         <div class="detail-label">📅 Submission Deadline</div>
                         <div class="detail-value">
-                            {% set raw_due = match.Due_Date or 'Not Specified' %}
+                            {% set raw_due = match.Due_Date or 'Classified' %}
                             {% if 'T' in raw_due %}
                                 {% set parts = raw_due.split('T') %}
                                 {{ parts[0] }}<br>{{ parts[1] }}
@@ -462,7 +462,7 @@
                     
                     <div class="detail-item">
                         <div class="detail-label">🏛️ Contracting Agency</div>
-                        <div class="detail-value">{{ match.Organization or 'Not specified' }}</div>
+                        <div class="detail-value">{{ match.Organization or 'Classified' }}</div>
                     </div>
                     
                     <div class="detail-item">

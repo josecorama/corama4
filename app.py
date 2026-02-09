@@ -11395,7 +11395,7 @@ def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
         
         # Fields that may not exist in Qdrant
         "State": get_first_truthy(payload.get("state"), "Unknown"),
-        "Budget": get_first_truthy(payload.get("budget"), payload.get("budget_estimate"), "Not Specified"),
+        "Budget": get_first_truthy(payload.get("budget"), payload.get("budget_estimate"), "Classified"),
         
         # NAICS information
         "NAICS_CODE": naics_code,
