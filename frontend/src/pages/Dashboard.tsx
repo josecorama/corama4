@@ -297,14 +297,14 @@ const Dashboard = () => {
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
       
-      // Use top_categories from backend (calculated from filtered contracts)
-      // Sort by count descending to ensure left-to-right order is highest to lowest
-      if (data.top_categories && data.top_categories.length > 0) {
-        const sorted = [...data.top_categories].sort((a, b) => b.count - a.count)
-        setTopCategories(sorted.slice(0, 5)) // Top 5 for the grid
-      } else {
-        setTopCategories([]) // Clear categories when no results
-      }
+      // Show static Top Contract Categories (stored snapshot)
+      setTopCategories([
+        { name: 'Commodities, Equipment & Logistics', count: 6704, percentage: 59.4 },
+        { name: 'Infrastructure & Construction', count: 2152, percentage: 19.1 },
+        { name: 'Professional & Technical Services', count: 1036, percentage: 9.2 },
+        { name: 'IT & Telecommunications', count: 869, percentage: 7.7 },
+        { name: 'Medical & Human Services', count: 527, percentage: 4.7 },
+      ])
     } catch (error) {
       console.error('Failed to load contracts:', error)
     } finally {
