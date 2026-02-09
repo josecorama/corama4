@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import { api } from '../services/api'
-import { useTranslation } from '../i18n'
+import { useTranslation, t } from '../i18n'
 
 // Icons
 const DocxIcon = '/static/app/dashboard/Docx.svg'
@@ -103,10 +103,10 @@ const SectionCard = ({ number, title, progress, status }: SectionCardProps) => {
                  status === 'generating' ? '#6BB4B5' : 
                  '#9ca3af'
         }}>
-          {status === 'completed' ? 'Completed' : 
-           status === 'error' ? 'Error' : 
-           status === 'generating' ? 'Generating...' : 
-           'Pending'}
+          {status === 'completed' ? t('statusCompleted') : 
+           status === 'error' ? t('statusError') : 
+           status === 'generating' ? t('statusGenerating') : 
+           t('statusPending')}
         </span>
       </div>
     </div>
@@ -149,11 +149,11 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         <div className="flex flex-col gap-4 text-center sm:text-left">
           <div>
             <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-              Discard unsaved changes?
+              {t('discardUnsavedChanges')}
             </h3>
             <p className="text-gray-300 font-poppins text-xs sm:text-sm">
-              You're in the middle of a workflow.<br />
-              If you go back now, your progress in this page will not be saved.
+              {t('workflowInProgress')}<br />
+              {t('progressNotSaved')}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -162,14 +162,14 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(92, 191, 192)' }}
             >
-              Stay Here
+              {t('stayHere')}
             </button>
             <button
               onClick={onDiscard}
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(39, 69, 110)' }}
             >
-              Discard & Go Back
+              {t('discardAndGoBack')}
             </button>
           </div>
         </div>
@@ -207,14 +207,14 @@ const PublicBidProposalGenerator= () => {
 
   // 8 proposal sections
   const sectionTitles = [
-    'Cover Letter & Executive Summary',
-    'Administrative & Compliance',
-    'Technical Approach',
-    'Management & Staffing Plan',
-    'Corporate Experience',
-    'Quality Assurance',
-    'Price/Cost Proposal (Draft)',
-    'Attachments Documentation Index',
+    _t('sectionCoverLetter'),
+    _t('sectionAdminCompliance'),
+    _t('sectionTechnicalApproach'),
+    _t('sectionManagementStaffing'),
+    _t('sectionCorporateExperience'),
+    _t('sectionQualityAssurance'),
+    _t('sectionPriceCost'),
+    _t('sectionAttachments'),
   ]
 
   const handleGoBack = () => {
@@ -300,7 +300,7 @@ const PublicBidProposalGenerator= () => {
           return newProgress
         })
         
-        setProgressText(`${sectionsCompleted.length}/${totalSections} sections complete`)
+        setProgressText(`${sectionsCompleted.length}/${totalSections} ${_t('sectionsComplete')}`)
 
         // Check if job is completed
         if (statusResult.status === 'completed') {
@@ -514,17 +514,15 @@ const PublicBidProposalGenerator= () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-3 flex-shrink-0 animate-fade-in">
-              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">Public Bid Proposal Generator</h1>
-              <p className="text-white font-poppins text-sm">AI-powered 8-section proposal generation</p>
+              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">{_t('publicBidProposalGenerator')}</h1>
+              <p className="text-white font-poppins text-sm">{_t('aiPowered8Section')}</p>
             </div>
 
             {/* Important Disclaimer */}
             <div className="bg-white rounded-2xl p-4 mb-4 flex-shrink-0 animate-fade-in-up animate-delay-100">
-              <h2 className="text-gray-800 font-poppins font-semibold text-base mb-2">Important Disclaimer</h2>
+              <h2 className="text-gray-800 font-poppins font-semibold text-base mb-2">{_t('importantDisclaimer')}</h2>
               <p className="text-gray-600 font-poppins text-sm leading-relaxed">
-                This tool generates a DRAFT proposal using AI. The output is NOT a final, complete, or legally 
-                binding document. All content must be thoroughly reviewed, edited, and approved by 
-                qualified personnel before any official use or submission.
+                {_t('disclaimerText')}
               </p>
             </div>
 
@@ -561,13 +559,13 @@ const PublicBidProposalGenerator= () => {
 
             {/* How To Use This Draft */}
             <div className="bg-white rounded-2xl p-4 mb-4 flex-shrink-0 animate-fade-in-up animate-delay-300">
-              <h2 className="text-gray-800 font-poppins font-semibold text-base mb-2">How To Use This Draft</h2>
+              <h2 className="text-gray-800 font-poppins font-semibold text-base mb-2">{_t('howToUseThisDraft')}</h2>
               <ol className="text-gray-600 font-poppins text-sm space-y-1 list-decimal list-inside">
-                <li>Review: Carefully read each section for accuracy and completeness.</li>
-                <li>Edit: Replace placeholders marked with [brackets] and refine the language.</li>
-                <li>Validate: Verify all pricing, compliance statements, and technical claims.</li>
-                <li>Approve: Obtain necessary internal legal/compliance approvals.</li>
-                <li>Finalize: Download the DOCX file, edit in your word processor, and prepare for submission.</li>
+                <li>{_t('howToStep1')}</li>
+                <li>{_t('howToStep2')}</li>
+                <li>{_t('howToStep3')}</li>
+                <li>{_t('howToStep4')}</li>
+                <li>{_t('howToStep5')}</li>
               </ol>
             </div>
 
@@ -600,8 +598,8 @@ const PublicBidProposalGenerator= () => {
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-corama-teal mx-auto mb-4"></div>
-                    <p className="text-gray-600 font-poppins">Generating your proposal...</p>
-                    <p className="text-gray-400 font-poppins text-sm mt-2">This may take 1-2 minutes</p>
+                    <p className="text-gray-600 font-poppins">{_t('generatingYourProposal')}</p>
+                    <p className="text-gray-400 font-poppins text-sm mt-2">{_t('mayTake12Minutes')}</p>
                   </div>
                 </div>
               ) : generationComplete && fullProposal ? (
@@ -625,7 +623,7 @@ const PublicBidProposalGenerator= () => {
                 </div>
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-400 font-poppins">Proposal content will appear here once generated</p>
+                  <p className="text-gray-400 font-poppins">{_t('proposalContentWillAppear')}</p>
                 </div>
               )}
               </div>
@@ -641,8 +639,8 @@ const PublicBidProposalGenerator= () => {
                 style={{ backgroundColor: '#2d4160' }}
               >
                 <div className="flex flex-col items-start">
-                  <span className="text-base">Regenerate Proposal</span>
-                  <span className="text-xs opacity-80">You can get a second chance</span>
+                  <span className="text-base">{_t('regenerateProposal')}</span>
+                  <span className="text-xs opacity-80">{_t('youCanGetSecondChance')}</span>
                 </div>
                 <img src={RegenerateProposalIcon} alt="Regenerate" className="w-8 h-8" />
               </button>
@@ -654,8 +652,8 @@ const PublicBidProposalGenerator= () => {
                 style={{ backgroundColor: '#2d4160' }}
               >
                 <div className="flex flex-col items-start">
-                  <span className="text-base">Download DRAFT</span>
-                  <span className="text-xs opacity-80">Download your draft on DOCX</span>
+                  <span className="text-base">{_t('downloadDraft')}</span>
+                  <span className="text-xs opacity-80">{_t('downloadDraftDocx')}</span>
                 </div>
                 <img src={DocxIcon} alt="DOCX" className="w-8 h-8" />
               </button>
@@ -669,8 +667,8 @@ const PublicBidProposalGenerator= () => {
                 style={{ backgroundColor: '#2d4160' }}
               >
                 <div className="flex flex-col items-start">
-                  <span className="text-base">Dashboard</span>
-                  <span className="text-xs opacity-80">Return to the dashboard</span>
+                  <span className="text-base">{_t('dashboard')}</span>
+                  <span className="text-xs opacity-80">{_t('returnToDashboard')}</span>
                 </div>
                 <img src={DashboardIcon} alt="Dashboard" className="w-6 h-6" />
               </button>

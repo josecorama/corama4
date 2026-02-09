@@ -54,6 +54,7 @@ interface DiscardChangesPopupProps {
 }
 
 const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPopupProps) => {
+  const { t: _t } = useTranslation()
   if (!isOpen) return null
 
   return (
@@ -82,11 +83,11 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         <div className="flex flex-col gap-4 text-center sm:text-left">
           <div>
             <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-              Discard unsaved changes?
+              {_t('discardUnsavedChanges')}
             </h3>
             <p className="text-gray-300 font-poppins text-xs sm:text-sm">
-              You're in the middle of a workflow.<br />
-              If you go back now, your progress in this page will not be saved.
+              {_t('workflowInProgress')}<br />
+              {_t('progressNotSaved')}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -95,14 +96,14 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(92, 191, 192)' }}
             >
-              Stay Here
+              {_t('stayHere')}
             </button>
             <button
               onClick={onDiscard}
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(39, 69, 110)' }}
             >
-              Discard & Go Back
+              {_t('discardAndGoBack')}
             </button>
           </div>
         </div>
@@ -511,7 +512,7 @@ const ProposalSummary= () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-2 flex-shrink-0 animate-fade-in">
-              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">Proposal Summary</h1>
+              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-2">{_t('proposalSummaryPageTitle')}</h1>
               
                                                                 {/* Progress Circles - Static checks for steps 1 & 2 (completed on previous pages), animated check for step 3 */}
                                                                 <div className="flex justify-center gap-4 mb-8">
@@ -558,7 +559,7 @@ const ProposalSummary= () => {
 
                                                 {/* AI Recommended Strategy - White Card with border, taller and scrollable */}
                                                 <div className="bg-white rounded-2xl border border-white p-4 mb-8 flex-shrink-0 animate-fade-in-up animate-delay-100">
-                          <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">AI Recommended Strategy</h2>
+                          <h2 className="text-gray-800 font-poppins font-semibold text-lg mb-2">{_t('aiRecommendedStrategy')}</h2>
                           <div className="text-gray-600 font-poppins text-sm min-h-[100px] max-h-[140px] overflow-y-auto">
                             {isLoadingStrategy ? (
                               <InlineLoading text="Thinking" size="small" />
@@ -586,7 +587,7 @@ const ProposalSummary= () => {
 
                                                                                                                                     {/* Labor Costs Section - Responsive: 2x2 grid on mobile, horizontal on desktop */}
                                                                                                 <div className="rounded-2xl border border-white p-3 mb-8 flex-shrink-0 animate-fade-in-up animate-delay-200" style={{ backgroundColor: '#333c4d' }}>
-                                                  <h3 className="text-white font-poppins font-semibold text-sm sm:text-base mb-2">Labor Costs</h3>
+                                                  <h3 className="text-white font-poppins font-semibold text-sm sm:text-base mb-2">{_t('laborCosts')}</h3>
               
                                                                                                   {/* Existing labor cost items */}
                                                               {laborCosts.map((item, index) => (
@@ -698,7 +699,7 @@ const ProposalSummary= () => {
 
                                                                                                                                     {/* Materials & Equipment Section - Responsive: 2x2 grid on mobile, horizontal on desktop */}
                                                                                                 <div className="rounded-2xl border border-white p-3 mb-8 flex-shrink-0" style={{ backgroundColor: '#333c4d' }}>
-                                                  <h3 className="text-white font-poppins font-semibold text-sm sm:text-base mb-2">Materials & Equipment</h3>
+                                                  <h3 className="text-white font-poppins font-semibold text-sm sm:text-base mb-2">{_t('materialsAndEquipment')}</h3>
               
                                                                                                   {/* Existing material items */}
                                                               {materials.map((item, index) => (
@@ -812,10 +813,10 @@ const ProposalSummary= () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-3 flex-shrink-0">
               {/* Margin & Risk Adjustments */}
               <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#333c4d' }}>
-                <h3 className="text-white font-poppins font-semibold text-base mb-2">Margin & Risk Adjustments</h3>
+                <h3 className="text-white font-poppins font-semibold text-base mb-2">{_t('marginAndRisk')}</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>Profit Margin (%)</label>
+                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>{_t('profitMarginPct')}</label>
                     <input
                       type="number"
                       className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
@@ -825,7 +826,7 @@ const ProposalSummary= () => {
                     />
                   </div>
                   <div>
-                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>Risk Reserve (%)</label>
+                    <label className="font-poppins text-sm mb-1 block" style={{ color: '#9bb9bc' }}>{_t('riskReservePct')}</label>
                     <input
                       type="number"
                       className="w-full rounded-lg px-2 py-1.5 bg-white text-gray-800 outline-none font-poppins text-sm"
@@ -839,35 +840,35 @@ const ProposalSummary= () => {
 
                             {/* Proposal Summary - Two column layout */}
                             <div className="rounded-2xl border border-white p-3" style={{ backgroundColor: '#2f4161' }}>
-                              <h3 className="text-white font-poppins font-semibold text-base mb-2 text-center">Proposal Summary</h3>
+                              <h3 className="text-white font-poppins font-semibold text-base mb-2 text-center">{_t('proposalSummaryPageTitle')}</h3>
                 <div className="grid grid-cols-2 gap-x-4 text-sm">
                   {/* Left Column */}
                   <div className="flex flex-col gap-1">
                     <div className="flex justify-between">
-                      <span className="text-white font-poppins">Labor Costs:</span>
+                      <span className="text-white font-poppins">{_t('laborCostsLabel')}</span>
                       <span className="text-white font-poppins">{formatCurrency(laborTotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white font-poppins">Materials & Equipment:</span>
+                      <span className="text-white font-poppins">{_t('materialsEquipmentLabel')}</span>
                       <span className="text-white font-poppins">{formatCurrency(materialsTotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white font-poppins">Subtotal:</span>
+                      <span className="text-white font-poppins">{_t('subtotalLabel')}</span>
                       <span className="text-white font-poppins">{formatCurrency(subtotal)}</span>
                     </div>
                   </div>
                   {/* Right Column */}
                   <div className="flex flex-col gap-1">
                     <div className="flex justify-between">
-                      <span className="text-white font-poppins">Profit Margin:</span>
+                      <span className="text-white font-poppins">{_t('profitMarginLabel')}</span>
                       <span className="text-white font-poppins">{formatCurrency(profitMargin)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white font-poppins">Risk Reserve:</span>
+                      <span className="text-white font-poppins">{_t('riskReserveLabel')}</span>
                       <span className="text-white font-poppins">{formatCurrency(riskReserve)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white font-poppins font-semibold">Total Bid Amount:</span>
+                      <span className="text-white font-poppins font-semibold">{_t('totalBidAmount')}</span>
                       <span className="text-white font-poppins font-semibold">{formatCurrency(totalBidAmount)}</span>
                     </div>
                   </div>
@@ -890,7 +891,7 @@ const ProposalSummary= () => {
                               className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity disabled:opacity-50 overflow-hidden h-[32px] lg:h-[44px]"
                               style={{ backgroundColor: '#6BA4A7', width: '388px' }}
                             >
-                <span>{isSaving ? 'Saving...' : 'Save Summary'}</span>
+                <span>{isSaving ? _t('loading') : _t('saveSummary')}</span>
                 <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
 
@@ -899,7 +900,7 @@ const ProposalSummary= () => {
                 className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity overflow-hidden h-[44px] lg:h-[44px]"
                 style={{ backgroundColor: '#27456e', width: '388px' }}
               >
-                <span className="pr-8">Generate Final Proposal</span>
+                <span className="pr-8">{_t('generateFinalProposal')}</span>
                 <img src={GenerateFinalProposalIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
@@ -931,10 +932,10 @@ const ProposalSummary= () => {
             <div className="flex flex-col gap-4 text-center sm:text-left">
               <div>
                 <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-                  This action costs credits
+                  {_t('thisActionCostsCredits')}
                 </h3>
                 <p className="text-gray-300 font-poppins text-xs sm:text-sm">
-                  This will deduct 15 credits from your balance.
+                  {_t('deduct15Credits')}
                 </p>
               </div>
               
@@ -946,14 +947,14 @@ const ProposalSummary= () => {
                   className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
                   style={{ backgroundColor: '#5CBFC0' }}
                 >
-                  {isDeductingCredits ? 'Processing...' : 'Spend 15 credits'}
+                  {isDeductingCredits ? _t('loading') : _t('spend15Credits')}
                 </button>
                 <button
                   onClick={() => setShowCreditPopup(false)}
                   className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
                   style={{ backgroundColor: '#27456e' }}
                 >
-                  Not now
+                  {_t('notNow')}
                 </button>
               </div>
             </div>

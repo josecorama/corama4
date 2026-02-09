@@ -19,6 +19,7 @@ interface DiscardChangesPopupProps {
 }
 
 const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPopupProps) => {
+  const { t: _t } = useTranslation()
   if (!isOpen) return null
 
   return (
@@ -47,11 +48,11 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
         <div className="flex flex-col gap-4 text-center sm:text-left">
           <div>
             <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-              Discard unsaved changes?
+              {_t('discardUnsavedChanges')}
             </h3>
             <p className="text-gray-300 font-poppins text-xs sm:text-sm">
-              You're in the middle of a workflow.<br />
-              If you go back now, your progress in this page will not be saved.
+              {_t('workflowInProgress')}<br />
+              {_t('progressNotSaved')}
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -60,14 +61,14 @@ const DiscardChangesPopup = ({ isOpen, onStayHere, onDiscard }: DiscardChangesPo
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(92, 191, 192)' }}
             >
-              Stay Here
+              {_t('stayHere')}
             </button>
             <button
               onClick={onDiscard}
               className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
               style={{ backgroundColor: 'rgb(39, 69, 110)' }}
             >
-              Discard & Go Back
+              {_t('discardAndGoBack')}
             </button>
           </div>
         </div>
@@ -562,7 +563,7 @@ const ProposalTeam = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-4 flex-shrink-0 animate-fade-in">
-              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">Build Your Team</h1>
+              <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl mb-3">{_t('buildYourTeamTitle')}</h1>
               
                             {/* Progress Circles - Static check for step 1 (completed on previous page), animated check for step 2 when team member added, empty for step 3 */}
                             <div className="flex justify-center gap-4 mb-8">
@@ -609,7 +610,7 @@ const ProposalTeam = () => {
                 <>
                   {/* AI Suggestions Section - White card, fixed height matching option cards */}
                   <div className="bg-white rounded-xl p-3 sm:p-4 min-h-[140px] max-h-[180px] flex flex-col flex-shrink-0">
-                    <h2 className="text-gray-800 font-poppins font-semibold text-sm sm:text-base lg:text-lg mb-2 flex-shrink-0">AI Suggestions For a Wise Team Selection</h2>
+                    <h2 className="text-gray-800 font-poppins font-semibold text-sm sm:text-base lg:text-lg mb-2 flex-shrink-0">{_t('aiSuggestionsForTeam')}</h2>
                     <div className="text-gray-600 font-poppins text-xs sm:text-sm overflow-y-auto flex-1 min-h-0">
                       {isLoadingSuggestions ? (
                         <InlineLoading text="Thinking" size="medium" />
@@ -650,8 +651,8 @@ const ProposalTeam = () => {
                         }`}
                         style={{ backgroundColor: '#6BA4A7' }}
                       >
-                        <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
-                        <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
+                        <h3 className="text-white font-poppins font-semibold text-base mb-2">{_t('fromCoramaDirectory')}</h3>
+                        <p className="text-gray-100 font-poppins text-sm">{_t('findPartnersCorama')}</p>
                         <img src={FromCORAMADirectoryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                       </div>
 
@@ -663,8 +664,8 @@ const ProposalTeam = () => {
                         }`}
                         style={{ backgroundColor: '#6BA4A7' }}
                       >
-                        <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
-                        <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
+                        <h3 className="text-white font-poppins font-semibold text-base mb-2">{_t('manualEntryOption')}</h3>
+                        <p className="text-gray-100 font-poppins text-sm">{_t('enterSubcontractorDetails')}</p>
                         <img src={ManualEntryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                       </div>
 
@@ -676,8 +677,8 @@ const ProposalTeam = () => {
                         }`}
                         style={{ backgroundColor: '#6BA4A7' }}
                       >
-                        <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
-                        <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
+                        <h3 className="text-white font-poppins font-semibold text-base mb-2">{_t('fromWebSite')}</h3>
+                        <p className="text-gray-100 font-poppins text-sm">{_t('extractCompanyFromSite')}</p>
                         <img src={FromSiteIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                       </div>
                     </div>
@@ -693,8 +694,8 @@ const ProposalTeam = () => {
                       }`}
                       style={{ backgroundColor: '#6BA4A7' }}
                     >
-                      <h3 className="text-white font-poppins font-semibold text-base mb-2">From CORAMA Directory</h3>
-                      <p className="text-gray-100 font-poppins text-sm">Find partners from the CORAMA network</p>
+                      <h3 className="text-white font-poppins font-semibold text-base mb-2">{_t('fromCoramaDirectory')}</h3>
+                      <p className="text-gray-100 font-poppins text-sm">{_t('findPartnersCorama')}</p>
                       <img src={FromCORAMADirectoryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                     </div>
 
@@ -706,8 +707,8 @@ const ProposalTeam = () => {
                       }`}
                       style={{ backgroundColor: '#6BA4A7' }}
                     >
-                      <h3 className="text-white font-poppins font-semibold text-base mb-2">Manual Entry</h3>
-                      <p className="text-gray-100 font-poppins text-sm">Enter subcontractor details manually</p>
+                      <h3 className="text-white font-poppins font-semibold text-base mb-2">{_t('manualEntryOption')}</h3>
+                      <p className="text-gray-100 font-poppins text-sm">{_t('enterSubcontractorDetails')}</p>
                       <img src={ManualEntryIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                     </div>
 
@@ -719,8 +720,8 @@ const ProposalTeam = () => {
                       }`}
                       style={{ backgroundColor: '#6BA4A7' }}
                     >
-                      <h3 className="text-white font-poppins font-semibold text-base mb-2">From Web Site</h3>
-                      <p className="text-gray-100 font-poppins text-sm">Extract company info from their website</p>
+                      <h3 className="text-white font-poppins font-semibold text-base mb-2">{_t('fromWebSite')}</h3>
+                      <p className="text-gray-100 font-poppins text-sm">{_t('extractCompanyFromSite')}</p>
                       <img src={FromSiteIcon} alt="" className="absolute bottom-3 right-3 w-10 h-10 opacity-70" />
                     </div>
                   </div>
@@ -729,8 +730,8 @@ const ProposalTeam = () => {
                 /* Add from Website View */
                 <div className="flex flex-col gap-6 flex-1">
                   <div>
-                    <h2 className="text-white font-poppins font-semibold text-lg">Add from Website</h2>
-                    <p className="text-white font-poppins text-sm mt-1">Company Website URL</p>
+                    <h2 className="text-white font-poppins font-semibold text-lg">{_t('addFromWebsite')}</h2>
+                    <p className="text-white font-poppins text-sm mt-1">{_t('companyWebsiteUrl')}</p>
                   </div>
 
                   <input
@@ -750,7 +751,7 @@ const ProposalTeam = () => {
                       style={{ backgroundColor: '#6BA4A7' }}
                       disabled={isExtracting}
                     >
-                      <span>Cancel</span>
+                      <span>{_t('cancel')}</span>
                       <img src={CancelIcon} alt="" className="w-7 h-7" />
                     </button>
 
@@ -761,7 +762,7 @@ const ProposalTeam = () => {
                       style={{ backgroundColor: '#6BA4A7' }}
                       disabled={isExtracting || !websiteUrl}
                     >
-                      <span>{isExtracting ? 'Extracting...' : 'Add to team'}</span>
+                      <span>{isExtracting ? _t('extractingInfo') : _t('addToTeam')}</span>
                       <img src={AddIcon} alt="" className="w-7 h-7" />
                     </button>
                   </div>
@@ -775,8 +776,8 @@ const ProposalTeam = () => {
                 <div className="flex flex-col gap-4 flex-1 overflow-hidden">
                   {/* Header */}
                   <div>
-                    <h2 className="text-white font-poppins font-bold text-lg uppercase tracking-wide">CORAMA Partner Directory</h2>
-                    <p className="text-white font-poppins text-sm mt-1">Search Companies</p>
+                    <h2 className="text-white font-poppins font-bold text-lg uppercase tracking-wide">{_t('coramaPartnerDirectory')}</h2>
+                    <p className="text-white font-poppins text-sm mt-1">{_t('searchCompanies')}</p>
                   </div>
 
                   {/* Search Input */}
@@ -784,7 +785,7 @@ const ProposalTeam = () => {
                     <input
                       type="text"
                       className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
-                      placeholder="Search by company name, services, or description..."
+                      placeholder={_t('searchByCompanyPlaceholder')}
                       value={directorySearch}
                       onChange={e => setDirectorySearch(e.target.value)}
                     />
@@ -792,7 +793,7 @@ const ProposalTeam = () => {
 
                   {/* Available Companies Header with Filter and Pagination */}
                   <div className="flex items-center justify-between flex-shrink-0">
-                    <h3 className="text-white font-poppins font-semibold">Available Companies</h3>
+                    <h3 className="text-white font-poppins font-semibold">{_t('availableCompanies')}</h3>
                     <div className="flex items-center gap-4">
                       <button className="flex items-center gap-1 text-white opacity-70 hover:opacity-100">
                         <img src={FilterIcon} alt="Filter" className="w-4 h-4" />
@@ -822,7 +823,7 @@ const ProposalTeam = () => {
                   {/* Company Card */}
                   {isLoadingDirectory ? (
                     <div className="flex-1 flex items-center justify-center">
-                      <p className="text-white font-poppins">Loading companies...</p>
+                      <p className="text-white font-poppins">{_t('loadingCompanies')}</p>
                     </div>
                   ) : directoryCompanies.length > 0 && directoryCompanies[currentCompanyIndex] ? (
                     <div 
@@ -888,7 +889,7 @@ const ProposalTeam = () => {
                           {directoryCompanies[currentCompanyIndex].yearsInBusiness > 0 && (
                             <div className="flex items-center gap-2">
                               <img src={YearsInBusinessIcon} alt="" className="w-5 h-5" />
-                              <span className="text-white font-poppins text-sm">{directoryCompanies[currentCompanyIndex].yearsInBusiness} years</span>
+                              <span className="text-white font-poppins text-sm">{directoryCompanies[currentCompanyIndex].yearsInBusiness} {_t('yearsLabel')}</span>
                             </div>
                           )}
                         </div>
@@ -896,20 +897,20 @@ const ProposalTeam = () => {
                     </div>
                   ) : (
                     <div className="flex-1 flex items-center justify-center">
-                      <p className="text-gray-400 font-poppins">No companies found</p>
+                      <p className="text-gray-400 font-poppins">{_t('noCompaniesFound')}</p>
                     </div>
                   )}
                 </div>
               ) : (
                 /* Manual Entry View - scrollable on mobile */
                 <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
-                  <h2 className="text-white font-poppins font-bold text-base sm:text-lg flex-shrink-0">Add Team Member</h2>
+                  <h2 className="text-white font-poppins font-bold text-base sm:text-lg flex-shrink-0">{_t('addTeamMemberTitle')}</h2>
                   
                   {/* Form Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                     {/* Company Name */}
                     <div>
-                      <label className="text-white font-poppins text-sm mb-1 block">Company Name</label>
+                      <label className="text-white font-poppins text-sm mb-1 block">{_t('companyName')}</label>
                       <input
                         type="text"
                         className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
@@ -921,7 +922,7 @@ const ProposalTeam = () => {
                     
                     {/* Contact Name */}
                     <div>
-                      <label className="text-white font-poppins text-sm mb-1 block">Contact Name</label>
+                      <label className="text-white font-poppins text-sm mb-1 block">{_t('contactName')}</label>
                       <input
                         type="text"
                         className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
@@ -933,7 +934,7 @@ const ProposalTeam = () => {
                     
                     {/* Role Title */}
                     <div>
-                      <label className="text-white font-poppins text-sm mb-1 block">Role Title</label>
+                      <label className="text-white font-poppins text-sm mb-1 block">{_t('roleTitleLabel')}</label>
                       <input
                         type="text"
                         className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
@@ -945,7 +946,7 @@ const ProposalTeam = () => {
                     
                     {/* Email */}
                     <div>
-                      <label className="text-white font-poppins text-sm mb-1 block">Email</label>
+                      <label className="text-white font-poppins text-sm mb-1 block">{_t('email')}</label>
                       <input
                         type="email"
                         className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
@@ -957,7 +958,7 @@ const ProposalTeam = () => {
                     
                     {/* Phone */}
                     <div>
-                      <label className="text-white font-poppins text-sm mb-1 block">Phone</label>
+                      <label className="text-white font-poppins text-sm mb-1 block">{_t('phone')}</label>
                       <input
                         type="tel"
                         className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
@@ -969,7 +970,7 @@ const ProposalTeam = () => {
                     
                     {/* Services provided */}
                     <div>
-                      <label className="text-white font-poppins text-sm mb-1 block">Services provided</label>
+                      <label className="text-white font-poppins text-sm mb-1 block">{_t('servicesProvided')}</label>
                       <input
                         type="text"
                         className="w-full rounded-full px-6 py-3 bg-white text-gray-800 outline-none font-poppins"
@@ -988,7 +989,7 @@ const ProposalTeam = () => {
                       className="flex items-center justify-center gap-3 px-6 py-3 rounded-full font-poppins font-semibold text-white hover:opacity-90 transition-opacity"
                       style={{ backgroundColor: '#6BA4A7' }}
                     >
-                      <span>Cancel</span>
+                      <span>{_t('cancel')}</span>
                       <img src={CancelIcon} alt="" className="w-7 h-7" />
                     </button>
 
@@ -999,7 +1000,7 @@ const ProposalTeam = () => {
                       style={{ backgroundColor: '#6BA4A7' }}
                       disabled={!manualCompanyName}
                     >
-                      <span>Add to team</span>
+                      <span>{_t('addToTeam')}</span>
                       <img src={AddIcon} alt="" className="w-7 h-7" />
                     </button>
                   </div>
@@ -1011,7 +1012,7 @@ const ProposalTeam = () => {
             <div className="rounded-2xl border border-white p-4 flex-shrink-0 mt-4" style={{ backgroundColor: '#333c4d' }}>
               {/* Header with pagination */}
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-white font-poppins font-semibold text-lg">Team Members</h3>
+                <h3 className="text-white font-poppins font-semibold text-lg">{_t('teamMembers')}</h3>
                 {teamMembers.length > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-white font-poppins text-sm">
@@ -1039,10 +1040,10 @@ const ProposalTeam = () => {
                 <>
                   {/* Column Headers */}
                   <div className="grid grid-cols-5 gap-4 mb-2">
-                    <span className="text-corama-teal font-poppins font-semibold text-sm">Company</span>
-                    <span className="text-corama-teal font-poppins font-semibold text-sm">Contact</span>
-                    <span className="text-corama-teal font-poppins font-semibold text-sm">Email</span>
-                    <span className="text-corama-teal font-poppins font-semibold text-sm">Services</span>
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">{_t('company')}</span>
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">{_t('contact')}</span>
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">{_t('email')}</span>
+                    <span className="text-corama-teal font-poppins font-semibold text-sm">{_t('servicesProvided')}</span>
                     <span></span>
                   </div>
                   
@@ -1064,8 +1065,8 @@ const ProposalTeam = () => {
                 </>
               ) : (
                 <div className="py-4">
-                  <p className="text-gray-300 font-poppins text-sm">No team members added yet</p>
-                  <p className="text-gray-500 font-poppins text-xs mt-1">Click one of the options above to add team members</p>
+                  <p className="text-gray-300 font-poppins text-sm">{_t('noTeamMembersYet')}</p>
+                  <p className="text-gray-500 font-poppins text-xs mt-1">{_t('clickToAddMembers')}</p>
                 </div>
               )}
             </div>
@@ -1085,8 +1086,8 @@ const ProposalTeam = () => {
                   <div className="flex items-start gap-4 mb-6">
                     <img src={RemoveIcon} alt="" className="w-16 h-16" />
                     <div>
-                      <h4 className="text-white font-poppins font-bold text-xl mb-2">Remove Team Member</h4>
-                      <p className="text-gray-400 font-poppins text-sm">Are you sure you want to remove this team member?</p>
+                      <h4 className="text-white font-poppins font-bold text-xl mb-2">{_t('removeTeamMember')}</h4>
+                      <p className="text-gray-400 font-poppins text-sm">{_t('confirmRemoveMember')}</p>
                     </div>
                   </div>
                   
@@ -1102,7 +1103,7 @@ const ProposalTeam = () => {
                       }`}
                       style={{ backgroundColor: '#6BA4A7' }}
                     >
-                      Yes, Remove it
+                      {_t('yesRemoveIt')}
                     </button>
                     <button
                       onClick={() => {
@@ -1114,7 +1115,7 @@ const ProposalTeam = () => {
                       }`}
                       style={{ backgroundColor: '#334155' }}
                     >
-                      No, Keep it
+                      {_t('noKeepIt')}
                     </button>
                   </div>
                 </div>
@@ -1128,7 +1129,7 @@ const ProposalTeam = () => {
                 className="relative flex items-center justify-center rounded-full font-poppins text-base font-semibold hover:opacity-90 transition-opacity overflow-hidden"
                 style={{ backgroundColor: '#6BA4A7', color: 'white', width: '414px', height: '48px' }}
               >
-                <span className="text-center">Continue</span>
+                <span className="text-center">{_t('continueButton')}</span>
                 <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>

@@ -30,6 +30,20 @@ const printStyles = `
     display: none !important;
   }
   
+  /* Hide rerun and sort buttons in print */
+  .no-print-buttons {
+    display: none !important;
+  }
+  
+  /* Show the page title in print */
+  .print-page-title {
+    display: block !important;
+    color: white !important;
+    font-size: 1.5rem !important;
+    font-weight: 700 !important;
+    margin-bottom: 16px !important;
+  }
+  
   /* Make main content full width */
   main {
     padding: 10px !important;
@@ -128,7 +142,7 @@ const TrophyBackgroundIcon = '/static/app/dashboard/TrophyBackground.svg'
 const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
 const AskAIIcon = '/static/app/dashboard/AskAI.svg'
 const SortByIcon = '/static/app/dashboard/SortBy.svg'
-const PrintResultsIcon = '/static/app/dashboard/PrintResults.svg'
+const PrintResultsIcon = '/static/app/dashboard/GeneratePDF.svg'
 
 interface ContractMatch {
   rank: number
@@ -443,9 +457,9 @@ const TopFiveContracts = () => {
               <h1 className="print-title hidden">Top Contract Matches</h1>
               
               {/* Page Title and Action Buttons */}
-              <div className="flex items-center justify-between mb-6 no-print animate-fade-in">
-                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl">{t('topFiveMatchesTitle')}</h1>
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between mb-6 animate-fade-in">
+                <h1 className="text-white font-poppins font-bold text-xl lg:text-2xl print-page-title">{t('topFiveMatchesTitle')}</h1>
+                <div className="flex items-center gap-3 no-print-buttons">
                   <button 
                     onClick={() => handleRerunMatching(contractType, selectedStates)}
                     disabled={rerunning}
@@ -603,8 +617,8 @@ const TopFiveContracts = () => {
                   disabled={generatingPdf}
                 >
                   <div className="text-left">
-                    <p className="font-bold text-sm sm:text-base">{generatingPdf ? 'Generating PDF...' : t('printResults')}</p>
-                    <p className="text-xs sm:text-sm text-gray-300">{generatingPdf ? 'Please wait' : 'Download as PDF'}</p>
+                      <p className="font-bold text-sm sm:text-base">{generatingPdf ? 'Generating PDF...' : t('downloadResults')}</p>
+                      <p className="text-xs sm:text-sm text-gray-300">{generatingPdf ? 'Please wait' : t('downloadAsPdf')}</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
                 </button>
