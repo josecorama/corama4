@@ -8728,21 +8728,19 @@ Based ONLY on the information above, provide suggestions covering:
 
 If any of these topics are not covered in the contract analysis, say so rather than making assumptions. Keep your response concise but actionable. Use markdown formatting."""
 
-        market_prompt = f"""Based ONLY on the contract information provided below, provide market value insights.
+        market_prompt = f"""Provide market value insights for the contract below.
 
-IMPORTANT: Your response must be based ENTIRELY on the contract information provided. Do not invent market data or statistics. If the contract does not contain pricing, budget, or market information, acknowledge that limitation and provide general guidance only.
+Use publicly available information (e.g., award databases, procurement portals, industry reports) to estimate typical pricing and contract values for similar projects. Provide:
+- A recommended price number (USD) and an estimated value range
+- 1–2 bullets on how you derived it (public sources/categories)
+- A clear disclaimer: \"Recommendation based on public information\"
 
 Contract Name: {contract_name}
 
 CONTRACT ANALYSIS FROM UPLOADED PDF:
 {contract_description[:2000] if contract_description else 'No contract analysis available.'}
 
-Based ONLY on the information above, discuss:
-- Contract value or budget (if mentioned in the contract)
-- Pricing structure or requirements (if specified)
-- Any competitive or market context mentioned in the contract
-
-If market/pricing information is not in the contract, acknowledge this and suggest what additional research the user might need. Keep it brief (2-3 paragraphs). Use markdown formatting."""
+If limited public data is available, state assumptions and confidence level. Keep it concise (2–3 short paragraphs or bullets). Use markdown formatting."""
 
         team_prompt = f"""Based ONLY on the contract information provided below, suggest an ideal team composition.
 
@@ -8952,7 +8950,7 @@ Use ONLY the information above to answer questions. Do not invent or assume any 
             system_prompt = chat_system_base + contract_context + f"""
 
 You are a market analyst helping a user understand market value and pricing for the contract: "{contract_name}".
-Only provide information about pricing, market trends, or competitive analysis if it was mentioned in the contract analysis above. If not, acknowledge this limitation and provide general guidance only."""
+In addition to the contract analysis above, use publicly available information (e.g., award databases, procurement portals, industry reports) to estimate typical pricing/contract values for similar projects. Provide a recommended price number (USD) and an estimated range. Include a clear disclaimer: \"Recommendation based on public information\". If data is limited, state assumptions and confidence level."""
         else:  # team_composition
             system_prompt = chat_system_base + contract_context + f"""
 

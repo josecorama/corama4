@@ -449,7 +449,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                 <img src="/static/app/dashboard/InstagramLogo.svg" alt="Instagram" className="w-5 h-5" />
               </a>
               <a 
-                href="https://www.facebook.com/people/Corama/61568626109717/" 
+                href="https://www.facebook.com/people/Corama/61581331312920/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="hover:opacity-80 transition-opacity"
@@ -457,7 +457,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                 <img src="/static/app/dashboard/Facebook.svg" alt="Facebook" className="w-5 h-5" />
               </a>
               <a 
-                href="https://www.linkedin.com/company/corama-ai" 
+                href="https://www.linkedin.com/company/contract-radar-maximizer/" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="hover:opacity-80 transition-opacity"
