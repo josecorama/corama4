@@ -11388,13 +11388,13 @@ def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
         "Detail_Link": get_first_truthy(payload.get("detail_link"), payload.get("source_url"), "#"),
         "Bid_Number": get_first_truthy(payload.get("bid_number"), payload.get("contract_number"), "N/A"),
         "Bid_Description": get_first_truthy(payload.get("bid_description"), payload.get("summary"), "No description available"),
-        "Organization": get_first_truthy(payload.get("organization"), payload.get("agency"), "Unknown"),
+        "Organization": get_first_truthy(payload.get("organization"), payload.get("agency"), "Classified"),
         "Due_Date": get_first_truthy(payload.get("due_date"), "No due date"),
-        "Category": get_first_truthy(payload.get("category"), payload.get("notice_type"), "Unknown"),
+        "Category": get_first_truthy(payload.get("category"), payload.get("notice_type"), "Classified"),
         "Status": "Open",  # Qdrant doesn't have status field, default to Open
         
         # Fields that may not exist in Qdrant
-        "State": get_first_truthy(payload.get("state"), "Unknown"),
+        "State": get_first_truthy(payload.get("state"), "Classified"),
         "Budget": get_first_truthy(payload.get("budget"), payload.get("budget_estimate"), "Classified"),
         
         # NAICS information
