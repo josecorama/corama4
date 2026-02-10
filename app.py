@@ -7035,58 +7035,91 @@ def dashboard_search():
                 "top_categories": top_categories
             })
 
-        ensure_qdrant_text_indexes()
-        from qdrant_client.models import Filter, FieldCondition, MatchText
-        
-        qdrant_client = get_qdrant_client(timeout=15)
-        if not qdrant_client:
-            return jsonify({"success": False, "message": "Search service unavailable"}), 503
-        
-        text_filter = Filter(
-            should=[
-                FieldCondition(key="bid_name", match=MatchText(text=user_query)),
-                FieldCondition(key="category", match=MatchText(text=user_query)),
-                FieldCondition(key="naics_code", match=MatchText(text=user_query)),
-            ]
-        )
-        
-        all_points = []
-        scroll_offset = None
-        while len(all_points) < MAX_SEARCH_RESULTS:
-            batch_size = min(100, MAX_SEARCH_RESULTS - len(all_points))
-            scroll_result = qdrant_client.scroll(
-                collection_name="government_contracts",
-                limit=batch_size,
-                offset=scroll_offset,
-                with_payload=True,
-                with_vectors=False,
-                scroll_filter=text_filter
-            )
-            points, scroll_offset = scroll_result
-            if not points:
-                break
-            all_points.extend(points)
-            if scroll_offset is None:
-                break
-        
-        hidden_ids = get_hidden_contract_ids()
         filtered_results = []
-        for point in all_points:
-            if str(point.id) in hidden_ids:
-                continue
-            contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
-            cat = (contract.get('category') or '').strip().lower()
-            if cat in ('unknown', ''):
-                continue
-            filtered_results.append(contract)
-        
-        if contract_type != 'all' and filtered_results:
+        search_method = "unknown"
+
+        try:
+            ensure_qdrant_text_indexes()
+            from qdrant_client.models import Filter, FieldCondition, MatchText
+
+            qdrant_client = get_qdrant_client(timeout=15)
+            if qdrant_client:
+                text_filter = Filter(
+                    should=[
+                        FieldCondition(key="bid_name", match=MatchText(text=user_query)),
+                        FieldCondition(key="category", match=MatchText(text=user_query)),
+                        FieldCondition(key="naics_code", match=MatchText(text=user_query)),
+                    ]
+                )
+
+                all_points = []
+                scroll_offset = None
+                while len(all_points) < MAX_SEARCH_RESULTS:
+                    batch_size = min(100, MAX_SEARCH_RESULTS - len(all_points))
+                    scroll_result = qdrant_client.scroll(
+                        collection_name="government_contracts",
+                        limit=batch_size,
+                        offset=scroll_offset,
+                        with_payload=True,
+                        with_vectors=False,
+                        scroll_filter=text_filter
+                    )
+                    points, scroll_offset = scroll_result
+                    if not points:
+                        break
+                    all_points.extend(points)
+                    if scroll_offset is None:
+                        break
+
+                hidden_ids = get_hidden_contract_ids()
+                for point in all_points:
+                    if str(point.id) in hidden_ids:
+                        continue
+                    contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
+                    cat = (contract.get('category') or '').strip().lower()
+                    if cat in ('unknown', ''):
+                        continue
+                    filtered_results.append(contract)
+
+                search_method = "MatchText"
+        except Exception as qdrant_err:
+            logging.warning(f"/dashboard_search MatchText failed, falling back to cached search: {qdrant_err}")
+            filtered_results = []
+
+        if not filtered_results and search_method != "MatchText":
+            import pandas as pd
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
+            df = pd.DataFrame(all_contracts)
+
+            if len(df) > 0 and 'category' in df.columns:
+                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
+
+            if len(df) > 0:
+                df['bid_name'] = df['bid_name'].fillna('').astype(str)
+                df['category'] = df['category'].fillna('').astype(str)
+                df['naics_code'] = df['naics_code'].fillna('').astype(str)
+
+                query_lower = user_query.lower()
+                mask = (
+                    df['bid_name'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                    df['category'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                    df['naics_code'].str.contains(user_query, regex=False, na=False)
+                )
+                df = df[mask]
+
+            if len(df) > 0:
+                df = apply_contract_filters(df, contract_type, selected_states)
+
+            filtered_results = df.to_dict('records') if len(df) > 0 else []
+            search_method = "cached_fallback"
+
+        if search_method == "MatchText" and contract_type != 'all' and filtered_results:
             import pandas as pd
             df = pd.DataFrame(filtered_results)
             df = apply_contract_filters(df, contract_type, selected_states)
             filtered_results = df.to_dict('records')
-        
-        logging.info(f"/dashboard_search (MatchText): query='{user_query}' found {len(filtered_results)} contracts")
+
+        logging.info(f"/dashboard_search ({search_method}): query='{user_query}' found {len(filtered_results)} contracts")
         
         if not filtered_results:
             return jsonify({
