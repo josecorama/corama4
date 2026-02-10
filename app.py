@@ -6893,6 +6893,10 @@ def dashboard_search():
             df = pd.DataFrame(all_contracts)
             
             if len(df) > 0:
+                # Filter out contracts with Unknown category
+                if 'category' in df.columns:
+                    df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
+                
                 # Filter by NAICS code - exact match within the naics_code field
                 df['naics_code'] = df['naics_code'].fillna('').astype(str)
                 # Match the NAICS code as a whole word (not partial match)
@@ -6947,6 +6951,10 @@ def dashboard_search():
             import pandas as pd
             all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
             df = pd.DataFrame(all_contracts)
+            
+            # Filter out contracts with Unknown category
+            if len(df) > 0 and 'category' in df.columns:
+                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
             
             # Apply contract type and state filters
             if len(df) > 0:
@@ -7003,6 +7011,10 @@ def dashboard_search():
             
             import pandas as pd
             df = pd.DataFrame(all_contracts)
+            
+            # Filter out contracts with Unknown category
+            if len(df) > 0 and 'category' in df.columns:
+                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
             
             if user_query and len(df) > 0:
                 df['bid_number'] = df['bid_number'].fillna('').astype(str)
@@ -7101,7 +7113,7 @@ def dashboard_search():
         # Sort by similarity score in descending order (highest similarity first)
         # Note: Qdrant uses dot product metric, so scores are typically small (-0.1 to 0.1 range)
         # We rely on relative ranking rather than absolute thresholds
-        filtered_results = list(search_results)
+        filtered_results = [r for r in search_results if (r.get('category') or '').strip().lower() not in ('unknown', '')]
         filtered_results.sort(key=lambda x: x.get('Similarity_Score', 0), reverse=True)
         
         # Prioritize results where query appears in contract name or category (exact text match)
@@ -17665,9 +17677,12 @@ def api_rerun_top_five():
         else:
             logging.info(f"[rerun-top5] 0 results from filters, keeping existing matches.csv unchanged")
         
+        # Filter out contracts with Unknown category before formatting
+        filtered_results = [r for r in results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
+
         # Format results for response
         formatted_matches = []
-        for i, row in enumerate(results[:5]):
+        for i, row in enumerate(filtered_results[:5]):
             formatted_matches.append({
                 'rank': i + 1,
                 'Company': row.get('Company', pdf_company_name or 'Unknown'),
@@ -17689,8 +17704,8 @@ def api_rerun_top_five():
         return jsonify({
             "success": True,
             "matches": formatted_matches,
-            "total_found": len(results),
-            "message": f"Found {len(results)} matching contracts"
+            "total_found": len(filtered_results),
+            "message": f"Found {len(filtered_results)} matching contracts"
         })
         
     except Exception as e:
@@ -17891,6 +17906,8 @@ def api_top_five_contracts():
     if need_fresh_matching:
         fresh_results = attempt_fresh_matching()
         if fresh_results:
+            # Filter out contracts with Unknown category
+            fresh_results = [r for r in fresh_results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
             # Format fresh results for response
             formatted_matches = []
             for i, row in enumerate(fresh_results[:5]):
@@ -18131,6 +18148,9 @@ def api_top_five_contracts():
     else:
         logging.info(f"[top5] No matches file found at {matches_file}")
     
+    # Filter out contracts with Unknown category or empty/N/A NAICS before pagination
+    matches = [m for m in matches if str(m.get('Category', '') or '').strip().lower() not in ('unknown', '')]
+
     # Apply pagination - slice matches based on offset and limit
     paginated_matches = matches[offset:offset + limit]
     

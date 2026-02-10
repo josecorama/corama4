@@ -276,7 +276,12 @@ const Dashboard = () => {
       }
       
       // Transform API response to component format
-      const transformedContracts: Contract[] = data.contracts.map((c: ApiContract, index: number) => ({
+      const transformedContracts: Contract[] = data.contracts
+        .filter((c: ApiContract) => {
+          const cat = (c.category || '').trim().toLowerCase()
+          return cat !== 'unknown' && cat !== ''
+        })
+        .map((c: ApiContract, index: number) => ({
         id: (currentPage - 1) * contractsPerPage + index + 1,
         name: c.bid_name,
         category: c.category,

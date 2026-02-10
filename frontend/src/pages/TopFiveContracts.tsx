@@ -208,7 +208,12 @@ const TopFiveContracts = () => {
     try {
       const data = await api.getTopFiveContracts(filterContractType, filterStates, offset)
       if (data.success) {
-        const transformedContracts: ContractMatch[] = (data.matches || []).map((m: ApiContractMatch) => {
+        const transformedContracts: ContractMatch[] = (data.matches || [])
+          .filter((m: ApiContractMatch) => {
+            const cat = (m.Category || '').trim().toLowerCase()
+            return cat !== 'unknown' && cat !== ''
+          })
+          .map((m: ApiContractMatch) => {
           // Parse similarity score - handle both percentage strings and decimals
           let matchPct = 0
           const simScore = m.Similarity_Score
@@ -269,7 +274,12 @@ const TopFiveContracts = () => {
       
       const data = await api.rerunTopFiveMatching(contractTypes, states)
       if (data.success) {
-        const transformedContracts: ContractMatch[] = (data.matches || []).map((m: ApiContractMatch) => {
+        const transformedContracts: ContractMatch[] = (data.matches || [])
+          .filter((m: ApiContractMatch) => {
+            const cat = (m.Category || '').trim().toLowerCase()
+            return cat !== 'unknown' && cat !== ''
+          })
+          .map((m: ApiContractMatch) => {
           let matchPct = 0
           const simScore = m.Similarity_Score
           if (typeof simScore === 'string') {
@@ -291,7 +301,7 @@ const TopFiveContracts = () => {
           }
         })
         setContracts(transformedContracts)
-        // Don't change hasMatches here - rerun with filters returning 0 results
+        // Don't change hasMatches here- rerun with filters returning 0 results
         // doesn't mean the user has no matches at all, just that filters are too restrictive
         // Only show "no filter results" message instead of redirecting to dashboard
         
