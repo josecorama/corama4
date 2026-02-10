@@ -261,11 +261,10 @@ const RadarAnimation = () => {
 }
 
 const HERO_IMAGES = [
-  '/static/app/landing/hero-bg-1.png',
-  '/static/app/landing/hero-bg-2.png',
-  '/static/app/landing/hero-bg-3.png',
-  '/static/app/landing/hero-bg-4.png',
-  '/static/app/landing/hero-bg-5.png',
+  '/static/app/landing/hero-1.jpg',
+  '/static/app/landing/hero-2.jpg',
+  '/static/app/landing/hero-3.jpg',
+  '/static/app/landing/hero-4.jpg',
 ]
 
 const LandingPage = () => {
