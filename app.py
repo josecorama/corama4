@@ -2690,6 +2690,39 @@ def get_qdrant_client(timeout=30):
             return None
     return _qdrant_client
 
+_qdrant_text_indexes_created = False
+
+def ensure_qdrant_text_indexes():
+    """Create text indexes on bid_name, category, and naics_code for MatchText search."""
+    global _qdrant_text_indexes_created
+    if _qdrant_text_indexes_created:
+        return
+    try:
+        client = get_qdrant_client(timeout=10)
+        if client is None:
+            return
+        for field in ["bid_name", "category", "naics_code"]:
+            try:
+                client.create_payload_index(
+                    collection_name="government_contracts",
+                    field_name=field,
+                    field_schema=models.TextIndexParams(
+                        type="text",
+                        tokenizer=models.TokenizerType.WORD,
+                        min_token_len=2,
+                        lowercase=True,
+                    )
+                )
+                logging.info(f"[Qdrant] Text index created for field: {field}")
+            except Exception as idx_err:
+                if "already exists" in str(idx_err).lower():
+                    logging.info(f"[Qdrant] Text index already exists for field: {field}")
+                else:
+                    logging.warning(f"[Qdrant] Failed to create text index for {field}: {idx_err}")
+        _qdrant_text_indexes_created = True
+    except Exception as e:
+        logging.error(f"[Qdrant] Error ensuring text indexes: {e}")
+
 def clear_all_caches():
     """Clear all in-memory caches. Useful for admin operations or testing."""
     global AI_NAICS_CACHE, AI_CATEGORY_CACHE, AI_GOODS_SUBCATEGORY_CACHE
@@ -7002,104 +7035,58 @@ def dashboard_search():
                 "top_categories": top_categories
             })
 
-        if not vector_store:
-            # Vector store not initialized - use Qdrant directly with basic text search
-            logging.warning("Vector store not initialized, using Qdrant with basic text search")
-            
-            # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
-            
-            import pandas as pd
-            df = pd.DataFrame(all_contracts)
-            
-            # Filter out contracts with Unknown category
-            if len(df) > 0 and 'category' in df.columns:
-                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
-            
-            if user_query and len(df) > 0:
-                df['bid_number'] = df['bid_number'].fillna('').astype(str)
-                df['bid_name'] = df['bid_name'].fillna('').astype(str)
-                df['bid_description'] = df['bid_description'].fillna('').astype(str)
-                df['category'] = df['category'].fillna('').astype(str)
-                df['naics_code'] = df['naics_code'].fillna('').astype(str)
-                
-                query_lower = user_query.lower()
-                mask = (
-                    df['bid_name'].str.lower().str.contains(query_lower, regex=False, na=False) |
-                    df['category'].str.lower().str.contains(query_lower, regex=False, na=False) |
-                    df['naics_code'].str.contains(user_query, regex=False, na=False)
-                )
-                df = df[mask]
-            
-            # Apply contract type and state filters
-            if len(df) > 0:
-                df = apply_contract_filters(df, contract_type, selected_states)
-            
-            total_contracts = len(df)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
-            start = (page - 1) * items_per_page
-            end = start + items_per_page
-            
-            if len(df) > 0:
-                paginated_df = df.iloc[start:end]
-                contracts = paginated_df.to_dict('records')
-            else:
-                contracts = []
-            
-            # PHASE 1 HOTFIX: Use cached analytics instead of computing from filtered results
-            cached_analytics = get_qdrant_analytics()
-            analytics = {
-                'total_contracts': total_contracts,
-                'category_distribution': cached_analytics.get('category_distribution', {}),
-                'status_distribution': cached_analytics.get('status_distribution', {}),
-                'win_probability': cached_analytics.get('win_probability', 70.0),
-                'open_contracts': cached_analytics.get('open_contracts', 0),
-                'upcoming_deadlines': 0,
-                'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
-            }
-            
-            # Use cached top_categories
-            top_categories = []
-            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
-                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
-                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
-            
-            logging.info(f"/dashboard_search (no vector_store): Returning {len(contracts)} contracts from Qdrant")
-
-            return jsonify({
-                "success": True,
-                "contracts": contracts,
-                "total_contracts": total_contracts,
-                "current_page": page,
-                "total_pages": total_pages,
-                "analytics": analytics,
-                "top_categories": top_categories
-            })
-
-        import pandas as pd
-        all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
-        df = pd.DataFrame(all_contracts)
+        ensure_qdrant_text_indexes()
+        from qdrant_client.models import Filter, FieldCondition, MatchText
         
-        if len(df) > 0 and 'category' in df.columns:
-            df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
+        qdrant_client = get_qdrant_client(timeout=15)
+        if not qdrant_client:
+            return jsonify({"success": False, "message": "Search service unavailable"}), 503
         
-        if len(df) > 0:
-            df['bid_name'] = df['bid_name'].fillna('').astype(str)
-            df['category'] = df['category'].fillna('').astype(str)
-            df['naics_code'] = df['naics_code'].fillna('').astype(str)
-            
-            query_lower = user_query.lower()
-            mask = (
-                df['bid_name'].str.lower().str.contains(query_lower, regex=False, na=False) |
-                df['category'].str.lower().str.contains(query_lower, regex=False, na=False) |
-                df['naics_code'].str.contains(user_query, regex=False, na=False)
+        text_filter = Filter(
+            should=[
+                FieldCondition(key="bid_name", match=MatchText(text=user_query)),
+                FieldCondition(key="category", match=MatchText(text=user_query)),
+                FieldCondition(key="naics_code", match=MatchText(text=user_query)),
+            ]
+        )
+        
+        all_points = []
+        scroll_offset = None
+        while len(all_points) < MAX_SEARCH_RESULTS:
+            batch_size = min(100, MAX_SEARCH_RESULTS - len(all_points))
+            scroll_result = qdrant_client.scroll(
+                collection_name="government_contracts",
+                limit=batch_size,
+                offset=scroll_offset,
+                with_payload=True,
+                with_vectors=False,
+                scroll_filter=text_filter
             )
-            df = df[mask]
+            points, scroll_offset = scroll_result
+            if not points:
+                break
+            all_points.extend(points)
+            if scroll_offset is None:
+                break
         
-        if len(df) > 0:
+        hidden_ids = get_hidden_contract_ids()
+        filtered_results = []
+        for point in all_points:
+            if str(point.id) in hidden_ids:
+                continue
+            contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
+            cat = (contract.get('category') or '').strip().lower()
+            if cat in ('unknown', ''):
+                continue
+            filtered_results.append(contract)
+        
+        if contract_type != 'all' and filtered_results:
+            import pandas as pd
+            df = pd.DataFrame(filtered_results)
             df = apply_contract_filters(df, contract_type, selected_states)
+            filtered_results = df.to_dict('records')
         
-        filtered_results = df.to_dict('records') if len(df) > 0 else []
+        logging.info(f"/dashboard_search (MatchText): query='{user_query}' found {len(filtered_results)} contracts")
         
         if not filtered_results:
             return jsonify({
@@ -12375,6 +12362,7 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
 
 # Global initialization
 vector_store = initialize_vector_store()
+ensure_qdrant_text_indexes()
 
 @app.route('/process_smartsearch', methods=['POST'])
 def process_smartsearch():
