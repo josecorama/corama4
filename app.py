@@ -2692,8 +2692,15 @@ def get_qdrant_client(timeout=30):
 
 _qdrant_text_indexes_created = False
 
+QDRANT_TEXT_SEARCH_FIELDS = [
+    "bid_name", "Bid Name", "title",
+    "category", "Category", "notice_type",
+    "naics_code", "NAICS Code", "NAICS_CODE",
+    "naics_codes_all", "NAICS_CODES_ALL",
+]
+
 def ensure_qdrant_text_indexes():
-    """Create text indexes on bid_name, category, and naics_code for MatchText search."""
+    """Create text indexes on all field name variations for MatchText search."""
     global _qdrant_text_indexes_created
     if _qdrant_text_indexes_created:
         return
@@ -2701,7 +2708,7 @@ def ensure_qdrant_text_indexes():
         client = get_qdrant_client(timeout=10)
         if client is None:
             return
-        for field in ["bid_name", "category", "naics_code"]:
+        for field in QDRANT_TEXT_SEARCH_FIELDS:
             try:
                 client.create_payload_index(
                     collection_name="government_contracts",
@@ -7044,13 +7051,12 @@ def dashboard_search():
 
             qdrant_client = get_qdrant_client(timeout=15)
             if qdrant_client:
-                text_filter = Filter(
-                    should=[
-                        FieldCondition(key="bid_name", match=MatchText(text=user_query)),
-                        FieldCondition(key="category", match=MatchText(text=user_query)),
-                        FieldCondition(key="naics_code", match=MatchText(text=user_query)),
-                    ]
-                )
+                should_conditions = []
+                for field in QDRANT_TEXT_SEARCH_FIELDS:
+                    should_conditions.append(
+                        FieldCondition(key=field, match=MatchText(text=user_query))
+                    )
+                text_filter = Filter(should=should_conditions)
 
                 all_points = []
                 scroll_offset = None
@@ -7082,6 +7088,7 @@ def dashboard_search():
                     filtered_results.append(contract)
 
                 search_method = "MatchText"
+                logging.info(f"/dashboard_search MatchText: query='{user_query}' returned {len(all_points)} points, {len(filtered_results)} after filtering")
         except Exception as qdrant_err:
             logging.warning(f"/dashboard_search MatchText failed, falling back to cached search: {qdrant_err}")
             filtered_results = []
