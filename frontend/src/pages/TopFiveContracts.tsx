@@ -321,7 +321,6 @@ const TopFiveContracts = () => {
     handleRerunMatching(newContractType, newStates)
   }
 
-  // Generate PDF from the contracts container
   const handleGeneratePdf = async () => {
     if (!contractsContainerRef.current || contracts.length === 0) return
     
@@ -330,13 +329,13 @@ const TopFiveContracts = () => {
     try {
       const container = contractsContainerRef.current
       
-      // Capture the contracts container as canvas - hiding buttons and preserving visual appearance
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#1C2B3A',
         logging: false,
+        windowWidth: container.scrollWidth,
         onclone: (clonedDoc) => {
           const pdfContainer = clonedDoc.querySelector('[data-pdf-container]')
           if (pdfContainer) {
@@ -349,40 +348,64 @@ const TopFiveContracts = () => {
           noPdfElements.forEach((el) => {
             (el as HTMLElement).style.display = 'none'
           })
-          // Fix text fitting - ensure proper word wrapping and sizing
-          const textElements = clonedDoc.querySelectorAll('.font-poppins')
-          textElements.forEach((el) => {
-            const htmlEl = el as HTMLElement
-            htmlEl.style.wordBreak = 'break-word'
-            htmlEl.style.overflowWrap = 'break-word'
-            htmlEl.style.lineHeight = '1.3'
-          })
-          // Ensure contract name and agency text fits properly
-          const breakWordsElements = clonedDoc.querySelectorAll('.break-words')
-          breakWordsElements.forEach((el) => {
-            const htmlEl = el as HTMLElement
-            htmlEl.style.wordBreak = 'break-word'
-            htmlEl.style.overflowWrap = 'break-word'
-            htmlEl.style.whiteSpace = 'normal'
-          })
         }
       })
       
       const imgData = canvas.toDataURL('image/png')
-      const imgWidth = canvas.width
-      const imgHeight = canvas.height
       
-      // Create PDF - A4 size
+      const pdfPageWidth = 595.28
+      const pdfPageHeight = 841.89
+      const margin = 20
+      const usableWidth = pdfPageWidth - margin * 2
+      const usableHeight = pdfPageHeight - margin * 2
+      
+      const scaledImgWidth = usableWidth
+      const scaledImgHeight = (canvas.height / canvas.width) * scaledImgWidth
+      
       const pdf = new jsPDF({
-        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
-        unit: 'px',
-        format: [imgWidth / 2, imgHeight / 2]
+        orientation: 'portrait',
+        unit: 'pt',
+        format: 'a4'
       })
       
-      // Add the image to PDF
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2)
+      if (scaledImgHeight <= usableHeight) {
+        pdf.addImage(imgData, 'PNG', margin, margin, scaledImgWidth, scaledImgHeight)
+      } else {
+        let remainingHeight = scaledImgHeight
+        let srcY = 0
+        let page = 0
+        
+        while (remainingHeight > 0) {
+          if (page > 0) {
+            pdf.addPage()
+          }
+          
+          const sliceHeight = Math.min(usableHeight, remainingHeight)
+          const srcSliceHeight = (sliceHeight / scaledImgHeight) * canvas.height
+          
+          const sliceCanvas = document.createElement('canvas')
+          sliceCanvas.width = canvas.width
+          sliceCanvas.height = Math.ceil(srcSliceHeight)
+          const sliceCtx = sliceCanvas.getContext('2d')
+          if (sliceCtx) {
+            sliceCtx.fillStyle = '#1C2B3A'
+            sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height)
+            sliceCtx.drawImage(
+              canvas,
+              0, Math.floor(srcY), canvas.width, Math.ceil(srcSliceHeight),
+              0, 0, sliceCanvas.width, sliceCanvas.height
+            )
+          }
+          
+          const sliceData = sliceCanvas.toDataURL('image/png')
+          pdf.addImage(sliceData, 'PNG', margin, margin, scaledImgWidth, sliceHeight)
+          
+          srcY += srcSliceHeight
+          remainingHeight -= sliceHeight
+          page++
+        }
+      }
       
-      // Download the PDF
       pdf.save('top-five-contracts.pdf')
     } catch (error) {
       console.error('Failed to generate PDF:', error)
