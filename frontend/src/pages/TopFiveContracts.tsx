@@ -162,12 +162,17 @@ const TopFiveContracts = () => {
   const [contracts, setContracts] = useState<ContractMatch[]>([])
   const [loading, setLoading] = useState(true)
   const [rerunning, setRerunning] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [hasMatches, setHasMatches] = useState<boolean | null>(null)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>(['all'])
   const [noFilterResults, setNoFilterResults] = useState(false)
   
+  // Pagination state
+  const [currentOffset, setCurrentOffset] = useState(0)
+  const [hasMore, setHasMore] = useState(false)
+  const [totalAvailable, setTotalAvailable] = useState(0)
   
   // PDF generation state
   const [generatingPdf, setGeneratingPdf] = useState(false)
@@ -239,6 +244,9 @@ const TopFiveContracts = () => {
         })
         setContracts(transformedContracts)
         setHasMatches(data.has_matches)
+        setCurrentOffset(offset)
+        setHasMore(data.has_more || false)
+        setTotalAvailable(data.total_available || 0)
         
         // Check if filters produced no results but user has matches overall
         if (data.has_matches && transformedContracts.length === 0) {
@@ -255,6 +263,56 @@ const TopFiveContracts = () => {
     }
   }
   
+  // Load more contracts (next 5)
+  const handleLoadMore = async () => {
+    if (!hasMore || loadingMore) return
+    
+    setLoadingMore(true)
+    try {
+      const nextOffset = currentOffset + 5
+      const data = await api.getTopFiveContracts(
+        contractType !== 'all' ? contractType : undefined,
+        selectedStates.filter(s => s !== 'all'),
+        nextOffset
+      )
+      if (data.success) {
+        const transformedContracts: ContractMatch[] = (data.matches || [])
+          .filter((m: ApiContractMatch) => {
+            const cat = (m.Category || '').trim().toLowerCase()
+            return cat !== 'unknown' && cat !== ''
+          })
+          .map((m: ApiContractMatch) => {
+          let matchPct = 0
+          const simScore = m.Similarity_Score
+          if (typeof simScore === 'string') {
+            matchPct = parseFloat(simScore.replace('%', '')) || 0
+          } else if (typeof simScore === 'number') {
+            matchPct = simScore > 1 ? simScore : simScore * 100
+          }
+          
+          return {
+            rank: m.rank,
+            state: m.State || 'N/A',
+            contractValue: m.Budget || 'TBD',
+            submissionDeadline: m.Due_Date || 'N/A',
+            naicsCode: m.NAICS_Code || 'N/A',
+            name: m.Bid_Name,
+            contractingAgency: m.Organization || m.Company || 'N/A',
+            matchPercentage: Math.round(matchPct),
+            detailLink: m.Detail_Link
+          }
+        })
+        // Append new contracts to existing ones
+        setContracts(prev => [...prev, ...transformedContracts])
+        setCurrentOffset(nextOffset)
+        setHasMore(data.has_more || false)
+      }
+    } catch (error) {
+      console.error('Failed to load more contracts:', error)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   const handleVisitSite = (url?: string) => {
     if (url) {
@@ -331,6 +389,7 @@ const TopFiveContracts = () => {
     handleRerunMatching(newContractType, newStates)
   }
 
+  // Generate PDF from the contracts container
   const handleGeneratePdf = async () => {
     if (!contractsContainerRef.current || contracts.length === 0) return
     
@@ -339,13 +398,13 @@ const TopFiveContracts = () => {
     try {
       const container = contractsContainerRef.current
       
+      // Capture the contracts container as canvas - hiding buttons and preserving visual appearance
       const canvas = await html2canvas(container, {
         scale: 2,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#1C2B3A',
         logging: false,
-        windowWidth: container.scrollWidth,
         onclone: (clonedDoc) => {
           const pdfContainer = clonedDoc.querySelector('[data-pdf-container]')
           if (pdfContainer) {
@@ -358,64 +417,40 @@ const TopFiveContracts = () => {
           noPdfElements.forEach((el) => {
             (el as HTMLElement).style.display = 'none'
           })
+          // Fix text fitting - ensure proper word wrapping and sizing
+          const textElements = clonedDoc.querySelectorAll('.font-poppins')
+          textElements.forEach((el) => {
+            const htmlEl = el as HTMLElement
+            htmlEl.style.wordBreak = 'break-word'
+            htmlEl.style.overflowWrap = 'break-word'
+            htmlEl.style.lineHeight = '1.3'
+          })
+          // Ensure contract name and agency text fits properly
+          const breakWordsElements = clonedDoc.querySelectorAll('.break-words')
+          breakWordsElements.forEach((el) => {
+            const htmlEl = el as HTMLElement
+            htmlEl.style.wordBreak = 'break-word'
+            htmlEl.style.overflowWrap = 'break-word'
+            htmlEl.style.whiteSpace = 'normal'
+          })
         }
       })
       
       const imgData = canvas.toDataURL('image/png')
+      const imgWidth = canvas.width
+      const imgHeight = canvas.height
       
-      const pdfPageWidth = 595.28
-      const pdfPageHeight = 841.89
-      const margin = 20
-      const usableWidth = pdfPageWidth - margin * 2
-      const usableHeight = pdfPageHeight - margin * 2
-      
-      const scaledImgWidth = usableWidth
-      const scaledImgHeight = (canvas.height / canvas.width) * scaledImgWidth
-      
+      // Create PDF - A4 size
       const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'pt',
-        format: 'a4'
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth / 2, imgHeight / 2]
       })
       
-      if (scaledImgHeight <= usableHeight) {
-        pdf.addImage(imgData, 'PNG', margin, margin, scaledImgWidth, scaledImgHeight)
-      } else {
-        let remainingHeight = scaledImgHeight
-        let srcY = 0
-        let page = 0
-        
-        while (remainingHeight > 0) {
-          if (page > 0) {
-            pdf.addPage()
-          }
-          
-          const sliceHeight = Math.min(usableHeight, remainingHeight)
-          const srcSliceHeight = (sliceHeight / scaledImgHeight) * canvas.height
-          
-          const sliceCanvas = document.createElement('canvas')
-          sliceCanvas.width = canvas.width
-          sliceCanvas.height = Math.ceil(srcSliceHeight)
-          const sliceCtx = sliceCanvas.getContext('2d')
-          if (sliceCtx) {
-            sliceCtx.fillStyle = '#1C2B3A'
-            sliceCtx.fillRect(0, 0, sliceCanvas.width, sliceCanvas.height)
-            sliceCtx.drawImage(
-              canvas,
-              0, Math.floor(srcY), canvas.width, Math.ceil(srcSliceHeight),
-              0, 0, sliceCanvas.width, sliceCanvas.height
-            )
-          }
-          
-          const sliceData = sliceCanvas.toDataURL('image/png')
-          pdf.addImage(sliceData, 'PNG', margin, margin, scaledImgWidth, sliceHeight)
-          
-          srcY += srcSliceHeight
-          remainingHeight -= sliceHeight
-          page++
-        }
-      }
+      // Add the image to PDF
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth / 2, imgHeight / 2)
       
+      // Download the PDF
       pdf.save('top-five-contracts.pdf')
     } catch (error) {
       console.error('Failed to generate PDF:', error)
@@ -607,6 +642,24 @@ const TopFiveContracts = () => {
                       <p className="text-xs sm:text-sm text-gray-300">{generatingPdf ? 'Please wait' : t('downloadAsPdf')}</p>
                   </div>
                   <img src={PrintResultsIcon} alt="Print" className="w-6 h-6" />
+                </button>
+                <button 
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50"
+                  style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+                  onClick={handleLoadMore}
+                  disabled={!hasMore || loadingMore}
+                >
+                  <div className="text-left">
+                    <p className="font-bold text-sm sm:text-base">
+                      {loadingMore ? t('loading') : hasMore ? t('loadMore') : t('noMoreContracts')}
+                    </p>
+                                        <p className="text-xs sm:text-sm text-gray-300">
+                                          {hasMore 
+                                            ? `${t('showingContracts')} ${currentOffset + 1}-${currentOffset + contracts.length} ${t('of')} ${totalAvailable}` 
+                                            : t('allContractsLoaded')}
+                                        </p>
+                  </div>
+                  <img src="/static/app/dashboard/MoreContractsIcon.svg" alt="More Contracts" className="w-6 h-6" />
                 </button>
                 <button 
                   className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"

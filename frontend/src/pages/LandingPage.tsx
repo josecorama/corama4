@@ -260,27 +260,12 @@ const RadarAnimation = () => {
   )
 }
 
-const HERO_IMAGES = [
-  '/static/app/landing/hero-1.jpg',
-  '/static/app/landing/hero-2.jpg',
-  '/static/app/landing/hero-3.jpg',
-  '/static/app/landing/hero-4.jpg',
-]
-
 const LandingPage = () => {
   const [currentSection, setCurrentSection] = useState(0)
   const [isScrolling, setIsScrolling] = useState(false)
   const [parallaxStyle, setParallaxStyle] = useState<React.CSSProperties>({})
-  const [heroImageIndex, setHeroImageIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const sectionRefs = useRef<{ [key: string]: HTMLElement | null }>({})
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeroImageIndex((prev) => (prev + 1) % HERO_IMAGES.length)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
 
   const scrollToSection = useCallback((index: number) => {
     if (index < 0 || index >= SECTION_IDS.length || isScrolling) return
@@ -477,25 +462,6 @@ const LandingPage = () => {
         data-section="hero"
         className={`h-[calc(100vh-80px)] px-4 sm:px-6 relative overflow-hidden flex flex-col justify-center snap-start ${getSectionClass('hero')}`}
       >
-        {/* Background Image Gallery */}
-        {HERO_IMAGES.map((src, i) => (
-          <div
-            key={src}
-            className="absolute inset-0 transition-opacity duration-[2000ms] ease-in-out"
-            style={{
-              opacity: i === heroImageIndex ? 1 : 0,
-              zIndex: 0,
-            }}
-          >
-            <img
-              src={src}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/60" />
-          </div>
-        ))}
-
         {/* Radar Animation - only in hero section */}
         <div className="absolute inset-0 z-[1] pointer-events-none">
           <RadarAnimation />
