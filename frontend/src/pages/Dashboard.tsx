@@ -153,7 +153,7 @@ const Dashboard = () => {
   // Top categories from backend (calculated from ALL contracts, not just current page)
   const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
 
-  const contractsPerPage = 10 // Fixed batch size for traditional pagination
+  const contractsPerPage = 100 // Fixed batch size for traditional pagination
 
   const startItem = (currentPage - 1) * contractsPerPage + 1
   const endItem = Math.min(currentPage * contractsPerPage, totalContracts)

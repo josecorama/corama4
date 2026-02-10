@@ -6816,7 +6816,7 @@ def dashboard_search():
         data = request.get_json(force=True) or {}
         user_query = data.get('query', '').strip()
         page = data.get('page', 1)
-        items_per_page = 10
+        items_per_page = 100
         
         # Filter parameters
         contract_type = data.get('contract_type', 'all')  # 'all', 'federal', 'state'
@@ -7021,36 +7021,15 @@ def dashboard_search():
                 df['bid_name'] = df['bid_name'].fillna('').astype(str)
                 df['bid_description'] = df['bid_description'].fillna('').astype(str)
                 df['category'] = df['category'].fillna('').astype(str)
-                
-                # Create a combined search field from all relevant columns
-                df['search_blob'] = (
-                    df['bid_number'] + ' ' +
-                    df['bid_name'] + ' ' +
-                    df['bid_description'] + ' ' +
-                    df['category']
-                ).str.lower()
+                df['naics_code'] = df['naics_code'].fillna('').astype(str)
                 
                 query_lower = user_query.lower()
-                tokens = query_lower.split()
-                
-                mask = pd.Series([True] * len(df))
-                for token in tokens:
-                    mask = mask & df['search_blob'].str.contains(token, case=False, na=False, regex=False)
-                
+                mask = (
+                    df['bid_name'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                    df['category'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                    df['naics_code'].str.contains(user_query, regex=False, na=False)
+                )
                 df = df[mask]
-                
-                if len(df) > 0:
-                    df['rank_score'] = 0
-                    df.loc[df['bid_number'].str.lower() == query_lower, 'rank_score'] += 100
-                    df.loc[df['bid_name'].str.lower() == query_lower, 'rank_score'] += 50
-                    df.loc[df['bid_name'].str.lower().str.startswith(query_lower), 'rank_score'] += 25
-                    for token in tokens:
-                        df.loc[df['bid_name'].str.lower().str.contains(token, regex=False), 'rank_score'] += 5
-                    
-                    df = df.sort_values(by=['rank_score', 'due_date'], ascending=[False, True])
-                    df = df.drop(columns=['search_blob', 'rank_score'])
-                else:
-                    df = df.drop(columns=['search_blob'])
             
             # Apply contract type and state filters
             if len(df) > 0:
@@ -7097,48 +7076,30 @@ def dashboard_search():
                 "top_categories": top_categories
             })
 
-        valid, msg = validate_query(user_query)
-        if not valid:
-            logging.warning(f"Invalid query: {msg}")
-            return jsonify({"success": False, "message": msg}), 400
-
-        user_query_embedding = generate_query_embedding(user_query)
-        # PHASE 1 HOTFIX: Limit top_k to MAX_SEARCH_RESULTS instead of 10000
-        search_results = find_matches_with_query(
-            query_embedding=user_query_embedding,
-            bid_store=vector_store,
-            top_k=MAX_SEARCH_RESULTS
-        )
+        import pandas as pd
+        all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
+        df = pd.DataFrame(all_contracts)
         
-        # Sort by similarity score in descending order (highest similarity first)
-        # Note: Qdrant uses dot product metric, so scores are typically small (-0.1 to 0.1 range)
-        # We rely on relative ranking rather than absolute thresholds
-        filtered_results = [r for r in search_results if (r.get('category') or '').strip().lower() not in ('unknown', '')]
-        filtered_results.sort(key=lambda x: x.get('Similarity_Score', 0), reverse=True)
+        if len(df) > 0 and 'category' in df.columns:
+            df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
         
-        # Prioritize results where query appears in contract name or category (exact text match)
-        # This gives users the "text filtering" behavior they expect for these columns
-        query_lower = user_query.lower()
-        exact_matches = []
-        other_matches = []
+        if len(df) > 0:
+            df['bid_name'] = df['bid_name'].fillna('').astype(str)
+            df['category'] = df['category'].fillna('').astype(str)
+            df['naics_code'] = df['naics_code'].fillna('').astype(str)
+            
+            query_lower = user_query.lower()
+            mask = (
+                df['bid_name'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                df['category'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                df['naics_code'].str.contains(user_query, regex=False, na=False)
+            )
+            df = df[mask]
         
-        for res in filtered_results:
-            bid_name = (res.get('bid_name') or '').lower()
-            category = (res.get('category') or '').lower()
-            if query_lower in bid_name or query_lower in category:
-                exact_matches.append(res)
-            else:
-                other_matches.append(res)
-        
-        # Combine: exact matches first (sorted by similarity), then other matches (sorted by similarity)
-        filtered_results = exact_matches + other_matches
-        
-        # Apply contract type and state filters to vector search results
-        if contract_type != 'all' and filtered_results:
-            import pandas as pd
-            df = pd.DataFrame(filtered_results)
+        if len(df) > 0:
             df = apply_contract_filters(df, contract_type, selected_states)
-            filtered_results = df.to_dict('records')
+        
+        filtered_results = df.to_dict('records') if len(df) > 0 else []
         
         if not filtered_results:
             return jsonify({
