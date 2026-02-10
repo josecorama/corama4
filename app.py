@@ -2693,10 +2693,11 @@ def get_qdrant_client(timeout=30):
 _qdrant_text_indexes_created = False
 
 QDRANT_TEXT_SEARCH_FIELDS = [
-    "bid_name", "Bid Name", "title",
-    "category", "Category", "notice_type",
-    "naics_code", "NAICS Code", "NAICS_CODE",
+    "bid_name", "title",
+    "category", "notice_type",
+    "naics_code", "NAICS_CODE",
     "naics_codes_all", "NAICS_CODES_ALL",
+    "description",
 ]
 
 def ensure_qdrant_text_indexes():
@@ -6922,69 +6923,6 @@ def dashboard_search():
         # Instead of loading all 10000+ contracts, we limit to 500 max for search/filter operations
         MAX_SEARCH_RESULTS = 500
         
-        # Check if query is a NAICS code(4-6 digit number) - use exact matching instead of vector search
-        naics_match = re.fullmatch(r'\d{4,6}', user_query)
-        if naics_match:
-            logging.info(f"NAICS code search detected: {user_query}")
-            # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
-            
-            import pandas as pd
-            df = pd.DataFrame(all_contracts)
-            
-            if len(df) > 0:
-                # Filter out contracts with Unknown category
-                if 'category' in df.columns:
-                    df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
-                
-                # Filter by NAICS code - exact match within the naics_code field
-                df['naics_code'] = df['naics_code'].fillna('').astype(str)
-                # Match the NAICS code as a whole word (not partial match)
-                naics_code = naics_match.group(0)
-                mask = df['naics_code'].str.contains(rf'\b{naics_code}\b', regex=True, na=False)
-                df = df[mask]
-                
-                # Apply contract type and state filters
-                df = apply_contract_filters(df, contract_type, selected_states)
-                
-                logging.info(f"NAICS search found {len(df)} contracts with code {naics_code}")
-            
-            total_contracts = len(df)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
-            start = (page - 1) * items_per_page
-            end = start + items_per_page
-            
-            paginated_df = df.iloc[start:end]
-            contracts = paginated_df.to_dict('records')
-            
-            # PHASE 1 HOTFIX: Use cached analytics instead of computing from filtered results
-            cached_analytics = get_qdrant_analytics()
-            analytics = {
-                'total_contracts': total_contracts,
-                'category_distribution': cached_analytics.get('category_distribution', {}),
-                'status_distribution': cached_analytics.get('status_distribution', {}),
-                'win_probability': cached_analytics.get('win_probability', 70.0),
-                'open_contracts': cached_analytics.get('open_contracts', 0),
-                'upcoming_deadlines': 0,
-                'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
-            }
-            
-            # Use cached top_categories
-            top_categories = []
-            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
-                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
-                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
-            
-            return jsonify({
-                "success": True,
-                "contracts": contracts,
-                "total_contracts": total_contracts,
-                "current_page": page,
-                "total_pages": total_pages,
-                "analytics": analytics,
-                "top_categories": top_categories
-            })
-
         if not user_query:
             # No query provided - return contracts from Qdrant with pagination
             # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
