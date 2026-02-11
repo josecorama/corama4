@@ -178,6 +178,7 @@ interface ContractAnalysisState {
   contractId?: string
   contractAgency?: string
   contractCategory?: string
+  contractDetailLink?: string
 }
 
 const ProposalAssistantAnalysis = () => {
@@ -623,13 +624,22 @@ const ProposalAssistantAnalysis = () => {
                   </div>
                 ) : (
                   <div 
-                    className="flex-1 min-h-0 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-corama-teal transition-colors"
-                    onClick={handleUploadClick}
+                    className="flex-1 min-h-0 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-corama-teal transition-colors"
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                   >
-                    <img src={UploadContractPDFIcon} alt={t('uploadContractLabel')} className="h-32 sm:h-48 lg:h-[308px] mb-3" />
+                    <div className="w-full flex items-center justify-center cursor-pointer mb-3" onClick={handleUploadClick}>
+                      <img src={UploadContractPDFIcon} alt={t('uploadContractLabel')} className="h-24 sm:h-32 lg:h-40" />
+                    </div>
                     <p className="text-gray-500 font-poppins text-sm">{t('clickOrDragUpload')}</p>
+                    {state?.contractDetailLink && (
+                      <p className="text-gray-500 font-poppins text-sm mt-2">
+                        Missing the file?{' '}
+                        <a href={state.contractDetailLink} target="_blank" rel="noopener noreferrer" className="text-corama-teal underline">
+                          Download the Contract here
+                        </a>
+                      </p>
+                    )}
                   </div>
                 )}
                 
