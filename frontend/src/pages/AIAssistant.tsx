@@ -449,6 +449,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
+          contractDetailLink: state?.contractDetailLink,
         },
       })
       return
