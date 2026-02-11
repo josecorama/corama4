@@ -217,7 +217,8 @@ const AIAssistant = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string } | null
+  const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string; contractDetailLink?: string } | null
+  const [pendingRedirect, setPendingRedirect] = useState<{ path: string; navState: any } | null>(null)
 
   // Get contract name from state first, then from URL params (for returning from NoCS page)
   const contractNameFromState = state?.contractName
@@ -366,7 +367,23 @@ const AIAssistant = () => {
     const userInput = inputValue.trim()
     const normalizedInput = userInput.toLowerCase()
 
-    // Check for "Start Proposal Assistant" - redirect to Proposal Assistant Contract Analysis page
+    // If awaiting confirmation, accept "ok" to proceed
+    if (pendingRedirect && (normalizedInput === 'ok' || normalizedInput === 'okay')) {
+      const confirmMsg: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+      setMessages(prev => [...prev, confirmMsg])
+      setInputValue('')
+      const { path, navState } = pendingRedirect
+      setPendingRedirect(null)
+      navigate(path, { state: navState })
+      return
+    }
+
+    // Check for "Start Proposal Assistant" - show pre-redirect message and wait for Ok
     if (normalizedInput === 'start proposal assistant' || normalizedInput.includes('start proposal assistant') || normalizedInput === 'iniciar asistente de propuestas' || normalizedInput.includes('iniciar asistente de propuestas')) {
       const newMessage: Message = {
         id: messages.length + 1,
@@ -375,35 +392,33 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      // Add user message and AI response with typing animation
+      const detailUrl = state?.contractDetailLink || ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType "Ok" once you have the file saved to your device.`
       const aiResponse: Message = {
         id: Date.now(),
         sender: 'ai',
-        content: t('openingProposalAssistant'),
+        content: instruction,
         timestamp: formatTime(),
-        isTyping: true,
-        visibleContent: '',
+        isTyping: false,
+        visibleContent: instruction,
       }
 
       setMessages(prev => [...prev, newMessage, aiResponse])
       setInputValue('')
 
-      // Navigate to Proposal Assistant Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
-      // Note: Don't include /app prefix since Router basename already adds it
-      setTimeout(() => {
-        navigate('/proposal-assistant-analysis', {
-          state: {
-            contractName,
-            contractId,
-            contractAgency: state?.contractAgency,
-            contractCategory: state?.contractCategory
-          }
-        })
-      }, 10000)
+      setPendingRedirect({
+        path: '/proposal-assistant-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+        },
+      })
       return
     }
 
-    // Check for "Quick Draft Mode" - redirect to Contract Analysis page (original workflow)
+    // Check for "Quick Draft Mode" - show pre-redirect message and wait for Ok
     if (normalizedInput === 'quick draft mode' || normalizedInput.includes('quick draft mode') || normalizedInput === 'modo borrador rápido' || normalizedInput.includes('modo borrador rápido')) {
       const newMessage: Message = {
         id: messages.length + 1,
@@ -412,31 +427,29 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      // Add user message and AI response with typing animation
+      const detailUrl = state?.contractDetailLink || ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType "Ok" once you have the file saved to your device.`
       const aiResponse: Message = {
         id: Date.now(),
         sender: 'ai',
-        content: t('openingQuickDraft'),
+        content: instruction,
         timestamp: formatTime(),
-        isTyping: true,
-        visibleContent: '',
+        isTyping: false,
+        visibleContent: instruction,
       }
 
       setMessages(prev => [...prev, newMessage, aiResponse])
       setInputValue('')
 
-      // Navigate to Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
-      // Note: Don't include /app prefix since Router basename already adds it
-      setTimeout(() => {
-        navigate('/contract-analysis', {
-          state: {
-            contractName,
-            contractId,
-            contractAgency: state?.contractAgency,
-            contractCategory: state?.contractCategory
-          }
-        })
-      }, 10000)
+      setPendingRedirect({
+        path: '/contract-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+        },
+      })
       return
     }
 
