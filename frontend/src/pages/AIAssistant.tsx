@@ -251,6 +251,27 @@ const AIAssistant = () => {
   const contractName = contractNameFromState || contractNameFromUrl || 'this contract'
   const contractId = state?.contractId || searchParams.get('contractId') || ''
 
+  const initialDetailLink = state?.contractDetailLink || searchParams.get('contractDetailLink') || (() => { try { return sessionStorage.getItem('lastContractDetailLink') || '' } catch { return '' } })()
+  const [resolvedDetailLink, setResolvedDetailLink] = useState(initialDetailLink)
+
+  useEffect(() => {
+    if (resolvedDetailLink || contractName === 'this contract') return
+    let cancelled = false
+    const recover = async () => {
+      try {
+        const res = await api.searchContracts(contractName, 1)
+        if (cancelled) return
+        const match = res.contracts.find(c => c.bid_name === contractName)
+        if (match?.detail_link) {
+          setResolvedDetailLink(match.detail_link)
+          try { sessionStorage.setItem('lastContractDetailLink', match.detail_link) } catch {}
+        }
+      } catch {}
+    }
+    recover()
+    return () => { cancelled = true }
+  }, [contractName, resolvedDetailLink])
+
   // Check if user has capability statement on load
   const [hasCapabilityStatement, setHasCapabilityStatement] = useState<boolean | null>(null)
 
@@ -261,7 +282,8 @@ const AIAssistant = () => {
         setHasCapabilityStatement(user.has_capability_statement)
         if (!user.has_capability_statement) {
           // Redirect to No CS page with returnTo parameter that includes contract info
-          const returnUrl = `/ai-assistant?contractName=${encodeURIComponent(contractName)}${contractId ? `&contractId=${encodeURIComponent(contractId)}` : ''}`
+          const detailLinkForReturn = resolvedDetailLink
+          const returnUrl = `/ai-assistant?contractName=${encodeURIComponent(contractName)}${contractId ? `&contractId=${encodeURIComponent(contractId)}` : ''}${detailLinkForReturn ? `&contractDetailLink=${encodeURIComponent(detailLinkForReturn)}` : ''}`
           navigate(`/no-capability-statement?returnTo=${encodeURIComponent(returnUrl)}`)
         }
       } catch (error) {
@@ -470,7 +492,7 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const detailUrl = resolvedDetailLink
       const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
       const instruction = `Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **\"Ok\"** once you have the file saved to your device.`
       const aiTyped: Message = {
@@ -490,7 +512,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
+          contractDetailLink: resolvedDetailLink || undefined,
         },
       })
       return
@@ -505,7 +527,7 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const detailUrl = resolvedDetailLink
       const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
       const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
@@ -527,7 +549,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
+          contractDetailLink: resolvedDetailLink || undefined,
         },
       })
       return
@@ -544,7 +566,7 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const detailUrl = resolvedDetailLink
       const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
       const instruction = `Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **\"Ok\"** once you have the file saved to your device.`
       const aiTyped: Message = {
@@ -564,7 +586,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
+          contractDetailLink: resolvedDetailLink || undefined,
         },
       })
       return
@@ -579,7 +601,7 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const detailUrl = resolvedDetailLink
       const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
       const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
@@ -601,7 +623,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
+          contractDetailLink: resolvedDetailLink || undefined,
         },
       })
       return
