@@ -7138,22 +7138,21 @@ def dashboard_search():
 
 @app.route('/ai-assistant')
 def ai_assistant_room():
-    """Redirect to React AI assistant page - old Jinja2 UI is deprecated"""
-    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    """Serve React AI assistant page (SPA handles client-side routing)"""
     user_data = get_current_user_secure()
     if not user_data:
         return redirect(url_for('Login'))
     
     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
-    contract_name = request.args.get('name')
+    if contract_param:
+        contract_name = request.args.get('name')
+        redirect_url = f'/app/ai-assistant?hash_value={contract_param}'
+        if contract_name:
+            redirect_url += f'&name={contract_name}'
+        return redirect(redirect_url)
     
-    if not contract_param:
-        return redirect('/app/dashboard')
-    
-    redirect_url = f'/app/ai-assistant?hash_value={contract_param}'
-    if contract_name:
-        redirect_url += f'&name={contract_name}'
-    return redirect(redirect_url)
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 @app.route('/proposal/start')
 def proposal_start():
