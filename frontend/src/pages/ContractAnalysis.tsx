@@ -240,10 +240,10 @@ const ContractAnalysis = () => {
   const [thirdPartyTarget, setThirdPartyTarget] = useState<string | null>(null)
   const [showThirdPartyPopup, setShowThirdPartyPopup] = useState(false)
   const handleExternalLink = (href?: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
     if (!href) return
     const isWatch = WATCH_LIST.some(prefix => href.startsWith(prefix))
     if (isWatch) {
-      if (e) e.preventDefault()
       setThirdPartyTarget(href)
       setShowThirdPartyPopup(true)
     } else {

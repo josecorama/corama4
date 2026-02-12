@@ -234,12 +234,14 @@ const AIAssistant = () => {
   const [thirdPartyTarget, setThirdPartyTarget] = useState<string | null>(null)
   const [showThirdPartyPopup, setShowThirdPartyPopup] = useState(false)
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
+    e.preventDefault()
     if (!href) return
     const isWatch = WATCH_LIST.some(prefix => href.startsWith(prefix))
     if (isWatch) {
-      e.preventDefault()
       setThirdPartyTarget(href)
       setShowThirdPartyPopup(true)
+    } else {
+      window.open(href, '_blank')
     }
   }
 
@@ -283,6 +285,7 @@ const AIAssistant = () => {
   ])
   const [inputValue, setInputValue] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [delayedNav, setDelayedNav] = useState<{ id: number; path: string; navState: any } | null>(null)
 
   // Simple Levenshtein distance for typo-tolerant command matching
   const levenshtein = (a: string, b: string) => {
@@ -403,6 +406,16 @@ const AIAssistant = () => {
     return () => clearInterval(interval)
   }, [messages])
 
+  // Navigate after a specific AI message finishes typing (used for Ok confirmation)
+  useEffect(() => {
+    if (!delayedNav) return
+    const found = messages.find(m => m.id === delayedNav.id)
+    if (found && !found.isTyping) {
+      navigate(delayedNav.path, { state: delayedNav.navState })
+      setDelayedNav(null)
+    }
+  }, [messages, delayedNav, navigate])
+
   // Auto-scroll to bottom when new messages arrive or during typing
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -442,9 +455,7 @@ const AIAssistant = () => {
       setInputValue('')
       setPendingRedirect(null)
 
-      setTimeout(() => {
-        navigate(path, { state: navState })
-      }, 600)
+      setDelayedNav({ id: ackTyped.id, path, navState })
       return
     }
 
