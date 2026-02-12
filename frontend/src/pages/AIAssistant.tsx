@@ -283,6 +283,32 @@ const AIAssistant = () => {
   ])
   const [inputValue, setInputValue] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+
+  // Simple Levenshtein distance for typo-tolerant command matching
+  const levenshtein = (a: string, b: string) => {
+    const m = a.length, n = b.length
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+    for (let i = 0; i <= m; i++) dp[i][0] = i
+    for (let j = 0; j <= n; j++) dp[0][j] = j
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost
+        )
+      }
+    }
+    return dp[m][n]
+  }
+  const isNearCommand = (input: string, target: string) => {
+    const norm = input.replace(/[^a-z0-9 ]+/g, '').trim()
+    const tgt = target.replace(/[^a-z0-9 ]+/g, '').trim()
+    const dist = levenshtein(norm, tgt)
+    const threshold = Math.max(2, Math.floor(tgt.length * 0.2))
+    return dist <= threshold
+  }
   const [headerKey, setHeaderKey] = useState(0)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
@@ -422,6 +448,50 @@ const AIAssistant = () => {
       return
     }
 
+    // Near-match tolerance for "Start Proposal Assistant"
+    if (
+      (normalizedInput !== 'start proposal assistant' && !normalizedInput.includes('start proposal assistant')) &&
+      isNearCommand(normalizedInput, 'start proposal assistant')
+    ) {
+      const newMessage: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+      const clarify: Message = {
+        id: Date.now() - 1,
+        sender: 'ai',
+        content: 'Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.',
+        timestamp: formatTime(),
+        isTyping: false,
+        visibleContent: 'Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.',
+      }
+      const detailUrl = state?.contractDetailLink || ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const aiTyped: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: instruction,
+        timestamp: formatTime(),
+        isTyping: true,
+        visibleContent: '',
+      }
+      setMessages(prev => [...prev, newMessage, clarify, aiTyped])
+      setInputValue('')
+      setPendingRedirect({
+        path: '/proposal-assistant-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+          contractDetailLink: state?.contractDetailLink,
+        },
+      })
+      return
+    }
+
     // Check for "Start Proposal Assistant" - show pre-redirect message and wait for Ok
     if (normalizedInput === 'start proposal assistant' || normalizedInput.includes('start proposal assistant') || normalizedInput === 'iniciar asistente de propuestas' || normalizedInput.includes('iniciar asistente de propuestas')) {
       const newMessage: Message = {
@@ -433,20 +503,64 @@ const AIAssistant = () => {
 
       const detailUrl = state?.contractDetailLink || ''
       const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
-      const aiResponse: Message = {
+      const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
         content: instruction,
         timestamp: formatTime(),
-        isTyping: false,
-        visibleContent: instruction,
+        isTyping: true,
+        visibleContent: '',
       }
 
-      setMessages(prev => [...prev, newMessage, aiResponse])
+      setMessages(prev => [...prev, newMessage, aiTyped])
       setInputValue('')
 
       setPendingRedirect({
         path: '/proposal-assistant-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+          contractDetailLink: state?.contractDetailLink,
+        },
+      })
+      return
+    }
+
+    // Near-match tolerance for "Quick Draft Mode"
+    if (
+      (normalizedInput !== 'quick draft mode' && !normalizedInput.includes('quick draft mode')) &&
+      isNearCommand(normalizedInput, 'quick draft mode')
+    ) {
+      const newMessage: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+      const clarify: Message = {
+        id: Date.now() - 1,
+        sender: 'ai',
+        content: 'Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.',
+        timestamp: formatTime(),
+        isTyping: false,
+        visibleContent: 'Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.',
+      }
+      const detailUrl = state?.contractDetailLink || ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const aiTyped: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: instruction,
+        timestamp: formatTime(),
+        isTyping: true,
+        visibleContent: '',
+      }
+      setMessages(prev => [...prev, newMessage, clarify, aiTyped])
+      setInputValue('')
+      setPendingRedirect({
+        path: '/contract-analysis',
         navState: {
           contractName,
           contractId,
@@ -469,16 +583,16 @@ const AIAssistant = () => {
 
       const detailUrl = state?.contractDetailLink || ''
       const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
-      const aiResponse: Message = {
+      const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
         content: instruction,
         timestamp: formatTime(),
-        isTyping: false,
-        visibleContent: instruction,
+        isTyping: true,
+        visibleContent: '',
       }
 
-      setMessages(prev => [...prev, newMessage, aiResponse])
+      setMessages(prev => [...prev, newMessage, aiTyped])
       setInputValue('')
 
       setPendingRedirect({
