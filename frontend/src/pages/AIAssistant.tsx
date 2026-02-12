@@ -470,8 +470,9 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const detailUrl = state?.contractDetailLink || ''
-      const instruction = `Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **\"Ok\"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
@@ -489,7 +490,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink,
+          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
         },
       })
       return
@@ -504,8 +505,9 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      const detailUrl = state?.contractDetailLink || ''
-      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
@@ -525,7 +527,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink,
+          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
         },
       })
       return
@@ -542,8 +544,9 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const detailUrl = state?.contractDetailLink || ''
-      const instruction = `Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **\"Ok\"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
@@ -561,7 +564,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink,
+          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
         },
       })
       return
@@ -576,8 +579,9 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      const detailUrl = state?.contractDetailLink || ''
-      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const detailUrl = state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || ''
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
@@ -597,7 +601,7 @@ const AIAssistant = () => {
           contractId,
           contractAgency: state?.contractAgency,
           contractCategory: state?.contractCategory,
-          contractDetailLink: state?.contractDetailLink,
+          contractDetailLink: state?.contractDetailLink || sessionStorage.getItem('lastContractDetailLink') || undefined,
         },
       })
       return
