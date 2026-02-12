@@ -340,8 +340,9 @@ const Dashboard = () => {
       setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : prev))
     } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
       e.preventDefault()
-      const selected = suggestionResults[selectedSuggestionIndex]
-      (function(){ try { sessionStorage.setItem('lastContractDetailLink', selected.detailLink || '') } catch (e) {} ; })(); navigate('/ai-assistant', { state: { contractName: selected.name, contractCategory: selected.category, contractDetailLink: selected.detailLink } })
+      const selected = suggestionResults[selectedSuggestionIndex];
+      try { sessionStorage.setItem('lastContractDetailLink', selected.detailLink || '') } catch (_e) { /* ignore */ }
+      navigate('/ai-assistant', { state: { contractName: selected.name, contractCategory: selected.category, contractDetailLink: selected.detailLink } })
       setShowSuggestions(false)
       setSelectedSuggestionIndex(-1)
     } else if (e.key === 'Escape') {
@@ -352,7 +353,8 @@ const Dashboard = () => {
   const handleSelectContractSuggestion = (contract: Contract) => {
     setShowSuggestions(false)
     setSelectedSuggestionIndex(-1)
-    { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }
+    try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (_e) { /* ignore */ }
+    navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })
   }
 
   const WATCH_LIST = [
