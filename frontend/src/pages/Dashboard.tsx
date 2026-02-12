@@ -355,6 +355,33 @@ const Dashboard = () => {
     navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })
   }
 
+  const WATCH_LIST = [
+    "https://cookcountyil.bonfirehub.com",
+    "https://www.demandstar.com",
+    "https://www.bidnetdirect.com",
+    "https://vendors.planetbids.com",
+    "https://www.publicpurchase.com",
+    "https://iq.govwin.com",
+    "https://ha.internationaleprocurement.com",
+    "https://business.metro.net",
+    "https://smart.gep.com"
+  ]
+
+  const [thirdPartyTarget, setThirdPartyTarget] = useState<string | null>(null)
+  const [showThirdPartyPopup, setShowThirdPartyPopup] = useState(false)
+
+  const handleExternalLink = (href?: string, e?: React.MouseEvent) => {
+    if (!href) return
+    const isWatch = WATCH_LIST.some(prefix => href.startsWith(prefix))
+    if (isWatch) {
+      if (e) e.preventDefault()
+      setThirdPartyTarget(href)
+      setShowThirdPartyPopup(true)
+    } else {
+      window.open(href, '_blank')
+    }
+  }
+
   const handleApplyFilter = (newContractType: string, newStates: string[]) => {
     setContractType(newContractType)
     setSelectedStates(newStates)
@@ -661,7 +688,7 @@ const Dashboard = () => {
                                 </td>
                                 <td className="py-4 px-4 text-center">
                                   <button 
-                                    onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
+                                    onClick={() => handleExternalLink(contract.detailLink)}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title={showGrants ? "Visit grant website" : "Visit contract website"}
                                   >
@@ -719,7 +746,7 @@ const Dashboard = () => {
                                                               <span className="text-white text-xs sm:text-sm">{t('aiAssistant')}</span>
                               </button>
                               <button 
-                                onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
+                                onClick={() => handleExternalLink(contract.detailLink)}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
@@ -731,6 +758,34 @@ const Dashboard = () => {
                       </div>
 
                     </div>
+        {/* Third-Party Provider Confirmation Popup */}
+        {showThirdPartyPopup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowThirdPartyPopup(false)} />
+            <div className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop" style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}>
+              <button className="absolute top-4 right-4 hover:opacity-80 transition-opacity" onClick={() => setShowThirdPartyPopup(false)}>
+                <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+              </button>
+              <div className="flex-shrink-0">
+                <img src="/static/app/proposal-summary/WarnIcon.svg" alt="Warning" className="w-16 h-16 sm:w-20 sm:h-20" />
+              </div>
+              <div className="flex flex-col gap-4 text-center sm:text-left">
+                <div>
+                  <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">Third-Party Contract</h3>
+                  <p className="text-gray-300 font-poppins text-xs sm:text-sm">This contract is managed by a third-party provider. You will need to create an account on their site, where additional service fees may apply.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button onClick={() => { if (thirdPartyTarget) window.open(thirdPartyTarget, '_blank'); setShowThirdPartyPopup(false) }} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(92, 191, 192)' }}>
+                    Continue to Provider
+                  </button>
+                  <button onClick={() => setShowThirdPartyPopup(false)} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(39, 69, 110)' }}>
+                    Select Another Contract
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         </main>
         </div>
       </div>
