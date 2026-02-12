@@ -455,7 +455,10 @@ const AIAssistant = () => {
       setInputValue('')
       setPendingRedirect(null)
 
-      setDelayedNav({ id: ackTyped.id, path, navState })
+      const fallbackDetail = searchParams.get('contractDetailLink') || ''
+      const linkForParam = (navState?.contractDetailLink || fallbackDetail)
+      const pathWithParam = `${path}?contractDetailLink=${encodeURIComponent(linkForParam)}`
+      setDelayedNav({ id: ackTyped.id, path: pathWithParam, navState })
       return
     }
 
@@ -470,7 +473,7 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const detailUrl = state?.contractDetailLink || ''
+      const detailUrl = state?.contractDetailLink || searchParams.get('contractDetailLink') || ''
       const instruction = `Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
@@ -504,7 +507,7 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      const detailUrl = state?.contractDetailLink || ''
+      const detailUrl = state?.contractDetailLink || searchParams.get('contractDetailLink') || ''
       const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
@@ -542,7 +545,7 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const detailUrl = state?.contractDetailLink || ''
+      const detailUrl = state?.contractDetailLink || searchParams.get('contractDetailLink') || ''
       const instruction = `Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
@@ -576,7 +579,7 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      const detailUrl = state?.contractDetailLink || ''
+      const detailUrl = state?.contractDetailLink || searchParams.get('contractDetailLink') || ''
       const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
