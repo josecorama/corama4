@@ -429,16 +429,16 @@ const AIAssistant = () => {
       const ackText = path === '/proposal-assistant-analysis'
         ? "Great! I'll open the Proposal Assistant for you now. This will provide Market Value Insights and Team Composition strategies tailored to this contract's industry, helping you create a competitive bid."
         : "Great! I'll open the Contract Analysis for you now."
-      const ackMsg: Message = {
+      const ackTyped: Message = {
         id: Date.now(),
         sender: 'ai',
         content: ackText,
         timestamp: formatTime(),
-        isTyping: false,
-        visibleContent: ackText,
+        isTyping: true,
+        visibleContent: '',
       }
 
-      setMessages(prev => [...prev, confirmMsg, ackMsg])
+      setMessages(prev => [...prev, confirmMsg, ackTyped])
       setInputValue('')
       setPendingRedirect(null)
 
@@ -459,16 +459,8 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const clarify: Message = {
-        id: Date.now() - 1,
-        sender: 'ai',
-        content: 'Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.',
-        timestamp: formatTime(),
-        isTyping: false,
-        visibleContent: 'Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.',
-      }
       const detailUrl = state?.contractDetailLink || ''
-      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const instruction = `Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
@@ -477,7 +469,7 @@ const AIAssistant = () => {
         isTyping: true,
         visibleContent: '',
       }
-      setMessages(prev => [...prev, newMessage, clarify, aiTyped])
+      setMessages(prev => [...prev, newMessage, aiTyped])
       setInputValue('')
       setPendingRedirect({
         path: '/proposal-assistant-analysis',
@@ -539,16 +531,8 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      const clarify: Message = {
-        id: Date.now() - 1,
-        sender: 'ai',
-        content: 'Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.',
-        timestamp: formatTime(),
-        isTyping: false,
-        visibleContent: 'Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.',
-      }
       const detailUrl = state?.contractDetailLink || ''
-      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
+      const instruction = `Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:\n\n🔗 [Download Contract Documents Here](${detailUrl})\n\nType **"Ok"** once you have the file saved to your device.`
       const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
@@ -557,7 +541,7 @@ const AIAssistant = () => {
         isTyping: true,
         visibleContent: '',
       }
-      setMessages(prev => [...prev, newMessage, clarify, aiTyped])
+      setMessages(prev => [...prev, newMessage, aiTyped])
       setInputValue('')
       setPendingRedirect({
         path: '/contract-analysis',
