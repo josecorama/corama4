@@ -234,14 +234,15 @@ const AIAssistant = () => {
   const [thirdPartyTarget, setThirdPartyTarget] = useState<string | null>(null)
   const [showThirdPartyPopup, setShowThirdPartyPopup] = useState(false)
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
-    e.preventDefault()
-    if (!href) return
+    if (!href) {
+      e.preventDefault()
+      return
+    }
     const isWatch = WATCH_LIST.some(prefix => href.startsWith(prefix))
     if (isWatch) {
+      e.preventDefault()
       setThirdPartyTarget(href)
       setShowThirdPartyPopup(true)
-    } else {
-      window.open(href, '_blank')
     }
   }
 
@@ -281,19 +282,17 @@ const AIAssistant = () => {
         const user = await api.getUser()
         setHasCapabilityStatement(user.has_capability_statement)
         if (!user.has_capability_statement) {
-          // Redirect to No CS page with returnTo parameter that includes contract info
-          const detailLinkForReturn = resolvedDetailLink
+          const detailLinkForReturn = resolvedDetailLink || (() => { try { return sessionStorage.getItem('lastContractDetailLink') || '' } catch { return '' } })()
           const returnUrl = `/ai-assistant?contractName=${encodeURIComponent(contractName)}${contractId ? `&contractId=${encodeURIComponent(contractId)}` : ''}${detailLinkForReturn ? `&contractDetailLink=${encodeURIComponent(detailLinkForReturn)}` : ''}`
           navigate(`/no-capability-statement?returnTo=${encodeURIComponent(returnUrl)}`)
         }
       } catch (error) {
         console.error('Failed to check capability statement:', error)
-        // On error, assume no CS and redirect
         setHasCapabilityStatement(false)
       }
     }
     checkCapabilityStatement()
-  }, [navigate, contractName, contractId])
+  }, [navigate, contractName, contractId, resolvedDetailLink])
 
   const [messages, setMessages] = useState<Message[]>([
     {
