@@ -352,7 +352,7 @@ const Dashboard = () => {
   const handleSelectContractSuggestion = (contract: Contract) => {
     setShowSuggestions(false)
     setSelectedSuggestionIndex(-1)
-    (function(){ try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; })(); navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })
+    { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }
   }
 
   const WATCH_LIST = [
@@ -668,7 +668,7 @@ const Dashboard = () => {
                               <tr key={contract.id} className="hover:bg-corama-darker/30">
                                 <td 
                                   className="py-4 pr-6 text-white font-poppins font-semibold cursor-pointer hover:text-corama-teal transition-colors"
-                                                                  onClick={() => (function(){ try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; })(); navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })}
+                                                                  onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
                                                                   title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
                                                                 >{contract.name}</td>
                                 <td className="py-4 text-white font-poppins text-sm">{contract.category}</td>
@@ -679,7 +679,7 @@ const Dashboard = () => {
                                 </td>
                                 <td className="py-4 px-4 text-center">
                                   <button 
-                                    onClick={() => (function(){ try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; })(); navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })}
+                                    onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
                                   >
@@ -723,7 +723,7 @@ const Dashboard = () => {
                             <div className="flex justify-between items-start mb-2">
                               <h3 
                                 className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2 cursor-pointer hover:text-corama-teal transition-colors"
-                                                              onClick={() => (function(){ try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; })(); navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })}
+                                                              onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
                                                             >{contract.name}</h3>
                               <span className="text-white font-poppins text-xs sm:text-sm">{contract.status}</span>
                             </div>
@@ -739,7 +739,7 @@ const Dashboard = () => {
                             </div>
                             <div className="flex gap-4">
                               <button 
-                                                              onClick={() => (function(){ try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; })(); navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })}
+                                                              onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
                                                               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                                                             >
                                                               <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
