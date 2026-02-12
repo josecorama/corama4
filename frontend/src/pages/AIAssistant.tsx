@@ -375,11 +375,27 @@ const AIAssistant = () => {
         content: userInput,
         timestamp: formatTime(),
       }
-      setMessages(prev => [...prev, confirmMsg])
-      setInputValue('')
+
       const { path, navState } = pendingRedirect
+      const ackText = path === '/proposal-assistant-analysis'
+        ? "Great! I'll open the Proposal Assistant for you now. This will provide Market Value Insights and Team Composition strategies tailored to this contract's industry, helping you create a competitive bid."
+        : "Great! I'll open the Contract Analysis for you now."
+      const ackMsg: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: ackText,
+        timestamp: formatTime(),
+        isTyping: false,
+        visibleContent: ackText,
+      }
+
+      setMessages(prev => [...prev, confirmMsg, ackMsg])
+      setInputValue('')
       setPendingRedirect(null)
-      navigate(path, { state: navState })
+
+      setTimeout(() => {
+        navigate(path, { state: navState })
+      }, 600)
       return
     }
 
@@ -658,6 +674,16 @@ const AIAssistant = () => {
                                 h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
                                 h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
                                 h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                a: ({href, children}) => (
+                                  <a
+                                    href={href as string}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 underline hover:text-blue-700"
+                                  >
+                                    {children}
+                                  </a>
+                                ),
                               }}
                             >
                               {message.visibleContent ?? message.content}
