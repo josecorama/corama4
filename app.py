@@ -11198,54 +11198,6 @@ def privacynotice():
 
 
 
-@app.route('/add_contract', methods=['GET']) 
-def addContract():
-    return render_template('addcontract.html')
-
-
-
-
-#PROCESS CONTRACT 
-@app.route('/process_contract', methods=['POST'])
-def process_contract():
-    # Handle form data
-    form_data = request.form.to_dict()
-    contract_data = {
-        'Bid Number': form_data.get('bidNumber'),
-        'Bid Name': form_data.get('bidName'),
-        'Bid Description': form_data.get('bidDescription'),
-        'Status': form_data.get('status'),
-        'Available Date': form_data.get('availableDate'),
-        'Due Date': form_data.get('dueDate'),
-        'Category': form_data.get('category'),
-        'Industry': form_data.get('industry'),
-        'Budget Estimate': form_data.get('budgetEstimate'),
-        'Organization': form_data.get('organization'),
-        'Department': form_data.get('department'),
-        'Detail Link': form_data.get('detailLink'),
-        'Is Small Business': form_data.get('isSmallBusiness'),
-        'Project Duration': form_data.get('projectDuration')
-    }
-
-    # Save contract data to CSV
-    contract_csv_path = os.path.join(app.config['UPLOAD_FOLDER'], 'contract_data.csv')
-    with open(contract_csv_path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=contract_data.keys())
-        writer.writeheader()
-        writer.writerow(contract_data)
-
-    # Handle capability statement upload
-    file = request.files.get('capabilityStatement')
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-
-        # Process the capability statement and save to CSV
-        process_pdfs([file_path], 'capability_statements_processed.csv')
-        generate_capability_embeddings('capability_statements_processed.csv', 'capability_statements_embedded.csv')
-
-    return redirect('/app/dashboard')
 
 
 
