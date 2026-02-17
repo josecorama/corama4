@@ -514,7 +514,7 @@ const ProposalAssistant = () => {
               iconSrc={DollarSignIcon}
               messages={marketMessages}
               onSendMessage={handleMarketMessage}
-              isLoading={isLoadingMarket}
+              isLoading={isLoadingMarket || isLoadingMain}
               inputPlaceholder={t('startAskingQuestions')}
             />
             
@@ -525,7 +525,7 @@ const ProposalAssistant = () => {
               iconSrc={ThreePeopleIcon}
               messages={teamMessages}
               onSendMessage={handleTeamMessage}
-              isLoading={isLoadingTeam}
+              isLoading={isLoadingTeam || isLoadingMain}
               inputPlaceholder={t('startAskingQuestions')}
             />
           </div>
