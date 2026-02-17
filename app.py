@@ -8373,7 +8373,12 @@ CORAMA (CONTRACT RADAR MAXIMIZER) Platform Features - Guide users to these when 
 
 **Start Proposal Assistant**: If the user asks about building a full proposal or the guided process, simply tell them to type "Start Proposal Assistant" in the chat. Keep it short - don't list all the steps. The system will automatically redirect them to the Proposal Assistant Analysis page when they type it.
 
-When users ask how to do something in CORAMA, give clear step-by-step navigation instructions (e.g., "Click on 'Top Five Contracts' in the left sidebar, then...")."""
+When users ask how to do something in CORAMA, give clear step-by-step navigation instructions (e.g., "Click on 'Top Five Contracts' in the left sidebar, then...").
+
+SPANISH LANGUAGE SUPPORT:
+If the user writes in Spanish, or asks how to change the language to Spanish (e.g., "como puedo cambiar el idioma a español", "quiero español", "habla en español"), respond entirely in Spanish and tell them:
+"Puedes cambiar el idioma a español en el menu de Configuracion (Settings) ubicado en la esquina superior derecha de la pantalla."
+After that, continue responding in Spanish for the rest of the conversation unless the user switches back to English."""
 
 def sanitize_conversation_message(content: str) -> str:
     """Sanitize a conversation message to prevent prompt injection.

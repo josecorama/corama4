@@ -106,9 +106,10 @@ const SuggestionCard = ({
                         <div 
                           className={`max-w-[85%] rounded-lg px-4 py-2 ${
                             message.sender === 'user' 
-                              ? 'bg-corama-teal text-white' 
+                              ? 'text-white' 
                               : 'bg-white text-black'
                           }`}
+                          style={message.sender === 'user' ? { backgroundColor: '#333c4d' } : undefined}
                         >
                           {message.sender === 'ai' ? (
                             <div className="prose prose-sm max-w-none">
@@ -126,14 +127,7 @@ const SuggestionCard = ({
           </div>
         ))}
         
-        {isLoading && messages.length === 0 && (
-          <div className="flex justify-center items-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-corama-teal" />
-          </div>
-        )}
-        
-        {/* Show thinking message while waiting for AI response */}
-        {isLoading && messages.length > 0 && (
+        {isLoading && (
           <div 
             className="flex justify-start animate-message-pop"
             style={{
