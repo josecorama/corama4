@@ -153,7 +153,7 @@ const Dashboard = () => {
   // Top categories from backend (calculated from ALL contracts, not just current page)
   const [topCategories, setTopCategories] = useState<{name: string, count: number, percentage: number}[]>([])
 
-  const contractsPerPage = 10 // Fixed batch size for traditional pagination
+  const contractsPerPage = 100 // Fixed batch size for traditional pagination
 
   const startItem = (currentPage - 1) * contractsPerPage + 1
   const endItem = Math.min(currentPage * contractsPerPage, totalContracts)
@@ -276,7 +276,12 @@ const Dashboard = () => {
       }
       
       // Transform API response to component format
-      const transformedContracts: Contract[] = data.contracts.map((c: ApiContract, index: number) => ({
+      const transformedContracts: Contract[] = data.contracts
+        .filter((c: ApiContract) => {
+          const cat = (c.category || '').trim().toLowerCase()
+          return cat !== 'unknown' && cat !== ''
+        })
+        .map((c: ApiContract, index: number) => ({
         id: (currentPage - 1) * contractsPerPage + index + 1,
         name: c.bid_name,
         category: c.category,
@@ -335,8 +340,9 @@ const Dashboard = () => {
       setSelectedSuggestionIndex(prev => (prev > 0 ? prev - 1 : prev))
     } else if (e.key === 'Enter' && selectedSuggestionIndex >= 0) {
       e.preventDefault()
-      const selected = suggestionResults[selectedSuggestionIndex]
-      navigate('/ai-assistant', { state: { contractName: selected.name, contractCategory: selected.category } })
+      const selected = suggestionResults[selectedSuggestionIndex];
+      try { sessionStorage.setItem('lastContractDetailLink', selected.detailLink || '') } catch (_e) { /* ignore */ }
+      navigate('/ai-assistant', { state: { contractName: selected.name, contractCategory: selected.category, contractDetailLink: selected.detailLink } })
       setShowSuggestions(false)
       setSelectedSuggestionIndex(-1)
     } else if (e.key === 'Escape') {
@@ -347,7 +353,35 @@ const Dashboard = () => {
   const handleSelectContractSuggestion = (contract: Contract) => {
     setShowSuggestions(false)
     setSelectedSuggestionIndex(-1)
-    navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })
+    try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (_e) { /* ignore */ }
+    navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } })
+  }
+
+  const WATCH_LIST = [
+    "https://cookcountyil.bonfirehub.com",
+    "https://www.demandstar.com",
+    "https://www.bidnetdirect.com",
+    "https://vendors.planetbids.com",
+    "https://www.publicpurchase.com",
+    "https://iq.govwin.com",
+    "https://ha.internationaleprocurement.com",
+    "https://business.metro.net",
+    "https://smart.gep.com"
+  ]
+
+  const [thirdPartyTarget, setThirdPartyTarget] = useState<string | null>(null)
+  const [showThirdPartyPopup, setShowThirdPartyPopup] = useState(false)
+
+  const handleExternalLink = (href?: string, e?: React.MouseEvent) => {
+    if (!href) return
+    const isWatch = WATCH_LIST.some(prefix => href.startsWith(prefix))
+    if (isWatch) {
+      if (e) e.preventDefault()
+      setThirdPartyTarget(href)
+      setShowThirdPartyPopup(true)
+    } else {
+      window.open(href, '_blank')
+    }
   }
 
   const handleApplyFilter = (newContractType: string, newStates: string[]) => {
@@ -636,9 +670,9 @@ const Dashboard = () => {
                               <tr key={contract.id} className="hover:bg-corama-darker/30">
                                 <td 
                                   className="py-4 pr-6 text-white font-poppins font-semibold cursor-pointer hover:text-corama-teal transition-colors"
-                                  onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
-                                  title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
-                                >{contract.name}</td>
+                                                                  onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
+                                                                  title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
+                                                                >{contract.name}</td>
                                 <td className="py-4 text-white font-poppins text-sm">{contract.category}</td>
                                 <td className="py-4 px-4 text-center text-white font-poppins text-sm">{contract.naicsCode}</td>
                                 <td className="py-4 px-4 text-center text-white font-poppins text-sm whitespace-nowrap">{contract.dueDate}</td>
@@ -647,7 +681,7 @@ const Dashboard = () => {
                                 </td>
                                 <td className="py-4 px-4 text-center">
                                   <button 
-                                    onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
+                                    onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
                                   >
@@ -656,7 +690,7 @@ const Dashboard = () => {
                                 </td>
                                 <td className="py-4 px-4 text-center">
                                   <button 
-                                    onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
+                                    onClick={() => handleExternalLink(contract.detailLink)}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title={showGrants ? "Visit grant website" : "Visit contract website"}
                                   >
@@ -691,8 +725,8 @@ const Dashboard = () => {
                             <div className="flex justify-between items-start mb-2">
                               <h3 
                                 className="text-white font-poppins font-semibold text-sm sm:text-base flex-1 pr-2 cursor-pointer hover:text-corama-teal transition-colors"
-                                onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
-                              >{contract.name}</h3>
+                                                              onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
+                                                            >{contract.name}</h3>
                               <span className="text-white font-poppins text-xs sm:text-sm">{contract.status}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm mb-3">
@@ -707,14 +741,14 @@ const Dashboard = () => {
                             </div>
                             <div className="flex gap-4">
                               <button 
-                                onClick={() => navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category } })}
-                                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-                              >
-                                <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
-                                <span className="text-white text-xs sm:text-sm">{t('aiAssistant')}</span>
+                                                              onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
+                                                              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                                            >
+                                                              <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
+                                                              <span className="text-white text-xs sm:text-sm">{t('aiAssistant')}</span>
                               </button>
                               <button 
-                                onClick={() => contract.detailLink && window.open(contract.detailLink, '_blank')}
+                                onClick={() => handleExternalLink(contract.detailLink)}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                               >
                                 <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
@@ -726,6 +760,34 @@ const Dashboard = () => {
                       </div>
 
                     </div>
+        {/* Third-Party Provider Confirmation Popup */}
+        {showThirdPartyPopup && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowThirdPartyPopup(false)} />
+            <div className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop" style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}>
+              <button className="absolute top-4 right-4 hover:opacity-80 transition-opacity" onClick={() => setShowThirdPartyPopup(false)}>
+                <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+              </button>
+              <div className="flex-shrink-0">
+                <img src="/static/app/proposal-summary/WarnIcon.svg" alt="Warning" className="w-16 h-16 sm:w-20 sm:h-20" />
+              </div>
+              <div className="flex flex-col gap-4 text-center sm:text-left">
+                <div>
+                  <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">Third-Party Contract</h3>
+                  <p className="text-gray-300 font-poppins text-xs sm:text-sm">This contract is managed by a third-party provider. You will need to create an account on their site, where additional service fees may apply.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button onClick={() => { if (thirdPartyTarget) window.open(thirdPartyTarget, '_blank'); setShowThirdPartyPopup(false) }} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(92, 191, 192)' }}>
+                    Continue to Provider
+                  </button>
+                  <button onClick={() => setShowThirdPartyPopup(false)} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(39, 69, 110)' }}>
+                    Select Another Contract
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         </main>
         </div>
       </div>

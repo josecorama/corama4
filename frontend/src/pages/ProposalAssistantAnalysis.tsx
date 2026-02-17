@@ -178,6 +178,7 @@ interface ContractAnalysisState {
   contractId?: string
   contractAgency?: string
   contractCategory?: string
+  contractDetailLink?: string
 }
 
 const ProposalAssistantAnalysis = () => {
@@ -221,6 +222,31 @@ const ProposalAssistantAnalysis = () => {
   const [structuredFindings, setStructuredFindings] = useState<StructuredFinding[]>([])
   const [manifest, setManifest] = useState<FindingManifest>({})
   const [annotatedPdfUrl, _setAnnotatedPdfUrl] = useState<string | null>(null)
+
+  const WATCH_LIST = [
+    "https://cookcountyil.bonfirehub.com",
+    "https://www.demandstar.com",
+    "https://www.bidnetdirect.com",
+    "https://vendors.planetbids.com",
+    "https://www.publicpurchase.com",
+    "https://iq.govwin.com",
+    "https://ha.internationaleprocurement.com",
+    "https://business.metro.net",
+    "https://smart.gep.com"
+  ]
+  const [thirdPartyTarget, setThirdPartyTarget] = useState<string | null>(null)
+  const [showThirdPartyPopup, setShowThirdPartyPopup] = useState(false)
+  const handleExternalLink = (href?: string, e?: React.MouseEvent) => {
+    if (e) e.preventDefault()
+    if (!href) return
+    const isWatch = WATCH_LIST.some(prefix => href.startsWith(prefix))
+    if (isWatch) {
+      setThirdPartyTarget(href)
+      setShowThirdPartyPopup(true)
+    } else {
+      window.open(href, '_blank')
+    }
+  }
   const [activeFindingId, setActiveFindingId] = useState<string | null>(null)
   
 
@@ -623,13 +649,22 @@ const ProposalAssistantAnalysis = () => {
                   </div>
                 ) : (
                   <div 
-                    className="flex-1 min-h-0 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-corama-teal transition-colors"
-                    onClick={handleUploadClick}
+                    className="flex-1 min-h-0 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-corama-teal transition-colors"
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                   >
-                    <img src={UploadContractPDFIcon} alt={t('uploadContractLabel')} className="h-32 sm:h-48 lg:h-[308px] mb-3" />
+                    <div className="w-full flex items-center justify-center cursor-pointer mb-3" onClick={handleUploadClick}>
+                      <img src={UploadContractPDFIcon} alt={t('uploadContractLabel')} className="h-24 sm:h-32 lg:h-40" />
+                    </div>
                     <p className="text-gray-500 font-poppins text-sm">{t('clickOrDragUpload')}</p>
+                    {state?.contractDetailLink && (
+                      <p className="text-gray-500 font-poppins text-sm mt-2">
+                        Missing the file?{' '}
+                        <a href={state.contractDetailLink} onClick={(e) => handleExternalLink(state.contractDetailLink, e)} target="_blank" rel="noopener noreferrer" className="text-corama-teal underline">
+                          Download the Contract here
+                        </a>
+                      </p>
+                    )}
                   </div>
                 )}
                 
@@ -750,6 +785,34 @@ const ProposalAssistantAnalysis = () => {
                 <img src={ContinueIcon} alt="" className="absolute right-0 top-0 h-full" />
               </button>
             </div>
+          {/* Third-Party Provider Confirmation Popup */}
+          {showThirdPartyPopup && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowThirdPartyPopup(false)} />
+              <div className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop" style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}>
+                <button className="absolute top-4 right-4 hover:opacity-80 transition-opacity" onClick={() => setShowThirdPartyPopup(false)}>
+                  <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+                </button>
+                <div className="flex-shrink-0">
+                  <img src="/static/app/proposal-summary/WarnIcon.svg" alt="Warning" className="w-16 h-16 sm:w-20 sm:h-20" />
+                </div>
+                <div className="flex flex-col gap-4 text-center sm:text-left">
+                  <div>
+                    <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">Third-Party Contract</h3>
+                    <p className="text-gray-300 font-poppins text-xs sm:text-sm">This contract is managed by a third-party provider. You will need to create an account on their site, where additional service fees may apply.</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button onClick={() => { if (thirdPartyTarget) window.open(thirdPartyTarget, '_blank'); setShowThirdPartyPopup(false) }} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(92, 191, 192)' }}>
+                      Continue to Provider
+                    </button>
+                    <button onClick={() => setShowThirdPartyPopup(false)} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(39, 69, 110)' }}>
+                      Select Another Contract
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           </main>
         </div>
       </div>

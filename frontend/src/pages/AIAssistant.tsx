@@ -217,13 +217,61 @@ const AIAssistant = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string } | null
+  const state = location.state as { contractName?: string; contractAgency?: string; contractCategory?: string; contractId?: string; contractDetailLink?: string } | null
+  const [pendingRedirect, setPendingRedirect] = useState<{ path: string; navState: any } | null>(null)
+
+  const WATCH_LIST = [
+    "https://cookcountyil.bonfirehub.com",
+    "https://www.demandstar.com",
+    "https://www.bidnetdirect.com",
+    "https://vendors.planetbids.com",
+    "https://www.publicpurchase.com",
+    "https://iq.govwin.com",
+    "https://ha.internationaleprocurement.com",
+    "https://business.metro.net",
+    "https://smart.gep.com"
+  ]
+  const [thirdPartyTarget, setThirdPartyTarget] = useState<string | null>(null)
+  const [showThirdPartyPopup, setShowThirdPartyPopup] = useState(false)
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href?: string) => {
+    if (!href) {
+      e.preventDefault()
+      return
+    }
+    const isWatch = WATCH_LIST.some(prefix => href.startsWith(prefix))
+    if (isWatch) {
+      e.preventDefault()
+      setThirdPartyTarget(href)
+      setShowThirdPartyPopup(true)
+    }
+  }
 
   // Get contract name from state first, then from URL params (for returning from NoCS page)
   const contractNameFromState = state?.contractName
   const contractNameFromUrl = searchParams.get('contractName')
   const contractName = contractNameFromState || contractNameFromUrl || 'this contract'
   const contractId = state?.contractId || searchParams.get('contractId') || ''
+
+  const initialDetailLink = state?.contractDetailLink || searchParams.get('contractDetailLink') || (() => { try { return sessionStorage.getItem('lastContractDetailLink') || '' } catch { return '' } })()
+  const [resolvedDetailLink, setResolvedDetailLink] = useState(initialDetailLink)
+
+  useEffect(() => {
+    if (resolvedDetailLink || contractName === 'this contract') return
+    let cancelled = false
+    const recover = async () => {
+      try {
+        const res = await api.searchContracts(contractName, 1)
+        if (cancelled) return
+        const match = res.contracts.find(c => c.bid_name === contractName)
+        if (match?.detail_link) {
+          setResolvedDetailLink(match.detail_link)
+          try { sessionStorage.setItem('lastContractDetailLink', match.detail_link) } catch {}
+        }
+      } catch {}
+    }
+    recover()
+    return () => { cancelled = true }
+  }, [contractName, resolvedDetailLink])
 
   // Check if user has capability statement on load
   const [hasCapabilityStatement, setHasCapabilityStatement] = useState<boolean | null>(null)
@@ -234,18 +282,17 @@ const AIAssistant = () => {
         const user = await api.getUser()
         setHasCapabilityStatement(user.has_capability_statement)
         if (!user.has_capability_statement) {
-          // Redirect to No CS page with returnTo parameter that includes contract info
-          const returnUrl = `/ai-assistant?contractName=${encodeURIComponent(contractName)}${contractId ? `&contractId=${encodeURIComponent(contractId)}` : ''}`
+          const detailLinkForReturn = resolvedDetailLink || (() => { try { return sessionStorage.getItem('lastContractDetailLink') || '' } catch { return '' } })()
+          const returnUrl = `/ai-assistant?contractName=${encodeURIComponent(contractName)}${contractId ? `&contractId=${encodeURIComponent(contractId)}` : ''}${detailLinkForReturn ? `&contractDetailLink=${encodeURIComponent(detailLinkForReturn)}` : ''}`
           navigate(`/no-capability-statement?returnTo=${encodeURIComponent(returnUrl)}`)
         }
       } catch (error) {
         console.error('Failed to check capability statement:', error)
-        // On error, assume no CS and redirect
         setHasCapabilityStatement(false)
       }
     }
     checkCapabilityStatement()
-  }, [navigate, contractName, contractId])
+  }, [navigate, contractName, contractId, resolvedDetailLink])
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -259,6 +306,33 @@ const AIAssistant = () => {
   ])
   const [inputValue, setInputValue] = useState('')
   const [isProcessing, setIsProcessing] = useState(false)
+  const [delayedNav, setDelayedNav] = useState<{ id: number; path: string; navState: any } | null>(null)
+
+  // Simple Levenshtein distance for typo-tolerant command matching
+  const levenshtein = (a: string, b: string) => {
+    const m = a.length, n = b.length
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0))
+    for (let i = 0; i <= m; i++) dp[i][0] = i
+    for (let j = 0; j <= n; j++) dp[0][j] = j
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        const cost = a[i - 1] === b[j - 1] ? 0 : 1
+        dp[i][j] = Math.min(
+          dp[i - 1][j] + 1,
+          dp[i][j - 1] + 1,
+          dp[i - 1][j - 1] + cost
+        )
+      }
+    }
+    return dp[m][n]
+  }
+  const isNearCommand = (input: string, target: string) => {
+    const norm = input.replace(/[^a-z0-9 ]+/g, '').trim()
+    const tgt = target.replace(/[^a-z0-9 ]+/g, '').trim()
+    const dist = levenshtein(norm, tgt)
+    const threshold = Math.max(2, Math.floor(tgt.length * 0.2))
+    return dist <= threshold
+  }
   const [headerKey, setHeaderKey] = useState(0)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
@@ -353,6 +427,16 @@ const AIAssistant = () => {
     return () => clearInterval(interval)
   }, [messages])
 
+  // Navigate after a specific AI message finishes typing (used for Ok confirmation)
+  useEffect(() => {
+    if (!delayedNav) return
+    const found = messages.find(m => m.id === delayedNav.id)
+    if (found && !found.isTyping) {
+      navigate(delayedNav.path, { state: delayedNav.navState })
+      setDelayedNav(null)
+    }
+  }, [messages, delayedNav, navigate])
+
   // Auto-scroll to bottom when new messages arrive or during typing
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -366,7 +450,74 @@ const AIAssistant = () => {
     const userInput = inputValue.trim()
     const normalizedInput = userInput.toLowerCase()
 
-    // Check for "Start Proposal Assistant" - redirect to Proposal Assistant Contract Analysis page
+    // If awaiting confirmation, accept "ok" to proceed
+    if (pendingRedirect && (normalizedInput === 'ok' || normalizedInput === 'okay')) {
+      const confirmMsg: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+
+      const { path, navState } = pendingRedirect
+      const ackText = path === '/proposal-assistant-analysis'
+        ? "Great! I'll open the Proposal Assistant for you now. This will provide Market Value Insights and Team Composition strategies tailored to this contract's industry, helping you create a competitive bid."
+        : "Great! I'll open the Contract Analysis for you now."
+      const ackTyped: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: ackText,
+        timestamp: formatTime(),
+        isTyping: true,
+        visibleContent: '',
+      }
+
+      setMessages(prev => [...prev, confirmMsg, ackTyped])
+      setInputValue('')
+      setPendingRedirect(null)
+
+      setDelayedNav({ id: ackTyped.id, path, navState })
+      return
+    }
+
+    // Near-match tolerance for "Start Proposal Assistant"
+    if (
+      (normalizedInput !== 'start proposal assistant' && !normalizedInput.includes('start proposal assistant')) &&
+      isNearCommand(normalizedInput, 'start proposal assistant')
+    ) {
+      const newMessage: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+      const detailUrl = resolvedDetailLink
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `Looks like a typo — I\'ll assume you meant "Start Proposal Assistant" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **\"Ok\"** once you have the file saved to your device.`
+      const aiTyped: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: instruction,
+        timestamp: formatTime(),
+        isTyping: true,
+        visibleContent: '',
+      }
+      setMessages(prev => [...prev, newMessage, aiTyped])
+      setInputValue('')
+      setPendingRedirect({
+        path: '/proposal-assistant-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+          contractDetailLink: resolvedDetailLink || undefined,
+        },
+      })
+      return
+    }
+
+    // Check for "Start Proposal Assistant" - show pre-redirect message and wait for Ok
     if (normalizedInput === 'start proposal assistant' || normalizedInput.includes('start proposal assistant') || normalizedInput === 'iniciar asistente de propuestas' || normalizedInput.includes('iniciar asistente de propuestas')) {
       const newMessage: Message = {
         id: messages.length + 1,
@@ -375,35 +526,72 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      // Add user message and AI response with typing animation
-      const aiResponse: Message = {
+      const detailUrl = resolvedDetailLink
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **"Ok"** once you have the file saved to your device.`
+      const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
-        content: t('openingProposalAssistant'),
+        content: instruction,
         timestamp: formatTime(),
         isTyping: true,
         visibleContent: '',
       }
 
-      setMessages(prev => [...prev, newMessage, aiResponse])
+      setMessages(prev => [...prev, newMessage, aiTyped])
       setInputValue('')
 
-      // Navigate to Proposal Assistant Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
-      // Note: Don't include /app prefix since Router basename already adds it
-      setTimeout(() => {
-        navigate('/proposal-assistant-analysis', {
-          state: {
-            contractName,
-            contractId,
-            contractAgency: state?.contractAgency,
-            contractCategory: state?.contractCategory
-          }
-        })
-      }, 10000)
+      setPendingRedirect({
+        path: '/proposal-assistant-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+          contractDetailLink: resolvedDetailLink || undefined,
+        },
+      })
       return
     }
 
-    // Check for "Quick Draft Mode" - redirect to Contract Analysis page (original workflow)
+    // Near-match tolerance for "Quick Draft Mode"
+    if (
+      (normalizedInput !== 'quick draft mode' && !normalizedInput.includes('quick draft mode')) &&
+      isNearCommand(normalizedInput, 'quick draft mode')
+    ) {
+      const newMessage: Message = {
+        id: messages.length + 1,
+        sender: 'user',
+        content: userInput,
+        timestamp: formatTime(),
+      }
+      const detailUrl = resolvedDetailLink
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `Looks like a typo — I\'ll assume you meant "Quick Draft Mode" and proceed.\n\n` + `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **\"Ok\"** once you have the file saved to your device.`
+      const aiTyped: Message = {
+        id: Date.now(),
+        sender: 'ai',
+        content: instruction,
+        timestamp: formatTime(),
+        isTyping: true,
+        visibleContent: '',
+      }
+      setMessages(prev => [...prev, newMessage, aiTyped])
+      setInputValue('')
+      setPendingRedirect({
+        path: '/contract-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+          contractDetailLink: resolvedDetailLink || undefined,
+        },
+      })
+      return
+    }
+
+    // Check for "Quick Draft Mode" - show pre-redirect message and wait for Ok
     if (normalizedInput === 'quick draft mode' || normalizedInput.includes('quick draft mode') || normalizedInput === 'modo borrador rápido' || normalizedInput.includes('modo borrador rápido')) {
       const newMessage: Message = {
         id: messages.length + 1,
@@ -412,31 +600,31 @@ const AIAssistant = () => {
         timestamp: formatTime(),
       }
 
-      // Add user message and AI response with typing animation
-      const aiResponse: Message = {
+      const detailUrl = resolvedDetailLink
+      const linkLine = detailUrl ? `\n\n🔗 [Download Contract Documents Here](${detailUrl})\n` : ''
+      const instruction = `To get the best results, you will need to upload the Contract PDF in the next step. If you don't have it yet, you can download it directly from the official link below:${linkLine}\nType **"Ok"** once you have the file saved to your device.`
+      const aiTyped: Message = {
         id: Date.now(),
         sender: 'ai',
-        content: t('openingQuickDraft'),
+        content: instruction,
         timestamp: formatTime(),
         isTyping: true,
         visibleContent: '',
       }
 
-      setMessages(prev => [...prev, newMessage, aiResponse])
+      setMessages(prev => [...prev, newMessage, aiTyped])
       setInputValue('')
 
-      // Navigate to Contract Analysis page after typing animation ends (9 seconds) + 1 second delay
-      // Note: Don't include /app prefix since Router basename already adds it
-      setTimeout(() => {
-        navigate('/contract-analysis', {
-          state: {
-            contractName,
-            contractId,
-            contractAgency: state?.contractAgency,
-            contractCategory: state?.contractCategory
-          }
-        })
-      }, 10000)
+      setPendingRedirect({
+        path: '/contract-analysis',
+        navState: {
+          contractName,
+          contractId,
+          contractAgency: state?.contractAgency,
+          contractCategory: state?.contractCategory,
+          contractDetailLink: resolvedDetailLink || undefined,
+        },
+      })
       return
     }
 
@@ -643,6 +831,17 @@ const AIAssistant = () => {
                                 h1: ({children}) => <h1 className="text-lg font-bold mb-2">{children}</h1>,
                                 h2: ({children}) => <h2 className="text-base font-bold mb-2">{children}</h2>,
                                 h3: ({children}) => <h3 className="text-sm font-bold mb-1">{children}</h3>,
+                                a: ({href, children}) => (
+                                  <a
+                                    href={href as string}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 underline hover:text-blue-700"
+                                    onClick={(e) => handleAnchorClick(e, href as string)}
+                                  >
+                                    {children}
+                                  </a>
+                                ),
                               }}
                             >
                               {message.visibleContent ?? message.content}
@@ -700,6 +899,34 @@ const AIAssistant = () => {
                 </div>
               </div>
             </div>
+          {/* Third-Party Provider Confirmation Popup */}
+          {showThirdPartyPopup && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowThirdPartyPopup(false)} />
+              <div className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto mx-4 border border-white/20 animate-popup-pop" style={{ backgroundColor: 'rgb(11, 44, 72)', minHeight: '200px' }}>
+                <button className="absolute top-4 right-4 hover:opacity-80 transition-opacity" onClick={() => setShowThirdPartyPopup(false)}>
+                  <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+                </button>
+                <div className="flex-shrink-0">
+                  <img src="/static/app/proposal-summary/WarnIcon.svg" alt="Warning" className="w-16 h-16 sm:w-20 sm:h-20" />
+                </div>
+                <div className="flex flex-col gap-4 text-center sm:text-left">
+                  <div>
+                    <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">Third-Party Contract</h3>
+                    <p className="text-gray-300 font-poppins text-xs sm:text-sm">This contract is managed by a third-party provider. You will need to create an account on their site, where additional service fees may apply.</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <button onClick={() => { if (thirdPartyTarget) window.open(thirdPartyTarget, '_blank'); setShowThirdPartyPopup(false) }} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(92, 191, 192)' }}>
+                      Continue to Provider
+                    </button>
+                    <button onClick={() => setShowThirdPartyPopup(false)} className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity" style={{ backgroundColor: 'rgb(39, 69, 110)' }}>
+                      Select Another Contract
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           </main>
           </div>
         </div>

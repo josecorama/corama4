@@ -2690,6 +2690,47 @@ def get_qdrant_client(timeout=30):
             return None
     return _qdrant_client
 
+_qdrant_text_indexes_created = False
+
+QDRANT_TEXT_SEARCH_FIELDS = [
+    "bid_name", "title",
+    "category", "notice_type",
+    "naics_code", "NAICS_CODE",
+    "naics_codes_all", "NAICS_CODES_ALL",
+    "description",
+]
+
+def ensure_qdrant_text_indexes():
+    """Create text indexes on all field name variations for MatchText search."""
+    global _qdrant_text_indexes_created
+    if _qdrant_text_indexes_created:
+        return
+    try:
+        client = get_qdrant_client(timeout=10)
+        if client is None:
+            return
+        for field in QDRANT_TEXT_SEARCH_FIELDS:
+            try:
+                client.create_payload_index(
+                    collection_name="government_contracts",
+                    field_name=field,
+                    field_schema=models.TextIndexParams(
+                        type="text",
+                        tokenizer=models.TokenizerType.WORD,
+                        min_token_len=2,
+                        lowercase=True,
+                    )
+                )
+                logging.info(f"[Qdrant] Text index created for field: {field}")
+            except Exception as idx_err:
+                if "already exists" in str(idx_err).lower():
+                    logging.info(f"[Qdrant] Text index already exists for field: {field}")
+                else:
+                    logging.warning(f"[Qdrant] Failed to create text index for {field}: {idx_err}")
+        _qdrant_text_indexes_created = True
+    except Exception as e:
+        logging.error(f"[Qdrant] Error ensuring text indexes: {e}")
+
 def clear_all_caches():
     """Clear all in-memory caches. Useful for admin operations or testing."""
     global AI_NAICS_CACHE, AI_CATEGORY_CACHE, AI_GOODS_SUBCATEGORY_CACHE
@@ -6816,7 +6857,7 @@ def dashboard_search():
         data = request.get_json(force=True) or {}
         user_query = data.get('query', '').strip()
         page = data.get('page', 1)
-        items_per_page = 10
+        items_per_page = 100
         
         # Filter parameters
         contract_type = data.get('contract_type', 'all')  # 'all', 'federal', 'state'
@@ -6882,71 +6923,16 @@ def dashboard_search():
         # Instead of loading all 10000+ contracts, we limit to 500 max for search/filter operations
         MAX_SEARCH_RESULTS = 500
         
-        # Check if query is a NAICS code(4-6 digit number) - use exact matching instead of vector search
-        naics_match = re.fullmatch(r'\d{4,6}', user_query)
-        if naics_match:
-            logging.info(f"NAICS code search detected: {user_query}")
-            # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
-            
-            import pandas as pd
-            df = pd.DataFrame(all_contracts)
-            
-            if len(df) > 0:
-                # Filter by NAICS code - exact match within the naics_code field
-                df['naics_code'] = df['naics_code'].fillna('').astype(str)
-                # Match the NAICS code as a whole word (not partial match)
-                naics_code = naics_match.group(0)
-                mask = df['naics_code'].str.contains(rf'\b{naics_code}\b', regex=True, na=False)
-                df = df[mask]
-                
-                # Apply contract type and state filters
-                df = apply_contract_filters(df, contract_type, selected_states)
-                
-                logging.info(f"NAICS search found {len(df)} contracts with code {naics_code}")
-            
-            total_contracts = len(df)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page if total_contracts > 0 else 1
-            start = (page - 1) * items_per_page
-            end = start + items_per_page
-            
-            paginated_df = df.iloc[start:end]
-            contracts = paginated_df.to_dict('records')
-            
-            # PHASE 1 HOTFIX: Use cached analytics instead of computing from filtered results
-            cached_analytics = get_qdrant_analytics()
-            analytics = {
-                'total_contracts': total_contracts,
-                'category_distribution': cached_analytics.get('category_distribution', {}),
-                'status_distribution': cached_analytics.get('status_distribution', {}),
-                'win_probability': cached_analytics.get('win_probability', 70.0),
-                'open_contracts': cached_analytics.get('open_contracts', 0),
-                'upcoming_deadlines': 0,
-                'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
-            }
-            
-            # Use cached top_categories
-            top_categories = []
-            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
-                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
-                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
-            
-            return jsonify({
-                "success": True,
-                "contracts": contracts,
-                "total_contracts": total_contracts,
-                "current_page": page,
-                "total_pages": total_pages,
-                "analytics": analytics,
-                "top_categories": top_categories
-            })
-
         if not user_query:
             # No query provided - return contracts from Qdrant with pagination
             # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
             import pandas as pd
             all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
             df = pd.DataFrame(all_contracts)
+            
+            # Filter out contracts with Unknown category
+            if len(df) > 0 and 'category' in df.columns:
+                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
             
             # Apply contract type and state filters
             if len(df) > 0:
@@ -6994,139 +6980,91 @@ def dashboard_search():
                 "top_categories": top_categories
             })
 
-        if not vector_store:
-            # Vector store not initialized - use Qdrant directly with basic text search
-            logging.warning("Vector store not initialized, using Qdrant with basic text search")
-            
-            # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
-            
+        filtered_results = []
+        search_method = "unknown"
+
+        try:
+            ensure_qdrant_text_indexes()
+            from qdrant_client.models import Filter, FieldCondition, MatchText
+
+            qdrant_client = get_qdrant_client(timeout=15)
+            if qdrant_client:
+                should_conditions = []
+                for field in QDRANT_TEXT_SEARCH_FIELDS:
+                    should_conditions.append(
+                        FieldCondition(key=field, match=MatchText(text=user_query))
+                    )
+                text_filter = Filter(should=should_conditions)
+
+                all_points = []
+                scroll_offset = None
+                while len(all_points) < MAX_SEARCH_RESULTS:
+                    batch_size = min(100, MAX_SEARCH_RESULTS - len(all_points))
+                    scroll_result = qdrant_client.scroll(
+                        collection_name="government_contracts",
+                        limit=batch_size,
+                        offset=scroll_offset,
+                        with_payload=True,
+                        with_vectors=False,
+                        scroll_filter=text_filter
+                    )
+                    points, scroll_offset = scroll_result
+                    if not points:
+                        break
+                    all_points.extend(points)
+                    if scroll_offset is None:
+                        break
+
+                hidden_ids = get_hidden_contract_ids()
+                for point in all_points:
+                    if str(point.id) in hidden_ids:
+                        continue
+                    contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
+                    cat = (contract.get('category') or '').strip().lower()
+                    if cat in ('unknown', ''):
+                        continue
+                    filtered_results.append(contract)
+
+                search_method = "MatchText"
+                logging.info(f"/dashboard_search MatchText: query='{user_query}' returned {len(all_points)} points, {len(filtered_results)} after filtering")
+        except Exception as qdrant_err:
+            logging.warning(f"/dashboard_search MatchText failed, falling back to cached search: {qdrant_err}")
+            filtered_results = []
+
+        if not filtered_results and search_method != "MatchText":
             import pandas as pd
+            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
             df = pd.DataFrame(all_contracts)
-            
-            if user_query and len(df) > 0:
-                df['bid_number'] = df['bid_number'].fillna('').astype(str)
+
+            if len(df) > 0 and 'category' in df.columns:
+                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
+
+            if len(df) > 0:
                 df['bid_name'] = df['bid_name'].fillna('').astype(str)
-                df['bid_description'] = df['bid_description'].fillna('').astype(str)
                 df['category'] = df['category'].fillna('').astype(str)
-                
-                # Create a combined search field from all relevant columns
-                df['search_blob'] = (
-                    df['bid_number'] + ' ' +
-                    df['bid_name'] + ' ' +
-                    df['bid_description'] + ' ' +
-                    df['category']
-                ).str.lower()
-                
+                df['naics_code'] = df['naics_code'].fillna('').astype(str)
+
                 query_lower = user_query.lower()
-                tokens = query_lower.split()
-                
-                mask = pd.Series([True] * len(df))
-                for token in tokens:
-                    mask = mask & df['search_blob'].str.contains(token, case=False, na=False, regex=False)
-                
+                mask = (
+                    df['bid_name'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                    df['category'].str.lower().str.contains(query_lower, regex=False, na=False) |
+                    df['naics_code'].str.contains(user_query, regex=False, na=False)
+                )
                 df = df[mask]
-                
-                if len(df) > 0:
-                    df['rank_score'] = 0
-                    df.loc[df['bid_number'].str.lower() == query_lower, 'rank_score'] += 100
-                    df.loc[df['bid_name'].str.lower() == query_lower, 'rank_score'] += 50
-                    df.loc[df['bid_name'].str.lower().str.startswith(query_lower), 'rank_score'] += 25
-                    for token in tokens:
-                        df.loc[df['bid_name'].str.lower().str.contains(token, regex=False), 'rank_score'] += 5
-                    
-                    df = df.sort_values(by=['rank_score', 'due_date'], ascending=[False, True])
-                    df = df.drop(columns=['search_blob', 'rank_score'])
-                else:
-                    df = df.drop(columns=['search_blob'])
-            
-            # Apply contract type and state filters
+
             if len(df) > 0:
                 df = apply_contract_filters(df, contract_type, selected_states)
-            
-            total_contracts = len(df)
-            total_pages = (total_contracts + items_per_page - 1) // items_per_page
-            start = (page - 1) * items_per_page
-            end = start + items_per_page
-            
-            if len(df) > 0:
-                paginated_df = df.iloc[start:end]
-                contracts = paginated_df.to_dict('records')
-            else:
-                contracts = []
-            
-            # PHASE 1 HOTFIX: Use cached analytics instead of computing from filtered results
-            cached_analytics = get_qdrant_analytics()
-            analytics = {
-                'total_contracts': total_contracts,
-                'category_distribution': cached_analytics.get('category_distribution', {}),
-                'status_distribution': cached_analytics.get('status_distribution', {}),
-                'win_probability': cached_analytics.get('win_probability', 70.0),
-                'open_contracts': cached_analytics.get('open_contracts', 0),
-                'upcoming_deadlines': 0,
-                'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
-            }
-            
-            # Use cached top_categories
-            top_categories = []
-            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
-                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
-                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
-            
-            logging.info(f"/dashboard_search (no vector_store): Returning {len(contracts)} contracts from Qdrant")
 
-            return jsonify({
-                "success": True,
-                "contracts": contracts,
-                "total_contracts": total_contracts,
-                "current_page": page,
-                "total_pages": total_pages,
-                "analytics": analytics,
-                "top_categories": top_categories
-            })
+            filtered_results = df.to_dict('records') if len(df) > 0 else []
+            search_method = "cached_fallback"
 
-        valid, msg = validate_query(user_query)
-        if not valid:
-            logging.warning(f"Invalid query: {msg}")
-            return jsonify({"success": False, "message": msg}), 400
-
-        user_query_embedding = generate_query_embedding(user_query)
-        # PHASE 1 HOTFIX: Limit top_k to MAX_SEARCH_RESULTS instead of 10000
-        search_results = find_matches_with_query(
-            query_embedding=user_query_embedding,
-            bid_store=vector_store,
-            top_k=MAX_SEARCH_RESULTS
-        )
-        
-        # Sort by similarity score in descending order (highest similarity first)
-        # Note: Qdrant uses dot product metric, so scores are typically small (-0.1 to 0.1 range)
-        # We rely on relative ranking rather than absolute thresholds
-        filtered_results = list(search_results)
-        filtered_results.sort(key=lambda x: x.get('Similarity_Score', 0), reverse=True)
-        
-        # Prioritize results where query appears in contract name or category (exact text match)
-        # This gives users the "text filtering" behavior they expect for these columns
-        query_lower = user_query.lower()
-        exact_matches = []
-        other_matches = []
-        
-        for res in filtered_results:
-            bid_name = (res.get('bid_name') or '').lower()
-            category = (res.get('category') or '').lower()
-            if query_lower in bid_name or query_lower in category:
-                exact_matches.append(res)
-            else:
-                other_matches.append(res)
-        
-        # Combine: exact matches first (sorted by similarity), then other matches (sorted by similarity)
-        filtered_results = exact_matches + other_matches
-        
-        # Apply contract type and state filters to vector search results
-        if contract_type != 'all' and filtered_results:
+        if search_method == "MatchText" and contract_type != 'all' and filtered_results:
             import pandas as pd
             df = pd.DataFrame(filtered_results)
             df = apply_contract_filters(df, contract_type, selected_states)
             filtered_results = df.to_dict('records')
+
+        logging.info(f"/dashboard_search ({search_method}): query='{user_query}' found {len(filtered_results)} contracts")
         
         if not filtered_results:
             return jsonify({
@@ -7200,22 +7138,21 @@ def dashboard_search():
 
 @app.route('/ai-assistant')
 def ai_assistant_room():
-    """Redirect to React AI assistant page - old Jinja2 UI is deprecated"""
-    # SECURITY FIX: Use session instead of auth.current_user (global singleton vulnerability)
+    """Serve React AI assistant page (SPA handles client-side routing)"""
     user_data = get_current_user_secure()
     if not user_data:
         return redirect(url_for('Login'))
     
     contract_param = request.args.get('hash_value') or request.args.get('hash') or request.args.get('contract') or request.args.get('bid_number')
-    contract_name = request.args.get('name')
+    if contract_param:
+        contract_name = request.args.get('name')
+        redirect_url = f'/app/ai-assistant?hash_value={contract_param}'
+        if contract_name:
+            redirect_url += f'&name={contract_name}'
+        return redirect(redirect_url)
     
-    if not contract_param:
-        return redirect('/app/dashboard')
-    
-    redirect_url = f'/app/ai-assistant?hash_value={contract_param}'
-    if contract_name:
-        redirect_url += f'&name={contract_name}'
-    return redirect(redirect_url)
+    app_dir = os.path.join(app.static_folder, 'app')
+    return send_from_directory(app_dir, 'index.html')
 
 @app.route('/proposal/start')
 def proposal_start():
@@ -8436,7 +8373,12 @@ CORAMA (CONTRACT RADAR MAXIMIZER) Platform Features - Guide users to these when 
 
 **Start Proposal Assistant**: If the user asks about building a full proposal or the guided process, simply tell them to type "Start Proposal Assistant" in the chat. Keep it short - don't list all the steps. The system will automatically redirect them to the Proposal Assistant Analysis page when they type it.
 
-When users ask how to do something in CORAMA, give clear step-by-step navigation instructions (e.g., "Click on 'Top Five Contracts' in the left sidebar, then...")."""
+When users ask how to do something in CORAMA, give clear step-by-step navigation instructions (e.g., "Click on 'Top Five Contracts' in the left sidebar, then...").
+
+SPANISH LANGUAGE SUPPORT:
+If the user writes in Spanish, or asks how to change the language to Spanish (e.g., "como puedo cambiar el idioma a español", "quiero español", "habla en español"), respond entirely in Spanish and tell them:
+"Puedes cambiar el idioma a español en el menu de Configuracion (Settings) ubicado en la esquina superior derecha de la pantalla."
+After that, continue responding in Spanish for the rest of the conversation unless the user switches back to English."""
 
 def sanitize_conversation_message(content: str) -> str:
     """Sanitize a conversation message to prevent prompt injection.
@@ -8454,7 +8396,7 @@ def sanitize_conversation_message(content: str) -> str:
         cleaned = cleaned[:1000] + "..."
     return cleaned.strip()
 
-def build_ai_assistant_messages(action: str, contract_name: str, conversation_history: list = None) -> list:
+def build_ai_assistant_messages(action: str, contract_name: str, conversation_history: list = None, contract_data: dict = None) -> list:
     """Build OpenAI messages for AI Assistant actions.
     
     Security: contract_name is treated as pure data, wrapped in quotes,
@@ -8464,11 +8406,50 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
         action: The action type (analyze_contract, check_compliance, etc.)
         contract_name: The name of the contract being discussed
         conversation_history: Optional list of prior messages [{role, content}]
+        contract_data: Optional dict with full contract payload from Qdrant
     """
     messages = [{"role": "system", "content": AI_ASSISTANT_SYSTEM_PROMPT}]
     
-    # Add context about the contract
-    context_msg = f"The user is asking about a government contract titled: '{contract_name}'. Help them with their questions about this contract."
+    if contract_data:
+        fields = [
+            f"Title: {contract_data.get('title') or contract_data.get('bid_name') or contract_name}",
+            f"Description: {contract_data.get('description') or 'N/A'}",
+            f"Agency: {contract_data.get('agency') or contract_data.get('agency_top') or 'N/A'}",
+            f"Top-Level Agency: {contract_data.get('agency_top') or 'N/A'}",
+            f"Contract Number: {contract_data.get('contract_number') or 'N/A'}",
+            f"Location: {contract_data.get('location') or 'N/A'}",
+            f"State: {contract_data.get('state') or 'N/A'}",
+            f"Posted Date: {contract_data.get('posted_date') or 'N/A'}",
+            f"Due Date: {contract_data.get('due_date') or 'N/A'}",
+            f"Budget: {contract_data.get('budget') or 'Not specified'}",
+            f"Category: {contract_data.get('category') or 'N/A'}",
+            f"NAICS Code: {contract_data.get('naics_code') or 'N/A'}",
+            f"NAICS Description: {contract_data.get('naics_description') or 'N/A'}",
+            f"NAICS Codes: {', '.join(contract_data.get('naics_codes') or []) or 'N/A'}",
+            f"Source: {contract_data.get('source') or 'N/A'}",
+            f"Detail URL: {contract_data.get('detail_url') or contract_data.get('source_url') or 'N/A'}",
+            f"Government Level: {contract_data.get('government_level') or 'N/A'}",
+            f"Opportunity Type: {contract_data.get('opportunity_type') or 'N/A'}",
+            f"Opportunity Status: {contract_data.get('opportunity_status') or 'N/A'}",
+            f"CFDA/ALN: {contract_data.get('cfda_aln') or 'N/A'}",
+        ]
+        doc_urls = contract_data.get('document_urls')
+        if doc_urls:
+            if isinstance(doc_urls, list):
+                fields.append(f"Document URLs: {', '.join(str(u) for u in doc_urls)}")
+            else:
+                fields.append(f"Document URLs: {doc_urls}")
+        else:
+            fields.append("Document URLs: None available")
+        
+        context_msg = (
+            f"The user is asking about the following government contract. "
+            f"Use ALL of the data below to provide detailed, accurate answers:\n\n"
+            + "\n".join(fields)
+        )
+    else:
+        context_msg = f"The user is asking about a government contract titled: '{contract_name}'. Help them with their questions about this contract."
+    
     messages.append({"role": "system", "content": context_msg})
     
     # Add sanitized conversation history if provided
@@ -8613,9 +8594,17 @@ def ai_assistant_action():
                 "credits_balance": current_credits
             }), 402
         
+        contract_data = None
+        if contract_name and contract_name != 'this contract':
+            contract_data = get_contract_payload_from_qdrant_by_name(contract_name)
+            if contract_data:
+                logging.info(f"[AI_ASSISTANT] Loaded full contract data from Qdrant for: {contract_name}")
+            else:
+                logging.info(f"[AI_ASSISTANT] No Qdrant data found for: {contract_name}, using name-only context")
+        
         # Generate AI response using OpenAI
         try:
-            messages = build_ai_assistant_messages(action, contract_name, conversation_history)
+            messages = build_ai_assistant_messages(action, contract_name, conversation_history, contract_data)
             
             # Use the existing OpenAI client with fine-tuned ContractExpert model
             # Higher temperature (0.5) for more natural, human-like responses
@@ -11214,54 +11203,6 @@ def privacynotice():
 
 
 
-@app.route('/add_contract', methods=['GET']) 
-def addContract():
-    return render_template('addcontract.html')
-
-
-
-
-#PROCESS CONTRACT 
-@app.route('/process_contract', methods=['POST'])
-def process_contract():
-    # Handle form data
-    form_data = request.form.to_dict()
-    contract_data = {
-        'Bid Number': form_data.get('bidNumber'),
-        'Bid Name': form_data.get('bidName'),
-        'Bid Description': form_data.get('bidDescription'),
-        'Status': form_data.get('status'),
-        'Available Date': form_data.get('availableDate'),
-        'Due Date': form_data.get('dueDate'),
-        'Category': form_data.get('category'),
-        'Industry': form_data.get('industry'),
-        'Budget Estimate': form_data.get('budgetEstimate'),
-        'Organization': form_data.get('organization'),
-        'Department': form_data.get('department'),
-        'Detail Link': form_data.get('detailLink'),
-        'Is Small Business': form_data.get('isSmallBusiness'),
-        'Project Duration': form_data.get('projectDuration')
-    }
-
-    # Save contract data to CSV
-    contract_csv_path = os.path.join(app.config['UPLOAD_FOLDER'], 'contract_data.csv')
-    with open(contract_csv_path, 'w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=contract_data.keys())
-        writer.writeheader()
-        writer.writerow(contract_data)
-
-    # Handle capability statement upload
-    file = request.files.get('capabilityStatement')
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-
-        # Process the capability statement and save to CSV
-        process_pdfs([file_path], 'capability_statements_processed.csv')
-        generate_capability_embeddings('capability_statements_processed.csv', 'capability_statements_embedded.csv')
-
-    return redirect('/app/dashboard')
 
 
 
@@ -11610,6 +11551,60 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         # Search metadata
         "Similarity_Score": score if score is not None else None,  # Keep numeric for filtering
     }
+
+
+def get_contract_payload_from_qdrant_by_name(contract_name):
+    """
+    Look up a contract in Qdrant by name using MatchText search.
+    Returns the raw Qdrant payload dict (not the template-compatible format).
+    
+    Args:
+        contract_name: The contract title/bid_name to search for
+    
+    Returns:
+        Dict with raw Qdrant payload fields, or None if not found
+    """
+    try:
+        qdrant_client = get_qdrant_client(timeout=10)
+        if not qdrant_client:
+            return None
+        
+        from qdrant_client.models import Filter, FieldCondition, MatchText
+        
+        text_filter = Filter(should=[
+            FieldCondition(key="bid_name", match=MatchText(text=contract_name)),
+            FieldCondition(key="title", match=MatchText(text=contract_name)),
+        ])
+        
+        points, _ = qdrant_client.scroll(
+            collection_name="government_contracts",
+            limit=5,
+            offset=None,
+            with_payload=True,
+            with_vectors=False,
+            scroll_filter=text_filter
+        )
+        
+        if not points:
+            logging.info(f"[AI Context] No contract found in Qdrant for name: {contract_name}")
+            return None
+        
+        exact_match = None
+        for point in points:
+            name = (point.payload.get('bid_name') or point.payload.get('title') or '').strip()
+            if name.lower() == contract_name.lower():
+                exact_match = point
+                break
+        
+        chosen = exact_match or points[0]
+        payload = dict(chosen.payload)
+        payload['_qdrant_point_id'] = str(chosen.id)
+        logging.info(f"[AI Context] Found contract in Qdrant: {payload.get('bid_name') or payload.get('title')} (ID: {chosen.id})")
+        return payload
+        
+    except Exception as e:
+        logging.warning(f"[AI Context] Error looking up contract by name '{contract_name}': {e}")
+        return None
 
 
 def get_contract_from_qdrant_by_id(point_id):
@@ -12402,6 +12397,7 @@ def find_matches_with_query(query_embedding, bid_store, top_k=50):
 
 # Global initialization
 vector_store = initialize_vector_store()
+ensure_qdrant_text_indexes()
 
 @app.route('/process_smartsearch', methods=['POST'])
 def process_smartsearch():
@@ -17665,9 +17661,12 @@ def api_rerun_top_five():
         else:
             logging.info(f"[rerun-top5] 0 results from filters, keeping existing matches.csv unchanged")
         
+        # Filter out contracts with Unknown category before formatting
+        filtered_results = [r for r in results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
+
         # Format results for response
         formatted_matches = []
-        for i, row in enumerate(results[:5]):
+        for i, row in enumerate(filtered_results[:5]):
             formatted_matches.append({
                 'rank': i + 1,
                 'Company': row.get('Company', pdf_company_name or 'Unknown'),
@@ -17689,8 +17688,8 @@ def api_rerun_top_five():
         return jsonify({
             "success": True,
             "matches": formatted_matches,
-            "total_found": len(results),
-            "message": f"Found {len(results)} matching contracts"
+            "total_found": len(filtered_results),
+            "message": f"Found {len(filtered_results)} matching contracts"
         })
         
     except Exception as e:
@@ -17891,6 +17890,8 @@ def api_top_five_contracts():
     if need_fresh_matching:
         fresh_results = attempt_fresh_matching()
         if fresh_results:
+            # Filter out contracts with Unknown category
+            fresh_results = [r for r in fresh_results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
             # Format fresh results for response
             formatted_matches = []
             for i, row in enumerate(fresh_results[:5]):
@@ -18131,6 +18132,9 @@ def api_top_five_contracts():
     else:
         logging.info(f"[top5] No matches file found at {matches_file}")
     
+    # Filter out contracts with Unknown category or empty/N/A NAICS before pagination
+    matches = [m for m in matches if str(m.get('Category', '') or '').strip().lower() not in ('unknown', '')]
+
     # Apply pagination - slice matches based on offset and limit
     paginated_matches = matches[offset:offset + limit]
     
