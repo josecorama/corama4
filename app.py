@@ -8391,7 +8391,7 @@ def sanitize_conversation_message(content: str) -> str:
         cleaned = cleaned[:1000] + "..."
     return cleaned.strip()
 
-def build_ai_assistant_messages(action: str, contract_name: str, conversation_history: list = None) -> list:
+def build_ai_assistant_messages(action: str, contract_name: str, conversation_history: list = None, contract_data: dict = None) -> list:
     """Build OpenAI messages for AI Assistant actions.
     
     Security: contract_name is treated as pure data, wrapped in quotes,
@@ -8401,11 +8401,50 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
         action: The action type (analyze_contract, check_compliance, etc.)
         contract_name: The name of the contract being discussed
         conversation_history: Optional list of prior messages [{role, content}]
+        contract_data: Optional dict with full contract payload from Qdrant
     """
     messages = [{"role": "system", "content": AI_ASSISTANT_SYSTEM_PROMPT}]
     
-    # Add context about the contract
-    context_msg = f"The user is asking about a government contract titled: '{contract_name}'. Help them with their questions about this contract."
+    if contract_data:
+        fields = [
+            f"Title: {contract_data.get('title') or contract_data.get('bid_name') or contract_name}",
+            f"Description: {contract_data.get('description') or 'N/A'}",
+            f"Agency: {contract_data.get('agency') or contract_data.get('agency_top') or 'N/A'}",
+            f"Top-Level Agency: {contract_data.get('agency_top') or 'N/A'}",
+            f"Contract Number: {contract_data.get('contract_number') or 'N/A'}",
+            f"Location: {contract_data.get('location') or 'N/A'}",
+            f"State: {contract_data.get('state') or 'N/A'}",
+            f"Posted Date: {contract_data.get('posted_date') or 'N/A'}",
+            f"Due Date: {contract_data.get('due_date') or 'N/A'}",
+            f"Budget: {contract_data.get('budget') or 'Not specified'}",
+            f"Category: {contract_data.get('category') or 'N/A'}",
+            f"NAICS Code: {contract_data.get('naics_code') or 'N/A'}",
+            f"NAICS Description: {contract_data.get('naics_description') or 'N/A'}",
+            f"NAICS Codes: {', '.join(contract_data.get('naics_codes') or []) or 'N/A'}",
+            f"Source: {contract_data.get('source') or 'N/A'}",
+            f"Detail URL: {contract_data.get('detail_url') or contract_data.get('source_url') or 'N/A'}",
+            f"Government Level: {contract_data.get('government_level') or 'N/A'}",
+            f"Opportunity Type: {contract_data.get('opportunity_type') or 'N/A'}",
+            f"Opportunity Status: {contract_data.get('opportunity_status') or 'N/A'}",
+            f"CFDA/ALN: {contract_data.get('cfda_aln') or 'N/A'}",
+        ]
+        doc_urls = contract_data.get('document_urls')
+        if doc_urls:
+            if isinstance(doc_urls, list):
+                fields.append(f"Document URLs: {', '.join(str(u) for u in doc_urls)}")
+            else:
+                fields.append(f"Document URLs: {doc_urls}")
+        else:
+            fields.append("Document URLs: None available")
+        
+        context_msg = (
+            f"The user is asking about the following government contract. "
+            f"Use ALL of the data below to provide detailed, accurate answers:\n\n"
+            + "\n".join(fields)
+        )
+    else:
+        context_msg = f"The user is asking about a government contract titled: '{contract_name}'. Help them with their questions about this contract."
+    
     messages.append({"role": "system", "content": context_msg})
     
     # Add sanitized conversation history if provided
@@ -8550,9 +8589,17 @@ def ai_assistant_action():
                 "credits_balance": current_credits
             }), 402
         
+        contract_data = None
+        if contract_name and contract_name != 'this contract':
+            contract_data = get_contract_payload_from_qdrant_by_name(contract_name)
+            if contract_data:
+                logging.info(f"[AI_ASSISTANT] Loaded full contract data from Qdrant for: {contract_name}")
+            else:
+                logging.info(f"[AI_ASSISTANT] No Qdrant data found for: {contract_name}, using name-only context")
+        
         # Generate AI response using OpenAI
         try:
-            messages = build_ai_assistant_messages(action, contract_name, conversation_history)
+            messages = build_ai_assistant_messages(action, contract_name, conversation_history, contract_data)
             
             # Use the existing OpenAI client with fine-tuned ContractExpert model
             # Higher temperature (0.5) for more natural, human-like responses
@@ -11547,6 +11594,60 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         # Search metadata
         "Similarity_Score": score if score is not None else None,  # Keep numeric for filtering
     }
+
+
+def get_contract_payload_from_qdrant_by_name(contract_name):
+    """
+    Look up a contract in Qdrant by name using MatchText search.
+    Returns the raw Qdrant payload dict (not the template-compatible format).
+    
+    Args:
+        contract_name: The contract title/bid_name to search for
+    
+    Returns:
+        Dict with raw Qdrant payload fields, or None if not found
+    """
+    try:
+        qdrant_client = get_qdrant_client(timeout=10)
+        if not qdrant_client:
+            return None
+        
+        from qdrant_client.models import Filter, FieldCondition, MatchText
+        
+        text_filter = Filter(should=[
+            FieldCondition(key="bid_name", match=MatchText(text=contract_name)),
+            FieldCondition(key="title", match=MatchText(text=contract_name)),
+        ])
+        
+        points, _ = qdrant_client.scroll(
+            collection_name="government_contracts",
+            limit=5,
+            offset=None,
+            with_payload=True,
+            with_vectors=False,
+            scroll_filter=text_filter
+        )
+        
+        if not points:
+            logging.info(f"[AI Context] No contract found in Qdrant for name: {contract_name}")
+            return None
+        
+        exact_match = None
+        for point in points:
+            name = (point.payload.get('bid_name') or point.payload.get('title') or '').strip()
+            if name.lower() == contract_name.lower():
+                exact_match = point
+                break
+        
+        chosen = exact_match or points[0]
+        payload = dict(chosen.payload)
+        payload['_qdrant_point_id'] = str(chosen.id)
+        logging.info(f"[AI Context] Found contract in Qdrant: {payload.get('bid_name') or payload.get('title')} (ID: {chosen.id})")
+        return payload
+        
+    except Exception as e:
+        logging.warning(f"[AI Context] Error looking up contract by name '{contract_name}': {e}")
+        return None
 
 
 def get_contract_from_qdrant_by_id(point_id):
