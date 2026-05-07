@@ -266,15 +266,7 @@
                 </div>
             </div>
             
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.75rem 1.5rem; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); font-weight: 600;">
-                    <span style="font-size: 1.2rem;">💎</span>
-                    <span style="font-size: 1.1rem;">{{ current_credits }} Credits</span>
-                </div>
-                <a href="/purchase_credits" style="background: white; color: #667eea; padding: 0.75rem 1.25rem; border-radius: 12px; text-decoration: none; font-weight: 600; border: 2px solid #667eea; transition: all 0.2s; display: flex; align-items: center; gap: 0.5rem;" onmouseover="this.style.background='#667eea'; this.style.color='white';" onmouseout="this.style.background='white'; this.style.color='#667eea';">
-                    <span>+</span> Buy More
-                </a>
-            </div>
+
         </div>
         
         <div class="assistant-layout">
@@ -351,19 +343,19 @@
                 <div class="ai-tools-section" style="margin-bottom: 1rem;">
                     <div class="tools-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem;">
                         <button class="tool-btn" onclick="triggerAnalysis('analyze')" style="background: #3498db; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            📊 Analyze (3 credits)
+                            📊 Analyze
                         </button>
                         <button class="tool-btn" onclick="triggerAnalysis('compliance')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            ✅ Compliance (2 credits)
+                            ✅ Compliance
                         </button>
                         <button class="tool-btn" onclick="triggerAnalysis('strategy')" style="background: #e74c3c; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            🎯 Strategy (3 credits)
+                            🎯 Strategy
                         </button>
                         <button class="tool-btn" onclick="triggerAnalysis('outline')" style="background: #9b59b6; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            📝 Outline (2 credits)
+                            📝 Outline
                         </button>
                         <button class="tool-btn" onclick="triggerAnalysis('full_proposal')" style="background: #27ae60; color: white; border: none; padding: 0.5rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer;">
-                            📄 Full Proposal (15 credits)
+                            📄 Full Proposal
                         </button>
                     </div>
                 </div>
@@ -377,14 +369,6 @@
     </div>
     
     <script>
-        // Helper function to update credit display (important-comment)
-        function updateCreditDisplay(newBalance) {
-            const creditDisplay = document.querySelector('[style*="font-size: 1.1rem"]');
-            if (creditDisplay) {
-                creditDisplay.textContent = newBalance + ' Credits';
-            }
-        }
-        
         // Enhanced AI Analysis Functions (important-comment)
         function triggerAnalysis(actionType) {
             const messages = document.getElementById('chatMessages');
@@ -425,40 +409,11 @@
                         // Remove loading message
                         messages.removeChild(loadingMessage);
                 
-                if (data.error && data.credits_required) {
-                    // Handle insufficient credits
-                    const errorMessage = document.createElement('div');
-                    errorMessage.className = 'message assistant error';
-                    errorMessage.innerHTML = `
-                        <strong>AI Assistant:</strong> ${data.error}<br>
-                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: #fee; border-radius: 6px; color: #c33;">
-                            <strong>Credits Required:</strong> ${data.credits_required}<br>
-                            <strong>Current Balance:</strong> ${data.current_balance || 0}<br>
-                            <a href="/purchase_credits" style="color: #3498db;">Purchase more credits</a>
-                        </div>
-                    `;
-                    messages.appendChild(errorMessage);
-                    messages.scrollTop = messages.scrollHeight;
-                    return;
-                }
-                
                 // Create enhanced response with structured data
                 const aiMessage = document.createElement('div');
                 aiMessage.className = 'message assistant enhanced';
                 
                 let responseHTML = `<strong>AI Assistant:</strong> ${data.response}`;
-                
-                // Add credit usage info
-                if (data.credits_used) {
-                    responseHTML += `
-                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: #e8f5e8; border-radius: 6px; font-size: 0.8rem;">
-                            💎 Credits used: ${data.credits_used} | Remaining: ${data.remaining_credits}
-                        </div>
-                    `;
-                    
-                    // Update credit display at the top (important-comment)
-                    updateCreditDisplay(data.remaining_credits);
-                }
                 
                 // Add specialized visualizations based on action type
                 if (actionType === 'analyze' && data.win_probability) {
@@ -512,47 +467,6 @@
                             }
                         }
                         
-                        // Handle insufficient credits (402 Payment Required) (important-comment)
-                        if (xhr.status === 402) {
-                            try {
-                                const data = JSON.parse(xhr.responseText);
-                                const errorMessage = document.createElement('div');
-                                errorMessage.className = 'message assistant error';
-                                errorMessage.innerHTML = `
-                                    <strong>AI Assistant:</strong> 💎 Insufficient Credits<br>
-                                    <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
-                                        <div style="font-size: 1.1rem; margin-bottom: 0.5rem;">
-                                            <strong>Credits Required:</strong> ${data.credits_required || 'N/A'}<br>
-                                            <strong>Your Balance:</strong> ${data.current_balance || 0}
-                                        </div>
-                                        <div style="margin-top: 1rem;">
-                                            <a href="/purchase_credits" style="display: inline-block; background: #3498db; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: bold;">
-                                                💳 Purchase Credits Now
-                                            </a>
-                                        </div>
-                                        <div style="margin-top: 0.75rem; font-size: 0.9rem; color: #666;">
-                                            <strong>💡 Tip:</strong> Get started with one of our credit packages to unlock AI-powered proposal generation.
-                                        </div>
-                                    </div>
-                                `;
-                                messages.appendChild(errorMessage);
-                                messages.scrollTop = messages.scrollHeight;
-                            } catch (e) {
-                                // Fallback if parsing fails
-                                const errorMessage = document.createElement('div');
-                                errorMessage.className = 'message assistant error';
-                                errorMessage.innerHTML = `
-                                    <strong>AI Assistant:</strong> 💎 Insufficient Credits<br>
-                                    <div style="margin-top: 1rem; padding: 1rem; background: #fff3cd; border-radius: 8px;">
-                                        <a href="/purchase_credits" style="display: inline-block; background: #3498db; color: white; padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: bold;">
-                                            💳 Purchase Credits
-                                        </a>
-                                    </div>
-                                `;
-                                messages.appendChild(errorMessage);
-                                messages.scrollTop = messages.scrollHeight;
-                            }
-                        }
                         // For timeout errors, wait and retry once
                         else if (xhr.status === 504 || xhr.status === 0) {
                             const retryMessage = document.createElement('div');
@@ -727,11 +641,6 @@
                 aiMessage.innerHTML = `<strong>AI Assistant:</strong> ${data.response || 'Based on your capability statement and this specific contract, I can provide tailored guidance that goes beyond general AI assistance. I have access to your company profile, contract requirements, and government contracting best practices.'}`;
                 messages.appendChild(aiMessage);
                 
-                // Update credit display if credits were used (important-comment)
-                if (data.remaining_credits !== undefined) {
-                    updateCreditDisplay(data.remaining_credits);
-                }
-                
                 // Add follow-up suggestions for contract-specific questions (important-comment)
                 if (Math.random() > 0.7) {
                     const suggestionsMessage = document.createElement('div');
@@ -756,13 +665,11 @@
                         // Parse error response (important-comment)
                         let errorMessage = 'An error occurred. Please try again.';
                         let requiresCapability = false;
-                        let creditsRequired = null;
                         
                         try {
                             const errorData = JSON.parse(xhr2.responseText);
                             errorMessage = errorData.error || errorMessage;
                             requiresCapability = errorData.requires_capability_statement || false;
-                            creditsRequired = errorData.credits_required || null;
                         } catch (e) {
                             console.error('Failed to parse error response:', e);
                         }
@@ -774,9 +681,6 @@
                         if (requiresCapability) {
                             aiMessage.innerHTML = `<strong>⚠️ Capability Statement Required:</strong><br>${errorMessage}<br><br>
                                 <a href="#upload-section" class="btn btn-primary btn-sm">Upload Capability Statement</a>`;
-                        } else if (creditsRequired) {
-                            aiMessage.innerHTML = `<strong>💎 Insufficient Credits:</strong><br>${errorMessage}<br><br>
-                                <button onclick="window.location.href='/purchase_credits'" class="btn btn-primary btn-sm">💳 Purchase Credits</button>`;
                         } else {
                             aiMessage.innerHTML = `<strong>❌ Error:</strong><br>${errorMessage}`;
                         }
@@ -843,8 +747,6 @@
                                 // Show success confirmation and reload page to display company name (important-comment)
                                 alert('✅ Capability statement uploaded and processed successfully!\n\nThe page will refresh to display your company information.');
                                 window.location.reload();
-                            } else if (data.error && data.credits_required) {
-                                alert(`❌ Insufficient credits. ${data.credits_required} credits needed to upload this file.`);
                             } else {
                                 alert('❌ Upload failed. Please try again.');
                             }

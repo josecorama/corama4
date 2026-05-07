@@ -39,7 +39,7 @@ from capability_statement_preprocessing import process_pdfs
 from dotenv import load_dotenv
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
-from credit_manager import CreditManager
+# Credit system removed - all features are now free
 
 # Load environment variables
 load_dotenv()
@@ -228,7 +228,6 @@ try:
             logging.info("✅ Firebase Admin SDK initialized successfully from FIREBASE_SERVICE_ACCOUNT_JSON secret")
         except json.JSONDecodeError as e:
             logging.error(f"❌ Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
-            logging.warning("Credit purchase via webhook will use fallback method.")
     else:
         service_account_path = os.path.join(base_dir, os.getenv('SERVICE_ACCOUNT_JSON', ''))
         
@@ -244,14 +243,12 @@ try:
             logging.warning(f"⚠️ Firebase Admin SDK service account not found. Checked:")
             logging.warning(f"   - FIREBASE_SERVICE_ACCOUNT_JSON environment variable: Not set")
             logging.warning(f"   - File path: {service_account_path} (does not exist)")
-            logging.warning("Credit purchase via webhook will use fallback method. For production use, provide service account JSON.")
+            logging.warning("For production use, provide service account JSON.")
         
 except ImportError:
     logging.warning("⚠️ firebase-admin package not installed. Run: pip install firebase-admin")
-    logging.warning("Credit purchase via webhook will use fallback method.")
 except Exception as e:
     logging.error(f"❌ Failed to initialize Firebase Admin SDK: {e}")
-    logging.warning("Credit purchase via webhook will use fallback method.")
 
 
 
@@ -1561,10 +1558,7 @@ def Login():
                     "last_name": "",
                     "company": "",
                     "username": email.split('@')[0],
-                    "credits_balance": 100,
-                    "credits_used": 0,
-                    "last_credit_update": datetime.now().isoformat(),
-                    "credit_purchase_history": []
+
                 }
                 
                 db.child("users").child(local_id).set(default_user_data, refreshed_user['idToken'])
@@ -1799,8 +1793,6 @@ def Signup():
                 "account_type": account_type,
                 "subscription_end_date": subscription_end_date,
                 "uploads_dir": create_user_directory(user_id),
-                "credits_balance": 100,
-                "credits_used": 0
             }, user_logged_in['idToken'])
 
             app.logger.info("✅ User successfully added to Firebase Database!")
@@ -2260,7 +2252,6 @@ def ai_assistant_room():
         return redirect('/welcome')
     
     user_id = user['localId']
-    current_credits = 0
     has_capability_statement = False
     capability_statement_filename = None
     company_name = None
@@ -2271,9 +2262,6 @@ def ai_assistant_room():
             user_data = user_ref.get()
             
             if user_data:
-                current_credits = user_data.get('credits_balance', 0)
-                logging.info(f"✅ Admin SDK: Fetched credit balance for AI Assistant: {current_credits} credits")
-                
                 user_uploads_dir = user_data.get('uploads_dir', '')
                 if user_uploads_dir and os.path.exists(user_uploads_dir):
                     try:
@@ -2318,11 +2306,8 @@ def ai_assistant_room():
                     except Exception as e:
                         logging.error(f"Error checking capability statement: {e}")
         else:
-            logging.warning("⚠️ Using fallback method to fetch credit balance for AI Assistant")
             user_data = db.child("users").child(user_id).get(user['idToken']).val()
             if user_data:
-                current_credits = user_data.get('credits_balance', 0)
-                
                 user_uploads_dir = user_data.get('uploads_dir', '')
                 if user_uploads_dir and os.path.exists(user_uploads_dir):
                     try:
@@ -2350,13 +2335,11 @@ def ai_assistant_room():
                     except Exception as e:
                         logging.error(f"Error checking capability statement: {e}")
     except Exception as e:
-        logging.error(f"Error fetching credit balance for AI Assistant: {e}")
-        current_credits = 0
+        logging.error(f"Error fetching user data for AI Assistant: {e}")
     
     return render_template('ai_assistant_room.html', 
                          contract_id=contract_id,
                          contract_name=contract_name,
-                         current_credits=current_credits,
                          has_capability_statement=has_capability_statement,
                          capability_statement_filename=capability_statement_filename,
                          company_name=company_name,
@@ -3106,37 +3089,7 @@ def ask_model_question():
         app.logger.error(f"Error in model response: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
-@app.route('/add_test_credits', methods=['POST'])
-def add_test_credits():
-    """Add credits to test user for testing purposes"""
-    try:
-        if 'user' not in session:
-            return jsonify({"error": "User not authenticated"}), 401
-            
-        user = session['user']
-        user_id = user['localId']
-        id_token = user['idToken']
-        
-        data = request.get_json()
-        credits_to_add = data.get('credits', 100)
-        
-        credit_manager = CreditManager(db)
-        success, new_balance = credit_manager.add_credits(
-            user_id, id_token, credits_to_add, "manual_test"
-        )
-        
-        if success:
-            return jsonify({
-                "success": True,
-                "message": f"Added {credits_to_add} credits",
-                "new_balance": new_balance
-            })
-        else:
-            return jsonify({"error": "Failed to add credits"}), 500
-            
-    except Exception as e:
-        app.logger.error(f"Error adding test credits: {e}")
-        return jsonify({"error": str(e)}), 500
+
 
 def detect_query_intent(query):
     """Detect if query is casual/greeting or an actual task request"""
@@ -3164,7 +3117,7 @@ def detect_query_intent(query):
 
 @app.route('/ai_assistant_enhanced', methods=['POST'])
 def enhanced_ai_assistant():
-    """Enhanced AI assistant endpoint with credit-based billing"""
+    """Enhanced AI assistant endpoint"""
     global enhanced_ai
     
     user_query = request.form.get('query')
@@ -3182,63 +3135,26 @@ def enhanced_ai_assistant():
         user_id = user['localId']
         id_token = user['idToken']
         
-        # Initialize credit manager
-        credit_manager = CreditManager(db)
-        
-        if admin_initialized and admin_db:
-            current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
-        else:
-            try:
-                current_credits = credit_manager.get_user_credits(user_id, id_token)
-            except:
-                current_credits = 0
-        
-        # Detect query intent - skip credits for casual greetings
+        # Detect query intent
         query_intent = detect_query_intent(user_query)
         
         if query_intent == 'casual' and action_type == 'general':
-            # Respond to casual query without deducting credits
-            casual_response = f"""Hello! I'm your AI Bid Assistant for Contract Radar Maximizer. I'm here to help you create winning government contract proposals.
+            casual_response = """Hello! I'm your AI Bid Assistant for Contract Radar Maximizer. I'm here to help you create winning government contract proposals.
 
 I can assist you with:
-• Analyzing contract opportunities and calculating win probability (3 credits)
-• Generating compliance checklists (2 credits)  
-• Developing bid strategies (3 credits)
-• Creating proposal outlines (2 credits)
-• Generating comprehensive 30-50 page proposals (15 credits)
-
-You currently have {current_credits} credits available.
+• Analyzing contract opportunities and calculating win probability
+• Generating compliance checklists
+• Developing bid strategies
+• Creating proposal outlines
+• Generating comprehensive 30-50 page proposals
 
 How can I help you with your contract response today?"""
             
             return jsonify({
                 "response": casual_response,
-                "credits_used": 0,
-                "remaining_credits": current_credits,
                 "casual_greeting": True
             })
         
-        # Determine credit cost based on action type
-        credit_costs = {
-            'general': 1,
-            'analyze': 3,
-            'compliance': 2,
-            'strategy': 3,
-            'outline': 2,
-            'full_proposal': 15
-        }
-        
-        required_credits = credit_costs.get(action_type, 1)
-        
-        # Check if user has enough credits BEFORE deduction
-        if current_credits < required_credits:
-            return jsonify({
-                "error": f"Insufficient credits. You have {current_credits} credits but this operation requires {required_credits} credits.",
-                "credits_required": required_credits,
-                "current_balance": current_credits
-            }), 402
-        
-        # Process the request with credit deduction
         context_data = {}
         
         try:
@@ -3281,14 +3197,6 @@ How can I help you with your contract response today?"""
         
         # Handle specialized actions regardless of hash_value
         if action_type == 'full_proposal':
-            success, message, new_balance = credit_manager.deduct_credits_admin(
-                user_id, required_credits, action_type, "Full proposal generation",
-                admin_db=admin_db if admin_initialized else None
-            )
-            if not success:
-                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
-            
-            # Generate comprehensive multi-page proposal
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
@@ -3301,24 +3209,14 @@ How can I help you with your contract response today?"""
                 
                 return jsonify({
                     "response": f"Comprehensive proposal generated successfully for {context_data.get('company_name', 'your company')}",
-                    "proposal": full_proposal,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
+                    "proposal": full_proposal
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error generating full proposal: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_generation", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate comprehensive proposal"}), 500
             
         elif action_type == 'analyze':
-            success, message, new_balance = credit_manager.deduct_credits_admin(
-                user_id, required_credits, action_type, "Contract analysis",
-                admin_db=admin_db if admin_initialized else None
-            )
-            if not success:
-                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
-            
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
@@ -3330,24 +3228,14 @@ How can I help you with your contract response today?"""
                 )
                 
                 return jsonify({
-                    "response": analysis_response,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
+                    "response": analysis_response
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error in analyze action: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_analysis", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to analyze contract"}), 500
             
         elif action_type == 'compliance':
-            success, message, new_balance = credit_manager.deduct_credits_admin(
-                user_id, required_credits, action_type, "Compliance checklist generation",
-                admin_db=admin_db if admin_initialized else None
-            )
-            if not success:
-                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
-            
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
@@ -3357,24 +3245,14 @@ How can I help you with your contract response today?"""
                 )
                 
                 return jsonify({
-                    "response": compliance_checklist,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
+                    "response": compliance_checklist
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error in compliance action: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_compliance", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate compliance checklist"}), 500
             
         elif action_type == 'strategy':
-            success, message, new_balance = credit_manager.deduct_credits_admin(
-                user_id, required_credits, action_type, "Bid strategy generation",
-                admin_db=admin_db if admin_initialized else None
-            )
-            if not success:
-                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
-            
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
@@ -3385,24 +3263,14 @@ How can I help you with your contract response today?"""
                 )
                 
                 return jsonify({
-                    "response": strategy,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
+                    "response": strategy
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error generating bid strategy: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_strategy", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate bid strategy"}), 500
             
         elif action_type == 'outline':
-            success, message, new_balance = credit_manager.deduct_credits_admin(
-                user_id, required_credits, action_type, "Proposal outline generation",
-                admin_db=admin_db if admin_initialized else None
-            )
-            if not success:
-                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
-            
             try:
                 contract_requirements = enhanced_ai.analyze_contract_requirements(context_data.get('contract_info', ''))
                 
@@ -3413,26 +3281,16 @@ How can I help you with your contract response today?"""
                 )
                 
                 return jsonify({
-                    "response": proposal_outline,
-                    "credits_used": required_credits,
-                    "remaining_credits": current_credits - required_credits
+                    "response": proposal_outline
                 })
                 
             except Exception as e:
                 app.logger.error(f"Error generating proposal outline: {e}")
-                credit_manager.add_credits_admin(user_id, required_credits, "refund_failed_outline", admin_db=admin_db if admin_initialized else None)
                 return jsonify({"error": "Failed to generate proposal outline"}), 500
             
         
         # For general queries (non-specialized actions), generate AI response
         if action_type == 'general':
-            success, message, new_balance = credit_manager.deduct_credits_admin(
-                user_id, required_credits, action_type, user_query[:100],
-                admin_db=admin_db if admin_initialized else None
-            )
-            if not success:
-                return jsonify({"error": message, "credits_required": required_credits, "current_balance": current_credits}), 402
-            
             conversation_history = enhanced_ai.get_conversation_context(user_id, hash_value) if hash_value else []
             ai_response = enhanced_ai.generate_enhanced_response(user_query, context_data, conversation_history)
             
@@ -3441,9 +3299,7 @@ How can I help you with your contract response today?"""
                 enhanced_ai.save_conversation_turn(user_id, hash_value, user_query, ai_response)
             
             return jsonify({
-                "response": ai_response,
-                "credits_used": required_credits,
-                "remaining_credits": current_credits - required_credits
+                "response": ai_response
             })
         
         # If we reach here, it's an unknown action type
@@ -3455,14 +3311,7 @@ How can I help you with your contract response today?"""
 
 @app.route('/capability-builder-enhanced')
 def capability_builder_enhanced():
-    user = session.get('user')
-    current_credits = 0
-    if user:
-        user_id = user['localId']
-        credit_manager = CreditManager(db)
-        if admin_initialized and admin_db:
-            current_credits = credit_manager.get_user_credits_admin(user_id, admin_db)
-    return render_template('capability_builder_enhanced.html', current_credits=current_credits)
+    return render_template('capability_builder_enhanced.html')
 
 @app.route('/save-capability-statement', methods=['POST'])
 def save_capability_statement():
@@ -3904,7 +3753,7 @@ def update_selected_capability():
 
 @app.route('/upload_document', methods=['POST'])
 def upload_document():
-    """Upload document to user's profile for AI assistant use with credit deduction"""
+    """Upload document to user's profile for AI assistant use"""
     try:
         if 'user' not in session:
             return jsonify({"error": "User not authenticated"}), 401
@@ -3916,24 +3765,7 @@ def upload_document():
         
         if not user_data or 'uploads_dir' not in user_data:
             return jsonify({"error": "User uploads directory not found"}), 400
-            
-        skip_credits = True  # TODO: Set to False to re-enable credit checks after Firebase is fixed
         
-        if not skip_credits:
-            # Initialize credit manager and check credits
-            credit_manager = CreditManager(db)
-            current_credits = credit_manager.get_user_credits(user_id, id_token)
-            
-            if current_credits < 2:
-                return jsonify({
-                    "error": "Insufficient credits for document upload",
-                    "credits_required": 2,
-                    "current_balance": current_credits
-                }), 402
-        else:
-            current_credits = 0  # Placeholder when credits are bypassed
-            logging.info(f"⚠️ TEMPORARY: Bypassing credit checks for capability statement upload")
-            
         user_uploads_dir = user_data['uploads_dir']
         
         # Create uploads directory if it doesn't exist
@@ -3949,13 +3781,6 @@ def upload_document():
             return jsonify({"error": "No file selected"}), 400
             
         if file and allowed_file(file.filename):
-            if not skip_credits:
-                success, message = credit_manager.deduct_credits(
-                    user_id, id_token, 2, "document_upload", f"Upload document: {file.filename}"
-                )
-                if not success:
-                    return jsonify({"error": message}), 402
-            
             filename = secure_filename(file.filename)
             file_path = os.path.join(user_uploads_dir, filename)
             file.save(file_path)
@@ -3980,15 +3805,12 @@ def upload_document():
                 'upload_date': datetime.now().isoformat(),
                 'file_path': file_path,
                 'file_type': filename.split('.')[-1].lower(),
-                'credits_used': 2
             }
             documents_ref.push(document_data, user['idToken'])
             
             return jsonify({
                 "success": True, 
-                "filename": filename,
-                "credits_used": 0 if skip_credits else 2,
-                "remaining_credits": current_credits if skip_credits else current_credits - 2
+                "filename": filename
             })
         else:
             return jsonify({"error": "File type not allowed"}), 400
@@ -5581,22 +5403,6 @@ def stripe_webhook():
 def handle_successful_payment(session):
     customer_id = session["customer"]
     subscription_id = session.get("subscription")
-    metadata = session.get("metadata", {})
-    
-    if metadata.get("purchase_type") == "credits":
-        user_id = metadata.get("user_id")
-        credits = int(metadata.get("credits", 0))
-        
-        if user_id and credits:
-            credit_manager = CreditManager(db)
-            success, new_balance = credit_manager.add_credits_admin(
-                user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
-            )
-            if success:
-                app.logger.info(f"✅ Credits added for user {user_id}: {credits} credits, new balance: {new_balance}")
-            else:
-                app.logger.error(f"❌ Failed to add credits for user {user_id} via webhook")
-                app.logger.error(f"User {user_id} completed payment but credits were not added - manual intervention required")
     
     app.logger.info(f"✅ Payment successful for customer {customer_id}, subscription {subscription_id}")
 
@@ -5646,185 +5452,19 @@ def internal_error(error):
 
 @app.route('/purchase_credits', methods=['GET'])
 def purchase_credits():
-    """Display credit purchase options"""
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-        
-    user = session['user']
-    user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
-    current_credits = user_data.get('credits_balance', 0)
-    
-    credit_packages = [
-        {"credits": 100, "price": 1000, "description": "Starter Pack - Perfect for small projects"},
-        {"credits": 300, "price": 2500, "description": "Professional Pack - Great for multiple proposals"},
-        {"credits": 750, "price": 5000, "description": "Enterprise Pack - Best value for frequent users"},
-        {"credits": 2000, "price": 10000, "description": "Agency Pack - For consulting firms and agencies"}
-    ]
-    
-    return render_template('purchase_credits.html', 
-                         current_credits=current_credits,
-                         credit_packages=credit_packages)
+    return redirect(url_for('Welcome'))
 
 @app.route('/create_credit_checkout', methods=['POST'])
 def create_credit_checkout():
-    """Create Stripe checkout session for credit purchase"""
-    try:
-        if 'user' not in session:
-            return jsonify({"error": "User not authenticated"}), 401
-            
-        user = session['user']
-        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
-        stripe_customer_id = user_data.get('stripe_customer_id')
-        
-        if not stripe_customer_id:
-            user_email = user_data.get('email', '')
-            first_name = user_data.get('first_name', '')
-            last_name = user_data.get('last_name', '')
-            company = user_data.get('company', '')
-            
-            try:
-                logging.info(f"No stripe_customer_id found for {user_email}, attempting to fetch from Stripe API")
-                stripe_customers = stripe.Customer.list(email=user_email).data
-                
-                if stripe_customers:
-                    stripe_customer_id = stripe_customers[0].id
-                    logging.info(f"Found existing Stripe customer: {stripe_customer_id}")
-                else:
-                    logging.info(f"No existing Stripe customer found, creating new customer for {user_email}")
-                    stripe_customer = stripe.Customer.create(
-                        email=user_email,
-                        description=f"{first_name} {last_name} from {company}"
-                    )
-                    stripe_customer_id = stripe_customer.id
-                    logging.info(f"Created new Stripe customer: {stripe_customer_id}")
-                
-                db.child("users").child(user['localId']).update(
-                    {"stripe_customer_id": stripe_customer_id},
-                    user['idToken']
-                )
-                logging.info(f"Updated Firebase with stripe_customer_id for user {user['localId']}")
-                
-            except Exception as stripe_error:
-                logging.error(f"Error handling Stripe customer for {user_email}: {stripe_error}")
-                return jsonify({"error": "Failed to set up payment account. Please try again."}), 500
-            
-        credits = int(request.json.get('credits'))
-        price = int(request.json.get('price'))
-        
-        checkout_session = stripe.checkout.Session.create(
-            customer=stripe_customer_id,
-            payment_method_types=['card'],
-            line_items=[{
-                'price_data': {
-                    'currency': 'usd',
-                    'product_data': {
-                        'name': f'{credits} CORAMA Credits',
-                        'description': f'AI-powered contract analysis and proposal generation credits'
-                    },
-                    'unit_amount': price,
-                },
-                'quantity': 1,
-            }],
-            mode='payment',
-            success_url=url_for('credit_purchase_success', _external=True) + '?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url=url_for('purchase_credits', _external=True),
-            metadata={
-                'user_id': user['localId'],
-                'credits': credits,
-                'purchase_type': 'credits'
-            }
-        )
-        
-        return jsonify({"checkout_url": checkout_session.url})
-        
-    except Exception as e:
-        logging.error(f"Error creating credit checkout: {e}")
-        return jsonify({"error": str(e)}), 500
+    return redirect(url_for('Welcome'))
 
 @app.route('/credit_purchase_success')
 def credit_purchase_success():
-    """Handle successful credit purchase"""
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-    
-    user = session['user']
-    user_id = user['localId']
-    id_token = user['idToken']
-    
-    session_id = request.args.get('session_id')
-    if session_id:
-        try:
-            checkout_session = stripe.checkout.Session.retrieve(session_id)
-            credits = int(checkout_session.metadata.get('credits', 0))
-            metadata_user_id = checkout_session.metadata.get('user_id')
-            
-            success = False
-            if metadata_user_id == user_id and credits > 0:
-                credit_manager = CreditManager(db)
-                success, new_balance = credit_manager.add_credits_admin(
-                    user_id, credits, "stripe_purchase", admin_db=admin_db if admin_initialized else None
-                )
-                if success:
-                    app.logger.info(f"✅ Credits added via success page for user {user_id}: {credits} credits, new balance: {new_balance}")
-                else:
-                    app.logger.error(f"❌ Failed to add credits via success page for user {user_id}")
-            
-            return render_template('credit_purchase_success.html', credits=credits, success=success)
-        except Exception as e:
-            logging.error(f"Error retrieving checkout session: {e}")
-    
-    return redirect(url_for('purchase_credits'))
+    return redirect(url_for('Welcome'))
 
 @app.route('/credit_history', methods=['GET'])
 def credit_history():
-    """Display credit transaction history and usage analytics"""
-    if 'user' not in session:
-        return redirect(url_for('Login'))
-    
-    user = session['user']
-    user_id = user['localId']
-    
-    try:
-        if admin_initialized and admin_db:
-            user_ref = admin_db.reference(f'users/{user_id}')
-            user_data = user_ref.get()
-            
-            if not user_data:
-                logging.error(f"User {user_id} not found in database")
-                return redirect(url_for('Welcome'))
-            
-            current_credits = user_data.get('credits_balance', 0)
-            credits_used = user_data.get('credits_used', 0)
-            
-            transactions_ref = admin_db.reference(f'credit_transactions/{user_id}')
-            transactions = transactions_ref.get()
-            transaction_list = []
-            if transactions:
-                for key, transaction in transactions.items():
-                    transaction_list.append(transaction)
-                transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-            
-            logging.info(f"✅ Admin SDK: Fetched credit history for user {user_id}")
-        else:
-            logging.warning("⚠️ Using fallback method to fetch credit history")
-            user_data = db.child("users").child(user_id).get(user['idToken']).val()
-            current_credits = user_data.get('credits_balance', 0)
-            credits_used = user_data.get('credits_used', 0)
-            
-            transactions = db.child("credit_transactions").child(user_id).get(user['idToken']).val()
-            transaction_list = []
-            if transactions:
-                for key, transaction in transactions.items():
-                    transaction_list.append(transaction)
-                transaction_list.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        
-        return render_template('credit_history.html',
-                             current_credits=current_credits,
-                             credits_used=credits_used,
-                             transactions=transaction_list)
-    except Exception as e:
-        logging.error(f"Error fetching credit history: {e}")
-        return redirect(url_for('Welcome'))
+    return redirect(url_for('Welcome'))
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5000))
