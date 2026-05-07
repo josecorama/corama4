@@ -1,9 +1,26 @@
+import sys
+import types
+
+# Python 3.12+ compatibility: gcloud requires pkg_resources from setuptools
+try:
+    import pkg_resources
+except ImportError:
+    import importlib.metadata as _md
+    _pr = types.ModuleType('pkg_resources')
+    class _Dist:
+        def __init__(self, d):
+            self.version = d.version
+            self.project_name = d.metadata['Name']
+    def _get_dist(name):
+        return _Dist(_md.distribution(name))
+    _pr.get_distribution = _get_dist
+    sys.modules['pkg_resources'] = _pr
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for, send_file, send_from_directory, session, make_response, flash, abort
 import os
 import re
 import io
 from docx import Document
-import sys
 import logging
 import matplotlib
 matplotlib.use('Agg')
