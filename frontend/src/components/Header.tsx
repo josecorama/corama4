@@ -10,124 +10,22 @@ const TOOL_SUGGESTIONS = [
   { id: 'top-five-contracts', label: 'Top Five Matches', labelEs: 'Cinco Mejores Coincidencias', path: '/top-five-contracts' },
   { id: 'capability-builder', label: 'Capability Builder', labelEs: 'Constructor de Capacidades', path: '/capability-builder' },
   { id: 'corama-directory', label: 'CORAMA Directory', labelEs: 'Directorio CORAMA', path: '/corama-directory' },
-  { id: 'get-more-credits', label: 'Get More Credits', labelEs: 'Obtener Más Créditos', path: '/get-more-credits' },
   { id: 'support', label: 'Support', labelEs: 'Soporte', path: '/support' },
   { id: 'about-us', label: 'About Us', labelEs: 'Sobre Nosotros', path: '/about-us' },
 ]
 
 interface HeaderProps {
-  credits?: number
 }
 
-const CREDITS_CACHE_KEY = 'corama_credits_cache'
-const CREDITS_ANIMATED_KEY = 'corama_credits_animated'
-const CREDITS_LAST_VALUE_KEY = 'corama_credits_last_value'
-
-const useCountUp = (targetValue: number | null, duration: number = 800) => {
-  const [displayValue, setDisplayValue] = useState<number | null>(() => {
-    // Initialize from sessionStorage to prevent flash
-    if (typeof window === 'undefined') return null
-    const lastValue = sessionStorage.getItem(CREDITS_LAST_VALUE_KEY)
-    if (lastValue !== null) {
-      const parsed = parseInt(lastValue, 10)
-      return isNaN(parsed) ? null : parsed
-    }
-    return null
-  })
-  const animationRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (targetValue === null) {
-      setDisplayValue(null)
-      return
-    }
-
-    // Cancel any ongoing animation
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current)
-    }
-
-    const alreadyAnimatedInitial = sessionStorage.getItem(CREDITS_ANIMATED_KEY) === 'true'
-    const lastValueStr = sessionStorage.getItem(CREDITS_LAST_VALUE_KEY)
-    const lastValue = lastValueStr !== null ? parseInt(lastValueStr, 10) : null
-    
-    // Determine start value for animation
-    let startValue: number
-    let shouldAnimate = false
-    
-    if (!alreadyAnimatedInitial) {
-      // First load ever: animate from 0
-      startValue = 0
-      shouldAnimate = true
-      sessionStorage.setItem(CREDITS_ANIMATED_KEY, 'true')
-    } else if (lastValue !== null && lastValue !== targetValue) {
-      // Credits changed: animate from last value
-      startValue = lastValue
-      shouldAnimate = true
-    } else {
-      // No change: just set the value without animation
-      setDisplayValue(targetValue)
-      sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
-      return
-    }
-
-    if (!shouldAnimate) {
-      setDisplayValue(targetValue)
-      sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
-      return
-    }
-
-    const startTime = performance.now()
-
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime
-      const progress = Math.min(elapsed / duration, 1)
-      
-      const easeOutQuad = 1 - (1 - progress) * (1 - progress)
-      const currentValue = Math.round(startValue + (targetValue - startValue) * easeOutQuad)
-      
-      setDisplayValue(currentValue)
-
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(animate)
-      } else {
-        // Animation complete: save final value
-        sessionStorage.setItem(CREDITS_LAST_VALUE_KEY, String(targetValue))
-      }
-    }
-
-    animationRef.current = requestAnimationFrame(animate)
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current)
-      }
-    }
-  }, [targetValue, duration])
-
-  return displayValue
-}
-
-const Header = ({ credits: propCredits }: HeaderProps) => {
+const Header = ({}: HeaderProps) => {
   const { t, language } = useTranslation()
   const navigate = useNavigate()
-  const [credits, setCredits] = useState<number | null>(() => {
-    if (typeof window === 'undefined') return propCredits ?? null
-    const cached = sessionStorage.getItem(CREDITS_CACHE_KEY)
-    if (cached !== null) {
-      const parsed = parseInt(cached, 10)
-      return isNaN(parsed) ? propCredits ?? null : parsed
-    }
-    return propCredits ?? null
-  })
 
   // Search autocomplete state
   const [searchValue, setSearchValue] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const searchContainerRef = useRef<HTMLDivElement>(null)
-
-  const displayCredits = useCountUp(credits)
 
   // Filter suggestions based on search input
   const filteredSuggestions = searchValue.trim()
@@ -186,35 +84,6 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
     setSearchValue(value)
     setShowSuggestions(value.trim().length > 0)
     setSelectedIndex(-1)
-  }
-
-  useEffect(() => {
-    // Always fetch credits from API to ensure we have the latest value
-    // The animation logic will handle whether to animate or not based on value changes
-    loadUserData()
-
-    // Listen for credit changes from other components
-    const handleCreditsChanged = (event: CustomEvent<{ credits: number }>) => {
-      const newCredits = event.detail.credits
-      setCredits(newCredits)
-      sessionStorage.setItem(CREDITS_CACHE_KEY, String(newCredits))
-    }
-
-    window.addEventListener('creditsChanged', handleCreditsChanged as EventListener)
-    
-    return () => {
-      window.removeEventListener('creditsChanged', handleCreditsChanged as EventListener)
-    }
-  }, [])
-
-  const loadUserData = async () => {
-    try {
-      const user = await api.getUser()
-      setCredits(user.credits_balance)
-      sessionStorage.setItem(CREDITS_CACHE_KEY, String(user.credits_balance))
-    } catch (error) {
-      console.error('Failed to load user data:', error)
-    }
   }
 
   const handleLogout = () => {
@@ -306,17 +175,6 @@ const Header = ({ credits: propCredits }: HeaderProps) => {
           </div>
           
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
-            {/* Credits - mobile: icon with label below, desktop: inline */}
-            <Link to="/get-more-credits" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
-              <img src="/static/app/dashboard/Credits.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
-              <div className="flex flex-col sm:flex-row items-center gap-0 sm:gap-1">
-                {displayCredits !== null && (
-                  <span className="font-poppins text-[8px] sm:text-xs">{displayCredits}</span>
-                )}
-                <span className="font-poppins text-[8px] sm:text-xs">{t('credits')}</span>
-              </div>
-            </Link>
-            
             {/* Logout - mobile: icon with label below, desktop: inline */}
             <button 
               onClick={handleLogout}
