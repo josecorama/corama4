@@ -134,7 +134,6 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
     { path: '/top-five-contracts', label: t('topFiveMatches'), icon: '/static/app/dashboard/TopFiveContracts.svg' },
     { path: '/capability-builder', label: t('capabilityBuilder'), icon: '/static/app/dashboard/CapabilityBuilder.svg' },
     { path: '/corama-directory', label: t('coramaDirectory'), icon: '/static/app/dashboard/CORAMADirectory.svg' },
-    { path: '/get-more-credits', label: t('getMoreCredits'), icon: '/static/app/dashboard/Credits.svg' },
     { path: '/support', label: t('support'), icon: '/static/app/dashboard/Support.svg' },
     { path: '/about-us', label: t('aboutUs'), icon: '/static/app/dashboard/AboutUs.svg', external: true },
   ]

@@ -174,7 +174,7 @@ const Header = ({}: HeaderProps) => {
             </div>
           </div>
           
-          {/* Header actions: credits link removed per request; only logout and settings remain */}
+          {/* Header actions: credits link removed; only logout and settings remain */}
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
             <button 
               onClick={handleLogout}
