@@ -174,18 +174,22 @@ const Header = ({}: HeaderProps) => {
             </div>
           </div>
           
+          {/* Header actions: credits link removed per request; only logout and settings remain */}
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
-            {/* Logout - mobile: icon with label below, desktop: inline */}
             <button 
               onClick={handleLogout}
               className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
+              aria-label={t('logOut')}
             >
               <img src="/static/app/dashboard/LogOut.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
               <span className="font-poppins text-[8px] sm:text-xs">{t('logOut')}</span>
             </button>
             
-            {/* Settings - mobile: icon with label below, desktop: inline */}
-            <Link to="/settings" className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors">
+            <Link
+              to="/settings"
+              className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
+              aria-label={t('settings')}
+            >
               <img src="/static/app/dashboard/settings.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
               <span className="font-poppins text-[8px] sm:text-xs">{t('settings')}</span>
             </Link>
