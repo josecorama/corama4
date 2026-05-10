@@ -5,7 +5,6 @@ import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
-import InsufficientCreditsPopup from '../components/InsufficientCreditsPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
@@ -18,7 +17,6 @@ const AddIcon = '/static/app/team-builder/Add.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 const GenerateFinalProposalIcon = '/static/app/proposal-summary/GenerateFinalProposal.svg'
 const ClosePopupButtonIcon = '/static/app/proposal-summary/ClosePopupButton.svg'
-const CreditsIcon = '/static/app/proposal-summary/CreditsIcon.svg'
 
 interface ProposalSummaryState {
   contractName?: string
@@ -182,19 +180,12 @@ const ProposalSummary= () => {
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<string | null>(null)
   
-  // Credit confirmation popup state
-  const [showCreditPopup, setShowCreditPopup] = useState(false)
-  const [isDeductingCredits, setIsDeductingCredits] = useState(false)
-  
-  // Insufficient credits popup state
-  const [showInsufficientCreditsPopup, setShowInsufficientCreditsPopup] = useState(false)
-  
   // Generate unique ID
   const generateId = () => Math.random().toString(36).substr(2, 9)
   
   // Calculate totals
-  const laborTotal = laborCosts.reduce((sum, item) => sum + (item.hours * item.rate), 0)
-  const materialsTotal = materials.reduce((sum, item) => sum + (item.quantity * item.unit_cost), 0)
+  const laborTotal = laborCosts.reduce<number>((sum, item) => sum + (item.hours * item.rate), 0)
+  const materialsTotal = materials.reduce<number>((sum, item) => sum + (item.quantity * item.unit_cost), 0)
   const subtotal = laborTotal + materialsTotal
   const profitMargin = subtotal * (parseFloat(profitMarginPct) || 0) / 100
   const riskReserve = subtotal * (parseFloat(riskReservePct) || 0) / 100
@@ -314,8 +305,8 @@ const ProposalSummary= () => {
       cost: hours * rate
     }
     
-        setLaborCosts(prev => [...prev, newItem])
-        setLaborRole('')
+    setLaborCosts((prev: LaborCostItem[]) => [...prev, newItem])
+    setLaborRole('')
     setLaborHours('')
     setLaborRate('')
   }
@@ -335,8 +326,8 @@ const ProposalSummary= () => {
       cost: quantity * unitCost
     }
     
-        setMaterials(prev => [...prev, newItem])
-        setMaterialItem('')
+    setMaterials((prev: MaterialItem[]) => [...prev, newItem])
+    setMaterialItem('')
     setMaterialQuantity('')
     setMaterialUnitCost('')
   }
@@ -401,69 +392,28 @@ const ProposalSummary= () => {
     }
   }
   
-  // Handle Generate Final Proposal button click - show credit confirmation popup
+  // Handle Generate Final Proposal button click - navigate directly (credits removed)
   const handleGenerateFinalProposalClick = () => {
-    setShowCreditPopup(true)
-  }
-  
-  // Handle credit confirmation - deduct 15 credits and navigate to next page
-  const handleConfirmSpendCredits = async () => {
-    setIsDeductingCredits(true)
-    
-    try {
-      // Generate idempotency key to prevent double-click duplicate charges
-      const idempotencyKey = `proposal_summary_${contractId}_${Date.now()}`
-      
-      // Deduct 15 credits for generating final proposal
-      const response = await api.deductCredits(15, 'generate_final_proposal', 'Generate Final Proposal', idempotencyKey)
-      
-      if (response.success) {
-        // Close popup and navigate to the next page
-        setShowCreditPopup(false)
-        navigate('/public-bid-proposal-generator', { 
-          state: { 
-            contractId, 
-            contractName, 
-            aiFindings, 
-            aiSuggestions, 
-            aiStrategy,
-            teamMembers,
-            laborCosts,
-            materials,
-            profitMarginPct,
-            riskReservePct,
-            laborTotal,
-            materialsTotal,
-            subtotal,
-            profitMargin,
-            riskReserve,
-            totalBidAmount
-          } 
-        })
-      } else {
-        // Check if it's an insufficient credits error
-        if (response.error?.toLowerCase().includes('insufficient')) {
-          setShowCreditPopup(false)
-          setShowInsufficientCreditsPopup(true)
-        } else {
-          // Show error message
-          setSaveMessage(response.error || 'Failed to deduct credits. Please try again.')
-          setShowCreditPopup(false)
-        }
-      }
-    } catch (error) {
-      console.error('Error deducting credits:', error)
-      setSaveMessage('Failed to deduct credits. Please try again.')
-      setShowCreditPopup(false)
-    } finally {
-      setIsDeductingCredits(false)
-    }
-  }
-  
-  // Handle getting more credits from insufficient credits popup
-  const handleGetCredits = () => {
-    setShowInsufficientCreditsPopup(false)
-    navigate('/get-more-credits')
+    navigate('/public-bid-proposal-generator', {
+      state: {
+        contractId,
+        contractName,
+        aiFindings,
+        aiSuggestions,
+        aiStrategy,
+        teamMembers,
+        laborCosts,
+        materials,
+        profitMarginPct,
+        riskReservePct,
+        laborTotal,
+        materialsTotal,
+        subtotal,
+        profitMargin,
+        riskReserve,
+        totalBidAmount,
+      },
+    })
   }
   
     // Format currency
@@ -478,14 +428,6 @@ const ProposalSummary= () => {
         isOpen={showDiscardPopup}
         onStayHere={handleStayHere}
         onDiscard={handleDiscard}
-      />
-      
-      {/* Insufficient Credits Popup */}
-      <InsufficientCreditsPopup
-        isOpen={showInsufficientCreditsPopup}
-        creditsRequired={15}
-        onGetCredits={handleGetCredits}
-        onClose={() => setShowInsufficientCreditsPopup(false)}
       />
       
       <Header />
@@ -907,60 +849,6 @@ const ProposalSummary= () => {
           </main>
         </div>
       </div>
-      
-      {/* Credit Confirmation Popup - Responsive */}
-      {showCreditPopup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div 
-            className="relative rounded-2xl p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-sm sm:max-w-none w-full sm:w-auto"
-            style={{ backgroundColor: '#0B2C48', minHeight: '200px' }}
-          >
-            {/* Close Button */}
-            <button
-              onClick={() => setShowCreditPopup(false)}
-              className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
-            >
-              <img src={ClosePopupButtonIcon} alt="Close" className="w-6 h-6" />
-            </button>
-            
-            {/* Credits Icon - on top for mobile */}
-            <div className="flex-shrink-0">
-              <img src={CreditsIcon} alt="Credits" className="w-16 h-16 sm:w-20 sm:h-20" />
-            </div>
-            
-            {/* Content */}
-            <div className="flex flex-col gap-4 text-center sm:text-left">
-              <div>
-                <h3 className="text-white font-poppins font-bold text-lg sm:text-xl mb-1">
-                  {_t('thisActionCostsCredits')}
-                </h3>
-                <p className="text-gray-300 font-poppins text-xs sm:text-sm">
-                  {_t('deduct15Credits')}
-                </p>
-              </div>
-              
-              {/* Buttons - stack vertically on mobile */}
-              <div className="flex flex-col sm:flex-row gap-3">
-                <button
-                  onClick={handleConfirmSpendCredits}
-                  disabled={isDeductingCredits}
-                  className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-                  style={{ backgroundColor: '#5CBFC0' }}
-                >
-                  {isDeductingCredits ? _t('loading') : _t('spend15Credits')}
-                </button>
-                <button
-                  onClick={() => setShowCreditPopup(false)}
-                  className="px-6 py-2 rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity"
-                  style={{ backgroundColor: '#27456e' }}
-                >
-                  {_t('notNow')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

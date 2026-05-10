@@ -129,7 +129,6 @@ const Dashboard = () => {
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [_credits, setCredits] = useState(0)
   const [userName, setUserName] = useState('')
   const [contractsKey, setContractsKey] = useState(0) // Key to trigger animation when contracts load
   
@@ -204,46 +203,6 @@ const Dashboard = () => {
     }
   }, [searchQuery, contractType, selectedStates])
 
-  // Process credit purchase if redirected from Stripe checkout
-  useEffect(() => {
-    const purchaseSuccess = searchParams.get('purchase_success')
-    const sessionId = searchParams.get('session_id')
-    
-    if (purchaseSuccess === 'true' && sessionId) {
-      // Call API to process the credit purchase
-      const processPurchase = async () => {
-        try {
-          const response = await fetch('/api/credits/process-purchase', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ session_id: sessionId })
-          })
-          const data = await response.json()
-          if (data.success) {
-            if (data.new_balance !== undefined) {
-              // Dispatch event to trigger Header credit animation
-              window.dispatchEvent(new CustomEvent('creditsChanged', { 
-                detail: { credits: data.new_balance } 
-              }))
-              // Also update local state
-              setCredits(data.new_balance)
-            } else {
-              // Already processed case - fetch current balance
-              loadUserData()
-            }
-          }
-        } catch (error) {
-          console.error('Failed to process credit purchase:', error)
-        }
-        
-        // Remove query params from URL to prevent reprocessing on refresh
-        setSearchParams({})
-      }
-      
-      processPurchase()
-    }
-  }, [searchParams, setSearchParams])
-
   useEffect(() => {
     loadContracts()
   }, [currentPage, contractType, selectedStates, showGrants])
@@ -251,7 +210,6 @@ const Dashboard = () => {
   const loadUserData = async () => {
     try {
       const user = await api.getUser()
-      setCredits(user.credits_balance)
       setUserName(user.username || user.first_name || user.email.split('@')[0])
     } catch (error) {
       console.error('Failed to load user data:', error)

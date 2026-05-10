@@ -4,7 +4,6 @@ import Dashboard from './pages/Dashboard'
 import CapabilityBuilder from './pages/CapabilityBuilder'
 import TopFiveContracts from './pages/TopFiveContracts'
 import AIAssistant from './pages/AIAssistant'
-import GetMoreCredits from './pages/GetMoreCredits'
 import CoramaDirectory from './pages/CoramaDirectory'
 import EditDirectoryProfile from './pages/EditDirectoryProfile'
 import NoCapabilityStatement from './pages/NoCapabilityStatement'
@@ -49,7 +48,6 @@ function App() {
         <Route path="/capability-builder" element={<CapabilityBuilder />} />
         <Route path="/top-five-contracts" element={<TopFiveContracts />} />
         <Route path="/ai-assistant" element={<AIAssistant />} />
-        <Route path="/get-more-credits" element={<GetMoreCredits />} />
         <Route path="/corama-directory" element={<CoramaDirectory />} />
         <Route path="/edit-directory-profile" element={<EditDirectoryProfile />} />
         <Route path="/no-capability-statement" element={<NoCapabilityStatement />} />
