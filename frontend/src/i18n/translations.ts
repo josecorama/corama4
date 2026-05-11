@@ -509,6 +509,11 @@ export const translations = {
     // AI Assistant - initial message
     aiBidAssistantFor: 'AI BID ASSISTANT FOR ',
     quickActionsLabel: 'Quick Actions:',
+    analyzeContractAction: 'Analyze Contract',
+    checkComplianceAction: 'Check Compliance',
+    developStrategyAction: 'Develop Strategy',
+    createOutlineAction: 'Create Outline',
+    // Legacy keys kept for compatibility (single set, no credit wording)
     analyzeContractCredits: 'Analyze Contract',
     checkComplianceCredits: 'Check Compliance',
     developStrategyCredits: 'Develop Strategy',

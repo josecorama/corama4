@@ -199,10 +199,10 @@ const buildInitialMessage = (contractName: string): string => {
 
 **${tFunc('quickActionsLabel')}**
 
-- **${tFunc('analyzeContractCredits')}**
-- **${tFunc('checkComplianceCredits')}**
-- **${tFunc('developStrategyCredits')}**
-- **${tFunc('createOutlineCredits')}**
+- **${tFunc('analyzeContractAction')}**
+- **${tFunc('checkComplianceAction')}**
+- **${tFunc('developStrategyAction')}**
+- **${tFunc('createOutlineAction')}**
 
 ${tFunc('readyToBuildProposal')}
 
