@@ -8391,10 +8391,19 @@ def sanitize_conversation_message(content: str) -> str:
     # Strip control characters and excessive newlines
     cleaned = re.sub(r'[\r\t]+', ' ', content)
     cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
-    # Limit length to prevent prompt stuffing (1000 chars per message)
-    if len(cleaned) > 1000:
-        cleaned = cleaned[:1000] + "..."
+    # Limit length to prevent prompt stuffing (600 chars per message)
+    if len(cleaned) > 600:
+        cleaned = cleaned[:600] + "..."
     return cleaned.strip()
+
+
+def truncate_field(value, limit=400):
+    if value is None:
+        return ""
+    text = str(value)
+    if len(text) > limit:
+        return text[:limit] + "..."
+    return text
 
 def build_ai_assistant_messages(action: str, contract_name: str, conversation_history: list = None, contract_data: dict = None) -> list:
     """Build OpenAI messages for AI Assistant actions.
@@ -8411,34 +8420,40 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
     messages = [{"role": "system", "content": AI_ASSISTANT_SYSTEM_PROMPT}]
     
     if contract_data:
+        def safe_join(items, limit=400, max_items=5):
+            if not items:
+                return ""
+            if isinstance(items, list):
+                trimmed = [truncate_field(u, limit=limit) for u in items[:max_items]]
+                return ', '.join(trimmed)
+            return truncate_field(items, limit=limit)
+
         fields = [
-            f"Title: {contract_data.get('title') or contract_data.get('bid_name') or contract_name}",
-            f"Description: {contract_data.get('description') or 'N/A'}",
-            f"Agency: {contract_data.get('agency') or contract_data.get('agency_top') or 'N/A'}",
-            f"Top-Level Agency: {contract_data.get('agency_top') or 'N/A'}",
-            f"Contract Number: {contract_data.get('contract_number') or 'N/A'}",
-            f"Location: {contract_data.get('location') or 'N/A'}",
-            f"State: {contract_data.get('state') or 'N/A'}",
-            f"Posted Date: {contract_data.get('posted_date') or 'N/A'}",
-            f"Due Date: {contract_data.get('due_date') or 'N/A'}",
-            f"Budget: {contract_data.get('budget') or 'Not specified'}",
-            f"Category: {contract_data.get('category') or 'N/A'}",
-            f"NAICS Code: {contract_data.get('naics_code') or 'N/A'}",
-            f"NAICS Description: {contract_data.get('naics_description') or 'N/A'}",
-            f"NAICS Codes: {', '.join(contract_data.get('naics_codes') or []) or 'N/A'}",
-            f"Source: {contract_data.get('source') or 'N/A'}",
-            f"Detail URL: {contract_data.get('detail_url') or contract_data.get('source_url') or 'N/A'}",
-            f"Government Level: {contract_data.get('government_level') or 'N/A'}",
-            f"Opportunity Type: {contract_data.get('opportunity_type') or 'N/A'}",
-            f"Opportunity Status: {contract_data.get('opportunity_status') or 'N/A'}",
-            f"CFDA/ALN: {contract_data.get('cfda_aln') or 'N/A'}",
+            f"Title: {truncate_field(contract_data.get('title') or contract_data.get('bid_name') or contract_name, limit=180)}",
+            f"Description: {truncate_field(contract_data.get('description') or 'N/A', limit=280)}",
+            f"Agency: {truncate_field(contract_data.get('agency') or contract_data.get('agency_top') or 'N/A', limit=120)}",
+            f"Top-Level Agency: {truncate_field(contract_data.get('agency_top') or 'N/A', limit=120)}",
+            f"Contract Number: {truncate_field(contract_data.get('contract_number') or 'N/A', limit=120)}",
+            f"Location: {truncate_field(contract_data.get('location') or 'N/A', limit=160)}",
+            f"State: {truncate_field(contract_data.get('state') or 'N/A', limit=40)}",
+            f"Posted Date: {truncate_field(contract_data.get('posted_date') or 'N/A', limit=40)}",
+            f"Due Date: {truncate_field(contract_data.get('due_date') or 'N/A', limit=40)}",
+            f"Budget: {truncate_field(contract_data.get('budget') or 'Not specified', limit=120)}",
+            f"Category: {truncate_field(contract_data.get('category') or 'N/A', limit=120)}",
+            f"NAICS Code: {truncate_field(contract_data.get('naics_code') or 'N/A', limit=120)}",
+            f"NAICS Description: {truncate_field(contract_data.get('naics_description') or 'N/A', limit=200)}",
+            f"NAICS Codes: {safe_join(contract_data.get('naics_codes'), limit=30, max_items=8) or 'N/A'}",
+            f"Source: {truncate_field(contract_data.get('source') or 'N/A', limit=80)}",
+            f"Detail URL: {truncate_field(contract_data.get('detail_url') or contract_data.get('source_url') or 'N/A', limit=200)}",
+            f"Government Level: {truncate_field(contract_data.get('government_level') or 'N/A', limit=80)}",
+            f"Opportunity Type: {truncate_field(contract_data.get('opportunity_type') or 'N/A', limit=80)}",
+            f"Opportunity Status: {truncate_field(contract_data.get('opportunity_status') or 'N/A', limit=80)}",
+            f"CFDA/ALN: {truncate_field(contract_data.get('cfda_aln') or 'N/A', limit=80)}",
         ]
         doc_urls = contract_data.get('document_urls')
         if doc_urls:
-            if isinstance(doc_urls, list):
-                fields.append(f"Document URLs: {', '.join(str(u) for u in doc_urls)}")
-            else:
-                fields.append(f"Document URLs: {doc_urls}")
+            joined = safe_join(doc_urls, limit=120, max_items=5)
+            fields.append(f"Document URLs: {joined if joined else 'None available'}")
         else:
             fields.append("Document URLs: None available")
         
@@ -8454,7 +8469,8 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
     
     # Add sanitized conversation history if provided
     if conversation_history:
-        for msg in conversation_history[-8:]:  # Limit to last 8 messages
+        # Limit to last 6 messages and trim each one to reduce context size
+        for msg in conversation_history[-6:]:
             role = msg.get('role', '')
             content = msg.get('content', '')
             # Only allow user/assistant roles, sanitize content
@@ -8612,7 +8628,7 @@ def ai_assistant_action():
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
                 temperature=0.5,
-                max_tokens=800,
+                max_tokens=400,
                 top_p=0.9,
             )
             
