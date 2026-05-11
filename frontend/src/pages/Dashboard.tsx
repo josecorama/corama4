@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
@@ -122,7 +122,7 @@ interface Contract {
 const Dashboard = () => {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
+  // const [searchParams, setSearchParams] = useSearchParams()
   const [currentPage, setCurrentPage] = useState(1)
   const [totalContracts, setTotalContracts] = useState(0)
   const [_totalPages, setTotalPages] = useState(1)

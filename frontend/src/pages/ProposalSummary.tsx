@@ -16,7 +16,6 @@ const RemoveIcon = '/static/app/team-builder/Remove.svg'
 const AddIcon = '/static/app/team-builder/Add.svg'
 const ContinueIcon = '/static/app/contract-analysis/Continue.svg'
 const GenerateFinalProposalIcon = '/static/app/proposal-summary/GenerateFinalProposal.svg'
-const ClosePopupButtonIcon = '/static/app/proposal-summary/ClosePopupButton.svg'
 
 interface ProposalSummaryState {
   contractName?: string

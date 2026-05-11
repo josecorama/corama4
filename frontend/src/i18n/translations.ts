@@ -1109,6 +1109,11 @@ export const translations = {
     // AI Assistant - initial message
     aiBidAssistantFor: 'ASISTENTE IA DE LICITACI\u00d3N PARA ',
     quickActionsLabel: 'Acciones R\u00e1pidas:',
+    analyzeContractAction: 'Analizar Contrato',
+    checkComplianceAction: 'Verificar Cumplimiento',
+    developStrategyAction: 'Desarrollar Estrategia',
+    createOutlineAction: 'Crear Esquema',
+    // Claves heredadas sin mención de créditos (compatibilidad)
     analyzeContractCredits: 'Analizar Contrato',
     checkComplianceCredits: 'Verificar Cumplimiento',
     developStrategyCredits: 'Desarrollar Estrategia',
