@@ -3,13 +3,6 @@ import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import { api } from '../services/api'
 
-interface CreditHistoryItem {
-  id: string
-  date: string
-  action: string
-  cost: number
-}
-
 const LANGUAGE_KEY = 'corama_language'
 
 // Translation strings
@@ -29,13 +22,6 @@ const translations = {
     confirm: 'Confirm',
     saveChanges: 'Save Changes',
     saving: 'Saving...',
-    creditsUsage: 'Credits Usage',
-    date: 'Date',
-    action: 'Action',
-    cost: 'Cost',
-    loadingHistory: 'Loading credit history...',
-    noTransactions: 'No credit transactions yet',
-    viewFullHistory: 'Show more',
     contactSupport: 'Contact Support',
     needHelp: 'Need help with your account or finding contracts?',
     howCanWeHelp: 'How can we help?',
@@ -57,13 +43,6 @@ const translations = {
     confirm: 'Confirmar',
     saveChanges: 'Guardar Cambios',
     saving: 'Guardando...',
-    creditsUsage: 'Uso de Créditos',
-    date: 'Fecha',
-    action: 'Acción',
-    cost: 'Costo',
-    loadingHistory: 'Cargando historial de créditos...',
-    noTransactions: 'Sin transacciones de créditos aún',
-    viewFullHistory: 'Mostrar más',
     contactSupport: 'Contactar Soporte',
     needHelp: '¿Necesita ayuda con su cuenta o encontrar contratos?',
     howCanWeHelp: '¿Cómo podemos ayudarle?',
@@ -86,9 +65,6 @@ const Settings = () => {
   const [supportMessage, setSupportMessage] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [saveMessage, setSaveMessage] = useState<{type: 'success' | 'error', text: string} | null>(null)
-  const [creditHistory, setCreditHistory] = useState<CreditHistoryItem[]>([])
-  const [isLoadingHistory, setIsLoadingHistory] = useState(true)
-  const [visibleHistoryCount, setVisibleHistoryCount] = useState(5)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [supportStatus, setSupportStatus] = useState<{type: 'success' | 'error', message: string} | null>(null)
 
@@ -97,7 +73,6 @@ const Settings = () => {
 
   useEffect(() => {
     loadUserData()
-    loadCreditHistory()
   }, [])
 
   const loadUserData = async () => {
@@ -108,25 +83,6 @@ const Settings = () => {
       setOriginalUsername(name)
     } catch (error) {
       console.error('Failed to load user data:', error)
-    }
-  }
-
-  const loadCreditHistory = async () => {
-    setIsLoadingHistory(true)
-    try {
-      const response = await api.getCreditHistory()
-      if (response.success && response.transactions) {
-        setCreditHistory(response.transactions.map(tx => ({
-          id: tx.id,
-          date: tx.date,
-          action: tx.action,
-          cost: tx.cost
-        })))
-      }
-    } catch (error) {
-      console.error('Failed to load credit history:', error)
-    } finally {
-      setIsLoadingHistory(false)
     }
   }
 
@@ -353,67 +309,12 @@ const Settings = () => {
               </div>
             </div>
 
-            {/* Right Column - Credits Usage & Support */}
+            {/* Right Column - Support */}
             <div className="space-y-6 lg:space-y-8">
-                            {/* Credits Usage */}
-                            <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30 animate-fade-in-up animate-delay-200">
-                              <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-white font-poppins font-semibold text-base">
-                                  {t.creditsUsage}
-                                </h2>
-                              </div>
-
-                <div className="overflow-hidden rounded-lg border border-[#2D5170]/50">
-                  <table className="w-full text-left text-sm">
-                    <thead className="bg-[#0B0B0F]/50 text-gray-300 uppercase text-xs font-poppins">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">{t.date}</th>
-                        <th className="px-4 py-3 font-medium">{t.action}</th>
-                        <th className="px-4 py-3 text-right font-medium">{t.cost}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#2D5170]/30 text-gray-200 font-poppins text-xs sm:text-sm">
-                      {isLoadingHistory ? (
-                        <tr>
-                          <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
-                            {t.loadingHistory}
-                          </td>
-                        </tr>
-                      ) : creditHistory.length === 0 ? (
-                        <tr>
-                          <td colSpan={3} className="px-4 py-8 text-center text-gray-400">
-                            {t.noTransactions}
-                          </td>
-                        </tr>
-                      ) : (
-                        creditHistory.slice(0, visibleHistoryCount).map((item) => (
-                          <tr key={item.id} className="hover:bg-white/5 transition">
-                            <td className="px-4 py-3">{item.date}</td>
-                            <td className="px-4 py-3">{item.action}</td>
-                            <td className={`px-4 py-3 text-right ${item.cost > 0 ? 'text-[#6BA4A7]' : 'text-red-300'}`}>
-                              {item.cost > 0 ? `+${item.cost}` : item.cost}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {creditHistory.length > visibleHistoryCount && (
-                  <button
-                    onClick={() => setVisibleHistoryCount(prev => prev + 5)}
-                    className="w-full mt-4 text-center text-[#6BA4A7] text-xs font-poppins uppercase tracking-wide hover:opacity-80 transition"
-                  >
-                    {t.viewFullHistory}
-                  </button>
-                )}
-              </div>
-
-                            {/* Contact Support */}
-                            <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30 animate-fade-in-up animate-delay-300">
-                              <h2 className="text-white font-poppins font-semibold text-base mb-2 flex items-center gap-2">
-                                {t.contactSupport}
-                              </h2>
+              <div className="bg-[#0B2C48] rounded-xl p-4 lg:p-6 shadow-lg border border-[#2D5170]/30 animate-fade-in-up animate-delay-300">
+                <h2 className="text-white font-poppins font-semibold text-base mb-2 flex items-center gap-2">
+                  {t.contactSupport}
+                </h2>
                 <p className="text-gray-400 font-poppins text-xs mb-4">
                   {t.needHelp}
                 </p>
@@ -437,13 +338,13 @@ const Settings = () => {
                   </div>
                 )}
 
-                                <button
-                                  onClick={handleSendSupportMessage}
-                                  disabled={isSendingMessage || !supportMessage.trim()}
-                                  className="w-full bg-[#6BA4A7] hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {isSendingMessage ? t.sending : t.sendMessage}
-                                </button>
+                <button
+                  onClick={handleSendSupportMessage}
+                  disabled={isSendingMessage || !supportMessage.trim()}
+                  className="w-full bg-[#6BA4A7] hover:opacity-90 text-white font-bold py-3 px-4 rounded-lg transition text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSendingMessage ? t.sending : t.sendMessage}
+                </button>
               </div>
             </div>
           </div>

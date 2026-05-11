@@ -168,8 +168,8 @@ function getActionKeyFromInput(raw: string): string | null {
   // Strip leading bullet/number patterns like "- " or "1. "
   text = text.replace(/^[-*\d.\s]+/, '')
 
-  // Remove the credits suffix if present (e.g., "(3 credits)")
-  text = text.replace(/\(\s*\d+\s*credits?\s*\)/i, '').trim()
+// Remove the credits suffix if present (e.g., "(3 credits)")
+text = text.replace(/\(\s*\d+\s*credits?\s*\)/i, '').trim()
 
   // Collapse whitespace
   text = text.replace(/\s+/g, ' ')
@@ -184,7 +184,6 @@ function getActionKeyFromInput(raw: string): string | null {
 }
 
 // System help - now handled by AI with CORAMA knowledge in backend
-// Only keep credit-specific help as a quick reference (no API call needed)
 const getSystemHelpResponse = (_query: string): string | null => {
   // All questions now go to OpenAI which has CORAMA feature knowledge
   // This allows the AI to provide contextual guidance about the platform
@@ -200,10 +199,10 @@ const buildInitialMessage = (contractName: string): string => {
 
 **${tFunc('quickActionsLabel')}**
 
-- **${tFunc('analyzeContractCredits')}** (3 credits)
-- **${tFunc('checkComplianceCredits')}** (2 credits)
-- **${tFunc('developStrategyCredits')}** (3 credits)
-- **${tFunc('createOutlineCredits')}** (2 credits)
+- **${tFunc('analyzeContractCredits')}**
+- **${tFunc('checkComplianceCredits')}**
+- **${tFunc('developStrategyCredits')}**
+- **${tFunc('createOutlineCredits')}**
 
 ${tFunc('readyToBuildProposal')}
 
