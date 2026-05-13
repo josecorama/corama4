@@ -663,9 +663,23 @@ def search_text_in_pdf_worker(pdf_path, quote, page_hint=None):
 
 
 def download_pdf_from_firebase(storage_path: str) -> str:
-    """Download PDF from Firebase Storage to a temp file, or use local path if prefixed with 'local:'"""
+    """Download PDF from Firebase Storage to a temp file, or fetch via URL/local path."""
     try:
-        # Check if this is a local file path (used when Firebase Storage isn't available)
+        # New: support URL-based storage path so worker can fetch cross-service
+        if storage_path.startswith('url:'):
+            import requests
+            url = storage_path[4:]
+            logger.info(f"Downloading PDF via HTTP: {url}")
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+                tmp_path = tmp_file.name
+            resp = requests.get(url, timeout=60)
+            if resp.status_code != 200:
+                raise FileNotFoundError(f"HTTP fetch failed ({resp.status_code}) for {url}")
+            with open(tmp_path, 'wb') as f:
+                f.write(resp.content)
+            return tmp_path
+
+        # Existing: local path (legacy fallback)
         if storage_path.startswith('local:'):
             local_path = storage_path[6:]  # Remove 'local:' prefix
             if os.path.exists(local_path):
@@ -678,8 +692,8 @@ def download_pdf_from_firebase(storage_path: str) -> str:
                 return tmp_path
             else:
                 raise FileNotFoundError(f"Local PDF file not found: {local_path}")
-        
-        # Download from Firebase Storage
+
+        # Existing: Firebase Storage
         from firebase_admin import storage
         bucket = storage.bucket()
         blob = bucket.blob(storage_path)
@@ -692,7 +706,7 @@ def download_pdf_from_firebase(storage_path: str) -> str:
         logger.info(f"Downloaded PDF from Firebase: {storage_path} -> {tmp_path}")
         return tmp_path
     except Exception as e:
-        logger.error(f"Error downloading PDF from Firebase: {e}")
+        logger.error(f"Error downloading PDF from source {storage_path}: {e}")
         raise
 
 

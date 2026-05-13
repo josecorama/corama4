@@ -13906,15 +13906,23 @@ def create_contract_analysis_job():
             logging.info(f"Uploaded PDF to Firebase Storage: {storage_path}")
         except Exception as upload_error:
             logging.warning(f"Firebase Storage not available, using local fallback: {upload_error}")
-            # Fallback to local storage
+            # Fallback to local storage served via public URL (so worker can fetch from a different service)
             try:
                 local_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"contract_analysis/{user_id}")
                 os.makedirs(local_upload_dir, exist_ok=True)
                 local_pdf_path = os.path.join(local_upload_dir, f"{job_id}.pdf")
                 file.seek(0)  # Reset file pointer
                 file.save(local_pdf_path)
-                storage_path = f"local:{local_pdf_path}"
-                logging.info(f"Saved PDF locally: {local_pdf_path}")
+
+                # Build a public URL that the background worker can download, since it runs on a separate service
+                try:
+                    public_url = url_for('static', filename=f"uploads/contract_analysis/{user_id}/{job_id}.pdf", _external=True)
+                except Exception as url_error:
+                    logging.warning(f"Failed to build absolute URL for local PDF: {url_error}. Falling back to relative path")
+                    public_url = f"/static/uploads/contract_analysis/{user_id}/{job_id}.pdf"
+
+                storage_path = f"url:{public_url}"
+                logging.info(f"Saved PDF locally and exposed via URL: {public_url}")
             except Exception as local_error:
                 logging.error(f"Failed to save PDF locally: {local_error}")
                 return jsonify({'success': False, 'error': 'Failed to upload PDF'}), 500
@@ -13928,6 +13936,10 @@ def create_contract_analysis_job():
             'created_at': time.time(),
             'progress': 'Waiting for worker...'
         }
+
+        # Keep the local path for debugging/fallback (worker prefers URL)
+        if local_pdf_path:
+            job_data['storage_path_local'] = local_pdf_path
         
         try:
             job_ref = admin_database.reference(f'contract_analysis_jobs/{job_id}')
