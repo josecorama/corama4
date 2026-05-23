@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Search } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useTranslation } from '../i18n'
 import SessionTimeout from './SessionTimeout'
@@ -185,14 +185,6 @@ const Header = ({}: HeaderProps) => {
               <span className="font-poppins text-[8px] sm:text-xs">{t('logOut')}</span>
             </button>
             
-            <Link
-              to="/settings"
-              className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
-              aria-label={t('settings')}
-            >
-              <img src="/static/app/dashboard/settings.svg" alt="" className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden="true" />
-              <span className="font-poppins text-[8px] sm:text-xs">{t('settings')}</span>
-            </Link>
           </div>
         </div>
       </div>

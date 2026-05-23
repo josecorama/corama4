@@ -252,7 +252,7 @@ const CoramaDirectory = () => {
               {hasDirectoryProfile ? (
                 <button 
                   onClick={() => navigate('/edit-directory-profile')}
-                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg border-2 border-white transition transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_25px_rgba(0,0,0,0.2)] hover:scale-[1.01]"
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
                 >
                   <div className="text-left">
@@ -264,7 +264,7 @@ const CoramaDirectory = () => {
               ) : (
                 <button 
                   onClick={() => navigate('/edit-directory-profile')}
-                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white"
+                  className="flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg border-2 border-white transition transform duration-200 hover:-translate-y-0.5 hover:shadow-[0_10px_25px_rgba(0,0,0,0.2)] hover:scale-[1.01]"
                   style={{ backgroundColor: 'rgb(28, 66, 98)' }}
                 >
                   <div className="text-left">
