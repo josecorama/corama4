@@ -11868,10 +11868,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     from datetime import date
     
     def is_contract_open(contract_payload, today_str):
-        """Check if a contract is open (not past due date)"""
+        """Check if a contract is open (not past due date)."""
         due_date = contract_payload.get("due_date") or contract_payload.get("Due Date")
         if not due_date or str(due_date).lower() in ('nan', 'none', '', 'null'):
-            return True  # No due date = open
+            return True  # No due date = treat as open to keep data discoverable
         try:
             date_part = str(due_date).split("T")[0]
             return date_part >= today_str  # Future or today = open
@@ -11890,6 +11890,17 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         
         # Get today's date for filtering open vs closed contracts
         today_str = date.today().isoformat()  # Format: "2026-01-26"
+
+        # Build Qdrant filter: source == sam.gov AND due_date >= today (if present)
+        must_filters = [
+            MatchValue(key="source", value="sam.gov"),
+        ]
+
+        # Range filter for due_date >= today
+        must_filters.append(Range(
+            key="due_date",
+            gte=today_str
+        ))
         
         # Get total count
         count_result = client.count(
