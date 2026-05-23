@@ -118,3 +118,35 @@ After deployment, verify these features work:
 **Session:** https://app.devin.ai/sessions/28cd326d08c14841840dd7f5779930ae  
 **Requested by:** Adrian Rodriguez (@Adreliaz37)  
 **Date:** August 16, 2025
+## Ingesta SAM.gov
+
+Script: `sam_ingest.py`
+
+Env requeridos (staging/prod):
+- `SAM_API_KEY`
+- `QDRANT_URL`
+- `QDRANT_API_KEY`
+
+Ejecución (staging primero):
+```
+python sam_ingest.py
+```
+Parámetros ajustables en el código: `max_pages` (default 5), `SAM_PAGE_SIZE` (default 100), `QDRANT_BATCH_SIZE` (default 100). Incluye backoff (MAX_RETRIES=5, INITIAL_BACKOFF=1.5s, factor 2x) ante 429/5xx.
+
+Mapeo a Qdrant (`government_contracts`):
+- point_id: `noticeId`/`id`/`solicitationNumber`
+- title -> `title`, `bid_name`
+- description -> `summary`, `bid_description`
+- detail link -> `detail_link`, `source_url`
+- notice type -> `notice_type`, `category`
+- naics -> `naics_code`
+- agency/office -> `organization`, `office`
+- state -> `state`
+- response/publish dates -> `due_date`, `posted_date`
+- source tag -> `source="sam.gov"`
+
+Notas:
+- Sólo se upserta si hay ID y título.
+- Limpia strings vacíos/nan; fechas se dejan como string.
+- Backoff ante 429/5xx.
+- Qdrant debe estar configurado con `QDRANT_URL`/`QDRANT_API_KEY`.
