@@ -448,8 +448,8 @@ export const translations = {
     // Corama Directory page
     editProfileTitle: 'Edit Profile',
     clickToEditRegistration: 'Click to edit your registration.',
-    joinTheList: 'Join the list',
-    increaseVisibility: 'Increase your visibility and connect with businesses seeking your expertise.',
+    joinTheList: 'Add Your Business',
+    increaseVisibility: 'Register your business to start connecting with key industry players in the directory.',
     employeesLabel: 'Employees',
 
     // No Capability Statement page
@@ -1048,8 +1048,8 @@ export const translations = {
     // Corama Directory page
     editProfileTitle: 'Editar Perfil',
     clickToEditRegistration: 'Haga clic para editar su registro.',
-    joinTheList: 'Unirse a la lista',
-    increaseVisibility: 'Aumente su visibilidad y con\u00e9ctese con empresas que buscan su experiencia.',
+    joinTheList: 'Agrega tu negocio',
+    increaseVisibility: 'Registra tu negocio para empezar a conectar con actores clave de la industria en el directorio.',
     employeesLabel: 'Empleados',
 
     // No Capability Statement page
