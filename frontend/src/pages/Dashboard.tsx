@@ -157,6 +157,15 @@ const Dashboard = () => {
   const startItem = (currentPage - 1) * contractsPerPage + 1
   const endItem = Math.min(currentPage * contractsPerPage, totalContracts)
 
+  const isDueTodayOrFuture = (due?: string | null) => {
+    if (!due) return true
+    const parsed = Date.parse(due)
+    if (Number.isNaN(parsed)) return true
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return new Date(parsed) >= today
+  }
+
   useEffect(() => {
     loadUserData()
   }, [])
@@ -237,7 +246,8 @@ const Dashboard = () => {
       const transformedContracts: Contract[] = data.contracts
         .filter((c: ApiContract) => {
           const cat = (c.category || '').trim().toLowerCase()
-          return cat !== 'unknown' && cat !== ''
+          const isActive = isDueTodayOrFuture(c.due_date)
+          return cat !== 'unknown' && cat !== '' && isActive
         })
         .map((c: ApiContract, index: number) => ({
         id: (currentPage - 1) * contractsPerPage + index + 1,
