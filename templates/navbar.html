@@ -1,11 +1,20 @@
 <!-- Unified Professional Navigation -->
 <nav class="navbar navbar-expand-lg navbar-professional">
   <div class="container-fluid px-4">
-    <!-- Brand Logo -->
-    <a class="navbar-brand" href="/">
-      <img src="{{ url_for('static', filename='images/Logoypo.png') }}" 
-           alt="Contract Radar Maximizer" class="navbar-logo" />
-    </a>
+    <!-- Logo Group (Left Side) -->
+    <div class="logo-group d-flex align-items-center">
+      <a class="navbar-brand" href="/">
+        <img src="{{ url_for('static', filename='app/landing/corama-logo-new.png') }}" 
+             alt="CORAMA" class="navbar-logo" />
+      </a>
+      
+      <div class="logo-divider"></div>
+      
+      <a href="https://ihccbusiness.net/" class="ihcc-link" target="_blank">
+        <img src="{{ url_for('static', filename='app/dashboard/IHCC.svg') }}" 
+             alt="IHCC" class="ihcc-logo" />
+      </a>
+    </div>
     
     <!-- Mobile Toggle -->
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
@@ -21,14 +30,13 @@
           <a class="nav-link {{ 'active' if request.path == '/' else '' }}" href="/">Home</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link {{ 'active' if request.path == '/aboutus' else '' }}" href="/aboutus">About Us</a>
+          <a class="nav-link {{ 'active' if request.path == '/about-us' else '' }}" href="/about-us">About Us</a>
         </li>
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle" href="#" role="button" 
              data-bs-toggle="dropdown" aria-expanded="false">Support</a>
           <ul class="dropdown-menu">
             <li><a class="dropdown-item" href="/faq">FAQ</a></li>
-            <li><a class="dropdown-item" href="/contact">Contact</a></li>
             <li><a class="dropdown-item" href="/terms_of_use">Terms and Conditions</a></li>
             <li><a class="dropdown-item" href="/privacy_notice">Privacy Notice</a></li>
           </ul>
@@ -37,11 +45,6 @@
       
       <!-- Right Side Actions -->
       <div class="navbar-actions d-flex align-items-center gap-3">
-        <a href="https://ihccbusiness.net/" class="ihcc-link" target="_blank">
-          <img src="{{ url_for('static', filename='images/IHCC_logo_Reverse_TM-01.png') }}" 
-               alt="IHCC" class="ihcc-logo" />
-        </a>
-        
         {% if is_logged_in %}
           <a href="/welcome" class="btn btn-primary-custom">Dashboard</a>
           <a href="/logout" class="btn btn-outline-primary-custom">Log Out</a>

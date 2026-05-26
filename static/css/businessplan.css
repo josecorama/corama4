@@ -53,3 +53,48 @@
     .business-plan{
         background-color: #002F49 ;
     }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+    .pricing-table {
+        padding: 20px 0;
+    }
+    
+    .table th,
+    .table td {
+        padding: 10px 8px;
+        font-size: 0.9rem;
+    }
+    
+    .plan-descriptions {
+        padding: 20px 0;
+    }
+    
+    .plan-descriptions h3 {
+        font-size: 1.25rem;
+    }
+    
+    .plan-descriptions p {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .pricing-table {
+        padding: 15px 0;
+    }
+    
+    .table th,
+    .table td {
+        padding: 8px 5px;
+        font-size: 0.8rem;
+    }
+    
+    .plan-descriptions h3 {
+        font-size: 1.1rem;
+    }
+    
+    .plan-descriptions p {
+        font-size: 0.85rem;
+    }
+}
