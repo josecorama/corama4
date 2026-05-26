@@ -47,6 +47,9 @@ services:
         sync: false
       - key: SMART_SEARCH_OPENAI_API_KEY
         sync: false
+      # SAM.gov API
+      - key: SAM_GOV_API_KEY
+        sync: false
       # Qdrant Vector Database
       - key: QDRANT_URL
         sync: false
