@@ -53,6 +53,7 @@ from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
+from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts
 
 # Load environment variables - use override=False to preserve system environment variables
 # (system env vars take precedence over .env file values)
@@ -170,6 +171,66 @@ def admin_clear_caches():
             "QDRANT_CONTRACTS_CACHE"
         ]
     }), 200
+
+
+# ============================================================================
+# SAM.GOV SYNC ENDPOINTS
+# ============================================================================
+
+@app.route('/api/sam-sync', methods=['POST'])
+def trigger_sam_sync():
+    """Trigger a SAM.gov -> Qdrant sync.
+
+    Fetches active opportunities from SAM.gov and upserts new ones into
+    the government_contracts Qdrant collection.  Also removes contracts
+    whose due date has passed.
+
+    Body (optional JSON):
+        limit (int): max opportunities to fetch (default 1000)
+        posted_from (str): MM/DD/YYYY start date
+        posted_to (str): MM/DD/YYYY end date
+    """
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+
+    if expected_key and admin_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    limit = data.get('limit', 1000)
+    posted_from = data.get('posted_from')
+    posted_to = data.get('posted_to')
+
+    sync_stats = sync_sam_gov_to_qdrant(
+        limit=limit,
+        posted_from=posted_from,
+        posted_to=posted_to,
+    )
+
+    cleanup_stats = remove_expired_contracts()
+
+    return jsonify({
+        "success": True,
+        "sync": sync_stats,
+        "cleanup": cleanup_stats,
+    })
+
+
+@app.route('/api/sam-sync/cleanup', methods=['POST'])
+def trigger_expired_cleanup():
+    """Remove contracts with past due dates from Qdrant."""
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+
+    if expected_key and admin_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    stats = remove_expired_contracts()
+    return jsonify({"success": True, "cleanup": stats})
 
 
 # ============================================================================
@@ -6650,7 +6711,7 @@ def backfill_naics_api():
                         break
             
             # Compute hash_value for this contract
-            detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url", "#")
+            detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url") or payload.get("detail_url", "#")
             bid_number = payload.get("bid_number") or payload.get("Bid Number") or payload.get("contract_number", "N/A")
             hash_input = f"{detail_link}{bid_number}"
             hash_value = hashlib.sha256(hash_input.encode('utf-8')).hexdigest()
@@ -11332,9 +11393,9 @@ def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
         
         # Core contract fields - check new field names first, then old ones
         "Bid_Name": get_first_truthy(payload.get("bid_name"), payload.get("title"), "Unknown Bid"),
-        "Detail_Link": get_first_truthy(payload.get("detail_link"), payload.get("source_url"), "#"),
+        "Detail_Link": get_first_truthy(payload.get("detail_link"), payload.get("source_url"), payload.get("detail_url"), "#"),
         "Bid_Number": get_first_truthy(payload.get("bid_number"), payload.get("contract_number"), "N/A"),
-        "Bid_Description": get_first_truthy(payload.get("bid_description"), payload.get("summary"), "No description available"),
+        "Bid_Description": get_first_truthy(payload.get("bid_description"), payload.get("summary"), payload.get("description"), "No description available"),
         "Organization": get_first_truthy(payload.get("organization"), payload.get("agency"), "Classified"),
         "Due_Date": get_first_truthy(payload.get("due_date"), "No due date"),
         "Category": get_first_truthy(payload.get("category"), payload.get("notice_type"), "Classified"),
@@ -11376,7 +11437,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     # Format 1 (snake_case): detail_link, bid_number
     # Format 2 (old format): source_url, contract_number
     # Format 3 (Title Case with spaces): Detail Link, Bid Number
-    detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url", "#")
+    detail_link = payload.get("detail_link") or payload.get("Detail Link") or payload.get("source_url") or payload.get("detail_url", "#")
     bid_number = payload.get("bid_number") or payload.get("Bid Number") or payload.get("contract_number", "N/A")
     
     # Generate hash_value for backward compatibility (same as find_matches_with_query)
@@ -11440,10 +11501,15 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     is_past_due = False
     if raw_due_date:
         try:
-            # Parse date, stripping time/offset if present (e.g., "2025-12-05T14:00:00-05:00" -> "2025-12-05")
-            date_part = raw_due_date.split("T")[0]
-            parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+            date_part = str(raw_due_date).split("T")[0]
+            # Try YYYY-MM-DD first, then DD/MM/YYYY
+            try:
+                parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+            except ValueError:
+                parsed_date = datetime.strptime(date_part, "%d/%m/%Y").date()
             is_past_due = parsed_date < date.today()
+            # Normalise due_date to YYYY-MM-DD for consistent frontend display
+            due_date = parsed_date.strftime("%Y-%m-%d")
         except Exception:
             is_past_due = False
     
@@ -11472,7 +11538,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         payload.get("bid_name"), payload.get("Bid Name"), payload.get("title"), "Unknown Bid"
     )
     bid_description_value = get_first_truthy(
-        payload.get("bid_description"), payload.get("Bid Description"), payload.get("summary"), "No description available"
+        payload.get("bid_description"), payload.get("Bid Description"), payload.get("summary"), payload.get("description"), "No description available"
     )
     organization_value = get_first_truthy(
         payload.get("organization"), payload.get("Organization"), payload.get("agency"), "Unknown"
@@ -11791,7 +11857,24 @@ def _refresh_dashboard_contracts_cache():
         if points:
             # Process contracts - immediately project to minimal dashboard dict
             # This discards large payload fields (ocr_text, etc.) and keeps memory low
+            from datetime import date as _date_type
+            today_iso = _date_type.today().isoformat()
             for point in points:
+                # Skip contracts whose due date has passed
+                raw_dd = point.payload.get("due_date") or point.payload.get("Due Date")
+                if raw_dd and str(raw_dd).lower() not in ('nan', 'none', '', 'null'):
+                    dd_str = str(raw_dd).split("T")[0]
+                    try:
+                        if "/" in dd_str:
+                            from datetime import datetime as _dt
+                            parsed = _dt.strptime(dd_str, "%d/%m/%Y").date()
+                            if parsed < _date_type.today():
+                                continue
+                        elif dd_str < today_iso:
+                            continue
+                    except Exception:
+                        pass
+
                 contract = qdrant_payload_to_dashboard_contract(
                     point.payload,
                     point_id=point.id,
@@ -11868,13 +11951,25 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
     from datetime import date
     
     def is_contract_open(contract_payload, today_str):
-        """Check if a contract is open (not past due date)"""
+        """Check if a contract is open (due date not passed).
+
+        Handles both YYYY-MM-DD and DD/MM/YYYY date formats stored in Qdrant.
+        Returns True when there is no parseable due date (keep it visible).
+        """
         due_date = contract_payload.get("due_date") or contract_payload.get("Due Date")
         if not due_date or str(due_date).lower() in ('nan', 'none', '', 'null'):
-            return True  # No due date = open
+            return True  # No due date = assume open
+        raw = str(due_date).split("T")[0]
         try:
-            date_part = str(due_date).split("T")[0]
-            return date_part >= today_str  # Future or today = open
+            # Try YYYY-MM-DD first
+            return raw >= today_str
+        except Exception:
+            pass
+        try:
+            # Try DD/MM/YYYY
+            from datetime import datetime as _dt
+            parsed = _dt.strptime(raw, "%d/%m/%Y").date()
+            return parsed >= date.today()
         except Exception:
             return True  # If we can't parse, assume open
     
@@ -11943,25 +12038,20 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                     # Skip hidden contracts
                     if str(point.id) in hidden_ids:
                         continue
+
+                    # Only show contracts whose due date has NOT passed
+                    if not is_contract_open(point.payload, today_str):
+                        continue
                     
                     contract = qdrant_payload_to_dashboard_contract(
                         point.payload,
                         point_id=point.id,
                         score=None
                     )
-                    # Add is_open flag for sorting
-                    contract['_is_open'] = is_contract_open(point.payload, today_str)
                     all_contracts.append(contract)
                 
                 if current_offset is None:
                     break
-            
-            # Sort contracts: Open first, then Closed
-            all_contracts.sort(key=lambda c: (0 if c.get('_is_open', True) else 1))
-            
-            # Remove the temporary _is_open flag
-            for contract in all_contracts:
-                contract.pop('_is_open', None)
             
             # Extract the page we need
             start_idx = target_offset
@@ -12014,6 +12104,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
             
             for point in points:
                 if str(point.id) in hidden_ids:
+                    continue
+
+                # Only show contracts whose due date has NOT passed
+                if not is_contract_open(point.payload, today_str):
                     continue
                 
                 contract = qdrant_payload_to_dashboard_contract(

@@ -258,14 +258,19 @@ const Dashboard = () => {
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
       
-      // Show static Top Contract Categories (stored snapshot)
-      setTopCategories([
-        { name: 'Commodities, Equipment & Logistics', count: 6704, percentage: 59.4 },
-        { name: 'Infrastructure & Construction', count: 2152, percentage: 19.1 },
-        { name: 'Professional & Technical Services', count: 1036, percentage: 9.2 },
-        { name: 'IT & Telecommunications', count: 869, percentage: 7.7 },
-        { name: 'Medical & Human Services', count: 527, percentage: 4.7 },
-      ])
+      // Use dynamic top categories returned by the API when available
+      if (data.top_categories && data.top_categories.length > 0) {
+        setTopCategories(data.top_categories)
+      } else {
+        // Fallback static snapshot only when the API doesn't return categories
+        setTopCategories([
+          { name: 'Commodities, Equipment & Logistics', count: 6704, percentage: 59.4 },
+          { name: 'Infrastructure & Construction', count: 2152, percentage: 19.1 },
+          { name: 'Professional & Technical Services', count: 1036, percentage: 9.2 },
+          { name: 'IT & Telecommunications', count: 869, percentage: 7.7 },
+          { name: 'Medical & Human Services', count: 527, percentage: 4.7 },
+        ])
+      }
     } catch (error) {
       console.error('Failed to load contracts:', error)
     } finally {
