@@ -280,7 +280,7 @@ def remove_expired_contracts() -> Dict[str, Any]:
             collection_name=COLLECTION_NAME,
             limit=200,
             offset=offset,
-            with_payload=["due_date", "Due Date"],
+            with_payload=True,
             with_vectors=False,
         )
         if not points:
