@@ -332,6 +332,68 @@ def remove_expired_contracts() -> Dict[str, Any]:
     return stats
 
 
+def remove_no_due_date_contracts() -> Dict[str, Any]:
+    """
+    Remove contracts that have no usable due date from Qdrant.
+
+    This ensures every contract on the dashboard has a due date so users can
+    see when each opportunity expires.
+
+    Returns stats: checked, removed, errors
+    """
+    stats = {"checked": 0, "removed": 0, "errors": 0}
+
+    client = _get_qdrant_client()
+    if not client:
+        return stats
+
+    ids_to_delete = []
+    offset = None
+
+    while True:
+        points, offset = client.scroll(
+            collection_name=COLLECTION_NAME,
+            limit=200,
+            offset=offset,
+            with_payload=True,
+            with_vectors=False,
+        )
+        if not points:
+            break
+
+        for p in points:
+            stats["checked"] += 1
+            raw = p.payload.get("due_date") or p.payload.get("Due Date")
+            if not raw or str(raw).lower() in ("nan", "none", "", "null"):
+                ids_to_delete.append(p.id)
+
+        if offset is None:
+            break
+
+    if ids_to_delete:
+        log.info("[SAM Sync] Found %d contracts with no due date to remove", len(ids_to_delete))
+        batch_size = 100
+        for i in range(0, len(ids_to_delete), batch_size):
+            batch = ids_to_delete[i : i + batch_size]
+            try:
+                client.delete(
+                    collection_name=COLLECTION_NAME,
+                    points_selector=batch,
+                )
+                stats["removed"] += len(batch)
+            except Exception as e:
+                log.error("[SAM Sync] Delete no-due-date batch error: %s", e)
+                stats["errors"] += len(batch)
+
+        _remove_from_dashboard(client, ids_to_delete)
+
+    log.info(
+        "[SAM Sync] No-due-date cleanup: checked=%d removed=%d errors=%d",
+        stats["checked"], stats["removed"], stats["errors"],
+    )
+    return stats
+
+
 def _remove_from_dashboard(client: QdrantClient, point_ids: list) -> None:
     """Remove expired contracts from the dashboard collection too."""
     try:

@@ -11499,19 +11499,33 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     # Check if due date has passed (contract is closed)
     from datetime import date, datetime
     is_past_due = False
+    parsed_due_date = None
     if raw_due_date:
         try:
             date_part = str(raw_due_date).split("T")[0]
             # Try YYYY-MM-DD first, then DD/MM/YYYY
             try:
-                parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+                parsed_due_date = datetime.strptime(date_part, "%Y-%m-%d").date()
             except ValueError:
-                parsed_date = datetime.strptime(date_part, "%d/%m/%Y").date()
-            is_past_due = parsed_date < date.today()
+                parsed_due_date = datetime.strptime(date_part, "%d/%m/%Y").date()
+            is_past_due = parsed_due_date < date.today()
             # Normalise due_date to YYYY-MM-DD for consistent frontend display
-            due_date = parsed_date.strftime("%Y-%m-%d")
+            due_date = parsed_due_date.strftime("%Y-%m-%d")
         except Exception:
             is_past_due = False
+    
+    # Posted date — normalise to YYYY-MM-DD for sorting
+    raw_posted_date = payload.get("posted_date") or payload.get("Posted Date")
+    posted_date_iso = None
+    if raw_posted_date and str(raw_posted_date).lower() not in ('nan', 'none', '', 'null'):
+        try:
+            pd_part = str(raw_posted_date).split("T")[0]
+            try:
+                posted_date_iso = datetime.strptime(pd_part, "%Y-%m-%d").date().isoformat()
+            except ValueError:
+                posted_date_iso = datetime.strptime(pd_part, "%d/%m/%Y").date().isoformat()
+        except Exception:
+            posted_date_iso = None
     
     # Status: "closed" if past due, "open" if no due date, "active" otherwise
     if is_past_due:
@@ -11613,6 +11627,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         # Optional fields
         "industry": payload.get("industry", ""),
         "department": payload.get("department", ""),
+        "posted_date": posted_date_iso,
         
         # Search metadata
         "Similarity_Score": score if score is not None else None,  # Keep numeric for filtering
@@ -11954,11 +11969,12 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         """Check if a contract is open (due date not passed).
 
         Handles both YYYY-MM-DD and DD/MM/YYYY date formats stored in Qdrant.
-        Returns True when there is no parseable due date (keep it visible).
+        Returns False when there is no parseable due date — contracts without
+        a due date are excluded from the dashboard.
         """
         due_date = contract_payload.get("due_date") or contract_payload.get("Due Date")
         if not due_date or str(due_date).lower() in ('nan', 'none', '', 'null'):
-            return True  # No due date = assume open
+            return False  # No due date = hide from dashboard
         raw = str(due_date).split("T")[0]
         try:
             # Try YYYY-MM-DD first
@@ -11971,7 +11987,7 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
             parsed = _dt.strptime(raw, "%d/%m/%Y").date()
             return parsed >= date.today()
         except Exception:
-            return True  # If we can't parse, assume open
+            return False  # If we can't parse, hide from dashboard
     
     try:
         qdrant_url = os.getenv('QDRANT_URL')
@@ -12053,12 +12069,25 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                 if current_offset is None:
                     break
             
+            # Sort by most recently posted first, oldest last.
+            # Contracts with a posted_date are sorted descending; those without
+            # are placed at the end, then sub-sorted by due_date descending.
+            def _sort_key(c):
+                pd = c.get("posted_date") or ""
+                dd = c.get("due_date") or ""
+                # Normalise "No due date" to empty for comparison
+                if dd == "No due date":
+                    dd = ""
+                return (0 if pd else 1, pd, dd)
+
+            all_contracts.sort(key=_sort_key, reverse=True)
+            
             # Extract the page we need
             start_idx = target_offset
             end_idx = start_idx + items_per_page
             contracts = all_contracts[start_idx:end_idx]
             
-            logging.info(f"[Server-Side Pagination] Page {page}: sorted {len(all_contracts)} contracts, returning {len(contracts)} (open first)")
+            logging.info(f"[Server-Side Pagination] Page {page}: sorted {len(all_contracts)} contracts, returning {len(contracts)} (most recent first)")
         
         else:
             # For pages beyond MAX_SORTED_PAGES: Use simple offset-based pagination

@@ -106,7 +106,9 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
         naics_codes = [str(opp["naicsCode"])]
 
     posted_date = _parse_sam_date(opp.get("postedDate"))
-    due_date = _parse_sam_date(opp.get("responseDeadLine"))
+    # Prefer responseDeadLine; fall back to archiveDate so every contract
+    # gets a usable due date for dashboard display and expiry filtering.
+    due_date = _parse_sam_date(opp.get("responseDeadLine")) or _parse_sam_date(opp.get("archiveDate"))
 
     detail_url = opp.get("uiLink") or ""
     sol_number = opp.get("solicitationNumber") or ""
@@ -281,15 +283,19 @@ def fetch_opportunities(
         for opp in opportunities:
             payload = map_opportunity_to_payload(opp)
 
-            # Server-side filter: only keep opportunities with a future due date
-            if only_active and payload.get("due_date"):
+            # Server-side filter: require a due date and ensure it is in the future
+            if only_active:
+                if not payload.get("due_date"):
+                    skipped_expired += 1
+                    continue
                 try:
                     dd = datetime.strptime(payload["due_date"], "%d/%m/%Y").date()
                     if dd < today:
                         skipped_expired += 1
                         continue
                 except Exception:
-                    pass
+                    skipped_expired += 1
+                    continue
 
             all_payloads.append(payload)
             if len(all_payloads) >= limit:
