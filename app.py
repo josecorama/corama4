@@ -10819,7 +10819,16 @@ def extract_company_identity(user_uploads_dir):
 
 @app.route('/contract_analysis', methods=['POST'])
 def analyze_contract_endpoint():
-    """Dedicated endpoint for contract analysis"""
+    """Dedicated endpoint for contract analysis.
+
+    Runs the six AI calls in two parallel phases to stay well within
+    the Gunicorn 120 s timeout:
+      Phase 1 (independent):  contract_requirements, opportunity_score,
+                               competitive_analysis
+      Phase 2 (depends on contract_requirements):  win_probability,
+                               compliance_checklist, proposal_outline
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     try:
         hash_value = request.form.get('hash_value')
         if not hash_value:
@@ -10831,23 +10840,49 @@ def analyze_contract_endpoint():
         
         contract_content = process_selected_contract(user_uploads_dir, hash_value)
         capability_statement = process_files_user_input(user_uploads_dir)
-        
-        contract_requirements = enhanced_ai.analyze_contract_requirements(contract_content)
-        win_probability = enhanced_ai.calculate_win_probability(capability_statement, contract_requirements)
-        compliance_checklist = enhanced_ai.generate_compliance_checklist(contract_requirements)
-        proposal_outline = enhanced_ai.generate_proposal_outline(contract_requirements, capability_statement)
-        
         company_profile = {"capabilities": capability_statement}
-        opportunity_score = opportunity_scorer.score_opportunity({"content": contract_content}, company_profile)
-        competitive_analysis = competitive_intel.analyze_competition({"content": contract_content}, "GENERAL")
-        
+
+        results = {}
+
+        # Phase 1 — three independent calls in parallel
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {
+                pool.submit(enhanced_ai.analyze_contract_requirements, contract_content): "contract_requirements",
+                pool.submit(opportunity_scorer.score_opportunity, {"content": contract_content}, company_profile): "opportunity_score",
+                pool.submit(competitive_intel.analyze_competition, {"content": contract_content}, "GENERAL"): "competitive_analysis",
+            }
+            for future in as_completed(futures, timeout=60):
+                key = futures[future]
+                try:
+                    results[key] = future.result()
+                except Exception as exc:
+                    app.logger.warning("Phase-1 AI call '%s' failed: %s", key, exc)
+                    results[key] = {"error": str(exc)}
+
+        contract_requirements = results.get("contract_requirements", {})
+
+        # Phase 2 — three dependent calls in parallel
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {
+                pool.submit(enhanced_ai.calculate_win_probability, capability_statement, contract_requirements): "win_probability",
+                pool.submit(enhanced_ai.generate_compliance_checklist, contract_requirements): "compliance_checklist",
+                pool.submit(enhanced_ai.generate_proposal_outline, contract_requirements, capability_statement): "proposal_outline",
+            }
+            for future in as_completed(futures, timeout=60):
+                key = futures[future]
+                try:
+                    results[key] = future.result()
+                except Exception as exc:
+                    app.logger.warning("Phase-2 AI call '%s' failed: %s", key, exc)
+                    results[key] = {"error": str(exc)}
+
         return jsonify({
-            "contract_requirements": contract_requirements,
-            "win_probability": win_probability,
-            "compliance_checklist": compliance_checklist,
-            "proposal_outline": proposal_outline,
-            "opportunity_score": opportunity_score,
-            "competitive_analysis": competitive_analysis
+            "contract_requirements": results.get("contract_requirements", {}),
+            "win_probability": results.get("win_probability", {}),
+            "compliance_checklist": results.get("compliance_checklist", {}),
+            "proposal_outline": results.get("proposal_outline", {}),
+            "opportunity_score": results.get("opportunity_score", {}),
+            "competitive_analysis": results.get("competitive_analysis", {}),
         })
         
     except Exception as e:
@@ -13471,57 +13506,78 @@ def analyze_contract():
         os.makedirs(contracts_dir, exist_ok=True)
         pdf_path = os.path.join(contracts_dir, f'{contract_hash}.pdf')
         
-        if not os.path.exists(pdf_path):
-            # Try to download from Firebase Storage using Pyrebase (same as upload)
-            try:
-                if not storage:
-                    logging.error("[analyze_contract] Firebase Storage not initialized")
-                    return jsonify({'success': False, 'error': 'Storage service not available.'}), 500
-                
-                storage_path = f"contracts/{contract_hash}.pdf"
-                
-                # Get the download URL from Pyrebase
-                try:
-                    download_url = storage.child(storage_path).get_url(None)
-                    logging.info(f"[analyze_contract] Firebase download URL: {download_url}")
-                except Exception as url_error:
-                    logging.warning(f"[analyze_contract] PDF not found in Firebase: {storage_path} - {url_error}")
-                    return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
-                
-                # Download the file using requests
-                import requests
-                response = requests.get(download_url, timeout=30)
-                if response.status_code != 200:
-                    logging.warning(f"[analyze_contract] Failed to download PDF: HTTP {response.status_code}")
-                    return jsonify({'success': False, 'error': 'PDF not found. Please upload the contract PDF first.'}), 404
-                
-                # Save to local file
-                with open(pdf_path, 'wb') as f:
-                    f.write(response.content)
-                logging.info(f"[analyze_contract] Downloaded PDF from Firebase to {pdf_path}")
-                
-            except Exception as e:
-                logging.error(f"[analyze_contract] Failed to download PDF from Firebase: {e}", exc_info=True)
-                return jsonify({'success': False, 'error': 'Failed to retrieve PDF from storage.'}), 500
-        
-        # Extract text from PDF using PyMuPDF
-        import fitz
+        # ---- Try to get PDF text, or fall back to Qdrant metadata ----
         pdf_text = ""
         page_texts = []
-        
-        try:
-            doc = fitz.open(pdf_path)
-            for page_num, page in enumerate(doc, 1):
-                page_text = page.get_text()
-                page_texts.append({'page': page_num, 'text': page_text})
-                pdf_text += f"\n--- Page {page_num} ---\n{page_text}"
-            doc.close()
-        except Exception as e:
-            logging.error(f"Error extracting PDF text: {e}")
-            return jsonify({'success': False, 'error': f'Failed to read PDF: {str(e)}'}), 500
-        
+        used_qdrant_fallback = False
+
+        if os.path.exists(pdf_path):
+            import fitz
+            try:
+                doc = fitz.open(pdf_path)
+                for page_num, page in enumerate(doc, 1):
+                    page_text = page.get_text()
+                    page_texts.append({'page': page_num, 'text': page_text})
+                    pdf_text += f"\n--- Page {page_num} ---\n{page_text}"
+                doc.close()
+            except Exception as e:
+                logging.error(f"Error extracting PDF text: {e}")
+
         if not pdf_text.strip():
-            return jsonify({'success': False, 'error': 'PDF appears to be empty or contains only images'}), 400
+            # Try to download from Firebase Storage
+            try:
+                if storage:
+                    storage_path = f"contracts/{contract_hash}.pdf"
+                    try:
+                        download_url = storage.child(storage_path).get_url(None)
+                        import requests as _req
+                        resp = _req.get(download_url, timeout=30)
+                        if resp.status_code == 200:
+                            with open(pdf_path, 'wb') as f:
+                                f.write(resp.content)
+                            import fitz
+                            doc = fitz.open(pdf_path)
+                            for page_num, page in enumerate(doc, 1):
+                                page_text = page.get_text()
+                                page_texts.append({'page': page_num, 'text': page_text})
+                                pdf_text += f"\n--- Page {page_num} ---\n{page_text}"
+                            doc.close()
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+        if not pdf_text.strip():
+            # No PDF available — build analysis text from Qdrant metadata
+            # (common for SAM.gov contracts that come from API, not file upload)
+            logging.info("[analyze_contract] No PDF found, falling back to Qdrant metadata")
+            qdrant_payload = get_contract_payload_from_qdrant_by_name(contract_name) if contract_name else None
+
+            meta_parts = []
+            if contract_name:
+                meta_parts.append(f"Contract Title: {contract_name}")
+            if organization:
+                meta_parts.append(f"Issuing Agency: {organization}")
+            if naics_code:
+                meta_parts.append(f"NAICS Code(s): {naics_code}")
+            if contract_description:
+                meta_parts.append(f"Description: {contract_description}")
+            if qdrant_payload:
+                for field in ("sam_notice_type", "sam_set_aside", "sam_classification_code",
+                              "state", "location", "due_date", "posted_date", "detail_url"):
+                    val = qdrant_payload.get(field)
+                    if val:
+                        meta_parts.append(f"{field.replace('_', ' ').title()}: {val}")
+                extra_desc = qdrant_payload.get("description") or qdrant_payload.get("summary")
+                if extra_desc and extra_desc != contract_description:
+                    meta_parts.append(f"Full Description: {extra_desc}")
+
+            if not meta_parts:
+                return jsonify({'success': False, 'error': 'No PDF or contract metadata available for analysis.'}), 404
+
+            pdf_text = "\n".join(meta_parts)
+            page_texts = [{'page': 1, 'text': pdf_text}]
+            used_qdrant_fallback = True
         
         max_chars = 50000
         if len(pdf_text) > max_chars:
@@ -13529,7 +13585,11 @@ def analyze_contract():
         
         # Generate AI annotations using OpenAI
         try:
-            api_key = os.getenv('OPENAI_API_KEY')
+            api_key = (
+                os.getenv('OPENAI_MARIO')
+                or os.getenv('OPENAI_API_KEY')
+                or os.getenv('BID_RESPONSE_OPENAI_API_KEY')
+            )
             if not api_key:
                 return jsonify({'success': False, 'error': 'OpenAI API key not configured'}), 500
             client = OpenAI(api_key=api_key, timeout=60.0)
@@ -13545,12 +13605,13 @@ def analyze_contract():
             if contract_description:
                 contract_context += f"Contract Description: {contract_description}\n"
             
+            doc_label = "CONTRACT METADATA (from SAM.gov listing)" if used_qdrant_fallback else "UPLOADED CONTRACT DOCUMENT"
             prompt = f"""You are an expert contract analyst helping a business understand THIS SPECIFIC government contract opportunity. Your analysis must be directly relevant to this contract, not generic advice.
 
 CONTRACT INFORMATION:
 {contract_context if contract_context else "No metadata available - analyze based on document content only."}
 
-UPLOADED CONTRACT DOCUMENT:
+{doc_label}:
 {pdf_text}
 
 Analyze this specific contract and provide strategic annotations in these categories:
