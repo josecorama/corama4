@@ -142,6 +142,9 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
         "sam_set_aside": opp.get("typeOfSetAsideDescription"),
         "sam_classification_code": opp.get("classificationCode"),
         "sam_archive_date": opp.get("archiveDate"),
+        "sam_description_url": opp.get("description") or "",
+        "sam_resource_links": opp.get("resourceLinks") or [],
+        "sam_additional_info_link": opp.get("additionalInfoLink") or "",
     }
 
 

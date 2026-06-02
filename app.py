@@ -8457,6 +8457,47 @@ def sanitize_conversation_message(content: str) -> str:
         cleaned = cleaned[:1000] + "..."
     return cleaned.strip()
 
+
+def fetch_sam_gov_contract_description(notice_id: str) -> str:
+    """Fetch the full HTML description of a SAM.gov contract by notice ID.
+
+    The SAM.gov search API returns a description *URL*; this function
+    fetches that URL to retrieve the full HTML text, strips tags, and
+    returns clean text suitable for AI context.
+
+    Returns empty string on any failure (timeout, missing key, etc.).
+    """
+    import re as _re
+    sam_api_key = os.environ.get('SAM_GOV_API_KEY', '')
+    if not sam_api_key or not notice_id:
+        return ""
+
+    desc_url = f"https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid={notice_id}"
+    try:
+        resp = requests.get(desc_url, params={"api_key": sam_api_key}, timeout=15)
+        if resp.status_code != 200:
+            logging.warning(f"[SAM.gov desc] HTTP {resp.status_code} for notice {notice_id}")
+            return ""
+        data = resp.json()
+        html_desc = data.get("description", "")
+        if not html_desc:
+            return ""
+        # Strip HTML tags to get plain text
+        text = _re.sub(r'<[^>]+>', ' ', html_desc)
+        text = _re.sub(r'&nbsp;', ' ', text)
+        text = _re.sub(r'&amp;', '&', text)
+        text = _re.sub(r'&lt;', '<', text)
+        text = _re.sub(r'&gt;', '>', text)
+        text = _re.sub(r'\s+', ' ', text).strip()
+        # Limit to 6000 chars to keep token budget manageable
+        if len(text) > 6000:
+            text = text[:6000] + "..."
+        return text
+    except Exception as e:
+        logging.warning(f"[SAM.gov desc] Failed to fetch description for {notice_id}: {e}")
+        return ""
+
+
 def build_ai_assistant_messages(action: str, contract_name: str, conversation_history: list = None, contract_data: dict = None) -> list:
     """Build OpenAI messages for AI Assistant actions.
     
@@ -8474,7 +8515,6 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
     if contract_data:
         fields = [
             f"Title: {contract_data.get('title') or contract_data.get('bid_name') or contract_name}",
-            f"Description: {contract_data.get('description') or 'N/A'}",
             f"Agency: {contract_data.get('agency') or contract_data.get('agency_top') or 'N/A'}",
             f"Top-Level Agency: {contract_data.get('agency_top') or 'N/A'}",
             f"Contract Number: {contract_data.get('contract_number') or 'N/A'}",
@@ -8492,6 +8532,8 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
             f"Government Level: {contract_data.get('government_level') or 'N/A'}",
             f"Opportunity Type: {contract_data.get('opportunity_type') or 'N/A'}",
             f"Opportunity Status: {contract_data.get('opportunity_status') or 'N/A'}",
+            f"Set-Aside: {contract_data.get('sam_set_aside') or 'N/A'}",
+            f"Classification Code: {contract_data.get('sam_classification_code') or 'N/A'}",
             f"CFDA/ALN: {contract_data.get('cfda_aln') or 'N/A'}",
         ]
         doc_urls = contract_data.get('document_urls')
@@ -8502,10 +8544,25 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
                 fields.append(f"Document URLs: {doc_urls}")
         else:
             fields.append("Document URLs: None available")
-        
+
+        # Fetch full contract description from SAM.gov API if available
+        sam_notice_id = contract_data.get('sam_notice_id', '')
+        full_description = ""
+        if sam_notice_id:
+            full_description = fetch_sam_gov_contract_description(sam_notice_id)
+            logging.info(f"[AI_ASSISTANT] Fetched SAM.gov description for {sam_notice_id}: {len(full_description)} chars")
+
+        if full_description:
+            fields.append(f"\n--- Full Contract Description (from SAM.gov) ---\n{full_description}")
+        else:
+            # Fall back to stored description snippet
+            stored_desc = contract_data.get('description') or ''
+            fields.append(f"Description: {stored_desc or 'N/A'}")
+
         context_msg = (
             f"The user is asking about the following government contract. "
-            f"Use ALL of the data below to provide detailed, accurate answers:\n\n"
+            f"Use ALL of the data below to provide detailed, accurate answers. "
+            f"Base your analysis on the official SAM.gov contract information provided:\n\n"
             + "\n".join(fields)
         )
     else:
@@ -8667,13 +8724,15 @@ def ai_assistant_action():
         try:
             messages = build_ai_assistant_messages(action, contract_name, conversation_history, contract_data)
             
-            # Use the existing OpenAI client with fine-tuned ContractExpert model
-            # Higher temperature (0.5) for more natural, human-like responses
-            completion = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            # Use a timeout-aware client to prevent Gunicorn worker kill (120s)
+            from openai import OpenAI as _OpenAI
+            _ai_client = _OpenAI(api_key=smart_search_api_key, timeout=60.0)
+            
+            completion = _ai_client.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
                 temperature=0.5,
-                max_tokens=800,
+                max_tokens=1500,
                 top_p=0.9,
             )
             
