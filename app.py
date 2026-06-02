@@ -13965,6 +13965,202 @@ def create_annotated_pdf(pdf_path, findings_with_coords, output_path):
 # CONTRACT ANALYSIS ASYNC JOB ENDPOINTS
 # ============================================================================
 
+
+def _inline_process_contract_analysis(job_id, job_data, local_pdf_path):
+    """Process a contract analysis job inline (runs in a daemon thread).
+
+    Mirrors the logic in proposal_worker.py so that analysis completes
+    even when the background worker service is not running.
+    """
+    import json as _json
+    import tempfile
+
+    job_ref = admin_database.reference(f'contract_analysis_jobs/{job_id}')
+
+    try:
+        job_ref.update({'status': 'running', 'started_at': time.time(),
+                        'progress': 'Extracting text from PDF...'})
+
+        contract_name = job_data.get('contract_name', 'Contract')
+        storage_path = job_data.get('storage_path', '')
+
+        # --- Obtain PDF bytes ------------------------------------------------
+        pdf_path = None
+        tmp_created = False
+        if local_pdf_path and os.path.exists(local_pdf_path):
+            pdf_path = local_pdf_path
+        elif storage_path and not storage_path.startswith('local:'):
+            # Download from Firebase Storage
+            try:
+                from firebase_admin import storage as fb_storage
+                bucket = fb_storage.bucket()
+                blob = bucket.blob(storage_path)
+                fd, pdf_path = tempfile.mkstemp(suffix='.pdf')
+                os.close(fd)
+                blob.download_to_filename(pdf_path)
+                tmp_created = True
+                logging.info(f"[inline] Downloaded PDF from Firebase: {storage_path}")
+            except Exception as dl_err:
+                raise RuntimeError(f"Cannot download PDF: {dl_err}")
+        elif storage_path.startswith('local:'):
+            real_path = storage_path[len('local:'):]
+            if os.path.exists(real_path):
+                pdf_path = real_path
+
+        if not pdf_path or not os.path.exists(pdf_path):
+            raise FileNotFoundError("PDF not found for analysis")
+
+        try:
+            # --- Extract text -------------------------------------------------
+            import fitz
+            doc = fitz.open(pdf_path)
+            pages_text = []
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                pages_text.append({'page': page_num, 'text': page.get_text()})
+            doc.close()
+
+            if not pages_text:
+                raise ValueError("Could not extract text from PDF")
+
+            total_pages = len(pages_text)
+            max_total_chars = 80000
+            chars_per_page = max_total_chars // total_pages if total_pages > 0 else max_total_chars
+
+            combined_text = ""
+            for pi in pages_text:
+                pt = pi['text']
+                if len(pt) > chars_per_page:
+                    pt = pt[:chars_per_page] + "... [page truncated]"
+                combined_text += f"\n\n--- PAGE {pi['page'] + 1} ---\n\n{pt}"
+
+            logging.info(f"[inline] {total_pages} pages, {len(combined_text)} chars")
+
+            # --- Call OpenAI --------------------------------------------------
+            job_ref.update({'progress': 'Analyzing contract with AI...'})
+
+            api_key = (
+                os.getenv('OPENAI_MARIO')
+                or os.getenv('OPENAI_API_KEY')
+                or os.getenv('BID_RESPONSE_OPENAI_API_KEY')
+            )
+            if not api_key:
+                raise RuntimeError("No OpenAI API key configured")
+
+            oai = OpenAI(api_key=api_key, timeout=90.0)
+
+            structured_prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights.
+
+CONTRACT NAME: {contract_name}
+
+CONTRACT DOCUMENT TEXT (with page markers):
+{combined_text}
+
+You must respond with a JSON object containing two parts:
+
+1. "markdown_summary": A comprehensive markdown-formatted analysis with these sections:
+   - **Contract Overview**: What this contract is about, issuing agency, scope of work
+   - **Key Requirements**: Main deliverables, qualifications, requirements
+   - **Important Deadlines**: Proposal due dates, performance periods, milestones
+   - **Compliance Requirements**: Certifications, registrations, SAM, NAICS codes, set-asides
+   - **Evaluation Criteria**: How proposals will be evaluated
+   - **Strategic Recommendations**: 3-5 actionable recommendations
+   - **Risk Assessment**: Potential risks or challenges
+
+2. "findings": An array of specific findings, each with:
+   - "id": Unique identifier (f1, f2, f3, etc.)
+   - "type": One of "overview", "requirement", "deadline", "compliance", "evaluation", "recommendation", "risk"
+   - "title": Short title (max 50 chars)
+   - "quote": EXACT text snippet from the contract (40-80 words) that supports this finding
+   - "page_hint": Page number where this quote appears (1-indexed)
+   - "rationale": Brief explanation of why this is important (1-2 sentences)
+   - "severity": "high", "medium", or "low"
+
+IMPORTANT: The "quote" field MUST contain exact text from the contract document.
+
+Respond ONLY with valid JSON, no other text."""
+
+            response = oai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contract analyst. Always respond with valid JSON only."},
+                    {"role": "user", "content": structured_prompt}
+                ],
+                max_tokens=4000,
+                temperature=0.3,
+                response_format={"type": "json_object"}
+            )
+
+            ai_text = response.choices[0].message.content.strip()
+            if '```' in ai_text:
+                for part in ai_text.split('```'):
+                    part = part.strip()
+                    if part.startswith('json'):
+                        part = part[4:].strip()
+                    if part.startswith('{'):
+                        ai_text = part
+                        break
+
+            parsed = _json.loads(ai_text)
+
+            # --- Search for quote coordinates in PDF --------------------------
+            job_ref.update({'progress': 'Finding quote locations in PDF...'})
+            raw_findings = parsed.get('findings', [])
+            findings_with_coords = []
+            try:
+                doc = fitz.open(pdf_path)
+                for finding in raw_findings:
+                    quote = finding.get('quote', '')
+                    page_hint = finding.get('page_hint')
+                    coords = []
+                    if quote:
+                        search_pages = range(len(doc))
+                        if page_hint and 1 <= page_hint <= len(doc):
+                            search_pages = [page_hint - 1] + [p for p in range(len(doc)) if p != page_hint - 1]
+                        for pn in search_pages:
+                            rects = doc[pn].search_for(quote[:80])
+                            if rects:
+                                for r in rects[:1]:
+                                    coords.append({
+                                        'page': pn + 1,
+                                        'left': r.x0, 'top': r.y0,
+                                        'width': r.width, 'height': r.height,
+                                    })
+                                break
+                    findings_with_coords.append({**finding, 'coordinates': coords})
+                doc.close()
+            except Exception:
+                findings_with_coords = [{**f, 'coordinates': []} for f in raw_findings]
+
+            # --- Store result -------------------------------------------------
+            job_ref.update({
+                'status': 'completed',
+                'completed_at': time.time(),
+                'progress': 'Complete',
+                'result': {
+                    'markdown_summary': parsed.get('markdown_summary', ''),
+                    'findings': findings_with_coords,
+                    'total_pages': total_pages
+                }
+            })
+            logging.info(f"[inline] Contract analysis job {job_id} completed")
+
+        finally:
+            if tmp_created and pdf_path and os.path.exists(pdf_path):
+                os.unlink(pdf_path)
+
+    except Exception as e:
+        logging.error(f"[inline] Contract analysis job {job_id} failed: {e}", exc_info=True)
+        try:
+            job_ref.update({
+                'status': 'error',
+                'error': str(e),
+                'failed_at': time.time()
+            })
+        except Exception:
+            pass
+
+
 @app.route('/api/contract-analysis/jobs', methods=['POST'])
 def create_contract_analysis_job():
     """Create a new contract analysis job (async processing via background worker)
@@ -14043,6 +14239,22 @@ def create_contract_analysis_job():
         except Exception as db_error:
             logging.error(f"Failed to create job in Firebase: {db_error}")
             return jsonify({'success': False, 'error': 'Failed to create job'}), 500
+        
+        # Start inline processing so the job completes even without
+        # the background worker running.
+        import threading
+        def _process_job_inline(jid, jdata, pdf_local_path):
+            try:
+                _inline_process_contract_analysis(jid, jdata, pdf_local_path)
+            except Exception as exc:
+                logging.error(f"Inline contract analysis failed for {jid}: {exc}", exc_info=True)
+        
+        t = threading.Thread(
+            target=_process_job_inline,
+            args=(job_id, dict(job_data), local_pdf_path),
+            daemon=True,
+        )
+        t.start()
         
         return jsonify({
             'success': True,
