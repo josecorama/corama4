@@ -16480,6 +16480,158 @@ def proposal_result_page():
     
     return render_template('proposal_result.html', draft_id=draft_id, user_id=user_session["user_id"])
 
+
+def _inline_process_proposal_job(job_id: str, user_id: str, draft_id: str):
+    """Process a proposal generation job inline (daemon thread).
+
+    Mirrors proposal_worker.py logic so proposals complete even when
+    the background worker is not running. Uses sequential section generation
+    to limit memory usage within a Gunicorn worker.
+    """
+    from firebase_admin import db as _admin_db
+    from openai import OpenAI as _OAI
+
+    job_ref = _admin_db.reference(f'proposal_jobs/{job_id}')
+
+    try:
+        job_ref.update({'status': 'running', 'claimed_by': 'inline'})
+
+        # Fetch draft data
+        draft_ref = _admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        if not draft_data:
+            job_ref.update({'status': 'error', 'error': 'Draft not found'})
+            return
+
+        # User info
+        user_ref = _admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+
+        # Capability statement
+        capability_statement = ""
+        try:
+            cs_ref = _admin_db.reference(f'capability_statements/{user_id}')
+            cs_data = cs_ref.get()
+            if cs_data:
+                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
+        except Exception:
+            pass
+
+        annotations = draft_data.get('annotations', [])
+        pricing = draft_data.get('pricing', {})
+        team_members = draft_data.get('team_members', [])
+
+        all_annotations_text = '\n'.join(
+            [f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations]
+        )
+
+        company_name = user_data.get('company', 'Our Company')
+        company_address = user_data.get('address', '[Company Address]')
+        company_email = user_data.get('email', '[Email]')
+
+        # Pricing summary
+        labor_total = sum(item.get('cost', 0) for item in pricing.get('labor', []))
+        material_total = sum(item.get('cost', 0) for item in pricing.get('materials', []))
+        subtotal = labor_total + material_total
+        margin_pct = pricing.get('margin_pct', 15)
+        risk_pct = pricing.get('risk_pct', 5)
+        margin_amount = subtotal * (margin_pct / 100)
+        risk_amount = subtotal * (risk_pct / 100)
+        total_bid = subtotal + margin_amount + risk_amount
+
+        pricing_summary = f"Labor Costs: ${labor_total:,.2f}\nMaterial Costs: ${material_total:,.2f}\nSubtotal: ${subtotal:,.2f}\nMargin ({margin_pct}%): ${margin_amount:,.2f}\nRisk Reserve ({risk_pct}%): ${risk_amount:,.2f}\nTotal Bid Amount: ${total_bid:,.2f}\n\nLabor Breakdown:\n" + '\n'.join(
+            [f"- {item.get('role', 'Role')}: {item.get('hours', 0)} hours @ ${item.get('rate', 0)}/hr = ${item.get('cost', 0):,.2f}" for item in pricing.get('labor', [])]
+        )
+
+        team_summary = '\n'.join(
+            [f"- {m.get('name', 'Team Member')}: {m.get('role', 'Role')} - {m.get('experience', 'Experience')}" for m in team_members]
+        ) or "Team to be determined based on contract requirements."
+
+        # Section prompts (same as proposal_worker.py)
+        section_prompts = [
+            (1, "Cover Letter & Executive Summary"),
+            (2, "Administrative & Compliance Information"),
+            (3, "Technical Approach"),
+            (4, "Management & Staffing Plan"),
+            (5, "Corporate Experience & Past Performance"),
+            (6, "Quality Assurance & Control"),
+            (7, "Price/Cost Proposal"),
+            (8, "Attachments & Supporting Documents"),
+        ]
+
+        oai = _OAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=90.0)
+        sections = {}
+        completed_sections = []
+
+        for section_num, section_name in section_prompts:
+            try:
+                system_prompt = f"""You are an expert government contract proposal writer. Generate Section {section_num}: {section_name} for a public procurement proposal.
+
+FORMATTING: Output PLAIN TEXT ONLY - NO markdown (**, ##, -, •). Use UPPERCASE headings and numbered lists.
+
+COMPANY: {company_name}, {company_address}, {company_email}
+CAPABILITY STATEMENT: {capability_statement[:3000] if capability_statement else 'N/A'}
+CONTRACT REQUIREMENTS: {all_annotations_text[:4000]}
+TEAM: {team_summary}
+PRICING: {pricing_summary}
+
+Generate substantive, ready-to-use content for this section."""
+
+                response = oai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Generate Section {section_num}: {section_name}. Be thorough and professional."}
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                content = response.choices[0].message.content
+            except Exception as e:
+                logging.error(f"[inline-proposal] Section {section_num} error: {e}")
+                content = f"[Error generating section: {str(e)}]"
+
+            sections[section_num] = {'name': section_name, 'content': content}
+            completed_sections.append(section_num)
+
+            # Update progress in Firebase
+            job_ref.update({'sections_completed': completed_sections})
+            logging.info(f"[inline-proposal] Completed section {section_num}/{len(section_prompts)}")
+
+        # Build full proposal
+        full_proposal = "\n\nDRAFT - FOR INTERNAL REVIEW ONLY\n\n"
+        for i in range(1, 9):
+            sec = sections.get(i, {'name': f'Section {i}', 'content': '[Not generated]'})
+            full_proposal += f"\n\n{'='*60}\nSECTION {i}: {sec['name'].upper()}\n{'='*60}\n\n"
+            full_proposal += sec['content']
+
+        # Save to draft
+        draft_ref.update({
+            'generated_proposal': {
+                'sections': [sections.get(i, {'name': f'Section {i}', 'content': ''}) for i in range(1, 9)],
+                'full_text': full_proposal,
+                'generated_at': datetime.now().isoformat(),
+                'status': 'draft'
+            }
+        })
+
+        # Mark job completed
+        job_ref.update({
+            'status': 'completed',
+            'full_proposal': full_proposal,
+            'sections_completed': list(range(1, 9)),
+            'completed_at': time.time()
+        })
+        logging.info(f"[inline-proposal] Job {job_id} completed successfully")
+
+    except Exception as e:
+        logging.error(f"[inline-proposal] Job {job_id} failed: {e}", exc_info=True)
+        try:
+            job_ref.update({'status': 'error', 'error': str(e)})
+        except Exception:
+            pass
+
+
 @app.route('/api/generate_proposal_sections', methods=['POST'])
 def generate_proposal_sections():
     """Start proposal generation job and return job_id immediately for SSE streaming.
@@ -16517,11 +16669,20 @@ def generate_proposal_sections():
         # The background worker (proposal_worker.py) will pick it up and process it
         job_id = create_proposal_job(draft_id, user_id)
         
-        # Return immediately with job_id - worker will handle generation
+        # Start inline processing so the job completes even without
+        # the background worker running.
+        t = threading.Thread(
+            target=_inline_process_proposal_job,
+            args=(job_id, user_id, draft_id),
+            daemon=True,
+        )
+        t.start()
+        
+        # Return immediately with job_id - frontend polls for progress
         return jsonify({
             'success': True,
             'job_id': job_id,
-            'message': 'Proposal generation queued. Use SSE endpoint to track progress.'
+            'message': 'Proposal generation started. Poll /status endpoint for progress.'
         })
         
     except Exception as e:
@@ -16529,10 +16690,6 @@ def generate_proposal_sections():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# NOTE: The run_proposal_generation_job function has been moved to proposal_worker.py
-# This decouples long-running GPT-4 calls from Gunicorn HTTP workers to prevent
-# worker timeouts and memory exhaustion under production load.
-# See proposal_worker.py for the background worker implementation.
 @app.route('/api/generate_proposal_sections/events/<job_id>')
 def proposal_generation_events(job_id):
     """SSE endpoint for streaming proposal generation progress
