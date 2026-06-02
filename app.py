@@ -2679,6 +2679,8 @@ app.logger.setLevel(logging.INFO)
 # Use OPENAI_API_KEY as primary key for all AI features (including smart search embeddings)
 smart_search_api_key = os.getenv('OPENAI_API_KEY')
 client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
+# Timeout-aware client for endpoints that must respond within Gunicorn's 120s limit
+client_OPENAI_WITH_TIMEOUT = OpenAI(api_key=smart_search_api_key, timeout=60.0)
 
 # In-memory cache for AI-generated NAICS codes (keyed by hash_value)
 # This cache is persisted to disk to avoid regenerating on every restart
@@ -8724,11 +8726,7 @@ def ai_assistant_action():
         try:
             messages = build_ai_assistant_messages(action, contract_name, conversation_history, contract_data)
             
-            # Use a timeout-aware client to prevent Gunicorn worker kill (120s)
-            from openai import OpenAI as _OpenAI
-            _ai_client = _OpenAI(api_key=smart_search_api_key, timeout=60.0)
-            
-            completion = _ai_client.chat.completions.create(
+            completion = client_OPENAI_WITH_TIMEOUT.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
                 temperature=0.5,
