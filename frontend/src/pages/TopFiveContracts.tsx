@@ -380,6 +380,10 @@ const TopFiveContracts = () => {
           }
         })
         setContracts(transformedContracts)
+        // Update pagination state from rerun response
+        setCurrentOffset(0)
+        setHasMore(data.has_more || false)
+        setTotalAvailable(data.total_available || transformedContracts.length)
         // Don't change hasMatches here- rerun with filters returning 0 results
         // doesn't mean the user has no matches at all, just that filters are too restrictive
         // Only show "no filter results" message instead of redirecting to dashboard

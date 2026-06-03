@@ -236,7 +236,7 @@ class ApiService {
   async rerunTopFiveMatching(
     contractTypes?: string[],
     states?: string[]
-  ): Promise<{success: boolean, matches: ContractMatch[], total_found?: number, message?: string, error?: string}> {
+  ): Promise<{success: boolean, matches: ContractMatch[], total_found?: number, total_available?: number, has_more?: boolean, next_offset?: number | null, current_offset?: number, message?: string, error?: string}> {
     const res = await fetch(`${API_BASE()}/rerun-top-five`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

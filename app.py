@@ -2679,6 +2679,8 @@ app.logger.setLevel(logging.INFO)
 # Use OPENAI_API_KEY as primary key for all AI features (including smart search embeddings)
 smart_search_api_key = os.getenv('OPENAI_API_KEY')
 client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
+# Timeout-aware client for endpoints that must respond within Gunicorn's 120s limit
+client_OPENAI_WITH_TIMEOUT = OpenAI(api_key=smart_search_api_key, timeout=60.0)
 
 # In-memory cache for AI-generated NAICS codes (keyed by hash_value)
 # This cache is persisted to disk to avoid regenerating on every restart
@@ -6359,9 +6361,10 @@ def get_contracts_api():
         }
         
         sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
+        top5_total = sum(c for _, c in sorted_categories)
         top_categories = []
         for cat_name, count in sorted_categories:
-            percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
+            percentage = round((count / top5_total * 100), 1) if top5_total > 0 else 0
             top_categories.append({
                 'name': cat_name,
                 'count': count,
@@ -6512,9 +6515,10 @@ def get_grants_api():
         }
         
         sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
+        top5_total = sum(c for _, c in sorted_categories)
         top_categories = []
         for cat_name, count in sorted_categories:
-            percentage = round((count / total_grants * 100), 1) if total_grants > 0 else 0
+            percentage = round((count / top5_total * 100), 1) if top5_total > 0 else 0
             top_categories.append({
                 'name': cat_name,
                 'count': count,
@@ -8457,6 +8461,47 @@ def sanitize_conversation_message(content: str) -> str:
         cleaned = cleaned[:1000] + "..."
     return cleaned.strip()
 
+
+def fetch_sam_gov_contract_description(notice_id: str) -> str:
+    """Fetch the full HTML description of a SAM.gov contract by notice ID.
+
+    The SAM.gov search API returns a description *URL*; this function
+    fetches that URL to retrieve the full HTML text, strips tags, and
+    returns clean text suitable for AI context.
+
+    Returns empty string on any failure (timeout, missing key, etc.).
+    """
+    import re as _re
+    sam_api_key = os.environ.get('SAM_GOV_API_KEY', '')
+    if not sam_api_key or not notice_id:
+        return ""
+
+    desc_url = f"https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid={notice_id}"
+    try:
+        resp = requests.get(desc_url, params={"api_key": sam_api_key}, timeout=15)
+        if resp.status_code != 200:
+            logging.warning(f"[SAM.gov desc] HTTP {resp.status_code} for notice {notice_id}")
+            return ""
+        data = resp.json()
+        html_desc = data.get("description", "")
+        if not html_desc:
+            return ""
+        # Strip HTML tags to get plain text
+        text = _re.sub(r'<[^>]+>', ' ', html_desc)
+        text = _re.sub(r'&nbsp;', ' ', text)
+        text = _re.sub(r'&amp;', '&', text)
+        text = _re.sub(r'&lt;', '<', text)
+        text = _re.sub(r'&gt;', '>', text)
+        text = _re.sub(r'\s+', ' ', text).strip()
+        # Limit to 6000 chars to keep token budget manageable
+        if len(text) > 6000:
+            text = text[:6000] + "..."
+        return text
+    except Exception as e:
+        logging.warning(f"[SAM.gov desc] Failed to fetch description for {notice_id}: {e}")
+        return ""
+
+
 def build_ai_assistant_messages(action: str, contract_name: str, conversation_history: list = None, contract_data: dict = None) -> list:
     """Build OpenAI messages for AI Assistant actions.
     
@@ -8474,7 +8519,6 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
     if contract_data:
         fields = [
             f"Title: {contract_data.get('title') or contract_data.get('bid_name') or contract_name}",
-            f"Description: {contract_data.get('description') or 'N/A'}",
             f"Agency: {contract_data.get('agency') or contract_data.get('agency_top') or 'N/A'}",
             f"Top-Level Agency: {contract_data.get('agency_top') or 'N/A'}",
             f"Contract Number: {contract_data.get('contract_number') or 'N/A'}",
@@ -8492,6 +8536,8 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
             f"Government Level: {contract_data.get('government_level') or 'N/A'}",
             f"Opportunity Type: {contract_data.get('opportunity_type') or 'N/A'}",
             f"Opportunity Status: {contract_data.get('opportunity_status') or 'N/A'}",
+            f"Set-Aside: {contract_data.get('sam_set_aside') or 'N/A'}",
+            f"Classification Code: {contract_data.get('sam_classification_code') or 'N/A'}",
             f"CFDA/ALN: {contract_data.get('cfda_aln') or 'N/A'}",
         ]
         doc_urls = contract_data.get('document_urls')
@@ -8502,10 +8548,25 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
                 fields.append(f"Document URLs: {doc_urls}")
         else:
             fields.append("Document URLs: None available")
-        
+
+        # Fetch full contract description from SAM.gov API if available
+        sam_notice_id = contract_data.get('sam_notice_id', '')
+        full_description = ""
+        if sam_notice_id:
+            full_description = fetch_sam_gov_contract_description(sam_notice_id)
+            logging.info(f"[AI_ASSISTANT] Fetched SAM.gov description for {sam_notice_id}: {len(full_description)} chars")
+
+        if full_description:
+            fields.append(f"\n--- Full Contract Description (from SAM.gov) ---\n{full_description}")
+        else:
+            # Fall back to stored description snippet
+            stored_desc = contract_data.get('description') or ''
+            fields.append(f"Description: {stored_desc or 'N/A'}")
+
         context_msg = (
             f"The user is asking about the following government contract. "
-            f"Use ALL of the data below to provide detailed, accurate answers:\n\n"
+            f"Use ALL of the data below to provide detailed, accurate answers. "
+            f"Base your analysis on the official SAM.gov contract information provided:\n\n"
             + "\n".join(fields)
         )
     else:
@@ -8667,13 +8728,11 @@ def ai_assistant_action():
         try:
             messages = build_ai_assistant_messages(action, contract_name, conversation_history, contract_data)
             
-            # Use the existing OpenAI client with fine-tuned ContractExpert model
-            # Higher temperature (0.5) for more natural, human-like responses
-            completion = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
+            completion = client_OPENAI_WITH_TIMEOUT.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
                 temperature=0.5,
-                max_tokens=800,
+                max_tokens=1500,
                 top_p=0.9,
             )
             
@@ -9354,86 +9413,89 @@ def load_capability_statement():
         return jsonify({'error': 'Failed to load capability statement'}), 500
 
 def enhance_capability_statement_content(data):
-    """Use AI to create professional, compelling capability statement content matching industry standards"""
+    """Use AI to polish/improve the user's existing capability statement text.
+    
+    IMPORTANT: This function only ENHANCES what the user wrote.
+    It does NOT invent new content, achievements, metrics, or certifications.
+    """
     try:
         api_key = os.getenv('OPENAI_API_KEY')
         client = OpenAI(api_key=api_key)
         
-        prompt = f"""You are an expert in creating professional government contracting capability statements. Create compelling, detailed content that matches the quality of top-tier capability statements.
+        # Build sections to include in the prompt — only include fields the user actually filled in
+        sections = []
+        company_desc = data.get('company_description', '')
+        core_comps = data.get('core_competencies', [])
+        diffs = data.get('differentiators', [])
+        past_perf = data.get('private_performance', [])
+        certs = data.get('certifications', [])
+        
+        if company_desc:
+            sections.append(f"COMPANY DESCRIPTION:\n{company_desc}")
+        if core_comps:
+            sections.append(f"CORE COMPETENCIES:\n{chr(10).join('- ' + c for c in core_comps)}")
+        if diffs:
+            sections.append(f"KEY DIFFERENTIATORS:\n{chr(10).join('- ' + d for d in diffs)}")
+        if past_perf:
+            sections.append(f"PAST PERFORMANCE:\n{chr(10).join('- ' + p for p in past_perf)}")
+        if certs:
+            sections.append(f"CERTIFICATIONS:\n{chr(10).join('- ' + c for c in certs)}")
+        
+        user_content = '\n\n'.join(sections) if sections else ''
+        if not user_content.strip():
+            return data
+        
+        prompt = f"""You are an expert editor for government contracting capability statements.
 
 Company: {data.get('company_name', '')}
-Industry/Focus: Based on NAICS codes {', '.join(data.get('naics_codes', [])[:3])}
+NAICS Codes: {', '.join(data.get('naics_codes', [])[:3])}
 
-Current Content:
-- Company Description: {data.get('company_description', '')}
-- Core Competencies: {', '.join(data.get('core_competencies', []))}
-- Differentiators: {', '.join(data.get('differentiators', []))}
-- Past Performance: {', '.join(data.get('private_performance', []))}
-- Certifications: {', '.join(data.get('certifications', []))}
+USER'S ORIGINAL CONTENT:
+{user_content}
 
-Create professional capability statement content following these guidelines:
+TASK: Polish and improve the user's existing text to sound more professional. Follow these STRICT rules:
 
-1. ABOUT US (80-120 words): Write a compelling company overview that:
-   - Highlights the company's expertise and unique value proposition
-   - Emphasizes commitment to quality, safety, and customer satisfaction
-   - Mentions years of experience or notable achievements
-   - Uses professional, confident language
-   - Focuses on what makes them stand out in their industry
+1. ONLY work with content the user actually provided above. Do NOT invent new information.
+2. Do NOT add achievements, metrics, numbers, or statistics that are not in the original text.
+3. Do NOT fabricate past performance projects, client names, contract values, or success rates.
+4. Do NOT add certifications that are not explicitly listed above. If no certifications were provided, return an empty array [].
+5. Improve grammar, clarity, and professional tone. Make it concise and compelling.
+6. Keep the same meaning and facts — just make it sound more polished and professional.
+7. For each section, only return content if the user provided content for that section.
 
-2. PAST PERFORMANCE (5-6 items): Create impressive, specific achievements:
-   - Format: "Brief description highlighting scale/impact and results"
-   - Include quantifiable metrics (number of projects, success rate, etc.)
-   - Emphasize on-time delivery, budget compliance, quality
-   - Show breadth of experience
-   - Use professional, achievement-focused language
-
-3. CORE COMPETENCIES (6-7 items): Detailed service descriptions:
-   - Format: "Service Name: Detailed description of capability and value"
-   - Each should be 15-25 words explaining the service comprehensively
-   - Focus on expertise, approach, and client benefits
-   - Use industry-specific terminology
-   - Emphasize comprehensive, professional service delivery
-
-4. DIFFERENTIATORS (5-6 items): Compelling competitive advantages:
-   - Format: "Advantage Title: Explanation of how this sets them apart"
-   - Each should be 15-25 words
-   - Focus on proven track record, advanced capabilities, unique approaches
-   - Emphasize commitment to excellence, innovation, compliance
-   - Use strong, confident language
-
-5. CERTIFICATIONS (CRITICAL - DO NOT INVENT):
-   - ONLY include certifications that were explicitly provided in the input
-   - If no certifications were provided, return an empty array []
-   - DO NOT make up or assume any certifications
-   - If certifications exist, you may add brief context (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
-
-Return ONLY a JSON object:
+Return ONLY a JSON object with the enhanced versions of ONLY the sections the user provided:
 {{
-  "company_description": "professional 80-120 word description",
-  "past_performance": ["achievement 1", "achievement 2", ...],
-  "core_competencies": ["Service: Description", ...],
-  "differentiators": ["Advantage: Explanation", ...],
-  "certifications": ["certification with context", ...] or [] if none provided
+  "company_description": "polished version of user's description (or empty string if not provided)",
+  "past_performance": ["polished version of each item user provided"] (or empty array if not provided),
+  "core_competencies": ["polished version of each item user provided"] (or empty array if not provided),
+  "differentiators": ["polished version of each item user provided"] (or empty array if not provided),
+  "certifications": ["exact certifications from user, with minor formatting only"] (or empty array if not provided)
 }}"""
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert in creating professional government contracting capability statements. Create detailed, compelling content that matches industry-leading examples. Always return valid JSON."},
+                {"role": "system", "content": "You are a professional editor. You ONLY polish and improve existing text. You NEVER invent new facts, metrics, achievements, or certifications. You preserve the user's original meaning and information. Always return valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.8,
+            temperature=0.3,
             max_tokens=3000
         )
         
         enhanced_content = json.loads(response.choices[0].message.content)
         
-        data['company_description'] = enhanced_content.get('company_description', data.get('company_description', ''))
-        data['core_competencies'] = enhanced_content.get('core_competencies', data.get('core_competencies', []))
-        data['differentiators'] = enhanced_content.get('differentiators', data.get('differentiators', []))
-        data['private_performance'] = enhanced_content.get('past_performance', data.get('private_performance', []))
-        data['certifications'] = enhanced_content.get('certifications', data.get('certifications', []))
+        # Only update fields the user actually provided — don't overwrite empty fields with AI content
+        if company_desc:
+            data['company_description'] = enhanced_content.get('company_description', company_desc)
+        if core_comps:
+            data['core_competencies'] = enhanced_content.get('core_competencies', core_comps)
+        if diffs:
+            data['differentiators'] = enhanced_content.get('differentiators', diffs)
+        if past_perf:
+            data['private_performance'] = enhanced_content.get('past_performance', past_perf)
+        if certs:
+            data['certifications'] = enhanced_content.get('certifications', certs)
         
         return data
         
@@ -9597,12 +9659,10 @@ def generate_enhanced_pdf():
                 if client or desc or value
             ]
         
-        # Try to enhance content with AI, but don't fail if it doesn't work
-        try:
-            formatted_data = enhance_capability_statement_content(formatted_data)
-        except Exception as enhance_error:
-            logging.warning(f"AI enhancement failed, using original content: {enhance_error}")
-            # Continue with original content
+        # NOTE: Do NOT auto-enhance with AI here. The PDF should use the user's
+        # exact text as written. AI enhancement only happens when the user
+        # explicitly clicks the "AI Assistant" button (which calls
+        # /api/enhance-capability-statement separately).
         
         # Generate PDF
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
@@ -11453,6 +11513,8 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     # NAICS codes may be stored as floats like "238220.0" - we need to extract just the integer part
     raw_naics = payload.get("naics_code") or payload.get("NAICS Code") or payload.get("NAICS_CODE", "")
     raw_naics_all = payload.get("naics_codes_all") or payload.get("NAICS_CODES_ALL", "")
+    # SAM.gov stores NAICS as a list in 'naics_codes' (plural)
+    raw_naics_list = payload.get("naics_codes")
     
     naics_codes = []
     
@@ -11465,7 +11527,14 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
                 if code not in naics_codes:
                     naics_codes.append(code)
     
-    # Fallback to naics_code if naics_codes_all is empty
+    # Try SAM.gov naics_codes list (e.g. ["541330", "541512"])
+    if not naics_codes and raw_naics_list and isinstance(raw_naics_list, list):
+        for item in raw_naics_list:
+            for code in re.findall(r'(\d{2,})(?:\.\d+)?', str(item)):
+                if code not in naics_codes:
+                    naics_codes.append(code)
+    
+    # Fallback to naics_code (singular) if still empty
     if not naics_codes and raw_naics:
         if isinstance(raw_naics, list):
             items = raw_naics
@@ -11499,19 +11568,33 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     # Check if due date has passed (contract is closed)
     from datetime import date, datetime
     is_past_due = False
+    parsed_due_date = None
     if raw_due_date:
         try:
             date_part = str(raw_due_date).split("T")[0]
             # Try YYYY-MM-DD first, then DD/MM/YYYY
             try:
-                parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
+                parsed_due_date = datetime.strptime(date_part, "%Y-%m-%d").date()
             except ValueError:
-                parsed_date = datetime.strptime(date_part, "%d/%m/%Y").date()
-            is_past_due = parsed_date < date.today()
+                parsed_due_date = datetime.strptime(date_part, "%d/%m/%Y").date()
+            is_past_due = parsed_due_date < date.today()
             # Normalise due_date to YYYY-MM-DD for consistent frontend display
-            due_date = parsed_date.strftime("%Y-%m-%d")
+            due_date = parsed_due_date.strftime("%Y-%m-%d")
         except Exception:
             is_past_due = False
+    
+    # Posted date — normalise to YYYY-MM-DD for sorting
+    raw_posted_date = payload.get("posted_date") or payload.get("Posted Date")
+    posted_date_iso = None
+    if raw_posted_date and str(raw_posted_date).lower() not in ('nan', 'none', '', 'null'):
+        try:
+            pd_part = str(raw_posted_date).split("T")[0]
+            try:
+                posted_date_iso = datetime.strptime(pd_part, "%Y-%m-%d").date().isoformat()
+            except ValueError:
+                posted_date_iso = datetime.strptime(pd_part, "%d/%m/%Y").date().isoformat()
+        except Exception:
+            posted_date_iso = None
     
     # Status: "closed" if past due, "open" if no due date, "active" otherwise
     if is_past_due:
@@ -11613,6 +11696,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         # Optional fields
         "industry": payload.get("industry", ""),
         "department": payload.get("department", ""),
+        "posted_date": posted_date_iso,
         
         # Search metadata
         "Similarity_Score": score if score is not None else None,  # Keep numeric for filtering
@@ -11792,6 +11876,7 @@ _DASHBOARD_PAYLOAD_FIELDS = [
     "source_url", "contract_number", "title", "summary", "agency", "budget_estimate",
     # NAICS fields
     "NAICS_CODE", "NAICS_CODES_ALL", "NAICS_TITLE", "NAICS Description",
+    "naics_codes",  # SAM.gov stores NAICS as a list in this field
     # Contract type for filtering
     "Contract Type", "contract_type",
 ]
@@ -11954,11 +12039,12 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         """Check if a contract is open (due date not passed).
 
         Handles both YYYY-MM-DD and DD/MM/YYYY date formats stored in Qdrant.
-        Returns True when there is no parseable due date (keep it visible).
+        Returns False when there is no parseable due date — contracts without
+        a due date are excluded from the dashboard.
         """
         due_date = contract_payload.get("due_date") or contract_payload.get("Due Date")
         if not due_date or str(due_date).lower() in ('nan', 'none', '', 'null'):
-            return True  # No due date = assume open
+            return False  # No due date = hide from dashboard
         raw = str(due_date).split("T")[0]
         try:
             # Try YYYY-MM-DD first
@@ -11971,7 +12057,7 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
             parsed = _dt.strptime(raw, "%d/%m/%Y").date()
             return parsed >= date.today()
         except Exception:
-            return True  # If we can't parse, assume open
+            return False  # If we can't parse, hide from dashboard
     
     try:
         qdrant_url = os.getenv('QDRANT_URL')
@@ -12053,12 +12139,25 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                 if current_offset is None:
                     break
             
+            # Sort by most recently posted first, oldest last.
+            # Contracts with a posted_date are sorted descending; those without
+            # are placed at the end, then sub-sorted by due_date descending.
+            def _sort_key(c):
+                pd = c.get("posted_date") or ""
+                dd = c.get("due_date") or ""
+                # Normalise "No due date" to empty for comparison
+                if dd == "No due date":
+                    dd = ""
+                return (0 if pd else 1, pd, dd)
+
+            all_contracts.sort(key=_sort_key, reverse=True)
+            
             # Extract the page we need
             start_idx = target_offset
             end_idx = start_idx + items_per_page
             contracts = all_contracts[start_idx:end_idx]
             
-            logging.info(f"[Server-Side Pagination] Page {page}: sorted {len(all_contracts)} contracts, returning {len(contracts)} (open first)")
+            logging.info(f"[Server-Side Pagination] Page {page}: sorted {len(all_contracts)} contracts, returning {len(contracts)} (most recent first)")
         
         else:
             # For pages beyond MAX_SORTED_PAGES: Use simple offset-based pagination
@@ -13936,6 +14035,202 @@ def create_annotated_pdf(pdf_path, findings_with_coords, output_path):
 # CONTRACT ANALYSIS ASYNC JOB ENDPOINTS
 # ============================================================================
 
+
+def _inline_process_contract_analysis(job_id, job_data, local_pdf_path):
+    """Process a contract analysis job inline (runs in a daemon thread).
+
+    Mirrors the logic in proposal_worker.py so that analysis completes
+    even when the background worker service is not running.
+    """
+    import json as _json
+    import tempfile
+
+    job_ref = admin_database.reference(f'contract_analysis_jobs/{job_id}')
+
+    try:
+        job_ref.update({'status': 'running', 'started_at': time.time(),
+                        'progress': 'Extracting text from PDF...'})
+
+        contract_name = job_data.get('contract_name', 'Contract')
+        storage_path = job_data.get('storage_path', '')
+
+        # --- Obtain PDF bytes ------------------------------------------------
+        pdf_path = None
+        tmp_created = False
+        if local_pdf_path and os.path.exists(local_pdf_path):
+            pdf_path = local_pdf_path
+        elif storage_path and not storage_path.startswith('local:'):
+            # Download from Firebase Storage
+            try:
+                from firebase_admin import storage as fb_storage
+                bucket = fb_storage.bucket()
+                blob = bucket.blob(storage_path)
+                fd, pdf_path = tempfile.mkstemp(suffix='.pdf')
+                os.close(fd)
+                blob.download_to_filename(pdf_path)
+                tmp_created = True
+                logging.info(f"[inline] Downloaded PDF from Firebase: {storage_path}")
+            except Exception as dl_err:
+                raise RuntimeError(f"Cannot download PDF: {dl_err}")
+        elif storage_path.startswith('local:'):
+            real_path = storage_path[len('local:'):]
+            if os.path.exists(real_path):
+                pdf_path = real_path
+
+        if not pdf_path or not os.path.exists(pdf_path):
+            raise FileNotFoundError("PDF not found for analysis")
+
+        try:
+            # --- Extract text -------------------------------------------------
+            import fitz
+            doc = fitz.open(pdf_path)
+            pages_text = []
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                pages_text.append({'page': page_num, 'text': page.get_text()})
+            doc.close()
+
+            if not pages_text:
+                raise ValueError("Could not extract text from PDF")
+
+            total_pages = len(pages_text)
+            max_total_chars = 80000
+            chars_per_page = max_total_chars // total_pages if total_pages > 0 else max_total_chars
+
+            combined_text = ""
+            for pi in pages_text:
+                pt = pi['text']
+                if len(pt) > chars_per_page:
+                    pt = pt[:chars_per_page] + "... [page truncated]"
+                combined_text += f"\n\n--- PAGE {pi['page'] + 1} ---\n\n{pt}"
+
+            logging.info(f"[inline] {total_pages} pages, {len(combined_text)} chars")
+
+            # --- Call OpenAI --------------------------------------------------
+            job_ref.update({'progress': 'Analyzing contract with AI...'})
+
+            api_key = (
+                os.getenv('OPENAI_MARIO')
+                or os.getenv('OPENAI_API_KEY')
+                or os.getenv('BID_RESPONSE_OPENAI_API_KEY')
+            )
+            if not api_key:
+                raise RuntimeError("No OpenAI API key configured")
+
+            oai = OpenAI(api_key=api_key, timeout=90.0)
+
+            structured_prompt = f"""You are an expert government contract analyst. Analyze this contract document and provide strategic insights.
+
+CONTRACT NAME: {contract_name}
+
+CONTRACT DOCUMENT TEXT (with page markers):
+{combined_text}
+
+You must respond with a JSON object containing two parts:
+
+1. "markdown_summary": A comprehensive markdown-formatted analysis with these sections:
+   - **Contract Overview**: What this contract is about, issuing agency, scope of work
+   - **Key Requirements**: Main deliverables, qualifications, requirements
+   - **Important Deadlines**: Proposal due dates, performance periods, milestones
+   - **Compliance Requirements**: Certifications, registrations, SAM, NAICS codes, set-asides
+   - **Evaluation Criteria**: How proposals will be evaluated
+   - **Strategic Recommendations**: 3-5 actionable recommendations
+   - **Risk Assessment**: Potential risks or challenges
+
+2. "findings": An array of specific findings, each with:
+   - "id": Unique identifier (f1, f2, f3, etc.)
+   - "type": One of "overview", "requirement", "deadline", "compliance", "evaluation", "recommendation", "risk"
+   - "title": Short title (max 50 chars)
+   - "quote": EXACT text snippet from the contract (40-80 words) that supports this finding
+   - "page_hint": Page number where this quote appears (1-indexed)
+   - "rationale": Brief explanation of why this is important (1-2 sentences)
+   - "severity": "high", "medium", or "low"
+
+IMPORTANT: The "quote" field MUST contain exact text from the contract document.
+
+Respond ONLY with valid JSON, no other text."""
+
+            response = oai.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You are an expert government contract analyst. Always respond with valid JSON only."},
+                    {"role": "user", "content": structured_prompt}
+                ],
+                max_tokens=4000,
+                temperature=0.3,
+                response_format={"type": "json_object"}
+            )
+
+            ai_text = response.choices[0].message.content.strip()
+            if '```' in ai_text:
+                for part in ai_text.split('```'):
+                    part = part.strip()
+                    if part.startswith('json'):
+                        part = part[4:].strip()
+                    if part.startswith('{'):
+                        ai_text = part
+                        break
+
+            parsed = _json.loads(ai_text)
+
+            # --- Search for quote coordinates in PDF --------------------------
+            job_ref.update({'progress': 'Finding quote locations in PDF...'})
+            raw_findings = parsed.get('findings', [])
+            findings_with_coords = []
+            try:
+                doc = fitz.open(pdf_path)
+                for finding in raw_findings:
+                    quote = finding.get('quote', '')
+                    page_hint = finding.get('page_hint')
+                    coords = []
+                    if quote:
+                        search_pages = range(len(doc))
+                        if page_hint and 1 <= page_hint <= len(doc):
+                            search_pages = [page_hint - 1] + [p for p in range(len(doc)) if p != page_hint - 1]
+                        for pn in search_pages:
+                            rects = doc[pn].search_for(quote[:80])
+                            if rects:
+                                for r in rects[:1]:
+                                    coords.append({
+                                        'page': pn + 1,
+                                        'left': r.x0, 'top': r.y0,
+                                        'width': r.width, 'height': r.height,
+                                    })
+                                break
+                    findings_with_coords.append({**finding, 'coordinates': coords})
+                doc.close()
+            except Exception:
+                findings_with_coords = [{**f, 'coordinates': []} for f in raw_findings]
+
+            # --- Store result -------------------------------------------------
+            job_ref.update({
+                'status': 'completed',
+                'completed_at': time.time(),
+                'progress': 'Complete',
+                'result': {
+                    'markdown_summary': parsed.get('markdown_summary', ''),
+                    'findings': findings_with_coords,
+                    'total_pages': total_pages
+                }
+            })
+            logging.info(f"[inline] Contract analysis job {job_id} completed")
+
+        finally:
+            if tmp_created and pdf_path and os.path.exists(pdf_path):
+                os.unlink(pdf_path)
+
+    except Exception as e:
+        logging.error(f"[inline] Contract analysis job {job_id} failed: {e}", exc_info=True)
+        try:
+            job_ref.update({
+                'status': 'error',
+                'error': str(e),
+                'failed_at': time.time()
+            })
+        except Exception:
+            pass
+
+
 @app.route('/api/contract-analysis/jobs', methods=['POST'])
 def create_contract_analysis_job():
     """Create a new contract analysis job (async processing via background worker)
@@ -14014,6 +14309,22 @@ def create_contract_analysis_job():
         except Exception as db_error:
             logging.error(f"Failed to create job in Firebase: {db_error}")
             return jsonify({'success': False, 'error': 'Failed to create job'}), 500
+        
+        # Start inline processing so the job completes even without
+        # the background worker running.
+        import threading
+        def _process_job_inline(jid, jdata, pdf_local_path):
+            try:
+                _inline_process_contract_analysis(jid, jdata, pdf_local_path)
+            except Exception as exc:
+                logging.error(f"Inline contract analysis failed for {jid}: {exc}", exc_info=True)
+        
+        t = threading.Thread(
+            target=_process_job_inline,
+            args=(job_id, dict(job_data), local_pdf_path),
+            daemon=True,
+        )
+        t.start()
         
         return jsonify({
             'success': True,
@@ -16182,6 +16493,171 @@ def proposal_result_page():
     
     return render_template('proposal_result.html', draft_id=draft_id, user_id=user_session["user_id"])
 
+
+def _inline_process_proposal_job(job_id: str, user_id: str, draft_id: str):
+    """Process a proposal generation job inline (daemon thread).
+
+    Mirrors proposal_worker.py logic so proposals complete even when
+    the background worker is not running. Uses sequential section generation
+    to limit memory usage within a Gunicorn worker.
+    """
+    from firebase_admin import db as _admin_db
+    from openai import OpenAI as _OAI
+
+    job_ref = _admin_db.reference(f'proposal_jobs/{job_id}')
+
+    try:
+        job_ref.update({'status': 'running', 'claimed_by': 'inline'})
+
+        # Fetch draft data
+        draft_ref = _admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')
+        draft_data = draft_ref.get()
+        if not draft_data:
+            job_ref.update({'status': 'error', 'error': 'Draft not found'})
+            return
+
+        # User info
+        user_ref = _admin_db.reference(f'users/{user_id}')
+        user_data = user_ref.get() or {}
+
+        # Capability statement
+        capability_statement = ""
+        try:
+            cs_ref = _admin_db.reference(f'capability_statements/{user_id}')
+            cs_data = cs_ref.get()
+            if cs_data:
+                capability_statement = cs_data.get('content', '') or cs_data.get('parsed_content', '') or ''
+        except Exception:
+            pass
+
+        contract_name = draft_data.get('contract_name', 'Contract')
+        annotations = draft_data.get('annotations', [])
+        pricing = draft_data.get('pricing', {})
+        team_members = draft_data.get('team_members', [])
+        raw_ai_findings = draft_data.get('ai_findings', '')
+        raw_ai_suggestions = draft_data.get('ai_suggestions', '')
+        raw_ai_strategy = draft_data.get('ai_strategy', '')
+
+        all_annotations_text = '\n'.join(
+            [f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations]
+        )
+
+        # Use raw AI findings if available (more complete than parsed annotations)
+        contract_analysis = raw_ai_findings[:6000] if raw_ai_findings else all_annotations_text[:4000]
+
+        company_name = user_data.get('company', 'Our Company')
+        company_address = user_data.get('address', '[Company Address]')
+        company_email = user_data.get('email', '[Email]')
+
+        # Pricing summary
+        labor_total = sum(item.get('cost', 0) for item in pricing.get('labor', []))
+        material_total = sum(item.get('cost', 0) for item in pricing.get('materials', []))
+        subtotal = labor_total + material_total
+        margin_pct = pricing.get('margin_pct', 15)
+        risk_pct = pricing.get('risk_pct', 5)
+        margin_amount = subtotal * (margin_pct / 100)
+        risk_amount = subtotal * (risk_pct / 100)
+        total_bid = subtotal + margin_amount + risk_amount
+
+        pricing_summary = f"Labor Costs: ${labor_total:,.2f}\nMaterial Costs: ${material_total:,.2f}\nSubtotal: ${subtotal:,.2f}\nMargin ({margin_pct}%): ${margin_amount:,.2f}\nRisk Reserve ({risk_pct}%): ${risk_amount:,.2f}\nTotal Bid Amount: ${total_bid:,.2f}\n\nLabor Breakdown:\n" + '\n'.join(
+            [f"- {item.get('role', 'Role')}: {item.get('hours', 0)} hours @ ${item.get('rate', 0)}/hr = ${item.get('cost', 0):,.2f}" for item in pricing.get('labor', [])]
+        )
+
+        team_summary = '\n'.join(
+            [f"- {m.get('name', 'Team Member')}: {m.get('role', 'Role')} - {m.get('experience', 'Experience')}" for m in team_members]
+        ) or "Team to be determined based on contract requirements."
+
+        # Section prompts (same as proposal_worker.py)
+        section_prompts = [
+            (1, "Cover Letter & Executive Summary"),
+            (2, "Administrative & Compliance Information"),
+            (3, "Technical Approach"),
+            (4, "Management & Staffing Plan"),
+            (5, "Corporate Experience & Past Performance"),
+            (6, "Quality Assurance & Control"),
+            (7, "Price/Cost Proposal"),
+            (8, "Attachments & Supporting Documents"),
+        ]
+
+        oai = _OAI(api_key=os.getenv('OPENAI_API_KEY'), timeout=90.0)
+        sections = {}
+        completed_sections = []
+
+        for section_num, section_name in section_prompts:
+            try:
+                strategy_block = f"\nRECOMMENDED STRATEGY:\n{raw_ai_strategy[:2000]}" if raw_ai_strategy else ""
+                system_prompt = f"""You are an expert government contract proposal writer. Generate Section {section_num}: {section_name} for a public procurement proposal.
+
+FORMATTING: Output PLAIN TEXT ONLY - NO markdown (**, ##, -, •). Use UPPERCASE headings and numbered lists.
+
+CONTRACT NAME: {contract_name}
+COMPANY: {company_name}, {company_address}, {company_email}
+CAPABILITY STATEMENT: {capability_statement[:3000] if capability_statement else 'N/A'}
+CONTRACT ANALYSIS AND REQUIREMENTS:
+{contract_analysis}
+{strategy_block}
+TEAM: {team_summary}
+PRICING: {pricing_summary}
+
+IMPORTANT: All content must be specifically about the contract "{contract_name}". Do NOT reference or include information from any other contract.
+
+Generate substantive, ready-to-use content for this section."""
+
+                response = oai.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Generate Section {section_num}: {section_name}. Be thorough and professional."}
+                    ],
+                    temperature=0.4,
+                    max_tokens=2000
+                )
+                content = response.choices[0].message.content
+            except Exception as e:
+                logging.error(f"[inline-proposal] Section {section_num} error: {e}")
+                content = f"[Error generating section: {str(e)}]"
+
+            sections[section_num] = {'name': section_name, 'content': content}
+            completed_sections.append(section_num)
+
+            # Update progress in Firebase
+            job_ref.update({'sections_completed': completed_sections})
+            logging.info(f"[inline-proposal] Completed section {section_num}/{len(section_prompts)}")
+
+        # Build full proposal
+        full_proposal = "\n\nDRAFT - FOR INTERNAL REVIEW ONLY\n\n"
+        for i in range(1, 9):
+            sec = sections.get(i, {'name': f'Section {i}', 'content': '[Not generated]'})
+            full_proposal += f"\n\n{'='*60}\nSECTION {i}: {sec['name'].upper()}\n{'='*60}\n\n"
+            full_proposal += sec['content']
+
+        # Save to draft
+        draft_ref.update({
+            'generated_proposal': {
+                'sections': [sections.get(i, {'name': f'Section {i}', 'content': ''}) for i in range(1, 9)],
+                'full_text': full_proposal,
+                'generated_at': datetime.now().isoformat(),
+                'status': 'draft'
+            }
+        })
+
+        # Mark job completed
+        job_ref.update({
+            'status': 'completed',
+            'full_proposal': full_proposal,
+            'sections_completed': list(range(1, 9)),
+            'completed_at': time.time()
+        })
+        logging.info(f"[inline-proposal] Job {job_id} completed successfully")
+
+    except Exception as e:
+        logging.error(f"[inline-proposal] Job {job_id} failed: {e}", exc_info=True)
+        try:
+            job_ref.update({'status': 'error', 'error': str(e)})
+        except Exception:
+            pass
+
+
 @app.route('/api/generate_proposal_sections', methods=['POST'])
 def generate_proposal_sections():
     """Start proposal generation job and return job_id immediately for SSE streaming.
@@ -16219,11 +16695,20 @@ def generate_proposal_sections():
         # The background worker (proposal_worker.py) will pick it up and process it
         job_id = create_proposal_job(draft_id, user_id)
         
-        # Return immediately with job_id - worker will handle generation
+        # Start inline processing so the job completes even without
+        # the background worker running.
+        t = threading.Thread(
+            target=_inline_process_proposal_job,
+            args=(job_id, user_id, draft_id),
+            daemon=True,
+        )
+        t.start()
+        
+        # Return immediately with job_id - frontend polls for progress
         return jsonify({
             'success': True,
             'job_id': job_id,
-            'message': 'Proposal generation queued. Use SSE endpoint to track progress.'
+            'message': 'Proposal generation started. Poll /status endpoint for progress.'
         })
         
     except Exception as e:
@@ -16231,10 +16716,6 @@ def generate_proposal_sections():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-# NOTE: The run_proposal_generation_job function has been moved to proposal_worker.py
-# This decouples long-running GPT-4 calls from Gunicorn HTTP workers to prevent
-# worker timeouts and memory exhaustion under production load.
-# See proposal_worker.py for the background worker implementation.
 @app.route('/api/generate_proposal_sections/events/<job_id>')
 def proposal_generation_events(job_id):
     """SSE endpoint for streaming proposal generation progress
@@ -17758,9 +18239,9 @@ def api_rerun_top_five():
         # Filter out contracts with Unknown category before formatting
         filtered_results = [r for r in results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
 
-        # Format results for response
+        # Format ALL results for response (frontend handles pagination via offset/limit)
         formatted_matches = []
-        for i, row in enumerate(filtered_results[:5]):
+        for i, row in enumerate(filtered_results):
             formatted_matches.append({
                 'rank': i + 1,
                 'Company': row.get('Company', pdf_company_name or 'Unknown'),
@@ -17779,10 +18260,18 @@ def api_rerun_top_five():
                 'Contract_Type': row.get('Contract_Type', '')
             })
         
+        # Return first 5 (rerun always resets to page 1)
+        first_page = formatted_matches[:5]
+        has_more = len(formatted_matches) > 5
+        
         return jsonify({
             "success": True,
-            "matches": formatted_matches,
+            "matches": first_page,
             "total_found": len(filtered_results),
+            "total_available": len(formatted_matches),
+            "has_more": has_more,
+            "next_offset": 5 if has_more else None,
+            "current_offset": 0,
             "message": f"Found {len(filtered_results)} matching contracts"
         })
         
@@ -17986,9 +18475,9 @@ def api_top_five_contracts():
         if fresh_results:
             # Filter out contracts with Unknown category
             fresh_results = [r for r in fresh_results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
-            # Format fresh results for response
+            # Format ALL results (pagination applied below)
             formatted_matches = []
-            for i, row in enumerate(fresh_results[:5]):
+            for i, row in enumerate(fresh_results):
                 formatted_matches.append({
                     'rank': i + 1,
                     'Company': row.get('Company', 'Unknown'),
@@ -18006,13 +18495,22 @@ def api_top_five_contracts():
                     'NAICS_Code': row.get('NAICS_Code', row.get('NAICS_CODE', '')),
                     'Contract_Type': row.get('Contract_Type', '')
                 })
-            # Clean NaN values before returning JSON
-            cleaned_matches = clean_for_json(formatted_matches)
+            # Apply pagination
+            paginated = formatted_matches[offset:offset + limit]
+            for i, m in enumerate(paginated):
+                m['rank'] = offset + i + 1
+            has_more = (offset + limit) < len(formatted_matches)
+            next_offset = offset + limit if has_more else None
+            cleaned_matches = clean_for_json(paginated)
             return jsonify({
                 "success": True,
                 "matches": cleaned_matches,
                 "has_matches": len(fresh_results) > 0,
-                "filtered_count": len(fresh_results)
+                "filtered_count": len(fresh_results),
+                "total_available": len(formatted_matches),
+                "has_more": has_more,
+                "next_offset": next_offset,
+                "current_offset": offset
             })
     
     if os.path.exists(matches_file):

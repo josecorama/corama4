@@ -4,10 +4,18 @@ SAM.gov Opportunities API Client
 Fetches active contract opportunities from SAM.gov and maps them to the
 Qdrant payload schema used by the dashboard.
 
+Rate-limit compliance:
+  - Max 1 000 requests / minute per API key.
+  - Configurable page size (default 500, SAM.gov max 1 000).
+  - Automatic sleep between pages to stay under the limit.
+  - Exponential backoff with jitter on transient errors (429 / 5xx).
+
 API docs: https://open.gsa.gov/api/get-opportunities-public-api/
 """
 
 import os
+import time
+import random
 import logging
 import hashlib
 import uuid
@@ -16,12 +24,21 @@ from typing import List, Dict, Any, Optional
 
 import requests
 
+log = logging.getLogger(__name__)
+
 SAM_GOV_API_BASE = "https://api.sam.gov/opportunities/v2/search"
 
 # SAM.gov ptype codes for actionable bidding opportunities
 # p = Presolicitation, k = Combined Synopsis/Solicitation, o = Solicitation
 # r = Sources Sought, s = Special Notice
 ACTIVE_PTYPE_CODES = "p,k,o,r,s"
+
+# Throttling defaults
+DEFAULT_PAGE_SIZE = 500
+MIN_PAGE_INTERVAL_S = 0.5          # seconds between pages (~120 req/min)
+MAX_RETRIES = 5
+INITIAL_BACKOFF_S = 2.0
+MAX_BACKOFF_S = 60.0
 
 
 def _get_api_key() -> Optional[str]:
@@ -33,7 +50,6 @@ def _parse_sam_date(date_str: Optional[str]) -> Optional[str]:
     if not date_str:
         return None
     try:
-        # ISO format with timezone: "2026-06-08T05:30:00-05:00"
         if "T" in date_str:
             date_str = date_str.split("T")[0]
         parsed = datetime.strptime(date_str, "%Y-%m-%d")
@@ -90,7 +106,9 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
         naics_codes = [str(opp["naicsCode"])]
 
     posted_date = _parse_sam_date(opp.get("postedDate"))
-    due_date = _parse_sam_date(opp.get("responseDeadLine"))
+    # Prefer responseDeadLine; fall back to archiveDate so every contract
+    # gets a usable due date for dashboard display and expiry filtering.
+    due_date = _parse_sam_date(opp.get("responseDeadLine")) or _parse_sam_date(opp.get("archiveDate"))
 
     detail_url = opp.get("uiLink") or ""
     sol_number = opp.get("solicitationNumber") or ""
@@ -124,7 +142,71 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
         "sam_set_aside": opp.get("typeOfSetAsideDescription"),
         "sam_classification_code": opp.get("classificationCode"),
         "sam_archive_date": opp.get("archiveDate"),
+        "sam_description_url": opp.get("description") or "",
+        "sam_resource_links": opp.get("resourceLinks") or [],
+        "sam_additional_info_link": opp.get("additionalInfoLink") or "",
     }
+
+
+def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
+    """Execute a GET request with exponential backoff + jitter on transient errors."""
+    backoff = INITIAL_BACKOFF_S
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = requests.get(url, params=params, timeout=60)
+
+            if resp.status_code == 429:
+                retry_after = int(resp.headers.get("Retry-After", backoff))
+                jitter = random.uniform(0, backoff * 0.5)
+                wait = retry_after + jitter
+                log.warning(
+                    "[SAM.gov] 429 rate-limited (attempt %d/%d), sleeping %.1fs",
+                    attempt, MAX_RETRIES, wait,
+                )
+                time.sleep(wait)
+                backoff = min(backoff * 2, MAX_BACKOFF_S)
+                continue
+
+            if resp.status_code >= 500:
+                jitter = random.uniform(0, backoff * 0.5)
+                wait = backoff + jitter
+                log.warning(
+                    "[SAM.gov] Server error %d (attempt %d/%d), retrying in %.1fs",
+                    resp.status_code, attempt, MAX_RETRIES, wait,
+                )
+                time.sleep(wait)
+                backoff = min(backoff * 2, MAX_BACKOFF_S)
+                continue
+
+            resp.raise_for_status()
+            return resp.json()
+
+        except requests.ConnectionError as e:
+            jitter = random.uniform(0, backoff * 0.5)
+            wait = backoff + jitter
+            log.warning(
+                "[SAM.gov] Connection error (attempt %d/%d): %s — retrying in %.1fs",
+                attempt, MAX_RETRIES, e, wait,
+            )
+            time.sleep(wait)
+            backoff = min(backoff * 2, MAX_BACKOFF_S)
+
+        except requests.Timeout as e:
+            jitter = random.uniform(0, backoff * 0.5)
+            wait = backoff + jitter
+            log.warning(
+                "[SAM.gov] Timeout (attempt %d/%d): %s — retrying in %.1fs",
+                attempt, MAX_RETRIES, e, wait,
+            )
+            time.sleep(wait)
+            backoff = min(backoff * 2, MAX_BACKOFF_S)
+
+        except requests.RequestException as e:
+            log.error("[SAM.gov] Non-retryable request error: %s", e)
+            return None
+
+    log.error("[SAM.gov] Exhausted %d retries — giving up on request", MAX_RETRIES)
+    return None
 
 
 def fetch_opportunities(
@@ -133,9 +215,13 @@ def fetch_opportunities(
     limit: int = 1000,
     notice_types: Optional[List[str]] = None,
     only_active: bool = True,
+    page_size: int = DEFAULT_PAGE_SIZE,
 ) -> List[Dict[str, Any]]:
     """
     Fetch contract opportunities from SAM.gov API with pagination.
+
+    Pagination respects the SAM.gov rate limit of 1 000 req/min by sleeping
+    at least ``MIN_PAGE_INTERVAL_S`` between pages and backing off on 429s.
 
     Args:
         posted_from: Start date MM/DD/YYYY (default: 90 days ago)
@@ -143,25 +229,33 @@ def fetch_opportunities(
         limit: Max number of opportunities to return
         notice_types: Ignored (kept for compat). ptype codes are set internally.
         only_active: Only return opportunities with future response deadlines
+        page_size: Results per page (default 500, max 1000)
 
     Returns:
         List of Qdrant-compatible payload dicts
     """
     api_key = _get_api_key()
     if not api_key:
-        logging.error("[SAM.gov] SAM_GOV_API_KEY not configured")
+        log.error("[SAM.gov] SAM_GOV_API_KEY not configured")
         return []
 
     today = date.today()
     if not posted_to:
         posted_to = today.strftime("%m/%d/%Y")
     if not posted_from:
-        # SAM.gov enforces a 1-year max range; default to last 90 days
         posted_from = (today - timedelta(days=90)).strftime("%m/%d/%Y")
 
     all_payloads: List[Dict[str, Any]] = []
-    page_limit = min(limit, 1000)  # SAM.gov max per page is 1000
+    page_limit = min(page_size, 1000)
     offset = 0
+    page_num = 0
+    total_api_calls = 0
+    skipped_expired = 0
+
+    log.info(
+        "[SAM.gov] Starting fetch: posted_from=%s posted_to=%s limit=%d page_size=%d",
+        posted_from, posted_to, limit, page_limit,
+    )
 
     while len(all_payloads) < limit:
         params: Dict[str, Any] = {
@@ -173,12 +267,16 @@ def fetch_opportunities(
             "ptype": ACTIVE_PTYPE_CODES,
         }
 
-        try:
-            resp = requests.get(SAM_GOV_API_BASE, params=params, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
-        except requests.RequestException as e:
-            logging.error(f"[SAM.gov] API request failed: {e}")
+        # Throttle between pages
+        if page_num > 0:
+            time.sleep(MIN_PAGE_INTERVAL_S)
+
+        data = _request_with_backoff(SAM_GOV_API_BASE, params)
+        total_api_calls += 1
+        page_num += 1
+
+        if data is None:
+            log.error("[SAM.gov] Aborting fetch after failed request at offset %d", offset)
             break
 
         opportunities = data.get("opportunitiesData") or []
@@ -188,14 +286,19 @@ def fetch_opportunities(
         for opp in opportunities:
             payload = map_opportunity_to_payload(opp)
 
-            # Filter: only keep opportunities with a future due date
-            if only_active and payload.get("due_date"):
+            # Server-side filter: require a due date and ensure it is in the future
+            if only_active:
+                if not payload.get("due_date"):
+                    skipped_expired += 1
+                    continue
                 try:
                     dd = datetime.strptime(payload["due_date"], "%d/%m/%Y").date()
                     if dd < today:
+                        skipped_expired += 1
                         continue
                 except Exception:
-                    pass
+                    skipped_expired += 1
+                    continue
 
             all_payloads.append(payload)
             if len(all_payloads) >= limit:
@@ -206,5 +309,15 @@ def fetch_opportunities(
         if offset >= total_records:
             break
 
-    logging.info(f"[SAM.gov] Fetched {len(all_payloads)} opportunities")
+        log.info(
+            "[SAM.gov] Page %d: %d items (offset %d/%d), collected %d so far, %d API calls",
+            page_num, len(opportunities), offset, total_records,
+            len(all_payloads), total_api_calls,
+        )
+
+    log.info(
+        "[SAM.gov] Fetch complete: %d opportunities collected, %d expired skipped, "
+        "%d API calls in %d pages",
+        len(all_payloads), skipped_expired, total_api_calls, page_num,
+    )
     return all_payloads

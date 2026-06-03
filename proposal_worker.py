@@ -1803,12 +1803,20 @@ def process_job(db, openai_client, job_id: str, job_data: dict):
             logger.warning(f"Could not fetch capability statement: {cs_error}")
         
         # Extract data from draft
+        contract_name = draft_data.get('contract_name', 'Contract')
         annotations = draft_data.get('annotations', [])
         pricing = draft_data.get('pricing', {})
         team_members = draft_data.get('team_members', [])
+        raw_ai_findings = draft_data.get('ai_findings', '')
+        raw_ai_strategy = draft_data.get('ai_strategy', '')
         
-        # Build contract context
-        all_annotations_text = '\n'.join([f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
+        # Build contract context — prefer raw AI findings (more complete than parsed annotations)
+        parsed_annotations_text = '\n'.join([f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations])
+        all_annotations_text = raw_ai_findings[:6000] if raw_ai_findings else parsed_annotations_text
+        # Prepend contract name so GPT knows which contract this is about
+        all_annotations_text = f"CONTRACT NAME: {contract_name}\n\n{all_annotations_text}"
+        if raw_ai_strategy:
+            all_annotations_text += f"\n\nRECOMMENDED STRATEGY:\n{raw_ai_strategy[:2000]}"
         
         company_name = user_data.get('company', 'Our Company')
         company_address = user_data.get('address', '[Company Address]')
