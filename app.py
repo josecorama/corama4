@@ -9413,86 +9413,89 @@ def load_capability_statement():
         return jsonify({'error': 'Failed to load capability statement'}), 500
 
 def enhance_capability_statement_content(data):
-    """Use AI to create professional, compelling capability statement content matching industry standards"""
+    """Use AI to polish/improve the user's existing capability statement text.
+    
+    IMPORTANT: This function only ENHANCES what the user wrote.
+    It does NOT invent new content, achievements, metrics, or certifications.
+    """
     try:
         api_key = os.getenv('OPENAI_API_KEY')
         client = OpenAI(api_key=api_key)
         
-        prompt = f"""You are an expert in creating professional government contracting capability statements. Create compelling, detailed content that matches the quality of top-tier capability statements.
+        # Build sections to include in the prompt — only include fields the user actually filled in
+        sections = []
+        company_desc = data.get('company_description', '')
+        core_comps = data.get('core_competencies', [])
+        diffs = data.get('differentiators', [])
+        past_perf = data.get('private_performance', [])
+        certs = data.get('certifications', [])
+        
+        if company_desc:
+            sections.append(f"COMPANY DESCRIPTION:\n{company_desc}")
+        if core_comps:
+            sections.append(f"CORE COMPETENCIES:\n{chr(10).join('- ' + c for c in core_comps)}")
+        if diffs:
+            sections.append(f"KEY DIFFERENTIATORS:\n{chr(10).join('- ' + d for d in diffs)}")
+        if past_perf:
+            sections.append(f"PAST PERFORMANCE:\n{chr(10).join('- ' + p for p in past_perf)}")
+        if certs:
+            sections.append(f"CERTIFICATIONS:\n{chr(10).join('- ' + c for c in certs)}")
+        
+        user_content = '\n\n'.join(sections) if sections else ''
+        if not user_content.strip():
+            return data
+        
+        prompt = f"""You are an expert editor for government contracting capability statements.
 
 Company: {data.get('company_name', '')}
-Industry/Focus: Based on NAICS codes {', '.join(data.get('naics_codes', [])[:3])}
+NAICS Codes: {', '.join(data.get('naics_codes', [])[:3])}
 
-Current Content:
-- Company Description: {data.get('company_description', '')}
-- Core Competencies: {', '.join(data.get('core_competencies', []))}
-- Differentiators: {', '.join(data.get('differentiators', []))}
-- Past Performance: {', '.join(data.get('private_performance', []))}
-- Certifications: {', '.join(data.get('certifications', []))}
+USER'S ORIGINAL CONTENT:
+{user_content}
 
-Create professional capability statement content following these guidelines:
+TASK: Polish and improve the user's existing text to sound more professional. Follow these STRICT rules:
 
-1. ABOUT US (80-120 words): Write a compelling company overview that:
-   - Highlights the company's expertise and unique value proposition
-   - Emphasizes commitment to quality, safety, and customer satisfaction
-   - Mentions years of experience or notable achievements
-   - Uses professional, confident language
-   - Focuses on what makes them stand out in their industry
+1. ONLY work with content the user actually provided above. Do NOT invent new information.
+2. Do NOT add achievements, metrics, numbers, or statistics that are not in the original text.
+3. Do NOT fabricate past performance projects, client names, contract values, or success rates.
+4. Do NOT add certifications that are not explicitly listed above. If no certifications were provided, return an empty array [].
+5. Improve grammar, clarity, and professional tone. Make it concise and compelling.
+6. Keep the same meaning and facts — just make it sound more polished and professional.
+7. For each section, only return content if the user provided content for that section.
 
-2. PAST PERFORMANCE (5-6 items): Create impressive, specific achievements:
-   - Format: "Brief description highlighting scale/impact and results"
-   - Include quantifiable metrics (number of projects, success rate, etc.)
-   - Emphasize on-time delivery, budget compliance, quality
-   - Show breadth of experience
-   - Use professional, achievement-focused language
-
-3. CORE COMPETENCIES (6-7 items): Detailed service descriptions:
-   - Format: "Service Name: Detailed description of capability and value"
-   - Each should be 15-25 words explaining the service comprehensively
-   - Focus on expertise, approach, and client benefits
-   - Use industry-specific terminology
-   - Emphasize comprehensive, professional service delivery
-
-4. DIFFERENTIATORS (5-6 items): Compelling competitive advantages:
-   - Format: "Advantage Title: Explanation of how this sets them apart"
-   - Each should be 15-25 words
-   - Focus on proven track record, advanced capabilities, unique approaches
-   - Emphasize commitment to excellence, innovation, compliance
-   - Use strong, confident language
-
-5. CERTIFICATIONS (CRITICAL - DO NOT INVENT):
-   - ONLY include certifications that were explicitly provided in the input
-   - If no certifications were provided, return an empty array []
-   - DO NOT make up or assume any certifications
-   - If certifications exist, you may add brief context (e.g., "ISO 9001:2015 Certified: Demonstrating commitment to quality management")
-
-Return ONLY a JSON object:
+Return ONLY a JSON object with the enhanced versions of ONLY the sections the user provided:
 {{
-  "company_description": "professional 80-120 word description",
-  "past_performance": ["achievement 1", "achievement 2", ...],
-  "core_competencies": ["Service: Description", ...],
-  "differentiators": ["Advantage: Explanation", ...],
-  "certifications": ["certification with context", ...] or [] if none provided
+  "company_description": "polished version of user's description (or empty string if not provided)",
+  "past_performance": ["polished version of each item user provided"] (or empty array if not provided),
+  "core_competencies": ["polished version of each item user provided"] (or empty array if not provided),
+  "differentiators": ["polished version of each item user provided"] (or empty array if not provided),
+  "certifications": ["exact certifications from user, with minor formatting only"] (or empty array if not provided)
 }}"""
 
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert in creating professional government contracting capability statements. Create detailed, compelling content that matches industry-leading examples. Always return valid JSON."},
+                {"role": "system", "content": "You are a professional editor. You ONLY polish and improve existing text. You NEVER invent new facts, metrics, achievements, or certifications. You preserve the user's original meaning and information. Always return valid JSON."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.8,
+            temperature=0.3,
             max_tokens=3000
         )
         
         enhanced_content = json.loads(response.choices[0].message.content)
         
-        data['company_description'] = enhanced_content.get('company_description', data.get('company_description', ''))
-        data['core_competencies'] = enhanced_content.get('core_competencies', data.get('core_competencies', []))
-        data['differentiators'] = enhanced_content.get('differentiators', data.get('differentiators', []))
-        data['private_performance'] = enhanced_content.get('past_performance', data.get('private_performance', []))
-        data['certifications'] = enhanced_content.get('certifications', data.get('certifications', []))
+        # Only update fields the user actually provided — don't overwrite empty fields with AI content
+        if company_desc:
+            data['company_description'] = enhanced_content.get('company_description', company_desc)
+        if core_comps:
+            data['core_competencies'] = enhanced_content.get('core_competencies', core_comps)
+        if diffs:
+            data['differentiators'] = enhanced_content.get('differentiators', diffs)
+        if past_perf:
+            data['private_performance'] = enhanced_content.get('past_performance', past_perf)
+        if certs:
+            data['certifications'] = enhanced_content.get('certifications', certs)
         
         return data
         
@@ -9656,12 +9659,10 @@ def generate_enhanced_pdf():
                 if client or desc or value
             ]
         
-        # Try to enhance content with AI, but don't fail if it doesn't work
-        try:
-            formatted_data = enhance_capability_statement_content(formatted_data)
-        except Exception as enhance_error:
-            logging.warning(f"AI enhancement failed, using original content: {enhance_error}")
-            # Continue with original content
+        # NOTE: Do NOT auto-enhance with AI here. The PDF should use the user's
+        # exact text as written. AI enhancement only happens when the user
+        # explicitly clicks the "AI Assistant" button (which calls
+        # /api/enhance-capability-statement separately).
         
         # Generate PDF
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
