@@ -6361,9 +6361,10 @@ def get_contracts_api():
         }
         
         sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
+        top5_total = sum(c for _, c in sorted_categories)
         top_categories = []
         for cat_name, count in sorted_categories:
-            percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
+            percentage = round((count / top5_total * 100), 1) if top5_total > 0 else 0
             top_categories.append({
                 'name': cat_name,
                 'count': count,
@@ -6514,9 +6515,10 @@ def get_grants_api():
         }
         
         sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
+        top5_total = sum(c for _, c in sorted_categories)
         top_categories = []
         for cat_name, count in sorted_categories:
-            percentage = round((count / total_grants * 100), 1) if total_grants > 0 else 0
+            percentage = round((count / top5_total * 100), 1) if top5_total > 0 else 0
             top_categories.append({
                 'name': cat_name,
                 'count': count,
