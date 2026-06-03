@@ -11510,6 +11510,8 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
     # NAICS codes may be stored as floats like "238220.0" - we need to extract just the integer part
     raw_naics = payload.get("naics_code") or payload.get("NAICS Code") or payload.get("NAICS_CODE", "")
     raw_naics_all = payload.get("naics_codes_all") or payload.get("NAICS_CODES_ALL", "")
+    # SAM.gov stores NAICS as a list in 'naics_codes' (plural)
+    raw_naics_list = payload.get("naics_codes")
     
     naics_codes = []
     
@@ -11522,7 +11524,14 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
                 if code not in naics_codes:
                     naics_codes.append(code)
     
-    # Fallback to naics_code if naics_codes_all is empty
+    # Try SAM.gov naics_codes list (e.g. ["541330", "541512"])
+    if not naics_codes and raw_naics_list and isinstance(raw_naics_list, list):
+        for item in raw_naics_list:
+            for code in re.findall(r'(\d{2,})(?:\.\d+)?', str(item)):
+                if code not in naics_codes:
+                    naics_codes.append(code)
+    
+    # Fallback to naics_code (singular) if still empty
     if not naics_codes and raw_naics:
         if isinstance(raw_naics, list):
             items = raw_naics
@@ -11864,6 +11873,7 @@ _DASHBOARD_PAYLOAD_FIELDS = [
     "source_url", "contract_number", "title", "summary", "agency", "budget_estimate",
     # NAICS fields
     "NAICS_CODE", "NAICS_CODES_ALL", "NAICS_TITLE", "NAICS Description",
+    "naics_codes",  # SAM.gov stores NAICS as a list in this field
     # Contract type for filtering
     "Contract Type", "contract_type",
 ]

@@ -214,7 +214,13 @@ def normalize_payload_for_dashboard(payload: Dict[str, Any], point_id: int) -> D
     contract_type = get_field(payload, 'contract_type', 'Contract Type', default='')
     notice_type = get_field(payload, 'notice_type', 'Notice Type', default='')
     naics_code = get_field(payload, 'naics_code', 'NAICS Code', 'NAICS_CODE', default='')
+    # SAM.gov stores NAICS as a list in 'naics_codes' — join into a string
+    naics_codes_list = get_field(payload, 'naics_codes', default=None)
+    if not naics_code and naics_codes_list and isinstance(naics_codes_list, list):
+        naics_code = ', '.join(str(c) for c in naics_codes_list if c)
     naics_codes_all = get_field(payload, 'naics_codes_all', 'NAICS_CODES_ALL', default='')
+    if not naics_codes_all and naics_codes_list and isinstance(naics_codes_list, list):
+        naics_codes_all = '; '.join(str(c) for c in naics_codes_list if c)
     naics_description = get_field(payload, 'naics_description', 'NAICS Description', 'NAICS_TITLE', default='')
     source = get_field(payload, 'source', 'Source', default='')
     
