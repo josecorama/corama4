@@ -18223,9 +18223,9 @@ def api_rerun_top_five():
         # Filter out contracts with Unknown category before formatting
         filtered_results = [r for r in results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
 
-        # Format results for response
+        # Format ALL results for response (frontend handles pagination via offset/limit)
         formatted_matches = []
-        for i, row in enumerate(filtered_results[:5]):
+        for i, row in enumerate(filtered_results):
             formatted_matches.append({
                 'rank': i + 1,
                 'Company': row.get('Company', pdf_company_name or 'Unknown'),
@@ -18244,10 +18244,18 @@ def api_rerun_top_five():
                 'Contract_Type': row.get('Contract_Type', '')
             })
         
+        # Return first 5 (rerun always resets to page 1)
+        first_page = formatted_matches[:5]
+        has_more = len(formatted_matches) > 5
+        
         return jsonify({
             "success": True,
-            "matches": formatted_matches,
+            "matches": first_page,
             "total_found": len(filtered_results),
+            "total_available": len(formatted_matches),
+            "has_more": has_more,
+            "next_offset": 5 if has_more else None,
+            "current_offset": 0,
             "message": f"Found {len(filtered_results)} matching contracts"
         })
         
@@ -18451,9 +18459,9 @@ def api_top_five_contracts():
         if fresh_results:
             # Filter out contracts with Unknown category
             fresh_results = [r for r in fresh_results if str(r.get('Category', '') or '').strip().lower() not in ('unknown', '')]
-            # Format fresh results for response
+            # Format ALL results (pagination applied below)
             formatted_matches = []
-            for i, row in enumerate(fresh_results[:5]):
+            for i, row in enumerate(fresh_results):
                 formatted_matches.append({
                     'rank': i + 1,
                     'Company': row.get('Company', 'Unknown'),
@@ -18471,13 +18479,22 @@ def api_top_five_contracts():
                     'NAICS_Code': row.get('NAICS_Code', row.get('NAICS_CODE', '')),
                     'Contract_Type': row.get('Contract_Type', '')
                 })
-            # Clean NaN values before returning JSON
-            cleaned_matches = clean_for_json(formatted_matches)
+            # Apply pagination
+            paginated = formatted_matches[offset:offset + limit]
+            for i, m in enumerate(paginated):
+                m['rank'] = offset + i + 1
+            has_more = (offset + limit) < len(formatted_matches)
+            next_offset = offset + limit if has_more else None
+            cleaned_matches = clean_for_json(paginated)
             return jsonify({
                 "success": True,
                 "matches": cleaned_matches,
                 "has_matches": len(fresh_results) > 0,
-                "filtered_count": len(fresh_results)
+                "filtered_count": len(fresh_results),
+                "total_available": len(formatted_matches),
+                "has_more": has_more,
+                "next_offset": next_offset,
+                "current_offset": offset
             })
     
     if os.path.exists(matches_file):

@@ -495,8 +495,8 @@ Respond with ONLY valid JSON array, no other text:
             
             print(f"\n[MATCHING] Stage 3 - After filtering closed: {len(open_results)} open contracts (filtered out {closed_count} closed)")
             
-            final_results = open_results[:5]
-            print(f"\n[MATCHING] Stage 4 - Final results (top 5): {len(final_results)} contracts")
+            final_results = open_results[:limit]
+            print(f"\n[MATCHING] Stage 4 - Final results (top {limit}): {len(final_results)} contracts")
 
             print("\n(2) Deduplication process log:")
             for line in duplicate_logs:
@@ -504,7 +504,7 @@ Respond with ONLY valid JSON array, no other text:
             for line in replaced_logs:
                 print("   - " + line)
 
-            print("\n(3) Final 5 results kept:")
+            print(f"\n(3) Final {len(final_results)} results kept:")
             for i, fr in enumerate(final_results, 1):
                 # Use correct Qdrant field name: 'title' instead of 'Bid Name'
                 final_name = fr.payload.get("title", "Unknown Bid")
@@ -525,15 +525,22 @@ Respond with ONLY valid JSON array, no other text:
                         return fallback
                     return s
                 
-                # Extract NAICS code from lowercase field (handles "238220.0" format)
+                # Extract NAICS code — check naics_codes (SAM.gov list), naics_code, NAICS_CODE
+                import re as _re
                 raw_naics = res.payload.get('naics_code') or res.payload.get('NAICS_CODE', '')
+                raw_naics_list = res.payload.get('naics_codes')  # SAM.gov stores as list
                 naics_code = ''
-                if raw_naics and str(raw_naics).lower() != 'nan':
-                    # Extract integer part from float format like "238220.0"
-                    import re
-                    matches = re.findall(r'(\d{2,})(?:\.\d+)?', str(raw_naics))
+                if raw_naics_list and isinstance(raw_naics_list, list):
+                    codes = []
+                    for item in raw_naics_list:
+                        for c in _re.findall(r'(\d{2,})(?:\.\d+)?', str(item)):
+                            if c not in codes:
+                                codes.append(c)
+                    naics_code = ', '.join(codes)
+                elif raw_naics and str(raw_naics).lower() != 'nan':
+                    matches = _re.findall(r'(\d{2,})(?:\.\d+)?', str(raw_naics))
                     if matches:
-                        naics_code = matches[0]
+                        naics_code = ', '.join(matches)
                 
                 # Extract NAICS description from lowercase field
                 naics_description = res.payload.get('naics_description') or res.payload.get('NAICS_TITLE', '')
