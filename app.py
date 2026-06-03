@@ -16529,13 +16529,20 @@ def _inline_process_proposal_job(job_id: str, user_id: str, draft_id: str):
         except Exception:
             pass
 
+        contract_name = draft_data.get('contract_name', 'Contract')
         annotations = draft_data.get('annotations', [])
         pricing = draft_data.get('pricing', {})
         team_members = draft_data.get('team_members', [])
+        raw_ai_findings = draft_data.get('ai_findings', '')
+        raw_ai_suggestions = draft_data.get('ai_suggestions', '')
+        raw_ai_strategy = draft_data.get('ai_strategy', '')
 
         all_annotations_text = '\n'.join(
             [f"{ann.get('category', '')}: {ann.get('text', '')}" for ann in annotations]
         )
+
+        # Use raw AI findings if available (more complete than parsed annotations)
+        contract_analysis = raw_ai_findings[:6000] if raw_ai_findings else all_annotations_text[:4000]
 
         company_name = user_data.get('company', 'Our Company')
         company_address = user_data.get('address', '[Company Address]')
@@ -16577,15 +16584,21 @@ def _inline_process_proposal_job(job_id: str, user_id: str, draft_id: str):
 
         for section_num, section_name in section_prompts:
             try:
+                strategy_block = f"\nRECOMMENDED STRATEGY:\n{raw_ai_strategy[:2000]}" if raw_ai_strategy else ""
                 system_prompt = f"""You are an expert government contract proposal writer. Generate Section {section_num}: {section_name} for a public procurement proposal.
 
 FORMATTING: Output PLAIN TEXT ONLY - NO markdown (**, ##, -, •). Use UPPERCASE headings and numbered lists.
 
+CONTRACT NAME: {contract_name}
 COMPANY: {company_name}, {company_address}, {company_email}
 CAPABILITY STATEMENT: {capability_statement[:3000] if capability_statement else 'N/A'}
-CONTRACT REQUIREMENTS: {all_annotations_text[:4000]}
+CONTRACT ANALYSIS AND REQUIREMENTS:
+{contract_analysis}
+{strategy_block}
 TEAM: {team_summary}
 PRICING: {pricing_summary}
+
+IMPORTANT: All content must be specifically about the contract "{contract_name}". Do NOT reference or include information from any other contract.
 
 Generate substantive, ready-to-use content for this section."""
 
