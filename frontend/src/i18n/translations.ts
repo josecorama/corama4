@@ -484,6 +484,12 @@ export const translations = {
     loadBtn: 'Load',
     generatingPdf: 'Generating...',
     importBtn: 'Import',
+    chooseTemplate: 'Choose a Template',
+    chooseTemplateDescription: 'Select a layout for your Capability Statement PDF',
+    classicTemplate: 'Classic',
+    classicTemplateDescription: 'Traditional single-column layout',
+    modernTemplate: 'Modern',
+    modernTemplateDescription: 'Two-column sidebar layout',
 
     // Proposal Assistant page
     proposalAssistantPageTitle: 'Proposal Assistant',
@@ -1084,6 +1090,12 @@ export const translations = {
     loadBtn: 'Cargar',
     generatingPdf: 'Generando...',
     importBtn: 'Importar',
+    chooseTemplate: 'Elige una Plantilla',
+    chooseTemplateDescription: 'Selecciona un dise\u00f1o para tu PDF de Declaraci\u00f3n de Capacidades',
+    classicTemplate: 'Cl\u00e1sico',
+    classicTemplateDescription: 'Dise\u00f1o tradicional de una columna',
+    modernTemplate: 'Moderno',
+    modernTemplateDescription: 'Dise\u00f1o de dos columnas con barra lateral',
 
     // Proposal Assistant page
     proposalAssistantPageTitle: 'Asistente de Propuestas',

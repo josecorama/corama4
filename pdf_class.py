@@ -503,9 +503,283 @@ class PDF(FPDF):
         self.footer_layout['badge_y'] = footer_top_y + footer_h_mm - 3.0 - 12 - 1
 
 
-def create_pdf(data, output_path="output.pdf"):
-    """Create a professional capability statement PDF"""
-    pdf = PDF(data)
+class ModernPDF(FPDF):
+    """Modern two-column sidebar layout for capability statements"""
+
+    def __init__(self, data, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data = data
+        self.primary_color = data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])[0]
+        self.secondary_color = data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])[1]
+        self.set_auto_page_break(auto=False)
+        self.sidebar_w = 70
+
+    def _to_pdf_text(self, text):
+        if not text:
+            return text
+        import unicodedata
+        text = unicodedata.normalize('NFKC', str(text))
+        replacements = {
+            '\u2122': 'TM', '\u00ae': '(R)', '\u00a9': '(C)',
+            '\u2022': '-', '\u2013': '-', '\u2014': '-',
+            '\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"',
+            '\u00a0': ' ', '\u2026': '...',
+        }
+        for uc, ac in replacements.items():
+            text = text.replace(uc, ac)
+        try:
+            text.encode('latin-1')
+        except UnicodeEncodeError:
+            text = text.encode('latin-1', 'ignore').decode('latin-1')
+        return text
+
+    def _add_sidebar_section(self, title, items, y, is_text=False):
+        """Render a section inside the sidebar. Returns the new y position."""
+        x = 5
+        w = self.sidebar_w - 10
+        bottom = self.h - 10
+
+        if y + 12 > bottom:
+            return y
+
+        self.set_xy(x, y)
+        self.set_font("Helvetica", "B", 9)
+        self.set_text_color(*WHITE)
+        self.cell(w, 6, self._to_pdf_text(title), 0, 1, "L")
+        y += 7
+
+        # Thin accent line
+        self.set_draw_color(*self.secondary_color)
+        self.set_line_width(0.4)
+        self.line(x, y, x + w, y)
+        y += 3
+
+        self.set_font("Helvetica", "", 7)
+        self.set_text_color(220, 220, 220)
+
+        if is_text:
+            if isinstance(items, str) and items.strip():
+                self.set_xy(x, y)
+                self.multi_cell(w, 3.5, self._to_pdf_text(items), 0, "L")
+                y = min(self.get_y() + 2, bottom)
+        else:
+            for item in (items or []):
+                if y + 4 > bottom:
+                    break
+                item_text = str(item).strip()
+                if not item_text:
+                    continue
+                self.set_xy(x, y)
+                self.cell(3, 3.5, chr(0x95), 0, 0, "L")
+                self.set_xy(x + 4, y)
+                self.multi_cell(w - 4, 3.5, self._to_pdf_text(item_text), 0, "L")
+                y = self.get_y() + 1.5
+        return y + 4
+
+    def _add_main_section(self, title, items, y, is_text=False):
+        """Render a section in the main content area. Returns new y."""
+        x = self.sidebar_w + 8
+        w = self.w - x - 8
+        bottom = self.h - 10
+
+        if y + 12 > bottom:
+            return y
+
+        self.set_xy(x, y)
+        self.set_font("Helvetica", "B", 11)
+        self.set_text_color(*self.primary_color)
+        self.cell(w, 7, self._to_pdf_text(title), 0, 1, "L")
+        y += 8
+
+        # Accent bar
+        self.set_fill_color(*self.secondary_color)
+        self.rect(x, y, 25, 1, 'F')
+        y += 4
+
+        self.set_font("Helvetica", "", 8)
+        self.set_text_color(60, 60, 60)
+
+        if is_text:
+            if isinstance(items, str) and items.strip():
+                self.set_xy(x, y)
+                self.multi_cell(w, 4, self._to_pdf_text(items), 0, "J")
+                y = min(self.get_y() + 2, bottom)
+        else:
+            for item in (items or []):
+                if y + 5 > bottom:
+                    break
+                item_text = str(item).strip()
+                if not item_text:
+                    continue
+                self.set_xy(x, y)
+                self.set_font("Helvetica", "", 8)
+                self.cell(3, 4, chr(0x95), 0, 0, "L")
+                self.set_xy(x + 5, y)
+                self.multi_cell(w - 5, 4, self._to_pdf_text(item_text), 0, "L")
+                y = self.get_y() + 1.5
+        return y + 4
+
+    def create_content(self):
+        """Build the modern layout: dark sidebar on the left, white main area on the right."""
+        sw = self.sidebar_w
+        page_h = self.h
+
+        # Sidebar background
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, 0, sw, page_h, 'F')
+
+        # ---------- Sidebar content ----------
+        sy = 10
+
+        # Logo
+        logo_path = self.data.get("logo_path")
+        if logo_path and os.path.exists(logo_path):
+            try:
+                logo = Image.open(logo_path)
+                lw, lh = logo.size
+                ar = lw / lh
+                disp_h = 22
+                disp_w = disp_h * ar
+                max_w = sw - 10
+                if disp_w > max_w:
+                    disp_w = max_w
+                    disp_h = disp_w / ar
+                lx = 5 + (sw - 10 - disp_w) / 2
+                self.image(logo_path, lx, sy, disp_w, disp_h)
+                sy += disp_h + 4
+            except Exception:
+                pass
+
+        # Company name in sidebar
+        company_name = self.data.get("company_name", "")
+        if company_name:
+            self.set_xy(5, sy)
+            self.set_font("Helvetica", "B", 12)
+            self.set_text_color(*WHITE)
+            self.multi_cell(sw - 10, 6, self._to_pdf_text(company_name.upper()), 0, "C")
+            sy = self.get_y() + 6
+
+        # Contact info block
+        contact_lines = []
+        if self.data.get("contact_name"):
+            contact_lines.append(self.data["contact_name"])
+        if self.data.get("contact_title"):
+            contact_lines.append(self.data["contact_title"])
+        if self.data.get("contact_phone"):
+            contact_lines.append("P: " + self.data["contact_phone"])
+        if self.data.get("contact_email"):
+            contact_lines.append("E: " + self.data["contact_email"])
+        if self.data.get("contact_website"):
+            contact_lines.append("W: " + self.data["contact_website"])
+        addr_parts = []
+        if self.data.get("contact_address"):
+            addr_parts.append(self.data["contact_address"])
+        csz = ", ".join(filter(None, [
+            self.data.get("city", ""), self.data.get("state", ""), self.data.get("zip", "")
+        ]))
+        if csz:
+            addr_parts.append(csz)
+        contact_lines.extend(addr_parts)
+
+        if contact_lines:
+            self.set_font("Helvetica", "", 7)
+            self.set_text_color(200, 200, 200)
+            for cl in contact_lines:
+                if sy + 4 > page_h - 10:
+                    break
+                self.set_xy(5, sy)
+                self.cell(sw - 10, 3.5, self._to_pdf_text(cl), 0, 1, "L")
+                sy += 4
+            sy += 4
+
+        # UEI / CAGE codes
+        uei = self.data.get("uei_code", "")
+        cage = self.data.get("cage_code", "")
+        if uei or cage:
+            self.set_font("Helvetica", "B", 7)
+            self.set_text_color(*WHITE)
+            if uei:
+                self.set_xy(5, sy)
+                self.cell(sw - 10, 3.5, self._to_pdf_text(f"UEI: {uei}"), 0, 1, "L")
+                sy += 4
+            if cage:
+                self.set_xy(5, sy)
+                self.cell(sw - 10, 3.5, self._to_pdf_text(f"CAGE: {cage}"), 0, 1, "L")
+                sy += 4
+            sy += 3
+
+        # Sidebar sections
+        naics = self.data.get("naics_codes", [])
+        if naics:
+            sy = self._add_sidebar_section("NAICS CODES", naics, sy)
+
+        certs = self.data.get("certifications", [])
+        if certs:
+            sy = self._add_sidebar_section("CERTIFICATIONS", certs, sy)
+
+        # ---------- Main area ----------
+        my = 12
+
+        # Title banner
+        self.set_fill_color(*self.secondary_color)
+        banner_x = sw + 4
+        banner_w = self.w - sw - 8
+        self.rect(banner_x, my, banner_w, 14, 'F')
+        self.set_xy(banner_x, my + 2)
+        self.set_font("Helvetica", "B", 14)
+        self.set_text_color(*WHITE)
+        self.cell(banner_w, 10, "CAPABILITY STATEMENT", 0, 1, "C")
+        my += 22
+
+        # Hero image
+        image_path = self.data.get("image_path")
+        if image_path and os.path.exists(image_path):
+            try:
+                img = Image.open(image_path)
+                iw, ih = img.size
+                ar = iw / ih
+                max_img_w = banner_w
+                disp_w = max_img_w
+                disp_h = disp_w / ar
+                if disp_h > 45:
+                    disp_h = 45
+                    disp_w = disp_h * ar
+                ix = banner_x + (banner_w - disp_w) / 2
+                self.image(image_path, ix, my, disp_w, disp_h)
+                my += disp_h + 6
+            except Exception:
+                pass
+
+        # Main sections
+        desc = self.data.get("company_description", "")
+        if desc:
+            my = self._add_main_section("ABOUT US", desc, my, is_text=True)
+
+        comps = self.data.get("core_competencies", [])
+        if comps:
+            my = self._add_main_section("CORE COMPETENCIES", comps, my)
+
+        diffs = self.data.get("differentiators", [])
+        if diffs:
+            my = self._add_main_section("KEY DIFFERENTIATORS", diffs, my)
+
+        perf = self.data.get("private_performance", [])
+        if perf:
+            my = self._add_main_section("PAST PERFORMANCE", perf, my)
+
+
+def create_pdf(data, output_path="output.pdf", template="default"):
+    """Create a professional capability statement PDF.
+
+    Args:
+        data: dict with capability statement fields.
+        output_path: destination file path.
+        template: 'default' for the classic layout, 'modern' for a sidebar layout.
+    """
+    if template == "modern":
+        pdf = ModernPDF(data)
+    else:
+        pdf = PDF(data)
     pdf.add_page()
     pdf.create_content()
     pdf.output(output_path)
