@@ -101,15 +101,16 @@ class PDF(FPDF):
                 
                 img_x = right_x
                 
-                hero_target_h_mm = 56.5
+                max_hero_h_mm = 35
+                max_hero_w_mm = col_width * 0.85
                 bar_bottom = bar_y + rect_height_mm
                 height_by_bottom = bar_bottom - hero_img_y
                 
-                img_display_height = min(hero_target_h_mm, height_by_bottom)
+                img_display_height = min(max_hero_h_mm, height_by_bottom)
                 img_display_width = img_display_height * aspect_ratio
                 
-                if img_display_width > col_width:
-                    img_display_width = col_width
+                if img_display_width > max_hero_w_mm:
+                    img_display_width = max_hero_w_mm
                     img_display_height = img_display_width / aspect_ratio
                 
                 epsilon_mm = 0.4
@@ -125,11 +126,13 @@ class PDF(FPDF):
                 logo = Image.open(logo_path)
                 logo_width, logo_height = logo.size
                 aspect_ratio = logo_width / logo_height
-                logo_h = 35
+                max_logo_h = 20
+                max_logo_w = col_width * 0.6
+                logo_h = min(max_logo_h, 20)
                 logo_w = logo_h * aspect_ratio
                 
-                if logo_w > col_width:
-                    logo_w = col_width
+                if logo_w > max_logo_w:
+                    logo_w = max_logo_w
                     logo_h = logo_w / aspect_ratio
                 
                 logo_clearance_mm = 0.8
@@ -638,9 +641,9 @@ class ModernPDF(FPDF):
                 logo = Image.open(logo_path)
                 lw, lh = logo.size
                 ar = lw / lh
-                disp_h = 22
+                disp_h = min(18, 18)
                 disp_w = disp_h * ar
-                max_w = sw - 10
+                max_w = sw - 16
                 if disp_w > max_w:
                     disp_w = max_w
                     disp_h = disp_w / ar
@@ -738,11 +741,12 @@ class ModernPDF(FPDF):
                 img = Image.open(image_path)
                 iw, ih = img.size
                 ar = iw / ih
-                max_img_w = banner_w
+                max_img_w = banner_w * 0.8
+                max_img_h = 30
                 disp_w = max_img_w
                 disp_h = disp_w / ar
-                if disp_h > 45:
-                    disp_h = 45
+                if disp_h > max_img_h:
+                    disp_h = max_img_h
                     disp_w = disp_h * ar
                 ix = banner_x + (banner_w - disp_w) / 2
                 self.image(image_path, ix, my, disp_w, disp_h)
