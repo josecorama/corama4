@@ -9665,11 +9665,12 @@ def generate_enhanced_pdf():
         # /api/enhance-capability-statement separately).
         
         # Generate PDF
+        template = form_data.get('template', 'default')
         output_filename = f"capability_statement_{user_id}_{int(time.time())}.pdf"
         output_path = os.path.join(user_upload_dir, output_filename)
         
         try:
-            create_pdf(formatted_data, output_path)
+            create_pdf(formatted_data, output_path, template=template)
         except Exception as pdf_error:
             logging.error(f"PDF creation failed: {pdf_error}")
             return jsonify({'error': f'PDF creation failed: {str(pdf_error)}'}), 500

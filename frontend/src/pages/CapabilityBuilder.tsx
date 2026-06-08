@@ -275,19 +275,13 @@ const CapabilityBuilder = () => {
 
   const stepsCompleted = [section1HasData, section2HasData, section3HasData]
   
-  // Check if required fields are filled for Generate PDF (excluding images, gov codes, past performance, colors)
-  const canGeneratePdf = !!(
-    formData.companyName &&
-    formData.contactName &&
-    formData.email &&
-    formData.industryFocus &&
-    formData.coreCompetencies &&
-    formData.companyDescription
-  )
+  // Allow PDF generation as long as at least one section has data
+  const canGeneratePdf = section1HasData || section2HasData || section3HasData
   
     const [isDragOver, setIsDragOver] = useState(false)
     const [importingUrl, setImportingUrl] = useState(false)
     const [generatingPdf, setGeneratingPdf] = useState(false)
+    const [showTemplateModal, setShowTemplateModal] = useState(false)
     const [activeColorField, setActiveColorField] = useState<'primary' | 'secondary'>('primary')
     const [selectedHue, setSelectedHue] = useState(240) // Default blue hue
     const [gradientPos, setGradientPos] = useState({ x: 0.7, y: 0.3 }) // 0-1 normalized position
@@ -539,7 +533,8 @@ const CapabilityBuilder = () => {
     return str.split('\n').map(s => s.trim()).filter(s => s.length > 0)
   }
 
-  const handleGeneratePdf = async () => {
+  const handleGeneratePdf = async (template: 'default' | 'modern' = 'default') => {
+    setShowTemplateModal(false)
     setGeneratingPdf(true)
     try {
       // Build FormData for /generate-enhanced-pdf endpoint
@@ -561,6 +556,7 @@ const CapabilityBuilder = () => {
       pdfFormData.append('companyDescription', formData.companyDescription || '')
       pdfFormData.append('primaryColor', formData.primaryColor || '#0B2C48')
       pdfFormData.append('secondaryColor', formData.secondaryColor || '#6BA4A7')
+      pdfFormData.append('template', template)
       
       // Array fields as JSON strings
       pdfFormData.append('competencies', JSON.stringify(stringToArray(formData.coreCompetencies)))
@@ -1338,7 +1334,7 @@ const CapabilityBuilder = () => {
 
               {/* Generate PDF Button */}
               <button
-                onClick={handleGeneratePdf}
+                onClick={() => setShowTemplateModal(true)}
                 disabled={generatingPdf || !canGeneratePdf}
                 className="w-full flex items-center gap-3 text-white font-poppins px-4 sm:px-6 py-3 rounded-lg hover:opacity-90 transition-opacity border-2 border-white disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: 'rgb(28, 66, 98)' }}
@@ -1381,6 +1377,105 @@ const CapabilityBuilder = () => {
         </main>
         </div>
       </div>
+
+      {/* Template Selection Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowTemplateModal(false)}
+          />
+          <div
+            className="relative rounded-2xl p-6 sm:p-8 max-w-lg w-full mx-4 border border-white/20 animate-popup-pop"
+            style={{ backgroundColor: 'rgb(11, 44, 72)' }}
+          >
+            <button
+              className="absolute top-4 right-4 hover:opacity-80 transition-opacity"
+              onClick={() => setShowTemplateModal(false)}
+            >
+              <img src="/static/app/proposal-summary/ClosePopupButton.svg" alt="Close" className="w-6 h-6" />
+            </button>
+
+            <div className="text-center mb-6">
+              <img src="/static/app/dashboard/GeneratePDF.svg" alt="" className="w-12 h-12 mx-auto mb-3" />
+              <h3 className="text-white font-poppins font-bold text-lg sm:text-xl">
+                {t('chooseTemplate')}
+              </h3>
+              <p className="text-gray-300 font-poppins text-xs sm:text-sm mt-1">
+                {t('chooseTemplateDescription')}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              {/* Classic Template */}
+              <button
+                onClick={() => handleGeneratePdf('default')}
+                className="flex-1 group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0B2C48' }}>
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-poppins font-bold text-sm">{t('classicTemplate')}</p>
+                    <p className="text-gray-400 font-poppins text-xs">{t('classicTemplateDescription')}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg overflow-hidden border border-white/10" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="h-2" style={{ backgroundColor: '#0B2C48' }} />
+                  <div className="p-2 space-y-1">
+                    <div className="h-1.5 rounded bg-gray-300 w-3/4" />
+                    <div className="h-1 rounded bg-gray-200 w-full" />
+                    <div className="h-1 rounded bg-gray-200 w-5/6" />
+                    <div className="flex gap-1 mt-1">
+                      <div className="h-1.5 rounded-full bg-[#0B2C48] w-8" />
+                      <div className="h-1.5 rounded-full bg-[#0B2C48] w-10" />
+                      <div className="h-1.5 rounded-full bg-[#0B2C48] w-6" />
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Modern Template */}
+              <button
+                onClick={() => handleGeneratePdf('modern')}
+                className="flex-1 group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#5CBFC0' }}>
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-poppins font-bold text-sm">{t('modernTemplate')}</p>
+                    <p className="text-gray-400 font-poppins text-xs">{t('modernTemplateDescription')}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg overflow-hidden border border-white/10" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="flex h-16">
+                    <div className="w-1/3" style={{ backgroundColor: '#5CBFC0' }}>
+                      <div className="p-1.5 space-y-1">
+                        <div className="h-1.5 rounded bg-white/60 w-3/4" />
+                        <div className="h-1 rounded bg-white/40 w-full" />
+                      </div>
+                    </div>
+                    <div className="w-2/3 p-1.5 space-y-1">
+                      <div className="h-1.5 rounded bg-gray-300 w-2/3" />
+                      <div className="h-1 rounded bg-gray-200 w-full" />
+                      <div className="h-1 rounded bg-gray-200 w-4/5" />
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
