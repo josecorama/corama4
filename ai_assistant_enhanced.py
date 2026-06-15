@@ -5,10 +5,16 @@ Provides comprehensive bid application creation capabilities
 
 import os
 import json
+import time
 from openai import OpenAI
 from flask import request, jsonify, session
 from datetime import datetime
 import logging
+import httpx
+
+# OpenAI request timeout: keep well under gunicorn's 120s worker timeout
+_OPENAI_TIMEOUT = httpx.Timeout(90.0, connect=10.0)
+_MAX_RETRIES = 2
 
 class EnhancedAIAssistant:
     def __init__(self, app, db):
@@ -17,7 +23,7 @@ class EnhancedAIAssistant:
         api_key = os.getenv('OPENAI_API_KEY') or os.getenv('BID_RESPONSE_OPENAI_API_KEY') or os.getenv('CS_BUILDER_OPENAI_API_KEY')
         if not api_key:
             raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY, BID_RESPONSE_OPENAI_API_KEY, or CS_BUILDER_OPENAI_API_KEY")
-        self.client = OpenAI(api_key=api_key)
+        self.client = OpenAI(api_key=api_key, timeout=_OPENAI_TIMEOUT, max_retries=_MAX_RETRIES)
         self.fine_tuned_model = "ft:gpt-3.5-turbo-0125:personal:bid-response:9oyXR6qz"
         
     def get_conversation_context(self, user_id, contract_hash):
