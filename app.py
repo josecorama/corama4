@@ -40,6 +40,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from sklearn.metrics.pairwise import cosine_similarity
 from rank_bm25 import BM25Okapi
 from pdf2docx import parse
+from cachetools import TTLCache
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
@@ -2680,7 +2681,7 @@ app.logger.setLevel(logging.INFO)
 smart_search_api_key = os.getenv('OPENAI_API_KEY')
 client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
 # Timeout-aware client for endpoints that must respond within Gunicorn's 120s limit
-client_OPENAI_WITH_TIMEOUT = OpenAI(api_key=smart_search_api_key, timeout=60.0)
+client_OPENAI_WITH_TIMEOUT = OpenAI(api_key=smart_search_api_key, timeout=30.0)
 
 # In-memory cache for AI-generated NAICS codes (keyed by hash_value)
 # This cache is persisted to disk to avoid regenerating on every restart
@@ -2723,6 +2724,26 @@ QDRANT_ANALYTICS_CACHE = None
 QDRANT_ANALYTICS_SIGNATURE = None
 QDRANT_CONTRACTS_CACHE = None  # Cache for all contracts
 QDRANT_CONTRACTS_SIGNATURE = None
+
+# ============================================================================
+# TTL CACHES FOR PERFORMANCE OPTIMIZATION
+# ============================================================================
+# Analytics caches (expensive Qdrant scans) - 5 minute TTL
+_analytics_cache = TTLCache(maxsize=4, ttl=300)
+# Grants analytics cache - 5 minute TTL
+_grants_analytics_cache = TTLCache(maxsize=4, ttl=300)
+# Contract lookup by name cache (AI assistant) - 10 minute TTL
+_contract_name_cache = TTLCache(maxsize=200, ttl=600)
+# SAM.gov description cache - 30 minute TTL (external API, rarely changes)
+_sam_description_cache = TTLCache(maxsize=200, ttl=1800)
+# Dashboard contracts response cache - 2 minute TTL (keyed by page/limit)
+_dashboard_response_cache = TTLCache(maxsize=50, ttl=120)
+# Grants response cache - 2 minute TTL
+_grants_response_cache = TTLCache(maxsize=50, ttl=120)
+# User profile cache - 1 minute TTL (keyed by user_id)
+_user_profile_cache = TTLCache(maxsize=100, ttl=60)
+# Dashboard stats cache - 3 minute TTL
+_dashboard_stats_cache = TTLCache(maxsize=4, ttl=180)
 
 # Centralized Qdrant client instance (lazy initialization)
 _qdrant_client = None
@@ -2817,6 +2838,16 @@ def clear_all_caches():
     _dashboard_contracts_hash_index = None
     _dashboard_contracts_signature = None
     _dashboard_contracts_last_check = 0
+    
+    # Clear TTL caches
+    _analytics_cache.clear()
+    _grants_analytics_cache.clear()
+    _contract_name_cache.clear()
+    _sam_description_cache.clear()
+    _dashboard_response_cache.clear()
+    _grants_response_cache.clear()
+    _user_profile_cache.clear()
+    _dashboard_stats_cache.clear()
     
     logging.info("[Cache] All in-memory caches cleared")
 
@@ -6144,8 +6175,14 @@ def get_qdrant_analytics():
     these stats periodically and saves them to 'dashboard_stats_snapshot'.
     
     Falls back to Qdrant count() + estimated percentages if snapshot not available.
+    Uses TTL cache to avoid repeated Firebase/Qdrant queries.
     """
     global QDRANT_ANALYTICS_CACHE, QDRANT_ANALYTICS_SIGNATURE
+    
+    # Check TTL cache first
+    cache_key = "qdrant_analytics"
+    if cache_key in _analytics_cache:
+        return _analytics_cache[cache_key]
     
     from datetime import datetime
     
@@ -6196,6 +6233,7 @@ def get_qdrant_analytics():
                     logging.info(f"[Qdrant Analytics] Using pre-computed snapshot: {total_contracts} contracts")
                     QDRANT_ANALYTICS_CACHE = result
                     QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
+                    _analytics_cache[cache_key] = result
                     return result
         except Exception as snapshot_error:
             logging.warning(f"[Qdrant Analytics] Could not read snapshot: {snapshot_error}")
@@ -6244,6 +6282,7 @@ def get_qdrant_analytics():
         
         QDRANT_ANALYTICS_CACHE = result
         QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
+        _analytics_cache[cache_key] = result
         
         return result
         
@@ -6270,21 +6309,20 @@ def get_dashboard_stats_api():
     
     SCALABLE ARCHITECTURE: Returns stats from Firebase snapshot computed by background worker.
     This endpoint is designed to be extremely fast (<50ms) as it only reads from Firebase.
-    
-    Returns:
-    - total_contracts: Total number of contracts in Qdrant
-    - category_distribution: Top categories with counts and percentages
-    - status_distribution: Active vs closed counts
-    - top_categories: List of top 5 category names
-    - generated_at: When the stats were last computed
-    - _from_snapshot: Boolean indicating if data is from pre-computed snapshot
+    Uses TTL cache to avoid repeated queries.
     """
+    cache_key = "dashboard_stats"
+    if cache_key in _dashboard_stats_cache:
+        return jsonify(_dashboard_stats_cache[cache_key])
+    
     try:
         stats = get_qdrant_analytics()
-        return jsonify({
+        result = {
             'success': True,
             'stats': stats
-        })
+        }
+        _dashboard_stats_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"[Dashboard Stats API] Error: {e}")
         return jsonify({
@@ -6313,47 +6351,29 @@ def Welcome():
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
     """API endpoint to get contract data for the dashboard with SERVER-SIDE PAGINATION.
-    
-    Supports cursor-based pagination for efficient browsing of 100k+ contracts:
-    - First request: /api/contracts?limit=50
-    - Subsequent requests: /api/contracts?limit=50&cursor=<next_cursor>
-    
-    Query params:
-    - page: Page number (1-indexed) - for display only
-    - limit: Number of contracts per page (default 50, max 100)
-    - cursor: Qdrant scroll offset token for cursor-based pagination
-    
-    Returns:
-    - contracts: Array of contract objects
-    - total_contracts: Total count from Qdrant (real count, not cache)
-    - current_page: Current page number
-    - total_pages: Total pages available
-    - next_cursor: Offset token for next page (null if no more pages)
-    - has_more: Boolean indicating if more pages exist
-    - top_categories: Category distribution for analytics
+    Uses TTL cache to avoid repeated Qdrant queries for the same page.
     """
     try:
-        # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         limit = request.args.get('limit', 50, type=int)
         cursor = request.args.get('cursor', None, type=str)
-        
-        # Validate limit (max 100 to prevent OOM)
         limit = min(max(limit, 1), 100)
         
-        # Fetch contracts from Qdrant with server-side pagination
+        # Check response cache
+        cache_key = f"contracts_{page}_{limit}_{cursor}"
+        if cache_key in _dashboard_response_cache:
+            logging.info(f"/api/contracts: Returning cached response (page {page})")
+            return jsonify(_dashboard_response_cache[cache_key])
+        
         contracts, total_contracts, total_pages, next_cursor = get_dashboard_contracts_from_qdrant(
             page=page,
             items_per_page=limit,
             cursor=cursor
         )
         
-        # Get analytics with real count from Qdrant
         analytics = get_qdrant_analytics()
         category_distribution = analytics.get('category_distribution', {})
         
-        # Build top_categories from analytics, excluding unhelpful categories
-        # Filter out categories like "Other", "Unknown", etc. that aren't useful for users
         excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
         filtered_categories = {
             cat: count for cat, count in category_distribution.items()
@@ -6373,7 +6393,7 @@ def get_contracts_api():
         
         logging.info(f"/api/contracts: Returning {len(contracts)} contracts (page {page}, limit {limit}, has_more: {next_cursor is not None})")
         
-        return jsonify({
+        result = {
             "contracts": contracts,
             "total_contracts": total_contracts,
             "current_page": page,
@@ -6381,7 +6401,9 @@ def get_contracts_api():
             "next_cursor": next_cursor,
             "has_more": next_cursor is not None,
             "top_categories": top_categories
-        })
+        }
+        _dashboard_response_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Error loading contracts from Qdrant: {e}", exc_info=True)
         return jsonify({
@@ -6400,8 +6422,12 @@ def get_grants_analytics():
     Get analytics for grants from the government_grants Qdrant collection.
     
     Scrolls through all grants to calculate category distribution.
-    Results are cached to avoid repeated full scans.
+    Results are cached with TTL to avoid repeated full scans.
     """
+    cache_key = "grants_analytics"
+    if cache_key in _grants_analytics_cache:
+        return _grants_analytics_cache[cache_key]
+    
     try:
         qdrant_url = os.getenv('QDRANT_URL')
         qdrant_api_key = os.getenv('QDRANT_API_KEY')
@@ -6458,10 +6484,12 @@ def get_grants_analytics():
         
         logging.info(f"[Grants Analytics] Calculated category distribution from {total_grants} grants")
         
-        return {
+        result = {
             'total_grants': total_grants,
             'category_distribution': category_counts
         }
+        _grants_analytics_cache[cache_key] = result
+        return result
         
     except Exception as e:
         logging.error(f"[Grants Analytics] Error: {e}", exc_info=True)
@@ -6475,40 +6503,27 @@ EXCLUDED_CATEGORIES = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none',
 @app.route('/api/grants', methods=['GET'])
 def get_grants_api():
     """API endpoint to get grants data for the dashboard with SERVER-SIDE PAGINATION.
-    
-    Fetches grants from the government_grants Qdrant collection.
-    
-    Query params:
-    - page: Page number (1-indexed) - for display only
-    - limit: Number of grants per page (default 50, max 100)
-    
-    Returns:
-    - contracts: Array of grant objects (using 'contracts' key for frontend compatibility)
-    - total_contracts: Total count from Qdrant
-    - current_page: Current page number
-    - total_pages: Total pages available
-    - top_categories: Category distribution for analytics (from ALL grants)
+    Uses TTL cache to avoid repeated Qdrant queries for the same page.
     """
     try:
-        # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         limit = request.args.get('limit', 50, type=int)
-        
-        # Validate limit (max 100 to prevent OOM)
         limit = min(max(limit, 1), 100)
         
-        # Fetch grants from Qdrant
+        # Check response cache
+        cache_key = f"grants_{page}_{limit}"
+        if cache_key in _grants_response_cache:
+            logging.info(f"/api/grants: Returning cached response (page {page})")
+            return jsonify(_grants_response_cache[cache_key])
+        
         grants, total_grants, total_pages = get_dashboard_grants_from_qdrant(
             page=page,
             items_per_page=limit
         )
         
-        # Get category distribution from ALL grants (not just current page)
         grants_analytics = get_grants_analytics()
         category_distribution = grants_analytics.get('category_distribution', {})
         
-        # Build top_categories from analytics, excluding unhelpful categories
-        # Filter out categories like "Other", "Unknown", etc.
         filtered_categories = {
             cat: count for cat, count in category_distribution.items()
             if cat.lower() not in EXCLUDED_CATEGORIES
@@ -6527,15 +6542,17 @@ def get_grants_api():
         
         logging.info(f"/api/grants: Returning {len(grants)} grants (page {page}, limit {limit})")
         
-        return jsonify({
-            "contracts": grants,  # Use 'contracts' key for frontend compatibility
+        result = {
+            "contracts": grants,
             "total_contracts": total_grants,
             "current_page": page,
             "total_pages": total_pages,
             "next_cursor": None,
             "has_more": page < total_pages,
             "top_categories": top_categories
-        })
+        }
+        _grants_response_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Error loading grants from Qdrant: {e}", exc_info=True)
         return jsonify({
@@ -8470,15 +8487,23 @@ def fetch_sam_gov_contract_description(notice_id: str) -> str:
     returns clean text suitable for AI context.
 
     Returns empty string on any failure (timeout, missing key, etc.).
+    Uses TTL cache to avoid repeated SAM.gov API calls.
     """
+    if not notice_id:
+        return ""
+    
+    # Check cache first
+    if notice_id in _sam_description_cache:
+        return _sam_description_cache[notice_id]
+    
     import re as _re
     sam_api_key = os.environ.get('SAM_GOV_API_KEY', '')
-    if not sam_api_key or not notice_id:
+    if not sam_api_key:
         return ""
 
     desc_url = f"https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid={notice_id}"
     try:
-        resp = requests.get(desc_url, params={"api_key": sam_api_key}, timeout=15)
+        resp = requests.get(desc_url, params={"api_key": sam_api_key}, timeout=8)
         if resp.status_code != 200:
             logging.warning(f"[SAM.gov desc] HTTP {resp.status_code} for notice {notice_id}")
             return ""
@@ -8496,6 +8521,7 @@ def fetch_sam_gov_contract_description(notice_id: str) -> str:
         # Limit to 6000 chars to keep token budget manageable
         if len(text) > 6000:
             text = text[:6000] + "..."
+        _sam_description_cache[notice_id] = text
         return text
     except Exception as e:
         logging.warning(f"[SAM.gov desc] Failed to fetch description for {notice_id}: {e}")
@@ -8763,6 +8789,27 @@ def ai_assistant_action():
             
             return jsonify(result)
             
+        except openai.APITimeoutError:
+            app.logger.warning(f"[AI_ASSISTANT] OpenAI timeout for action {action}")
+            return jsonify({
+                "success": False,
+                "error": "The AI service is taking longer than expected. Please try again in a moment.",
+                "credits_balance": current_credits
+            }), 504
+        except openai.APIConnectionError as e:
+            app.logger.warning(f"[AI_ASSISTANT] OpenAI connection error for action {action}: {e}")
+            return jsonify({
+                "success": False,
+                "error": "Could not connect to AI service. Please try again.",
+                "credits_balance": current_credits
+            }), 503
+        except openai.RateLimitError:
+            app.logger.warning(f"[AI_ASSISTANT] OpenAI rate limit for action {action}")
+            return jsonify({
+                "success": False,
+                "error": "AI service is temporarily busy. Please wait a moment and try again.",
+                "credits_balance": current_credits
+            }), 429
         except Exception as e:
             app.logger.error(f"Error generating AI response for action {action}: {e}", exc_info=True)
             return jsonify({
@@ -9729,7 +9776,8 @@ def process_capability_statement():
         if not capability_text or len(capability_text.strip()) < 10:
             logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}...' (length: {len(capability_text) if capability_text else 0})")
             error_msg = 'Could not extract meaningful text. '
-            if 'url' in request.json:
+            is_url_request = request.is_json and request.json and 'url' in request.json
+            if is_url_request:
                 error_msg += 'The system can import from both PDF URLs and websites. If the content is too short or not relevant, please try: (1) A direct PDF URL, (2) Uploading the PDF file directly, or (3) A different webpage with more detailed company information.'
             else:
                 error_msg += 'Please ensure the PDF contains readable text (not scanned images). Try using a text-based PDF or OCR software first.'
@@ -11708,13 +11756,16 @@ def get_contract_payload_from_qdrant_by_name(contract_name):
     """
     Look up a contract in Qdrant by name using MatchText search.
     Returns the raw Qdrant payload dict (not the template-compatible format).
-    
-    Args:
-        contract_name: The contract title/bid_name to search for
-    
-    Returns:
-        Dict with raw Qdrant payload fields, or None if not found
+    Uses TTL cache to avoid repeated Qdrant queries for the same contract.
     """
+    if not contract_name:
+        return None
+    
+    # Check cache first
+    cache_key = contract_name.lower().strip()
+    if cache_key in _contract_name_cache:
+        return _contract_name_cache[cache_key]
+    
     try:
         qdrant_client = get_qdrant_client(timeout=10)
         if not qdrant_client:
@@ -11751,6 +11802,7 @@ def get_contract_payload_from_qdrant_by_name(contract_name):
         payload = dict(chosen.payload)
         payload['_qdrant_point_id'] = str(chosen.id)
         logging.info(f"[AI Context] Found contract in Qdrant: {payload.get('bid_name') or payload.get('title')} (ID: {chosen.id})")
+        _contract_name_cache[cache_key] = payload
         return payload
         
     except Exception as e:
@@ -18067,6 +18119,11 @@ def api_get_user():
     user = session['user']
     user_id = user['localId']
     
+    # Check cache first
+    cache_key = f"me_{user_id}"
+    if cache_key in _user_profile_cache:
+        return jsonify(_user_profile_cache[cache_key])
+    
     try:
         if admin_initialized and admin_db:
             user_ref = admin_db.reference(f'users/{user_id}')
@@ -18085,7 +18142,7 @@ def api_get_user():
         # Use display_name if available, otherwise fall back to username or first_name
         display_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or user_data.get('email', '').split('@')[0]
         
-        return jsonify({
+        result = {
             "success": True,
             "user": {
                 "id": user_id,
@@ -18093,11 +18150,13 @@ def api_get_user():
                 "first_name": user_data.get('first_name', ''),
                 "last_name": user_data.get('last_name', ''),
                 "company": user_data.get('company', ''),
-                "username": display_name,  # Return display_name with original casing
+                "username": display_name,
                 "credits_balance": user_data.get('credits_balance', 0),
                 "has_capability_statement": has_cs
             }
-        })
+        }
+        _user_profile_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Error in /api/me: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
