@@ -40,6 +40,7 @@ from dotenv import load_dotenv
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
+from cache_manager import get_cache, make_cache_key
 
 # Load environment variables
 load_dotenv()
@@ -69,6 +70,7 @@ import hashlib
 import openai
 import tiktoken
 import requests  # ✅ Fix: Ensure requests is imported
+import threading
 
 
 
@@ -94,6 +96,10 @@ if os.getenv('ENV') == 'production':
     logging.basicConfig(level=logging.WARNING)
 else:
     logging.basicConfig(level=logging.INFO)
+
+# Initialize cache (uses Redis if REDIS_URL is set, otherwise in-memory)
+cache = get_cache()
+logging.info(f"Cache initialized: {'Redis' if cache.is_redis else 'In-memory'}")
 
 
 
@@ -274,13 +280,15 @@ app.logger.setLevel(logging.INFO)
 
 
 
-#OPEN AI 
+#OPEN AI — set request timeout to stay under gunicorn's 120s worker timeout
+import httpx as _httpx
+_openai_timeout = _httpx.Timeout(90.0, connect=10.0)
 
-client_SMART_SEARCH_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY'))
+client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=os.getenv('SMART_SEARCH_OPENAI_API_KEY'), timeout=_openai_timeout, max_retries=2)
 
-client_CS_BUILDER_OPENAI_API_KEY =  OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY'))
+client_CS_BUILDER_OPENAI_API_KEY = OpenAI(api_key=os.getenv('CS_BUILDER_OPENAI_API_KEY'), timeout=_openai_timeout, max_retries=2)
 
-client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'))
+client_BID_RESPONSE_OPENAI_API_KEY = OpenAI(api_key=os.getenv('BID_RESPONSE_OPENAI_API_KEY'), timeout=_openai_timeout, max_retries=2)
 
 
 
@@ -292,6 +300,45 @@ if not os.path.exists(uploads_dir):
 
 
 
+
+
+# ---- Cached data loaders ----
+
+_csv_data_cache = {'df': None, 'mtime': 0}
+_csv_lock = threading.Lock()
+
+def _get_csv_dataframe():
+    """Load CSV with file-modification-time caching to avoid re-reading on every request."""
+    csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
+    try:
+        mtime = os.path.getmtime(csv_path)
+    except OSError:
+        mtime = 0
+
+    if _csv_data_cache['df'] is not None and _csv_data_cache['mtime'] == mtime:
+        return _csv_data_cache['df']
+
+    try:
+        df = pd.read_csv(csv_path)
+        _csv_data_cache['df'] = df
+        _csv_data_cache['mtime'] = mtime
+        return df
+    except Exception as e:
+        logging.error(f"Error reading CSV: {e}")
+        return _csv_data_cache['df']  # return stale if available
+
+
+def _get_cached_analytics():
+    """Return dashboard analytics with 5-minute caching."""
+    cache_key = 'dashboard_analytics'
+    cached = cache.get(cache_key)
+    if cached:
+        return cached
+
+    from csv_analytics import get_dashboard_metrics
+    analytics = get_dashboard_metrics()
+    cache.set(cache_key, analytics, ttl=300)
+    return analytics
 
 
 # Function to clean and reformat strings
@@ -2005,9 +2052,8 @@ def Welcome():
         company_name = user_data.get('company', 'No Company')
         first_name = user_data.get('first_name', 'User')
         
-        from csv_analytics import get_dashboard_metrics
-        analytics_data = get_dashboard_metrics()
-        logging.info(f"📊 Analytics data loaded: {analytics_data}")
+        analytics_data = _get_cached_analytics()
+        logging.info(f"Dashboard analytics loaded (cached)")
         
         page = request.args.get('page', 1, type=int)
         items_per_page = 10  # Dashboard shows fewer items than smartsearch for better UX
@@ -2036,31 +2082,37 @@ def Welcome():
 
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
-    """API endpoint to get contract data for the dashboard with pagination"""
+    """API endpoint to get contract data for the dashboard with pagination (cached)"""
     try:
-        import pandas as pd
-        csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-        df = pd.read_csv(csv_path)
-        
-        # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         items_per_page = 10
-        
+
+        # Try cache first
+        cache_key = f'contracts_page_{page}'
+        cached = cache.get(cache_key)
+        if cached:
+            return jsonify(cached)
+
+        df = _get_csv_dataframe()
+        if df is None:
+            raise ValueError("CSV data unavailable")
+
         total_contracts = len(df)
         total_pages = (total_contracts + items_per_page - 1) // items_per_page
         start = (page - 1) * items_per_page
         end = start + items_per_page
-        
-        # Get paginated contracts
+
         paginated_df = df.iloc[start:end]
         contracts = paginated_df.to_dict('records')
-        
-        return jsonify({
+
+        result = {
             "contracts": contracts,
             "total_contracts": total_contracts,
             "current_page": page,
             "total_pages": total_pages
-        })
+        }
+        cache.set(cache_key, result, ttl=300)
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Error loading contracts: {e}")
         return jsonify({
@@ -2092,9 +2144,9 @@ def dashboard_search():
         items_per_page = 10
 
         if not user_query:
-            import pandas as pd
-            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-            df = pd.read_csv(csv_path)
+            df = _get_csv_dataframe()
+            if df is None:
+                return jsonify({"success": False, "message": "Data unavailable"}), 500
             
             total_contracts = len(df)
             total_pages = (total_contracts + items_per_page - 1) // items_per_page
@@ -2104,8 +2156,7 @@ def dashboard_search():
             paginated_df = df.iloc[start:end]
             contracts = paginated_df.to_dict('records')
             
-            from csv_analytics import analyze_contract_data
-            analytics = analyze_contract_data()
+            analytics = _get_cached_analytics()
             
             return jsonify({
                 "success": True,
@@ -2118,9 +2169,10 @@ def dashboard_search():
 
         if not vector_store:
             logging.warning("Vector store not initialized, falling back to basic text search")
-            import pandas as pd
-            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-            df = pd.read_csv(csv_path)
+            df = _get_csv_dataframe()
+            if df is None:
+                return jsonify({"success": False, "message": "Data unavailable"}), 500
+            df = df.copy()
             
             if user_query:
                 mask = (df['bid_name'].str.contains(user_query, case=False, na=False) |
@@ -3176,9 +3228,19 @@ def enhanced_ai_assistant():
     try:
         if not user_query:
             return jsonify({"error": "Query is required"}), 400
-            
-        user = session['user']
-        user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+
+        if not enhanced_ai:
+            return jsonify({"error": "AI Assistant is temporarily unavailable. Please try again shortly."}), 503
+
+        user = session.get('user')
+        if not user:
+            return jsonify({"error": "Session expired. Please log in again."}), 401
+
+        try:
+            user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
+        except Exception as db_err:
+            app.logger.error(f"Firebase user data fetch failed: {db_err}")
+            return jsonify({"error": "Could not retrieve user data. Please refresh and try again."}), 503
         user_id = user['localId']
         id_token = user['idToken']
         
@@ -3449,9 +3511,17 @@ How can I help you with your contract response today?"""
         # If we reach here, it's an unknown action type
         return jsonify({"error": f"Unknown action type: {action_type}"}), 400
         
+    except KeyError as e:
+        app.logger.error(f"Session/data key error in AI assistant: {e}")
+        return jsonify({"error": "Session expired. Please log in again."}), 401
     except Exception as e:
-        app.logger.error(f"Error in enhanced AI assistant: {str(e)}")
-        return jsonify({"error": f"Enhanced AI assistant error: {str(e)}"}), 500
+        app.logger.error(f"Error in enhanced AI assistant: {str(e)}", exc_info=True)
+        error_msg = "AI processing failed"
+        if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+            error_msg = "The AI request timed out. Please try again with a shorter query or a simpler action."
+        elif "rate_limit" in str(e).lower():
+            error_msg = "AI service is temporarily busy. Please wait a moment and try again."
+        return jsonify({"error": error_msg}), 500
 
 @app.route('/capability-builder-enhanced')
 def capability_builder_enhanced():
@@ -3645,59 +3715,57 @@ def process_capability_statement():
         user_id = session.get('user_id', 'test_user')
         logging.info(f"Processing capability statement for user: {user_id}")
         
-        # Handle file upload or URL
         capability_text = ""
         
         if 'capabilityFile' in request.files and request.files['capabilityFile'].filename:
             file = request.files['capabilityFile']
-            logging.info(f"Processing file upload: {file.filename}, size: {file.content_length if hasattr(file, 'content_length') else 'unknown'}")
+            logging.info(f"Processing file upload: {file.filename}")
             
             if file and allowed_file(file.filename):
                 user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"user_{user_id}")
                 os.makedirs(user_upload_dir, exist_ok=True)
                 
-                filename = f"temp_capability_{int(time.time())}_{file.filename}"
+                filename = f"temp_capability_{int(time.time())}_{secure_filename(file.filename)}"
                 filepath = os.path.join(user_upload_dir, filename)
                 file.save(filepath)
-                logging.info(f"File saved to: {filepath}")
                 
-                # Extract text from PDF
                 capability_text = extract_text_from_pdf(filepath)
                 logging.info(f"Extracted text length: {len(capability_text) if capability_text else 0}")
                 
-                os.remove(filepath)
+                try:
+                    os.remove(filepath)
+                except OSError:
+                    pass
             else:
-                logging.error(f"File validation failed for: {file.filename}")
-                return jsonify({'error': f'Invalid file type. Please upload a PDF file.'}), 400
-        
-        elif request.json and 'url' in request.json:
-            url = request.json['url']
-            logging.info(f"Processing URL import: {url}")
-            capability_text = download_and_extract_from_url(url)
-            logging.info(f"URL extracted text length: {len(capability_text) if capability_text else 0}")
+                return jsonify({'error': 'Invalid file type. Please upload a PDF file.'}), 400
         
         else:
-            logging.error("No file or URL provided in request")
-            return jsonify({'error': 'No file or URL provided'}), 400
+            # Try to parse JSON body (handles both application/json and silent failures)
+            json_data = request.get_json(silent=True)
+            if json_data and 'url' in json_data:
+                url = json_data['url']
+                if not url or not url.startswith(('http://', 'https://')):
+                    return jsonify({'error': 'Invalid URL. Please provide a valid URL starting with http:// or https://'}), 400
+                logging.info(f"Processing URL import: {url}")
+                capability_text = download_and_extract_from_url(url)
+            else:
+                return jsonify({'error': 'No file or URL provided. Please upload a PDF file or provide a URL.'}), 400
         
         if not capability_text or len(capability_text.strip()) < 10:
-            logging.error(f"Insufficient text extracted: '{capability_text[:100]}...' (length: {len(capability_text) if capability_text else 0})")
-            return jsonify({'error': 'Could not extract meaningful text from capability statement. Please ensure the PDF contains readable text.'}), 400
+            return jsonify({'error': 'Could not extract meaningful text from the document. Please ensure the file contains readable text.'}), 400
         
-        # Use AI to parse and structure the capability statement
+        # Use AI to parse — with timeout protection
         logging.info("Starting AI parsing of capability statement")
         parsed_data = parse_capability_statement_with_ai(capability_text)
-        logging.info(f"AI parsing completed, fields found: {list(parsed_data.keys()) if parsed_data else 'none'}")
         
         if not parsed_data:
-            logging.error("AI parsing returned empty result")
             return jsonify({'error': 'Could not parse capability statement content. Please try a different document.'}), 400
         
         return jsonify({'success': True, 'data': parsed_data})
         
     except Exception as e:
         logging.error(f"Error processing capability statement: {str(e)}", exc_info=True)
-        return jsonify({'error': f'Failed to process capability statement: {str(e)}'}), 500
+        return jsonify({'error': 'An unexpected error occurred while processing your capability statement. Please try again.'}), 500
 
 def extract_text_from_pdf(filepath):
     """Extract text from PDF file with robust fallback methods"""
@@ -4849,9 +4917,10 @@ def process_smartsearch():
     try:
         if not vector_store:
             logging.warning("Vector store not initialized, falling back to basic text search")
-            import pandas as pd
-            csv_path = os.path.join(os.path.dirname(__file__), 'Scraping_demo_results.csv')
-            df = pd.read_csv(csv_path)
+            df = _get_csv_dataframe()
+            if df is None:
+                return jsonify({"success": False, "message": "Data unavailable"}), 500
+            df = df.copy()
             
             data = request.get_json(force=True) or {}
             user_query = data.get('query', '').strip()

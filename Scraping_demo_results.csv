@@ -1,3 +1,6 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:3d476e834db20537a9e325b8992bc963a1d7be240dfb85f78728039036a9a4d3
-size 80374
+hash_value,bid_number,bid_name,category,bid_description,due_date,status,detail_link,agency,organization,department,industry,state
+abc123,BID-2025-001,City Infrastructure Improvement Project,Construction,Infrastructure improvement and maintenance for city roads and bridges,2025-10-15,open,https://example.com/contract-001,City of Chicago,City of Chicago,Public Works,Construction,IL
+def456,BID-2025-002,IT Network Security Assessment,Information Technology,Comprehensive network security assessment and vulnerability testing,2025-11-01,open,https://example.com/contract-002,State of Illinois,State of Illinois,IT Department,Information Technology,IL
+ghi789,BID-2025-003,Professional Consulting Services,Professional Services,Management consulting services for operational efficiency improvement,2025-09-30,open,https://example.com/contract-003,Village of Schaumburg,Village of Schaumburg,Administration,Professional Services,IL
+jkl012,BID-2025-004,Building Renovation Project,Construction,Complete renovation of municipal building including HVAC and electrical systems,2025-12-15,open,https://example.com/contract-004,Cook County,Cook County,Facilities,Construction,IL
+mno345,BID-2025-005,Software Development Platform,Information Technology,Custom software development for citizen services portal,2025-10-30,open,https://example.com/contract-005,City of Aurora,City of Aurora,IT Services,Information Technology,IL
