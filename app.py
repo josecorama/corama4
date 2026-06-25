@@ -2650,6 +2650,15 @@ def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type
         return None
 
 
+# Clean up legacy oversized session data to prevent cookie overflow
+@app.before_request
+def cleanup_session():
+    # Remove legacy top5_results (44 match objects = ~10KB, exceeds 4KB cookie limit)
+    if 'top5_results' in session:
+        session.pop('top5_results', None)
+        session.modified = True
+
+
 # Set secure HTTP headers
 @app.after_request
 def set_secure_headers(response):
@@ -7557,9 +7566,12 @@ def upload_and_process():
                 
                 app.logger.info(f"Qdrant matching completed. Found {len(results)} results")
                 
-                # Store results in session (NEW: CSV data is obsolete)
-                session['top5_results'] = results
-                app.logger.info(f"✅ Stored {len(results)} matches in session")
+                # Store only a lightweight flag in session (not full results)
+                # Full results are persisted to CSV file to avoid session cookie overflow
+                # (browsers silently drop cookies > 4KB; 44 results = ~10KB)
+                session['has_matches'] = True
+                session['match_count'] = len(results)
+                app.logger.info(f"✅ Stored {len(results)} matches to CSV (session flag set)")
                 
                 # Also write to CSV for backward compatibility (fallback)
                 matches_file = os.path.join(user_upload_dir, 'matches.csv')
@@ -8518,9 +8530,9 @@ def fetch_sam_gov_contract_description(notice_id: str) -> str:
         text = _re.sub(r'&lt;', '<', text)
         text = _re.sub(r'&gt;', '>', text)
         text = _re.sub(r'\s+', ' ', text).strip()
-        # Limit to 6000 chars to keep token budget manageable
-        if len(text) > 6000:
-            text = text[:6000] + "..."
+        # Limit to 3000 chars to keep token budget and memory manageable
+        if len(text) > 3000:
+            text = text[:3000] + "..."
         _sam_description_cache[notice_id] = text
         return text
     except Exception as e:
@@ -8575,19 +8587,27 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
         else:
             fields.append("Document URLs: None available")
 
-        # Fetch full contract description from SAM.gov API if available
+        # Use Qdrant-stored description first; only fetch from SAM.gov if missing
+        # This avoids an extra 8s external API call that contributes to worker timeout
+        stored_desc = contract_data.get('description') or ''
         sam_notice_id = contract_data.get('sam_notice_id', '')
-        full_description = ""
-        if sam_notice_id:
-            full_description = fetch_sam_gov_contract_description(sam_notice_id)
-            logging.info(f"[AI_ASSISTANT] Fetched SAM.gov description for {sam_notice_id}: {len(full_description)} chars")
-
-        if full_description:
-            fields.append(f"\n--- Full Contract Description (from SAM.gov) ---\n{full_description}")
+        if stored_desc:
+            desc_text = stored_desc[:3000] + ("..." if len(stored_desc) > 3000 else "")
+            fields.append(f"Description: {desc_text}")
+        elif sam_notice_id:
+            try:
+                full_description = fetch_sam_gov_contract_description(sam_notice_id)
+                if full_description:
+                    desc_text = full_description[:3000] + ("..." if len(full_description) > 3000 else "")
+                    fields.append(f"\n--- Full Contract Description (from SAM.gov) ---\n{desc_text}")
+                    logging.info(f"[AI_ASSISTANT] SAM.gov description for {sam_notice_id}: {len(full_description)} chars")
+                else:
+                    fields.append("Description: N/A")
+            except Exception as e:
+                logging.warning(f"[AI_ASSISTANT] SAM.gov fetch failed for {sam_notice_id}: {e}")
+                fields.append("Description: N/A")
         else:
-            # Fall back to stored description snippet
-            stored_desc = contract_data.get('description') or ''
-            fields.append(f"Description: {stored_desc or 'N/A'}")
+            fields.append("Description: N/A")
 
         context_msg = (
             f"The user is asking about the following government contract. "
@@ -8602,7 +8622,7 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
     
     # Add sanitized conversation history if provided
     if conversation_history:
-        for msg in conversation_history[-8:]:  # Limit to last 8 messages
+        for msg in conversation_history[-5:]:  # Limit to last 5 messages to reduce memory/tokens
             role = msg.get('role', '')
             content = msg.get('content', '')
             # Only allow user/assistant roles, sanitize content
@@ -8758,7 +8778,7 @@ def ai_assistant_action():
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
                 temperature=0.5,
-                max_tokens=1500,
+                max_tokens=1000,
                 top_p=0.9,
             )
             
@@ -11780,7 +11800,7 @@ def get_contract_payload_from_qdrant_by_name(contract_name):
         
         points, _ = qdrant_client.scroll(
             collection_name="government_contracts",
-            limit=5,
+            limit=2,
             offset=None,
             with_payload=True,
             with_vectors=False,
@@ -18254,12 +18274,13 @@ def api_rerun_top_five():
         
         logging.info(f"[rerun-top5] Qdrant matching completed. Found {len(results)} results")
         
-        # Only update session and CSV if we got results
+        # Only update CSV if we got results
         # This prevents overwriting good matches with empty results from restrictive filters
         matches_file = os.path.join(user_upload_dir, 'matches.csv')
         if results:
-            # Store results in session
-            session['top5_results'] = results
+            # Store lightweight flag in session (full results in CSV to avoid cookie overflow)
+            session['has_matches'] = True
+            session['match_count'] = len(results)
             
             # Write to CSV for persistence
             try:
@@ -18382,12 +18403,14 @@ def api_top_five_contracts():
     
     logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}, offset={offset}, limit={limit}")
     
-    # Check if session has top5_results (newer approach - CSV is fallback)
-    session_results = session.get('top5_results')
-    if session_results:
-        logging.info(f"[top5] Session has {len(session_results)} results")
+    # Results are always read from CSV (session only stores a lightweight flag
+    # to avoid cookie overflow; full match data lives in the CSV file)
+    has_matches = session.get('has_matches', False)
+    match_count = session.get('match_count', 0)
+    if has_matches:
+        logging.info(f"[top5] Session flag indicates {match_count} matches, reading from CSV")
     else:
-        logging.info(f"[top5] No session results, will use CSV")
+        logging.info(f"[top5] No session match flag, will use CSV if available")
     
     matches = []
     total_matches = 0  # Track total matches before filtering
@@ -18504,8 +18527,9 @@ def api_top_five_contracts():
                 except Exception as csv_error:
                     logging.warning(f"[top5] Failed to write fresh matches CSV: {csv_error}")
                 
-                # Store in session
-                session['top5_results'] = results
+                # Store lightweight flag in session (full results in CSV)
+                session['has_matches'] = True
+                session['match_count'] = len(results)
             
             return results
         except Exception as e:
