@@ -156,7 +156,12 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             resp = requests.get(url, params=params, timeout=60)
 
             if resp.status_code == 429:
-                retry_after = int(resp.headers.get("Retry-After", backoff))
+                retry_after_raw = resp.headers.get("Retry-After", str(int(backoff)))
+                try:
+                    retry_after = int(retry_after_raw)
+                except ValueError:
+                    # Retry-After can be an HTTP-date; wait 60s as safe default
+                    retry_after = 60
                 jitter = random.uniform(0, backoff * 0.5)
                 wait = retry_after + jitter
                 log.warning(
