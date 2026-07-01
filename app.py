@@ -7527,6 +7527,10 @@ def upload_and_process():
             app.logger.error(f"Failed to process PDF: {str(e)}")
             return jsonify({"success": False, "message": f"Failed to process uploaded file: {str(e)}"})
 
+        # Invalidate user profile cache so /api/me returns has_capability_statement=true
+        cache_key = f"me_{user_id}"
+        _user_profile_cache.pop(cache_key, None)
+
         # 6) Try to read “Company” from the newly processed CSV
         pdf_company_name = None
         if os.path.exists(csv_path):
@@ -18139,10 +18143,22 @@ def api_get_user():
     user = session['user']
     user_id = user['localId']
     
-    # Check cache first
+    # Always check filesystem for capability statement (instant os.path.exists)
+    # This must NOT be cached because uploads create this file and the redirect
+    # back to AI assistant must see the updated state immediately
+    user_upload_dir = f"uploads/bid_uploads_{user_id}"
+    cs_file = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+    has_cs = os.path.exists(cs_file)
+    
+    # Cache Firebase user data (but not has_capability_statement)
     cache_key = f"me_{user_id}"
     if cache_key in _user_profile_cache:
-        return jsonify(_user_profile_cache[cache_key])
+        cached = _user_profile_cache[cache_key]
+        # Update has_capability_statement with fresh filesystem check
+        result = dict(cached)
+        result['user'] = dict(cached['user'])
+        result['user']['has_capability_statement'] = has_cs
+        return jsonify(result)
     
     try:
         if admin_initialized and admin_db:
@@ -18153,11 +18169,6 @@ def api_get_user():
         
         if not user_data:
             return jsonify({"success": False, "error": "User not found"}), 404
-        
-        # Check for capability statement
-        user_upload_dir = f"uploads/bid_uploads_{user_id}"
-        cs_file = os.path.join(user_upload_dir, "capability_statements_processed.csv")
-        has_cs = os.path.exists(cs_file)
         
         # Use display_name if available, otherwise fall back to username or first_name
         display_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or user_data.get('email', '').split('@')[0]
