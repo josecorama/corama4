@@ -40,6 +40,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from sklearn.metrics.pairwise import cosine_similarity
 from rank_bm25 import BM25Okapi
 from pdf2docx import parse
+from cachetools import TTLCache
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
@@ -2649,6 +2650,15 @@ def upload_to_firebase_storage(file_data: bytes, storage_path: str, content_type
         return None
 
 
+# Clean up legacy oversized session data to prevent cookie overflow
+@app.before_request
+def cleanup_session():
+    # Remove legacy top5_results (44 match objects = ~10KB, exceeds 4KB cookie limit)
+    if 'top5_results' in session:
+        session.pop('top5_results', None)
+        session.modified = True
+
+
 # Set secure HTTP headers
 @app.after_request
 def set_secure_headers(response):
@@ -2680,7 +2690,7 @@ app.logger.setLevel(logging.INFO)
 smart_search_api_key = os.getenv('OPENAI_API_KEY')
 client_SMART_SEARCH_OPENAI_API_KEY = OpenAI(api_key=smart_search_api_key)
 # Timeout-aware client for endpoints that must respond within Gunicorn's 120s limit
-client_OPENAI_WITH_TIMEOUT = OpenAI(api_key=smart_search_api_key, timeout=60.0)
+client_OPENAI_WITH_TIMEOUT = OpenAI(api_key=smart_search_api_key, timeout=30.0)
 
 # In-memory cache for AI-generated NAICS codes (keyed by hash_value)
 # This cache is persisted to disk to avoid regenerating on every restart
@@ -2723,6 +2733,26 @@ QDRANT_ANALYTICS_CACHE = None
 QDRANT_ANALYTICS_SIGNATURE = None
 QDRANT_CONTRACTS_CACHE = None  # Cache for all contracts
 QDRANT_CONTRACTS_SIGNATURE = None
+
+# ============================================================================
+# TTL CACHES FOR PERFORMANCE OPTIMIZATION
+# ============================================================================
+# Analytics caches (expensive Qdrant scans) - 5 minute TTL
+_analytics_cache = TTLCache(maxsize=4, ttl=300)
+# Grants analytics cache - 5 minute TTL
+_grants_analytics_cache = TTLCache(maxsize=4, ttl=300)
+# Contract lookup by name cache (AI assistant) - 10 minute TTL
+_contract_name_cache = TTLCache(maxsize=200, ttl=600)
+# SAM.gov description cache - 30 minute TTL (external API, rarely changes)
+_sam_description_cache = TTLCache(maxsize=200, ttl=1800)
+# Dashboard contracts response cache - 2 minute TTL (keyed by page/limit)
+_dashboard_response_cache = TTLCache(maxsize=50, ttl=120)
+# Grants response cache - 2 minute TTL
+_grants_response_cache = TTLCache(maxsize=50, ttl=120)
+# User profile cache - 1 minute TTL (keyed by user_id)
+_user_profile_cache = TTLCache(maxsize=100, ttl=60)
+# Dashboard stats cache - 3 minute TTL
+_dashboard_stats_cache = TTLCache(maxsize=4, ttl=180)
 
 # Centralized Qdrant client instance (lazy initialization)
 _qdrant_client = None
@@ -2817,6 +2847,16 @@ def clear_all_caches():
     _dashboard_contracts_hash_index = None
     _dashboard_contracts_signature = None
     _dashboard_contracts_last_check = 0
+    
+    # Clear TTL caches
+    _analytics_cache.clear()
+    _grants_analytics_cache.clear()
+    _contract_name_cache.clear()
+    _sam_description_cache.clear()
+    _dashboard_response_cache.clear()
+    _grants_response_cache.clear()
+    _user_profile_cache.clear()
+    _dashboard_stats_cache.clear()
     
     logging.info("[Cache] All in-memory caches cleared")
 
@@ -6144,8 +6184,14 @@ def get_qdrant_analytics():
     these stats periodically and saves them to 'dashboard_stats_snapshot'.
     
     Falls back to Qdrant count() + estimated percentages if snapshot not available.
+    Uses TTL cache to avoid repeated Firebase/Qdrant queries.
     """
     global QDRANT_ANALYTICS_CACHE, QDRANT_ANALYTICS_SIGNATURE
+    
+    # Check TTL cache first
+    cache_key = "qdrant_analytics"
+    if cache_key in _analytics_cache:
+        return _analytics_cache[cache_key]
     
     from datetime import datetime
     
@@ -6196,6 +6242,7 @@ def get_qdrant_analytics():
                     logging.info(f"[Qdrant Analytics] Using pre-computed snapshot: {total_contracts} contracts")
                     QDRANT_ANALYTICS_CACHE = result
                     QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
+                    _analytics_cache[cache_key] = result
                     return result
         except Exception as snapshot_error:
             logging.warning(f"[Qdrant Analytics] Could not read snapshot: {snapshot_error}")
@@ -6244,6 +6291,7 @@ def get_qdrant_analytics():
         
         QDRANT_ANALYTICS_CACHE = result
         QDRANT_ANALYTICS_SIGNATURE = str(total_contracts)
+        _analytics_cache[cache_key] = result
         
         return result
         
@@ -6270,21 +6318,20 @@ def get_dashboard_stats_api():
     
     SCALABLE ARCHITECTURE: Returns stats from Firebase snapshot computed by background worker.
     This endpoint is designed to be extremely fast (<50ms) as it only reads from Firebase.
-    
-    Returns:
-    - total_contracts: Total number of contracts in Qdrant
-    - category_distribution: Top categories with counts and percentages
-    - status_distribution: Active vs closed counts
-    - top_categories: List of top 5 category names
-    - generated_at: When the stats were last computed
-    - _from_snapshot: Boolean indicating if data is from pre-computed snapshot
+    Uses TTL cache to avoid repeated queries.
     """
+    cache_key = "dashboard_stats"
+    if cache_key in _dashboard_stats_cache:
+        return jsonify(_dashboard_stats_cache[cache_key])
+    
     try:
         stats = get_qdrant_analytics()
-        return jsonify({
+        result = {
             'success': True,
             'stats': stats
-        })
+        }
+        _dashboard_stats_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"[Dashboard Stats API] Error: {e}")
         return jsonify({
@@ -6313,47 +6360,29 @@ def Welcome():
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
     """API endpoint to get contract data for the dashboard with SERVER-SIDE PAGINATION.
-    
-    Supports cursor-based pagination for efficient browsing of 100k+ contracts:
-    - First request: /api/contracts?limit=50
-    - Subsequent requests: /api/contracts?limit=50&cursor=<next_cursor>
-    
-    Query params:
-    - page: Page number (1-indexed) - for display only
-    - limit: Number of contracts per page (default 50, max 100)
-    - cursor: Qdrant scroll offset token for cursor-based pagination
-    
-    Returns:
-    - contracts: Array of contract objects
-    - total_contracts: Total count from Qdrant (real count, not cache)
-    - current_page: Current page number
-    - total_pages: Total pages available
-    - next_cursor: Offset token for next page (null if no more pages)
-    - has_more: Boolean indicating if more pages exist
-    - top_categories: Category distribution for analytics
+    Uses TTL cache to avoid repeated Qdrant queries for the same page.
     """
     try:
-        # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         limit = request.args.get('limit', 50, type=int)
         cursor = request.args.get('cursor', None, type=str)
-        
-        # Validate limit (max 100 to prevent OOM)
         limit = min(max(limit, 1), 100)
         
-        # Fetch contracts from Qdrant with server-side pagination
+        # Check response cache
+        cache_key = f"contracts_{page}_{limit}_{cursor}"
+        if cache_key in _dashboard_response_cache:
+            logging.info(f"/api/contracts: Returning cached response (page {page})")
+            return jsonify(_dashboard_response_cache[cache_key])
+        
         contracts, total_contracts, total_pages, next_cursor = get_dashboard_contracts_from_qdrant(
             page=page,
             items_per_page=limit,
             cursor=cursor
         )
         
-        # Get analytics with real count from Qdrant
         analytics = get_qdrant_analytics()
         category_distribution = analytics.get('category_distribution', {})
         
-        # Build top_categories from analytics, excluding unhelpful categories
-        # Filter out categories like "Other", "Unknown", etc. that aren't useful for users
         excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
         filtered_categories = {
             cat: count for cat, count in category_distribution.items()
@@ -6373,7 +6402,7 @@ def get_contracts_api():
         
         logging.info(f"/api/contracts: Returning {len(contracts)} contracts (page {page}, limit {limit}, has_more: {next_cursor is not None})")
         
-        return jsonify({
+        result = {
             "contracts": contracts,
             "total_contracts": total_contracts,
             "current_page": page,
@@ -6381,7 +6410,9 @@ def get_contracts_api():
             "next_cursor": next_cursor,
             "has_more": next_cursor is not None,
             "top_categories": top_categories
-        })
+        }
+        _dashboard_response_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Error loading contracts from Qdrant: {e}", exc_info=True)
         return jsonify({
@@ -6400,8 +6431,12 @@ def get_grants_analytics():
     Get analytics for grants from the government_grants Qdrant collection.
     
     Scrolls through all grants to calculate category distribution.
-    Results are cached to avoid repeated full scans.
+    Results are cached with TTL to avoid repeated full scans.
     """
+    cache_key = "grants_analytics"
+    if cache_key in _grants_analytics_cache:
+        return _grants_analytics_cache[cache_key]
+    
     try:
         qdrant_url = os.getenv('QDRANT_URL')
         qdrant_api_key = os.getenv('QDRANT_API_KEY')
@@ -6458,10 +6493,12 @@ def get_grants_analytics():
         
         logging.info(f"[Grants Analytics] Calculated category distribution from {total_grants} grants")
         
-        return {
+        result = {
             'total_grants': total_grants,
             'category_distribution': category_counts
         }
+        _grants_analytics_cache[cache_key] = result
+        return result
         
     except Exception as e:
         logging.error(f"[Grants Analytics] Error: {e}", exc_info=True)
@@ -6475,40 +6512,27 @@ EXCLUDED_CATEGORIES = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none',
 @app.route('/api/grants', methods=['GET'])
 def get_grants_api():
     """API endpoint to get grants data for the dashboard with SERVER-SIDE PAGINATION.
-    
-    Fetches grants from the government_grants Qdrant collection.
-    
-    Query params:
-    - page: Page number (1-indexed) - for display only
-    - limit: Number of grants per page (default 50, max 100)
-    
-    Returns:
-    - contracts: Array of grant objects (using 'contracts' key for frontend compatibility)
-    - total_contracts: Total count from Qdrant
-    - current_page: Current page number
-    - total_pages: Total pages available
-    - top_categories: Category distribution for analytics (from ALL grants)
+    Uses TTL cache to avoid repeated Qdrant queries for the same page.
     """
     try:
-        # Get pagination parameters
         page = request.args.get('page', 1, type=int)
         limit = request.args.get('limit', 50, type=int)
-        
-        # Validate limit (max 100 to prevent OOM)
         limit = min(max(limit, 1), 100)
         
-        # Fetch grants from Qdrant
+        # Check response cache
+        cache_key = f"grants_{page}_{limit}"
+        if cache_key in _grants_response_cache:
+            logging.info(f"/api/grants: Returning cached response (page {page})")
+            return jsonify(_grants_response_cache[cache_key])
+        
         grants, total_grants, total_pages = get_dashboard_grants_from_qdrant(
             page=page,
             items_per_page=limit
         )
         
-        # Get category distribution from ALL grants (not just current page)
         grants_analytics = get_grants_analytics()
         category_distribution = grants_analytics.get('category_distribution', {})
         
-        # Build top_categories from analytics, excluding unhelpful categories
-        # Filter out categories like "Other", "Unknown", etc.
         filtered_categories = {
             cat: count for cat, count in category_distribution.items()
             if cat.lower() not in EXCLUDED_CATEGORIES
@@ -6527,15 +6551,17 @@ def get_grants_api():
         
         logging.info(f"/api/grants: Returning {len(grants)} grants (page {page}, limit {limit})")
         
-        return jsonify({
-            "contracts": grants,  # Use 'contracts' key for frontend compatibility
+        result = {
+            "contracts": grants,
             "total_contracts": total_grants,
             "current_page": page,
             "total_pages": total_pages,
             "next_cursor": None,
             "has_more": page < total_pages,
             "top_categories": top_categories
-        })
+        }
+        _grants_response_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Error loading grants from Qdrant: {e}", exc_info=True)
         return jsonify({
@@ -7501,6 +7527,10 @@ def upload_and_process():
             app.logger.error(f"Failed to process PDF: {str(e)}")
             return jsonify({"success": False, "message": f"Failed to process uploaded file: {str(e)}"})
 
+        # Invalidate user profile cache so /api/me returns has_capability_statement=true
+        cache_key = f"me_{user_id}"
+        _user_profile_cache.pop(cache_key, None)
+
         # 6) Try to read “Company” from the newly processed CSV
         pdf_company_name = None
         if os.path.exists(csv_path):
@@ -7540,9 +7570,12 @@ def upload_and_process():
                 
                 app.logger.info(f"Qdrant matching completed. Found {len(results)} results")
                 
-                # Store results in session (NEW: CSV data is obsolete)
-                session['top5_results'] = results
-                app.logger.info(f"✅ Stored {len(results)} matches in session")
+                # Store only a lightweight flag in session (not full results)
+                # Full results are persisted to CSV file to avoid session cookie overflow
+                # (browsers silently drop cookies > 4KB; 44 results = ~10KB)
+                session['has_matches'] = True
+                session['match_count'] = len(results)
+                app.logger.info(f"✅ Stored {len(results)} matches to CSV (session flag set)")
                 
                 # Also write to CSV for backward compatibility (fallback)
                 matches_file = os.path.join(user_upload_dir, 'matches.csv')
@@ -8470,15 +8503,23 @@ def fetch_sam_gov_contract_description(notice_id: str) -> str:
     returns clean text suitable for AI context.
 
     Returns empty string on any failure (timeout, missing key, etc.).
+    Uses TTL cache to avoid repeated SAM.gov API calls.
     """
+    if not notice_id:
+        return ""
+    
+    # Check cache first
+    if notice_id in _sam_description_cache:
+        return _sam_description_cache[notice_id]
+    
     import re as _re
     sam_api_key = os.environ.get('SAM_GOV_API_KEY', '')
-    if not sam_api_key or not notice_id:
+    if not sam_api_key:
         return ""
 
     desc_url = f"https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid={notice_id}"
     try:
-        resp = requests.get(desc_url, params={"api_key": sam_api_key}, timeout=15)
+        resp = requests.get(desc_url, params={"api_key": sam_api_key}, timeout=8)
         if resp.status_code != 200:
             logging.warning(f"[SAM.gov desc] HTTP {resp.status_code} for notice {notice_id}")
             return ""
@@ -8493,9 +8534,10 @@ def fetch_sam_gov_contract_description(notice_id: str) -> str:
         text = _re.sub(r'&lt;', '<', text)
         text = _re.sub(r'&gt;', '>', text)
         text = _re.sub(r'\s+', ' ', text).strip()
-        # Limit to 6000 chars to keep token budget manageable
-        if len(text) > 6000:
-            text = text[:6000] + "..."
+        # Limit to 3000 chars to keep token budget and memory manageable
+        if len(text) > 3000:
+            text = text[:3000] + "..."
+        _sam_description_cache[notice_id] = text
         return text
     except Exception as e:
         logging.warning(f"[SAM.gov desc] Failed to fetch description for {notice_id}: {e}")
@@ -8549,19 +8591,27 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
         else:
             fields.append("Document URLs: None available")
 
-        # Fetch full contract description from SAM.gov API if available
+        # Use Qdrant-stored description first; only fetch from SAM.gov if missing
+        # This avoids an extra 8s external API call that contributes to worker timeout
+        stored_desc = contract_data.get('description') or ''
         sam_notice_id = contract_data.get('sam_notice_id', '')
-        full_description = ""
-        if sam_notice_id:
-            full_description = fetch_sam_gov_contract_description(sam_notice_id)
-            logging.info(f"[AI_ASSISTANT] Fetched SAM.gov description for {sam_notice_id}: {len(full_description)} chars")
-
-        if full_description:
-            fields.append(f"\n--- Full Contract Description (from SAM.gov) ---\n{full_description}")
+        if stored_desc:
+            desc_text = stored_desc[:3000] + ("..." if len(stored_desc) > 3000 else "")
+            fields.append(f"Description: {desc_text}")
+        elif sam_notice_id:
+            try:
+                full_description = fetch_sam_gov_contract_description(sam_notice_id)
+                if full_description:
+                    desc_text = full_description[:3000] + ("..." if len(full_description) > 3000 else "")
+                    fields.append(f"\n--- Full Contract Description (from SAM.gov) ---\n{desc_text}")
+                    logging.info(f"[AI_ASSISTANT] SAM.gov description for {sam_notice_id}: {len(full_description)} chars")
+                else:
+                    fields.append("Description: N/A")
+            except Exception as e:
+                logging.warning(f"[AI_ASSISTANT] SAM.gov fetch failed for {sam_notice_id}: {e}")
+                fields.append("Description: N/A")
         else:
-            # Fall back to stored description snippet
-            stored_desc = contract_data.get('description') or ''
-            fields.append(f"Description: {stored_desc or 'N/A'}")
+            fields.append("Description: N/A")
 
         context_msg = (
             f"The user is asking about the following government contract. "
@@ -8576,7 +8626,7 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
     
     # Add sanitized conversation history if provided
     if conversation_history:
-        for msg in conversation_history[-8:]:  # Limit to last 8 messages
+        for msg in conversation_history[-5:]:  # Limit to last 5 messages to reduce memory/tokens
             role = msg.get('role', '')
             content = msg.get('content', '')
             # Only allow user/assistant roles, sanitize content
@@ -8732,7 +8782,7 @@ def ai_assistant_action():
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
                 temperature=0.5,
-                max_tokens=1500,
+                max_tokens=1000,
                 top_p=0.9,
             )
             
@@ -8763,6 +8813,27 @@ def ai_assistant_action():
             
             return jsonify(result)
             
+        except openai.APITimeoutError:
+            app.logger.warning(f"[AI_ASSISTANT] OpenAI timeout for action {action}")
+            return jsonify({
+                "success": False,
+                "error": "The AI service is taking longer than expected. Please try again in a moment.",
+                "credits_balance": current_credits
+            }), 504
+        except openai.APIConnectionError as e:
+            app.logger.warning(f"[AI_ASSISTANT] OpenAI connection error for action {action}: {e}")
+            return jsonify({
+                "success": False,
+                "error": "Could not connect to AI service. Please try again.",
+                "credits_balance": current_credits
+            }), 503
+        except openai.RateLimitError:
+            app.logger.warning(f"[AI_ASSISTANT] OpenAI rate limit for action {action}")
+            return jsonify({
+                "success": False,
+                "error": "AI service is temporarily busy. Please wait a moment and try again.",
+                "credits_balance": current_credits
+            }), 429
         except Exception as e:
             app.logger.error(f"Error generating AI response for action {action}: {e}", exc_info=True)
             return jsonify({
@@ -9729,7 +9800,8 @@ def process_capability_statement():
         if not capability_text or len(capability_text.strip()) < 10:
             logging.error(f"Insufficient text extracted: '{capability_text[:100] if capability_text else ''}...' (length: {len(capability_text) if capability_text else 0})")
             error_msg = 'Could not extract meaningful text. '
-            if 'url' in request.json:
+            is_url_request = request.is_json and request.json and 'url' in request.json
+            if is_url_request:
                 error_msg += 'The system can import from both PDF URLs and websites. If the content is too short or not relevant, please try: (1) A direct PDF URL, (2) Uploading the PDF file directly, or (3) A different webpage with more detailed company information.'
             else:
                 error_msg += 'Please ensure the PDF contains readable text (not scanned images). Try using a text-based PDF or OCR software first.'
@@ -11693,6 +11765,9 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         "due_date": due_date,
         "status": status,
         "state": payload.get("state") or payload.get("State") or "Unknown",
+        "city": payload.get("city") or payload.get("City") or "",
+        "zip_code": payload.get("zip_code") or payload.get("Zip Code") or "",
+        "location": payload.get("location") or payload.get("Location") or "",
         
         # Optional fields
         "industry": payload.get("industry", ""),
@@ -11708,13 +11783,16 @@ def get_contract_payload_from_qdrant_by_name(contract_name):
     """
     Look up a contract in Qdrant by name using MatchText search.
     Returns the raw Qdrant payload dict (not the template-compatible format).
-    
-    Args:
-        contract_name: The contract title/bid_name to search for
-    
-    Returns:
-        Dict with raw Qdrant payload fields, or None if not found
+    Uses TTL cache to avoid repeated Qdrant queries for the same contract.
     """
+    if not contract_name:
+        return None
+    
+    # Check cache first
+    cache_key = contract_name.lower().strip()
+    if cache_key in _contract_name_cache:
+        return _contract_name_cache[cache_key]
+    
     try:
         qdrant_client = get_qdrant_client(timeout=10)
         if not qdrant_client:
@@ -11729,7 +11807,7 @@ def get_contract_payload_from_qdrant_by_name(contract_name):
         
         points, _ = qdrant_client.scroll(
             collection_name="government_contracts",
-            limit=5,
+            limit=2,
             offset=None,
             with_payload=True,
             with_vectors=False,
@@ -11751,6 +11829,7 @@ def get_contract_payload_from_qdrant_by_name(contract_name):
         payload = dict(chosen.payload)
         payload['_qdrant_point_id'] = str(chosen.id)
         logging.info(f"[AI Context] Found contract in Qdrant: {payload.get('bid_name') or payload.get('title')} (ID: {chosen.id})")
+        _contract_name_cache[cache_key] = payload
         return payload
         
     except Exception as e:
@@ -12140,16 +12219,16 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                 if current_offset is None:
                     break
             
-            # Sort by most recently posted first, oldest last.
-            # Contracts with a posted_date are sorted descending; those without
-            # are placed at the end, then sub-sorted by due_date descending.
+            # Sort: Illinois contracts first, then by most recently posted.
+            # Within each group (IL vs non-IL), sort by posted_date descending.
             def _sort_key(c):
+                # Illinois contracts get priority (0 = first when reversed)
+                is_illinois = 1 if (c.get("state") or "").upper() == "IL" else 0
                 pd = c.get("posted_date") or ""
                 dd = c.get("due_date") or ""
-                # Normalise "No due date" to empty for comparison
                 if dd == "No due date":
                     dd = ""
-                return (0 if pd else 1, pd, dd)
+                return (is_illinois, 0 if pd else 1, pd, dd)
 
             all_contracts.sort(key=_sort_key, reverse=True)
             
@@ -18067,6 +18146,23 @@ def api_get_user():
     user = session['user']
     user_id = user['localId']
     
+    # Always check filesystem for capability statement (instant os.path.exists)
+    # This must NOT be cached because uploads create this file and the redirect
+    # back to AI assistant must see the updated state immediately
+    user_upload_dir = f"uploads/bid_uploads_{user_id}"
+    cs_file = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+    has_cs = os.path.exists(cs_file)
+    
+    # Cache Firebase user data (but not has_capability_statement)
+    cache_key = f"me_{user_id}"
+    if cache_key in _user_profile_cache:
+        cached = _user_profile_cache[cache_key]
+        # Update has_capability_statement with fresh filesystem check
+        result = dict(cached)
+        result['user'] = dict(cached['user'])
+        result['user']['has_capability_statement'] = has_cs
+        return jsonify(result)
+    
     try:
         if admin_initialized and admin_db:
             user_ref = admin_db.reference(f'users/{user_id}')
@@ -18077,15 +18173,10 @@ def api_get_user():
         if not user_data:
             return jsonify({"success": False, "error": "User not found"}), 404
         
-        # Check for capability statement
-        user_upload_dir = f"uploads/bid_uploads_{user_id}"
-        cs_file = os.path.join(user_upload_dir, "capability_statements_processed.csv")
-        has_cs = os.path.exists(cs_file)
-        
         # Use display_name if available, otherwise fall back to username or first_name
         display_name = user_data.get('display_name') or user_data.get('username') or user_data.get('first_name') or user_data.get('email', '').split('@')[0]
         
-        return jsonify({
+        result = {
             "success": True,
             "user": {
                 "id": user_id,
@@ -18093,11 +18184,13 @@ def api_get_user():
                 "first_name": user_data.get('first_name', ''),
                 "last_name": user_data.get('last_name', ''),
                 "company": user_data.get('company', ''),
-                "username": display_name,  # Return display_name with original casing
+                "username": display_name,
                 "credits_balance": user_data.get('credits_balance', 0),
                 "has_capability_statement": has_cs
             }
-        })
+        }
+        _user_profile_cache[cache_key] = result
+        return jsonify(result)
     except Exception as e:
         logging.error(f"Error in /api/me: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -18195,12 +18288,13 @@ def api_rerun_top_five():
         
         logging.info(f"[rerun-top5] Qdrant matching completed. Found {len(results)} results")
         
-        # Only update session and CSV if we got results
+        # Only update CSV if we got results
         # This prevents overwriting good matches with empty results from restrictive filters
         matches_file = os.path.join(user_upload_dir, 'matches.csv')
         if results:
-            # Store results in session
-            session['top5_results'] = results
+            # Store lightweight flag in session (full results in CSV to avoid cookie overflow)
+            session['has_matches'] = True
+            session['match_count'] = len(results)
             
             # Write to CSV for persistence
             try:
@@ -18323,12 +18417,14 @@ def api_top_five_contracts():
     
     logging.info(f"[top5] user_id={user_id}, file={matches_file}, contract_type={contract_type}, states={selected_states}, offset={offset}, limit={limit}")
     
-    # Check if session has top5_results (newer approach - CSV is fallback)
-    session_results = session.get('top5_results')
-    if session_results:
-        logging.info(f"[top5] Session has {len(session_results)} results")
+    # Results are always read from CSV (session only stores a lightweight flag
+    # to avoid cookie overflow; full match data lives in the CSV file)
+    has_matches = session.get('has_matches', False)
+    match_count = session.get('match_count', 0)
+    if has_matches:
+        logging.info(f"[top5] Session flag indicates {match_count} matches, reading from CSV")
     else:
-        logging.info(f"[top5] No session results, will use CSV")
+        logging.info(f"[top5] No session match flag, will use CSV if available")
     
     matches = []
     total_matches = 0  # Track total matches before filtering
@@ -18445,8 +18541,9 @@ def api_top_five_contracts():
                 except Exception as csv_error:
                     logging.warning(f"[top5] Failed to write fresh matches CSV: {csv_error}")
                 
-                # Store in session
-                session['top5_results'] = results
+                # Store lightweight flag in session (full results in CSV)
+                session['has_matches'] = True
+                session['match_count'] = len(results)
             
             return results
         except Exception as e:

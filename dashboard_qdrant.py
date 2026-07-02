@@ -48,6 +48,9 @@ DASHBOARD_FIELDS = [
     "due_date_ts",           # Unix timestamp for filtering/sorting
     "status",
     "state",
+    "city",
+    "zip_code",
+    "location",
     "budget",                # Numeric for range filtering (None if not parseable)
     "budget_display",        # Original string for display
     "category",
@@ -63,6 +66,8 @@ DASHBOARD_FIELDS = [
 # Fields to index for fast filtering
 INDEXED_FIELDS = {
     "state": PayloadSchemaType.KEYWORD,
+    "city": PayloadSchemaType.KEYWORD,
+    "zip_code": PayloadSchemaType.KEYWORD,
     "category": PayloadSchemaType.KEYWORD,
     "contract_type": PayloadSchemaType.KEYWORD,
     "status": PayloadSchemaType.KEYWORD,
@@ -209,6 +214,9 @@ def normalize_payload_for_dashboard(payload: Dict[str, Any], point_id: int) -> D
     due_date = get_field(payload, 'due_date', 'Due Date', default='')
     status = get_field(payload, 'status', 'Status', default='')
     state = get_field(payload, 'state', 'State', default='')
+    city = get_field(payload, 'city', 'City', default='')
+    zip_code = get_field(payload, 'zip_code', 'Zip Code', default='')
+    location = get_field(payload, 'location', 'Location', default='')
     budget_raw = get_field(payload, 'budget', 'Budget', 'budget_estimate', default='')
     category = get_field(payload, 'category', 'Category', default='')
     contract_type = get_field(payload, 'contract_type', 'Contract Type', default='')
@@ -241,6 +249,9 @@ def normalize_payload_for_dashboard(payload: Dict[str, Any], point_id: int) -> D
         "due_date_ts": parse_date_to_timestamp(due_date),
         "status": str(status).lower() if status else "",
         "state": str(state) if state else "",
+        "city": str(city) if city else "",
+        "zip_code": str(zip_code) if zip_code else "",
+        "location": str(location) if location else "",
         "budget": parse_budget(budget_raw),
         "budget_display": str(budget_raw) if budget_raw else "",
         "category": str(category) if category else "",

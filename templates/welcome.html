@@ -143,6 +143,7 @@
                 <div class="table-header">
                     <div class="header-cell">Contract Name</div>
                     <div class="header-cell">Category</div>
+                    <div class="header-cell">Location</div>
                     <div class="header-cell">NAICS Code(s)</div>
                     <div class="header-cell">Due Date</div>
                     <div class="header-cell">Status</div>
@@ -671,9 +672,11 @@
                 }
                 const naicsCode = contract.naics_code || '';
                 
+                const locationDisplay = contract.location || (contract.city && contract.state ? contract.city + ', ' + contract.state : contract.state || '');
                 row.innerHTML = `
                     <div class="contract-cell contract-name">${contract.bid_name}</div>
                     <div class="contract-cell contract-category">${contract.category}</div>
+                    <div class="contract-cell contract-location">${locationDisplay}</div>
                     <div class="contract-cell contract-naics">${naicsCode}</div>
                     <div class="contract-cell contract-due-date">${dueDate}</div>
                     <div class="contract-cell">

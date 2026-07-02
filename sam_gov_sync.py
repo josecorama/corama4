@@ -144,6 +144,7 @@ def sync_sam_gov_to_qdrant(
     posted_from: Optional[str] = None,
     posted_to: Optional[str] = None,
     skip_existing: bool = True,
+    state: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Fetch opportunities from SAM.gov and upsert into Qdrant.
@@ -158,6 +159,7 @@ def sync_sam_gov_to_qdrant(
         posted_from: MM/DD/YYYY start date (default 90 days ago)
         posted_to: MM/DD/YYYY end date (default today)
         skip_existing: If True, skip contracts already in Qdrant
+        state: US state code to filter by (e.g. 'IL' for Illinois)
 
     Returns:
         Dict with sync stats: fetched, new, skipped, errors, dashboard_written
@@ -177,6 +179,7 @@ def sync_sam_gov_to_qdrant(
         posted_to=posted_to,
         limit=limit,
         only_active=True,
+        state=state,
     )
     stats["fetched"] = len(payloads)
 
