@@ -98,6 +98,27 @@ def _location_label(opp: Dict[str, Any]) -> str:
     return state or ""
 
 
+def _city_from_place(opp: Dict[str, Any]) -> str:
+    """Extract city name from placeOfPerformance or officeAddress."""
+    pop = opp.get("placeOfPerformance") or {}
+    city_obj = pop.get("city") or {}
+    city = city_obj.get("name", "")
+    if city:
+        return city
+    office = opp.get("officeAddress") or {}
+    return office.get("city", "")
+
+
+def _zip_from_place(opp: Dict[str, Any]) -> str:
+    """Extract ZIP code from placeOfPerformance or officeAddress."""
+    pop = opp.get("placeOfPerformance") or {}
+    zip_code = pop.get("zip", "")
+    if zip_code:
+        return zip_code
+    office = opp.get("officeAddress") or {}
+    return office.get("zipcode", "").split("-")[0]
+
+
 def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
     """Map a single SAM.gov opportunity to the Qdrant payload schema."""
     agency_full, agency_top = _agency_hierarchy(opp)
@@ -123,6 +144,8 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
         "agency_top": agency_top,
         "location": _location_label(opp),
         "state": _state_from_place(opp),
+        "city": _city_from_place(opp),
+        "zip_code": _zip_from_place(opp),
         "contract_number": sol_number,
         "posted_date": posted_date,
         "due_date": due_date,
@@ -221,6 +244,7 @@ def fetch_opportunities(
     notice_types: Optional[List[str]] = None,
     only_active: bool = True,
     page_size: int = DEFAULT_PAGE_SIZE,
+    state: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Fetch contract opportunities from SAM.gov API with pagination.
@@ -235,6 +259,7 @@ def fetch_opportunities(
         notice_types: Ignored (kept for compat). ptype codes are set internally.
         only_active: Only return opportunities with future response deadlines
         page_size: Results per page (default 500, max 1000)
+        state: US state code to filter by (e.g. 'IL' for Illinois)
 
     Returns:
         List of Qdrant-compatible payload dicts
@@ -258,8 +283,8 @@ def fetch_opportunities(
     skipped_expired = 0
 
     log.info(
-        "[SAM.gov] Starting fetch: posted_from=%s posted_to=%s limit=%d page_size=%d",
-        posted_from, posted_to, limit, page_limit,
+        "[SAM.gov] Starting fetch: posted_from=%s posted_to=%s limit=%d page_size=%d state=%s",
+        posted_from, posted_to, limit, page_limit, state or 'all',
     )
 
     while len(all_payloads) < limit:
@@ -271,6 +296,8 @@ def fetch_opportunities(
             "offset": offset,
             "ptype": ACTIVE_PTYPE_CODES,
         }
+        if state:
+            params["state"] = state
 
         # Throttle between pages
         if page_num > 0:

@@ -11765,6 +11765,9 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         "due_date": due_date,
         "status": status,
         "state": payload.get("state") or payload.get("State") or "Unknown",
+        "city": payload.get("city") or payload.get("City") or "",
+        "zip_code": payload.get("zip_code") or payload.get("Zip Code") or "",
+        "location": payload.get("location") or payload.get("Location") or "",
         
         # Optional fields
         "industry": payload.get("industry", ""),
@@ -12216,16 +12219,16 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                 if current_offset is None:
                     break
             
-            # Sort by most recently posted first, oldest last.
-            # Contracts with a posted_date are sorted descending; those without
-            # are placed at the end, then sub-sorted by due_date descending.
+            # Sort: Illinois contracts first, then by most recently posted.
+            # Within each group (IL vs non-IL), sort by posted_date descending.
             def _sort_key(c):
+                # Illinois contracts get priority (0 = first when reversed)
+                is_illinois = 1 if (c.get("state") or "").upper() == "IL" else 0
                 pd = c.get("posted_date") or ""
                 dd = c.get("due_date") or ""
-                # Normalise "No due date" to empty for comparison
                 if dd == "No due date":
                     dd = ""
-                return (0 if pd else 1, pd, dd)
+                return (is_illinois, 0 if pd else 1, pd, dd)
 
             all_contracts.sort(key=_sort_key, reverse=True)
             
