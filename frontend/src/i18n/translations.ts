@@ -186,7 +186,7 @@ export const translations = {
     username: 'Username',
     language: 'Language',
     english: 'English',
-    spanish: 'Espanol',
+    spanish: 'Español',
     changePassword: 'Change Password',
     currentPassword: 'Current Password',
     newPassword: 'New Password',
@@ -439,7 +439,7 @@ export const translations = {
       // Contract Insights
       recommendedTeamComposition: 'Recommended Team Composition',
       suggestedStrategyBased: 'Suggested strategy based on project requirements and skills.',
-      startAskingQuestions: 'Start asking your questions about this recommendations',
+      startAskingQuestions: 'Start asking your questions about these recommendations',
       exploreContracts: 'Explore Contracts',
       goBackToDashboard: 'Go back to the dashboard',
       seeMatchedContracts: 'See Matched Contracts',

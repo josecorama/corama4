@@ -417,7 +417,7 @@ const ProposalSummary= () => {
   
     // Format currency
     const formatCurrency = (amount: number) => {
-      return amount.toFixed(2) + '$'
+      return '$' + amount.toFixed(2)
     }
 
     return (
@@ -664,7 +664,7 @@ const ProposalSummary= () => {
                                                                       <input type="text" className="w-full rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-xs" style={{ height: '28px' }} value={formatCurrency(item.cost)} readOnly />
                                                                     </div>
                                                                     <button className="col-span-2 relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-xs hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#6BA4A7', height: '32px' }}>
-                                                                      <span className="mr-6">Edit Item</span>
+                                                                      <span className="mr-6">{_t('editItem')}</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button onClick={() => setMaterials(prev => prev.filter((_, i) => i !== index))} className="col-span-2 flex justify-center p-1 hover:opacity-80">
@@ -687,7 +687,7 @@ const ProposalSummary= () => {
                                                                                                                                           <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={item.unit_cost} readOnly />
                                                                                                                                           <input type="text" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency(item.cost)} readOnly />
                                                                                                                                           <button className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#6BA4A7', width: '150px', height: '32px' }}>
-                                                                        <span className="mr-6">Edit Item</span>
+                                                                        <span className="mr-6">{_t('editItem')}</span>
                                                                         <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                       </button>
                                                                       <button onClick={() => setMaterials(prev => prev.filter((_, i) => i !== index))} className="p-1 hover:opacity-80 flex-shrink-0">
@@ -719,7 +719,7 @@ const ProposalSummary= () => {
                                                                     <input type="text" className="w-full rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-xs" style={{ height: '28px' }} value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
                                                                   </div>
                                                                   <button onClick={handleAddMaterial} className="col-span-2 relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-xs hover:opacity-90 transition-opacity overflow-hidden" style={{ backgroundColor: '#6BA4A7', height: '32px' }}>
-                                                                    <span className="mr-6">Add Item</span>
+                                                                    <span className="mr-6">{_t('addItem')}</span>
                                                                     <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                   </button>
                                                                 </div>
@@ -739,7 +739,7 @@ const ProposalSummary= () => {
                                                                                                                                       <input type="number" className="flex-1 rounded-lg px-2 bg-white text-gray-800 outline-none font-poppins text-sm" style={{ height: '32px' }} placeholder="1200" value={materialUnitCost} onChange={e => setMaterialUnitCost(e.target.value)} />
                                                                                                                                       <input type="text" className="flex-1 rounded-lg px-2 bg-gray-200 text-gray-600 outline-none font-poppins text-sm" style={{ height: '32px' }} value={formatCurrency((parseFloat(materialQuantity) || 0) * (parseFloat(materialUnitCost) || 0))} readOnly />
                                                                                                                                       <button onClick={handleAddMaterial} className="relative flex items-center justify-center rounded-full font-poppins font-semibold text-white text-sm hover:opacity-90 transition-opacity overflow-hidden flex-shrink-0" style={{ backgroundColor: '#6BA4A7', width: '150px', height: '32px' }}>
-                                                                      <span className="mr-6">Add Item</span>
+                                                                      <span className="mr-6">{_t('addItem')}</span>
                                                                       <img src={AddIcon} alt="" className="absolute right-0 top-0 h-full" />
                                                                     </button>
                                                                     <button className="p-1 opacity-30 flex-shrink-0">
