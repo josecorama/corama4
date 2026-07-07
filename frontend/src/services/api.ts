@@ -298,6 +298,91 @@ class ApiService {
     return res.json();
   }
 
+  // AI Assistant Action with streaming (SSE) - prevents worker timeout by keeping connection alive
+  async aiAssistantActionStream(
+    action: string,
+    contractName: string,
+    onToken: (token: string) => void,
+    conversationHistory?: Array<{role: string, content: string}>,
+    idempotencyKey?: string
+  ): Promise<{success: boolean, message: string, credits_balance?: number, error?: string, cached?: boolean}> {
+    const res = await fetch(`${API_BASE()}/ai-assistant-action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action,
+        contractName,
+        conversationHistory: conversationHistory || [],
+        idempotency_key: idempotencyKey,
+        stream: true
+      })
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to process AI action' }));
+      return { success: false, message: '', error: errorData.error || 'Failed to process AI action' };
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) {
+      return { success: false, message: '', error: 'Streaming not supported' };
+    }
+
+    const decoder = new TextDecoder();
+    let fullMessage = '';
+    let finalResult: {success: boolean, message: string, credits_balance?: number, error?: string, cached?: boolean} = {
+      success: false, message: '', error: 'Stream ended unexpectedly'
+    };
+
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      // Keep the last incomplete line in the buffer
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const jsonStr = line.slice(6);
+        if (!jsonStr) continue;
+
+        try {
+          const event = JSON.parse(jsonStr);
+
+          if (event.error) {
+            finalResult = { success: false, message: fullMessage, error: event.error, credits_balance: event.credits_balance };
+            return finalResult;
+          }
+
+          if (event.token) {
+            fullMessage += event.token;
+            onToken(event.token);
+          }
+
+          if (event.done) {
+            finalResult = {
+              success: event.success ?? true,
+              message: fullMessage,
+              credits_balance: event.credits_balance,
+              cached: event.cached
+            };
+          }
+        } catch {
+          // Skip malformed JSON lines
+        }
+      }
+    }
+
+    return finalResult;
+  }
+
   // Credits
   async getCredits(): Promise<{success: boolean, current_balance: number, credits_used: number, packages: CreditPackage[]}> {
     const res = await fetch(`${API_BASE()}/credits`);

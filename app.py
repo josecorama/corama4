@@ -8678,16 +8678,25 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
 def ai_assistant_action():
     """AI Assistant action endpoint with credit deduction for React frontend.
     
+    Supports both streaming (SSE) and non-streaming JSON responses.
+    Pass "stream": true in the request body to get Server-Sent Events.
+    
     Accepts JSON with:
     - action: one of 'analyze_contract', 'check_compliance', 'develop_strategy', 'create_outline', 'conversation'
     - contractName: the name of the contract being analyzed
     - conversationHistory: optional array of prior messages [{role, content}] for context
+    - stream: optional boolean to enable SSE streaming (default: false)
     
-    Returns JSON with:
+    Non-streaming returns JSON with:
     - success: boolean
     - message: AI response text
     - credits_balance: updated credits balance
     - error: error message if failed
+    
+    Streaming returns SSE events:
+    - data: {"token": "..."} for each token
+    - data: {"done": true, "success": true, "credits_balance": N} on completion
+    - data: {"error": "..."} on failure
     
     Security measures:
     - Action validated against fixed enum (no arbitrary actions)
@@ -8713,6 +8722,8 @@ def ai_assistant_action():
         conversation_history = data.get('conversationHistory', [])
         # Get idempotency key (optional, for preventing duplicate credit deductions)
         idempotency_key = data.get('idempotency_key')
+        # Check if streaming is requested
+        use_stream = data.get('stream', False)
         
         # Validate action against fixed enum (security: no arbitrary actions)
         VALID_ACTIONS = {
@@ -8724,6 +8735,10 @@ def ai_assistant_action():
         }
         
         if action not in VALID_ACTIONS:
+            if use_stream:
+                def error_gen():
+                    yield f"data: {json.dumps({'error': f'Invalid action. Valid actions are: {chr(44).join(VALID_ACTIONS.keys())}'})}\n\n"
+                return Response(error_gen(), mimetype='text/event-stream')
             return jsonify({
                 "success": False, 
                 "error": f"Invalid action. Valid actions are: {', '.join(VALID_ACTIONS.keys())}"
@@ -8741,10 +8756,19 @@ def ai_assistant_action():
                 cached_result = get_credit_operation_result(idempotency_key)
                 if cached_result:
                     logging.info(f"[AI_ASSISTANT] Returning cached result for idempotency key {idempotency_key[:16]}...")
+                    if use_stream:
+                        def cached_gen():
+                            msg = cached_result.get('message', '')
+                            yield f"data: {json.dumps({'token': msg})}\n\n"
+                            yield f"data: {json.dumps({'done': True, 'success': True, 'credits_balance': cached_result.get('credits_balance', 0), 'cached': True})}\n\n"
+                        return Response(cached_gen(), mimetype='text/event-stream')
                     return jsonify(cached_result)
                 else:
-                    # Operation was processed but result not found - return success to avoid duplicate
                     logging.warning(f"[AI_ASSISTANT] Idempotency key {idempotency_key[:16]}... found but no cached result")
+                    if use_stream:
+                        def cached_empty_gen():
+                            yield f"data: {json.dumps({'done': True, 'success': True, 'cached': True})}\n\n"
+                        return Response(cached_empty_gen(), mimetype='text/event-stream')
                     return jsonify({"success": True, "message": "Already processed", "cached": True})
         
         # Initialize credit manager
@@ -8760,9 +8784,14 @@ def ai_assistant_action():
         
         # Check if user has enough credits BEFORE deduction
         if current_credits < required_credits:
+            error_msg = f"Insufficient credits. You have {current_credits} credits but this action requires {required_credits} credits."
+            if use_stream:
+                def insufficient_gen():
+                    yield f"data: {json.dumps({'error': error_msg, 'credits_balance': current_credits})}\n\n"
+                return Response(insufficient_gen(), mimetype='text/event-stream')
             return jsonify({
                 "success": False,
-                "error": f"Insufficient credits. You have {current_credits} credits but this action requires {required_credits} credits.",
+                "error": error_msg,
                 "credits_balance": current_credits
             }), 402
         
@@ -8778,6 +8807,67 @@ def ai_assistant_action():
         try:
             messages = build_ai_assistant_messages(action, contract_name, conversation_history, contract_data)
             
+            if use_stream:
+                # Streaming mode: use SSE to keep connection alive and avoid worker timeout
+                stream = client_OPENAI_WITH_TIMEOUT.chat.completions.create(
+                    model=CORAMA_FINE_TUNED_MODEL,
+                    messages=messages,
+                    temperature=0.5,
+                    max_tokens=1000,
+                    top_p=0.9,
+                    stream=True,
+                )
+                
+                def generate_stream():
+                    full_response = ""
+                    try:
+                        for chunk in stream:
+                            if chunk.choices and chunk.choices[0].delta.content:
+                                token = chunk.choices[0].delta.content
+                                full_response += token
+                                yield f"data: {json.dumps({'token': token})}\n\n"
+                        
+                        # Stream complete - deduct credits
+                        success_deduct, msg_deduct, new_balance = credit_manager.deduct_credits_admin(
+                            user_id, required_credits, action, action_info['description'],
+                            admin_db=admin_db if admin_initialized else None
+                        )
+                        
+                        if not success_deduct:
+                            yield f"data: {json.dumps({'error': msg_deduct, 'credits_balance': current_credits})}\n\n"
+                            return
+                        
+                        result = {
+                            "success": True,
+                            "message": full_response.strip(),
+                            "credits_balance": new_balance
+                        }
+                        
+                        # Mark operation as processed if idempotency key provided
+                        if idempotency_key:
+                            mark_credit_operation_processed(idempotency_key, user_id, required_credits, f'ai_assistant_{action}', result)
+                        
+                        yield f"data: {json.dumps({'done': True, 'success': True, 'credits_balance': new_balance})}\n\n"
+                        
+                    except openai.APITimeoutError:
+                        app.logger.warning(f"[AI_ASSISTANT] OpenAI timeout for action {action} (stream)")
+                        yield f"data: {json.dumps({'error': 'The AI service is taking longer than expected. Please try again in a moment.'})}\n\n"
+                    except openai.APIConnectionError as e:
+                        app.logger.warning(f"[AI_ASSISTANT] OpenAI connection error for action {action} (stream): {e}")
+                        yield f"data: {json.dumps({'error': 'Could not connect to AI service. Please try again.'})}\n\n"
+                    except openai.RateLimitError:
+                        app.logger.warning(f"[AI_ASSISTANT] OpenAI rate limit for action {action} (stream)")
+                        yield f"data: {json.dumps({'error': 'AI service is temporarily busy. Please wait a moment and try again.'})}\n\n"
+                    except Exception as e:
+                        app.logger.error(f"Error in streaming AI response for action {action}: {e}", exc_info=True)
+                        yield f"data: {json.dumps({'error': 'Failed to generate AI response. Please try again.'})}\n\n"
+                
+                return Response(generate_stream(), mimetype='text/event-stream', headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no',
+                })
+            
+            # Non-streaming mode (backward compatible)
             completion = client_OPENAI_WITH_TIMEOUT.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
