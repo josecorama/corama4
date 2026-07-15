@@ -257,6 +257,43 @@ def sync_sam_gov_to_qdrant(
         "added_contracts": [],
     }
 
+    new_payloads, fetched, skipped = fetch_new_payloads(
+        limit=limit, posted_from=posted_from, posted_to=posted_to,
+        state=state, skip_existing=skip_existing,
+    )
+    stats["fetched"] = fetched
+    stats["skipped"] = skipped
+
+    if not new_payloads:
+        log.info("[SAM Sync] Nothing new to ingest (fetched=%d skipped=%d)", fetched, skipped)
+        return stats
+
+    ingest_stats = ingest_payloads(new_payloads)
+    for k in ("new", "errors", "dashboard_written", "dashboard_errors",
+              "used_placeholder_vectors", "added_contracts"):
+        stats[k] = ingest_stats.get(k, stats.get(k))
+
+    log.info(
+        "[SAM Sync] Complete: fetched=%d new=%d skipped=%d errors=%d "
+        "dashboard_written=%d dashboard_errors=%d",
+        stats["fetched"], stats["new"], stats["skipped"], stats["errors"],
+        stats["dashboard_written"], stats["dashboard_errors"],
+    )
+    return stats
+
+
+def fetch_new_payloads(
+    limit: int = 1000,
+    posted_from: Optional[str] = None,
+    posted_to: Optional[str] = None,
+    state: Optional[str] = None,
+    skip_existing: bool = True,
+) -> Tuple[List[Dict[str, Any]], int, int]:
+    """Fetch SAM.gov opportunities and return only the NEW ones (not yet in
+    Qdrant), enriched with category. Does NOT embed or upsert.
+
+    Returns: (new_payloads, fetched_count, skipped_count)
+    """
     payloads = fetch_opportunities(
         posted_from=posted_from,
         posted_to=posted_to,
@@ -264,26 +301,15 @@ def sync_sam_gov_to_qdrant(
         only_active=True,
         state=state,
     )
-    stats["fetched"] = len(payloads)
-
+    fetched = len(payloads)
     if not payloads:
         log.info("[SAM Sync] No opportunities fetched from SAM.gov")
-        return stats
+        return [], 0, 0
 
     client = _get_qdrant_client()
     if not client:
-        stats["errors"] = len(payloads)
-        return stats
+        return [], fetched, 0
 
-    # Determine vector dimension from collection config
-    try:
-        info = client.get_collection(COLLECTION_NAME)
-        vec_cfg = info.config.params.vectors
-        dim = vec_cfg.size if hasattr(vec_cfg, "size") else 1536
-    except Exception:
-        dim = 1536
-
-    # Dedup: check which notice_ids already exist
     if skip_existing:
         notice_ids = [p.get("sam_notice_id", "") for p in payloads if p.get("sam_notice_id")]
         existing = _existing_notice_ids(client, notice_ids)
@@ -291,46 +317,64 @@ def sync_sam_gov_to_qdrant(
     else:
         existing = set()
 
-    # Collect the new payloads first so we can embed them in batches
     new_payloads: List[Dict[str, Any]] = []
-    new_point_ids: List[str] = []
-
+    skipped = 0
     for payload in payloads:
         nid = payload.get("sam_notice_id", "")
         if skip_existing and nid in existing:
-            stats["skipped"] += 1
+            skipped += 1
             continue
+        new_payloads.append(_enrich_category(payload))
 
-        payload = _enrich_category(payload)
-        point_id = _deterministic_uuid(nid) if nid else str(uuid.uuid4())
-        new_payloads.append(payload)
-        new_point_ids.append(point_id)
+    return new_payloads, fetched, skipped
 
-    if not new_payloads:
-        log.info("[SAM Sync] All %d contracts already exist, nothing to upsert", stats["skipped"])
+
+def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Embed and upsert already-fetched contract payloads into Qdrant.
+
+    Used both by the direct sync and by the approval flow (after the admin
+    confirms a proposed batch). Returns stats incl. ``added_contracts``.
+    """
+    stats: Dict[str, Any] = {
+        "new": 0, "errors": 0, "dashboard_written": 0, "dashboard_errors": 0,
+        "used_placeholder_vectors": False, "added_contracts": [],
+    }
+    if not payloads:
         return stats
 
-    # Generate REAL embeddings so ingested contracts match capability
-    # statements correctly. Fall back to placeholder vectors only if embeddings
-    # are unavailable (and flag it loudly, since matching quality degrades).
-    vectors = _embed_payload_texts(new_payloads)
+    client = _get_qdrant_client()
+    if not client:
+        stats["errors"] = len(payloads)
+        return stats
+
+    try:
+        info = client.get_collection(COLLECTION_NAME)
+        vec_cfg = info.config.params.vectors
+        dim = vec_cfg.size if hasattr(vec_cfg, "size") else 1536
+    except Exception:
+        dim = 1536
+
+    point_ids = [
+        _deterministic_uuid(p.get("sam_notice_id")) if p.get("sam_notice_id") else str(uuid.uuid4())
+        for p in payloads
+    ]
+
+    # Generate REAL embeddings; fall back to placeholder only if unavailable.
+    vectors = _embed_payload_texts(payloads)
     if vectors is None:
         log.warning(
             "[SAM Sync] Falling back to placeholder vectors for %d contracts — "
             "matching quality will be degraded until real embeddings are generated",
-            len(new_payloads),
+            len(payloads),
         )
-        vectors = [_generate_dummy_vector(p, dim) for p in new_payloads]
+        vectors = [_generate_dummy_vector(p, dim) for p in payloads]
         stats["used_placeholder_vectors"] = True
-    else:
-        stats["used_placeholder_vectors"] = False
 
     points_to_upsert: List[PointStruct] = [
         PointStruct(id=pid, vector=vec, payload=pl)
-        for pid, vec, pl in zip(new_point_ids, vectors, new_payloads)
+        for pid, vec, pl in zip(point_ids, vectors, payloads)
     ]
 
-    # Upsert in batches of 100
     batch_size = 100
     upserted_points: List[PointStruct] = []
     for i in range(0, len(points_to_upsert), batch_size):
@@ -339,29 +383,17 @@ def sync_sam_gov_to_qdrant(
             client.upsert(collection_name=COLLECTION_NAME, points=batch)
             stats["new"] += len(batch)
             upserted_points.extend(batch)
-            log.info(
-                "[SAM Sync] Upserted batch %d: %d points into %s",
-                i // batch_size + 1, len(batch), COLLECTION_NAME,
-            )
         except Exception as e:
             log.error("[SAM Sync] Upsert batch error: %s", e)
             stats["errors"] += len(batch)
 
-    # Record which contracts were added (for the ingestion digest email)
     stats["added_contracts"] = [_summarize_contract(pt.payload) for pt in upserted_points]
 
-    # Dual-write to dashboard collection
     if upserted_points:
         dw_ok, dw_err = _dual_write_dashboard(client, upserted_points)
         stats["dashboard_written"] = dw_ok
         stats["dashboard_errors"] = dw_err
 
-    log.info(
-        "[SAM Sync] Complete: fetched=%d new=%d skipped=%d errors=%d "
-        "dashboard_written=%d dashboard_errors=%d",
-        stats["fetched"], stats["new"], stats["skipped"], stats["errors"],
-        stats["dashboard_written"], stats["dashboard_errors"],
-    )
     return stats
 
 

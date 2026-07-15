@@ -1,32 +1,35 @@
 """
 Daily contract ingestion job.
 
-Fetches fresh opportunities from SAM.gov, generates real embeddings, upserts
-them into Qdrant, removes expired contracts, and emails a digest of exactly
-which contracts were added.
+Default mode is **propose**: fetch fresh SAM.gov opportunities, store them as a
+*pending* batch, and email admin@corama.ai a preview with Confirm / Reject
+links. Contracts are only ingested (embedded + upserted into Qdrant) after the
+admin clicks Confirm — so every ingest is pre-approved.
 
-Intended to run once per day (e.g. as a Render Cron Job):
+Use ``--mode direct`` to skip approval and ingest immediately (the old
+behaviour), e.g. for manual backfills.
+
+Run once per day (Render Cron Job):
 
     python daily_ingest.py
 
 Configuration (environment variables):
-    SAM_GOV_API_KEY / QDRANT_URL / QDRANT_API_KEY / OpenAI key  -> ingestion
-    INGEST_DIGEST_EMAIL   comma-separated recipients for the summary email
+    SAM_GOV_API_KEY / QDRANT_URL / QDRANT_API_KEY / OpenAI key -> ingestion
+    DATABASE_URL + FIREBASE_SERVICE_ACCOUNT_JSON (or SERVICE_ACCOUNT_JSON)
+                                                 -> pending-batch storage
+    INGEST_DIGEST_EMAIL   override recipient (default admin@corama.ai)
+    APP_BASE_URL          base URL for Confirm/Reject links (default https://corama.ai)
     INGEST_LIMIT          max opportunities to fetch (default 1000)
-    INGEST_STATES         optional comma-separated US state codes to also pull
-                          (e.g. "IL,IN") to diversify beyond federal-only
+    INGEST_STATES         optional comma-separated US state codes (e.g. "IL,IN")
     INGEST_SEND_EMAIL     "false" to skip the email (default "true")
-
-CLI flags override the env vars; see --help.
 """
 
 import os
 import sys
-import html
 import logging
 import argparse
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 try:
     from dotenv import load_dotenv
@@ -34,7 +37,9 @@ try:
 except Exception:
     pass
 
-from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts
+from sam_gov_sync import fetch_new_payloads, ingest_payloads, remove_expired_contracts
+from ingest_approval import create_pending_batch
+from ingest_email import build_preview_html, build_result_html, dedupe
 from email_utils import send_email_smtp
 
 logging.basicConfig(
@@ -43,157 +48,135 @@ logging.basicConfig(
 )
 log = logging.getLogger("daily_ingest")
 
-
-def _merge_stats(base: Dict[str, Any], extra: Dict[str, Any]) -> Dict[str, Any]:
-    """Combine stats from multiple sync runs (e.g. federal + per-state)."""
-    for key in ("fetched", "new", "skipped", "errors", "dashboard_written", "dashboard_errors"):
-        base[key] = base.get(key, 0) + int(extra.get(key, 0) or 0)
-    base["added_contracts"] = base.get("added_contracts", []) + list(extra.get("added_contracts", []))
-    if extra.get("used_placeholder_vectors"):
-        base["used_placeholder_vectors"] = True
-    return base
+DEFAULT_DIGEST_EMAIL = "admin@corama.ai"
+DEFAULT_BASE_URL = "https://corama.ai"
 
 
-def run_ingest(limit: int, states: List[str]) -> Dict[str, Any]:
-    """Run the SAM.gov sync (federal + optional states) and expiry cleanup."""
-    combined: Dict[str, Any] = {
-        "fetched": 0, "new": 0, "skipped": 0, "errors": 0,
-        "dashboard_written": 0, "dashboard_errors": 0,
-        "used_placeholder_vectors": False, "added_contracts": [],
-    }
+def collect_candidates(limit: int, states: List[str]) -> Tuple[List[Dict[str, Any]], int, int]:
+    """Fetch new (not-yet-ingested) contracts, federal + optional states."""
+    all_new: List[Dict[str, Any]] = []
+    fetched_total = skipped_total = 0
 
-    log.info("Running federal SAM.gov sync (limit=%d)...", limit)
-    _merge_stats(combined, sync_sam_gov_to_qdrant(limit=limit))
+    log.info("Fetching federal SAM.gov opportunities (limit=%d)...", limit)
+    new, fetched, skipped = fetch_new_payloads(limit=limit)
+    all_new.extend(new)
+    fetched_total += fetched
+    skipped_total += skipped
 
     for st in states:
-        log.info("Running SAM.gov sync for state=%s...", st)
-        _merge_stats(combined, sync_sam_gov_to_qdrant(limit=limit, state=st))
+        log.info("Fetching SAM.gov opportunities for state=%s...", st)
+        new, fetched, skipped = fetch_new_payloads(limit=limit, state=st)
+        all_new.extend(new)
+        fetched_total += fetched
+        skipped_total += skipped
 
-    log.info("Removing expired contracts...")
-    cleanup = remove_expired_contracts()
-    combined["removed_expired"] = cleanup.get("removed", 0)
-    return combined
-
-
-def _dedupe_added(contracts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    seen = set()
-    out = []
-    for c in contracts:
-        key = (c.get("title"), c.get("url"))
-        if key in seen:
+    # De-dupe across federal/state pulls by notice id
+    seen, deduped = set(), []
+    for p in all_new:
+        nid = p.get("sam_notice_id") or p.get("source_url")
+        if nid in seen:
             continue
-        seen.add(key)
-        out.append(c)
-    return out
+        seen.add(nid)
+        deduped.append(p)
+
+    return deduped, fetched_total, skipped_total
 
 
-def build_digest_html(stats: Dict[str, Any]) -> str:
-    added = _dedupe_added(stats.get("added_contracts", []))
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-
-    warn = ""
-    if stats.get("used_placeholder_vectors"):
-        warn = (
-            "<p style='color:#b00;font-weight:bold'>⚠️ Real embeddings could not "
-            "be generated for some/all contracts — placeholder vectors were used, "
-            "so matching quality is degraded until this is fixed.</p>"
-        )
-
-    rows = []
-    for c in added:
-        title = html.escape(str(c.get("title", "")))
-        url = html.escape(str(c.get("url", "")))
-        title_cell = f'<a href="{url}">{title}</a>' if url else title
-        rows.append(
-            "<tr>"
-            f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{title_cell}</td>"
-            f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(str(c.get('agency','')))}</td>"
-            f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(str(c.get('category','')))}</td>"
-            f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(str(c.get('state','')))}</td>"
-            f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(str(c.get('naics','')))}</td>"
-            f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{html.escape(str(c.get('due_date','')))}</td>"
-            "</tr>"
-        )
-
-    if rows:
-        table = (
-            "<table style='border-collapse:collapse;width:100%;font-size:14px'>"
-            "<thead><tr style='background:#0f766e;color:#fff;text-align:left'>"
-            "<th style='padding:8px 10px'>Contract</th>"
-            "<th style='padding:8px 10px'>Agency</th>"
-            "<th style='padding:8px 10px'>Category</th>"
-            "<th style='padding:8px 10px'>State</th>"
-            "<th style='padding:8px 10px'>NAICS</th>"
-            "<th style='padding:8px 10px'>Due date</th>"
-            "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
-        )
-    else:
-        table = "<p>No new contracts were added in this run.</p>"
-
-    return f"""\
-<html><body style="font-family:Arial,Helvetica,sans-serif;color:#222">
-  <h2 style="color:#0f766e">Corama — Daily Contract Ingestion</h2>
-  <p style="color:#666">{now}</p>
-  {warn}
-  <table style="font-size:14px;margin:12px 0">
-    <tr><td style="padding:2px 12px 2px 0"><b>New contracts added</b></td><td>{stats.get('new', 0)}</td></tr>
-    <tr><td style="padding:2px 12px 2px 0">Fetched from SAM.gov</td><td>{stats.get('fetched', 0)}</td></tr>
-    <tr><td style="padding:2px 12px 2px 0">Already existing (skipped)</td><td>{stats.get('skipped', 0)}</td></tr>
-    <tr><td style="padding:2px 12px 2px 0">Expired removed</td><td>{stats.get('removed_expired', 0)}</td></tr>
-    <tr><td style="padding:2px 12px 2px 0">Errors</td><td>{stats.get('errors', 0)}</td></tr>
-  </table>
-  <h3 style="color:#0f766e">Newly added contracts ({len(added)})</h3>
-  {table}
-  <p style="color:#999;font-size:12px;margin-top:20px">Automated message from the Corama ingestion job.</p>
-</body></html>"""
-
-
-def send_digest(stats: Dict[str, Any], recipients: List[str]) -> None:
+def send_mail(recipients: List[str], subject: str, html_body: str) -> None:
     if not recipients:
-        log.warning("No INGEST_DIGEST_EMAIL recipients configured — skipping digest email")
+        log.warning("No digest recipients configured — skipping email")
         return
-    subject = f"Corama daily ingest: {stats.get('new', 0)} new contracts ({datetime.now(timezone.utc):%Y-%m-%d})"
-    body = build_digest_html(stats)
     for r in recipients:
-        ok, err = send_email_smtp(r, subject, body)
+        ok, err = send_email_smtp(r, subject, html_body)
         if ok:
-            log.info("Digest email sent to %s", r)
+            log.info("Email '%s' sent to %s", subject, r)
         else:
-            log.error("Failed to send digest email to %s: %s", r, err)
+            log.error("Failed to send email to %s: %s", r, err)
+
+
+def run_propose(limit: int, states: List[str], recipients: List[str],
+                base_url: str, send_email: bool) -> int:
+    candidates, fetched, skipped = collect_candidates(limit, states)
+
+    # Expiry cleanup is safe to run without approval (keeps the DB fresh)
+    cleanup = remove_expired_contracts()
+    removed = cleanup.get("removed", 0)
+
+    candidates = dedupe(candidates)
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if not candidates:
+        log.info("No new contracts to propose (fetched=%d skipped=%d)", fetched, skipped)
+        if send_email:
+            body = build_result_html(
+                {"new": 0, "fetched": fetched, "skipped": skipped, "removed_expired": removed,
+                 "errors": 0, "added_contracts": []},
+                title="Daily Ingestion — nothing new today",
+            )
+            send_mail(recipients, f"Corama daily ingest: no new contracts ({today})", body)
+        return 0
+
+    token = create_pending_batch(candidates, source="SAM.gov")
+    if not token:
+        log.error("Could not store pending batch (Firebase unavailable). Aborting propose.")
+        return 1
+
+    confirm_url = f"{base_url.rstrip('/')}/api/ingest/confirm/{token}"
+    reject_url = f"{base_url.rstrip('/')}/api/ingest/reject/{token}"
+    log.info("Pending batch %s created with %d contracts. Confirm: %s", token, len(candidates), confirm_url)
+
+    if send_email:
+        body = build_preview_html(candidates, confirm_url, reject_url)
+        send_mail(recipients, f"Corama: approve ingest of {len(candidates)} new contracts ({today})", body)
+    return 0
+
+
+def run_direct(limit: int, states: List[str], recipients: List[str], send_email: bool) -> int:
+    candidates, fetched, skipped = collect_candidates(limit, states)
+    cleanup = remove_expired_contracts()
+
+    stats: Dict[str, Any] = {"fetched": fetched, "skipped": skipped,
+                             "removed_expired": cleanup.get("removed", 0)}
+    ingest_stats = ingest_payloads(candidates)
+    stats.update(ingest_stats)
+
+    log.info("Direct ingest complete: new=%d fetched=%d skipped=%d removed_expired=%d errors=%d",
+             stats.get("new", 0), fetched, skipped, stats["removed_expired"], stats.get("errors", 0))
+
+    if send_email:
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        body = build_result_html(stats, title="Daily Contract Ingestion")
+        send_mail(recipients, f"Corama daily ingest: {stats.get('new', 0)} new contracts ({today})", body)
+    return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Daily SAM.gov -> Qdrant contract ingestion")
+    parser.add_argument("--mode", choices=["propose", "direct"], default="propose",
+                        help="propose = email approval first (default); direct = ingest immediately")
     parser.add_argument("--limit", type=int, default=int(os.getenv("INGEST_LIMIT", "1000")))
     parser.add_argument("--states", default=os.getenv("INGEST_STATES", ""),
                         help="Comma-separated US state codes to also pull (e.g. IL,IN)")
-    parser.add_argument("--email", default=os.getenv("INGEST_DIGEST_EMAIL", ""),
-                        help="Comma-separated recipient emails for the digest")
-    parser.add_argument("--no-email", action="store_true",
-                        help="Run ingestion but do not send the digest email")
+    parser.add_argument("--email", default=os.getenv("INGEST_DIGEST_EMAIL", DEFAULT_DIGEST_EMAIL),
+                        help="Comma-separated recipient emails (default admin@corama.ai)")
+    parser.add_argument("--base-url", default=os.getenv("APP_BASE_URL", DEFAULT_BASE_URL))
+    parser.add_argument("--no-email", action="store_true", help="Do not send any email")
     args = parser.parse_args()
 
     states = [s.strip().upper() for s in args.states.split(",") if s.strip()]
     recipients = [e.strip() for e in args.email.split(",") if e.strip()]
     send_email = not args.no_email and os.getenv("INGEST_SEND_EMAIL", "true").lower() == "true"
 
-    log.info("Starting daily ingest (limit=%d, states=%s, email=%s)",
-             args.limit, states or "none", "on" if send_email else "off")
+    log.info("Starting daily ingest: mode=%s limit=%d states=%s email=%s recipients=%s",
+             args.mode, args.limit, states or "none", "on" if send_email else "off", recipients)
 
     try:
-        stats = run_ingest(args.limit, states)
+        if args.mode == "direct":
+            return run_direct(args.limit, states, recipients, send_email)
+        return run_propose(args.limit, states, recipients, args.base_url, send_email)
     except Exception as e:
         log.error("Ingestion failed: %s", e, exc_info=True)
         return 1
-
-    log.info("Ingest complete: new=%d fetched=%d skipped=%d removed_expired=%d errors=%d",
-             stats.get("new", 0), stats.get("fetched", 0), stats.get("skipped", 0),
-             stats.get("removed_expired", 0), stats.get("errors", 0))
-
-    if send_email:
-        send_digest(stats, recipients)
-
-    return 0
 
 
 if __name__ == "__main__":

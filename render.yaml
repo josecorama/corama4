@@ -131,10 +131,14 @@ services:
         value: "3.12.8"
       - key: ENV
         value: production
-      # Firebase Configuration (needed for NAICS->category enrichment)
+      # Firebase Configuration (NAICS enrichment + pending-approval storage)
       - key: SERVICE_ACCOUNT_JSON
         sync: false
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
       - key: DATABASE_URL
+        sync: false
+      - key: STORAGE_BUCKET
         sync: false
       # SAM.gov API
       - key: SAM_GOV_API_KEY
@@ -164,9 +168,12 @@ services:
         sync: false
       - key: SMTP_MODE
         sync: false
-      # Comma-separated recipients for the daily digest
+      # Digest recipients (default admin@corama.ai; comma-separated to override)
       - key: INGEST_DIGEST_EMAIL
         sync: false
+      # Base URL used to build Confirm/Reject links in the approval email
+      - key: APP_BASE_URL
+        value: "https://corama.ai"
       # Optional: extra state codes to diversify beyond federal (e.g. "IL,IN")
       - key: INGEST_STATES
         sync: false

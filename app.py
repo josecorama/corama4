@@ -54,7 +54,9 @@ from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
-from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts
+from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
+from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
+from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
 
 # Load environment variables - use override=False to preserve system environment variables
 # (system env vars take precedence over .env file values)
@@ -232,6 +234,125 @@ def trigger_expired_cleanup():
 
     stats = remove_expired_contracts()
     return jsonify({"success": True, "cleanup": stats})
+
+
+# ============================================================================
+# CONTRACT INGESTION APPROVAL WORKFLOW
+# ============================================================================
+
+def _ingest_result_page(title, message, color="#0f766e"):
+    """Minimal HTML response page for the Confirm/Reject links."""
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>{title}</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:60px auto;color:#222;text-align:center">
+  <h1 style="color:{color}">{title}</h1>
+  <p style="font-size:16px;line-height:1.5">{message}</p>
+</body></html>"""
+
+
+@app.route('/api/ingest/propose', methods=['POST'])
+def trigger_ingest_proposal():
+    """Admin endpoint: fetch new SAM.gov contracts and email an approval preview.
+
+    Lets you trigger the approval email on demand (e.g. to get the first email
+    without waiting for the daily cron). Requires X-Admin-Key.
+    """
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    if expected_key and admin_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    limit = data.get('limit', 200)
+
+    candidates, fetched, skipped = fetch_new_payloads(limit=limit)
+    candidates = _dedupe_contracts(candidates)
+    if not candidates:
+        return jsonify({"success": True, "message": "No new contracts to propose",
+                        "fetched": fetched, "skipped": skipped, "new": 0})
+
+    token = create_pending_batch(candidates, source="SAM.gov")
+    if not token:
+        return jsonify({"success": False, "error": "Could not store pending batch"}), 500
+
+    base_url = os.getenv('APP_BASE_URL', request.url_root.rstrip('/'))
+    confirm_url = f"{base_url.rstrip('/')}/api/ingest/confirm/{token}"
+    reject_url = f"{base_url.rstrip('/')}/api/ingest/reject/{token}"
+
+    recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', 'admin@corama.ai').split(',') if e.strip()]
+    body = build_preview_html(candidates, confirm_url, reject_url)
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    sent = []
+    for r in recipients:
+        ok, _ = send_email_smtp(r, f"Corama: approve ingest of {len(candidates)} new contracts ({today})", body)
+        if ok:
+            sent.append(r)
+
+    return jsonify({"success": True, "token": token, "new": len(candidates),
+                    "fetched": fetched, "skipped": skipped, "emailed": sent})
+
+
+@app.route('/api/ingest/confirm/<token>', methods=['GET'])
+def confirm_ingest(token):
+    """Confirm a pending ingest batch (from the approval email link)."""
+    record = get_pending_batch(token)
+    if not record:
+        return _ingest_result_page("Link not found",
+                                   "This approval link is invalid or has already been processed.",
+                                   color="#b91c1c"), 404
+    status = record.get("status")
+    if status == "confirmed":
+        return _ingest_result_page("Already confirmed",
+                                   "This batch was already ingested. No action taken.")
+    if status == "rejected":
+        return _ingest_result_page("Already rejected",
+                                   "This batch was rejected earlier and cannot be ingested.",
+                                   color="#b91c1c")
+    if is_expired(record):
+        set_status(token, "expired")
+        return _ingest_result_page("Link expired",
+                                   "This approval link has expired. Please trigger a new ingest.",
+                                   color="#b91c1c"), 410
+
+    contracts = record.get("contracts") or []
+    stats = ingest_payloads(contracts)
+    stats["fetched"] = record.get("count", len(contracts))
+    set_status(token, "confirmed", {"ingested": stats.get("new", 0)})
+
+    # Send a result digest so the admin has a record of what went in
+    recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', 'admin@corama.ai').split(',') if e.strip()]
+    try:
+        body = build_result_html(stats, title="Contracts ingested (approved)")
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        for r in recipients:
+            send_email_smtp(r, f"Corama: {stats.get('new', 0)} contracts ingested ({today})", body)
+    except Exception as e:
+        app.logger.error(f"[Ingest] Failed to send confirmation digest: {e}")
+
+    return _ingest_result_page(
+        "Ingest confirmed ✓",
+        f"Added <b>{stats.get('new', 0)}</b> contract(s) to the system. "
+        f"A summary has been emailed to you.",
+    )
+
+
+@app.route('/api/ingest/reject/<token>', methods=['GET'])
+def reject_ingest(token):
+    """Reject a pending ingest batch (from the approval email link)."""
+    record = get_pending_batch(token)
+    if not record:
+        return _ingest_result_page("Link not found",
+                                   "This approval link is invalid or has already been processed.",
+                                   color="#b91c1c"), 404
+    if record.get("status") == "confirmed":
+        return _ingest_result_page("Already confirmed",
+                                   "This batch was already ingested and cannot be rejected.",
+                                   color="#b91c1c")
+    set_status(token, "rejected")
+    return _ingest_result_page("Ingest rejected",
+                               "No contracts were added. The proposed batch has been discarded.")
 
 
 # ============================================================================
