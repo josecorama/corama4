@@ -331,10 +331,17 @@ def confirm_ingest(token):
     except Exception as e:
         app.logger.error(f"[Ingest] Failed to send confirmation digest: {e}")
 
+    warn = ""
+    if stats.get("used_placeholder_vectors"):
+        reason = stats.get("embedding_error") or "unknown"
+        warn = (
+            "<br><br><span style='color:#b91c1c'>⚠️ Real embeddings could not be generated — "
+            f"placeholder vectors were used. Reason: {reason}</span>"
+        )
     return _ingest_result_page(
         "Ingest confirmed ✓",
         f"Added <b>{stats.get('new', 0)}</b> contract(s) to the system. "
-        f"A summary has been emailed to you.",
+        f"A summary has been emailed to you.{warn}",
     )
 
 

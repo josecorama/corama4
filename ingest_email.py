@@ -95,10 +95,12 @@ def build_result_html(stats: Dict[str, Any], title: str = "Daily Contract Ingest
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     warn = ""
     if stats.get("used_placeholder_vectors"):
+        reason = stats.get("embedding_error")
+        detail = f"<br><span style='font-weight:normal'>Reason: {html.escape(str(reason))}</span>" if reason else ""
         warn = (
             "<p style='color:#b00;font-weight:bold'>⚠️ Real embeddings could not be "
             "generated for some/all contracts — placeholder vectors were used, so "
-            "matching quality is degraded until this is fixed.</p>"
+            f"matching quality is degraded until this is fixed.{detail}</p>"
         )
     summary = "".join(
         f"<tr><td style='padding:2px 12px 2px 0'>{label}</td><td>{stats.get(key, 0)}</td></tr>"

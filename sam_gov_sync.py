@@ -31,6 +31,10 @@ COLLECTION_NAME = "government_contracts"
 EMBED_MODEL = "text-embedding-3-small"
 EMBED_BATCH_SIZE = 100
 
+# Records the reason the most recent embedding attempt failed (for surfacing
+# in the ingestion digest so failures are self-diagnosing).
+_LAST_EMBED_ERROR: Dict[str, Any] = {"msg": None}
+
 
 # ---------------------------------------------------------------------------
 # Qdrant helpers
@@ -110,39 +114,57 @@ def _embed_payload_texts(payloads: List[Dict[str, Any]]) -> Optional[List[List[f
     embeddings could not be generated (no API key / API failure). Callers must
     fall back to placeholder vectors only as a last resort.
     """
-    api_key = (
-        os.getenv("SMART_SEARCH_OPENAI_API_KEY")
-        or os.getenv("OPENAI_API_KEY")
-        or os.getenv("CS_BUILDER_OPENAI_API_KEY")
-    )
-    if not api_key:
-        log.error("[SAM Sync] No OpenAI API key set — cannot generate real embeddings")
+    # Try each configured key in turn — a single invalid/quota-limited key
+    # shouldn't force a fallback to placeholder vectors if another key works.
+    key_candidates = [
+        ("SMART_SEARCH_OPENAI_API_KEY", os.getenv("SMART_SEARCH_OPENAI_API_KEY")),
+        ("OPENAI_API_KEY", os.getenv("OPENAI_API_KEY")),
+        ("CS_BUILDER_OPENAI_API_KEY", os.getenv("CS_BUILDER_OPENAI_API_KEY")),
+        ("BID_RESPONSE_OPENAI_API_KEY", os.getenv("BID_RESPONSE_OPENAI_API_KEY")),
+    ]
+    key_candidates = [(name, val) for name, val in key_candidates if val]
+    if not key_candidates:
+        msg = "No OpenAI API key set (checked SMART_SEARCH/OPENAI/CS_BUILDER/BID_RESPONSE)"
+        log.error("[SAM Sync] %s — cannot generate real embeddings", msg)
+        _LAST_EMBED_ERROR["msg"] = msg
         return None
 
     try:
         from openai import OpenAI
     except ImportError:
-        log.error("[SAM Sync] openai package unavailable — cannot generate embeddings")
+        msg = "openai package not installed"
+        log.error("[SAM Sync] %s — cannot generate embeddings", msg)
+        _LAST_EMBED_ERROR["msg"] = msg
         return None
 
-    client = OpenAI(api_key=api_key)
     texts = [_embedding_text(p) or "government contract opportunity" for p in payloads]
 
-    vectors: List[List[float]] = []
-    for i in range(0, len(texts), EMBED_BATCH_SIZE):
-        batch = texts[i:i + EMBED_BATCH_SIZE]
-        try:
-            resp = client.embeddings.create(input=batch, model=EMBED_MODEL)
-            vectors.extend([d.embedding for d in resp.data])
-        except Exception as e:
-            log.error("[SAM Sync] Embedding batch %d failed: %s", i // EMBED_BATCH_SIZE + 1, e)
-            return None
+    last_error = None
+    for key_name, api_key in key_candidates:
+        client = OpenAI(api_key=api_key)
+        vectors: List[List[float]] = []
+        failed = False
+        for i in range(0, len(texts), EMBED_BATCH_SIZE):
+            batch = texts[i:i + EMBED_BATCH_SIZE]
+            try:
+                resp = client.embeddings.create(input=batch, model=EMBED_MODEL)
+                vectors.extend([d.embedding for d in resp.data])
+            except Exception as e:
+                last_error = f"{key_name}: {type(e).__name__}: {e}"
+                log.error("[SAM Sync] Embedding batch %d failed with %s", i // EMBED_BATCH_SIZE + 1, last_error)
+                failed = True
+                break
+        if failed:
+            continue
+        if len(vectors) != len(payloads):
+            last_error = f"{key_name}: count mismatch {len(vectors)} vs {len(payloads)}"
+            log.error("[SAM Sync] %s", last_error)
+            continue
+        _LAST_EMBED_ERROR["msg"] = None
+        return vectors
 
-    if len(vectors) != len(payloads):
-        log.error("[SAM Sync] Embedding count mismatch: %d vs %d", len(vectors), len(payloads))
-        return None
-
-    return vectors
+    _LAST_EMBED_ERROR["msg"] = last_error or "unknown embedding error"
+    return None
 
 
 def _summarize_contract(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -369,6 +391,7 @@ def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
         )
         vectors = [_generate_dummy_vector(p, dim) for p in payloads]
         stats["used_placeholder_vectors"] = True
+        stats["embedding_error"] = _LAST_EMBED_ERROR.get("msg")
 
     points_to_upsert: List[PointStruct] = [
         PointStruct(id=pid, vector=vec, payload=pl)
