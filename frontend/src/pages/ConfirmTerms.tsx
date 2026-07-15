@@ -72,7 +72,6 @@ const ConfirmTerms = () => {
             <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white mb-3">
               Automatic Renewal Terms and Conditions
             </h1>
-            <p className="text-gray-400 font-poppins text-base sm:text-lg">General Questions</p>
           </div>
 
           {/* Error Message */}
