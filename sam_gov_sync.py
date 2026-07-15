@@ -10,6 +10,7 @@ blind insert).
 """
 
 import os
+import re
 import uuid
 import logging
 import hashlib
@@ -24,6 +25,11 @@ from sam_gov_client import fetch_opportunities, map_opportunity_to_payload
 log = logging.getLogger(__name__)
 
 COLLECTION_NAME = "government_contracts"
+
+# Embedding model MUST match the one used to embed the rest of the corpus
+# (see bids_embedding.py) so capability-statement matching stays consistent.
+EMBED_MODEL = "text-embedding-3-small"
+EMBED_BATCH_SIZE = 100
 
 
 # ---------------------------------------------------------------------------
@@ -70,8 +76,10 @@ def _existing_notice_ids(client: QdrantClient, notice_ids: List[str]) -> set:
 def _generate_dummy_vector(payload: Dict[str, Any], dim: int = 1536) -> List[float]:
     """Generate a deterministic placeholder vector from payload text.
 
-    Real embeddings should be generated later by the background enrichment
-    worker.  This placeholder ensures the point can be stored.
+    DEPRECATED: only used as a last resort when real embeddings cannot be
+    generated (missing OpenAI key). Placeholder vectors cluster together and
+    make every capability statement match the same contracts, so real
+    embeddings via ``_embed_payload_texts`` are strongly preferred.
     """
     text = f"{payload.get('title', '')} {payload.get('description', '')}"
     h = hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -80,6 +88,79 @@ def _generate_dummy_vector(payload: Dict[str, Any], dim: int = 1536) -> List[flo
         byte_idx = i % len(h)
         values.append((int(h[byte_idx], 16) - 8) / 800.0)
     return values
+
+
+def _embedding_text(payload: Dict[str, Any]) -> str:
+    """Build the text used to embed a contract.
+
+    Mirrors bids_embedding.py ("{Bid Name}. {Bid Description}") so contracts
+    ingested here live in the same vector space as the rest of the corpus.
+    """
+    title = (payload.get("title") or "").strip()
+    description = (payload.get("description") or "").strip()
+    text = f"{title}. {description}".strip()
+    text = re.sub(r"\s+", " ", text)
+    return text[:8000]  # keep well under the model's token limit
+
+
+def _embed_payload_texts(payloads: List[Dict[str, Any]]) -> Optional[List[List[float]]]:
+    """Generate real OpenAI embeddings for a list of contract payloads.
+
+    Returns a list of vectors aligned with ``payloads``, or ``None`` if
+    embeddings could not be generated (no API key / API failure). Callers must
+    fall back to placeholder vectors only as a last resort.
+    """
+    api_key = (
+        os.getenv("SMART_SEARCH_OPENAI_API_KEY")
+        or os.getenv("OPENAI_API_KEY")
+        or os.getenv("CS_BUILDER_OPENAI_API_KEY")
+    )
+    if not api_key:
+        log.error("[SAM Sync] No OpenAI API key set — cannot generate real embeddings")
+        return None
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        log.error("[SAM Sync] openai package unavailable — cannot generate embeddings")
+        return None
+
+    client = OpenAI(api_key=api_key)
+    texts = [_embedding_text(p) or "government contract opportunity" for p in payloads]
+
+    vectors: List[List[float]] = []
+    for i in range(0, len(texts), EMBED_BATCH_SIZE):
+        batch = texts[i:i + EMBED_BATCH_SIZE]
+        try:
+            resp = client.embeddings.create(input=batch, model=EMBED_MODEL)
+            vectors.extend([d.embedding for d in resp.data])
+        except Exception as e:
+            log.error("[SAM Sync] Embedding batch %d failed: %s", i // EMBED_BATCH_SIZE + 1, e)
+            return None
+
+    if len(vectors) != len(payloads):
+        log.error("[SAM Sync] Embedding count mismatch: %d vs %d", len(vectors), len(payloads))
+        return None
+
+    return vectors
+
+
+def _summarize_contract(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Compact contract summary for the ingestion digest email."""
+    naics = payload.get("naics_codes") or []
+    if isinstance(naics, list):
+        naics_str = ", ".join(str(c) for c in naics)
+    else:
+        naics_str = str(naics)
+    return {
+        "title": payload.get("title") or "Untitled",
+        "agency": payload.get("agency") or "Unknown agency",
+        "category": payload.get("category") or "Uncategorized",
+        "state": payload.get("state") or payload.get("location") or "",
+        "naics": naics_str,
+        "due_date": payload.get("due_date") or "",
+        "url": payload.get("source_url") or payload.get("detail_url") or "",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -172,6 +253,8 @@ def sync_sam_gov_to_qdrant(
         "removed_expired": 0,
         "dashboard_written": 0,
         "dashboard_errors": 0,
+        "used_placeholder_vectors": False,
+        "added_contracts": [],
     }
 
     payloads = fetch_opportunities(
@@ -208,8 +291,9 @@ def sync_sam_gov_to_qdrant(
     else:
         existing = set()
 
-    # Build points
-    points_to_upsert: List[PointStruct] = []
+    # Collect the new payloads first so we can embed them in batches
+    new_payloads: List[Dict[str, Any]] = []
+    new_point_ids: List[str] = []
 
     for payload in payloads:
         nid = payload.get("sam_notice_id", "")
@@ -218,22 +302,43 @@ def sync_sam_gov_to_qdrant(
             continue
 
         payload = _enrich_category(payload)
-
         point_id = _deterministic_uuid(nid) if nid else str(uuid.uuid4())
-        vector = _generate_dummy_vector(payload, dim)
-        points_to_upsert.append(PointStruct(id=point_id, vector=vector, payload=payload))
+        new_payloads.append(payload)
+        new_point_ids.append(point_id)
 
-    if not points_to_upsert:
+    if not new_payloads:
         log.info("[SAM Sync] All %d contracts already exist, nothing to upsert", stats["skipped"])
         return stats
 
+    # Generate REAL embeddings so ingested contracts match capability
+    # statements correctly. Fall back to placeholder vectors only if embeddings
+    # are unavailable (and flag it loudly, since matching quality degrades).
+    vectors = _embed_payload_texts(new_payloads)
+    if vectors is None:
+        log.warning(
+            "[SAM Sync] Falling back to placeholder vectors for %d contracts — "
+            "matching quality will be degraded until real embeddings are generated",
+            len(new_payloads),
+        )
+        vectors = [_generate_dummy_vector(p, dim) for p in new_payloads]
+        stats["used_placeholder_vectors"] = True
+    else:
+        stats["used_placeholder_vectors"] = False
+
+    points_to_upsert: List[PointStruct] = [
+        PointStruct(id=pid, vector=vec, payload=pl)
+        for pid, vec, pl in zip(new_point_ids, vectors, new_payloads)
+    ]
+
     # Upsert in batches of 100
     batch_size = 100
+    upserted_points: List[PointStruct] = []
     for i in range(0, len(points_to_upsert), batch_size):
         batch = points_to_upsert[i : i + batch_size]
         try:
             client.upsert(collection_name=COLLECTION_NAME, points=batch)
             stats["new"] += len(batch)
+            upserted_points.extend(batch)
             log.info(
                 "[SAM Sync] Upserted batch %d: %d points into %s",
                 i // batch_size + 1, len(batch), COLLECTION_NAME,
@@ -242,9 +347,12 @@ def sync_sam_gov_to_qdrant(
             log.error("[SAM Sync] Upsert batch error: %s", e)
             stats["errors"] += len(batch)
 
+    # Record which contracts were added (for the ingestion digest email)
+    stats["added_contracts"] = [_summarize_contract(pt.payload) for pt in upserted_points]
+
     # Dual-write to dashboard collection
-    if stats["new"] > 0:
-        dw_ok, dw_err = _dual_write_dashboard(client, points_to_upsert[:stats["new"]])
+    if upserted_points:
+        dw_ok, dw_err = _dual_write_dashboard(client, upserted_points)
         stats["dashboard_written"] = dw_ok
         stats["dashboard_errors"] = dw_err
 
