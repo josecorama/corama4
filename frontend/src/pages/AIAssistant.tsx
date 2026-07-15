@@ -818,7 +818,13 @@ const AIAssistant = () => {
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in-up animate-delay-100">
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden ai-chat-scrollbar">
               <div className="space-y-3 sm:space-y-4 pr-2">
-                {messages.map((message) => (
+                {messages.map((message) => {
+                  const displayText = message.visibleContent ?? message.content
+                  // Skip empty AI placeholder bubbles (e.g. the streaming
+                  // message before its first token arrives) so we don't render
+                  // an empty globe alongside the "Thinking…" indicator.
+                  if (message.sender === 'ai' && !displayText) return null
+                  return (
                   <div
                     key={message.id}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} animate-message-pop`}
@@ -874,9 +880,14 @@ const AIAssistant = () => {
                       </div>
                     </div>
                   </div>
-                ))}
-                {/* Show thinking text while waiting for AI response */}
-                              {isProcessing && (
+                  )
+                })}
+                {/* Show thinking text while waiting for AI response, but hide it
+                    once the streaming AI message has started producing tokens */}
+                              {isProcessing && !(() => {
+                                const last = messages[messages.length - 1]
+                                return last && last.sender === 'ai' && !!(last.visibleContent ?? last.content)
+                              })() && (
                                 <div
                                   className="flex justify-start animate-message-pop"
                                   style={{
