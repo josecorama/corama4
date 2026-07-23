@@ -10585,6 +10585,45 @@ def _clean_social_title(title, platform):
     return cleaned.strip(' |-\u2013\u2014\u2022:').strip()
 
 
+def _clean_social_description(description, platform, company_name=''):
+    """Strip social-network boilerplate/stats from an og:description string.
+
+    Facebook descriptions look like "Acme Inc. 12,345 likes  183 talking about
+    this. <real text>" and LinkedIn ones like "Acme | 5,000 followers on
+    LinkedIn. <real text>". This removes the follower/like counters and the
+    leading company-name/pipe prefix so only genuine descriptive text remains.
+    Returns '' when nothing meaningful is left.
+    """
+    import re
+    if not description:
+        return ''
+    text = description.strip()
+
+    # Remove a leading "Company Name | " prefix (LinkedIn descriptions start this way).
+    if platform == 'linkedin':
+        text = re.sub(r'^\s*[^|]{1,80}\|\s*', '', text)
+
+    # Remove social stat phrases wherever they appear.
+    text = re.sub(
+        r'[\d.,]+\s+(?:followers?\s+on\s+LinkedIn|followers?|likes|talking about this|'
+        r'were here|check-?ins?|people (?:like|follow|checked in)[^.\u00b7]*)',
+        '',
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove a leading duplicate of the company name (e.g. "Acme Inc. <text>").
+    if company_name:
+        text = re.sub(r'^\s*' + re.escape(company_name) + r'[\.\u00b7,:\s]*', '', text, flags=re.IGNORECASE)
+
+    # Collapse leftover separators/whitespace left behind by the removals.
+    text = re.sub(r'[\u00b7\u2022]+', ' ', text)
+    text = re.sub(r'^\s*[.,:\-\u2013\u2014\s]+', '', text)
+    text = re.sub(r'\s{2,}', ' ', text).strip()
+
+    return text
+
+
 def _collect_meta_tags(soup):
     """Collect <meta> property/name -> content pairs into a dict (lower-cased keys)."""
     meta = {}
@@ -10753,7 +10792,10 @@ def _map_social_structured_data(meta, ld_objects, platform):
 
     # --- Open Graph / meta fallbacks (only fill what JSON-LD did not) ---
     og_title = _clean_social_title(meta.get('og:title', ''), platform)
-    og_description = meta.get('og:description', '') or meta.get('description', '')
+    raw_description = meta.get('og:description', '') or meta.get('description', '')
+    og_description = _clean_social_description(
+        raw_description, platform, data.get('companyName') or og_title
+    )
 
     if is_person_profile:
         if 'contactName' not in data:
@@ -10796,9 +10838,7 @@ def extract_capability_from_social_url(url, platform):
     """
     try:
         from bs4 import BeautifulSoup
-        from urllib.parse import urlparse
 
-        original_url = url
         url = (url or '').strip()
         if url and not url.startswith(('http://', 'https://')):
             url = 'https://' + url
@@ -10808,23 +10848,46 @@ def extract_capability_from_social_url(url, platform):
             logging.error(f"SSRF protection blocked social URL: {url} - {ssrf_error}")
             return {}
 
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Referer': f"{urlparse(url).scheme}://{urlparse(url).netloc}/",
-        }
+        # Facebook and LinkedIn serve a login wall to ordinary browser user-agents,
+        # but expose public Open Graph tags / JSON-LD to well-known link-preview
+        # crawlers. Try those crawler UAs (this is the same mechanism used to build
+        # link previews) and keep the first response that yields structured data.
+        crawler_user_agents = [
+            'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+            'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
+        ]
 
-        response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
-        if response.status_code != 200:
-            logging.warning(f"Social import: HTTP {response.status_code} for {url}")
-            return {}
+        data = {}
+        source_text = ''
+        for user_agent in crawler_user_agents:
+            headers = {
+                'User-Agent': user_agent,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9',
+            }
+            try:
+                response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
+            except requests.exceptions.RequestException as req_err:
+                logging.warning(f"Social import request failed with UA '{user_agent[:30]}': {req_err}")
+                continue
 
-        soup = BeautifulSoup(response.content, 'html.parser')
-        meta = _collect_meta_tags(soup)
-        ld_objects = _parse_json_ld_objects(soup)
+            if response.status_code != 200:
+                logging.info(f"Social import: HTTP {response.status_code} for {url} (UA '{user_agent[:30]}')")
+                continue
 
-        data, source_text = _map_social_structured_data(meta, ld_objects, platform)
+            # A login-wall response redirects to /login and exposes no page data.
+            final_url = getattr(response, 'url', '') or ''
+            if '/login' in final_url.lower() or '/authwall' in final_url.lower():
+                logging.info(f"Social import: hit login/auth wall for {url} (UA '{user_agent[:30]}')")
+                continue
+
+            soup = BeautifulSoup(response.content, 'html.parser')
+            meta = _collect_meta_tags(soup)
+            ld_objects = _parse_json_ld_objects(soup)
+            data, source_text = _map_social_structured_data(meta, ld_objects, platform)
+            if data:
+                break
 
         if not data:
             logging.info(f"Social import: no structured data extracted from {url}")
