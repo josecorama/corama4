@@ -10008,6 +10008,26 @@ def process_capability_statement():
         elif request.is_json and request.json and 'url' in request.json:
             url = request.json['url']
             logging.info(f"Processing URL import: {url}")
+
+            # Facebook pages / LinkedIn profiles: extract data deterministically from
+            # the site's Open Graph tags and JSON-LD structured data (no AI, no
+            # invented values). Only fields present in the markup are returned.
+            platform = detect_social_platform(url)
+            if platform:
+                logging.info(f"Detected {platform} URL, using structured-data extractor")
+                social_data = extract_capability_from_social_url(url, platform)
+                if social_data:
+                    logging.info(f"Social extractor returned fields: {list(social_data.keys())}")
+                    return jsonify({'success': True, 'data': social_data})
+                logging.info("Social extractor found no structured data")
+                return jsonify({
+                    'error': (
+                        f"Couldn't read public details from that {platform.capitalize()} page. "
+                        "It may be private, require login, or expose no structured information. "
+                        "Try a public company/business page URL, the company's own website, or upload the PDF directly."
+                    )
+                }), 400
+
             capability_text = download_and_extract_from_url(url)
             logging.info(f"URL extracted text length: {len(capability_text) if capability_text else 0}")
         
@@ -10501,6 +10521,325 @@ def download_and_extract_from_url(url):
     except Exception as e:
         logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
         return ""
+
+# Social/business domains that should never be used as a company "website" value.
+SOCIAL_MEDIA_DOMAINS = (
+    'facebook.com', 'fb.com', 'fb.me', 'm.facebook.com',
+    'linkedin.com', 'lnkd.in',
+    'twitter.com', 'x.com', 'instagram.com', 'youtube.com',
+    'youtu.be', 'tiktok.com', 'pinterest.com', 't.me',
+)
+
+
+def _host_of(url):
+    """Return the lower-cased hostname of a URL, stripped of a leading 'www.'."""
+    from urllib.parse import urlparse
+    try:
+        candidate = url if url.startswith(('http://', 'https://')) else 'https://' + url
+        host = (urlparse(candidate).hostname or '').lower()
+    except Exception:
+        return ''
+    if host.startswith('www.'):
+        host = host[4:]
+    return host
+
+
+def detect_social_platform(url):
+    """Detect whether a URL points to a Facebook or LinkedIn page/profile.
+
+    Returns 'facebook', 'linkedin', or None. Only these two platforms are
+    handled by the deterministic social extractor.
+    """
+    host = _host_of(url or '')
+    if not host:
+        return None
+    if host == 'facebook.com' or host.endswith('.facebook.com') or host in ('fb.com', 'fb.me'):
+        return 'facebook'
+    if host == 'linkedin.com' or host.endswith('.linkedin.com') or host == 'lnkd.in':
+        return 'linkedin'
+    return None
+
+
+def _is_social_media_url(url):
+    host = _host_of(url or '')
+    if not host:
+        return False
+    return any(host == d or host.endswith('.' + d) for d in SOCIAL_MEDIA_DOMAINS)
+
+
+def _clean_social_title(title, platform):
+    """Strip the platform suffix (e.g. ' | LinkedIn', ' - Facebook') from a title."""
+    import re
+    if not title:
+        return ''
+    cleaned = title.strip()
+    # Remove a trailing "| LinkedIn" / "- Facebook" / "• Facebook" style suffix.
+    cleaned = re.sub(
+        r'\s*[\|\-\u2013\u2014\u2022:]\s*(LinkedIn|Facebook)\s*$',
+        '',
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    # Some LinkedIn titles look like "Company Name | LinkedIn" already handled,
+    # others "Name - Title - Company | LinkedIn"; keep the full remaining text.
+    return cleaned.strip(' |-\u2013\u2014\u2022:').strip()
+
+
+def _collect_meta_tags(soup):
+    """Collect <meta> property/name -> content pairs into a dict (lower-cased keys)."""
+    meta = {}
+    for tag in soup.find_all('meta'):
+        key = tag.get('property') or tag.get('name') or tag.get('itemprop')
+        content = tag.get('content')
+        if key and content:
+            key = key.lower().strip()
+            # First occurrence wins to avoid overwriting canonical values.
+            meta.setdefault(key, content.strip())
+    return meta
+
+
+def _parse_json_ld_objects(soup):
+    """Return a flat list of dict objects parsed from all JSON-LD script blocks."""
+    objects = []
+
+    def _flatten(node):
+        if isinstance(node, list):
+            for item in node:
+                _flatten(item)
+        elif isinstance(node, dict):
+            if isinstance(node.get('@graph'), list):
+                _flatten(node['@graph'])
+                # Also keep the top-level object (minus @graph) if it has type.
+                if node.get('@type'):
+                    objects.append(node)
+            else:
+                objects.append(node)
+
+    for tag in soup.find_all('script', attrs={'type': 'application/ld+json'}):
+        raw = tag.string or tag.get_text() or ''
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+        except Exception:
+            # Some sites embed multiple concatenated JSON objects or invalid JSON.
+            continue
+        _flatten(data)
+
+    return objects
+
+
+def _type_matches(obj, wanted):
+    """Check whether a JSON-LD object's @type matches any of the wanted types."""
+    obj_type = obj.get('@type')
+    if not obj_type:
+        return False
+    if isinstance(obj_type, list):
+        types = [str(t).lower() for t in obj_type]
+    else:
+        types = [str(obj_type).lower()]
+    return any(w.lower() in types for w in wanted)
+
+
+def _first_str(value):
+    """Coerce a JSON-LD value (str / list / dict) into a clean single string."""
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        for item in value:
+            result = _first_str(item)
+            if result:
+                return result
+        return ''
+    if isinstance(value, dict):
+        for key in ('name', 'url', '@id', 'value'):
+            if key in value:
+                result = _first_str(value[key])
+                if result:
+                    return result
+    return ''
+
+
+def _map_postal_address(address, data):
+    """Map a schema.org PostalAddress dict into capability address fields."""
+    if not isinstance(address, dict):
+        return
+    street = _first_str(address.get('streetAddress'))
+    city = _first_str(address.get('addressLocality'))
+    region = _first_str(address.get('addressRegion'))
+    postal = _first_str(address.get('postalCode'))
+    if street:
+        data.setdefault('address', street)
+    if city:
+        data.setdefault('city', city)
+    if region:
+        data.setdefault('state', region)
+    if postal:
+        data.setdefault('zipCode', postal)
+
+
+def _map_social_structured_data(meta, ld_objects, platform):
+    """Map collected meta tags and JSON-LD objects into capability fields.
+
+    Pure/deterministic (no network, no AI). Returns a tuple of
+    ``(data_dict, source_text)`` where ``source_text`` is a short text (the
+    description) usable by downstream sanitization helpers.
+    """
+    data = {}
+
+    og_type = (meta.get('og:type', '') or '').lower()
+    is_person_profile = (
+        og_type == 'profile'
+        or 'profile:first_name' in meta
+        or any(_type_matches(o, ['person']) for o in ld_objects)
+    )
+
+    # --- JSON-LD driven extraction (highest confidence) ---
+    org_obj = next(
+        (o for o in ld_objects
+         if _type_matches(o, ['organization', 'corporation', 'localbusiness', 'ngo', 'educationalorganization'])),
+        None,
+    )
+    person_obj = next(
+        (o for o in ld_objects if _type_matches(o, ['person'])),
+        None,
+    )
+
+    if org_obj:
+        name = _first_str(org_obj.get('name') or org_obj.get('legalName'))
+        if name:
+            data['companyName'] = name
+        desc = _first_str(org_obj.get('description'))
+        if desc:
+            data['companyDescription'] = desc
+        phone = _first_str(org_obj.get('telephone'))
+        if phone:
+            data['phone'] = phone
+        email = _first_str(org_obj.get('email'))
+        if email:
+            data['email'] = email.replace('mailto:', '')
+        _map_postal_address(org_obj.get('address'), data)
+
+        # A real website may appear in 'url' or in the 'sameAs' list.
+        website_candidates = []
+        if org_obj.get('url'):
+            website_candidates.append(_first_str(org_obj.get('url')))
+        same_as = org_obj.get('sameAs')
+        if isinstance(same_as, list):
+            website_candidates.extend(_first_str(s) for s in same_as)
+        elif isinstance(same_as, str):
+            website_candidates.append(same_as.strip())
+        for candidate in website_candidates:
+            if candidate and candidate.startswith(('http://', 'https://')) and not _is_social_media_url(candidate):
+                data['website'] = candidate
+                break
+
+    if person_obj:
+        name = _first_str(person_obj.get('name'))
+        if name:
+            data.setdefault('contactName', name)
+        job_title = _first_str(person_obj.get('jobTitle'))
+        if job_title:
+            data.setdefault('contactTitle', job_title)
+        company = _first_str(person_obj.get('worksFor'))
+        if company:
+            data.setdefault('companyName', company)
+        _map_postal_address(person_obj.get('address'), data)
+
+    # --- Open Graph / meta fallbacks (only fill what JSON-LD did not) ---
+    og_title = _clean_social_title(meta.get('og:title', ''), platform)
+    og_description = meta.get('og:description', '') or meta.get('description', '')
+
+    if is_person_profile:
+        if 'contactName' not in data:
+            first = meta.get('profile:first_name', '')
+            last = meta.get('profile:last_name', '')
+            full = f"{first} {last}".strip()
+            if full:
+                data['contactName'] = full
+            elif og_title:
+                data['contactName'] = og_title
+        if 'companyDescription' not in data and og_description:
+            data['companyDescription'] = og_description
+    else:
+        if 'companyName' not in data and og_title:
+            data['companyName'] = og_title
+        if 'companyDescription' not in data and og_description:
+            data['companyDescription'] = og_description
+
+    # Industry / category hints (Facebook business pages expose a category).
+    category = meta.get('og:category', '') or meta.get('article:section', '')
+    if category and 'industryFocus' not in data:
+        data['industryFocus'] = category
+
+    # A canonical off-platform website sometimes appears in og:see_also.
+    if 'website' not in data:
+        see_also = meta.get('og:see_also', '')
+        if see_also.startswith(('http://', 'https://')) and not _is_social_media_url(see_also):
+            data['website'] = see_also
+
+    return data, (og_description or '')
+
+
+def extract_capability_from_social_url(url, platform):
+    """Deterministically extract capability-statement fields from a Facebook page or
+    LinkedIn profile/company page using the site's Open Graph tags, JSON-LD
+    structured data and standard meta tags. No AI is used and no values are
+    invented -- fields are only populated when present in the page markup.
+
+    Returns a dict of capability fields (possibly empty).
+    """
+    try:
+        from bs4 import BeautifulSoup
+        from urllib.parse import urlparse
+
+        original_url = url
+        url = (url or '').strip()
+        if url and not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+
+        is_safe, ssrf_error = is_safe_url_for_ssrf(url)
+        if not is_safe:
+            logging.error(f"SSRF protection blocked social URL: {url} - {ssrf_error}")
+            return {}
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Referer': f"{urlparse(url).scheme}://{urlparse(url).netloc}/",
+        }
+
+        response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
+        if response.status_code != 200:
+            logging.warning(f"Social import: HTTP {response.status_code} for {url}")
+            return {}
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        meta = _collect_meta_tags(soup)
+        ld_objects = _parse_json_ld_objects(soup)
+
+        data, source_text = _map_social_structured_data(meta, ld_objects, platform)
+
+        if not data:
+            logging.info(f"Social import: no structured data extracted from {url}")
+            return {}
+
+        logging.info(f"Social import ({platform}) extracted fields: {list(data.keys())}")
+        return sanitize_parsed_data(data, source_text)
+
+    except ValueError as e:
+        # Raised by safe_requests_get on SSRF validation failures.
+        logging.error(f"Social import SSRF/validation error for {url}: {str(e)}")
+        return {}
+    except Exception as e:
+        logging.error(f"Error extracting social profile {url}: {str(e)}", exc_info=True)
+        return {}
 
 def extract_naics_section(text):
     """Extract the NAICS section from capability statement text"""
