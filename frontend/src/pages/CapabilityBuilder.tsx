@@ -485,6 +485,33 @@ const CapabilityBuilder = () => {
     setImportingUrl(true)
     setUploadError('')
 
+    // Clear the whole form first so imported values replace the current data
+    // instead of merging with (or being blocked by) what's already there.
+    setFormData(prev => ({
+      ...prev,
+      companyName: '',
+      website: '',
+      contactName: '',
+      title: '',
+      phone: '',
+      email: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      industryFocus: '',
+      coreCompetencies: '',
+      keyDifferentiators: '',
+      companyDescription: '',
+      ueiCode: '',
+      cageCode: '',
+      naicsCodes: '',
+      certifications: '',
+      clientAgency: '',
+      contractValue: '',
+      projectDescription: '',
+    }))
+
     try {
       const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
       if (result.success && result.data) {

@@ -10009,28 +10009,30 @@ def process_capability_statement():
             url = request.json['url']
             logging.info(f"Processing URL import: {url}")
 
-            # Facebook pages / LinkedIn profiles: extract data deterministically from
-            # the site's Open Graph tags and JSON-LD structured data (no AI, no
-            # invented values). Only fields present in the markup are returned.
+            # Import from a URL is fully deterministic (no AI): it follows well-known
+            # HTML tags / conventions -- JSON-LD (schema.org), Open Graph, microdata,
+            # and mailto:/tel: links -- to pull company name, email, phone, address,
+            # website, etc. Works for regular company websites and LinkedIn pages.
             platform = detect_social_platform(url)
-            if platform:
-                logging.info(f"Detected {platform} URL, using structured-data extractor")
-                social_data = extract_capability_from_social_url(url, platform)
-                if social_data:
-                    logging.info(f"Social extractor returned fields: {list(social_data.keys())}")
-                    return jsonify({'success': True, 'data': social_data})
-                logging.info("Social extractor found no structured data")
-                return jsonify({
-                    'error': (
-                        f"Couldn't read public details from that {platform.capitalize()} page. "
-                        "It may be private, require login, or expose no structured information. "
-                        "Try a public company/business page URL, the company's own website, or upload the PDF directly."
-                    )
-                }), 400
+            url_data = import_capability_from_url(url)
+            if url_data:
+                logging.info(f"URL importer returned fields: {list(url_data.keys())}")
+                return jsonify({'success': True, 'data': url_data})
 
-            capability_text = download_and_extract_from_url(url)
-            logging.info(f"URL extracted text length: {len(capability_text) if capability_text else 0}")
-        
+            logging.info("URL importer found no structured data")
+            if platform:
+                error_msg = (
+                    f"Couldn't read public details from that {platform.capitalize()} page. "
+                    "It may be private, require login, or expose no structured information. "
+                    "Try a public company/business page URL, the company's own website, or upload the PDF directly."
+                )
+            else:
+                error_msg = (
+                    "Couldn't read company details from that URL. Make sure it's a public page "
+                    "(company website, contact/about page, or LinkedIn page), or upload the PDF directly."
+                )
+            return jsonify({'error': error_msg}), 400
+
         else:
             logging.error("No file or URL provided in request")
             return jsonify({'error': 'No file or URL provided'}), 400
@@ -10052,191 +10054,8 @@ def process_capability_statement():
         
         if not parsed_data:
             logging.warning("AI parsing returned empty result, using enhanced fallback parser")
-            import re
-            parsed_data = {}
-            
-            capability_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', capability_text)
-            capability_text = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', capability_text)
-            
-            lines = capability_text.split('\n')
-            text_lower = capability_text.lower()
-            
-            # Extract company name - look for line with Inc/LLC/Corp suffix
-            company_name = None
-            for line in lines:
-                line = line.strip()
-                if re.search(r'\b(?:Inc|LLC|Corp|Corporation|Company|Co\.)\b', line, re.IGNORECASE):
-                    if not re.match(r'^(CAPABILITY|ABOUT|PAST|CORE|DIFFERENTIATORS|CERTIFICATIONS)', line, re.IGNORECASE):
-                        # Extract just the company name part
-                        match = re.search(r'([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))', line, re.IGNORECASE)
-                        if match:
-                            company_name = match.group(1).strip()
-                            break
-            if company_name:
-                parsed_data['companyName'] = company_name
-            
-            # Extract email
-            email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
-            if email_match:
-                parsed_data['email'] = email_match.group()
-            
-            # Extract phone
-            phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
-            if phone_match:
-                parsed_data['phone'] = phone_match.group()
-            
-            # Extract website
-            url_match = re.search(r'https?://[^\s]+', capability_text)
-            if url_match:
-                parsed_data['website'] = url_match.group().rstrip('.,;)')
-            
-            # Extract contact name and title (look for patterns like "Contact:", "Attn:", etc.)
-            contact_patterns = [
-                r'(?:contact|attn|attention)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
-                r'(?:name)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
-            ]
-            for pattern in contact_patterns:
-                match = re.search(pattern, capability_text, re.IGNORECASE)
-                if match:
-                    parsed_data['contactName'] = match.group(1).strip()
-                    break
-            
-            # Extract title (CEO, President, Director, etc.)
-            title_match = re.search(r'\b(CEO|President|Director|Manager|Owner|Principal|VP|Vice President)\b', capability_text, re.IGNORECASE)
-            if title_match:
-                parsed_data['contactTitle'] = title_match.group(1)
-            
-            # Extract address components - require street number AND suffix
-            address_match = re.search(r'(\d+\s+[A-Za-z\s]{3,50}?(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Boulevard|Blvd\.|Drive|Dr\.|Lane|Ln\.|Way|Court|Ct\.))', capability_text, re.IGNORECASE)
-            if address_match:
-                addr = address_match.group(1).strip()
-                if not re.search(r'\b(successful|completed|projects?|years?|over|under)\b', addr, re.IGNORECASE):
-                    parsed_data['address'] = addr
-            
-            # Extract city, state, zip - handle both inline and multiline formats
-            city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
-            if city_state_zip:
-                parsed_data['city'] = city_state_zip.group(1)
-                parsed_data['state'] = city_state_zip.group(2)
-                parsed_data['zipCode'] = city_state_zip.group(3)
-            else:
-                city_state_zip_multiline = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]*[\n\s]+([A-Z]{2})[\s\n]+(\d{5}(?:-\d{4})?)', capability_text)
-                if city_state_zip_multiline:
-                    parsed_data['city'] = city_state_zip_multiline.group(1)
-                    parsed_data['state'] = city_state_zip_multiline.group(2)
-                    parsed_data['zipCode'] = city_state_zip_multiline.group(3)
-            
-            # Extract UEI code (12 alphanumeric characters)
-            uei_match = re.search(r'\b(?:UEI|Unique Entity Identifier)[:\s]+([A-Z0-9]{12})\b', capability_text, re.IGNORECASE)
-            if uei_match:
-                parsed_data['ueiCode'] = uei_match.group(1)
-            
-            # Extract CAGE code (5 alphanumeric characters)
-            cage_match = re.search(r'\b(?:CAGE|Commercial and Government Entity)[:\s]+([A-Z0-9]{5})\b', capability_text, re.IGNORECASE)
-            if cage_match:
-                parsed_data['cageCode'] = cage_match.group(1)
-            
-            # Extract NAICS codes with descriptions
-            naics_codes_with_desc = extract_naics_codes_with_descriptions(capability_text)
-            if naics_codes_with_desc:
-                parsed_data['naicsCodes'] = naics_codes_with_desc
-            
-            # Extract certifications (common patterns)
-            cert_patterns = ['8\\(a\\)', 'WBENC', 'MBE', 'WBE', 'DBE', 'SDB', 'HUBZone', 'VOSB', 'SDVOSB', 'ISO ?9001', 'ISO ?14001', 'ISO ?27001']
-            certifications = []
-            for cert in cert_patterns:
-                if re.search(cert, capability_text, re.IGNORECASE):
-                    certifications.append(re.sub(r'\?', '', cert))
-            if certifications:
-                parsed_data['certifications'] = certifications
-            
-            # Extract core competencies - handle multiple formats
-            competency_section = re.search(r'(?:core competencies|capabilities|services offered|expertise|what we do)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
-            if competency_section:
-                competencies = re.findall(r'[-•*–—]\s*(.+)', competency_section.group(1))
-                parsed_data['competencies'] = [c.strip() for c in competencies if c.strip() and len(c.strip()) > 3]
-            elif not competency_section:
-                for line_idx, line in enumerate(lines):
-                    if re.search(r'(?:core competencies|capabilities|services|expertise)', line, re.IGNORECASE):
-                        competencies = []
-                        for next_line in lines[line_idx+1:line_idx+15]:
-                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
-                                comp = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
-                                if len(comp) > 3:
-                                    competencies.append(comp)
-                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
-                                break
-                        if competencies:
-                            parsed_data['competencies'] = competencies
-                            break
-            
-            # Extract differentiators - handle multiple formats
-            diff_section = re.search(r'(?:key differentiators|differentiators|why choose us|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
-            if diff_section:
-                differentiators = re.findall(r'[-•*–—]\s*(.+)', diff_section.group(1))
-                parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip() and len(d.strip()) > 3]
-            elif not diff_section:
-                for line_idx, line in enumerate(lines):
-                    if re.search(r'(?:key differentiators|differentiators|why choose us|why us)', line, re.IGNORECASE):
-                        differentiators = []
-                        for next_line in lines[line_idx+1:line_idx+15]:
-                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
-                                diff = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
-                                if len(diff) > 3:
-                                    differentiators.append(diff)
-                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
-                                break
-                        if differentiators:
-                            parsed_data['differentiators'] = differentiators
-                            break
-            
-            # Extract company description - look for prose paragraph with multiple approaches
-            desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW|DESCRIPTION)[:\s]*[\n\s]*([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){1,}\.)', capability_text, re.IGNORECASE)
-            if desc_match:
-                desc = desc_match.group(1).strip()
-                if len(desc) > 30 and not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI)', desc, re.IGNORECASE):
-                    parsed_data['companyDescription'] = desc[:500]
-            
-            if 'companyDescription' not in parsed_data:
-                for line_start in range(0, len(lines) - 3):
-                    potential_desc = ' '.join(lines[line_start:line_start+5]).strip()
-                    if len(potential_desc) > 100 and potential_desc.count('.') >= 2:
-                        if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI|CERTIFICATIONS|CONTACT)', potential_desc, re.IGNORECASE):
-                            if not re.search(r'[-•*–—]', potential_desc[:50]):
-                                sentences = re.split(r'[.!?]+\s+', potential_desc)
-                                if len(sentences) >= 2:
-                                    parsed_data['companyDescription'] = '. '.join(sentences[:3]).strip()[:500]
-                                    if parsed_data['companyDescription'] and not parsed_data['companyDescription'].endswith('.'):
-                                        parsed_data['companyDescription'] += '.'
-                                    break
-            
-            # Extract industry focus
-            industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
-            if industry_match:
-                parsed_data['industryFocus'] = industry_match.group(1).strip()
-            
-            # Extract past performance - handle multiple formats
-            past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|client list|project experience|representative projects)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
-            if past_perf_section:
-                past_performance = re.findall(r'[-•*–—]\s*(.+)', past_perf_section.group(1))
-                parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip() and len(p.strip()) > 5]
-            elif not past_perf_section:
-                for line_idx, line in enumerate(lines):
-                    if re.search(r'(?:past performance|notable projects|key projects|clients|representative projects)', line, re.IGNORECASE):
-                        past_performance = []
-                        for next_line in lines[line_idx+1:line_idx+20]:
-                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
-                                perf = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
-                                if len(perf) > 5:
-                                    past_performance.append(perf)
-                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
-                                break
-                        if past_performance:
-                            parsed_data['pastPerformance'] = past_performance
-                            break
-            
+            parsed_data = parse_capability_fields_from_text(capability_text)
             logging.info(f"Enhanced fallback parser extracted {len(parsed_data)} fields: {list(parsed_data.keys())}")
-            
             parsed_data = sanitize_parsed_data(parsed_data, capability_text)
         
         return jsonify({'success': True, 'data': parsed_data})
@@ -10828,16 +10647,124 @@ def _map_social_structured_data(meta, ld_objects, platform):
     return data, (og_description or '')
 
 
-def extract_capability_from_social_url(url, platform):
-    """Deterministically extract capability-statement fields from a Facebook page or
-    LinkedIn profile/company page using the site's Open Graph tags, JSON-LD
-    structured data and standard meta tags. No AI is used and no values are
-    invented -- fields are only populated when present in the page markup.
+def _base_site_url(url):
+    """Return the 'scheme://host' root of a URL (used as the company website)."""
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(url if url.startswith(('http://', 'https://')) else 'https://' + url)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    except Exception:
+        pass
+    return ''
 
-    Returns a dict of capability fields (possibly empty).
+
+def _fetch_page_soup(url, platform):
+    """Fetch a URL and return (BeautifulSoup, final_url).
+
+    Regular websites are fetched with a normal browser user-agent. LinkedIn /
+    Facebook serve a login wall to browsers but expose public Open Graph / JSON-LD
+    to well-known link-preview crawlers, so those hosts are tried with crawler
+    user-agents. Returns (None, final_url_or_None) when the response is not HTML
+    (e.g. a PDF URL) or every attempt fails.
+    """
+    from bs4 import BeautifulSoup
+
+    browser_ua = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    crawler_user_agents = [
+        'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
+    ]
+    user_agents = crawler_user_agents if platform else [browser_ua]
+
+    for user_agent in user_agents:
+        headers = {
+            'User-Agent': user_agent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        try:
+            response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
+        except requests.exceptions.RequestException as req_err:
+            logging.warning(f"URL import request failed with UA '{user_agent[:30]}': {req_err}")
+            continue
+
+        if response.status_code != 200:
+            logging.info(f"URL import: HTTP {response.status_code} for {url} (UA '{user_agent[:30]}')")
+            continue
+
+        content_type = (response.headers.get('content-type') or '').lower()
+        if content_type and 'html' not in content_type and 'xml' not in content_type:
+            # Not an HTML page (likely a PDF); the text extractor handles it instead.
+            return None, getattr(response, 'url', url)
+
+        final_url = getattr(response, 'url', '') or ''
+        if platform and ('/login' in final_url.lower() or '/authwall' in final_url.lower()):
+            logging.info(f"URL import: hit login/auth wall for {url} (UA '{user_agent[:30]}')")
+            continue
+
+        return BeautifulSoup(response.content, 'html.parser'), (final_url or url)
+
+    return None, None
+
+
+def _extract_contact_from_soup(soup):
+    """Extract contact details from well-known HTML conventions: mailto:/tel: links
+    and schema.org microdata (itemprop). Deterministic; no guessing."""
+    import re
+    data = {}
+
+    for anchor in soup.find_all('a', href=True):
+        href = (anchor.get('href') or '').strip()
+        low = href.lower()
+        if low.startswith('mailto:'):
+            email = href[len('mailto:'):].split('?')[0].strip()
+            if '@' in email and 'email' not in data:
+                data['email'] = email
+        elif low.startswith('tel:'):
+            phone = href[len('tel:'):].strip()
+            phone = re.sub(r'[^\d+()\-.\s]', '', phone).strip()
+            if len(re.sub(r'\D', '', phone)) >= 7 and 'phone' not in data:
+                data['phone'] = phone
+
+    itemprop_map = {
+        'email': 'email',
+        'telephone': 'phone',
+        'tel': 'phone',
+        'streetaddress': 'address',
+        'addresslocality': 'city',
+        'addressregion': 'state',
+        'postalcode': 'zipCode',
+    }
+    for element in soup.find_all(attrs={'itemprop': True}):
+        prop = str(element.get('itemprop') or '').lower().strip()
+        field = itemprop_map.get(prop)
+        if not field or field in data:
+            continue
+        value = (element.get('content') or element.get_text(' ', strip=True) or '').strip()
+        if not value:
+            continue
+        if field == 'email':
+            if '@' not in value:
+                continue
+            value = value.replace('mailto:', '')
+        data[field] = value
+
+    return data
+
+
+def import_capability_from_url(url):
+    """Deterministically import capability-statement fields from a URL.
+
+    Follows well-known HTML tags / conventions -- JSON-LD (schema.org), Open Graph,
+    microdata and mailto:/tel: links -- plus a regex pass over the page text. No AI
+    is used and no values are invented. Handles regular company websites, LinkedIn
+    pages and direct PDF URLs. Returns a dict of capability fields (possibly empty).
     """
     try:
-        from bs4 import BeautifulSoup
+        import re
 
         url = (url or '').strip()
         if url and not url.startswith(('http://', 'https://')):
@@ -10845,64 +10772,279 @@ def extract_capability_from_social_url(url, platform):
 
         is_safe, ssrf_error = is_safe_url_for_ssrf(url)
         if not is_safe:
-            logging.error(f"SSRF protection blocked social URL: {url} - {ssrf_error}")
+            logging.error(f"SSRF protection blocked URL: {url} - {ssrf_error}")
             return {}
 
-        # Facebook and LinkedIn serve a login wall to ordinary browser user-agents,
-        # but expose public Open Graph tags / JSON-LD to well-known link-preview
-        # crawlers. Try those crawler UAs (this is the same mechanism used to build
-        # link previews) and keep the first response that yields structured data.
-        crawler_user_agents = [
-            'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-            'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-            'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
-        ]
-
+        platform = detect_social_platform(url)
         data = {}
-        source_text = ''
-        for user_agent in crawler_user_agents:
-            headers = {
-                'User-Agent': user_agent,
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-            }
-            try:
-                response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
-            except requests.exceptions.RequestException as req_err:
-                logging.warning(f"Social import request failed with UA '{user_agent[:30]}': {req_err}")
-                continue
+        is_html_page = False
 
-            if response.status_code != 200:
-                logging.info(f"Social import: HTTP {response.status_code} for {url} (UA '{user_agent[:30]}')")
-                continue
+        # 1) Structured tags from the page markup (highest confidence).
+        try:
+            soup, final_url = _fetch_page_soup(url, platform)
+        except ValueError as e:  # SSRF validation inside safe_requests_get
+            logging.error(f"URL import SSRF/validation error for {url}: {e}")
+            return {}
 
-            # A login-wall response redirects to /login and exposes no page data.
-            final_url = getattr(response, 'url', '') or ''
-            if '/login' in final_url.lower() or '/authwall' in final_url.lower():
-                logging.info(f"Social import: hit login/auth wall for {url} (UA '{user_agent[:30]}')")
-                continue
-
-            soup = BeautifulSoup(response.content, 'html.parser')
+        if soup is not None:
+            is_html_page = True
             meta = _collect_meta_tags(soup)
             ld_objects = _parse_json_ld_objects(soup)
-            data, source_text = _map_social_structured_data(meta, ld_objects, platform)
-            if data:
-                break
+            struct, _ = _map_social_structured_data(meta, ld_objects, platform or 'website')
+
+            contact = _extract_contact_from_soup(soup)
+            for key, value in contact.items():
+                struct.setdefault(key, value)
+
+            if not platform:
+                # A regular website's own domain is its website.
+                base = _base_site_url(final_url or url)
+                if base:
+                    struct.setdefault('website', base)
+                # Prefer the site's declared brand name (og:site_name) for the
+                # company name; otherwise derive it from the page <title>.
+                site_name = (meta.get('og:site_name') or '').strip()
+                if site_name:
+                    struct['companyName'] = site_name
+                elif 'companyName' not in struct:
+                    title = ''
+                    if soup.title and soup.title.string:
+                        title = soup.title.string.strip()
+                    title = _clean_social_title(title, 'website')
+                    if title:
+                        # Page titles are often "About - Acme Inc" / "Acme | Home".
+                        struct['companyName'] = re.split(r'\s[|\-\u2013\u2014\u00b7]\s', title)[0].strip() or title
+
+            data.update({k: v for k, v in struct.items() if v})
+
+        # 2) Regex pass over the page text (also handles direct PDF URLs) to fill
+        #    fields the structured tags did not provide. On HTML pages the loose,
+        #    text-based guesses for contact details are dropped -- those must come
+        #    from explicit tags (JSON-LD / microdata / mailto: / tel:) so we never
+        #    fill in incorrect values. Label-based, high-precision fields are kept.
+        try:
+            text = download_and_extract_from_url(url)
+        except Exception as text_err:
+            logging.warning(f"URL import text extraction failed for {url}: {text_err}")
+            text = ''
+
+        # Fields whose text heuristics are low-precision on arbitrary web pages.
+        loose_text_fields = {
+            'companyName', 'website', 'email', 'phone',
+            'contactName', 'contactTitle', 'address', 'city', 'state', 'zipCode',
+        }
+
+        source_text = ''
+        if text and len(text.strip()) >= 10:
+            source_text = text
+            text_data = parse_capability_fields_from_text(text)
+            for key, value in text_data.items():
+                if not value or key in data:
+                    continue
+                if is_html_page and key in loose_text_fields:
+                    continue
+                data[key] = value
 
         if not data:
-            logging.info(f"Social import: no structured data extracted from {url}")
+            logging.info(f"URL import: no data extracted from {url}")
             return {}
 
-        logging.info(f"Social import ({platform}) extracted fields: {list(data.keys())}")
-        return sanitize_parsed_data(data, source_text)
+        logging.info(f"URL import extracted fields: {list(data.keys())}")
+        return sanitize_parsed_data(data, source_text or data.get('companyDescription', ''))
 
-    except ValueError as e:
-        # Raised by safe_requests_get on SSRF validation failures.
-        logging.error(f"Social import SSRF/validation error for {url}: {str(e)}")
-        return {}
     except Exception as e:
-        logging.error(f"Error extracting social profile {url}: {str(e)}", exc_info=True)
+        logging.error(f"Error importing from URL {url}: {str(e)}", exc_info=True)
         return {}
+
+
+def parse_capability_fields_from_text(capability_text):
+    """Deterministic regex/heuristic parser that extracts capability-statement
+    fields from raw text (PDF or scraped web page). Returns an unsanitized dict."""
+    import re
+    parsed_data = {}
+
+    capability_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', capability_text)
+    capability_text = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', capability_text)
+
+    lines = capability_text.split('\n')
+
+    # Extract company name - look for line with Inc/LLC/Corp suffix
+    company_name = None
+    for line in lines:
+        line = line.strip()
+        if re.search(r'\b(?:Inc|LLC|Corp|Corporation|Company|Co\.)\b', line, re.IGNORECASE):
+            if not re.match(r'^(CAPABILITY|ABOUT|PAST|CORE|DIFFERENTIATORS|CERTIFICATIONS)', line, re.IGNORECASE):
+                match = re.search(r'([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))', line, re.IGNORECASE)
+                if match:
+                    company_name = match.group(1).strip()
+                    break
+    if company_name:
+        parsed_data['companyName'] = company_name
+
+    # Extract email
+    email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
+    if email_match:
+        parsed_data['email'] = email_match.group()
+
+    # Extract phone
+    phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
+    if phone_match:
+        parsed_data['phone'] = phone_match.group()
+
+    # Extract website
+    url_match = re.search(r'https?://[^\s]+', capability_text)
+    if url_match:
+        parsed_data['website'] = url_match.group().rstrip('.,;)')
+
+    # Extract contact name and title (look for patterns like "Contact:", "Attn:", etc.)
+    contact_patterns = [
+        r'(?:contact|attn|attention)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+        r'(?:name)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+    ]
+    for pattern in contact_patterns:
+        match = re.search(pattern, capability_text, re.IGNORECASE)
+        if match:
+            parsed_data['contactName'] = match.group(1).strip()
+            break
+
+    # Extract title (CEO, President, Director, etc.)
+    title_match = re.search(r'\b(CEO|President|Director|Manager|Owner|Principal|VP|Vice President)\b', capability_text, re.IGNORECASE)
+    if title_match:
+        parsed_data['contactTitle'] = title_match.group(1)
+
+    # Extract address components - require street number AND suffix
+    address_match = re.search(r'(\d+\s+[A-Za-z\s]{3,50}?(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Boulevard|Blvd\.|Drive|Dr\.|Lane|Ln\.|Way|Court|Ct\.))', capability_text, re.IGNORECASE)
+    if address_match:
+        addr = address_match.group(1).strip()
+        if not re.search(r'\b(successful|completed|projects?|years?|over|under)\b', addr, re.IGNORECASE):
+            parsed_data['address'] = addr
+
+    # Extract city, state, zip - handle both inline and multiline formats
+    city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
+    if city_state_zip:
+        parsed_data['city'] = city_state_zip.group(1)
+        parsed_data['state'] = city_state_zip.group(2)
+        parsed_data['zipCode'] = city_state_zip.group(3)
+    else:
+        city_state_zip_multiline = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]*[\n\s]+([A-Z]{2})[\s\n]+(\d{5}(?:-\d{4})?)', capability_text)
+        if city_state_zip_multiline:
+            parsed_data['city'] = city_state_zip_multiline.group(1)
+            parsed_data['state'] = city_state_zip_multiline.group(2)
+            parsed_data['zipCode'] = city_state_zip_multiline.group(3)
+
+    # Extract UEI code (12 alphanumeric characters)
+    uei_match = re.search(r'\b(?:UEI|Unique Entity Identifier)[:\s]+([A-Z0-9]{12})\b', capability_text, re.IGNORECASE)
+    if uei_match:
+        parsed_data['ueiCode'] = uei_match.group(1)
+
+    # Extract CAGE code (5 alphanumeric characters)
+    cage_match = re.search(r'\b(?:CAGE|Commercial and Government Entity)[:\s]+([A-Z0-9]{5})\b', capability_text, re.IGNORECASE)
+    if cage_match:
+        parsed_data['cageCode'] = cage_match.group(1)
+
+    # Extract NAICS codes with descriptions
+    naics_codes_with_desc = extract_naics_codes_with_descriptions(capability_text)
+    if naics_codes_with_desc:
+        parsed_data['naicsCodes'] = naics_codes_with_desc
+
+    # Extract certifications (common patterns)
+    cert_patterns = ['8\\(a\\)', 'WBENC', 'MBE', 'WBE', 'DBE', 'SDB', 'HUBZone', 'VOSB', 'SDVOSB', 'ISO ?9001', 'ISO ?14001', 'ISO ?27001']
+    certifications = []
+    for cert in cert_patterns:
+        # Require word boundaries so acronyms (MBE, WBE, ...) don't match inside
+        # unrelated words such as "Member" or "number".
+        pattern = cert if cert.startswith('8') else r'\b' + cert + r'\b'
+        if re.search(pattern, capability_text, re.IGNORECASE):
+            certifications.append(re.sub(r'\?', '', cert))
+    if certifications:
+        parsed_data['certifications'] = certifications
+
+    # Extract core competencies - handle multiple formats
+    competency_section = re.search(r'(?:core competencies|capabilities|services offered|expertise|what we do)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+    if competency_section:
+        competencies = re.findall(r'[-•*–—]\s*(.+)', competency_section.group(1))
+        parsed_data['competencies'] = [c.strip() for c in competencies if c.strip() and len(c.strip()) > 3]
+    elif not competency_section:
+        for line_idx, line in enumerate(lines):
+            if re.search(r'(?:core competencies|capabilities|services|expertise)', line, re.IGNORECASE):
+                competencies = []
+                for next_line in lines[line_idx+1:line_idx+15]:
+                    if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                        comp = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                        if len(comp) > 3:
+                            competencies.append(comp)
+                    elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                        break
+                if competencies:
+                    parsed_data['competencies'] = competencies
+                    break
+
+    # Extract differentiators - handle multiple formats
+    diff_section = re.search(r'(?:key differentiators|differentiators|why choose us|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+    if diff_section:
+        differentiators = re.findall(r'[-•*–—]\s*(.+)', diff_section.group(1))
+        parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip() and len(d.strip()) > 3]
+    elif not diff_section:
+        for line_idx, line in enumerate(lines):
+            if re.search(r'(?:key differentiators|differentiators|why choose us|why us)', line, re.IGNORECASE):
+                differentiators = []
+                for next_line in lines[line_idx+1:line_idx+15]:
+                    if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                        diff = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                        if len(diff) > 3:
+                            differentiators.append(diff)
+                    elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                        break
+                if differentiators:
+                    parsed_data['differentiators'] = differentiators
+                    break
+
+    # Extract company description - look for prose paragraph with multiple approaches
+    desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW|DESCRIPTION)[:\s]*[\n\s]*([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){1,}\.)', capability_text, re.IGNORECASE)
+    if desc_match:
+        desc = desc_match.group(1).strip()
+        if len(desc) > 30 and not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI)', desc, re.IGNORECASE):
+            parsed_data['companyDescription'] = desc[:500]
+
+    if 'companyDescription' not in parsed_data:
+        for line_start in range(0, len(lines) - 3):
+            potential_desc = ' '.join(lines[line_start:line_start+5]).strip()
+            if len(potential_desc) > 100 and potential_desc.count('.') >= 2:
+                if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI|CERTIFICATIONS|CONTACT)', potential_desc, re.IGNORECASE):
+                    if not re.search(r'[-•*–—]', potential_desc[:50]):
+                        sentences = re.split(r'[.!?]+\s+', potential_desc)
+                        if len(sentences) >= 2:
+                            parsed_data['companyDescription'] = '. '.join(sentences[:3]).strip()[:500]
+                            if parsed_data['companyDescription'] and not parsed_data['companyDescription'].endswith('.'):
+                                parsed_data['companyDescription'] += '.'
+                            break
+
+    # Extract industry focus
+    industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
+    if industry_match:
+        parsed_data['industryFocus'] = industry_match.group(1).strip()
+
+    # Extract past performance - handle multiple formats
+    past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|client list|project experience|representative projects)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+    if past_perf_section:
+        past_performance = re.findall(r'[-•*–—]\s*(.+)', past_perf_section.group(1))
+        parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip() and len(p.strip()) > 5]
+    elif not past_perf_section:
+        for line_idx, line in enumerate(lines):
+            if re.search(r'(?:past performance|notable projects|key projects|clients|representative projects)', line, re.IGNORECASE):
+                past_performance = []
+                for next_line in lines[line_idx+1:line_idx+20]:
+                    if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                        perf = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                        if len(perf) > 5:
+                            past_performance.append(perf)
+                    elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                        break
+                if past_performance:
+                    parsed_data['pastPerformance'] = past_performance
+                    break
+
+    return parsed_data
 
 def extract_naics_section(text):
     """Extract the NAICS section from capability statement text"""
