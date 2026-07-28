@@ -123,7 +123,7 @@ def get_rate_limit_key():
 limiter = Limiter(
     app=app,
     key_func=get_rate_limit_key,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=[],  # No global limit; only the AI Assistant is throttled (see below).
     storage_uri="memory://",
     strategy="fixed-window"
 )
@@ -132,6 +132,46 @@ limiter = Limiter(
 @limiter.request_filter
 def exempt_health_check():
     return request.path == "/healthz" or request.path.startswith("/static/")
+
+
+# --- AI Assistant rate limit -------------------------------------------------
+# The only throttled surface is the AI Assistant. Instead of returning an HTTP
+# 429 error, once a user exceeds the hourly limit the assistant simply replies
+# with a friendly message telling them to wait.
+AI_ASSISTANT_HOURLY_LIMIT = 50
+AI_ASSISTANT_WINDOW_SECONDS = 3600
+_ai_assistant_usage = {}  # rate-limit-key -> [window_start_epoch, count]
+_ai_assistant_usage_lock = threading.Lock()
+
+
+def ai_assistant_limit_message():
+    """Assistant reply shown when the hourly AI Assistant limit is reached."""
+    return (
+        f"You've reached the limit of {AI_ASSISTANT_HOURLY_LIMIT} AI Assistant requests per hour. "
+        "Please wait a little while and try again \u2014 your limit resets within the hour. "
+        "Thanks for your patience!"
+    )
+
+
+def check_ai_assistant_rate_limit(consume=True):
+    """Fixed-window (1 hour) per-user limiter for the AI Assistant.
+
+    Returns (allowed, remaining). When ``consume`` is True and the request is
+    allowed, the call is counted against the window.
+    """
+    key = get_rate_limit_key()
+    now = time.time()
+    with _ai_assistant_usage_lock:
+        window_start, count = _ai_assistant_usage.get(key, (now, 0))
+        if now - window_start >= AI_ASSISTANT_WINDOW_SECONDS:
+            window_start, count = now, 0
+        if count >= AI_ASSISTANT_HOURLY_LIMIT:
+            _ai_assistant_usage[key] = (window_start, count)
+            return False, 0
+        if consume:
+            count += 1
+        _ai_assistant_usage[key] = (window_start, count)
+        return True, AI_ASSISTANT_HOURLY_LIMIT - count
 
 
 # Health Check Path
@@ -8097,7 +8137,18 @@ def enhanced_ai_assistant():
         
         if 'user' not in session:
             return jsonify({"error": "User not authenticated"}), 401
-            
+
+        # AI Assistant hourly limit: reply with a friendly message instead of 429.
+        allowed, _remaining = check_ai_assistant_rate_limit()
+        if not allowed:
+            return jsonify({
+                "response": ai_assistant_limit_message(),
+                "credits_used": 0,
+                "remaining_credits": None,
+                "casual_greeting": True,
+                "rate_limited": True
+            })
+
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         user_id = user['localId']
@@ -8852,7 +8903,23 @@ def ai_assistant_action():
         idempotency_key = data.get('idempotency_key')
         # Check if streaming is requested
         use_stream = data.get('stream', False)
-        
+
+        # AI Assistant hourly limit: reply with a friendly assistant message
+        # instead of an HTTP 429 error once the limit is reached.
+        allowed, _remaining = check_ai_assistant_rate_limit()
+        if not allowed:
+            limit_msg = ai_assistant_limit_message()
+            if use_stream:
+                def limit_gen():
+                    yield f"data: {json.dumps({'token': limit_msg})}\n\n"
+                    yield f"data: {json.dumps({'done': True, 'success': True, 'rate_limited': True})}\n\n"
+                return Response(limit_gen(), mimetype='text/event-stream')
+            return jsonify({
+                "success": True,
+                "message": limit_msg,
+                "rate_limited": True
+            })
+
         # Validate action against fixed enum (security: no arbitrary actions)
         VALID_ACTIONS = {
             'analyze_contract': {'cost': 3, 'description': 'Contract analysis'},
@@ -10659,6 +10726,72 @@ def _base_site_url(url):
     return ''
 
 
+def _render_service_url(url):
+    """Build a JS-rendering proxy URL for ``url`` when a render service is
+    configured via environment variables, else return None.
+
+    This is an optional, lawful workaround for *public* pages that sit behind a
+    JavaScript / anti-bot challenge (e.g. Cloudflare's managed challenge, which
+    ordinary requests can't pass because it needs a real browser to execute JS).
+    It simply fetches the same public page through a headless renderer -- it does
+    NOT bypass authentication or access any private/logged-in content.
+
+    Supported providers (set whichever you use):
+      - SCRAPINGBEE_API_KEY
+      - SCRAPERAPI_KEY
+      - SCRAPER_RENDER_URL  (generic template containing '{url}')
+    """
+    from urllib.parse import quote
+    encoded = quote(url, safe='')
+
+    bee_key = os.getenv('SCRAPINGBEE_API_KEY')
+    if bee_key:
+        return f"https://app.scrapingbee.com/api/v1/?api_key={bee_key}&url={encoded}&render_js=true"
+
+    scraperapi_key = os.getenv('SCRAPERAPI_KEY')
+    if scraperapi_key:
+        return f"http://api.scraperapi.com/?api_key={scraperapi_key}&url={encoded}&render=true"
+
+    template = os.getenv('SCRAPER_RENDER_URL')
+    if template and '{url}' in template:
+        return template.replace('{url}', encoded)
+
+    return None
+
+
+def _fetch_rendered_soup(url):
+    """Fetch ``url`` through a configured JS-render proxy and parse the HTML.
+
+    Returns (BeautifulSoup, final_url) on success or (None, None) when no render
+    service is configured or the fetch fails. The target ``url`` must already have
+    passed SSRF validation by the caller; the outbound request here goes to the
+    (public) render provider, not directly to the target.
+    """
+    proxy_url = _render_service_url(url)
+    if not proxy_url:
+        return None, None
+
+    from bs4 import BeautifulSoup
+    try:
+        # Rendering (executing JS) can be slow, so allow a generous timeout.
+        response = requests.get(proxy_url, timeout=60,
+                                headers={'Accept': 'text/html,application/xhtml+xml,*/*'})
+    except requests.exceptions.RequestException as req_err:
+        logging.warning(f"URL import render fallback failed: {req_err}")
+        return None, None
+
+    if response.status_code != 200:
+        logging.info(f"URL import render fallback returned HTTP {response.status_code} for {url}")
+        return None, None
+
+    content_type = (response.headers.get('content-type') or '').lower()
+    if content_type and 'html' not in content_type and 'xml' not in content_type:
+        return None, url
+
+    logging.info(f"URL import: used JS-render fallback for {url}")
+    return BeautifulSoup(response.content, 'html.parser'), url
+
+
 def _fetch_page_soup(url, platform):
     """Fetch a URL and return (BeautifulSoup, final_url).
 
@@ -10706,6 +10839,13 @@ def _fetch_page_soup(url, platform):
             continue
 
         return BeautifulSoup(response.content, 'html.parser'), (final_url or url)
+
+    # Every direct attempt failed (e.g. a Cloudflare/anti-bot JS challenge that
+    # returns 403). If a JS-render service is configured, retry the public page
+    # through it as a last resort.
+    rendered_soup, rendered_url = _fetch_rendered_soup(url)
+    if rendered_soup is not None:
+        return rendered_soup, (rendered_url or url)
 
     return None, None
 
@@ -10792,11 +10932,15 @@ def import_capability_from_url(url):
             ld_objects = _parse_json_ld_objects(soup)
             struct, _ = _map_social_structured_data(meta, ld_objects, platform or 'website')
 
-            contact = _extract_contact_from_soup(soup)
-            for key, value in contact.items():
-                struct.setdefault(key, value)
-
+            # Harvest mailto:/tel:/microdata only on a company's own website. On
+            # social pages (LinkedIn/Facebook) arbitrary mailto: links appear inside
+            # feed posts/comments and are NOT the organization's contact info, so we
+            # rely solely on their structured JSON-LD/OG data there.
             if not platform:
+                contact = _extract_contact_from_soup(soup)
+                for key, value in contact.items():
+                    struct.setdefault(key, value)
+
                 # A regular website's own domain is its website.
                 base = _base_site_url(final_url or url)
                 if base:
@@ -19514,14 +19658,22 @@ def api_top_five_contracts():
                     # Get contract type from Contract_Type column or derive from State
                     row_contract_type = str(row_dict.get('Contract_Type', '')).lower().strip()
                     row_state = str(row_dict.get('State', '')).upper().strip()
-                    
+
+                    # The dataset stores a deterministic 'Contract Type' bucket such
+                    # as 'Federal' or 'State-IL'. Pull the 2-letter state code out of
+                    # that bucket so the state filter matches reliably even when the
+                    # geographic State column uses a different format (e.g. a city).
+                    row_state_code = ''
+                    if row_contract_type.startswith('state-'):
+                        row_state_code = row_contract_type.split('-', 1)[1].upper().strip()
+
                     # Determine if this is a federal or state contract
                     # Federal markers: empty state, Unknown, N/A, DC, US, USA
                     federal_state_markers = {'', 'UNKNOWN', 'N/A', 'DC', 'US', 'USA'}
                     
                     if row_contract_type in ('federal', 'fed'):
                         is_federal = True
-                    elif row_contract_type == 'state':
+                    elif row_contract_type == 'state' or row_contract_type.startswith('state-'):
                         is_federal = False
                     else:
                         # Derive from State column
@@ -19536,9 +19688,14 @@ def api_top_five_contracts():
                         if contract_type == 'state' and not is_state:
                             continue
                     
-                    # Apply state filter (only for state contracts)
+                    # Apply state filter (only for state contracts). Match against
+                    # both the geographic State value and the code parsed from the
+                    # 'State-XX' contract-type bucket.
                     if selected_states and is_state:
-                        if row_state not in selected_states:
+                        row_state_values = {row_state}
+                        if row_state_code:
+                            row_state_values.add(row_state_code)
+                        if not (set(selected_states) & row_state_values):
                             continue
                     
                     filtered_rows.append(row_dict)

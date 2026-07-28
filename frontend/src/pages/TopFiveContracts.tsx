@@ -349,7 +349,10 @@ const TopFiveContracts = () => {
       const contractTypes = filterContractType && filterContractType !== 'all' && filterContractType !== '' 
         ? [filterContractType] 
         : []
-      const states = filterStates?.filter(s => s !== 'all') || []
+      // Keep the 'all' sentinel so the backend can tell "all states" apart from
+      // a specific state selection (e.g. only Illinois). Without it, picking a
+      // single state while "All Contracts" is active was ignored server-side.
+      const states = filterStates || []
       
       const data = await api.rerunTopFiveMatching(contractTypes, states)
       if (data.success) {

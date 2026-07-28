@@ -378,7 +378,22 @@ const Dashboard = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6 animate-fade-in">
-            <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
+              {loading && (
+                <div
+                  className="flex items-center gap-2 rounded-full bg-white/5 border border-corama-teal/30 px-3 py-1 animate-fade-in"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="w-3.5 h-3.5 rounded-full border-2 border-corama-teal/30 border-t-corama-teal animate-spin" />
+                  <span className="font-poppins text-xs text-corama-teal leading-none">
+                    {t('loadingContracts')}
+                    <span className="hidden sm:inline text-gray-400"> · {t('loadingContractsHint')}</span>
+                  </span>
+                </div>
+              )}
+            </div>
             
             {/* Toggle Button for Grants/Contracts - HIDDEN FOR NOW (to be improved later)
             <button

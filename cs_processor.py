@@ -225,68 +225,65 @@ Respond with ONLY valid JSON array, no other text:
     def build_filter_conditions(self, contract_types, states):
         from qdrant_client.http import models
 
-        # If "All Contracts" is selected, return None (no filtering, return all contracts)
-        if "All Contracts" in contract_types:
-            print("All Contracts selected, no filter conditions added")
+        contract_types = contract_types or []
+        states = states or []
+
+        ALL_STATES = ["IL", "IN"]
+
+        # "All states" sentinels mean "do not restrict geographically". The filter
+        # UI sends the individual states alongside the sentinel (e.g.
+        # ['all', 'IL', 'IN']) when everything is selected, so the presence of the
+        # sentinel takes precedence and we ignore the accompanying specific states.
+        _all_sentinels = ('all', 'all state', 'all states')
+        has_all_states = any(str(s).strip().lower() in _all_sentinels for s in states)
+        specific_states = [] if has_all_states else [
+            s for s in states if str(s).strip().lower() not in _all_sentinels
+        ]
+
+        all_contracts = "All Contracts" in contract_types
+        want_federal = "federal" in contract_types
+        want_state = "state" in contract_types
+
+        # Nothing to restrict on -> return all contracts.
+        # (Only bail out when no specific state was chosen; a specific state must
+        # still be honored even when "All Contracts" / no contract type is set.)
+        if not specific_states and (all_contracts or not contract_types):
+            print("No specific state and no contract-type restriction; returning all contracts")
             return None
 
-        must_conditions = []
-        
-        # Handle contract type filtering (Federal vs State)
+        # The dataset stores a deterministic 'Contract Type' bucket per contract:
+        # 'Federal' for federal contracts and 'State-IL' / 'State-IN' for state
+        # contracts. We filter on that field for reliable, exact matching.
         contract_type_values = []
-        if "federal" in contract_types:
+
+        if want_federal:
             contract_type_values.append("Federal")
             print("Added Federal condition")
-        
-        if "state" in contract_types:
-            # If "All state" is selected, automatically use all specific states
-            if "All state" in states:
-                ALL_STATES = ["IL", "IN"]
-                for s in ALL_STATES:
-                    contract_type_values.append(f"State-{s.upper()}")
-                    print(f"Added All state condition: State-{s.upper()}")
-            else:
-                for s in states:
-                    contract_type_values.append(f"State-{s.upper()}")
-                    print(f"Added State condition: State-{s.upper()}")
-        
-        if contract_type_values:
-            must_conditions.append(
+
+        if specific_states:
+            # Restrict specifically to the chosen state(s), regardless of whether
+            # federal/all was selected -- the user asked for those states.
+            for s in specific_states:
+                contract_type_values.append(f"State-{s.strip().upper()}")
+                print(f"Added specific State condition: State-{s.strip().upper()}")
+        elif want_state:
+            # State contracts requested but no specific state -> all known states.
+            for s in ALL_STATES:
+                contract_type_values.append(f"State-{s}")
+                print(f"Added all-state condition: State-{s}")
+
+        if not contract_type_values:
+            print("No valid match conditions, returning None")
+            return None
+
+        filter_condition = models.Filter(
+            must=[
                 models.FieldCondition(
                     key='Contract Type',
                     match=models.MatchAny(any=contract_type_values)
                 )
-            )
-        
-        # Handle geographic state filtering (filter by actual State field)
-        # This filters contracts by their geographic location
-        if states and len(states) > 0:
-            # Filter out 'all' and 'All state' from the states list
-            filtered_states = [s for s in states if s.lower() not in ('all', 'all state')]
-            if filtered_states:
-                # Normalize state values - handle both abbreviations and full names
-                state_values = []
-                for s in filtered_states:
-                    state_values.append(s)  # Original value
-                    state_values.append(s.upper())  # Uppercase
-                    state_values.append(s.lower())  # Lowercase
-                    state_values.append(s.title())  # Title case
-                # Remove duplicates while preserving order
-                state_values = list(dict.fromkeys(state_values))
-                
-                must_conditions.append(
-                    models.FieldCondition(
-                        key='State',
-                        match=models.MatchAny(any=state_values)
-                    )
-                )
-                print(f"Added State geographic filter: {state_values}")
-
-        if not must_conditions:
-            print("No valid match conditions, returning None")
-            return None
-
-        filter_condition = models.Filter(must=must_conditions)
+            ]
+        )
         print("Built filter condition:", filter_condition.dict())
         return filter_condition
 
@@ -299,8 +296,8 @@ Respond with ONLY valid JSON array, no other text:
                 
                 # Build filter conditions
                 filter_conditions = None
-                if contract_types:
-                    filter_conditions = self.build_filter_conditions(contract_types, states or [])
+                if contract_types or states:
+                    filter_conditions = self.build_filter_conditions(contract_types or [], states or [])
                 
                 # Execute search using query_points (new API)
                 print("Filter conditions used:", filter_conditions.dict() if filter_conditions else None)
@@ -394,8 +391,12 @@ Respond with ONLY valid JSON array, no other text:
             # 4. Build filter conditions (unified call to build_filter_conditions)
             # Pass Filter object directly instead of .dict() for better qdrant-client compatibility
             filter_conditions = None
-            if contract_types:
-                filter_conditions = self.build_filter_conditions(contract_types, states or [])
+            # Build filters when either a contract type OR specific state(s) are
+            # requested. Previously this only ran when contract_types was set, so
+            # selecting a state (e.g. Illinois) while "All Contracts" was active
+            # (which sends no contract_types) silently ignored the state filter.
+            if contract_types or states:
+                filter_conditions = self.build_filter_conditions(contract_types or [], states or [])
                 if filter_conditions:
                     query_params["query_filter"] = filter_conditions  # Pass object directly, not .dict()
                 print("\nFilter conditions used:", filter_conditions.dict() if filter_conditions else None)

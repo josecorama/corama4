@@ -49,6 +49,8 @@ export const translations = {
     
     // Dashboard
     overview: 'Overview',
+    loadingContracts: 'Loading contracts',
+    loadingContractsHint: 'This might take a few seconds',
     contractsView: 'Contracts View',
     grantsView: 'Grants View',
     accounts: 'Accounts',
@@ -657,6 +659,8 @@ export const translations = {
     
         // Dashboard
         overview: 'Resumen',
+        loadingContracts: 'Cargando contratos',
+        loadingContractsHint: 'Esto puede tardar unos segundos',
         contractsView: 'Vista de Contratos',
         grantsView: 'Vista de Subvenciones',
         accounts: 'Cuentas',

@@ -69,6 +69,10 @@ const FilterPopup = ({ isOpen, onClose, onApply }: FilterPopupProps) => {
         // Select all states
         setSelectedStates(['all', ...ALL_STATES])
       }
+    } else if (selectedStates.includes('all')) {
+      // Currently "all states" is active: clicking a specific state should focus
+      // just that state instead of removing it from the full set.
+      setSelectedStates([state])
     } else {
       // Toggle individual state
       const newStates = [...selectedStates]
