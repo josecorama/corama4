@@ -48,7 +48,7 @@ from nltk import ne_chunk, pos_tag
 
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
-from cs_processor import CSQueryHandler
+from cs_processor import CSQueryHandler, extract_state_codes
 from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
@@ -19659,13 +19659,13 @@ def api_top_five_contracts():
                     row_contract_type = str(row_dict.get('Contract_Type', '')).lower().strip()
                     row_state = str(row_dict.get('State', '')).upper().strip()
 
-                    # The dataset stores a deterministic 'Contract Type' bucket such
-                    # as 'Federal' or 'State-IL'. Pull the 2-letter state code out of
-                    # that bucket so the state filter matches reliably even when the
-                    # geographic State column uses a different format (e.g. a city).
-                    row_state_code = ''
-                    if row_contract_type.startswith('state-'):
-                        row_state_code = row_contract_type.split('-', 1)[1].upper().strip()
+                    # Normalize the row's state to known codes (IL/IN) from any of
+                    # its location-ish fields, tolerant of formats like "Illinois",
+                    # "Chicago, IL" or the "State-IL" contract-type bucket.
+                    row_state_codes = set()
+                    for _val in (row_dict.get('Contract_Type'), row_dict.get('State'),
+                                 row_dict.get('Geographic_Area'), row_dict.get('Location')):
+                        row_state_codes |= extract_state_codes(_val)
 
                     # Determine if this is a federal or state contract
                     # Federal markers: empty state, Unknown, N/A, DC, US, USA
@@ -19688,14 +19688,15 @@ def api_top_five_contracts():
                         if contract_type == 'state' and not is_state:
                             continue
                     
-                    # Apply state filter (only for state contracts). Match against
-                    # both the geographic State value and the code parsed from the
-                    # 'State-XX' contract-type bucket.
+                    # Apply state filter (only for state contracts). Match the
+                    # normalized state codes against the selected states.
                     if selected_states and is_state:
-                        row_state_values = {row_state}
-                        if row_state_code:
-                            row_state_values.add(row_state_code)
-                        if not (set(selected_states) & row_state_values):
+                        selected_codes = set()
+                        for _s in selected_states:
+                            selected_codes |= extract_state_codes(_s)
+                        if not selected_codes:
+                            selected_codes = {str(s).upper() for s in selected_states}
+                        if not (selected_codes & row_state_codes):
                             continue
                     
                     filtered_rows.append(row_dict)

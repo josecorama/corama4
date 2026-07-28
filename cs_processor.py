@@ -10,6 +10,60 @@ import hashlib
 import io
 import pandas as pd
 
+# --- State normalization helpers (shared with the Top 5 endpoints) ---------
+# The dataset supports Illinois and Indiana state contracts. Different data
+# sources store the location inconsistently (e.g. "IL", "Illinois",
+# "Chicago, IL", "State-IL"), so we extract a normalized 2-letter code from
+# whatever text is available and match on that.
+STATE_NAME_TO_CODE = {'illinois': 'IL', 'indiana': 'IN'}
+KNOWN_STATE_CODES = {'IL', 'IN'}
+_FEDERAL_STATE_MARKERS = {'', 'UNKNOWN', 'N/A', 'DC', 'US', 'USA', 'NAN',
+                          'NONE', 'NULL', 'CLASSIFIED'}
+
+
+def extract_state_codes(text):
+    """Return the set of known state codes (IL/IN) referenced by ``text``.
+
+    Handles full names ("Illinois"), codes ("IL"), "City, ST" and the
+    "State-IL" contract-type bucket. Deterministic; no guessing."""
+    t = str(text or '')
+    codes = set()
+    low = t.lower()
+    for name, code in STATE_NAME_TO_CODE.items():
+        if name in low:
+            codes.add(code)
+    for token in re.findall(r'\b([A-Za-z]{2})\b', t):
+        if token.upper() in KNOWN_STATE_CODES:
+            codes.add(token.upper())
+    return codes
+
+
+def payload_state_codes(payload):
+    """Collect state codes declared across a contract's location-ish fields."""
+    if not isinstance(payload, dict):
+        return set()
+    fields = ('Contract Type', 'contract_type', 'location', 'Location',
+              'state', 'State', 'Geographic_Area', 'geographic_area')
+    codes = set()
+    for f in fields:
+        codes |= extract_state_codes(payload.get(f))
+    return codes
+
+
+def payload_is_federal(payload):
+    """Best-effort federal vs. state classification for a contract payload."""
+    if not isinstance(payload, dict):
+        return False
+    ct = str(payload.get('Contract Type') or payload.get('contract_type') or '').lower().strip()
+    if ct in ('federal', 'fed'):
+        return True
+    if ct == 'state' or ct.startswith('state-'):
+        return False
+    st = str(payload.get('state') or payload.get('State')
+             or payload.get('location') or payload.get('Location') or '').upper().strip()
+    return st in _FEDERAL_STATE_MARKERS
+
+
 class CSQueryHandler:
     def __init__(self, openai_api_key, qdrant_url, qdrant_api_key, user_upload_dir):
         self.openai_client = OpenAI(api_key=openai_api_key)
@@ -287,6 +341,55 @@ Respond with ONLY valid JSON array, no other text:
         print("Built filter condition:", filter_condition.dict())
         return filter_condition
 
+    def _apply_type_state_filter(self, results, contract_types, states):
+        """Filter retrieved Qdrant points by contract type and/or state.
+
+        Ranking (already applied to ``results``) is preserved. This is tolerant
+        of inconsistent payload formats: state matching normalizes codes/names
+        via ``payload_state_codes`` and federal/state classification via
+        ``payload_is_federal``.
+        """
+        contract_types = contract_types or []
+        states = states or []
+
+        _all_sentinels = ('all', 'all state', 'all states')
+        has_all_states = any(str(s).strip().lower() in _all_sentinels for s in states)
+        selected_codes = set() if has_all_states else {
+            str(s).strip().upper() for s in states
+            if str(s).strip().lower() not in _all_sentinels
+        }
+
+        all_contracts = 'All Contracts' in contract_types
+        want_federal = 'federal' in contract_types
+        want_state = 'state' in contract_types
+
+        # No effective restriction -> keep everything (still ranked).
+        if not selected_codes and (all_contracts or not contract_types):
+            return results
+
+        kept = []
+        for res in results:
+            payload = res.payload or {}
+            is_federal = payload_is_federal(payload)
+
+            if selected_codes:
+                # Specific state(s) requested: keep only state contracts located
+                # in one of them (federal contracts are excluded).
+                if is_federal:
+                    continue
+                if not (payload_state_codes(payload) & selected_codes):
+                    continue
+                kept.append(res)
+                continue
+
+            # No specific state, so restrict purely by contract type.
+            if want_federal and is_federal:
+                kept.append(res)
+            elif want_state and not is_federal:
+                kept.append(res)
+
+        return kept
+
 
 
     def search_similar_documents(self, vector, contract_types=None, states=None, limit=5):
@@ -388,19 +491,17 @@ Respond with ONLY valid JSON array, no other text:
                 "limit": limit
             }
             
-            # 4. Build filter conditions (unified call to build_filter_conditions)
-            # Pass Filter object directly instead of .dict() for better qdrant-client compatibility
+            # 4. Contract type / state filtering is done AFTER retrieval (see
+            # step 6b). The payload field names and values differ across data
+            # sources (e.g. "IL" vs "Illinois" vs "Chicago, IL"), so a strict
+            # Qdrant filter easily returns zero rows. Instead we retrieve a wide
+            # candidate pool ranked purely by capability-statement similarity and
+            # then filter/normalize in Python, preserving the ranking.
             filter_conditions = None
-            # Build filters when either a contract type OR specific state(s) are
-            # requested. Previously this only ran when contract_types was set, so
-            # selecting a state (e.g. Illinois) while "All Contracts" was active
-            # (which sends no contract_types) silently ignored the state filter.
-            if contract_types or states:
-                filter_conditions = self.build_filter_conditions(contract_types or [], states or [])
-                if filter_conditions:
-                    query_params["query_filter"] = filter_conditions  # Pass object directly, not .dict()
-                print("\nFilter conditions used:", filter_conditions.dict() if filter_conditions else None)
-            
+            has_type_or_state_filter = bool(contract_types or states)
+            # Pull a bigger candidate pool when filtering so enough survive.
+            retrieval_limit = max(limit, 200) if has_type_or_state_filter else limit
+
             # 5. Execute search using query_points (new API)
             print("\nExecuting search...")
             query_response = self.qdrant_client.query_points(
@@ -408,7 +509,7 @@ Respond with ONLY valid JSON array, no other text:
                 query=vector,
                 query_filter=filter_conditions,
                 with_payload=True,
-                limit=limit
+                limit=retrieval_limit
             )
             # Extract points from QueryResponse
             results = query_response.points if hasattr(query_response, 'points') else []
@@ -495,7 +596,13 @@ Respond with ONLY valid JSON array, no other text:
                     open_results.append(res)
             
             print(f"\n[MATCHING] Stage 3 - After filtering closed: {len(open_results)} open contracts (filtered out {closed_count} closed)")
-            
+
+            # 6b. Apply contract-type / state filtering in Python (deterministic,
+            # tolerant of inconsistent payload formats) while keeping the
+            # similarity ranking established above.
+            open_results = self._apply_type_state_filter(open_results, contract_types or [], states or [])
+            print(f"\n[MATCHING] Stage 3b - After type/state filter: {len(open_results)} contracts")
+
             final_results = open_results[:limit]
             print(f"\n[MATCHING] Stage 4 - Final results (top {limit}): {len(final_results)} contracts")
 

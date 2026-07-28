@@ -128,6 +128,11 @@ const Dashboard = () => {
   const [_totalPages, setTotalPages] = useState(1)
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loading, setLoading] = useState(true)
+  // Keep the "Loading contracts" badge visible for a short minimum time so it
+  // doesn't just flash when the fetch resolves quickly.
+  const [showLoadingBadge, setShowLoadingBadge] = useState(true)
+  const loadStartRef = useRef<number>(Date.now())
+  const loadingBadgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [userName, setUserName] = useState('')
   const [contractsKey, setContractsKey] = useState(0) // Key to trigger animation when contracts load
@@ -218,6 +223,12 @@ const Dashboard = () => {
 
   const loadContracts = async () => {
     setLoading(true)
+    setShowLoadingBadge(true)
+    loadStartRef.current = Date.now()
+    if (loadingBadgeTimerRef.current) {
+      clearTimeout(loadingBadgeTimerRef.current)
+      loadingBadgeTimerRef.current = null
+    }
     try {
       let data;
       
@@ -275,8 +286,24 @@ const Dashboard = () => {
       console.error('Failed to load contracts:', error)
     } finally {
       setLoading(false)
+      const MIN_BADGE_MS = 900
+      const elapsed = Date.now() - loadStartRef.current
+      if (elapsed >= MIN_BADGE_MS) {
+        setShowLoadingBadge(false)
+      } else {
+        loadingBadgeTimerRef.current = setTimeout(
+          () => setShowLoadingBadge(false),
+          MIN_BADGE_MS - elapsed
+        )
+      }
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (loadingBadgeTimerRef.current) clearTimeout(loadingBadgeTimerRef.current)
+    }
+  }, [])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -380,7 +407,7 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6 animate-fade-in">
             <div className="flex items-center gap-3">
               <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
-              {loading && (
+              {showLoadingBadge && (
                 <div
                   className="flex items-center gap-2 rounded-full bg-white/5 border border-corama-teal/30 px-3 py-1 animate-fade-in"
                   role="status"
