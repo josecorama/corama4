@@ -219,17 +219,21 @@ class CSQueryHandler:
         return vector.tolist()
 
     def _is_past_due(self, due_date_str):
-        """Check if a due date has passed (contract is closed)"""
-        if not due_date_str:
+        """Check if a due date has passed (contract is closed).
+
+        Handles YYYY-MM-DD and DD/MM/YYYY (the format the data actually uses),
+        stripping any time/offset suffix first.
+        """
+        if not due_date_str or str(due_date_str).lower() in ('nan', 'none', '', 'null'):
             return False
-        try:
-            from datetime import date, datetime
-            # Parse date, stripping time/offset if present (e.g., "2025-12-05T14:00:00-05:00" -> "2025-12-05")
-            date_part = due_date_str.split("T")[0]
-            parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
-            return parsed_date < date.today()
-        except Exception:
-            return False
+        from datetime import date, datetime
+        date_part = str(due_date_str).split("T")[0].strip()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
+            try:
+                return datetime.strptime(date_part, fmt).date() < date.today()
+            except ValueError:
+                continue
+        return False
 
     def enrich_with_ai(self, contracts):
         """Use OpenAI to extract Industry Sector and Geographic Area for contracts"""

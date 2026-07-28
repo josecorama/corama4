@@ -13049,23 +13049,27 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         Handles both YYYY-MM-DD and DD/MM/YYYY date formats stored in Qdrant.
         Returns False when there is no parseable due date — contracts without
         a due date are excluded from the dashboard.
+
+        NOTE: dates must be parsed to real dates before comparing. A naive
+        string comparison (raw >= today_str) is wrong for the DD/MM/YYYY format
+        the data actually uses (e.g. "22/07/2026" >= "2026-07-23" is True
+        char-by-char), which let past-due contracts show as open.
         """
+        from datetime import datetime as _dt
         due_date = contract_payload.get("due_date") or contract_payload.get("Due Date")
         if not due_date or str(due_date).lower() in ('nan', 'none', '', 'null'):
             return False  # No due date = hide from dashboard
-        raw = str(due_date).split("T")[0]
-        try:
-            # Try YYYY-MM-DD first
-            return raw >= today_str
-        except Exception:
-            pass
-        try:
-            # Try DD/MM/YYYY
-            from datetime import datetime as _dt
-            parsed = _dt.strptime(raw, "%d/%m/%Y").date()
-            return parsed >= date.today()
-        except Exception:
+        raw = str(due_date).split("T")[0].strip()
+        parsed = None
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
+            try:
+                parsed = _dt.strptime(raw, fmt).date()
+                break
+            except ValueError:
+                continue
+        if parsed is None:
             return False  # If we can't parse, hide from dashboard
+        return parsed >= date.today()
     
     try:
         qdrant_url = os.getenv('QDRANT_URL')
