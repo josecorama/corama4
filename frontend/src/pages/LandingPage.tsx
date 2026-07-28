@@ -472,7 +472,7 @@ const LandingPage = () => {
           <h1 className="font-poppins font-black text-5xl sm:text-6xl md:text-8xl text-white mb-4 sm:mb-6 leading-tight tracking-tight">
             Find contracts<br />
             in seconds<br />
-            at no cost
+            <span className="text-4xl sm:text-5xl md:text-7xl">at no cost</span>
           </h1>
           <p className="text-white font-poppins text-sm sm:text-base lg:text-lg max-w-2xl mx-auto mb-8 sm:mb-10 px-2 leading-relaxed">
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.

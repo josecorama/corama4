@@ -210,8 +210,10 @@ class ApiService {
       params.append('contract_type', contractType);
     }
     if (states && states.length > 0) {
+      // Presence of the 'all' sentinel means "all states" => no state restriction.
+      const hasAllStates = states.some(s => s === 'all');
       const filteredStates = states.filter(s => s !== 'all');
-      if (filteredStates.length > 0) {
+      if (!hasAllStates && filteredStates.length > 0) {
         params.append('states', filteredStates.join(','));
       }
     }

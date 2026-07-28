@@ -19349,7 +19349,11 @@ def api_top_five_contracts():
     # Get filter parameters
     contract_type = request.args.get('contract_type', '')  # 'federal', 'state', 'all', or ''
     states_param = request.args.get('states', '')  # comma-separated list of state codes
-    selected_states = [s.strip().upper() for s in states_param.split(',') if s.strip()] if states_param else []
+    # An 'ALL' sentinel means "all states" => no restriction, so drop it.
+    selected_states = [
+        s.strip().upper() for s in states_param.split(',')
+        if s.strip() and s.strip().upper() != 'ALL'
+    ] if states_param else []
     
     # Pagination parameters
     offset = request.args.get('offset', 0, type=int)  # Starting index for pagination

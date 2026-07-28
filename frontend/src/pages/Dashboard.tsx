@@ -646,6 +646,21 @@ const Dashboard = () => {
                         </div>
                       </div>
 
+                      {/* Loading banner shown while contracts are being fetched */}
+                      {loading && (
+                        <div
+                          className="flex items-center justify-center gap-3 py-6 animate-fade-in"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <span className="w-5 h-5 rounded-full border-2 border-corama-teal/30 border-t-corama-teal animate-spin" />
+                          <span className="font-poppins text-sm text-white">
+                            {t('loadingContracts')}
+                            <span className="text-gray-400"> · {t('loadingContractsHint')}</span>
+                          </span>
+                        </div>
+                      )}
+
                       {/* Desktop Table */}
                       <div className="hidden lg:block overflow-x-auto">
                         <table className="w-full">

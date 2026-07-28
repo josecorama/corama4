@@ -272,7 +272,7 @@ const TopFiveContracts = () => {
       const nextOffset = currentOffset + 5
       const data = await api.getTopFiveContracts(
         contractType !== 'all' ? contractType : undefined,
-        selectedStates.filter(s => s !== 'all'),
+        selectedStates,
         nextOffset
       )
       if (data.success) {
