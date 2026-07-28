@@ -48,7 +48,7 @@ from nltk import ne_chunk, pos_tag
 
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
-from cs_processor import CSQueryHandler, extract_state_codes
+from cs_processor import CSQueryHandler, extract_state_codes, payload_has_excluded_term
 from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
@@ -7294,6 +7294,9 @@ def dashboard_search():
                 for point in all_points:
                     if str(point.id) in hidden_ids:
                         continue
+                    # Hide excluded contracts (e.g. ICEE in title/description)
+                    if payload_has_excluded_term(point.payload):
+                        continue
                     contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
                     cat = (contract.get('category') or '').strip().lower()
                     if cat in ('unknown', ''):
@@ -12947,6 +12950,9 @@ def _refresh_dashboard_contracts_cache():
             from datetime import date as _date_type
             today_iso = _date_type.today().isoformat()
             for point in points:
+                # Hide excluded contracts (e.g. ICEE in title/description)
+                if payload_has_excluded_term(point.payload):
+                    continue
                 # Skip contracts whose due date has passed
                 raw_dd = point.payload.get("due_date") or point.payload.get("Due Date")
                 if raw_dd and str(raw_dd).lower() not in ('nan', 'none', '', 'null'):
@@ -13127,6 +13133,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                     if str(point.id) in hidden_ids:
                         continue
 
+                    # Hide excluded contracts (e.g. ICEE in title/description)
+                    if payload_has_excluded_term(point.payload):
+                        continue
+
                     # Only show contracts whose due date has NOT passed
                     if not is_contract_open(point.payload, today_str):
                         continue
@@ -13205,6 +13215,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
             
             for point in points:
                 if str(point.id) in hidden_ids:
+                    continue
+
+                # Hide excluded contracts (e.g. ICEE in title/description)
+                if payload_has_excluded_term(point.payload):
                     continue
 
                 # Only show contracts whose due date has NOT passed
@@ -19539,7 +19553,18 @@ def api_top_five_contracts():
             df = pd.read_csv(matches_file)
             total_matches = len(df)
             logging.info(f"[top5] Loaded {total_matches} matches from CSV")
-            
+
+            # Drop excluded contracts (e.g. ICEE in title/description) in case a
+            # stale matches.csv still contains them.
+            if len(df) > 0 and ('Bid_Name' in df.columns or 'Bid_Description' in df.columns):
+                name_col = df['Bid_Name'].fillna('').astype(str) if 'Bid_Name' in df.columns else pd.Series([''] * len(df))
+                desc_col = df['Bid_Description'].fillna('').astype(str) if 'Bid_Description' in df.columns else pd.Series([''] * len(df))
+                excluded_mask = (name_col + '\n' + desc_col).str.contains(
+                    r'\bicee\b', case=False, regex=True, na=False)
+                if excluded_mask.any():
+                    df = df[~excluded_mask]
+                    logging.info(f"[top5] Excluded {int(excluded_mask.sum())} ICEE contracts from CSV")
+
             # Replace NaN/NaT with None so JSON output is valid (NaN is not valid JSON)
             df = df.where(pd.notnull(df), None)
             

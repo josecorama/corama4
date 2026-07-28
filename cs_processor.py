@@ -64,6 +64,82 @@ def payload_is_federal(payload):
     return st in _FEDERAL_STATE_MARKERS
 
 
+# --- Excluded contracts ----------------------------------------------------
+# Contracts whose title/description mention any of these terms are hidden from
+# the Top 5 recommendations and the dashboard listings (whole-word, case
+# insensitive so "ICEE" doesn't match unrelated substrings).
+EXCLUDED_CONTRACT_TERMS = ('icee',)
+_EXCLUDED_TERM_RES = [re.compile(r'\b' + re.escape(t) + r'\b', re.IGNORECASE)
+                      for t in EXCLUDED_CONTRACT_TERMS]
+
+
+def payload_has_excluded_term(payload):
+    """True when a contract payload's title or description contains an excluded
+    term (e.g. 'ICEE')."""
+    if not isinstance(payload, dict):
+        return False
+    title = str(payload.get('title') or payload.get('bid_name')
+                or payload.get('Bid Name') or payload.get('Bid_Name') or '')
+    desc = str(payload.get('summary') or payload.get('bid_description')
+               or payload.get('Bid Description') or payload.get('Bid_Description') or '')
+    haystack = f"{title}\n{desc}"
+    return any(rx.search(haystack) for rx in _EXCLUDED_TERM_RES)
+
+
+# --- Capability-statement query building -----------------------------------
+# Before embedding, we strip obvious contact/boilerplate noise so the vector
+# focuses on what the company actually does, then append the most frequent
+# meaningful terms so the semantic match keys on the real capabilities.
+_QUERY_EMAIL_RE = re.compile(r'\b[\w.+-]+@[\w-]+\.[\w.-]+\b')
+_QUERY_URL_RE = re.compile(r'\bhttps?://\S+|\bwww\.\S+', re.IGNORECASE)
+_QUERY_PHONE_RE = re.compile(r'\+?\d[\d\s().-]{7,}\d')
+_QUERY_WORD_RE = re.compile(r"[A-Za-z][A-Za-z&/-]{2,}")
+
+_QUERY_STOPWORDS = {
+    'the', 'and', 'for', 'with', 'our', 'are', 'you', 'your', 'that', 'this',
+    'from', 'have', 'has', 'was', 'were', 'will', 'can', 'all', 'any', 'its',
+    'their', 'they', 'them', 'who', 'what', 'when', 'where', 'which', 'into',
+    'over', 'under', 'more', 'most', 'other', 'such', 'than', 'then', 'these',
+    'those', 'also', 'been', 'being', 'about', 'above', 'across', 'after',
+    'inc', 'llc', 'ltd', 'corp', 'company', 'companies', 'capability',
+    'statement', 'contact', 'point', 'email', 'phone', 'fax', 'website',
+    'address', 'street', 'suite', 'avenue', 'road', 'city', 'state', 'zip',
+    'uei', 'cage', 'duns', 'naics', 'code', 'codes', 'number',
+    'not', 'but', 'our', 'per', 'via', 'etc', 'page',
+}
+
+
+def build_capability_query_text(text, max_chars=30000, top_keywords=30):
+    """Turn the raw PDF text into a focused embedding query.
+
+    Deterministic: removes emails/URLs/phone numbers, then appends the most
+    frequent meaningful (non-stopword) terms so the Qdrant vector match keys on
+    the company's actual capabilities rather than boilerplate/contact noise.
+    """
+    raw = str(text or '')
+    cleaned = _QUERY_EMAIL_RE.sub(' ', raw)
+    cleaned = _QUERY_URL_RE.sub(' ', cleaned)
+    cleaned = _QUERY_PHONE_RE.sub(' ', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    counts = {}
+    for token in _QUERY_WORD_RE.findall(cleaned):
+        low = token.lower()
+        if low in _QUERY_STOPWORDS or len(low) < 4:
+            continue
+        counts[low] = counts.get(low, 0) + 1
+
+    keywords = [w for w, _ in sorted(
+        counts.items(), key=lambda kv: (-kv[1], kv[0]))[:top_keywords]]
+
+    if keywords:
+        cleaned = f"{cleaned}\n\nKey capabilities and services: {', '.join(keywords)}."
+
+    if len(cleaned) > max_chars:
+        cleaned = cleaned[:max_chars]
+    return cleaned
+
+
 class CSQueryHandler:
     def __init__(self, openai_api_key, qdrant_url, qdrant_api_key, user_upload_dir):
         self.openai_client = OpenAI(api_key=openai_api_key)
@@ -475,12 +551,15 @@ Respond with ONLY valid JSON array, no other text:
 
             print(f"Will use company name: '{user_company}'")
 
-            # 1. Extract PDF text
+            # 1. Extract PDF text and build a focused, denoised query so the
+            # vector search keys on the company's actual capabilities.
             text = self.extract_text_from_pdf(pdf_file)
             print(f"Extracted text, length: {len(text)} characters")
-            
+            query_text = build_capability_query_text(text)
+            print(f"Built focused query text, length: {len(query_text)} characters")
+
             # 2. Generate embedding
-            vector = self.get_embedding(text)
+            vector = self.get_embedding(query_text)
             print(f"Generated embedding vector, dimensions: {len(vector)}")
             
             # 3. Build query parameters
@@ -584,10 +663,16 @@ Respond with ONLY valid JSON array, no other text:
             
             print(f"\n[MATCHING] Stage 2 - After deduplication: {len(unique_results)} unique contracts")
 
-            # Filter out closed contracts (past due dates) before selecting top 5
+            # Filter out closed contracts (past due dates) and excluded terms
+            # (e.g. ICEE) before selecting the top matches.
             open_results = []
             closed_count = 0
+            excluded_count = 0
             for res in unique_results:
+                if payload_has_excluded_term(res.payload):
+                    excluded_count += 1
+                    print(f"   - Skipping excluded contract: {res.payload.get('title', 'Unknown')}")
+                    continue
                 due_date = res.payload.get("due_date", "")
                 if self._is_past_due(due_date):
                     closed_count += 1
@@ -595,7 +680,7 @@ Respond with ONLY valid JSON array, no other text:
                 else:
                     open_results.append(res)
             
-            print(f"\n[MATCHING] Stage 3 - After filtering closed: {len(open_results)} open contracts (filtered out {closed_count} closed)")
+            print(f"\n[MATCHING] Stage 3 - After filtering closed/excluded: {len(open_results)} open contracts (filtered out {closed_count} closed, {excluded_count} excluded)")
 
             # 6b. Apply contract-type / state filtering in Python (deterministic,
             # tolerant of inconsistent payload formats) while keeping the
@@ -603,7 +688,24 @@ Respond with ONLY valid JSON array, no other text:
             open_results = self._apply_type_state_filter(open_results, contract_types or [], states or [])
             print(f"\n[MATCHING] Stage 3b - After type/state filter: {len(open_results)} contracts")
 
-            final_results = open_results[:limit]
+            # 6c. Relevance floor: keep only contracts whose similarity clears a
+            # minimum, so weakly-related results don't get recommended. Falls
+            # back to the best available if too few clear the bar (so the page
+            # is never empty when there ARE open contracts).
+            try:
+                min_similarity = float(os.getenv('TOP5_MIN_SIMILARITY', '0.20'))
+            except (TypeError, ValueError):
+                min_similarity = 0.20
+            min_keep = 3
+            relevant = [r for r in open_results if getattr(r, 'score', 0.0) >= min_similarity]
+            if len(relevant) >= min_keep or not open_results:
+                filtered_by_score = relevant
+            else:
+                filtered_by_score = open_results[:min_keep]
+            print(f"\n[MATCHING] Stage 3c - After relevance floor (>= {min_similarity}): "
+                  f"{len(filtered_by_score)} contracts (from {len(open_results)})")
+
+            final_results = filtered_by_score[:limit]
             print(f"\n[MATCHING] Stage 4 - Final results (top {limit}): {len(final_results)} contracts")
 
             print("\n(2) Deduplication process log:")
