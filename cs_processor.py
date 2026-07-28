@@ -81,7 +81,8 @@ def payload_has_excluded_term(payload):
     title = str(payload.get('title') or payload.get('bid_name')
                 or payload.get('Bid Name') or payload.get('Bid_Name') or '')
     desc = str(payload.get('summary') or payload.get('bid_description')
-               or payload.get('Bid Description') or payload.get('Bid_Description') or '')
+               or payload.get('Bid Description') or payload.get('Bid_Description')
+               or payload.get('description') or '')
     haystack = f"{title}\n{desc}"
     return any(rx.search(haystack) for rx in _EXCLUDED_TERM_RES)
 
