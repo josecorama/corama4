@@ -254,6 +254,13 @@ def trigger_sam_sync():
 
     cleanup_stats = remove_expired_contracts()
 
+    # Contracts changed: drop cached dashboard/analytics data so the dashboard
+    # re-fetches, re-sorts and re-applies the past-due filter on next request.
+    try:
+        clear_all_caches()
+    except Exception as e:
+        logging.error(f"[SAM Sync] Failed to clear caches after sync: {e}")
+
     return jsonify({
         "success": True,
         "sync": sync_stats,
@@ -360,6 +367,15 @@ def confirm_ingest(token):
     stats = ingest_payloads(contracts)
     stats["fetched"] = record.get("count", len(contracts))
     set_status(token, "confirmed", {"ingested": stats.get("new", 0)})
+
+    # New contracts were added: drop cached dashboard/analytics data so the
+    # dashboard re-fetches, re-sorts and re-applies the past-due filter with
+    # the freshly ingested contracts on the next request.
+    if stats.get("new", 0):
+        try:
+            clear_all_caches()
+        except Exception as e:
+            app.logger.error(f"[Ingest] Failed to clear caches after ingest: {e}")
 
     # Send a result digest so the admin has a record of what went in
     recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', 'admin@corama.ai').split(',') if e.strip()]
