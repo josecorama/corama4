@@ -437,33 +437,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
                 className="h-24 w-auto mx-auto"
               />
             </a>
-            <p className="text-white text-xs mb-3">{t('followCorama')}</p>
-            <div className="flex justify-center gap-3">
-              <a 
-                href="https://www.instagram.com/corama.ai/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
-              >
-                <img src="/static/app/dashboard/InstagramLogo.svg" alt="Instagram" className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://www.facebook.com/people/Corama/61581331312920/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
-              >
-                <img src="/static/app/dashboard/Facebook.svg" alt="Facebook" className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://www.linkedin.com/company/contract-radar-maximizer/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="hover:opacity-80 transition-opacity"
-              >
-                <img src="/static/app/dashboard/LinkedIn.svg" alt="LinkedIn" className="w-5 h-5" />
-              </a>
-            </div>
+            
           </div>
         )}
       </aside>
