@@ -7,6 +7,7 @@ import { InlineLoading } from '../components/ThinkingPopup'
 import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 import { useTranslation } from '../i18n'
+import { formatCurrency } from '../utils/currency'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
@@ -624,7 +625,7 @@ const TopFiveContracts = () => {
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                                                       {t('contractValue')}
                                                     </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{formatCurrency(contract.contractValue)}</p>
                         </div>
                         <div>
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">

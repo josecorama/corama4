@@ -10,6 +10,7 @@ import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
 import { useTranslation } from '../i18n'
+import { formatCurrency } from '../utils/currency'
 
 // SVG asset paths
 const RemoveIcon = '/static/app/team-builder/Remove.svg'
@@ -415,10 +416,6 @@ const ProposalSummary= () => {
     })
   }
   
-    // Format currency
-    const formatCurrency = (amount: number) => {
-      return '$' + amount.toFixed(2)
-    }
 
     return (
     <div className="h-screen bg-corama-dark flex flex-col overflow-hidden">
