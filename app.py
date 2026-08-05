@@ -2987,7 +2987,8 @@ def ensure_qdrant_text_indexes():
         client = get_qdrant_client(timeout=10)
         if client is None:
             return
-        indexed_fields = list(dict.fromkeys(QDRANT_TEXT_SEARCH_FIELDS + QDRANT_NAICS_FIELDS))
+        indexed_fields = list(dict.fromkeys(QDRANT_TEXT_SEARCH_FIELDS + QDRANT_NAICS_FIELDS
+                                            + QDRANT_LOCATION_FIELDS))
         for field in indexed_fields:
             try:
                 client.create_payload_index(
@@ -3010,6 +3011,10 @@ def ensure_qdrant_text_indexes():
     except Exception as e:
         logging.error(f"[Qdrant] Error ensuring text indexes: {e}")
 
+# Payload fields holding a contract's location, in every schema variant. Searched
+# as free text so a query like "Chicago" finds contracts in that city.
+QDRANT_LOCATION_FIELDS = ["location", "Location", "state", "State", "city", "City"]
+
 # Payload fields holding a contract's NAICS code(s), in every schema variant.
 QDRANT_NAICS_FIELDS = ["naics_code", "NAICS_CODE", "naics_codes", "naics_codes_all",
                        "NAICS_CODES_ALL", "NAICS Code"]
@@ -3029,6 +3034,16 @@ def extract_naics_search_code(query):
     """
     match = _NAICS_QUERY_RE.match(str(query or '').strip())
     return match.group(1) if match else None
+
+
+# A search query that is exactly a state (full name or code) is treated as a
+# location search; substrings are excluded so "in" style words don't match.
+_STATE_SEARCH_QUERIES = {'il': 'IL', 'illinois': 'IL', 'in': 'IN', 'indiana': 'IN'}
+
+
+def extract_state_search_code(query):
+    """Return the state code when the whole query is a state ("Illinois", "IL")."""
+    return _STATE_SEARCH_QUERIES.get(str(query or '').strip().lower())
 
 
 def scan_dashboard_contracts(predicate, max_results, scan_limit=NAICS_SCAN_LIMIT):
@@ -3102,6 +3117,16 @@ def contract_state_codes(contract):
     for value in (contract.get('state'), contract.get('location'), contract.get('city')):
         codes |= extract_state_codes(value)
     return codes
+
+
+def search_contracts_by_state(state_code, max_results):
+    """Contracts located in ``state_code``.
+
+    Locations are stored inconsistently ("IL", "Illinois", "Chicago, IL"), so they
+    are normalized per contract instead of matched as text.
+    """
+    return scan_dashboard_contracts(
+        lambda contract: state_code in contract_state_codes(contract), max_results)
 
 
 def contract_matches_location_filter(contract, contract_type, selected_states):
@@ -7403,6 +7428,8 @@ def dashboard_search():
         # A query that is just a NAICS code (full or partial) is searched
         # against the contracts' NAICS fields instead of their free text.
         naics_query = extract_naics_search_code(user_query)
+        # A query that is just a state ("Illinois", "IL") is a location search.
+        state_query = extract_state_search_code(user_query)
 
         try:
             ensure_qdrant_text_indexes()
@@ -7410,7 +7437,11 @@ def dashboard_search():
 
             qdrant_client = get_qdrant_client(timeout=15)
             if qdrant_client:
-                search_fields = QDRANT_NAICS_FIELDS if naics_query else QDRANT_TEXT_SEARCH_FIELDS
+                if naics_query:
+                    search_fields = QDRANT_NAICS_FIELDS
+                else:
+                    # Location fields are included so "Chicago" finds contracts there.
+                    search_fields = QDRANT_TEXT_SEARCH_FIELDS + QDRANT_LOCATION_FIELDS
                 should_conditions = []
                 for field in search_fields:
                     should_conditions.append(
@@ -7470,7 +7501,20 @@ def dashboard_search():
             except Exception as naics_err:
                 logging.warning(f"/dashboard_search NAICS prefix scan failed: {naics_err}")
 
-        if not filtered_results and search_method != "MatchText":
+        # A state query can't rely on MatchText: the location may be stored as a
+        # code, a full name or "City, ST", so the state is normalized per contract.
+        if state_query:
+            try:
+                state_results = search_contracts_by_state(state_query, MAX_SEARCH_RESULTS)
+                if state_results:
+                    state_ids = {c.get('contract_id') for c in state_results}
+                    extras = [c for c in filtered_results if c.get('contract_id') not in state_ids]
+                    filtered_results = (state_results + extras)[:MAX_SEARCH_RESULTS]
+                    search_method = "state"
+            except Exception as state_err:
+                logging.warning(f"/dashboard_search state scan failed: {state_err}")
+
+        if not filtered_results and search_method not in ("MatchText", "state"):
             import pandas as pd
             all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
             df = pd.DataFrame(all_contracts)
@@ -7489,6 +7533,14 @@ def dashboard_search():
                     df['category'].str.lower().str.contains(query_lower, regex=False, na=False) |
                     df['naics_code'].str.contains(user_query, regex=False, na=False)
                 )
+                # Location is searchable too ("Illinois", "IL", "Chicago").
+                for column in ('state', 'city', 'location'):
+                    if column in df.columns:
+                        mask |= df[column].fillna('').astype(str).str.lower().str.contains(
+                            query_lower, regex=False, na=False)
+                if state_query:
+                    mask |= df.apply(
+                        lambda row: state_query in contract_state_codes(row.to_dict()), axis=1)
                 df = df[mask]
 
             if len(df) > 0:
@@ -7497,7 +7549,7 @@ def dashboard_search():
             filtered_results = df.to_dict('records') if len(df) > 0 else []
             search_method = "cached_fallback"
 
-        if (search_method in ("MatchText", "NAICS") and filtered_results
+        if (search_method in ("MatchText", "NAICS", "state") and filtered_results
                 and location_filter_is_active(contract_type, selected_states)):
             import pandas as pd
             df = pd.DataFrame(filtered_results)
