@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
-import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import { api } from '../services/api'
-import loadingAnimation from '../assets/LoadingAnimationLogo.json'
 import { useTranslation, t as tGlobal } from '../i18n'
 
 // Icon paths
@@ -191,7 +189,6 @@ const ProposalAssistant = () => {
   const contractDescription = aiFindings || state?.contractDescription || ''
   
   // Main AI suggestions state
-  const [mainSuggestions, setMainSuggestions] = useState<string>('')
   const [isLoadingMain, setIsLoadingMain] = useState(true)
   
   // Market Value Insights chat state
@@ -215,7 +212,6 @@ const ProposalAssistant = () => {
       try {
         const response = await api.getProposalSuggestions(contractName, contractId, contractDescription)
         if (response.success) {
-          setMainSuggestions(response.suggestions)
           // Initialize the chat cards with initial suggestions
           if (response.marketInsights) {
             setMarketMessages([{
@@ -237,12 +233,9 @@ const ProposalAssistant = () => {
               visibleContent: response.teamComposition
             }])
           }
-        } else {
-          setMainSuggestions('Unable to generate suggestions at this time. Please try again later.')
         }
       } catch (error) {
         console.error('Error fetching suggestions:', error)
-        setMainSuggestions('An error occurred while generating suggestions. Please try again.')
       } finally {
         setIsLoadingMain(false)
       }
@@ -464,46 +457,6 @@ const ProposalAssistant = () => {
           <h1 className="text-white font-poppins font-bold text-2xl sm:text-3xl text-center mb-6 animate-fade-in">
             {t('proposalAssistantPageTitle')}
           </h1>
-          
-          {/* Main AI Suggestions Card - Fixed height with scrollbar */}
-          <div 
-            className="rounded-2xl p-6 mb-6 border-2 border-white animate-fade-in-up animate-delay-100"
-            style={{ 
-              background: 'white',
-              height: '300px',
-              display: 'flex',
-              flexDirection: 'column'
-            }}
-          >
-            <h2 className="text-black font-poppins font-bold text-xl mb-4 flex-shrink-0">
-              {t('aiSuggestionsWiseBid')}
-            </h2>
-            
-            {isLoadingMain ? (
-              <div className="flex flex-col items-center justify-center flex-1">
-                <div className="w-24 h-24">
-                  <Lottie 
-                    animationData={loadingAnimation} 
-                    loop={true}
-                    autoplay={true}
-                  />
-                </div>
-                <div className="text-gray-600 font-poppins font-semibold text-sm mt-2">
-                  {t('thinkingText')}
-                  <span className="inline-block">
-                    <span className="animate-ellipsis">...</span>
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div 
-                className="prose max-w-none text-black overflow-y-auto flex-1"
-                style={{ scrollbarWidth: 'thin', scrollbarColor: '#6BA4A7 #f0f0f0' }}
-              >
-                <ReactMarkdown>{mainSuggestions}</ReactMarkdown>
-              </div>
-            )}
-          </div>
           
           {/* Two Suggestion Cards */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in-up animate-delay-200">

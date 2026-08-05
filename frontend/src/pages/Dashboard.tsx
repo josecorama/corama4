@@ -258,7 +258,8 @@ const Dashboard = () => {
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
       
-      // Use dynamic top categories returned by the API when available
+      // Collection-wide categories from the API; they don't depend on the
+      // current search, filters or page
       if (data.top_categories && data.top_categories.length > 0) {
         setTopCategories(data.top_categories)
       } else {
@@ -362,6 +363,8 @@ const Dashboard = () => {
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         onApply={handleApplyFilter}
+        contractType={contractType}
+        states={selectedStates}
       />
       
       {/* Header spans full width at top */}
@@ -378,7 +381,9 @@ const Dashboard = () => {
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-x-hidden">
           {/* Overview Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6 animate-fade-in">
-            <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
+            </div>
             
             {/* Toggle Button for Grants/Contracts - HIDDEN FOR NOW (to be improved later)
             <button
@@ -603,6 +608,21 @@ const Dashboard = () => {
                           </div>
                         </div>
                       </div>
+
+                      {/* Loading banner shown while contracts are being fetched */}
+                      {loading && (
+                        <div
+                          className="flex items-center justify-center gap-3 py-6 animate-fade-in"
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <span className="w-5 h-5 rounded-full border-2 border-corama-teal/30 border-t-corama-teal animate-spin" />
+                          <span className="font-poppins text-sm text-white">
+                            {t('loadingContracts')}
+                            <span className="text-gray-400"> · {t('loadingContractsHint')}</span>
+                          </span>
+                        </div>
+                      )}
 
                       {/* Desktop Table */}
                       <div className="hidden lg:block overflow-x-auto">

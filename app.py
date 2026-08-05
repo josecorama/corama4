@@ -48,13 +48,16 @@ from nltk import ne_chunk, pos_tag
 
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
-from cs_processor import CSQueryHandler
+from cs_processor import (CSQueryHandler, extract_naics_codes_from_text, extract_state_codes,
+                          naics_match_tier, payload_has_excluded_term)
 from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
-from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts
+from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
+from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
+from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
 
 # Load environment variables - use override=False to preserve system environment variables
 # (system env vars take precedence over .env file values)
@@ -121,7 +124,7 @@ def get_rate_limit_key():
 limiter = Limiter(
     app=app,
     key_func=get_rate_limit_key,
-    default_limits=["200 per day", "50 per hour"],
+    default_limits=[],  # No global limit; only the AI Assistant is throttled (see below).
     storage_uri="memory://",
     strategy="fixed-window"
 )
@@ -130,6 +133,46 @@ limiter = Limiter(
 @limiter.request_filter
 def exempt_health_check():
     return request.path == "/healthz" or request.path.startswith("/static/")
+
+
+# --- AI Assistant rate limit -------------------------------------------------
+# The only throttled surface is the AI Assistant. Instead of returning an HTTP
+# 429 error, once a user exceeds the hourly limit the assistant simply replies
+# with a friendly message telling them to wait.
+AI_ASSISTANT_HOURLY_LIMIT = 50
+AI_ASSISTANT_WINDOW_SECONDS = 3600
+_ai_assistant_usage = {}  # rate-limit-key -> [window_start_epoch, count]
+_ai_assistant_usage_lock = threading.Lock()
+
+
+def ai_assistant_limit_message():
+    """Assistant reply shown when the hourly AI Assistant limit is reached."""
+    return (
+        f"You've reached the limit of {AI_ASSISTANT_HOURLY_LIMIT} AI Assistant requests per hour. "
+        "Please wait a little while and try again \u2014 your limit resets within the hour. "
+        "Thanks for your patience!"
+    )
+
+
+def check_ai_assistant_rate_limit(consume=True):
+    """Fixed-window (1 hour) per-user limiter for the AI Assistant.
+
+    Returns (allowed, remaining). When ``consume`` is True and the request is
+    allowed, the call is counted against the window.
+    """
+    key = get_rate_limit_key()
+    now = time.time()
+    with _ai_assistant_usage_lock:
+        window_start, count = _ai_assistant_usage.get(key, (now, 0))
+        if now - window_start >= AI_ASSISTANT_WINDOW_SECONDS:
+            window_start, count = now, 0
+        if count >= AI_ASSISTANT_HOURLY_LIMIT:
+            _ai_assistant_usage[key] = (window_start, count)
+            return False, 0
+        if consume:
+            count += 1
+        _ai_assistant_usage[key] = (window_start, count)
+        return True, AI_ASSISTANT_HOURLY_LIMIT - count
 
 
 # Health Check Path
@@ -212,6 +255,13 @@ def trigger_sam_sync():
 
     cleanup_stats = remove_expired_contracts()
 
+    # Contracts changed: drop cached dashboard/analytics data so the dashboard
+    # re-fetches, re-sorts and re-applies the past-due filter on next request.
+    try:
+        clear_all_caches()
+    except Exception as e:
+        logging.error(f"[SAM Sync] Failed to clear caches after sync: {e}")
+
     return jsonify({
         "success": True,
         "sync": sync_stats,
@@ -232,6 +282,141 @@ def trigger_expired_cleanup():
 
     stats = remove_expired_contracts()
     return jsonify({"success": True, "cleanup": stats})
+
+
+# ============================================================================
+# CONTRACT INGESTION APPROVAL WORKFLOW
+# ============================================================================
+
+def _ingest_result_page(title, message, color="#0f766e"):
+    """Minimal HTML response page for the Confirm/Reject links."""
+    return f"""<!doctype html><html><head><meta charset="utf-8">
+<title>{title}</title></head>
+<body style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:60px auto;color:#222;text-align:center">
+  <h1 style="color:{color}">{title}</h1>
+  <p style="font-size:16px;line-height:1.5">{message}</p>
+</body></html>"""
+
+
+@app.route('/api/ingest/propose', methods=['POST'])
+def trigger_ingest_proposal():
+    """Admin endpoint: fetch new SAM.gov contracts and email an approval preview.
+
+    Lets you trigger the approval email on demand (e.g. to get the first email
+    without waiting for the daily cron). Requires X-Admin-Key.
+    """
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    if expected_key and admin_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    limit = data.get('limit', 200)
+
+    candidates, fetched, skipped = fetch_new_payloads(limit=limit)
+    candidates = _dedupe_contracts(candidates)
+    if not candidates:
+        return jsonify({"success": True, "message": "No new contracts to propose",
+                        "fetched": fetched, "skipped": skipped, "new": 0})
+
+    token = create_pending_batch(candidates, source="SAM.gov")
+    if not token:
+        return jsonify({"success": False, "error": "Could not store pending batch"}), 500
+
+    base_url = os.getenv('APP_BASE_URL', request.url_root.rstrip('/'))
+    confirm_url = f"{base_url.rstrip('/')}/api/ingest/confirm/{token}"
+    reject_url = f"{base_url.rstrip('/')}/api/ingest/reject/{token}"
+
+    recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', 'admin@corama.ai').split(',') if e.strip()]
+    body = build_preview_html(candidates, confirm_url, reject_url)
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    sent = []
+    for r in recipients:
+        ok, _ = send_email_smtp(r, f"Corama: approve ingest of {len(candidates)} new contracts ({today})", body)
+        if ok:
+            sent.append(r)
+
+    return jsonify({"success": True, "token": token, "new": len(candidates),
+                    "fetched": fetched, "skipped": skipped, "emailed": sent})
+
+
+@app.route('/api/ingest/confirm/<token>', methods=['GET'])
+def confirm_ingest(token):
+    """Confirm a pending ingest batch (from the approval email link)."""
+    record = get_pending_batch(token)
+    if not record:
+        return _ingest_result_page("Link not found",
+                                   "This approval link is invalid or has already been processed.",
+                                   color="#b91c1c"), 404
+    status = record.get("status")
+    if status == "confirmed":
+        return _ingest_result_page("Already confirmed",
+                                   "This batch was already ingested. No action taken.")
+    if status == "rejected":
+        return _ingest_result_page("Already rejected",
+                                   "This batch was rejected earlier and cannot be ingested.",
+                                   color="#b91c1c")
+    if is_expired(record):
+        set_status(token, "expired")
+        return _ingest_result_page("Link expired",
+                                   "This approval link has expired. Please trigger a new ingest.",
+                                   color="#b91c1c"), 410
+
+    contracts = record.get("contracts") or []
+    stats = ingest_payloads(contracts)
+    stats["fetched"] = record.get("count", len(contracts))
+    set_status(token, "confirmed", {"ingested": stats.get("new", 0)})
+
+    # New contracts were added: drop cached dashboard/analytics data so the
+    # dashboard re-fetches, re-sorts and re-applies the past-due filter with
+    # the freshly ingested contracts on the next request.
+    if stats.get("new", 0):
+        try:
+            clear_all_caches()
+        except Exception as e:
+            app.logger.error(f"[Ingest] Failed to clear caches after ingest: {e}")
+
+    # Send a result digest so the admin has a record of what went in
+    recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', 'admin@corama.ai').split(',') if e.strip()]
+    try:
+        body = build_result_html(stats, title="Contracts ingested (approved)")
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        for r in recipients:
+            send_email_smtp(r, f"Corama: {stats.get('new', 0)} contracts ingested ({today})", body)
+    except Exception as e:
+        app.logger.error(f"[Ingest] Failed to send confirmation digest: {e}")
+
+    warn = ""
+    if stats.get("used_placeholder_vectors"):
+        reason = stats.get("embedding_error") or "unknown"
+        warn = (
+            "<br><br><span style='color:#b91c1c'>⚠️ Real embeddings could not be generated — "
+            f"placeholder vectors were used. Reason: {reason}</span>"
+        )
+    return _ingest_result_page(
+        "Ingest confirmed ✓",
+        f"Added <b>{stats.get('new', 0)}</b> contract(s) to the system. "
+        f"A summary has been emailed to you.{warn}",
+    )
+
+
+@app.route('/api/ingest/reject/<token>', methods=['GET'])
+def reject_ingest(token):
+    """Reject a pending ingest batch (from the approval email link)."""
+    record = get_pending_batch(token)
+    if not record:
+        return _ingest_result_page("Link not found",
+                                   "This approval link is invalid or has already been processed.",
+                                   color="#b91c1c"), 404
+    if record.get("status") == "confirmed":
+        return _ingest_result_page("Already confirmed",
+                                   "This batch was already ingested and cannot be rejected.",
+                                   color="#b91c1c")
+    set_status(token, "rejected")
+    return _ingest_result_page("Ingest rejected",
+                               "No contracts were added. The proposed batch has been discarded.")
 
 
 # ============================================================================
@@ -2802,7 +2987,8 @@ def ensure_qdrant_text_indexes():
         client = get_qdrant_client(timeout=10)
         if client is None:
             return
-        for field in QDRANT_TEXT_SEARCH_FIELDS:
+        indexed_fields = list(dict.fromkeys(QDRANT_TEXT_SEARCH_FIELDS + QDRANT_NAICS_FIELDS))
+        for field in indexed_fields:
             try:
                 client.create_payload_index(
                     collection_name="government_contracts",
@@ -2823,6 +3009,132 @@ def ensure_qdrant_text_indexes():
         _qdrant_text_indexes_created = True
     except Exception as e:
         logging.error(f"[Qdrant] Error ensuring text indexes: {e}")
+
+# Payload fields holding a contract's NAICS code(s), in every schema variant.
+QDRANT_NAICS_FIELDS = ["naics_code", "NAICS_CODE", "naics_codes", "naics_codes_all",
+                       "NAICS_CODES_ALL", "NAICS Code"]
+
+# Cap for the NAICS prefix scan so a partial-code search can't scan the whole
+# collection (and blow up memory/latency).
+NAICS_SCAN_LIMIT = 5000
+
+_NAICS_QUERY_RE = re.compile(r'^(?:naics[\s:#]*)?(\d{2,6})$', re.IGNORECASE)
+
+
+def extract_naics_search_code(query):
+    """Return the digits when a search query is a NAICS code, else None.
+
+    Accepts a bare code ("541512"), a partial code ("5415") and a labelled one
+    ("NAICS 541512").
+    """
+    match = _NAICS_QUERY_RE.match(str(query or '').strip())
+    return match.group(1) if match else None
+
+
+def scan_dashboard_contracts(predicate, max_results, scan_limit=NAICS_SCAN_LIMIT):
+    """Scroll the contracts collection and keep the contracts matching ``predicate``.
+
+    Used when a query can't be expressed as a Qdrant filter (NAICS prefixes,
+    state normalization). Bounded by ``scan_limit`` so it can't scan the whole
+    collection.
+    """
+    client = get_qdrant_client(timeout=15)
+    if client is None:
+        return []
+
+    hidden_ids = get_hidden_contract_ids()
+    results = []
+    scanned = 0
+    scroll_offset = None
+
+    while scanned < scan_limit and len(results) < max_results:
+        batch_size = min(500, scan_limit - scanned)
+        points, scroll_offset = client.scroll(
+            collection_name="government_contracts",
+            limit=batch_size,
+            offset=scroll_offset,
+            with_payload=True,
+            with_vectors=False
+        )
+        if not points:
+            break
+        scanned += len(points)
+
+        for point in points:
+            if str(point.id) in hidden_ids:
+                continue
+            if payload_has_excluded_term(point.payload):
+                continue
+            contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
+            if (contract.get('category') or '').strip().lower() in ('unknown', ''):
+                continue
+            if predicate(contract):
+                results.append(contract)
+                if len(results) >= max_results:
+                    break
+
+        if scroll_offset is None:
+            break
+
+    logging.info(f"[contract-scan] {len(results)} matches after scanning {scanned} contracts")
+    return results
+
+
+def search_contracts_by_naics_prefix(naics_query, max_results):
+    """Contracts whose NAICS codes start with ``naics_query``.
+
+    MatchText only matches whole tokens, so partial codes need this scan.
+    """
+    def matches(contract):
+        return any(code.startswith(naics_query)
+                   for code in parse_naics_codes(contract.get('naics_code', '')))
+
+    return scan_dashboard_contracts(matches, max_results)
+
+
+def contract_state_codes(contract):
+    """State codes (IL/IN) a dashboard contract is located in.
+
+    Sources are inconsistent ("IL", "Illinois", "Chicago, IL"), so the codes are
+    normalized from every location-ish field.
+    """
+    codes = set()
+    for value in (contract.get('state'), contract.get('location'), contract.get('city')):
+        codes |= extract_state_codes(value)
+    return codes
+
+
+def contract_matches_location_filter(contract, contract_type, selected_states):
+    """Whether a contract passes the dashboard's federal/state + state filters.
+
+    A contract with no recognizable state is treated as federal, matching how
+    the dataset stores federal opportunities.
+    """
+    codes = contract_state_codes(contract)
+    is_federal = not codes
+
+    # Federal-only ignores the state list (federal contracts have no state).
+    if contract_type == 'federal':
+        return is_federal
+
+    wanted = {str(s).strip().upper() for s in (selected_states or []) if str(s).strip()}
+    specific_states = wanted - {'ALL'}
+    if specific_states and 'ALL' not in wanted:
+        return bool(codes & specific_states)
+
+    if contract_type == 'state':
+        return not is_federal
+
+    return True
+
+
+def location_filter_is_active(contract_type, selected_states):
+    """True when the dashboard filters actually restrict the contract list."""
+    if contract_type and contract_type != 'all':
+        return True
+    wanted = {str(s).strip().upper() for s in (selected_states or []) if str(s).strip()}
+    return bool(wanted - {'ALL'}) and 'ALL' not in wanted
+
 
 def clear_all_caches():
     """Clear all in-memory caches. Useful for admin operations or testing."""
@@ -3837,6 +4149,48 @@ def parse_naics_codes(naics_raw):
         if part.isdigit() and 3 <= len(part) <= 6:
             codes.append(part)
     
+    return codes
+
+
+def similarity_score_to_float(value):
+    """Parse a stored similarity score (e.g. 0.52 or "52.83%") into a float."""
+    try:
+        if isinstance(value, str) and '%' in value:
+            return float(value.replace('%', ''))
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def get_user_naics_codes(user_upload_dir):
+    """NAICS codes declared in the user's primary capability statement.
+
+    Empty when the statement doesn't declare any, in which case callers keep
+    their existing similarity-based behaviour.
+    """
+    cs_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+    if not os.path.exists(cs_path):
+        return []
+    try:
+        cs_df = pd.read_csv(cs_path, dtype=str)
+    except Exception as e:
+        logging.warning(f"[naics] Could not read capability statements CSV: {e}")
+        return []
+
+    if cs_df.empty or 'Capability_Statement' not in cs_df.columns:
+        return []
+
+    rows = cs_df
+    if 'is_primary' in cs_df.columns:
+        primary_rows = cs_df[cs_df['is_primary'].astype(str).str.lower() == 'true']
+        if not primary_rows.empty:
+            rows = primary_rows
+
+    codes = []
+    for statement in rows['Capability_Statement'].fillna('').tolist():
+        for code in extract_naics_codes_from_text(statement):
+            if code not in codes:
+                codes.append(code)
     return codes
 
 
@@ -6357,6 +6711,34 @@ def Welcome():
 
 
 
+def get_global_top_categories(top_n=5):
+    """Collection-wide TOP CONTRACT CATEGORIES for the dashboard.
+
+    Deliberately independent of the current search, filters and page: the counts
+    come from the ingestion analytics snapshot, so they only change when new
+    contracts are ingested.
+    """
+    analytics = get_qdrant_analytics()
+    category_distribution = analytics.get('category_distribution', {}) or {}
+
+    excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
+    filtered_categories = {
+        cat: count for cat, count in category_distribution.items()
+        if str(cat).lower() not in excluded_cats
+    }
+
+    sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:top_n]
+    top_total = sum(count for _, count in sorted_categories)
+    return [
+        {
+            'name': cat_name,
+            'count': count,
+            'percentage': round((count / top_total * 100), 1) if top_total > 0 else 0
+        }
+        for cat_name, count in sorted_categories
+    ]
+
+
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
     """API endpoint to get contract data for the dashboard with SERVER-SIDE PAGINATION.
@@ -6380,26 +6762,8 @@ def get_contracts_api():
             cursor=cursor
         )
         
-        analytics = get_qdrant_analytics()
-        category_distribution = analytics.get('category_distribution', {})
-        
-        excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
-        filtered_categories = {
-            cat: count for cat, count in category_distribution.items()
-            if cat.lower() not in excluded_cats
-        }
-        
-        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
-        top5_total = sum(c for _, c in sorted_categories)
-        top_categories = []
-        for cat_name, count in sorted_categories:
-            percentage = round((count / top5_total * 100), 1) if top5_total > 0 else 0
-            top_categories.append({
-                'name': cat_name,
-                'count': count,
-                'percentage': percentage
-            })
-        
+        top_categories = get_global_top_categories()
+
         logging.info(f"/api/contracts: Returning {len(contracts)} contracts (page {page}, limit {limit}, has_more: {next_cursor is not None})")
         
         result = {
@@ -6956,59 +7320,24 @@ def dashboard_search():
 
         # Helper function to apply contract type and state filters
         def apply_contract_filters(df, contract_type, selected_states):
-            """Apply contract type (federal/state) and state filters to dataframe"""
-            if contract_type == 'all':
-                return df
-            
-            # Ensure state column exists and is string
-            df['state'] = df['state'].fillna('').astype(str)
-            
-            if contract_type == 'federal':
-                # Federal contracts have 'Federal' in state field or empty/Unknown
-                mask = df['state'].str.lower().isin(['federal', 'unknown', ''])
-                df = df[mask]
-                logging.info(f"🔍 Federal filter applied: {len(df)} contracts")
-            elif contract_type == 'state':
-                # State contracts - filter by selected states
-                if selected_states and len(selected_states) > 0:
-                    if 'all' in [s.lower() for s in selected_states]:
-                        # All states - exclude federal contracts
-                        mask = ~df['state'].str.lower().isin(['federal', 'unknown', ''])
-                        df = df[mask]
-                    else:
-                        # Specific states selected
-                        state_codes_upper = [s.upper() for s in selected_states]
-                        mask = df['state'].str.upper().isin(state_codes_upper)
-                        df = df[mask]
-                    logging.info(f"🔍 State filter applied (states={selected_states}): {len(df)} contracts")
-            
-            return df
+            """Apply contract type (federal/state) and state filters to dataframe.
 
-        # Helper function to compute top_categories from filtered dataframe using MAIN categories
-        def compute_top_categories(df, total_contracts):
-            """Compute top categories with counts and percentages from filtered dataframe.
-            Uses MAIN categories (ALLOWED_CATEGORIES) instead of subcategories.
-            Uses the global get_main_category_for_payload for consistent category mapping."""
-            if len(df) == 0 or total_contracts == 0:
-                return []
-            
-            # Convert DataFrame to list of dicts and use global helper
-            payloads = df.to_dict('records')
-            main_category_counts = compute_main_category_counts(payloads)
-            
-            # Sort by count descending and take top 4
-            sorted_categories = sorted(main_category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
-            
-            top_categories = []
-            for cat_name, count in sorted_categories:
-                percentage = round((count / total_contracts * 100), 1)
-                top_categories.append({
-                    'name': cat_name,
-                    'count': count,
-                    'percentage': percentage
-                })
-            
-            return top_categories
+            State values are normalized (e.g. "Illinois", "Chicago, IL" -> IL) so
+            the location filter matches regardless of the source's format."""
+            if len(df) == 0 or not location_filter_is_active(contract_type, selected_states):
+                return df
+
+            mask = df.apply(
+                lambda row: contract_matches_location_filter(row.to_dict(), contract_type, selected_states),
+                axis=1)
+            filtered = df[mask]
+            logging.info(f"🔍 Location filter applied (type={contract_type}, states={selected_states}): "
+                         f"{len(filtered)} of {len(df)} contracts")
+            return filtered
+
+        # TOP CONTRACT CATEGORIES is a collection-wide snapshot: it must stay the
+        # same across searches, filters and pages, and only move on a new ingest.
+        top_categories = get_global_top_categories()
 
         # PHASE 1 HOTFIX: Limit max contracts to prevent worker timeouts
         # Instead of loading all 10000+ contracts, we limit to 500 max for search/filter operations
@@ -7018,16 +7347,20 @@ def dashboard_search():
             # No query provided - return contracts from Qdrant with pagination
             # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
             import pandas as pd
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
-            df = pd.DataFrame(all_contracts)
-            
-            # Filter out contracts with Unknown category
-            if len(df) > 0 and 'category' in df.columns:
-                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
-            
-            # Apply contract type and state filters
-            if len(df) > 0:
-                df = apply_contract_filters(df, contract_type, selected_states)
+            if location_filter_is_active(contract_type, selected_states):
+                # Scan the collection so the filter sees every contract instead of
+                # only the first cached page (which is mostly federal).
+                all_contracts = scan_dashboard_contracts(
+                    lambda c: contract_matches_location_filter(c, contract_type, selected_states),
+                    MAX_SEARCH_RESULTS)
+                df = pd.DataFrame(all_contracts)
+            else:
+                all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
+                df = pd.DataFrame(all_contracts)
+
+                # Filter out contracts with Unknown category
+                if len(df) > 0 and 'category' in df.columns:
+                    df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
             
             # Paginate filtered results
             total_contracts = len(df)
@@ -7053,12 +7386,6 @@ def dashboard_search():
                 'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
             }
             
-            # Use cached top_categories
-            top_categories = []
-            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
-                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
-                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
-            
             logging.info(f"/dashboard_search (no query, filter={contract_type}): Returning {len(contracts)} contracts from Qdrant")
             
             return jsonify({
@@ -7073,6 +7400,9 @@ def dashboard_search():
 
         filtered_results = []
         search_method = "unknown"
+        # A query that is just a NAICS code (full or partial) is searched
+        # against the contracts' NAICS fields instead of their free text.
+        naics_query = extract_naics_search_code(user_query)
 
         try:
             ensure_qdrant_text_indexes()
@@ -7080,8 +7410,9 @@ def dashboard_search():
 
             qdrant_client = get_qdrant_client(timeout=15)
             if qdrant_client:
+                search_fields = QDRANT_NAICS_FIELDS if naics_query else QDRANT_TEXT_SEARCH_FIELDS
                 should_conditions = []
-                for field in QDRANT_TEXT_SEARCH_FIELDS:
+                for field in search_fields:
                     should_conditions.append(
                         FieldCondition(key=field, match=MatchText(text=user_query))
                     )
@@ -7110,6 +7441,9 @@ def dashboard_search():
                 for point in all_points:
                     if str(point.id) in hidden_ids:
                         continue
+                    # Hide excluded contracts (e.g. ICEE in title/description)
+                    if payload_has_excluded_term(point.payload):
+                        continue
                     contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
                     cat = (contract.get('category') or '').strip().lower()
                     if cat in ('unknown', ''):
@@ -7121,6 +7455,20 @@ def dashboard_search():
         except Exception as qdrant_err:
             logging.warning(f"/dashboard_search MatchText failed, falling back to cached search: {qdrant_err}")
             filtered_results = []
+
+        # MatchText only matches whole tokens, so a partial NAICS code (e.g.
+        # "5415") needs a prefix scan; a full code that found nothing may also
+        # live in a field without a text index.
+        if naics_query and (len(naics_query) < 6 or not filtered_results):
+            try:
+                naics_results = search_contracts_by_naics_prefix(naics_query, MAX_SEARCH_RESULTS)
+                if naics_results:
+                    naics_ids = {c.get('contract_id') for c in naics_results}
+                    extras = [c for c in filtered_results if c.get('contract_id') not in naics_ids]
+                    filtered_results = (naics_results + extras)[:MAX_SEARCH_RESULTS]
+                    search_method = "NAICS"
+            except Exception as naics_err:
+                logging.warning(f"/dashboard_search NAICS prefix scan failed: {naics_err}")
 
         if not filtered_results and search_method != "MatchText":
             import pandas as pd
@@ -7149,7 +7497,8 @@ def dashboard_search():
             filtered_results = df.to_dict('records') if len(df) > 0 else []
             search_method = "cached_fallback"
 
-        if search_method == "MatchText" and contract_type != 'all' and filtered_results:
+        if (search_method in ("MatchText", "NAICS") and filtered_results
+                and location_filter_is_active(contract_type, selected_states)):
             import pandas as pd
             df = pd.DataFrame(filtered_results)
             df = apply_contract_filters(df, contract_type, selected_states)
@@ -7173,7 +7522,7 @@ def dashboard_search():
                     'upcoming_deadlines': 0,
                     'high_score_opportunities': 0
                 },
-                "top_categories": []
+                "top_categories": top_categories
             })
 
         total_contracts = len(filtered_results)
@@ -7220,7 +7569,7 @@ def dashboard_search():
             "current_page": page,
             "total_pages": total_pages,
             "analytics": analytics,
-            "top_categories": compute_top_categories(filtered_df, total_contracts)
+            "top_categories": top_categories
         })
 
     except Exception as e:
@@ -7969,7 +8318,18 @@ def enhanced_ai_assistant():
         
         if 'user' not in session:
             return jsonify({"error": "User not authenticated"}), 401
-            
+
+        # AI Assistant hourly limit: reply with a friendly message instead of 429.
+        allowed, _remaining = check_ai_assistant_rate_limit()
+        if not allowed:
+            return jsonify({
+                "response": ai_assistant_limit_message(),
+                "credits_used": 0,
+                "remaining_credits": None,
+                "casual_greeting": True,
+                "rate_limited": True
+            })
+
         user = session['user']
         user_data = db.child("users").child(user['localId']).get(user['idToken']).val()
         user_id = user['localId']
@@ -8678,16 +9038,25 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
 def ai_assistant_action():
     """AI Assistant action endpoint with credit deduction for React frontend.
     
+    Supports both streaming (SSE) and non-streaming JSON responses.
+    Pass "stream": true in the request body to get Server-Sent Events.
+    
     Accepts JSON with:
     - action: one of 'analyze_contract', 'check_compliance', 'develop_strategy', 'create_outline', 'conversation'
     - contractName: the name of the contract being analyzed
     - conversationHistory: optional array of prior messages [{role, content}] for context
+    - stream: optional boolean to enable SSE streaming (default: false)
     
-    Returns JSON with:
+    Non-streaming returns JSON with:
     - success: boolean
     - message: AI response text
     - credits_balance: updated credits balance
     - error: error message if failed
+    
+    Streaming returns SSE events:
+    - data: {"token": "..."} for each token
+    - data: {"done": true, "success": true, "credits_balance": N} on completion
+    - data: {"error": "..."} on failure
     
     Security measures:
     - Action validated against fixed enum (no arbitrary actions)
@@ -8713,7 +9082,25 @@ def ai_assistant_action():
         conversation_history = data.get('conversationHistory', [])
         # Get idempotency key (optional, for preventing duplicate credit deductions)
         idempotency_key = data.get('idempotency_key')
-        
+        # Check if streaming is requested
+        use_stream = data.get('stream', False)
+
+        # AI Assistant hourly limit: reply with a friendly assistant message
+        # instead of an HTTP 429 error once the limit is reached.
+        allowed, _remaining = check_ai_assistant_rate_limit()
+        if not allowed:
+            limit_msg = ai_assistant_limit_message()
+            if use_stream:
+                def limit_gen():
+                    yield f"data: {json.dumps({'token': limit_msg})}\n\n"
+                    yield f"data: {json.dumps({'done': True, 'success': True, 'rate_limited': True})}\n\n"
+                return Response(limit_gen(), mimetype='text/event-stream')
+            return jsonify({
+                "success": True,
+                "message": limit_msg,
+                "rate_limited": True
+            })
+
         # Validate action against fixed enum (security: no arbitrary actions)
         VALID_ACTIONS = {
             'analyze_contract': {'cost': 3, 'description': 'Contract analysis'},
@@ -8724,6 +9111,10 @@ def ai_assistant_action():
         }
         
         if action not in VALID_ACTIONS:
+            if use_stream:
+                def error_gen():
+                    yield f"data: {json.dumps({'error': f'Invalid action. Valid actions are: {chr(44).join(VALID_ACTIONS.keys())}'})}\n\n"
+                return Response(error_gen(), mimetype='text/event-stream')
             return jsonify({
                 "success": False, 
                 "error": f"Invalid action. Valid actions are: {', '.join(VALID_ACTIONS.keys())}"
@@ -8741,10 +9132,19 @@ def ai_assistant_action():
                 cached_result = get_credit_operation_result(idempotency_key)
                 if cached_result:
                     logging.info(f"[AI_ASSISTANT] Returning cached result for idempotency key {idempotency_key[:16]}...")
+                    if use_stream:
+                        def cached_gen():
+                            msg = cached_result.get('message', '')
+                            yield f"data: {json.dumps({'token': msg})}\n\n"
+                            yield f"data: {json.dumps({'done': True, 'success': True, 'credits_balance': cached_result.get('credits_balance', 0), 'cached': True})}\n\n"
+                        return Response(cached_gen(), mimetype='text/event-stream')
                     return jsonify(cached_result)
                 else:
-                    # Operation was processed but result not found - return success to avoid duplicate
                     logging.warning(f"[AI_ASSISTANT] Idempotency key {idempotency_key[:16]}... found but no cached result")
+                    if use_stream:
+                        def cached_empty_gen():
+                            yield f"data: {json.dumps({'done': True, 'success': True, 'cached': True})}\n\n"
+                        return Response(cached_empty_gen(), mimetype='text/event-stream')
                     return jsonify({"success": True, "message": "Already processed", "cached": True})
         
         # Initialize credit manager
@@ -8760,9 +9160,14 @@ def ai_assistant_action():
         
         # Check if user has enough credits BEFORE deduction
         if current_credits < required_credits:
+            error_msg = f"Insufficient credits. You have {current_credits} credits but this action requires {required_credits} credits."
+            if use_stream:
+                def insufficient_gen():
+                    yield f"data: {json.dumps({'error': error_msg, 'credits_balance': current_credits})}\n\n"
+                return Response(insufficient_gen(), mimetype='text/event-stream')
             return jsonify({
                 "success": False,
-                "error": f"Insufficient credits. You have {current_credits} credits but this action requires {required_credits} credits.",
+                "error": error_msg,
                 "credits_balance": current_credits
             }), 402
         
@@ -8778,6 +9183,67 @@ def ai_assistant_action():
         try:
             messages = build_ai_assistant_messages(action, contract_name, conversation_history, contract_data)
             
+            if use_stream:
+                # Streaming mode: use SSE to keep connection alive and avoid worker timeout
+                stream = client_OPENAI_WITH_TIMEOUT.chat.completions.create(
+                    model=CORAMA_FINE_TUNED_MODEL,
+                    messages=messages,
+                    temperature=0.5,
+                    max_tokens=1000,
+                    top_p=0.9,
+                    stream=True,
+                )
+                
+                def generate_stream():
+                    full_response = ""
+                    try:
+                        for chunk in stream:
+                            if chunk.choices and chunk.choices[0].delta.content:
+                                token = chunk.choices[0].delta.content
+                                full_response += token
+                                yield f"data: {json.dumps({'token': token})}\n\n"
+                        
+                        # Stream complete - deduct credits
+                        success_deduct, msg_deduct, new_balance = credit_manager.deduct_credits_admin(
+                            user_id, required_credits, action, action_info['description'],
+                            admin_db=admin_db if admin_initialized else None
+                        )
+                        
+                        if not success_deduct:
+                            yield f"data: {json.dumps({'error': msg_deduct, 'credits_balance': current_credits})}\n\n"
+                            return
+                        
+                        result = {
+                            "success": True,
+                            "message": full_response.strip(),
+                            "credits_balance": new_balance
+                        }
+                        
+                        # Mark operation as processed if idempotency key provided
+                        if idempotency_key:
+                            mark_credit_operation_processed(idempotency_key, user_id, required_credits, f'ai_assistant_{action}', result)
+                        
+                        yield f"data: {json.dumps({'done': True, 'success': True, 'credits_balance': new_balance})}\n\n"
+                        
+                    except openai.APITimeoutError:
+                        app.logger.warning(f"[AI_ASSISTANT] OpenAI timeout for action {action} (stream)")
+                        yield f"data: {json.dumps({'error': 'The AI service is taking longer than expected. Please try again in a moment.'})}\n\n"
+                    except openai.APIConnectionError as e:
+                        app.logger.warning(f"[AI_ASSISTANT] OpenAI connection error for action {action} (stream): {e}")
+                        yield f"data: {json.dumps({'error': 'Could not connect to AI service. Please try again.'})}\n\n"
+                    except openai.RateLimitError:
+                        app.logger.warning(f"[AI_ASSISTANT] OpenAI rate limit for action {action} (stream)")
+                        yield f"data: {json.dumps({'error': 'AI service is temporarily busy. Please wait a moment and try again.'})}\n\n"
+                    except Exception as e:
+                        app.logger.error(f"Error in streaming AI response for action {action}: {e}", exc_info=True)
+                        yield f"data: {json.dumps({'error': 'Failed to generate AI response. Please try again.'})}\n\n"
+                
+                return Response(generate_stream(), mimetype='text/event-stream', headers={
+                    'Cache-Control': 'no-cache',
+                    'X-Accel-Buffering': 'no',
+                })
+            
+            # Non-streaming mode (backward compatible)
             completion = client_OPENAI_WITH_TIMEOUT.chat.completions.create(
                 model=CORAMA_FINE_TUNED_MODEL,
                 messages=messages,
@@ -9790,9 +10256,31 @@ def process_capability_statement():
         elif request.is_json and request.json and 'url' in request.json:
             url = request.json['url']
             logging.info(f"Processing URL import: {url}")
-            capability_text = download_and_extract_from_url(url)
-            logging.info(f"URL extracted text length: {len(capability_text) if capability_text else 0}")
-        
+
+            # Import from a URL is fully deterministic (no AI): it follows well-known
+            # HTML tags / conventions -- JSON-LD (schema.org), Open Graph, microdata,
+            # and mailto:/tel: links -- to pull company name, email, phone, address,
+            # website, etc. Works for regular company websites and LinkedIn pages.
+            platform = detect_social_platform(url)
+            url_data = import_capability_from_url(url)
+            if url_data:
+                logging.info(f"URL importer returned fields: {list(url_data.keys())}")
+                return jsonify({'success': True, 'data': url_data})
+
+            logging.info("URL importer found no structured data")
+            if platform:
+                error_msg = (
+                    f"Couldn't read public details from that {platform.capitalize()} page. "
+                    "It may be private, require login, or expose no structured information. "
+                    "Try a public company/business page URL, the company's own website, or upload the PDF directly."
+                )
+            else:
+                error_msg = (
+                    "Couldn't read company details from that URL. Make sure it's a public page "
+                    "(company website, contact/about page, or LinkedIn page), or upload the PDF directly."
+                )
+            return jsonify({'error': error_msg}), 400
+
         else:
             logging.error("No file or URL provided in request")
             return jsonify({'error': 'No file or URL provided'}), 400
@@ -9814,191 +10302,8 @@ def process_capability_statement():
         
         if not parsed_data:
             logging.warning("AI parsing returned empty result, using enhanced fallback parser")
-            import re
-            parsed_data = {}
-            
-            capability_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', capability_text)
-            capability_text = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', capability_text)
-            
-            lines = capability_text.split('\n')
-            text_lower = capability_text.lower()
-            
-            # Extract company name - look for line with Inc/LLC/Corp suffix
-            company_name = None
-            for line in lines:
-                line = line.strip()
-                if re.search(r'\b(?:Inc|LLC|Corp|Corporation|Company|Co\.)\b', line, re.IGNORECASE):
-                    if not re.match(r'^(CAPABILITY|ABOUT|PAST|CORE|DIFFERENTIATORS|CERTIFICATIONS)', line, re.IGNORECASE):
-                        # Extract just the company name part
-                        match = re.search(r'([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))', line, re.IGNORECASE)
-                        if match:
-                            company_name = match.group(1).strip()
-                            break
-            if company_name:
-                parsed_data['companyName'] = company_name
-            
-            # Extract email
-            email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
-            if email_match:
-                parsed_data['email'] = email_match.group()
-            
-            # Extract phone
-            phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
-            if phone_match:
-                parsed_data['phone'] = phone_match.group()
-            
-            # Extract website
-            url_match = re.search(r'https?://[^\s]+', capability_text)
-            if url_match:
-                parsed_data['website'] = url_match.group().rstrip('.,;)')
-            
-            # Extract contact name and title (look for patterns like "Contact:", "Attn:", etc.)
-            contact_patterns = [
-                r'(?:contact|attn|attention)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
-                r'(?:name)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
-            ]
-            for pattern in contact_patterns:
-                match = re.search(pattern, capability_text, re.IGNORECASE)
-                if match:
-                    parsed_data['contactName'] = match.group(1).strip()
-                    break
-            
-            # Extract title (CEO, President, Director, etc.)
-            title_match = re.search(r'\b(CEO|President|Director|Manager|Owner|Principal|VP|Vice President)\b', capability_text, re.IGNORECASE)
-            if title_match:
-                parsed_data['contactTitle'] = title_match.group(1)
-            
-            # Extract address components - require street number AND suffix
-            address_match = re.search(r'(\d+\s+[A-Za-z\s]{3,50}?(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Boulevard|Blvd\.|Drive|Dr\.|Lane|Ln\.|Way|Court|Ct\.))', capability_text, re.IGNORECASE)
-            if address_match:
-                addr = address_match.group(1).strip()
-                if not re.search(r'\b(successful|completed|projects?|years?|over|under)\b', addr, re.IGNORECASE):
-                    parsed_data['address'] = addr
-            
-            # Extract city, state, zip - handle both inline and multiline formats
-            city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
-            if city_state_zip:
-                parsed_data['city'] = city_state_zip.group(1)
-                parsed_data['state'] = city_state_zip.group(2)
-                parsed_data['zipCode'] = city_state_zip.group(3)
-            else:
-                city_state_zip_multiline = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]*[\n\s]+([A-Z]{2})[\s\n]+(\d{5}(?:-\d{4})?)', capability_text)
-                if city_state_zip_multiline:
-                    parsed_data['city'] = city_state_zip_multiline.group(1)
-                    parsed_data['state'] = city_state_zip_multiline.group(2)
-                    parsed_data['zipCode'] = city_state_zip_multiline.group(3)
-            
-            # Extract UEI code (12 alphanumeric characters)
-            uei_match = re.search(r'\b(?:UEI|Unique Entity Identifier)[:\s]+([A-Z0-9]{12})\b', capability_text, re.IGNORECASE)
-            if uei_match:
-                parsed_data['ueiCode'] = uei_match.group(1)
-            
-            # Extract CAGE code (5 alphanumeric characters)
-            cage_match = re.search(r'\b(?:CAGE|Commercial and Government Entity)[:\s]+([A-Z0-9]{5})\b', capability_text, re.IGNORECASE)
-            if cage_match:
-                parsed_data['cageCode'] = cage_match.group(1)
-            
-            # Extract NAICS codes with descriptions
-            naics_codes_with_desc = extract_naics_codes_with_descriptions(capability_text)
-            if naics_codes_with_desc:
-                parsed_data['naicsCodes'] = naics_codes_with_desc
-            
-            # Extract certifications (common patterns)
-            cert_patterns = ['8\\(a\\)', 'WBENC', 'MBE', 'WBE', 'DBE', 'SDB', 'HUBZone', 'VOSB', 'SDVOSB', 'ISO ?9001', 'ISO ?14001', 'ISO ?27001']
-            certifications = []
-            for cert in cert_patterns:
-                if re.search(cert, capability_text, re.IGNORECASE):
-                    certifications.append(re.sub(r'\?', '', cert))
-            if certifications:
-                parsed_data['certifications'] = certifications
-            
-            # Extract core competencies - handle multiple formats
-            competency_section = re.search(r'(?:core competencies|capabilities|services offered|expertise|what we do)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
-            if competency_section:
-                competencies = re.findall(r'[-•*–—]\s*(.+)', competency_section.group(1))
-                parsed_data['competencies'] = [c.strip() for c in competencies if c.strip() and len(c.strip()) > 3]
-            elif not competency_section:
-                for line_idx, line in enumerate(lines):
-                    if re.search(r'(?:core competencies|capabilities|services|expertise)', line, re.IGNORECASE):
-                        competencies = []
-                        for next_line in lines[line_idx+1:line_idx+15]:
-                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
-                                comp = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
-                                if len(comp) > 3:
-                                    competencies.append(comp)
-                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
-                                break
-                        if competencies:
-                            parsed_data['competencies'] = competencies
-                            break
-            
-            # Extract differentiators - handle multiple formats
-            diff_section = re.search(r'(?:key differentiators|differentiators|why choose us|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
-            if diff_section:
-                differentiators = re.findall(r'[-•*–—]\s*(.+)', diff_section.group(1))
-                parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip() and len(d.strip()) > 3]
-            elif not diff_section:
-                for line_idx, line in enumerate(lines):
-                    if re.search(r'(?:key differentiators|differentiators|why choose us|why us)', line, re.IGNORECASE):
-                        differentiators = []
-                        for next_line in lines[line_idx+1:line_idx+15]:
-                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
-                                diff = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
-                                if len(diff) > 3:
-                                    differentiators.append(diff)
-                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
-                                break
-                        if differentiators:
-                            parsed_data['differentiators'] = differentiators
-                            break
-            
-            # Extract company description - look for prose paragraph with multiple approaches
-            desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW|DESCRIPTION)[:\s]*[\n\s]*([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){1,}\.)', capability_text, re.IGNORECASE)
-            if desc_match:
-                desc = desc_match.group(1).strip()
-                if len(desc) > 30 and not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI)', desc, re.IGNORECASE):
-                    parsed_data['companyDescription'] = desc[:500]
-            
-            if 'companyDescription' not in parsed_data:
-                for line_start in range(0, len(lines) - 3):
-                    potential_desc = ' '.join(lines[line_start:line_start+5]).strip()
-                    if len(potential_desc) > 100 and potential_desc.count('.') >= 2:
-                        if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI|CERTIFICATIONS|CONTACT)', potential_desc, re.IGNORECASE):
-                            if not re.search(r'[-•*–—]', potential_desc[:50]):
-                                sentences = re.split(r'[.!?]+\s+', potential_desc)
-                                if len(sentences) >= 2:
-                                    parsed_data['companyDescription'] = '. '.join(sentences[:3]).strip()[:500]
-                                    if parsed_data['companyDescription'] and not parsed_data['companyDescription'].endswith('.'):
-                                        parsed_data['companyDescription'] += '.'
-                                    break
-            
-            # Extract industry focus
-            industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
-            if industry_match:
-                parsed_data['industryFocus'] = industry_match.group(1).strip()
-            
-            # Extract past performance - handle multiple formats
-            past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|client list|project experience|representative projects)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
-            if past_perf_section:
-                past_performance = re.findall(r'[-•*–—]\s*(.+)', past_perf_section.group(1))
-                parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip() and len(p.strip()) > 5]
-            elif not past_perf_section:
-                for line_idx, line in enumerate(lines):
-                    if re.search(r'(?:past performance|notable projects|key projects|clients|representative projects)', line, re.IGNORECASE):
-                        past_performance = []
-                        for next_line in lines[line_idx+1:line_idx+20]:
-                            if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
-                                perf = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
-                                if len(perf) > 5:
-                                    past_performance.append(perf)
-                            elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
-                                break
-                        if past_performance:
-                            parsed_data['pastPerformance'] = past_performance
-                            break
-            
+            parsed_data = parse_capability_fields_from_text(capability_text)
             logging.info(f"Enhanced fallback parser extracted {len(parsed_data)} fields: {list(parsed_data.keys())}")
-            
             parsed_data = sanitize_parsed_data(parsed_data, capability_text)
         
         return jsonify({'success': True, 'data': parsed_data})
@@ -10283,6 +10588,788 @@ def download_and_extract_from_url(url):
     except Exception as e:
         logging.error(f"Error downloading from URL {url}: {str(e)}", exc_info=True)
         return ""
+
+# Social/business domains that should never be used as a company "website" value.
+SOCIAL_MEDIA_DOMAINS = (
+    'facebook.com', 'fb.com', 'fb.me', 'm.facebook.com',
+    'linkedin.com', 'lnkd.in',
+    'twitter.com', 'x.com', 'instagram.com', 'youtube.com',
+    'youtu.be', 'tiktok.com', 'pinterest.com', 't.me',
+)
+
+
+def _host_of(url):
+    """Return the lower-cased hostname of a URL, stripped of a leading 'www.'."""
+    from urllib.parse import urlparse
+    try:
+        candidate = url if url.startswith(('http://', 'https://')) else 'https://' + url
+        host = (urlparse(candidate).hostname or '').lower()
+    except Exception:
+        return ''
+    if host.startswith('www.'):
+        host = host[4:]
+    return host
+
+
+def detect_social_platform(url):
+    """Detect whether a URL points to a Facebook or LinkedIn page/profile.
+
+    Returns 'facebook', 'linkedin', or None. Only these two platforms are
+    handled by the deterministic social extractor.
+    """
+    host = _host_of(url or '')
+    if not host:
+        return None
+    if host == 'facebook.com' or host.endswith('.facebook.com') or host in ('fb.com', 'fb.me'):
+        return 'facebook'
+    if host == 'linkedin.com' or host.endswith('.linkedin.com') or host == 'lnkd.in':
+        return 'linkedin'
+    return None
+
+
+def _is_social_media_url(url):
+    host = _host_of(url or '')
+    if not host:
+        return False
+    return any(host == d or host.endswith('.' + d) for d in SOCIAL_MEDIA_DOMAINS)
+
+
+def _clean_social_title(title, platform):
+    """Strip the platform suffix (e.g. ' | LinkedIn', ' - Facebook') from a title."""
+    import re
+    if not title:
+        return ''
+    cleaned = title.strip()
+    # Remove a trailing "| LinkedIn" / "- Facebook" / "• Facebook" style suffix.
+    cleaned = re.sub(
+        r'\s*[\|\-\u2013\u2014\u2022:]\s*(LinkedIn|Facebook)\s*$',
+        '',
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    # Some LinkedIn titles look like "Company Name | LinkedIn" already handled,
+    # others "Name - Title - Company | LinkedIn"; keep the full remaining text.
+    return cleaned.strip(' |-\u2013\u2014\u2022:').strip()
+
+
+def _clean_social_description(description, platform, company_name=''):
+    """Strip social-network boilerplate/stats from an og:description string.
+
+    Facebook descriptions look like "Acme Inc. 12,345 likes  183 talking about
+    this. <real text>" and LinkedIn ones like "Acme | 5,000 followers on
+    LinkedIn. <real text>". This removes the follower/like counters and the
+    leading company-name/pipe prefix so only genuine descriptive text remains.
+    Returns '' when nothing meaningful is left.
+    """
+    import re
+    if not description:
+        return ''
+    text = description.strip()
+
+    # Remove a leading "Company Name | " prefix (LinkedIn descriptions start this way).
+    if platform == 'linkedin':
+        text = re.sub(r'^\s*[^|]{1,80}\|\s*', '', text)
+
+    # Remove social stat phrases wherever they appear.
+    text = re.sub(
+        r'[\d.,]+\s+(?:followers?\s+on\s+LinkedIn|followers?|likes|talking about this|'
+        r'were here|check-?ins?|people (?:like|follow|checked in)[^.\u00b7]*)',
+        '',
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # Remove a leading duplicate of the company name (e.g. "Acme Inc. <text>").
+    if company_name:
+        text = re.sub(r'^\s*' + re.escape(company_name) + r'[\.\u00b7,:\s]*', '', text, flags=re.IGNORECASE)
+
+    # Collapse leftover separators/whitespace left behind by the removals.
+    text = re.sub(r'[\u00b7\u2022]+', ' ', text)
+    text = re.sub(r'^\s*[.,:\-\u2013\u2014\s]+', '', text)
+    text = re.sub(r'\s{2,}', ' ', text).strip()
+
+    return text
+
+
+def _collect_meta_tags(soup):
+    """Collect <meta> property/name -> content pairs into a dict (lower-cased keys)."""
+    meta = {}
+    for tag in soup.find_all('meta'):
+        key = tag.get('property') or tag.get('name') or tag.get('itemprop')
+        content = tag.get('content')
+        if key and content:
+            key = key.lower().strip()
+            # First occurrence wins to avoid overwriting canonical values.
+            meta.setdefault(key, content.strip())
+    return meta
+
+
+def _parse_json_ld_objects(soup):
+    """Return a flat list of dict objects parsed from all JSON-LD script blocks."""
+    objects = []
+
+    def _flatten(node):
+        if isinstance(node, list):
+            for item in node:
+                _flatten(item)
+        elif isinstance(node, dict):
+            if isinstance(node.get('@graph'), list):
+                _flatten(node['@graph'])
+                # Also keep the top-level object (minus @graph) if it has type.
+                if node.get('@type'):
+                    objects.append(node)
+            else:
+                objects.append(node)
+
+    for tag in soup.find_all('script', attrs={'type': 'application/ld+json'}):
+        raw = tag.string or tag.get_text() or ''
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+        except Exception:
+            # Some sites embed multiple concatenated JSON objects or invalid JSON.
+            continue
+        _flatten(data)
+
+    return objects
+
+
+def _type_matches(obj, wanted):
+    """Check whether a JSON-LD object's @type matches any of the wanted types."""
+    obj_type = obj.get('@type')
+    if not obj_type:
+        return False
+    if isinstance(obj_type, list):
+        types = [str(t).lower() for t in obj_type]
+    else:
+        types = [str(obj_type).lower()]
+    return any(w.lower() in types for w in wanted)
+
+
+def _first_str(value):
+    """Coerce a JSON-LD value (str / list / dict) into a clean single string."""
+    if value is None:
+        return ''
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, list):
+        for item in value:
+            result = _first_str(item)
+            if result:
+                return result
+        return ''
+    if isinstance(value, dict):
+        for key in ('name', 'url', '@id', 'value'):
+            if key in value:
+                result = _first_str(value[key])
+                if result:
+                    return result
+    return ''
+
+
+def _map_postal_address(address, data):
+    """Map a schema.org PostalAddress dict into capability address fields."""
+    if not isinstance(address, dict):
+        return
+    street = _first_str(address.get('streetAddress'))
+    city = _first_str(address.get('addressLocality'))
+    region = _first_str(address.get('addressRegion'))
+    postal = _first_str(address.get('postalCode'))
+    if street:
+        data.setdefault('address', street)
+    if city:
+        data.setdefault('city', city)
+    if region:
+        data.setdefault('state', region)
+    if postal:
+        data.setdefault('zipCode', postal)
+
+
+def _map_social_structured_data(meta, ld_objects, platform):
+    """Map collected meta tags and JSON-LD objects into capability fields.
+
+    Pure/deterministic (no network, no AI). Returns a tuple of
+    ``(data_dict, source_text)`` where ``source_text`` is a short text (the
+    description) usable by downstream sanitization helpers.
+    """
+    data = {}
+
+    og_type = (meta.get('og:type', '') or '').lower()
+    is_person_profile = (
+        og_type == 'profile'
+        or 'profile:first_name' in meta
+        or any(_type_matches(o, ['person']) for o in ld_objects)
+    )
+
+    # --- JSON-LD driven extraction (highest confidence) ---
+    org_obj = next(
+        (o for o in ld_objects
+         if _type_matches(o, ['organization', 'corporation', 'localbusiness', 'ngo', 'educationalorganization'])),
+        None,
+    )
+    person_obj = next(
+        (o for o in ld_objects if _type_matches(o, ['person'])),
+        None,
+    )
+
+    if org_obj:
+        name = _first_str(org_obj.get('name') or org_obj.get('legalName'))
+        if name:
+            data['companyName'] = name
+        desc = _first_str(org_obj.get('description'))
+        if desc:
+            data['companyDescription'] = desc
+        phone = _first_str(org_obj.get('telephone'))
+        if phone:
+            data['phone'] = phone
+        email = _first_str(org_obj.get('email'))
+        if email:
+            data['email'] = email.replace('mailto:', '')
+        _map_postal_address(org_obj.get('address'), data)
+
+        # A real website may appear in 'url' or in the 'sameAs' list.
+        website_candidates = []
+        if org_obj.get('url'):
+            website_candidates.append(_first_str(org_obj.get('url')))
+        same_as = org_obj.get('sameAs')
+        if isinstance(same_as, list):
+            website_candidates.extend(_first_str(s) for s in same_as)
+        elif isinstance(same_as, str):
+            website_candidates.append(same_as.strip())
+        for candidate in website_candidates:
+            if candidate and candidate.startswith(('http://', 'https://')) and not _is_social_media_url(candidate):
+                data['website'] = candidate
+                break
+
+    if person_obj:
+        name = _first_str(person_obj.get('name'))
+        if name:
+            data.setdefault('contactName', name)
+        job_title = _first_str(person_obj.get('jobTitle'))
+        if job_title:
+            data.setdefault('contactTitle', job_title)
+        company = _first_str(person_obj.get('worksFor'))
+        if company:
+            data.setdefault('companyName', company)
+        _map_postal_address(person_obj.get('address'), data)
+
+    # --- Open Graph / meta fallbacks (only fill what JSON-LD did not) ---
+    og_title = _clean_social_title(meta.get('og:title', ''), platform)
+    raw_description = meta.get('og:description', '') or meta.get('description', '')
+    og_description = _clean_social_description(
+        raw_description, platform, data.get('companyName') or og_title
+    )
+
+    if is_person_profile:
+        if 'contactName' not in data:
+            first = meta.get('profile:first_name', '')
+            last = meta.get('profile:last_name', '')
+            full = f"{first} {last}".strip()
+            if full:
+                data['contactName'] = full
+            elif og_title:
+                data['contactName'] = og_title
+        if 'companyDescription' not in data and og_description:
+            data['companyDescription'] = og_description
+    else:
+        if 'companyName' not in data and og_title:
+            data['companyName'] = og_title
+        if 'companyDescription' not in data and og_description:
+            data['companyDescription'] = og_description
+
+    # Industry / category hints (Facebook business pages expose a category).
+    category = meta.get('og:category', '') or meta.get('article:section', '')
+    if category and 'industryFocus' not in data:
+        data['industryFocus'] = category
+
+    # A canonical off-platform website sometimes appears in og:see_also.
+    if 'website' not in data:
+        see_also = meta.get('og:see_also', '')
+        if see_also.startswith(('http://', 'https://')) and not _is_social_media_url(see_also):
+            data['website'] = see_also
+
+    return data, (og_description or '')
+
+
+def _base_site_url(url):
+    """Return the 'scheme://host' root of a URL (used as the company website)."""
+    from urllib.parse import urlparse
+    try:
+        parsed = urlparse(url if url.startswith(('http://', 'https://')) else 'https://' + url)
+        if parsed.scheme and parsed.netloc:
+            return f"{parsed.scheme}://{parsed.netloc}"
+    except Exception:
+        pass
+    return ''
+
+
+def _render_service_url(url):
+    """Build a JS-rendering proxy URL for ``url`` when a render service is
+    configured via environment variables, else return None.
+
+    This is an optional, lawful workaround for *public* pages that sit behind a
+    JavaScript / anti-bot challenge (e.g. Cloudflare's managed challenge, which
+    ordinary requests can't pass because it needs a real browser to execute JS).
+    It simply fetches the same public page through a headless renderer -- it does
+    NOT bypass authentication or access any private/logged-in content.
+
+    Supported providers (set whichever you use):
+      - SCRAPINGBEE_API_KEY
+      - SCRAPERAPI_KEY
+      - SCRAPER_RENDER_URL  (generic template containing '{url}')
+    """
+    from urllib.parse import quote
+    encoded = quote(url, safe='')
+
+    bee_key = os.getenv('SCRAPINGBEE_API_KEY')
+    if bee_key:
+        return f"https://app.scrapingbee.com/api/v1/?api_key={bee_key}&url={encoded}&render_js=true"
+
+    scraperapi_key = os.getenv('SCRAPERAPI_KEY')
+    if scraperapi_key:
+        return f"http://api.scraperapi.com/?api_key={scraperapi_key}&url={encoded}&render=true"
+
+    template = os.getenv('SCRAPER_RENDER_URL')
+    if template and '{url}' in template:
+        return template.replace('{url}', encoded)
+
+    return None
+
+
+def _fetch_rendered_soup(url):
+    """Fetch ``url`` through a configured JS-render proxy and parse the HTML.
+
+    Returns (BeautifulSoup, final_url) on success or (None, None) when no render
+    service is configured or the fetch fails. The target ``url`` must already have
+    passed SSRF validation by the caller; the outbound request here goes to the
+    (public) render provider, not directly to the target.
+    """
+    proxy_url = _render_service_url(url)
+    if not proxy_url:
+        return None, None
+
+    from bs4 import BeautifulSoup
+    try:
+        # Rendering (executing JS) can be slow, so allow a generous timeout.
+        response = requests.get(proxy_url, timeout=60,
+                                headers={'Accept': 'text/html,application/xhtml+xml,*/*'})
+    except requests.exceptions.RequestException as req_err:
+        logging.warning(f"URL import render fallback failed: {req_err}")
+        return None, None
+
+    if response.status_code != 200:
+        logging.info(f"URL import render fallback returned HTTP {response.status_code} for {url}")
+        return None, None
+
+    content_type = (response.headers.get('content-type') or '').lower()
+    if content_type and 'html' not in content_type and 'xml' not in content_type:
+        return None, url
+
+    logging.info(f"URL import: used JS-render fallback for {url}")
+    return BeautifulSoup(response.content, 'html.parser'), url
+
+
+def _fetch_page_soup(url, platform):
+    """Fetch a URL and return (BeautifulSoup, final_url).
+
+    Regular websites are fetched with a normal browser user-agent. LinkedIn /
+    Facebook serve a login wall to browsers but expose public Open Graph / JSON-LD
+    to well-known link-preview crawlers, so those hosts are tried with crawler
+    user-agents. Returns (None, final_url_or_None) when the response is not HTML
+    (e.g. a PDF URL) or every attempt fails.
+    """
+    from bs4 import BeautifulSoup
+
+    browser_ua = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    crawler_user_agents = [
+        'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
+    ]
+    user_agents = crawler_user_agents if platform else [browser_ua]
+
+    for user_agent in user_agents:
+        headers = {
+            'User-Agent': user_agent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+        }
+        try:
+            response = safe_requests_get(url, timeout=30, headers=headers, allow_redirects=True)
+        except requests.exceptions.RequestException as req_err:
+            logging.warning(f"URL import request failed with UA '{user_agent[:30]}': {req_err}")
+            continue
+
+        if response.status_code != 200:
+            logging.info(f"URL import: HTTP {response.status_code} for {url} (UA '{user_agent[:30]}')")
+            continue
+
+        content_type = (response.headers.get('content-type') or '').lower()
+        if content_type and 'html' not in content_type and 'xml' not in content_type:
+            # Not an HTML page (likely a PDF); the text extractor handles it instead.
+            return None, getattr(response, 'url', url)
+
+        final_url = getattr(response, 'url', '') or ''
+        if platform and ('/login' in final_url.lower() or '/authwall' in final_url.lower()):
+            logging.info(f"URL import: hit login/auth wall for {url} (UA '{user_agent[:30]}')")
+            continue
+
+        return BeautifulSoup(response.content, 'html.parser'), (final_url or url)
+
+    # Every direct attempt failed (e.g. a Cloudflare/anti-bot JS challenge that
+    # returns 403). If a JS-render service is configured, retry the public page
+    # through it as a last resort.
+    rendered_soup, rendered_url = _fetch_rendered_soup(url)
+    if rendered_soup is not None:
+        return rendered_soup, (rendered_url or url)
+
+    return None, None
+
+
+def _extract_contact_from_soup(soup):
+    """Extract contact details from well-known HTML conventions: mailto:/tel: links
+    and schema.org microdata (itemprop). Deterministic; no guessing."""
+    import re
+    data = {}
+
+    for anchor in soup.find_all('a', href=True):
+        href = (anchor.get('href') or '').strip()
+        low = href.lower()
+        if low.startswith('mailto:'):
+            email = href[len('mailto:'):].split('?')[0].strip()
+            if '@' in email and 'email' not in data:
+                data['email'] = email
+        elif low.startswith('tel:'):
+            phone = href[len('tel:'):].strip()
+            phone = re.sub(r'[^\d+()\-.\s]', '', phone).strip()
+            if len(re.sub(r'\D', '', phone)) >= 7 and 'phone' not in data:
+                data['phone'] = phone
+
+    itemprop_map = {
+        'email': 'email',
+        'telephone': 'phone',
+        'tel': 'phone',
+        'streetaddress': 'address',
+        'addresslocality': 'city',
+        'addressregion': 'state',
+        'postalcode': 'zipCode',
+    }
+    for element in soup.find_all(attrs={'itemprop': True}):
+        prop = str(element.get('itemprop') or '').lower().strip()
+        field = itemprop_map.get(prop)
+        if not field or field in data:
+            continue
+        value = (element.get('content') or element.get_text(' ', strip=True) or '').strip()
+        if not value:
+            continue
+        if field == 'email':
+            if '@' not in value:
+                continue
+            value = value.replace('mailto:', '')
+        data[field] = value
+
+    return data
+
+
+def import_capability_from_url(url):
+    """Deterministically import capability-statement fields from a URL.
+
+    Follows well-known HTML tags / conventions -- JSON-LD (schema.org), Open Graph,
+    microdata and mailto:/tel: links -- plus a regex pass over the page text. No AI
+    is used and no values are invented. Handles regular company websites, LinkedIn
+    pages and direct PDF URLs. Returns a dict of capability fields (possibly empty).
+    """
+    try:
+        import re
+
+        url = (url or '').strip()
+        if url and not url.startswith(('http://', 'https://')):
+            url = 'https://' + url
+
+        is_safe, ssrf_error = is_safe_url_for_ssrf(url)
+        if not is_safe:
+            logging.error(f"SSRF protection blocked URL: {url} - {ssrf_error}")
+            return {}
+
+        platform = detect_social_platform(url)
+        data = {}
+        is_html_page = False
+
+        # 1) Structured tags from the page markup (highest confidence).
+        try:
+            soup, final_url = _fetch_page_soup(url, platform)
+        except ValueError as e:  # SSRF validation inside safe_requests_get
+            logging.error(f"URL import SSRF/validation error for {url}: {e}")
+            return {}
+
+        if soup is not None:
+            is_html_page = True
+            meta = _collect_meta_tags(soup)
+            ld_objects = _parse_json_ld_objects(soup)
+            struct, _ = _map_social_structured_data(meta, ld_objects, platform or 'website')
+
+            # Harvest mailto:/tel:/microdata only on a company's own website. On
+            # social pages (LinkedIn/Facebook) arbitrary mailto: links appear inside
+            # feed posts/comments and are NOT the organization's contact info, so we
+            # rely solely on their structured JSON-LD/OG data there.
+            if not platform:
+                contact = _extract_contact_from_soup(soup)
+                for key, value in contact.items():
+                    struct.setdefault(key, value)
+
+                # A regular website's own domain is its website.
+                base = _base_site_url(final_url or url)
+                if base:
+                    struct.setdefault('website', base)
+                # Prefer the site's declared brand name (og:site_name) for the
+                # company name; otherwise derive it from the page <title>.
+                site_name = (meta.get('og:site_name') or '').strip()
+                if site_name:
+                    struct['companyName'] = site_name
+                elif 'companyName' not in struct:
+                    title = ''
+                    if soup.title and soup.title.string:
+                        title = soup.title.string.strip()
+                    title = _clean_social_title(title, 'website')
+                    if title:
+                        # Page titles are often "About - Acme Inc" / "Acme | Home".
+                        struct['companyName'] = re.split(r'\s[|\-\u2013\u2014\u00b7]\s', title)[0].strip() or title
+
+            data.update({k: v for k, v in struct.items() if v})
+
+        # 2) Regex pass over the page text (also handles direct PDF URLs) to fill
+        #    fields the structured tags did not provide. On HTML pages the loose,
+        #    text-based guesses for contact details are dropped -- those must come
+        #    from explicit tags (JSON-LD / microdata / mailto: / tel:) so we never
+        #    fill in incorrect values. Label-based, high-precision fields are kept.
+        try:
+            text = download_and_extract_from_url(url)
+        except Exception as text_err:
+            logging.warning(f"URL import text extraction failed for {url}: {text_err}")
+            text = ''
+
+        # Fields whose text heuristics are low-precision on arbitrary web pages.
+        loose_text_fields = {
+            'companyName', 'website', 'email', 'phone',
+            'contactName', 'contactTitle', 'address', 'city', 'state', 'zipCode',
+        }
+
+        source_text = ''
+        if text and len(text.strip()) >= 10:
+            source_text = text
+            text_data = parse_capability_fields_from_text(text)
+            for key, value in text_data.items():
+                if not value or key in data:
+                    continue
+                if is_html_page and key in loose_text_fields:
+                    continue
+                data[key] = value
+
+        if not data:
+            logging.info(f"URL import: no data extracted from {url}")
+            return {}
+
+        logging.info(f"URL import extracted fields: {list(data.keys())}")
+        return sanitize_parsed_data(data, source_text or data.get('companyDescription', ''))
+
+    except Exception as e:
+        logging.error(f"Error importing from URL {url}: {str(e)}", exc_info=True)
+        return {}
+
+
+def parse_capability_fields_from_text(capability_text):
+    """Deterministic regex/heuristic parser that extracts capability-statement
+    fields from raw text (PDF or scraped web page). Returns an unsanitized dict."""
+    import re
+    parsed_data = {}
+
+    capability_text = re.sub(r'([a-z])([A-Z])', r'\1 \2', capability_text)
+    capability_text = re.sub(r'([A-Z]{2,})([A-Z][a-z])', r'\1 \2', capability_text)
+
+    lines = capability_text.split('\n')
+
+    # Extract company name - look for line with Inc/LLC/Corp suffix
+    company_name = None
+    for line in lines:
+        line = line.strip()
+        if re.search(r'\b(?:Inc|LLC|Corp|Corporation|Company|Co\.)\b', line, re.IGNORECASE):
+            if not re.match(r'^(CAPABILITY|ABOUT|PAST|CORE|DIFFERENTIATORS|CERTIFICATIONS)', line, re.IGNORECASE):
+                match = re.search(r'([A-Z][A-Za-z\s&,\.]+(?:Inc|LLC|Corp|Corporation|Company|Co\.))', line, re.IGNORECASE)
+                if match:
+                    company_name = match.group(1).strip()
+                    break
+    if company_name:
+        parsed_data['companyName'] = company_name
+
+    # Extract email
+    email_match = re.search(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b', capability_text)
+    if email_match:
+        parsed_data['email'] = email_match.group()
+
+    # Extract phone
+    phone_match = re.search(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', capability_text)
+    if phone_match:
+        parsed_data['phone'] = phone_match.group()
+
+    # Extract website
+    url_match = re.search(r'https?://[^\s]+', capability_text)
+    if url_match:
+        parsed_data['website'] = url_match.group().rstrip('.,;)')
+
+    # Extract contact name and title (look for patterns like "Contact:", "Attn:", etc.)
+    contact_patterns = [
+        r'(?:contact|attn|attention)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+        r'(?:name)[:\s]+([A-Z][a-z]+\s+[A-Z][a-z]+)',
+    ]
+    for pattern in contact_patterns:
+        match = re.search(pattern, capability_text, re.IGNORECASE)
+        if match:
+            parsed_data['contactName'] = match.group(1).strip()
+            break
+
+    # Extract title (CEO, President, Director, etc.)
+    title_match = re.search(r'\b(CEO|President|Director|Manager|Owner|Principal|VP|Vice President)\b', capability_text, re.IGNORECASE)
+    if title_match:
+        parsed_data['contactTitle'] = title_match.group(1)
+
+    # Extract address components - require street number AND suffix
+    address_match = re.search(r'(\d+\s+[A-Za-z\s]{3,50}?(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Boulevard|Blvd\.|Drive|Dr\.|Lane|Ln\.|Way|Court|Ct\.))', capability_text, re.IGNORECASE)
+    if address_match:
+        addr = address_match.group(1).strip()
+        if not re.search(r'\b(successful|completed|projects?|years?|over|under)\b', addr, re.IGNORECASE):
+            parsed_data['address'] = addr
+
+    # Extract city, state, zip - handle both inline and multiline formats
+    city_state_zip = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)', capability_text)
+    if city_state_zip:
+        parsed_data['city'] = city_state_zip.group(1)
+        parsed_data['state'] = city_state_zip.group(2)
+        parsed_data['zipCode'] = city_state_zip.group(3)
+    else:
+        city_state_zip_multiline = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]*[\n\s]+([A-Z]{2})[\s\n]+(\d{5}(?:-\d{4})?)', capability_text)
+        if city_state_zip_multiline:
+            parsed_data['city'] = city_state_zip_multiline.group(1)
+            parsed_data['state'] = city_state_zip_multiline.group(2)
+            parsed_data['zipCode'] = city_state_zip_multiline.group(3)
+
+    # Extract UEI code (12 alphanumeric characters)
+    uei_match = re.search(r'\b(?:UEI|Unique Entity Identifier)[:\s]+([A-Z0-9]{12})\b', capability_text, re.IGNORECASE)
+    if uei_match:
+        parsed_data['ueiCode'] = uei_match.group(1)
+
+    # Extract CAGE code (5 alphanumeric characters)
+    cage_match = re.search(r'\b(?:CAGE|Commercial and Government Entity)[:\s]+([A-Z0-9]{5})\b', capability_text, re.IGNORECASE)
+    if cage_match:
+        parsed_data['cageCode'] = cage_match.group(1)
+
+    # Extract NAICS codes with descriptions
+    naics_codes_with_desc = extract_naics_codes_with_descriptions(capability_text)
+    if naics_codes_with_desc:
+        parsed_data['naicsCodes'] = naics_codes_with_desc
+
+    # Extract certifications (common patterns)
+    cert_patterns = ['8\\(a\\)', 'WBENC', 'MBE', 'WBE', 'DBE', 'SDB', 'HUBZone', 'VOSB', 'SDVOSB', 'ISO ?9001', 'ISO ?14001', 'ISO ?27001']
+    certifications = []
+    for cert in cert_patterns:
+        # Require word boundaries so acronyms (MBE, WBE, ...) don't match inside
+        # unrelated words such as "Member" or "number".
+        pattern = cert if cert.startswith('8') else r'\b' + cert + r'\b'
+        if re.search(pattern, capability_text, re.IGNORECASE):
+            certifications.append(re.sub(r'\?', '', cert))
+    if certifications:
+        parsed_data['certifications'] = certifications
+
+    # Extract core competencies - handle multiple formats
+    competency_section = re.search(r'(?:core competencies|capabilities|services offered|expertise|what we do)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+    if competency_section:
+        competencies = re.findall(r'[-•*–—]\s*(.+)', competency_section.group(1))
+        parsed_data['competencies'] = [c.strip() for c in competencies if c.strip() and len(c.strip()) > 3]
+    elif not competency_section:
+        for line_idx, line in enumerate(lines):
+            if re.search(r'(?:core competencies|capabilities|services|expertise)', line, re.IGNORECASE):
+                competencies = []
+                for next_line in lines[line_idx+1:line_idx+15]:
+                    if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                        comp = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                        if len(comp) > 3:
+                            competencies.append(comp)
+                    elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                        break
+                if competencies:
+                    parsed_data['competencies'] = competencies
+                    break
+
+    # Extract differentiators - handle multiple formats
+    diff_section = re.search(r'(?:key differentiators|differentiators|why choose us|why us|competitive advantages|what sets us apart)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+    if diff_section:
+        differentiators = re.findall(r'[-•*–—]\s*(.+)', diff_section.group(1))
+        parsed_data['differentiators'] = [d.strip() for d in differentiators if d.strip() and len(d.strip()) > 3]
+    elif not diff_section:
+        for line_idx, line in enumerate(lines):
+            if re.search(r'(?:key differentiators|differentiators|why choose us|why us)', line, re.IGNORECASE):
+                differentiators = []
+                for next_line in lines[line_idx+1:line_idx+15]:
+                    if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                        diff = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                        if len(diff) > 3:
+                            differentiators.append(diff)
+                    elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                        break
+                if differentiators:
+                    parsed_data['differentiators'] = differentiators
+                    break
+
+    # Extract company description - look for prose paragraph with multiple approaches
+    desc_match = re.search(r'(?:CERTIFICATIONS|ABOUT US|COMPANY OVERVIEW|DESCRIPTION)[:\s]*[\n\s]*([A-Z][a-z][^•\-\*]+?(?:\.\s+[A-Z][^•\-\*]+?){1,}\.)', capability_text, re.IGNORECASE)
+    if desc_match:
+        desc = desc_match.group(1).strip()
+        if len(desc) > 30 and not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI)', desc, re.IGNORECASE):
+            parsed_data['companyDescription'] = desc[:500]
+
+    if 'companyDescription' not in parsed_data:
+        for line_start in range(0, len(lines) - 3):
+            potential_desc = ' '.join(lines[line_start:line_start+5]).strip()
+            if len(potential_desc) > 100 and potential_desc.count('.') >= 2:
+                if not re.match(r'^(CAPABILITY|PAST|CORE|DIFFERENTIATORS|NAICS|DUNS|CAGE|UEI|CERTIFICATIONS|CONTACT)', potential_desc, re.IGNORECASE):
+                    if not re.search(r'[-•*–—]', potential_desc[:50]):
+                        sentences = re.split(r'[.!?]+\s+', potential_desc)
+                        if len(sentences) >= 2:
+                            parsed_data['companyDescription'] = '. '.join(sentences[:3]).strip()[:500]
+                            if parsed_data['companyDescription'] and not parsed_data['companyDescription'].endswith('.'):
+                                parsed_data['companyDescription'] += '.'
+                            break
+
+    # Extract industry focus
+    industry_match = re.search(r'(?:industry|industries|market|sector)[:\s]+([^\n]+)', capability_text, re.IGNORECASE)
+    if industry_match:
+        parsed_data['industryFocus'] = industry_match.group(1).strip()
+
+    # Extract past performance - handle multiple formats
+    past_perf_section = re.search(r'(?:past performance|notable projects|key projects|clients|client list|project experience|representative projects)[:\s]*[\n\s]*((?:[-•*–—]\s*.+[\n\s]*)+)', capability_text, re.IGNORECASE)
+    if past_perf_section:
+        past_performance = re.findall(r'[-•*–—]\s*(.+)', past_perf_section.group(1))
+        parsed_data['pastPerformance'] = [p.strip() for p in past_performance if p.strip() and len(p.strip()) > 5]
+    elif not past_perf_section:
+        for line_idx, line in enumerate(lines):
+            if re.search(r'(?:past performance|notable projects|key projects|clients|representative projects)', line, re.IGNORECASE):
+                past_performance = []
+                for next_line in lines[line_idx+1:line_idx+20]:
+                    if re.match(r'^\s*[-•*–—]\s*(.+)', next_line):
+                        perf = re.sub(r'^\s*[-•*–—]\s*', '', next_line).strip()
+                        if len(perf) > 5:
+                            past_performance.append(perf)
+                    elif re.match(r'^[A-Z\s]{3,}$', next_line.strip()) and len(next_line.strip()) > 10:
+                        break
+                if past_performance:
+                    parsed_data['pastPerformance'] = past_performance
+                    break
+
+    return parsed_data
 
 def extract_naics_section(text):
     """Extract the NAICS section from capability statement text"""
@@ -12025,6 +13112,9 @@ def _refresh_dashboard_contracts_cache():
             from datetime import date as _date_type
             today_iso = _date_type.today().isoformat()
             for point in points:
+                # Hide excluded contracts (e.g. ICEE in title/description)
+                if payload_has_excluded_term(point.payload):
+                    continue
                 # Skip contracts whose due date has passed
                 raw_dd = point.payload.get("due_date") or point.payload.get("Due Date")
                 if raw_dd and str(raw_dd).lower() not in ('nan', 'none', '', 'null'):
@@ -12121,23 +13211,27 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
         Handles both YYYY-MM-DD and DD/MM/YYYY date formats stored in Qdrant.
         Returns False when there is no parseable due date — contracts without
         a due date are excluded from the dashboard.
+
+        NOTE: dates must be parsed to real dates before comparing. A naive
+        string comparison (raw >= today_str) is wrong for the DD/MM/YYYY format
+        the data actually uses (e.g. "22/07/2026" >= "2026-07-23" is True
+        char-by-char), which let past-due contracts show as open.
         """
+        from datetime import datetime as _dt
         due_date = contract_payload.get("due_date") or contract_payload.get("Due Date")
         if not due_date or str(due_date).lower() in ('nan', 'none', '', 'null'):
             return False  # No due date = hide from dashboard
-        raw = str(due_date).split("T")[0]
-        try:
-            # Try YYYY-MM-DD first
-            return raw >= today_str
-        except Exception:
-            pass
-        try:
-            # Try DD/MM/YYYY
-            from datetime import datetime as _dt
-            parsed = _dt.strptime(raw, "%d/%m/%Y").date()
-            return parsed >= date.today()
-        except Exception:
+        raw = str(due_date).split("T")[0].strip()
+        parsed = None
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
+            try:
+                parsed = _dt.strptime(raw, fmt).date()
+                break
+            except ValueError:
+                continue
+        if parsed is None:
             return False  # If we can't parse, hide from dashboard
+        return parsed >= date.today()
     
     try:
         qdrant_url = os.getenv('QDRANT_URL')
@@ -12203,6 +13297,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                 for point in points:
                     # Skip hidden contracts
                     if str(point.id) in hidden_ids:
+                        continue
+
+                    # Hide excluded contracts (e.g. ICEE in title/description)
+                    if payload_has_excluded_term(point.payload):
                         continue
 
                     # Only show contracts whose due date has NOT passed
@@ -12283,6 +13381,10 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
             
             for point in points:
                 if str(point.id) in hidden_ids:
+                    continue
+
+                # Hide excluded contracts (e.g. ICEE in title/description)
+                if payload_has_excluded_term(point.payload):
                     continue
 
                 # Only show contracts whose due date has NOT passed
@@ -17808,17 +18910,16 @@ def update_directory_profile():
                 except Exception as admin_read_error:
                     app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
         
-        # Determine the listed status:
-        # - For NEW listings: Allow user to join the directory (set listed: true)
-        # - For EXISTING listings: Preserve the existing listed status (security measure)
-        if existing_directory_data:
-            # Existing entry - preserve the listed status (don't trust client value)
-            existing_listed_status = existing_directory_data.get('listed', False)
-            app.logger.info(f"Updating existing directory entry for user {user_id}, preserving listed={existing_listed_status}")
+        # Determine the listed status. The session owns this record, so the owner may
+        # toggle their own directory visibility (public/private). When the client sends
+        # no explicit value, fall back to the stored status (or True for new listings).
+        if 'listed' in (data or {}):
+            listed_status = bool(data.get('listed'))
+        elif existing_directory_data:
+            listed_status = bool(existing_directory_data.get('listed', False))
         else:
-            # New entry - allow user to join the directory
-            existing_listed_status = data.get('listed', True)  # Default to True for new listings
-            app.logger.info(f"Creating new directory entry for user {user_id}, setting listed={existing_listed_status}")
+            listed_status = True
+        app.logger.info(f"Saving directory entry for user {user_id} with listed={listed_status}")
         
         profile_data = {
             'company': data.get('company', user_data.get('company', '')).strip(),
@@ -17834,7 +18935,7 @@ def update_directory_profile():
             'team_size': data.get('team_size', '').strip(),
             'years_in_business': data.get('years_in_business', '').strip(),
             'logo_url': data.get('logo_url', ''),
-            'listed': existing_listed_status,  # SECURITY: Preserve existing listed status, don't trust client
+            'listed': listed_status,
             'updated_at': datetime.now().isoformat()
         }
         
@@ -17880,7 +18981,7 @@ def update_directory_profile():
         
         try:
             db.child("users").child(user_id).update({
-                'directory_listed': data.get('listed', False),
+                'directory_listed': listed_status,
                 'company': profile_data['company']
             }, id_token)
             app.logger.info(f"✅ Successfully updated directory_listed flag and company for user {user_id}")
@@ -17890,7 +18991,7 @@ def update_directory_profile():
                 try:
                     user_ref = admin_db.reference(f'users/{user_id}')
                     user_ref.update({
-                        'directory_listed': data.get('listed', False),
+                        'directory_listed': listed_status,
                         'company': profile_data['company']
                     })
                     app.logger.info(f"✅ Successfully updated directory_listed flag and company using Admin SDK for user {user_id}")
@@ -18409,7 +19510,11 @@ def api_top_five_contracts():
     # Get filter parameters
     contract_type = request.args.get('contract_type', '')  # 'federal', 'state', 'all', or ''
     states_param = request.args.get('states', '')  # comma-separated list of state codes
-    selected_states = [s.strip().upper() for s in states_param.split(',') if s.strip()] if states_param else []
+    # An 'ALL' sentinel means "all states" => no restriction, so drop it.
+    selected_states = [
+        s.strip().upper() for s in states_param.split(',')
+        if s.strip() and s.strip().upper() != 'ALL'
+    ] if states_param else []
     
     # Pagination parameters
     offset = request.args.get('offset', 0, type=int)  # Starting index for pagination
@@ -18428,7 +19533,18 @@ def api_top_five_contracts():
     
     matches = []
     total_matches = 0  # Track total matches before filtering
-    
+
+    # NAICS codes declared by the company. When present, matches are ranked by
+    # NAICS affinity first; otherwise the similarity ranking is kept as before.
+    user_naics_codes = get_user_naics_codes(user_upload_dir)
+    logging.info(f"[top5] User NAICS codes: {user_naics_codes or 'none'}")
+
+    def naics_rank(row_dict):
+        """NAICS affinity of a match against the company's declared codes."""
+        if not user_naics_codes:
+            return 0
+        return naics_match_tier(user_naics_codes, parse_naics_codes(row_dict.get('NAICS_Code', '')))
+
     # Use the dashboard contracts cache to look up NAICS codes
     # The cache is keyed by hash_value (SHA256 of detail_link + bid_number)
     # First, ensure the cache is populated
@@ -18617,7 +19733,18 @@ def api_top_five_contracts():
             df = pd.read_csv(matches_file)
             total_matches = len(df)
             logging.info(f"[top5] Loaded {total_matches} matches from CSV")
-            
+
+            # Drop excluded contracts (e.g. ICEE in title/description) in case a
+            # stale matches.csv still contains them.
+            if len(df) > 0 and ('Bid_Name' in df.columns or 'Bid_Description' in df.columns):
+                name_col = df['Bid_Name'].fillna('').astype(str) if 'Bid_Name' in df.columns else pd.Series([''] * len(df))
+                desc_col = df['Bid_Description'].fillna('').astype(str) if 'Bid_Description' in df.columns else pd.Series([''] * len(df))
+                excluded_mask = (name_col + '\n' + desc_col).str.contains(
+                    r'\bicee\b', case=False, regex=True, na=False)
+                if excluded_mask.any():
+                    df = df[~excluded_mask]
+                    logging.info(f"[top5] Excluded {int(excluded_mask.sum())} ICEE contracts from CSV")
+
             # Replace NaN/NaT with None so JSON output is valid (NaN is not valid JSON)
             df = df.where(pd.notnull(df), None)
             
@@ -18752,14 +19879,22 @@ def api_top_five_contracts():
                     # Get contract type from Contract_Type column or derive from State
                     row_contract_type = str(row_dict.get('Contract_Type', '')).lower().strip()
                     row_state = str(row_dict.get('State', '')).upper().strip()
-                    
+
+                    # Normalize the row's state to known codes (IL/IN) from any of
+                    # its location-ish fields, tolerant of formats like "Illinois",
+                    # "Chicago, IL" or the "State-IL" contract-type bucket.
+                    row_state_codes = set()
+                    for _val in (row_dict.get('Contract_Type'), row_dict.get('State'),
+                                 row_dict.get('Geographic_Area'), row_dict.get('Location')):
+                        row_state_codes |= extract_state_codes(_val)
+
                     # Determine if this is a federal or state contract
                     # Federal markers: empty state, Unknown, N/A, DC, US, USA
                     federal_state_markers = {'', 'UNKNOWN', 'N/A', 'DC', 'US', 'USA'}
                     
                     if row_contract_type in ('federal', 'fed'):
                         is_federal = True
-                    elif row_contract_type == 'state':
+                    elif row_contract_type == 'state' or row_contract_type.startswith('state-'):
                         is_federal = False
                     else:
                         # Derive from State column
@@ -18774,24 +19909,23 @@ def api_top_five_contracts():
                         if contract_type == 'state' and not is_state:
                             continue
                     
-                    # Apply state filter (only for state contracts)
+                    # Apply state filter (only for state contracts). Match the
+                    # normalized state codes against the selected states.
                     if selected_states and is_state:
-                        if row_state not in selected_states:
+                        selected_codes = set()
+                        for _s in selected_states:
+                            selected_codes |= extract_state_codes(_s)
+                        if not selected_codes:
+                            selected_codes = {str(s).upper() for s in selected_states}
+                        if not (selected_codes & row_state_codes):
                             continue
                     
                     filtered_rows.append(row_dict)
                 
-                # Sort by similarity score descending
-                def to_float(x):
-                    try:
-                        # Handle percentage strings like "52.83%"
-                        if isinstance(x, str) and '%' in x:
-                            return float(x.replace('%', ''))
-                        return float(x)
-                    except (TypeError, ValueError):
-                        return 0.0
-                
-                filtered_rows.sort(key=lambda m: to_float(m.get('Similarity_Score', 0)), reverse=True)
+                # Sort by NAICS affinity, then by similarity score descending
+                filtered_rows.sort(
+                    key=lambda m: (naics_rank(m), similarity_score_to_float(m.get('Similarity_Score', 0))),
+                    reverse=True)
                 
                 # Add rank to filtered results
                 for i, row in enumerate(filtered_rows):
@@ -18809,7 +19943,12 @@ def api_top_five_contracts():
                     row_dict = enrich_with_naics(row_dict)
                     
                     all_rows.append(row_dict)
-                
+
+                if user_naics_codes:
+                    all_rows.sort(
+                        key=lambda m: (naics_rank(m), similarity_score_to_float(m.get('Similarity_Score', 0))),
+                        reverse=True)
+
                 # Add rank
                 for i, row in enumerate(all_rows):
                     row['rank'] = i + 1

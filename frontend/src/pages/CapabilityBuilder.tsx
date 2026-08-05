@@ -485,6 +485,33 @@ const CapabilityBuilder = () => {
     setImportingUrl(true)
     setUploadError('')
 
+    // Clear the whole form first so imported values replace the current data
+    // instead of merging with (or being blocked by) what's already there.
+    setFormData(prev => ({
+      ...prev,
+      companyName: '',
+      website: '',
+      contactName: '',
+      title: '',
+      phone: '',
+      email: '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      industryFocus: '',
+      coreCompetencies: '',
+      keyDifferentiators: '',
+      companyDescription: '',
+      ueiCode: '',
+      cageCode: '',
+      naicsCodes: '',
+      certifications: '',
+      clientAgency: '',
+      contractValue: '',
+      projectDescription: '',
+    }))
+
     try {
       const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
       if (result.success && result.data) {
@@ -783,26 +810,35 @@ const CapabilityBuilder = () => {
               {/* Or Import from URL Section */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full lg:flex-1">
                 <span className="text-white font-poppins text-sm whitespace-nowrap">{t('orImportFromUrl')}</span>
-                <div className="flex items-center gap-2 w-full lg:flex-1">
-                  <input
-                    type="text"
-                    value={importUrl}
-                    onChange={(e) => setImportUrl(e.target.value)}
-                    placeholder="https://example/capabilitystate..."
-                    className="flex-1 bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-4 text-gray-900 text-sm focus:outline-none focus:border-[#1C4262]"
-                  />
-                  <button
-                    onClick={handleImportFromUrl}
-                    disabled={importingUrl || !importUrl.trim()}
-                    className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 flex-shrink-0"
-                    style={{ backgroundColor: '#6B9B9B' }}
-                  >
-                    {importingUrl ? (
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <img src="/static/app/dashboard/ImportURL.svg" alt="" className="w-5 h-5" />
-                    )}
-                  </button>
+                <div className="flex flex-col gap-1 w-full lg:flex-1">
+                  <div className="flex items-center gap-2 w-full">
+                    <input
+                      type="text"
+                      value={importUrl}
+                      onChange={(e) => setImportUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && importUrl.trim() && !importingUrl) {
+                          e.preventDefault()
+                          handleImportFromUrl()
+                        }
+                      }}
+                      placeholder={t('importUrlPlaceholder')}
+                      className="flex-1 bg-white border-2 border-[#3D4F5F] rounded-lg py-2 px-4 text-gray-900 text-sm focus:outline-none focus:border-[#1C4262]"
+                    />
+                    <button
+                      onClick={handleImportFromUrl}
+                      disabled={importingUrl || !importUrl.trim()}
+                      className="w-10 h-10 rounded-lg flex items-center justify-center transition-colors disabled:opacity-50 flex-shrink-0"
+                      style={{ backgroundColor: '#6B9B9B' }}
+                    >
+                      {importingUrl ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <img src="/static/app/dashboard/ImportURL.svg" alt="" className="w-5 h-5" />
+                      )}
+                    </button>
+                  </div>
+                  <span className="text-gray-300 font-poppins text-xs">{t('importUrlHint')}</span>
                 </div>
               </div>
             </div>
