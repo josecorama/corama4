@@ -6711,6 +6711,34 @@ def Welcome():
 
 
 
+def get_global_top_categories(top_n=5):
+    """Collection-wide TOP CONTRACT CATEGORIES for the dashboard.
+
+    Deliberately independent of the current search, filters and page: the counts
+    come from the ingestion analytics snapshot, so they only change when new
+    contracts are ingested.
+    """
+    analytics = get_qdrant_analytics()
+    category_distribution = analytics.get('category_distribution', {}) or {}
+
+    excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
+    filtered_categories = {
+        cat: count for cat, count in category_distribution.items()
+        if str(cat).lower() not in excluded_cats
+    }
+
+    sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:top_n]
+    top_total = sum(count for _, count in sorted_categories)
+    return [
+        {
+            'name': cat_name,
+            'count': count,
+            'percentage': round((count / top_total * 100), 1) if top_total > 0 else 0
+        }
+        for cat_name, count in sorted_categories
+    ]
+
+
 @app.route('/api/contracts', methods=['GET'])
 def get_contracts_api():
     """API endpoint to get contract data for the dashboard with SERVER-SIDE PAGINATION.
@@ -6734,26 +6762,8 @@ def get_contracts_api():
             cursor=cursor
         )
         
-        analytics = get_qdrant_analytics()
-        category_distribution = analytics.get('category_distribution', {})
-        
-        excluded_cats = {'other', 'unknown', 'unclassified', 'n/a', 'nan', 'none', ''}
-        filtered_categories = {
-            cat: count for cat, count in category_distribution.items()
-            if cat.lower() not in excluded_cats
-        }
-        
-        sorted_categories = sorted(filtered_categories.items(), key=lambda x: x[1], reverse=True)[:5]
-        top5_total = sum(c for _, c in sorted_categories)
-        top_categories = []
-        for cat_name, count in sorted_categories:
-            percentage = round((count / top5_total * 100), 1) if top5_total > 0 else 0
-            top_categories.append({
-                'name': cat_name,
-                'count': count,
-                'percentage': percentage
-            })
-        
+        top_categories = get_global_top_categories()
+
         logging.info(f"/api/contracts: Returning {len(contracts)} contracts (page {page}, limit {limit}, has_more: {next_cursor is not None})")
         
         result = {
@@ -7325,31 +7335,9 @@ def dashboard_search():
                          f"{len(filtered)} of {len(df)} contracts")
             return filtered
 
-        # Helper function to compute top_categories from filtered dataframe using MAIN categories
-        def compute_top_categories(df, total_contracts):
-            """Compute top categories with counts and percentages from filtered dataframe.
-            Uses MAIN categories (ALLOWED_CATEGORIES) instead of subcategories.
-            Uses the global get_main_category_for_payload for consistent category mapping."""
-            if len(df) == 0 or total_contracts == 0:
-                return []
-            
-            # Convert DataFrame to list of dicts and use global helper
-            payloads = df.to_dict('records')
-            main_category_counts = compute_main_category_counts(payloads)
-            
-            # Sort by count descending and take top 4
-            sorted_categories = sorted(main_category_counts.items(), key=lambda x: x[1], reverse=True)[:4]
-            
-            top_categories = []
-            for cat_name, count in sorted_categories:
-                percentage = round((count / total_contracts * 100), 1)
-                top_categories.append({
-                    'name': cat_name,
-                    'count': count,
-                    'percentage': percentage
-                })
-            
-            return top_categories
+        # TOP CONTRACT CATEGORIES is a collection-wide snapshot: it must stay the
+        # same across searches, filters and pages, and only move on a new ingest.
+        top_categories = get_global_top_categories()
 
         # PHASE 1 HOTFIX: Limit max contracts to prevent worker timeouts
         # Instead of loading all 10000+ contracts, we limit to 500 max for search/filter operations
@@ -7397,12 +7385,6 @@ def dashboard_search():
                 'upcoming_deadlines': 0,
                 'high_score_opportunities': cached_analytics.get('high_score_opportunities', 0)
             }
-            
-            # Use cached top_categories
-            top_categories = []
-            for cat_name, count in list(cached_analytics.get('category_distribution', {}).items())[:4]:
-                percentage = round((count / total_contracts * 100), 1) if total_contracts > 0 else 0
-                top_categories.append({'name': cat_name, 'count': count, 'percentage': percentage})
             
             logging.info(f"/dashboard_search (no query, filter={contract_type}): Returning {len(contracts)} contracts from Qdrant")
             
@@ -7540,7 +7522,7 @@ def dashboard_search():
                     'upcoming_deadlines': 0,
                     'high_score_opportunities': 0
                 },
-                "top_categories": []
+                "top_categories": top_categories
             })
 
         total_contracts = len(filtered_results)
@@ -7587,7 +7569,7 @@ def dashboard_search():
             "current_page": page,
             "total_pages": total_pages,
             "analytics": analytics,
-            "top_categories": compute_top_categories(filtered_df, total_contracts)
+            "top_categories": top_categories
         })
 
     except Exception as e:

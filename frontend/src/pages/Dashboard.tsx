@@ -258,7 +258,8 @@ const Dashboard = () => {
       setTotalContracts(data.total_contracts || transformedContracts.length)
       setTotalPages(data.total_pages || 1)
       
-      // Use dynamic top categories returned by the API when available
+      // Collection-wide categories from the API; they don't depend on the
+      // current search, filters or page
       if (data.top_categories && data.top_categories.length > 0) {
         setTopCategories(data.top_categories)
       } else {
