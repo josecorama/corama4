@@ -87,6 +87,70 @@ def payload_has_excluded_term(payload):
     return any(rx.search(haystack) for rx in _EXCLUDED_TERM_RES)
 
 
+# --- NAICS helpers ---------------------------------------------------------
+# NAICS codes are the strongest signal we have for matching a company to a
+# contract, so when the capability statement declares them the Top 5 is ranked
+# by NAICS affinity first and by embedding similarity only as a tie-breaker.
+_NAICS_CONTEXT_RE = re.compile(
+    r'naics[^0-9\n]{0,40}((?:\d{2,6}(?:\.\d+)?[\s,;/&|-]*)+)', re.IGNORECASE)
+_NAICS_CODE_RE = re.compile(r'\d{2,6}')
+
+
+def extract_naics_codes_from_text(text, max_codes=20):
+    """Return NAICS codes declared in a capability statement.
+
+    Only digits that appear right after a "NAICS" label are considered, so
+    phone numbers, UEI/CAGE codes and years are never mistaken for codes.
+    """
+    codes = []
+    for match in _NAICS_CONTEXT_RE.finditer(str(text or '')):
+        for code in _NAICS_CODE_RE.findall(match.group(1)):
+            if code not in codes:
+                codes.append(code)
+            if len(codes) >= max_codes:
+                return codes
+    return codes
+
+
+def payload_naics_codes(payload):
+    """Collect the NAICS codes declared by a contract payload."""
+    if not isinstance(payload, dict):
+        return []
+    codes = []
+    for field in ('naics_code', 'NAICS_CODE', 'naics_codes', 'naics_codes_all',
+                  'NAICS_CODES_ALL', 'NAICS Code'):
+        raw = payload.get(field)
+        if not raw:
+            continue
+        items = raw if isinstance(raw, list) else [raw]
+        for item in items:
+            item_str = str(item)
+            if item_str.lower() in ('nan', 'none', 'null'):
+                continue
+            for code in re.findall(r'(\d{2,6})(?:\.\d+)?', item_str):
+                if code not in codes:
+                    codes.append(code)
+    return codes
+
+
+def naics_match_tier(user_codes, contract_codes):
+    """Score how closely a contract's NAICS codes match the company's.
+
+    3 = same 6-digit industry, 2 = same 4-digit industry group,
+    1 = same 3-digit subsector, 0 = no relation.
+    """
+    tier = 0
+    for user_code in user_codes or []:
+        for contract_code in contract_codes or []:
+            if user_code == contract_code:
+                return 3
+            if len(user_code) >= 4 and len(contract_code) >= 4 and user_code[:4] == contract_code[:4]:
+                tier = max(tier, 2)
+            elif len(user_code) >= 3 and len(contract_code) >= 3 and user_code[:3] == contract_code[:3]:
+                tier = max(tier, 1)
+    return tier
+
+
 # --- Capability-statement query building -----------------------------------
 # Before embedding, we strip obvious contact/boilerplate noise so the vector
 # focuses on what the company actually does, then append the most frequent
@@ -560,6 +624,8 @@ Respond with ONLY valid JSON array, no other text:
             # vector search keys on the company's actual capabilities.
             text = self.extract_text_from_pdf(pdf_file)
             print(f"Extracted text, length: {len(text)} characters")
+            user_naics_codes = extract_naics_codes_from_text(text)
+            print(f"NAICS codes declared in the capability statement: {user_naics_codes or 'none'}")
             query_text = build_capability_query_text(text)
             print(f"Built focused query text, length: {len(query_text)} characters")
 
@@ -583,8 +649,9 @@ Respond with ONLY valid JSON array, no other text:
             # then filter/normalize in Python, preserving the ranking.
             filter_conditions = None
             has_type_or_state_filter = bool(contract_types or states)
-            # Pull a bigger candidate pool when filtering so enough survive.
-            retrieval_limit = max(limit, 200) if has_type_or_state_filter else limit
+            # Pull a bigger candidate pool when filtering, or when we can rank by
+            # NAICS, so enough relevant candidates survive.
+            retrieval_limit = max(limit, 200) if (has_type_or_state_filter or user_naics_codes) else limit
 
             # 5. Execute search using query_points (new API)
             print("\nExecuting search...")
@@ -709,6 +776,25 @@ Respond with ONLY valid JSON array, no other text:
                 filtered_by_score = open_results[:min_keep]
             print(f"\n[MATCHING] Stage 3c - After relevance floor (>= {min_similarity}): "
                   f"{len(filtered_by_score)} contracts (from {len(open_results)})")
+
+            # 6d. NAICS-first ranking: when the capability statement declares
+            # NAICS codes, contracts sharing them outrank everything else and
+            # are kept even if their embedding similarity is below the floor.
+            # Without declared codes the similarity ranking is used as before.
+            if user_naics_codes:
+                above_floor = {id(r) for r in filtered_by_score}
+                tiers = {}
+                ranked = []
+                for res in open_results:
+                    tier = naics_match_tier(user_naics_codes, payload_naics_codes(res.payload))
+                    tiers[id(res)] = tier
+                    if tier > 0 or id(res) in above_floor:
+                        ranked.append(res)
+                ranked.sort(key=lambda r: (tiers[id(r)], getattr(r, 'score', 0.0)), reverse=True)
+                naics_hits = sum(1 for r in ranked if tiers[id(r)] > 0)
+                print(f"\n[MATCHING] Stage 3d - NAICS-first ranking on {user_naics_codes}: "
+                      f"{naics_hits} contracts share a NAICS code (of {len(ranked)} candidates)")
+                filtered_by_score = ranked
 
             final_results = filtered_by_score[:limit]
             print(f"\n[MATCHING] Stage 4 - Final results (top {limit}): {len(final_results)} contracts")

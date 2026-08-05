@@ -48,7 +48,8 @@ from nltk import ne_chunk, pos_tag
 
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
-from cs_processor import CSQueryHandler, extract_state_codes, payload_has_excluded_term
+from cs_processor import (CSQueryHandler, extract_naics_codes_from_text, extract_state_codes,
+                          naics_match_tier, payload_has_excluded_term)
 from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
@@ -2986,7 +2987,8 @@ def ensure_qdrant_text_indexes():
         client = get_qdrant_client(timeout=10)
         if client is None:
             return
-        for field in QDRANT_TEXT_SEARCH_FIELDS:
+        indexed_fields = list(dict.fromkeys(QDRANT_TEXT_SEARCH_FIELDS + QDRANT_NAICS_FIELDS))
+        for field in indexed_fields:
             try:
                 client.create_payload_index(
                     collection_name="government_contracts",
@@ -3007,6 +3009,72 @@ def ensure_qdrant_text_indexes():
         _qdrant_text_indexes_created = True
     except Exception as e:
         logging.error(f"[Qdrant] Error ensuring text indexes: {e}")
+
+# Payload fields holding a contract's NAICS code(s), in every schema variant.
+QDRANT_NAICS_FIELDS = ["naics_code", "NAICS_CODE", "naics_codes", "naics_codes_all",
+                       "NAICS_CODES_ALL", "NAICS Code"]
+
+# Cap for the NAICS prefix scan so a partial-code search can't scan the whole
+# collection (and blow up memory/latency).
+NAICS_SCAN_LIMIT = 5000
+
+_NAICS_QUERY_RE = re.compile(r'^(?:naics[\s:#]*)?(\d{2,6})$', re.IGNORECASE)
+
+
+def extract_naics_search_code(query):
+    """Return the digits when a search query is a NAICS code, else None.
+
+    Accepts a bare code ("541512"), a partial code ("5415") and a labelled one
+    ("NAICS 541512").
+    """
+    match = _NAICS_QUERY_RE.match(str(query or '').strip())
+    return match.group(1) if match else None
+
+
+def search_contracts_by_naics_prefix(client, naics_query, max_results):
+    """Scan the contracts collection for NAICS codes starting with ``naics_query``.
+
+    MatchText only matches whole tokens, so partial codes need this scan.
+    Returns dashboard-shaped contract dicts.
+    """
+    hidden_ids = get_hidden_contract_ids()
+    results = []
+    scanned = 0
+    scroll_offset = None
+
+    while scanned < NAICS_SCAN_LIMIT and len(results) < max_results:
+        batch_size = min(500, NAICS_SCAN_LIMIT - scanned)
+        points, scroll_offset = client.scroll(
+            collection_name="government_contracts",
+            limit=batch_size,
+            offset=scroll_offset,
+            with_payload=True,
+            with_vectors=False
+        )
+        if not points:
+            break
+        scanned += len(points)
+
+        for point in points:
+            if str(point.id) in hidden_ids:
+                continue
+            if payload_has_excluded_term(point.payload):
+                continue
+            contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
+            if (contract.get('category') or '').strip().lower() in ('unknown', ''):
+                continue
+            codes = parse_naics_codes(contract.get('naics_code', ''))
+            if any(code.startswith(naics_query) for code in codes):
+                results.append(contract)
+                if len(results) >= max_results:
+                    break
+
+        if scroll_offset is None:
+            break
+
+    logging.info(f"[naics-search] Prefix '{naics_query}': {len(results)} matches after scanning {scanned} contracts")
+    return results
+
 
 def clear_all_caches():
     """Clear all in-memory caches. Useful for admin operations or testing."""
@@ -4021,6 +4089,48 @@ def parse_naics_codes(naics_raw):
         if part.isdigit() and 3 <= len(part) <= 6:
             codes.append(part)
     
+    return codes
+
+
+def similarity_score_to_float(value):
+    """Parse a stored similarity score (e.g. 0.52 or "52.83%") into a float."""
+    try:
+        if isinstance(value, str) and '%' in value:
+            return float(value.replace('%', ''))
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def get_user_naics_codes(user_upload_dir):
+    """NAICS codes declared in the user's primary capability statement.
+
+    Empty when the statement doesn't declare any, in which case callers keep
+    their existing similarity-based behaviour.
+    """
+    cs_path = os.path.join(user_upload_dir, "capability_statements_processed.csv")
+    if not os.path.exists(cs_path):
+        return []
+    try:
+        cs_df = pd.read_csv(cs_path, dtype=str)
+    except Exception as e:
+        logging.warning(f"[naics] Could not read capability statements CSV: {e}")
+        return []
+
+    if cs_df.empty or 'Capability_Statement' not in cs_df.columns:
+        return []
+
+    rows = cs_df
+    if 'is_primary' in cs_df.columns:
+        primary_rows = cs_df[cs_df['is_primary'].astype(str).str.lower() == 'true']
+        if not primary_rows.empty:
+            rows = primary_rows
+
+    codes = []
+    for statement in rows['Capability_Statement'].fillna('').tolist():
+        for code in extract_naics_codes_from_text(statement):
+            if code not in codes:
+                codes.append(code)
     return codes
 
 
@@ -7257,6 +7367,9 @@ def dashboard_search():
 
         filtered_results = []
         search_method = "unknown"
+        # A query that is just a NAICS code (full or partial) is searched
+        # against the contracts' NAICS fields instead of their free text.
+        naics_query = extract_naics_search_code(user_query)
 
         try:
             ensure_qdrant_text_indexes()
@@ -7264,8 +7377,9 @@ def dashboard_search():
 
             qdrant_client = get_qdrant_client(timeout=15)
             if qdrant_client:
+                search_fields = QDRANT_NAICS_FIELDS if naics_query else QDRANT_TEXT_SEARCH_FIELDS
                 should_conditions = []
-                for field in QDRANT_TEXT_SEARCH_FIELDS:
+                for field in search_fields:
                     should_conditions.append(
                         FieldCondition(key=field, match=MatchText(text=user_query))
                     )
@@ -7309,6 +7423,23 @@ def dashboard_search():
             logging.warning(f"/dashboard_search MatchText failed, falling back to cached search: {qdrant_err}")
             filtered_results = []
 
+        # MatchText only matches whole tokens, so a partial NAICS code (e.g.
+        # "5415") needs a prefix scan; a full code that found nothing may also
+        # live in a field without a text index.
+        if naics_query and (len(naics_query) < 6 or not filtered_results):
+            try:
+                qdrant_client = get_qdrant_client(timeout=15)
+                if qdrant_client:
+                    naics_results = search_contracts_by_naics_prefix(
+                        qdrant_client, naics_query, MAX_SEARCH_RESULTS)
+                    if naics_results:
+                        naics_ids = {c.get('contract_id') for c in naics_results}
+                        extras = [c for c in filtered_results if c.get('contract_id') not in naics_ids]
+                        filtered_results = (naics_results + extras)[:MAX_SEARCH_RESULTS]
+                        search_method = "NAICS"
+            except Exception as naics_err:
+                logging.warning(f"/dashboard_search NAICS prefix scan failed: {naics_err}")
+
         if not filtered_results and search_method != "MatchText":
             import pandas as pd
             all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
@@ -7336,7 +7467,7 @@ def dashboard_search():
             filtered_results = df.to_dict('records') if len(df) > 0 else []
             search_method = "cached_fallback"
 
-        if search_method == "MatchText" and contract_type != 'all' and filtered_results:
+        if search_method in ("MatchText", "NAICS") and contract_type != 'all' and filtered_results:
             import pandas as pd
             df = pd.DataFrame(filtered_results)
             df = apply_contract_filters(df, contract_type, selected_states)
@@ -19371,7 +19502,18 @@ def api_top_five_contracts():
     
     matches = []
     total_matches = 0  # Track total matches before filtering
-    
+
+    # NAICS codes declared by the company. When present, matches are ranked by
+    # NAICS affinity first; otherwise the similarity ranking is kept as before.
+    user_naics_codes = get_user_naics_codes(user_upload_dir)
+    logging.info(f"[top5] User NAICS codes: {user_naics_codes or 'none'}")
+
+    def naics_rank(row_dict):
+        """NAICS affinity of a match against the company's declared codes."""
+        if not user_naics_codes:
+            return 0
+        return naics_match_tier(user_naics_codes, parse_naics_codes(row_dict.get('NAICS_Code', '')))
+
     # Use the dashboard contracts cache to look up NAICS codes
     # The cache is keyed by hash_value (SHA256 of detail_link + bid_number)
     # First, ensure the cache is populated
@@ -19749,17 +19891,10 @@ def api_top_five_contracts():
                     
                     filtered_rows.append(row_dict)
                 
-                # Sort by similarity score descending
-                def to_float(x):
-                    try:
-                        # Handle percentage strings like "52.83%"
-                        if isinstance(x, str) and '%' in x:
-                            return float(x.replace('%', ''))
-                        return float(x)
-                    except (TypeError, ValueError):
-                        return 0.0
-                
-                filtered_rows.sort(key=lambda m: to_float(m.get('Similarity_Score', 0)), reverse=True)
+                # Sort by NAICS affinity, then by similarity score descending
+                filtered_rows.sort(
+                    key=lambda m: (naics_rank(m), similarity_score_to_float(m.get('Similarity_Score', 0))),
+                    reverse=True)
                 
                 # Add rank to filtered results
                 for i, row in enumerate(filtered_rows):
@@ -19777,7 +19912,12 @@ def api_top_five_contracts():
                     row_dict = enrich_with_naics(row_dict)
                     
                     all_rows.append(row_dict)
-                
+
+                if user_naics_codes:
+                    all_rows.sort(
+                        key=lambda m: (naics_rank(m), similarity_score_to_float(m.get('Similarity_Score', 0))),
+                        reverse=True)
+
                 # Add rank
                 for i, row in enumerate(all_rows):
                     row['rank'] = i + 1
