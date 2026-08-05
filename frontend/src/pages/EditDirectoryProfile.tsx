@@ -39,14 +39,10 @@ const EditDirectoryProfile = () => {
     try {
       const data = await api.getDirectoryProfile()
       if (data.success && data.profile) {
-        setProfile(data.profile)
-        // Check if user has an existing listing (listed: true)
-        if (data.profile.listed === true) {
-          setHasListing(true)
-        } else {
-          // User doesn't have a listing yet - allow them to create one
-          setHasListing(false)
-        }
+        const isExistingListing = Boolean(data.profile.updated_at)
+        // New profiles default to public; existing ones keep the saved visibility
+        setProfile({ ...data.profile, listed: isExistingListing ? data.profile.listed === true : true })
+        setHasListing(isExistingListing)
       } else {
         // No profile exists yet - allow user to create one
         setHasListing(false)
@@ -140,10 +136,7 @@ const EditDirectoryProfile = () => {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const data = await api.updateDirectoryProfile({
-        ...profile,
-        listed: true
-      })
+      const data = await api.updateDirectoryProfile(profile)
       if (data.success) {
         navigate('/corama-directory')
       } else {
@@ -352,36 +345,33 @@ const EditDirectoryProfile = () => {
               </div>
             </div>
 
-            {/* Certifications and Credentials */}
-            <div className="card-gradient rounded-xl p-4 sm:p-6 mb-6">
-              <h2 className="text-white font-poppins font-bold text-base sm:text-lg mb-4">Certifications and Credentials</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-gray-400 font-poppins text-sm mb-2">Certifications</label>
-                  <input
-                    type="text"
-                    value={profile.certifications}
-                    onChange={(e) => handleInputChange('certifications', e.target.value)}
-                    placeholder="List your company's certifications"
-                    className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
+            {/* Visibility toggle + Save Button */}
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-6">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={profile.listed}
+                  aria-label="Profile visibility"
+                  onClick={() => handleInputChange('listed', !profile.listed)}
+                  className={`relative w-14 h-7 rounded-full transition-colors border-2 border-white ${profile.listed ? 'bg-corama-teal' : 'bg-gray-600'}`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${profile.listed ? 'translate-x-7' : 'translate-x-0'}`}
                   />
-                </div>
-                <div>
-                  <label className="block text-gray-400 font-poppins text-sm mb-2">Past Projects</label>
-                  <input
-                    type="text"
-                    value={profile.past_projects}
-                    onChange={(e) => handleInputChange('past_projects', e.target.value)}
-                    placeholder="Describe your most relevant past project"
-                    className="w-full bg-white border border-gray-200 rounded-lg py-2 px-3 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm"
-                  />
+                </button>
+                <div className="text-left">
+                  <p className="text-white font-poppins font-bold text-sm">
+                    {profile.listed ? 'Public profile' : 'Private profile'}
+                  </p>
+                  <p className="text-gray-400 font-poppins text-xs">
+                    {profile.listed
+                      ? 'Visible to everyone in the CORAMA Partner Directory'
+                      : 'Hidden from the CORAMA Partner Directory'}
+                  </p>
                 </div>
               </div>
-            </div>
 
-            {/* Save Button */}
-            <div className="flex justify-center">
               <button
                 onClick={handleSave}
                 disabled={saving}

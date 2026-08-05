@@ -18748,17 +18748,16 @@ def update_directory_profile():
                 except Exception as admin_read_error:
                     app.logger.warning(f"Admin SDK read also failed for directory data {user_id}: {admin_read_error}")
         
-        # Determine the listed status:
-        # - For NEW listings: Allow user to join the directory (set listed: true)
-        # - For EXISTING listings: Preserve the existing listed status (security measure)
-        if existing_directory_data:
-            # Existing entry - preserve the listed status (don't trust client value)
-            existing_listed_status = existing_directory_data.get('listed', False)
-            app.logger.info(f"Updating existing directory entry for user {user_id}, preserving listed={existing_listed_status}")
+        # Determine the listed status. The session owns this record, so the owner may
+        # toggle their own directory visibility (public/private). When the client sends
+        # no explicit value, fall back to the stored status (or True for new listings).
+        if 'listed' in (data or {}):
+            listed_status = bool(data.get('listed'))
+        elif existing_directory_data:
+            listed_status = bool(existing_directory_data.get('listed', False))
         else:
-            # New entry - allow user to join the directory
-            existing_listed_status = data.get('listed', True)  # Default to True for new listings
-            app.logger.info(f"Creating new directory entry for user {user_id}, setting listed={existing_listed_status}")
+            listed_status = True
+        app.logger.info(f"Saving directory entry for user {user_id} with listed={listed_status}")
         
         profile_data = {
             'company': data.get('company', user_data.get('company', '')).strip(),
@@ -18774,7 +18773,7 @@ def update_directory_profile():
             'team_size': data.get('team_size', '').strip(),
             'years_in_business': data.get('years_in_business', '').strip(),
             'logo_url': data.get('logo_url', ''),
-            'listed': existing_listed_status,  # SECURITY: Preserve existing listed status, don't trust client
+            'listed': listed_status,
             'updated_at': datetime.now().isoformat()
         }
         
@@ -18820,7 +18819,7 @@ def update_directory_profile():
         
         try:
             db.child("users").child(user_id).update({
-                'directory_listed': data.get('listed', False),
+                'directory_listed': listed_status,
                 'company': profile_data['company']
             }, id_token)
             app.logger.info(f"✅ Successfully updated directory_listed flag and company for user {user_id}")
@@ -18830,7 +18829,7 @@ def update_directory_profile():
                 try:
                     user_ref = admin_db.reference(f'users/{user_id}')
                     user_ref.update({
-                        'directory_listed': data.get('listed', False),
+                        'directory_listed': listed_status,
                         'company': profile_data['company']
                     })
                     app.logger.info(f"✅ Successfully updated directory_listed flag and company using Admin SDK for user {user_id}")

@@ -86,6 +86,7 @@ export interface DirectoryProfile {
   years_in_business: string;
   logo_url: string;
   listed: boolean;
+  updated_at?: string;
 }
 
 export interface CapabilityStatementData {
