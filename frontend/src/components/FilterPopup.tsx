@@ -4,9 +4,12 @@ interface FilterPopupProps {
   isOpen: boolean
   onClose: () => void
   onApply: (contractType: string, states: string[]) => void
+  /** Currently applied filters, so reopening the popup shows them selected. */
+  contractType?: string
+  states?: string[]
 }
 
-const FilterPopup = ({ isOpen, onClose, onApply }: FilterPopupProps) => {
+const FilterPopup = ({ isOpen, onClose, onApply, contractType, states }: FilterPopupProps) => {
   // Track which contract types are selected (can be multiple: federal, state, or both)
   const [federalSelected, setFederalSelected] = useState(false)
   const [stateSelected, setStateSelected] = useState(false)
@@ -16,10 +19,13 @@ const FilterPopup = ({ isOpen, onClose, onApply }: FilterPopupProps) => {
   const ALL_STATES = ['IL', 'IN']
 
   useEffect(() => {
-    // Default to "All Contracts" selected when popup opens
-    setFederalSelected(true)
-    setStateSelected(true)
-    setSelectedStates(['all', 'IL', 'IN'])
+    if (!isOpen) return
+    // Reflect the filters already applied; default to "All Contracts"
+    const appliedType = contractType || 'all'
+    const appliedStates = states && states.length > 0 ? states : ['all', ...ALL_STATES]
+    setFederalSelected(appliedType === 'all' || appliedType === 'federal')
+    setStateSelected(appliedType === 'all' || appliedType === 'state')
+    setSelectedStates(appliedType === 'federal' ? [] : appliedStates)
     setError('')
   }, [isOpen])
 

@@ -742,6 +742,8 @@ const TopFiveContracts = () => {
           isOpen={isFilterOpen}
           onClose={() => setIsFilterOpen(false)}
           onApply={handleApplyFilter}
+          contractType={contractType}
+          states={selectedStates}
         />
       </div>
     )

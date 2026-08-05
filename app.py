@@ -3031,19 +3031,24 @@ def extract_naics_search_code(query):
     return match.group(1) if match else None
 
 
-def search_contracts_by_naics_prefix(client, naics_query, max_results):
-    """Scan the contracts collection for NAICS codes starting with ``naics_query``.
+def scan_dashboard_contracts(predicate, max_results, scan_limit=NAICS_SCAN_LIMIT):
+    """Scroll the contracts collection and keep the contracts matching ``predicate``.
 
-    MatchText only matches whole tokens, so partial codes need this scan.
-    Returns dashboard-shaped contract dicts.
+    Used when a query can't be expressed as a Qdrant filter (NAICS prefixes,
+    state normalization). Bounded by ``scan_limit`` so it can't scan the whole
+    collection.
     """
+    client = get_qdrant_client(timeout=15)
+    if client is None:
+        return []
+
     hidden_ids = get_hidden_contract_ids()
     results = []
     scanned = 0
     scroll_offset = None
 
-    while scanned < NAICS_SCAN_LIMIT and len(results) < max_results:
-        batch_size = min(500, NAICS_SCAN_LIMIT - scanned)
+    while scanned < scan_limit and len(results) < max_results:
+        batch_size = min(500, scan_limit - scanned)
         points, scroll_offset = client.scroll(
             collection_name="government_contracts",
             limit=batch_size,
@@ -3063,8 +3068,7 @@ def search_contracts_by_naics_prefix(client, naics_query, max_results):
             contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
             if (contract.get('category') or '').strip().lower() in ('unknown', ''):
                 continue
-            codes = parse_naics_codes(contract.get('naics_code', ''))
-            if any(code.startswith(naics_query) for code in codes):
+            if predicate(contract):
                 results.append(contract)
                 if len(results) >= max_results:
                     break
@@ -3072,8 +3076,64 @@ def search_contracts_by_naics_prefix(client, naics_query, max_results):
         if scroll_offset is None:
             break
 
-    logging.info(f"[naics-search] Prefix '{naics_query}': {len(results)} matches after scanning {scanned} contracts")
+    logging.info(f"[contract-scan] {len(results)} matches after scanning {scanned} contracts")
     return results
+
+
+def search_contracts_by_naics_prefix(naics_query, max_results):
+    """Contracts whose NAICS codes start with ``naics_query``.
+
+    MatchText only matches whole tokens, so partial codes need this scan.
+    """
+    def matches(contract):
+        return any(code.startswith(naics_query)
+                   for code in parse_naics_codes(contract.get('naics_code', '')))
+
+    return scan_dashboard_contracts(matches, max_results)
+
+
+def contract_state_codes(contract):
+    """State codes (IL/IN) a dashboard contract is located in.
+
+    Sources are inconsistent ("IL", "Illinois", "Chicago, IL"), so the codes are
+    normalized from every location-ish field.
+    """
+    codes = set()
+    for value in (contract.get('state'), contract.get('location'), contract.get('city')):
+        codes |= extract_state_codes(value)
+    return codes
+
+
+def contract_matches_location_filter(contract, contract_type, selected_states):
+    """Whether a contract passes the dashboard's federal/state + state filters.
+
+    A contract with no recognizable state is treated as federal, matching how
+    the dataset stores federal opportunities.
+    """
+    codes = contract_state_codes(contract)
+    is_federal = not codes
+
+    # Federal-only ignores the state list (federal contracts have no state).
+    if contract_type == 'federal':
+        return is_federal
+
+    wanted = {str(s).strip().upper() for s in (selected_states or []) if str(s).strip()}
+    specific_states = wanted - {'ALL'}
+    if specific_states and 'ALL' not in wanted:
+        return bool(codes & specific_states)
+
+    if contract_type == 'state':
+        return not is_federal
+
+    return True
+
+
+def location_filter_is_active(contract_type, selected_states):
+    """True when the dashboard filters actually restrict the contract list."""
+    if contract_type and contract_type != 'all':
+        return True
+    wanted = {str(s).strip().upper() for s in (selected_states or []) if str(s).strip()}
+    return bool(wanted - {'ALL'}) and 'ALL' not in wanted
 
 
 def clear_all_caches():
@@ -7250,33 +7310,20 @@ def dashboard_search():
 
         # Helper function to apply contract type and state filters
         def apply_contract_filters(df, contract_type, selected_states):
-            """Apply contract type (federal/state) and state filters to dataframe"""
-            if contract_type == 'all':
+            """Apply contract type (federal/state) and state filters to dataframe.
+
+            State values are normalized (e.g. "Illinois", "Chicago, IL" -> IL) so
+            the location filter matches regardless of the source's format."""
+            if len(df) == 0 or not location_filter_is_active(contract_type, selected_states):
                 return df
-            
-            # Ensure state column exists and is string
-            df['state'] = df['state'].fillna('').astype(str)
-            
-            if contract_type == 'federal':
-                # Federal contracts have 'Federal' in state field or empty/Unknown
-                mask = df['state'].str.lower().isin(['federal', 'unknown', ''])
-                df = df[mask]
-                logging.info(f"🔍 Federal filter applied: {len(df)} contracts")
-            elif contract_type == 'state':
-                # State contracts - filter by selected states
-                if selected_states and len(selected_states) > 0:
-                    if 'all' in [s.lower() for s in selected_states]:
-                        # All states - exclude federal contracts
-                        mask = ~df['state'].str.lower().isin(['federal', 'unknown', ''])
-                        df = df[mask]
-                    else:
-                        # Specific states selected
-                        state_codes_upper = [s.upper() for s in selected_states]
-                        mask = df['state'].str.upper().isin(state_codes_upper)
-                        df = df[mask]
-                    logging.info(f"🔍 State filter applied (states={selected_states}): {len(df)} contracts")
-            
-            return df
+
+            mask = df.apply(
+                lambda row: contract_matches_location_filter(row.to_dict(), contract_type, selected_states),
+                axis=1)
+            filtered = df[mask]
+            logging.info(f"🔍 Location filter applied (type={contract_type}, states={selected_states}): "
+                         f"{len(filtered)} of {len(df)} contracts")
+            return filtered
 
         # Helper function to compute top_categories from filtered dataframe using MAIN categories
         def compute_top_categories(df, total_contracts):
@@ -7312,16 +7359,20 @@ def dashboard_search():
             # No query provided - return contracts from Qdrant with pagination
             # PHASE 1 HOTFIX: Limit to MAX_SEARCH_RESULTS instead of 10000
             import pandas as pd
-            all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
-            df = pd.DataFrame(all_contracts)
-            
-            # Filter out contracts with Unknown category
-            if len(df) > 0 and 'category' in df.columns:
-                df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
-            
-            # Apply contract type and state filters
-            if len(df) > 0:
-                df = apply_contract_filters(df, contract_type, selected_states)
+            if location_filter_is_active(contract_type, selected_states):
+                # Scan the collection so the filter sees every contract instead of
+                # only the first cached page (which is mostly federal).
+                all_contracts = scan_dashboard_contracts(
+                    lambda c: contract_matches_location_filter(c, contract_type, selected_states),
+                    MAX_SEARCH_RESULTS)
+                df = pd.DataFrame(all_contracts)
+            else:
+                all_contracts, _, _ = get_dashboard_contracts_from_qdrant(1, MAX_SEARCH_RESULTS)
+                df = pd.DataFrame(all_contracts)
+
+                # Filter out contracts with Unknown category
+                if len(df) > 0 and 'category' in df.columns:
+                    df = df[~df['category'].fillna('').str.strip().str.lower().isin(['unknown', ''])]
             
             # Paginate filtered results
             total_contracts = len(df)
@@ -7428,15 +7479,12 @@ def dashboard_search():
         # live in a field without a text index.
         if naics_query and (len(naics_query) < 6 or not filtered_results):
             try:
-                qdrant_client = get_qdrant_client(timeout=15)
-                if qdrant_client:
-                    naics_results = search_contracts_by_naics_prefix(
-                        qdrant_client, naics_query, MAX_SEARCH_RESULTS)
-                    if naics_results:
-                        naics_ids = {c.get('contract_id') for c in naics_results}
-                        extras = [c for c in filtered_results if c.get('contract_id') not in naics_ids]
-                        filtered_results = (naics_results + extras)[:MAX_SEARCH_RESULTS]
-                        search_method = "NAICS"
+                naics_results = search_contracts_by_naics_prefix(naics_query, MAX_SEARCH_RESULTS)
+                if naics_results:
+                    naics_ids = {c.get('contract_id') for c in naics_results}
+                    extras = [c for c in filtered_results if c.get('contract_id') not in naics_ids]
+                    filtered_results = (naics_results + extras)[:MAX_SEARCH_RESULTS]
+                    search_method = "NAICS"
             except Exception as naics_err:
                 logging.warning(f"/dashboard_search NAICS prefix scan failed: {naics_err}")
 
@@ -7467,7 +7515,8 @@ def dashboard_search():
             filtered_results = df.to_dict('records') if len(df) > 0 else []
             search_method = "cached_fallback"
 
-        if search_method in ("MatchText", "NAICS") and contract_type != 'all' and filtered_results:
+        if (search_method in ("MatchText", "NAICS") and filtered_results
+                and location_filter_is_active(contract_type, selected_states)):
             import pandas as pd
             df = pd.DataFrame(filtered_results)
             df = apply_contract_filters(df, contract_type, selected_states)
