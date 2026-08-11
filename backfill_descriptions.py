@@ -8,6 +8,9 @@ and regenerates the embedding so matching works on the actual scope of work.
 
 Safe to interrupt and re-run: progress is checkpointed to a state file and
 every step is idempotent (points already carrying real text are skipped).
+SAM.gov caps non-federal keys at ~1,000 requests/day, so a full backfill of
+the collection spans several days: the script stops with exit code 3 when the
+quota runs out and picks up where it left off on the next run.
 
 Usage:
     python backfill_descriptions.py --dry-run           # report only, no writes
@@ -26,7 +29,12 @@ from typing import Any, Dict, List, Optional
 
 from qdrant_client.models import PointVectors
 
-from sam_gov_client import fetch_notice_description, notice_id_from_description_url
+from sam_gov_client import (
+    fetch_notice_description,
+    notice_id_from_description_url,
+    quota_exhausted,
+    quota_reset_at,
+)
 from sam_gov_sync import (
     COLLECTION_NAME,
     _embed_payload_texts,
@@ -231,9 +239,19 @@ def run(limit: Optional[int], dry_run: bool, skip_embeddings: bool, state_file: 
     totals = {"hydrated": 0, "unavailable": 0, "payloads": 0, "vectors": 0, "errors": 0}
     batch: List[Dict[str, Any]] = []
 
+    quota_stop = False
     for index, candidate in enumerate(candidates, start=1):
         text = hydrate(candidate)
-        if text:
+        if not text and quota_exhausted():
+            # SAM.gov allows ~1,000 requests/day, so a full backfill spans several
+            # days. Stop cleanly, keeping the remaining URLs for the next run.
+            log.warning(
+                "SAM.gov daily quota spent at %d/%d — resumes after %s; "
+                "re-run this script then",
+                index, len(candidates), quota_reset_at(),
+            )
+            quota_stop = True
+        elif text:
             totals["hydrated"] += 1
             source = candidate["payload"].get("description_source") or "sam_gov_noticedesc"
             batch.append({**candidate, "description": text, "source": source})
@@ -245,7 +263,7 @@ def run(limit: Optional[int], dry_run: bool, skip_embeddings: bool, state_file: 
             else:
                 done.add(str(candidate["id"]))
 
-        if len(batch) >= WRITE_BATCH or index == len(candidates):
+        if quota_stop or len(batch) >= WRITE_BATCH or index == len(candidates):
             if batch:
                 written = write_batch(client, batch, skip_embeddings)
                 for key, value in written.items():
@@ -261,13 +279,18 @@ def run(limit: Optional[int], dry_run: bool, skip_embeddings: bool, state_file: 
                 index, len(candidates), totals["hydrated"], totals["unavailable"],
                 totals["vectors"], totals["errors"],
             )
+            if quota_stop:
+                break
 
     log.info(
-        "Backfill complete: hydrated=%d unavailable=%d payloads=%d vectors=%d errors=%d",
+        "Backfill %s: hydrated=%d unavailable=%d payloads=%d vectors=%d errors=%d",
+        "paused (SAM.gov quota)" if quota_stop else "complete",
         totals["hydrated"], totals["unavailable"], totals["payloads"],
         totals["vectors"], totals["errors"],
     )
-    return 0 if not totals["errors"] else 2
+    if totals["errors"]:
+        return 2
+    return 3 if quota_stop else 0
 
 
 def main() -> int:

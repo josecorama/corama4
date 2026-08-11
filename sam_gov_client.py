@@ -52,6 +52,37 @@ def _get_api_key() -> Optional[str]:
     return os.getenv("SAM_GOV_API_KEY")
 
 
+# Set when SAM.gov reports the daily request quota is spent, so every later
+# call in the process short-circuits instead of sleeping through retries.
+_QUOTA_STATE: Dict[str, Any] = {"reset_at": None}
+
+
+def quota_exhausted() -> bool:
+    """True once SAM.gov has reported the daily request quota as spent."""
+    return _QUOTA_STATE["reset_at"] is not None
+
+
+def quota_reset_at() -> Optional[str]:
+    """SAM.gov's reported reset time for the daily quota, if it was hit."""
+    return _QUOTA_STATE["reset_at"]
+
+
+def _note_quota_exhaustion(resp: "requests.Response") -> bool:
+    """Record a spent daily quota from a 429 response. True when that's the case."""
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    if str(body.get("code")) != "900804" and "quota" not in str(body.get("description", "")).lower():
+        return False
+    _QUOTA_STATE["reset_at"] = body.get("nextAccessTime") or "unknown"
+    log.error(
+        "[SAM.gov] Daily request quota exhausted — resets at %s",
+        _QUOTA_STATE["reset_at"],
+    )
+    return True
+
+
 def _scrub_key(value: Any) -> str:
     """Mask the API key in text that may echo a request URL back into the logs."""
     return re.sub(r"(api_key=)[^&\s]+", r"\1***", str(value))
@@ -95,7 +126,7 @@ def fetch_notice_description(notice_id: str, max_chars: int = DESCRIPTION_MAX_CH
     of work has to be fetched per notice. Returns "" on any failure, which
     leaves the caller free to keep whatever it already had.
     """
-    if not notice_id:
+    if not notice_id or quota_exhausted():
         return ""
 
     api_key = _get_api_key()
@@ -149,6 +180,12 @@ def hydrate_descriptions(
         if text:
             payload["description"] = text
             stats["hydrated"] += 1
+        elif quota_exhausted():
+            # Quota, not a bad notice: keep the URL so a later run can retry.
+            log.warning("[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
+                        index, len(payloads))
+            stats["attempted"] -= 1
+            break
         else:
             # Never leave a URL behind: it would be embedded as if it were text.
             if _is_url(current):
@@ -305,6 +342,12 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             resp = requests.get(url, params=params, timeout=60)
 
             if resp.status_code == 429:
+                # A blown daily quota is not a transient burst: SAM.gov reports
+                # code 900804 with the reset time and retrying only wastes
+                # minutes sleeping, so give up for the rest of the day.
+                if _note_quota_exhaustion(resp):
+                    return None
+
                 retry_after_raw = resp.headers.get("Retry-After", str(int(backoff)))
                 try:
                     retry_after = int(retry_after_raw)
