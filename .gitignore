@@ -12,3 +12,6 @@ capability_statements/
 
 # AI NAICS cache (generated on-demand, persisted locally)
 ai_naics_cache.json
+
+# Local backfill checkpoint
+.backfill_descriptions_state.json
