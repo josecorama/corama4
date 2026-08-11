@@ -14,6 +14,7 @@ API docs: https://open.gsa.gov/api/get-opportunities-public-api/
 """
 
 import os
+import re
 import time
 import random
 import logging
@@ -27,6 +28,7 @@ import requests
 log = logging.getLogger(__name__)
 
 SAM_GOV_API_BASE = "https://api.sam.gov/opportunities/v2/search"
+SAM_GOV_NOTICE_DESC_BASE = "https://api.sam.gov/prod/opportunities/v1/noticedesc"
 
 # SAM.gov ptype codes for actionable bidding opportunities
 # p = Presolicitation, k = Combined Synopsis/Solicitation, o = Solicitation
@@ -36,13 +38,134 @@ ACTIVE_PTYPE_CODES = "p,k,o,r,s"
 # Throttling defaults
 DEFAULT_PAGE_SIZE = 500
 MIN_PAGE_INTERVAL_S = 0.5          # seconds between pages (~120 req/min)
+MIN_DESC_INTERVAL_S = 0.1          # seconds between description calls (~600 req/min)
 MAX_RETRIES = 5
 INITIAL_BACKOFF_S = 2.0
 MAX_BACKOFF_S = 60.0
 
+# Descriptions feed both the embedding and the AI context, so keep them long
+# enough to carry the scope of work without blowing up payload size.
+DESCRIPTION_MAX_CHARS = 6000
+
 
 def _get_api_key() -> Optional[str]:
     return os.getenv("SAM_GOV_API_KEY")
+
+
+def _scrub_key(value: Any) -> str:
+    """Mask the API key in text that may echo a request URL back into the logs."""
+    return re.sub(r"(api_key=)[^&\s]+", r"\1***", str(value))
+
+
+def _is_url(value: Any) -> bool:
+    """True when a value is a bare URL rather than descriptive text."""
+    return isinstance(value, str) and value.strip().lower().startswith(("http://", "https://"))
+
+
+def strip_html(html: str) -> str:
+    """Turn a SAM.gov HTML description into single-spaced plain text."""
+    if not html:
+        return ""
+    text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.S | re.I)
+    text = re.sub(r"<br\s*/?>|</p>|</div>|</li>", "\n", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    replacements = {
+        "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">",
+        "&quot;": '"', "&#39;": "'", "&rsquo;": "'", "&ldquo;": '"', "&rdquo;": '"',
+    }
+    for entity, char in replacements.items():
+        text = text.replace(entity, char)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n\s*\n+", "\n", text)
+    return text.strip()
+
+
+def notice_id_from_description_url(url: str) -> str:
+    """Extract the ``noticeid`` query parameter from a SAM.gov description URL."""
+    if not url:
+        return ""
+    match = re.search(r"noticeid=([0-9a-zA-Z]+)", str(url))
+    return match.group(1) if match else ""
+
+
+def fetch_notice_description(notice_id: str, max_chars: int = DESCRIPTION_MAX_CHARS) -> str:
+    """Fetch the full text of a SAM.gov notice description.
+
+    The search API only returns a link to the description, so the actual scope
+    of work has to be fetched per notice. Returns "" on any failure, which
+    leaves the caller free to keep whatever it already had.
+    """
+    if not notice_id:
+        return ""
+
+    api_key = _get_api_key()
+    if not api_key:
+        log.error("[SAM.gov] SAM_GOV_API_KEY not configured — cannot fetch descriptions")
+        return ""
+
+    data = _request_with_backoff(
+        SAM_GOV_NOTICE_DESC_BASE,
+        {"api_key": api_key, "noticeid": notice_id},
+    )
+    if not data:
+        return ""
+
+    text = strip_html(data.get("description") or "")
+    return text[:max_chars] if len(text) > max_chars else text
+
+
+def hydrate_descriptions(
+    payloads: List[Dict[str, Any]],
+    progress_every: int = 100,
+) -> Dict[str, int]:
+    """Replace missing descriptions with the real notice text, in place.
+
+    ``map_opportunity_to_payload`` cannot do this itself: it would mean one HTTP
+    call per opportunity while paginating. Hydrating after deduplication keeps
+    the call count down to the contracts actually being ingested.
+
+    Returns stats: attempted, hydrated, failed.
+    """
+    stats = {"attempted": 0, "hydrated": 0, "failed": 0}
+    if not payloads:
+        return stats
+
+    for index, payload in enumerate(payloads, start=1):
+        current = payload.get("description")
+        if current and not _is_url(current):
+            continue
+
+        notice_id = payload.get("sam_notice_id") or notice_id_from_description_url(
+            payload.get("sam_description_url") or current
+        )
+        if not notice_id:
+            continue
+
+        stats["attempted"] += 1
+        if stats["attempted"] > 1:
+            time.sleep(MIN_DESC_INTERVAL_S)
+
+        text = fetch_notice_description(notice_id)
+        if text:
+            payload["description"] = text
+            stats["hydrated"] += 1
+        else:
+            # Never leave a URL behind: it would be embedded as if it were text.
+            if _is_url(current):
+                payload["description"] = ""
+            stats["failed"] += 1
+
+        if progress_every and index % progress_every == 0:
+            log.info(
+                "[SAM.gov] Description hydration: %d/%d processed (%d hydrated, %d failed)",
+                index, len(payloads), stats["hydrated"], stats["failed"],
+            )
+
+    log.info(
+        "[SAM.gov] Description hydration complete: attempted=%d hydrated=%d failed=%d",
+        stats["attempted"], stats["hydrated"], stats["failed"],
+    )
+    return stats
 
 
 def _parse_sam_date(date_str: Optional[str]) -> Optional[str]:
@@ -139,7 +262,10 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
         "source_url": detail_url,
         "detail_url": detail_url,
         "title": opp.get("title", ""),
-        "description": (opp.get("description") or "")[:1000],
+        # The search API returns a *link* to the description, never the text.
+        # It is hydrated by hydrate_descriptions(); keep the field empty rather
+        # than storing the URL, which would poison embeddings and AI context.
+        "description": "" if _is_url(opp.get("description")) else (opp.get("description") or "")[:DESCRIPTION_MAX_CHARS],
         "agency": agency_full,
         "agency_top": agency_top,
         "location": _location_label(opp),
@@ -230,7 +356,7 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             backoff = min(backoff * 2, MAX_BACKOFF_S)
 
         except requests.RequestException as e:
-            log.error("[SAM.gov] Non-retryable request error: %s", e)
+            log.error("[SAM.gov] Non-retryable request error: %s", _scrub_key(e))
             return None
 
     log.error("[SAM.gov] Exhausted %d retries — giving up on request", MAX_RETRIES)

@@ -8907,6 +8907,21 @@ def sanitize_conversation_message(content: str) -> str:
     return cleaned.strip()
 
 
+def payload_description_text(payload) -> str:
+    """Description text of a contract, ignoring SAM.gov description links.
+
+    Contracts ingested from the SAM.gov search API store a link to the notice
+    description in ``description`` when hydration was unavailable; feeding that
+    URL to the model reads as a description that is present but says nothing.
+    """
+    if not payload:
+        return ''
+    description = payload.get('description') or ''
+    if isinstance(description, str) and description.strip().lower().startswith(('http://', 'https://')):
+        return ''
+    return description
+
+
 def fetch_sam_gov_contract_description(notice_id: str) -> str:
     """Fetch the full HTML description of a SAM.gov contract by notice ID.
 
@@ -9005,7 +9020,7 @@ def build_ai_assistant_messages(action: str, contract_name: str, conversation_hi
 
         # Use Qdrant-stored description first; only fetch from SAM.gov if missing
         # This avoids an extra 8s external API call that contributes to worker timeout
-        stored_desc = contract_data.get('description') or ''
+        stored_desc = payload_description_text(contract_data)
         sam_notice_id = contract_data.get('sam_notice_id', '')
         if stored_desc:
             desc_text = stored_desc[:3000] + ("..." if len(stored_desc) > 3000 else "")
@@ -12667,7 +12682,7 @@ def qdrant_payload_to_contract_view(payload, point_id=None, score=None):
         "Bid_Name": get_first_truthy(payload.get("bid_name"), payload.get("title"), "Unknown Bid"),
         "Detail_Link": get_first_truthy(payload.get("detail_link"), payload.get("source_url"), payload.get("detail_url"), "#"),
         "Bid_Number": get_first_truthy(payload.get("bid_number"), payload.get("contract_number"), "N/A"),
-        "Bid_Description": get_first_truthy(payload.get("bid_description"), payload.get("summary"), payload.get("description"), "No description available"),
+        "Bid_Description": get_first_truthy(payload.get("bid_description"), payload.get("summary"), payload_description_text(payload), "No description available"),
         "Organization": get_first_truthy(payload.get("organization"), payload.get("agency"), "Classified"),
         "Due_Date": get_first_truthy(payload.get("due_date"), "No due date"),
         "Category": get_first_truthy(payload.get("category"), payload.get("notice_type"), "Classified"),
@@ -12833,7 +12848,7 @@ def qdrant_payload_to_dashboard_contract(payload, point_id=None, score=None):
         payload.get("bid_name"), payload.get("Bid Name"), payload.get("title"), "Unknown Bid"
     )
     bid_description_value = get_first_truthy(
-        payload.get("bid_description"), payload.get("Bid Description"), payload.get("summary"), payload.get("description"), "No description available"
+        payload.get("bid_description"), payload.get("Bid Description"), payload.get("summary"), payload_description_text(payload), "No description available"
     )
     organization_value = get_first_truthy(
         payload.get("organization"), payload.get("Organization"), payload.get("agency"), "Unknown"
