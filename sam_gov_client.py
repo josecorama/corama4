@@ -13,15 +13,17 @@ Rate-limit compliance:
 API docs: https://open.gsa.gov/api/get-opportunities-public-api/
 """
 
+import csv
 import os
 import re
 import time
 import random
 import logging
 import hashlib
+import tempfile
 import uuid
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Iterable, Optional, Set
 
 import requests
 
@@ -29,6 +31,20 @@ log = logging.getLogger(__name__)
 
 SAM_GOV_API_BASE = "https://api.sam.gov/opportunities/v2/search"
 SAM_GOV_NOTICE_DESC_BASE = "https://api.sam.gov/prod/opportunities/v1/noticedesc"
+
+# Daily dump of every active opportunity, description text included. Needs no
+# API key and doesn't touch the daily request quota, so it is the only viable
+# source for more than a handful of descriptions.
+SAM_GOV_BULK_CSV_URL = (
+    "https://falextracts.s3.amazonaws.com/Contract%20Opportunities/"
+    "datagov/ContractOpportunitiesFullCSV.csv"
+)
+
+# Downloading ~250 MB only pays off past a few notices; below this the metered
+# per-notice endpoint is cheaper.
+BULK_CSV_MIN_NOTICES = 5
+# The dump is regenerated once a day, early UTC.
+BULK_CSV_CACHE_TTL_S = 6 * 3600
 
 # SAM.gov ptype codes for actionable bidding opportunities
 # p = Presolicitation, k = Combined Synopsis/Solicitation, o = Solicitation
@@ -145,9 +161,85 @@ def fetch_notice_description(notice_id: str, max_chars: int = DESCRIPTION_MAX_CH
     return text[:max_chars] if len(text) > max_chars else text
 
 
+def _download_bulk_csv() -> str:
+    """Download the bulk CSV to disk, reusing today's copy. '' on failure.
+
+    Streaming it straight into the parser is fragile at this size (a dropped
+    connection silently truncates the data and every unseen notice would look
+    like it has no description), so the file is fetched whole and its length
+    checked first.
+    """
+    cache_dir = os.getenv("SAM_GOV_BULK_CACHE_DIR") or tempfile.gettempdir()
+    path = os.path.join(cache_dir, "sam_contract_opportunities.csv")
+    if os.path.exists(path) and time.time() - os.path.getmtime(path) < BULK_CSV_CACHE_TTL_S:
+        log.info("[SAM.gov] Reusing cached bulk CSV at %s", path)
+        return path
+
+    tmp = f"{path}.part"
+    try:
+        with requests.get(SAM_GOV_BULK_CSV_URL, stream=True, timeout=(30, 300)) as resp:
+            resp.raise_for_status()
+            expected = int(resp.headers.get("Content-Length") or 0)
+            log.info("[SAM.gov] Downloading bulk opportunities CSV (%d MB)", expected // (1024 * 1024))
+            with open(tmp, "wb") as fh:
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    fh.write(chunk)
+        written = os.path.getsize(tmp)
+        if expected and written < expected:
+            raise IOError(f"truncated download: {written} of {expected} bytes")
+        os.replace(tmp, path)
+        return path
+    except Exception as e:
+        log.error("[SAM.gov] Bulk CSV download failed: %s", e)
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        return ""
+
+
+def fetch_bulk_descriptions(
+    notice_ids: Iterable[str],
+    max_chars: int = DESCRIPTION_MAX_CHARS,
+) -> Dict[str, str]:
+    """Look up descriptions for many notices in the daily bulk CSV.
+
+    The per-notice endpoint is capped at as few as 10 requests/day, which makes
+    it useless at collection scale; this dump is unmetered. It only carries
+    *active* opportunities, so archived notices come back missing and the caller
+    can fall back to the API for those.
+
+    The CSV is streamed and only the requested notices are kept in memory.
+    """
+    wanted: Set[str] = {str(n) for n in notice_ids if n}
+    if not wanted:
+        return {}
+
+    found: Dict[str, str] = {}
+    path = _download_bulk_csv()
+    if not path:
+        return found
+
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace", newline="") as fh:
+            for row in csv.DictReader(fh):
+                notice_id = (row.get("NoticeId") or "").strip()
+                if notice_id not in wanted or notice_id in found:
+                    continue
+                text = strip_html(row.get("Description") or "")
+                if text:
+                    found[notice_id] = text[:max_chars]
+                if len(found) == len(wanted):
+                    break
+    except Exception as e:
+        log.error("[SAM.gov] Bulk CSV parsing failed: %s", e)
+
+    log.info("[SAM.gov] Bulk CSV supplied %d/%d descriptions", len(found), len(wanted))
+    return found
+
+
 def hydrate_descriptions(
     payloads: List[Dict[str, Any]],
     progress_every: int = 100,
+    use_bulk_csv: bool = True,
 ) -> Dict[str, int]:
     """Replace missing descriptions with the real notice text, in place.
 
@@ -157,50 +249,64 @@ def hydrate_descriptions(
 
     Returns stats: attempted, hydrated, failed.
     """
-    stats = {"attempted": 0, "hydrated": 0, "failed": 0}
+    stats = {"attempted": 0, "hydrated": 0, "failed": 0, "from_bulk": 0}
     if not payloads:
         return stats
 
-    for index, payload in enumerate(payloads, start=1):
+    pending: List[Any] = []
+    for payload in payloads:
         current = payload.get("description")
         if current and not _is_url(current):
             continue
-
         notice_id = payload.get("sam_notice_id") or notice_id_from_description_url(
             payload.get("sam_description_url") or current
         )
-        if not notice_id:
-            continue
+        if notice_id:
+            pending.append((payload, notice_id))
 
+    if not pending:
+        return stats
+
+    bulk: Dict[str, str] = {}
+    if use_bulk_csv and len(pending) >= BULK_CSV_MIN_NOTICES:
+        bulk = fetch_bulk_descriptions(notice_id for _, notice_id in pending)
+
+    for index, (payload, notice_id) in enumerate(pending, start=1):
         stats["attempted"] += 1
-        if stats["attempted"] > 1:
-            time.sleep(MIN_DESC_INTERVAL_S)
 
-        text = fetch_notice_description(notice_id)
+        text = bulk.get(notice_id, "")
+        if text:
+            stats["from_bulk"] += 1
+        else:
+            if stats["attempted"] - stats["from_bulk"] > 1:
+                time.sleep(MIN_DESC_INTERVAL_S)
+            text = fetch_notice_description(notice_id)
+
         if text:
             payload["description"] = text
             stats["hydrated"] += 1
         elif quota_exhausted():
             # Quota, not a bad notice: keep the URL so a later run can retry.
             log.warning("[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
-                        index, len(payloads))
+                        index, len(pending))
             stats["attempted"] -= 1
             break
         else:
             # Never leave a URL behind: it would be embedded as if it were text.
-            if _is_url(current):
+            if _is_url(payload.get("description")):
                 payload["description"] = ""
             stats["failed"] += 1
 
         if progress_every and index % progress_every == 0:
             log.info(
                 "[SAM.gov] Description hydration: %d/%d processed (%d hydrated, %d failed)",
-                index, len(payloads), stats["hydrated"], stats["failed"],
+                index, len(pending), stats["hydrated"], stats["failed"],
             )
 
     log.info(
-        "[SAM.gov] Description hydration complete: attempted=%d hydrated=%d failed=%d",
-        stats["attempted"], stats["hydrated"], stats["failed"],
+        "[SAM.gov] Description hydration complete: attempted=%d hydrated=%d "
+        "(%d from bulk CSV) failed=%d",
+        stats["attempted"], stats["hydrated"], stats["from_bulk"], stats["failed"],
     )
     return stats
 

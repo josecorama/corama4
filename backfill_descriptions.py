@@ -8,9 +8,10 @@ and regenerates the embedding so matching works on the actual scope of work.
 
 Safe to interrupt and re-run: progress is checkpointed to a state file and
 every step is idempotent (points already carrying real text are skipped).
-SAM.gov caps non-federal keys at ~1,000 requests/day, so a full backfill of
-the collection spans several days: the script stops with exit code 3 when the
-quota runs out and picks up where it left off on the next run.
+Descriptions come from SAM.gov's daily bulk CSV of active opportunities, which
+is unmetered; the per-notice API endpoint (as few as 10 requests/day) is only a
+fallback for notices missing from the dump. The run stops with exit code 3 when
+that quota is spent and picks up where it left off next time.
 
 Usage:
     python backfill_descriptions.py --dry-run           # report only, no writes
@@ -30,6 +31,7 @@ from typing import Any, Dict, List, Optional
 from qdrant_client.models import PointVectors
 
 from sam_gov_client import (
+    fetch_bulk_descriptions,
     fetch_notice_description,
     notice_id_from_description_url,
     quota_exhausted,
@@ -130,19 +132,23 @@ def collect_candidates(client, limit: Optional[int], done: set) -> List[Dict[str
     return candidates
 
 
-def hydrate(candidate: Dict[str, Any]) -> Optional[str]:
-    """Fetch the notice text for one candidate, or None when unavailable."""
+def candidate_notice_id(payload: Dict[str, Any]) -> str:
+    return payload.get("sam_notice_id") or notice_id_from_description_url(
+        payload.get("sam_description_url") or payload.get("description")
+    )
+
+
+def hydrate(candidate: Dict[str, Any], bulk: Dict[str, str]) -> Optional[str]:
+    """Description text for one candidate, or None when unavailable."""
     payload = candidate["payload"]
-    # Already hydrated and only waiting for a vector: no need to call SAM.gov again.
+    # Already hydrated and only waiting for a vector: no need to fetch again.
     if not needs_hydration(payload):
         return payload.get("description") or ""
 
-    notice_id = payload.get("sam_notice_id") or notice_id_from_description_url(
-        payload.get("sam_description_url") or payload.get("description")
-    )
+    notice_id = candidate_notice_id(payload)
     if not notice_id:
         return None
-    return fetch_notice_description(notice_id) or None
+    return bulk.get(notice_id) or fetch_notice_description(notice_id) or None
 
 
 def write_batch(client, batch: List[Dict[str, Any]], skip_embeddings: bool) -> Dict[str, int]:
@@ -213,8 +219,10 @@ def run(limit: Optional[int], dry_run: bool, skip_embeddings: bool, state_file: 
         log.error("QDRANT_URL / QDRANT_API_KEY not set")
         return 1
     if not os.getenv("SAM_GOV_API_KEY"):
-        log.error("SAM_GOV_API_KEY not set — descriptions cannot be fetched")
-        return 1
+        log.warning(
+            "SAM_GOV_API_KEY not set — only the bulk CSV will be used, so archived "
+            "notices stay without a description"
+        )
 
     state = load_state(state_file)
     done = set(state["done"])
@@ -236,21 +244,29 @@ def run(limit: Optional[int], dry_run: bool, skip_embeddings: bool, state_file: 
         )
         return 0
 
-    totals = {"hydrated": 0, "unavailable": 0, "payloads": 0, "vectors": 0, "errors": 0}
+    bulk = fetch_bulk_descriptions(
+        candidate_notice_id(c["payload"])
+        for c in candidates
+        if needs_hydration(c["payload"])
+    )
+
+    totals = {"hydrated": 0, "unavailable": 0, "deferred": 0,
+              "payloads": 0, "vectors": 0, "errors": 0}
     batch: List[Dict[str, Any]] = []
 
-    quota_stop = False
+    quota_note = False
     for index, candidate in enumerate(candidates, start=1):
-        text = hydrate(candidate)
+        text = hydrate(candidate, bulk)
         if not text and quota_exhausted():
-            # SAM.gov allows ~1,000 requests/day, so a full backfill spans several
-            # days. Stop cleanly, keeping the remaining URLs for the next run.
-            log.warning(
-                "SAM.gov daily quota spent at %d/%d — resumes after %s; "
-                "re-run this script then",
-                index, len(candidates), quota_reset_at(),
-            )
-            quota_stop = True
+            # Missing from the dump (archived) and the API quota is spent: leave
+            # the contract untouched so a later run can still fetch it.
+            totals["deferred"] += 1
+            if not quota_note:
+                log.warning(
+                    "SAM.gov API quota spent — notices missing from the bulk CSV are "
+                    "deferred until after %s", quota_reset_at(),
+                )
+                quota_note = True
         elif text:
             totals["hydrated"] += 1
             source = candidate["payload"].get("description_source") or "sam_gov_noticedesc"
@@ -263,7 +279,7 @@ def run(limit: Optional[int], dry_run: bool, skip_embeddings: bool, state_file: 
             else:
                 done.add(str(candidate["id"]))
 
-        if quota_stop or len(batch) >= WRITE_BATCH or index == len(candidates):
+        if len(batch) >= WRITE_BATCH or index == len(candidates):
             if batch:
                 written = write_batch(client, batch, skip_embeddings)
                 for key, value in written.items():
@@ -275,22 +291,20 @@ def run(limit: Optional[int], dry_run: bool, skip_embeddings: bool, state_file: 
                 batch = []
             save_state(state_file, done)
             log.info(
-                "Progress %d/%d — hydrated=%d unavailable=%d vectors=%d errors=%d",
+                "Progress %d/%d — hydrated=%d unavailable=%d deferred=%d vectors=%d errors=%d",
                 index, len(candidates), totals["hydrated"], totals["unavailable"],
-                totals["vectors"], totals["errors"],
+                totals["deferred"], totals["vectors"], totals["errors"],
             )
-            if quota_stop:
-                break
 
     log.info(
-        "Backfill %s: hydrated=%d unavailable=%d payloads=%d vectors=%d errors=%d",
-        "paused (SAM.gov quota)" if quota_stop else "complete",
-        totals["hydrated"], totals["unavailable"], totals["payloads"],
-        totals["vectors"], totals["errors"],
+        "Backfill finished: hydrated=%d unavailable=%d deferred=%d payloads=%d "
+        "vectors=%d errors=%d",
+        totals["hydrated"], totals["unavailable"], totals["deferred"],
+        totals["payloads"], totals["vectors"], totals["errors"],
     )
     if totals["errors"]:
         return 2
-    return 3 if quota_stop else 0
+    return 3 if totals["deferred"] else 0
 
 
 def main() -> int:
