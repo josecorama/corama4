@@ -349,16 +349,53 @@ def _parse_sam_date(date_str: Optional[str]) -> Optional[str]:
         return None
 
 
-def _state_from_place(opp: Dict[str, Any]) -> str:
-    """Extract US state code from placeOfPerformance or officeAddress."""
-    pop = opp.get("placeOfPerformance") or {}
-    state_obj = pop.get("state") or {}
-    code = state_obj.get("code")
-    if code:
-        return code
+def _clean_city(value: Any) -> str:
+    """Drop placeholder city names and trailing state/ZIP noise SAM.gov mixes in."""
+    city = str(value or "").strip().strip(",")
+    if not city or city.upper() in ("0", "NA", "N/A", "NONE", "NULL", "UNKNOWN"):
+        return ""
+    # e.g. "Fort Harrison, MT 59636" -> "Fort Harrison"
+    return city.split(",")[0].strip()
 
+
+def resolve_location(opp: Dict[str, Any]) -> Dict[str, str]:
+    """Resolve city/state/ZIP from a single address, with its provenance.
+
+    Place of performance is what a bidder cares about, but SAM.gov leaves it out
+    of more than half the notices, in which case the contracting office address
+    is the only location available. Every field has to come from the *same*
+    address: resolving them one by one lets a notice end up with a city from the
+    place of performance and a state from the office.
+    """
+    pop = opp.get("placeOfPerformance") or {}
+    candidates = [
+        (
+            "place_of_performance",
+            _clean_city((pop.get("city") or {}).get("name")),
+            str((pop.get("state") or {}).get("code") or "").strip(),
+            str(pop.get("zip") or "").strip().split("-")[0],
+        ),
+    ]
     office = opp.get("officeAddress") or {}
-    return office.get("state", "")
+    candidates.append((
+        "contracting_office",
+        _clean_city(office.get("city")),
+        str(office.get("state") or "").strip(),
+        str(office.get("zipcode") or "").strip().split("-")[0],
+    ))
+
+    for source, city, state, zip_code in candidates:
+        if not state:
+            continue
+        return {
+            "city": city,
+            "state": state,
+            "zip_code": zip_code,
+            "location": f"{city}, {state}" if city else state,
+            "location_source": source,
+        }
+
+    return {"city": "", "state": "", "zip_code": "", "location": "", "location_source": ""}
 
 
 def _agency_hierarchy(opp: Dict[str, Any]) -> tuple:
@@ -367,47 +404,6 @@ def _agency_hierarchy(opp: Dict[str, Any]) -> tuple:
     parts = [p.strip() for p in full.split(".") if p.strip()]
     top = parts[0] if parts else ""
     return full, top
-
-
-def _location_label(opp: Dict[str, Any]) -> str:
-    """Build a 'City, ST' location string."""
-    pop = opp.get("placeOfPerformance") or {}
-    city_obj = pop.get("city") or {}
-    state_obj = pop.get("state") or {}
-    city = city_obj.get("name", "")
-    state = state_obj.get("code", "")
-    if city and state:
-        return f"{city}, {state}"
-    if state:
-        return state
-
-    office = opp.get("officeAddress") or {}
-    city = office.get("city", "")
-    state = office.get("state", "")
-    if city and state:
-        return f"{city}, {state}"
-    return state or ""
-
-
-def _city_from_place(opp: Dict[str, Any]) -> str:
-    """Extract city name from placeOfPerformance or officeAddress."""
-    pop = opp.get("placeOfPerformance") or {}
-    city_obj = pop.get("city") or {}
-    city = city_obj.get("name", "")
-    if city:
-        return city
-    office = opp.get("officeAddress") or {}
-    return office.get("city", "")
-
-
-def _zip_from_place(opp: Dict[str, Any]) -> str:
-    """Extract ZIP code from placeOfPerformance or officeAddress."""
-    pop = opp.get("placeOfPerformance") or {}
-    zip_code = pop.get("zip", "")
-    if zip_code:
-        return zip_code
-    office = opp.get("officeAddress") or {}
-    return office.get("zipcode", "").split("-")[0]
 
 
 def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
@@ -424,6 +420,7 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
 
     detail_url = opp.get("uiLink") or ""
     sol_number = opp.get("solicitationNumber") or ""
+    location = resolve_location(opp)
 
     return {
         "source": "SAM.gov",
@@ -436,10 +433,11 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
         "description": "" if _is_url(opp.get("description")) else (opp.get("description") or "")[:DESCRIPTION_MAX_CHARS],
         "agency": agency_full,
         "agency_top": agency_top,
-        "location": _location_label(opp),
-        "state": _state_from_place(opp),
-        "city": _city_from_place(opp),
-        "zip_code": _zip_from_place(opp),
+        "location": location["location"],
+        "state": location["state"],
+        "city": location["city"],
+        "zip_code": location["zip_code"],
+        "location_source": location["location_source"],
         "contract_number": sol_number,
         "posted_date": posted_date,
         "due_date": due_date,
