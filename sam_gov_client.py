@@ -40,6 +40,12 @@ SAM_GOV_BULK_CSV_URL = (
     "datagov/ContractOpportunitiesFullCSV.csv"
 )
 
+# Same schema, one file per fiscal year, for notices already archived.
+SAM_GOV_ARCHIVE_CSV_URL = (
+    "https://falextracts.s3.amazonaws.com/Contract%20Opportunities/"
+    "Archived%20Data/FY{fiscal_year}_archived_opportunities.csv"
+)
+
 # Downloading ~250 MB only pays off past a few notices; below this the metered
 # per-notice endpoint is cheaper.
 BULK_CSV_MIN_NOTICES = 5
@@ -161,8 +167,14 @@ def fetch_notice_description(notice_id: str, max_chars: int = DESCRIPTION_MAX_CH
     return text[:max_chars] if len(text) > max_chars else text
 
 
-def _download_bulk_csv() -> str:
-    """Download the bulk CSV to disk, reusing today's copy. '' on failure.
+def _fiscal_year(when: Optional[date] = None) -> int:
+    """US federal fiscal year, which starts on October 1st."""
+    when = when or date.today()
+    return when.year + 1 if when.month >= 10 else when.year
+
+
+def _download_bulk_csv(url: str, name: str) -> str:
+    """Download a bulk CSV to disk, reusing today's copy. '' on failure.
 
     Streaming it straight into the parser is fragile at this size (a dropped
     connection silently truncates the data and every unseen notice would look
@@ -170,17 +182,17 @@ def _download_bulk_csv() -> str:
     checked first.
     """
     cache_dir = os.getenv("SAM_GOV_BULK_CACHE_DIR") or tempfile.gettempdir()
-    path = os.path.join(cache_dir, "sam_contract_opportunities.csv")
+    path = os.path.join(cache_dir, name)
     if os.path.exists(path) and time.time() - os.path.getmtime(path) < BULK_CSV_CACHE_TTL_S:
         log.info("[SAM.gov] Reusing cached bulk CSV at %s", path)
         return path
 
     tmp = f"{path}.part"
     try:
-        with requests.get(SAM_GOV_BULK_CSV_URL, stream=True, timeout=(30, 300)) as resp:
+        with requests.get(url, stream=True, timeout=(30, 300)) as resp:
             resp.raise_for_status()
             expected = int(resp.headers.get("Content-Length") or 0)
-            log.info("[SAM.gov] Downloading bulk opportunities CSV (%d MB)", expected // (1024 * 1024))
+            log.info("[SAM.gov] Downloading %s (%d MB)", name, expected // (1024 * 1024))
             with open(tmp, "wb") as fh:
                 for chunk in resp.iter_content(chunk_size=1024 * 1024):
                     fh.write(chunk)
@@ -199,40 +211,49 @@ def _download_bulk_csv() -> str:
 def fetch_bulk_descriptions(
     notice_ids: Iterable[str],
     max_chars: int = DESCRIPTION_MAX_CHARS,
+    include_archived: bool = True,
 ) -> Dict[str, str]:
-    """Look up descriptions for many notices in the daily bulk CSV.
+    """Look up descriptions for many notices in SAM.gov's bulk CSV dumps.
 
     The per-notice endpoint is capped at as few as 10 requests/day, which makes
-    it useless at collection scale; this dump is unmetered. It only carries
-    *active* opportunities, so archived notices come back missing and the caller
-    can fall back to the API for those.
-
-    The CSV is streamed and only the requested notices are kept in memory.
+    it useless at collection scale; these dumps are unmetered. Active
+    opportunities come from the daily file; anything still missing is looked up
+    in the archives of the current and previous fiscal year.
     """
     wanted: Set[str] = {str(n) for n in notice_ids if n}
     if not wanted:
         return {}
 
+    sources = [(SAM_GOV_BULK_CSV_URL, "sam_opportunities_active.csv")]
+    if include_archived:
+        fiscal_year = _fiscal_year()
+        sources += [
+            (SAM_GOV_ARCHIVE_CSV_URL.format(fiscal_year=year),
+             f"sam_opportunities_archived_fy{year}.csv")
+            for year in (fiscal_year, fiscal_year - 1)
+        ]
+
     found: Dict[str, str] = {}
-    path = _download_bulk_csv()
-    if not path:
-        return found
+    for url, name in sources:
+        missing = wanted - found.keys()
+        if not missing:
+            break
+        path = _download_bulk_csv(url, name)
+        if not path:
+            continue
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace", newline="") as fh:
+                for row in csv.DictReader(fh):
+                    notice_id = (row.get("NoticeId") or "").strip()
+                    if notice_id not in missing or notice_id in found:
+                        continue
+                    text = strip_html(row.get("Description") or "")
+                    if text:
+                        found[notice_id] = text[:max_chars]
+        except Exception as e:
+            log.error("[SAM.gov] Parsing %s failed: %s", name, e)
+        log.info("[SAM.gov] %s: %d/%d descriptions found so far", name, len(found), len(wanted))
 
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace", newline="") as fh:
-            for row in csv.DictReader(fh):
-                notice_id = (row.get("NoticeId") or "").strip()
-                if notice_id not in wanted or notice_id in found:
-                    continue
-                text = strip_html(row.get("Description") or "")
-                if text:
-                    found[notice_id] = text[:max_chars]
-                if len(found) == len(wanted):
-                    break
-    except Exception as e:
-        log.error("[SAM.gov] Bulk CSV parsing failed: %s", e)
-
-    log.info("[SAM.gov] Bulk CSV supplied %d/%d descriptions", len(found), len(wanted))
     return found
 
 
@@ -269,7 +290,11 @@ def hydrate_descriptions(
 
     bulk: Dict[str, str] = {}
     if use_bulk_csv and len(pending) >= BULK_CSV_MIN_NOTICES:
-        bulk = fetch_bulk_descriptions(notice_id for _, notice_id in pending)
+        # Ingestion only sees freshly posted notices, so the (much larger)
+        # fiscal-year archives are not worth downloading here.
+        bulk = fetch_bulk_descriptions(
+            (notice_id for _, notice_id in pending), include_archived=False
+        )
 
     for index, (payload, notice_id) in enumerate(pending, start=1):
         stats["attempted"] += 1
