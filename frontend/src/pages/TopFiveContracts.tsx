@@ -142,7 +142,7 @@ const printStyles = `
 const TrophyBackgroundIcon = '/static/app/dashboard/TrophyBackground.svg'
 const ContractSiteIcon = '/static/app/dashboard/ContractSite.svg'
 const AskAIIcon = '/static/app/dashboard/AskAI.svg'
-const SortByIcon = '/static/app/dashboard/SortBy.svg'
+const FilterIcon = '/static/app/dashboard/Location.svg'
 const PrintResultsIcon = '/static/app/dashboard/GeneratePDF.svg'
 
 interface ContractMatch {
@@ -523,7 +523,7 @@ const TopFiveContracts = () => {
                     onClick={() => setIsFilterOpen(true)}
                     className="hover:opacity-90 transition-opacity"
                   >
-                    <img src={SortByIcon} alt="Sort By" className="h-10 lg:h-12" />
+                    <img src={FilterIcon} alt="Filter" className="h-6 w-6 lg:h-7 lg:w-7" />
                   </button>
                 </div>
               </div>
