@@ -13,20 +13,44 @@ Rate-limit compliance:
 API docs: https://open.gsa.gov/api/get-opportunities-public-api/
 """
 
+import csv
 import os
+import re
 import time
 import random
 import logging
 import hashlib
+import tempfile
 import uuid
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Iterable, Optional, Set
 
 import requests
 
 log = logging.getLogger(__name__)
 
 SAM_GOV_API_BASE = "https://api.sam.gov/opportunities/v2/search"
+SAM_GOV_NOTICE_DESC_BASE = "https://api.sam.gov/prod/opportunities/v1/noticedesc"
+
+# Daily dump of every active opportunity, description text included. Needs no
+# API key and doesn't touch the daily request quota, so it is the only viable
+# source for more than a handful of descriptions.
+SAM_GOV_BULK_CSV_URL = (
+    "https://falextracts.s3.amazonaws.com/Contract%20Opportunities/"
+    "datagov/ContractOpportunitiesFullCSV.csv"
+)
+
+# Same schema, one file per fiscal year, for notices already archived.
+SAM_GOV_ARCHIVE_CSV_URL = (
+    "https://falextracts.s3.amazonaws.com/Contract%20Opportunities/"
+    "Archived%20Data/FY{fiscal_year}_archived_opportunities.csv"
+)
+
+# Downloading ~250 MB only pays off past a few notices; below this the metered
+# per-notice endpoint is cheaper.
+BULK_CSV_MIN_NOTICES = 5
+# The dump is regenerated once a day, early UTC.
+BULK_CSV_CACHE_TTL_S = 6 * 3600
 
 # SAM.gov ptype codes for actionable bidding opportunities
 # p = Presolicitation, k = Combined Synopsis/Solicitation, o = Solicitation
@@ -36,13 +60,280 @@ ACTIVE_PTYPE_CODES = "p,k,o,r,s"
 # Throttling defaults
 DEFAULT_PAGE_SIZE = 500
 MIN_PAGE_INTERVAL_S = 0.5          # seconds between pages (~120 req/min)
+MIN_DESC_INTERVAL_S = 0.1          # seconds between description calls (~600 req/min)
 MAX_RETRIES = 5
 INITIAL_BACKOFF_S = 2.0
 MAX_BACKOFF_S = 60.0
 
+# Descriptions feed both the embedding and the AI context, so keep them long
+# enough to carry the scope of work without blowing up payload size.
+DESCRIPTION_MAX_CHARS = 6000
+
 
 def _get_api_key() -> Optional[str]:
     return os.getenv("SAM_GOV_API_KEY")
+
+
+# Set when SAM.gov reports the daily request quota is spent, so every later
+# call in the process short-circuits instead of sleeping through retries.
+_QUOTA_STATE: Dict[str, Any] = {"reset_at": None}
+
+
+def quota_exhausted() -> bool:
+    """True once SAM.gov has reported the daily request quota as spent."""
+    return _QUOTA_STATE["reset_at"] is not None
+
+
+def quota_reset_at() -> Optional[str]:
+    """SAM.gov's reported reset time for the daily quota, if it was hit."""
+    return _QUOTA_STATE["reset_at"]
+
+
+def _note_quota_exhaustion(resp: "requests.Response") -> bool:
+    """Record a spent daily quota from a 429 response. True when that's the case."""
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    if str(body.get("code")) != "900804" and "quota" not in str(body.get("description", "")).lower():
+        return False
+    _QUOTA_STATE["reset_at"] = body.get("nextAccessTime") or "unknown"
+    log.error(
+        "[SAM.gov] Daily request quota exhausted — resets at %s",
+        _QUOTA_STATE["reset_at"],
+    )
+    return True
+
+
+def _scrub_key(value: Any) -> str:
+    """Mask the API key in text that may echo a request URL back into the logs."""
+    return re.sub(r"(api_key=)[^&\s]+", r"\1***", str(value))
+
+
+def _is_url(value: Any) -> bool:
+    """True when a value is a bare URL rather than descriptive text."""
+    return isinstance(value, str) and value.strip().lower().startswith(("http://", "https://"))
+
+
+def strip_html(html: str) -> str:
+    """Turn a SAM.gov HTML description into single-spaced plain text."""
+    if not html:
+        return ""
+    text = re.sub(r"<(script|style)[^>]*>.*?</\1>", " ", html, flags=re.S | re.I)
+    text = re.sub(r"<br\s*/?>|</p>|</div>|</li>", "\n", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    replacements = {
+        "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">",
+        "&quot;": '"', "&#39;": "'", "&rsquo;": "'", "&ldquo;": '"', "&rdquo;": '"',
+    }
+    for entity, char in replacements.items():
+        text = text.replace(entity, char)
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n\s*\n+", "\n", text)
+    return text.strip()
+
+
+def notice_id_from_description_url(url: str) -> str:
+    """Extract the ``noticeid`` query parameter from a SAM.gov description URL."""
+    if not url:
+        return ""
+    match = re.search(r"noticeid=([0-9a-zA-Z]+)", str(url))
+    return match.group(1) if match else ""
+
+
+def fetch_notice_description(notice_id: str, max_chars: int = DESCRIPTION_MAX_CHARS) -> str:
+    """Fetch the full text of a SAM.gov notice description.
+
+    The search API only returns a link to the description, so the actual scope
+    of work has to be fetched per notice. Returns "" on any failure, which
+    leaves the caller free to keep whatever it already had.
+    """
+    if not notice_id or quota_exhausted():
+        return ""
+
+    api_key = _get_api_key()
+    if not api_key:
+        log.error("[SAM.gov] SAM_GOV_API_KEY not configured — cannot fetch descriptions")
+        return ""
+
+    data = _request_with_backoff(
+        SAM_GOV_NOTICE_DESC_BASE,
+        {"api_key": api_key, "noticeid": notice_id},
+    )
+    if not data:
+        return ""
+
+    text = strip_html(data.get("description") or "")
+    return text[:max_chars] if len(text) > max_chars else text
+
+
+def _fiscal_year(when: Optional[date] = None) -> int:
+    """US federal fiscal year, which starts on October 1st."""
+    when = when or date.today()
+    return when.year + 1 if when.month >= 10 else when.year
+
+
+def _download_bulk_csv(url: str, name: str) -> str:
+    """Download a bulk CSV to disk, reusing today's copy. '' on failure.
+
+    Streaming it straight into the parser is fragile at this size (a dropped
+    connection silently truncates the data and every unseen notice would look
+    like it has no description), so the file is fetched whole and its length
+    checked first.
+    """
+    cache_dir = os.getenv("SAM_GOV_BULK_CACHE_DIR") or tempfile.gettempdir()
+    path = os.path.join(cache_dir, name)
+    if os.path.exists(path) and time.time() - os.path.getmtime(path) < BULK_CSV_CACHE_TTL_S:
+        log.info("[SAM.gov] Reusing cached bulk CSV at %s", path)
+        return path
+
+    tmp = f"{path}.part"
+    try:
+        with requests.get(url, stream=True, timeout=(30, 300)) as resp:
+            resp.raise_for_status()
+            expected = int(resp.headers.get("Content-Length") or 0)
+            log.info("[SAM.gov] Downloading %s (%d MB)", name, expected // (1024 * 1024))
+            with open(tmp, "wb") as fh:
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    fh.write(chunk)
+        written = os.path.getsize(tmp)
+        if expected and written < expected:
+            raise IOError(f"truncated download: {written} of {expected} bytes")
+        os.replace(tmp, path)
+        return path
+    except Exception as e:
+        log.error("[SAM.gov] Bulk CSV download failed: %s", e)
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        return ""
+
+
+def fetch_bulk_descriptions(
+    notice_ids: Iterable[str],
+    max_chars: int = DESCRIPTION_MAX_CHARS,
+    include_archived: bool = True,
+) -> Dict[str, str]:
+    """Look up descriptions for many notices in SAM.gov's bulk CSV dumps.
+
+    The per-notice endpoint is capped at as few as 10 requests/day, which makes
+    it useless at collection scale; these dumps are unmetered. Active
+    opportunities come from the daily file; anything still missing is looked up
+    in the archives of the current and previous fiscal year.
+    """
+    wanted: Set[str] = {str(n) for n in notice_ids if n}
+    if not wanted:
+        return {}
+
+    sources = [(SAM_GOV_BULK_CSV_URL, "sam_opportunities_active.csv")]
+    if include_archived:
+        fiscal_year = _fiscal_year()
+        sources += [
+            (SAM_GOV_ARCHIVE_CSV_URL.format(fiscal_year=year),
+             f"sam_opportunities_archived_fy{year}.csv")
+            for year in (fiscal_year, fiscal_year - 1)
+        ]
+
+    found: Dict[str, str] = {}
+    for url, name in sources:
+        missing = wanted - found.keys()
+        if not missing:
+            break
+        path = _download_bulk_csv(url, name)
+        if not path:
+            continue
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace", newline="") as fh:
+                for row in csv.DictReader(fh):
+                    notice_id = (row.get("NoticeId") or "").strip()
+                    if notice_id not in missing or notice_id in found:
+                        continue
+                    text = strip_html(row.get("Description") or "")
+                    if text:
+                        found[notice_id] = text[:max_chars]
+        except Exception as e:
+            log.error("[SAM.gov] Parsing %s failed: %s", name, e)
+        log.info("[SAM.gov] %s: %d/%d descriptions found so far", name, len(found), len(wanted))
+
+    return found
+
+
+def hydrate_descriptions(
+    payloads: List[Dict[str, Any]],
+    progress_every: int = 100,
+    use_bulk_csv: bool = True,
+) -> Dict[str, int]:
+    """Replace missing descriptions with the real notice text, in place.
+
+    ``map_opportunity_to_payload`` cannot do this itself: it would mean one HTTP
+    call per opportunity while paginating. Hydrating after deduplication keeps
+    the call count down to the contracts actually being ingested.
+
+    Returns stats: attempted, hydrated, failed.
+    """
+    stats = {"attempted": 0, "hydrated": 0, "failed": 0, "from_bulk": 0}
+    if not payloads:
+        return stats
+
+    pending: List[Any] = []
+    for payload in payloads:
+        current = payload.get("description")
+        if current and not _is_url(current):
+            continue
+        notice_id = payload.get("sam_notice_id") or notice_id_from_description_url(
+            payload.get("sam_description_url") or current
+        )
+        if notice_id:
+            pending.append((payload, notice_id))
+
+    if not pending:
+        return stats
+
+    bulk: Dict[str, str] = {}
+    if use_bulk_csv and len(pending) >= BULK_CSV_MIN_NOTICES:
+        # Ingestion only sees freshly posted notices, so the (much larger)
+        # fiscal-year archives are not worth downloading here.
+        bulk = fetch_bulk_descriptions(
+            (notice_id for _, notice_id in pending), include_archived=False
+        )
+
+    for index, (payload, notice_id) in enumerate(pending, start=1):
+        stats["attempted"] += 1
+
+        text = bulk.get(notice_id, "")
+        if text:
+            stats["from_bulk"] += 1
+        else:
+            if stats["attempted"] - stats["from_bulk"] > 1:
+                time.sleep(MIN_DESC_INTERVAL_S)
+            text = fetch_notice_description(notice_id)
+
+        if text:
+            payload["description"] = text
+            stats["hydrated"] += 1
+        elif quota_exhausted():
+            # Quota, not a bad notice: keep the URL so a later run can retry.
+            log.warning("[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
+                        index, len(pending))
+            stats["attempted"] -= 1
+            break
+        else:
+            # Never leave a URL behind: it would be embedded as if it were text.
+            if _is_url(payload.get("description")):
+                payload["description"] = ""
+            stats["failed"] += 1
+
+        if progress_every and index % progress_every == 0:
+            log.info(
+                "[SAM.gov] Description hydration: %d/%d processed (%d hydrated, %d failed)",
+                index, len(pending), stats["hydrated"], stats["failed"],
+            )
+
+    log.info(
+        "[SAM.gov] Description hydration complete: attempted=%d hydrated=%d "
+        "(%d from bulk CSV) failed=%d",
+        stats["attempted"], stats["hydrated"], stats["from_bulk"], stats["failed"],
+    )
+    return stats
 
 
 def _parse_sam_date(date_str: Optional[str]) -> Optional[str]:
@@ -58,16 +349,53 @@ def _parse_sam_date(date_str: Optional[str]) -> Optional[str]:
         return None
 
 
-def _state_from_place(opp: Dict[str, Any]) -> str:
-    """Extract US state code from placeOfPerformance or officeAddress."""
-    pop = opp.get("placeOfPerformance") or {}
-    state_obj = pop.get("state") or {}
-    code = state_obj.get("code")
-    if code:
-        return code
+def _clean_city(value: Any) -> str:
+    """Drop placeholder city names and trailing state/ZIP noise SAM.gov mixes in."""
+    city = str(value or "").strip().strip(",")
+    if not city or city.upper() in ("0", "NA", "N/A", "NONE", "NULL", "UNKNOWN"):
+        return ""
+    # e.g. "Fort Harrison, MT 59636" -> "Fort Harrison"
+    return city.split(",")[0].strip()
 
+
+def resolve_location(opp: Dict[str, Any]) -> Dict[str, str]:
+    """Resolve city/state/ZIP from a single address, with its provenance.
+
+    Place of performance is what a bidder cares about, but SAM.gov leaves it out
+    of more than half the notices, in which case the contracting office address
+    is the only location available. Every field has to come from the *same*
+    address: resolving them one by one lets a notice end up with a city from the
+    place of performance and a state from the office.
+    """
+    pop = opp.get("placeOfPerformance") or {}
+    candidates = [
+        (
+            "place_of_performance",
+            _clean_city((pop.get("city") or {}).get("name")),
+            str((pop.get("state") or {}).get("code") or "").strip(),
+            str(pop.get("zip") or "").strip().split("-")[0],
+        ),
+    ]
     office = opp.get("officeAddress") or {}
-    return office.get("state", "")
+    candidates.append((
+        "contracting_office",
+        _clean_city(office.get("city")),
+        str(office.get("state") or "").strip(),
+        str(office.get("zipcode") or "").strip().split("-")[0],
+    ))
+
+    for source, city, state, zip_code in candidates:
+        if not state:
+            continue
+        return {
+            "city": city,
+            "state": state,
+            "zip_code": zip_code,
+            "location": f"{city}, {state}" if city else state,
+            "location_source": source,
+        }
+
+    return {"city": "", "state": "", "zip_code": "", "location": "", "location_source": ""}
 
 
 def _agency_hierarchy(opp: Dict[str, Any]) -> tuple:
@@ -76,47 +404,6 @@ def _agency_hierarchy(opp: Dict[str, Any]) -> tuple:
     parts = [p.strip() for p in full.split(".") if p.strip()]
     top = parts[0] if parts else ""
     return full, top
-
-
-def _location_label(opp: Dict[str, Any]) -> str:
-    """Build a 'City, ST' location string."""
-    pop = opp.get("placeOfPerformance") or {}
-    city_obj = pop.get("city") or {}
-    state_obj = pop.get("state") or {}
-    city = city_obj.get("name", "")
-    state = state_obj.get("code", "")
-    if city and state:
-        return f"{city}, {state}"
-    if state:
-        return state
-
-    office = opp.get("officeAddress") or {}
-    city = office.get("city", "")
-    state = office.get("state", "")
-    if city and state:
-        return f"{city}, {state}"
-    return state or ""
-
-
-def _city_from_place(opp: Dict[str, Any]) -> str:
-    """Extract city name from placeOfPerformance or officeAddress."""
-    pop = opp.get("placeOfPerformance") or {}
-    city_obj = pop.get("city") or {}
-    city = city_obj.get("name", "")
-    if city:
-        return city
-    office = opp.get("officeAddress") or {}
-    return office.get("city", "")
-
-
-def _zip_from_place(opp: Dict[str, Any]) -> str:
-    """Extract ZIP code from placeOfPerformance or officeAddress."""
-    pop = opp.get("placeOfPerformance") or {}
-    zip_code = pop.get("zip", "")
-    if zip_code:
-        return zip_code
-    office = opp.get("officeAddress") or {}
-    return office.get("zipcode", "").split("-")[0]
 
 
 def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
@@ -133,19 +420,24 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
 
     detail_url = opp.get("uiLink") or ""
     sol_number = opp.get("solicitationNumber") or ""
+    location = resolve_location(opp)
 
     return {
         "source": "SAM.gov",
         "source_url": detail_url,
         "detail_url": detail_url,
         "title": opp.get("title", ""),
-        "description": (opp.get("description") or "")[:1000],
+        # The search API returns a *link* to the description, never the text.
+        # It is hydrated by hydrate_descriptions(); keep the field empty rather
+        # than storing the URL, which would poison embeddings and AI context.
+        "description": "" if _is_url(opp.get("description")) else (opp.get("description") or "")[:DESCRIPTION_MAX_CHARS],
         "agency": agency_full,
         "agency_top": agency_top,
-        "location": _location_label(opp),
-        "state": _state_from_place(opp),
-        "city": _city_from_place(opp),
-        "zip_code": _zip_from_place(opp),
+        "location": location["location"],
+        "state": location["state"],
+        "city": location["city"],
+        "zip_code": location["zip_code"],
+        "location_source": location["location_source"],
         "contract_number": sol_number,
         "posted_date": posted_date,
         "due_date": due_date,
@@ -179,6 +471,12 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             resp = requests.get(url, params=params, timeout=60)
 
             if resp.status_code == 429:
+                # A blown daily quota is not a transient burst: SAM.gov reports
+                # code 900804 with the reset time and retrying only wastes
+                # minutes sleeping, so give up for the rest of the day.
+                if _note_quota_exhaustion(resp):
+                    return None
+
                 retry_after_raw = resp.headers.get("Retry-After", str(int(backoff)))
                 try:
                     retry_after = int(retry_after_raw)
@@ -230,7 +528,7 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             backoff = min(backoff * 2, MAX_BACKOFF_S)
 
         except requests.RequestException as e:
-            log.error("[SAM.gov] Non-retryable request error: %s", e)
+            log.error("[SAM.gov] Non-retryable request error: %s", _scrub_key(e))
             return None
 
     log.error("[SAM.gov] Exhausted %d retries — giving up on request", MAX_RETRIES)

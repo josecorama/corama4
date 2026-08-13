@@ -206,8 +206,6 @@ const buildInitialMessage = (contractName: string): string => {
 
 ${tFunc('readyToBuildProposal')}
 
-${tFunc('typeStartProposal')}
-
 *${tFunc('typeQuickDraft')}*`
 }
 

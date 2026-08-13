@@ -20,7 +20,11 @@ from typing import List, Dict, Any, Optional, Tuple
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
 
-from sam_gov_client import fetch_opportunities, map_opportunity_to_payload
+from sam_gov_client import (
+    fetch_opportunities,
+    map_opportunity_to_payload,
+    hydrate_descriptions,
+)
 
 log = logging.getLogger(__name__)
 
@@ -346,9 +350,13 @@ def fetch_new_payloads(
         if skip_existing and nid in existing:
             skipped += 1
             continue
-        new_payloads.append(_enrich_category(payload))
+        new_payloads.append(payload)
 
-    return new_payloads, fetched, skipped
+    # Fetch the real notice text before categorizing: the search API only gives
+    # a link, and both the category keywords and the embedding need the words.
+    hydrate_descriptions(new_payloads)
+
+    return [_enrich_category(p) for p in new_payloads], fetched, skipped
 
 
 def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -368,6 +376,10 @@ def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
     if not client:
         stats["errors"] = len(payloads)
         return stats
+
+    # No-op for payloads already hydrated by fetch_new_payloads; protects the
+    # approval flow, where payloads may have been serialized before hydration.
+    hydrate_descriptions(payloads)
 
     try:
         info = client.get_collection(COLLECTION_NAME)
