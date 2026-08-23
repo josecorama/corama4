@@ -1175,8 +1175,6 @@ class CorporatePDF(_TemplatePDF):
         if snapshot_values:
             right_y = self._section_title("Corporate Snapshot", right_x, right_y, col_w, self.primary_color) + 2
             self.set_font("Helvetica", "", 7.2)
-            content_lines = len(snapshot_lines) or 1
-            badge_h = 13 if self.data.get("certifications") else 0
             snapshot_h = min(snapshot_h, max(1, bottom - right_y))
             self.set_fill_color(*LIGHT_GRAY)
             self.rect(right_x, right_y, col_w, snapshot_h, "F")
