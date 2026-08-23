@@ -19,6 +19,7 @@ def summarize_contract(c: Dict[str, Any]) -> Dict[str, str]:
         naics = ", ".join(str(x) for x in naics)
     return {
         "title": str(c.get("title", "") or "Untitled"),
+        "source": str(c.get("source", "") or "Unknown source"),
         "agency": str(c.get("agency", "") or "Unknown agency"),
         "category": str(c.get("category", "") or "Uncategorized"),
         "state": str(c.get("state", "") or c.get("location", "") or ""),
@@ -46,7 +47,7 @@ def _rows(contracts: List[Dict[str, Any]]) -> str:
         title = html.escape(c["title"])
         url = html.escape(c["url"])
         title_cell = f'<a href="{url}">{title}</a>' if url else title
-        cells = [title_cell, html.escape(c["agency"]), html.escape(c["category"]),
+        cells = [title_cell, html.escape(c["source"]), html.escape(c["agency"]), html.escape(c["category"]),
                  html.escape(c["state"]), html.escape(c["naics"]), html.escape(c["due_date"])]
         tds = "".join(
             f"<td style='padding:6px 10px;border-bottom:1px solid #eee'>{v}</td>" for v in cells
@@ -60,7 +61,7 @@ def _table(contracts: List[Dict[str, Any]], empty_msg: str) -> str:
         return f"<p>{empty_msg}</p>"
     head = "".join(
         f"<th style='padding:8px 10px'>{h}</th>"
-        for h in ("Contract", "Agency", "Category", "State", "NAICS", "Due date")
+        for h in ("Contract", "Source", "Agency", "Category", "State", "NAICS", "Due date")
     )
     return (
         "<table style='border-collapse:collapse;width:100%;font-size:14px'>"
@@ -71,13 +72,15 @@ def _table(contracts: List[Dict[str, Any]], empty_msg: str) -> str:
 
 def build_preview_html(contracts: List[Dict[str, Any]], confirm_url: str, reject_url: str) -> str:
     contracts = dedupe(contracts)
+    sources = sorted({str(c.get("source") or "Unknown source") for c in contracts})
+    source_label = " + ".join(sources)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     btn = "display:inline-block;padding:12px 24px;border-radius:6px;color:#fff;text-decoration:none;font-weight:bold;font-size:15px"
     return f"""\
 <html><body style="font-family:Arial,Helvetica,sans-serif;color:#222">
   <h2 style="color:{TEAL}">Corama — Contract Ingestion Approval</h2>
   <p style="color:#666">{now}</p>
-  <p><b>{len(contracts)}</b> new contract(s) are ready to ingest. Review the list below,
+  <p><b>{len(contracts)}</b> new contract(s) from <b>{html.escape(source_label)}</b> are ready to ingest. Review the list below,
   then approve or reject. Nothing is added to the system until you click <b>Confirm</b>.</p>
   <p style="margin:24px 0">
     <a href="{html.escape(confirm_url)}" style="{btn};background:{TEAL};margin-right:12px">✓ Confirm &amp; ingest</a>
@@ -92,6 +95,8 @@ def build_preview_html(contracts: List[Dict[str, Any]], confirm_url: str, reject
 
 def build_result_html(stats: Dict[str, Any], title: str = "Daily Contract Ingestion") -> str:
     added = dedupe(stats.get("added_contracts", []))
+    sources = sorted({str(c.get("source") or "Unknown source") for c in added})
+    source_label = " + ".join(sources)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     warn = ""
     if stats.get("used_placeholder_vectors"):
@@ -116,6 +121,7 @@ def build_result_html(stats: Dict[str, Any], title: str = "Daily Contract Ingest
 <html><body style="font-family:Arial,Helvetica,sans-serif;color:#222">
   <h2 style="color:{TEAL}">Corama — {html.escape(title)}</h2>
   <p style="color:#666">{now}</p>
+  {f'<p>Sources: <b>{html.escape(source_label)}</b></p>' if source_label else ''}
   {warn}
   <table style="font-size:14px;margin:12px 0">{summary}</table>
   <h3 style="color:{TEAL}">Newly added contracts ({len(added)})</h3>

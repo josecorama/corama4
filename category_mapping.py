@@ -252,6 +252,14 @@ def parse_naics_codes(naics_raw):
     """
     if not naics_raw:
         return []
+
+    if isinstance(naics_raw, (list, tuple, set)):
+        valid_codes = []
+        for value in naics_raw:
+            code = str(value).strip()
+            if code and code.isdigit() and 4 <= len(code) <= 6 and code not in valid_codes:
+                valid_codes.append(code)
+        return valid_codes
     
     naics_str = str(naics_raw).strip()
     if not naics_str or naics_str.lower() in ('nan', 'none', 'null', ''):
@@ -391,7 +399,10 @@ def map_payload_to_category(payload):
         return 'Commodities, Equipment & Logistics'
     
     # 1. Try NAICS code mapping first (most reliable)
-    naics_raw = payload.get('naics_code') or payload.get('NAICS') or ''
+    naics_raw = (
+        payload.get('naics_code') or payload.get('NAICS') or
+        payload.get('naics_codes') or payload.get('NAICS_Codes') or ''
+    )
     codes = parse_naics_codes(naics_raw)
     
     for code in codes:
