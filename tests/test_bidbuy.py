@@ -5,6 +5,7 @@ from datetime import datetime
 
 from bidbuy_client import (
     DESCRIPTION_MAX_CHARS,
+    bidbuy_filter_reason,
     is_actionable_bid,
     map_bid_to_payload,
     parse_bidbuy_date,
@@ -83,7 +84,8 @@ def test_detail_fixture_maps_to_canonical_payload():
     assert payload["naics_codes"]
     assert payload["bidbuy_naics_source"] == "crosswalk_class"
     assert payload["opportunity_type"] == "emergency"
-    assert payload["bidbuy_actionable"] is True
+    assert payload["bidbuy_actionable"] is False
+    assert payload["bidbuy_filter_reason"] == "final_cost_or_award"
     assert payload["bidbuy_type_code"] == "40 - Emergency"
     assert payload["bidbuy_bid_type"] == "OPEN"
     assert payload["document_urls"][0].startswith("https://")
@@ -154,3 +156,33 @@ def test_filtered_fixture_type_is_marked_non_actionable():
     payload = map_bid_to_payload(detail)
     assert payload["bidbuy_actionable"] is False
     assert payload["bidbuy_filter_reason"] == "final_cost_or_award"
+
+
+def test_title_filters_real_final_cost_emergency_notice():
+    detail = parse_detail_html(
+        (FIXTURES / "bidbuy_detail_27-406AGR-ADMIN-B-53800.html").read_text(
+            encoding="utf-8"
+        ),
+        doc_id="27-406AGR-ADMIN-B-53800",
+    )
+    detail["Type Code"] = "40 - Emergency"
+    assert is_actionable_bid(detail) is False
+    assert map_bid_to_payload(detail)["bidbuy_filter_reason"] == "final_cost_or_award"
+
+
+def test_title_filters_award_notice_lease():
+    detail = {
+        "Type Code": "97 - Non RFI/Alt RFI (Facilities Leasing)",
+        "Description": "DNR Lease DNRL2026 Award Notice - real property lease",
+    }
+    assert is_actionable_bid(detail) is False
+    assert bidbuy_filter_reason(detail) == "final_cost_or_award"
+
+
+def test_title_keeps_awards_banquet_small_purchase():
+    detail = {
+        "Type Code": "95 - Small Purchase",
+        "Description": "FY27 TWE & TOY Awards Banquet",
+    }
+    assert is_actionable_bid(detail) is True
+    assert bidbuy_filter_reason(detail) is None

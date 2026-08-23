@@ -436,6 +436,15 @@ def bidbuy_filter_reason(detail: Dict[str, Any]) -> Optional[str]:
         return "amendment_or_change_order"
     if re.search(r"\bexempt(?:\s+notice)?\b", normalized):
         return "exempt_notice"
+    title = _text(detail.get("Description") or detail.get("title"))
+    title = re.sub(r"[_/:-]+", " ", title.lower())
+    title = re.sub(r"\s+", " ", title).strip()
+    if re.search(r"\bfinal\s*cost\b|\baward\s+notice\b", title):
+        return "final_cost_or_award"
+    if re.search(r"\bamendment\b|\bchange\s*order\b", title):
+        return "amendment_or_change_order"
+    if re.search(r"\bexempt\s+notice\b", title):
+        return "exempt_notice"
     return None
 
 
