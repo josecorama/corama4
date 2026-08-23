@@ -27,7 +27,6 @@ from qdrant_client.models import (
     Filter,
     FieldCondition,
     MatchValue,
-    Range,
     PayloadSchemaType,
 )
 
@@ -179,8 +178,8 @@ def normalize_payload_for_dashboard(payload: Dict[str, Any], point_id: int) -> D
                 "%Y-%m-%d",
                 "%Y-%m-%dT%H:%M:%S",
                 "%Y-%m-%dT%H:%M:%SZ",
-                "%m/%d/%Y",
                 "%d/%m/%Y",
+                "%m/%d/%Y",
                 "%B %d, %Y",
             ]
             for fmt in formats:
