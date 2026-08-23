@@ -58,7 +58,7 @@ def _deterministic_uuid(notice_id: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"sam.gov:{notice_id}"))
 
 
-def _deterministic_bidbuy_uuid(doc_id: str) -> str:
+def deterministic_bidbuy_uuid(doc_id: str) -> str:
     """Generate the stable point ID used for BidBuy records."""
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"bidbuy.illinois.gov:{doc_id}"))
 
@@ -399,7 +399,7 @@ def ingest_payloads(
 
     if point_id_func is None:
         point_id_func = lambda p: (
-            _deterministic_bidbuy_uuid(p.get("bidbuy_doc_id"))
+            deterministic_bidbuy_uuid(p.get("bidbuy_doc_id"))
             if p.get("bidbuy_doc_id") else (
                 _deterministic_uuid(p.get("sam_notice_id"))
                 if p.get("sam_notice_id") else str(uuid.uuid4())

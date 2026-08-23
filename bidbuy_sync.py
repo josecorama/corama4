@@ -7,20 +7,14 @@ upsert logic is shared with ``sam_gov_sync.ingest_payloads``.
 
 import logging
 import os
-import uuid
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from qdrant_client import QdrantClient
 
-from bidbuy_client import fetch_open_bids
-from sam_gov_sync import COLLECTION_NAME, ingest_payloads
+from bidbuy_client import fetch_open_bids, get_last_fetch_stats
+from sam_gov_sync import COLLECTION_NAME, deterministic_bidbuy_uuid, ingest_payloads
 
 log = logging.getLogger(__name__)
-
-
-def deterministic_bidbuy_uuid(doc_id: str) -> str:
-    """Return the stable point ID for a BidBuy document."""
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"bidbuy.illinois.gov:{doc_id}"))
 
 
 def _get_qdrant_client() -> Optional[QdrantClient]:
@@ -69,6 +63,14 @@ def fetch_new_payloads(
     """Fetch, Qdrant-dedupe, and categorize open BidBuy contracts."""
     payloads = fetch_open_bids(limit=limit)
     fetched = len(payloads)
+    fetch_stats = get_last_fetch_stats()
+    log.info(
+        "[BidBuy Sync] detail_requested=%d detail_fetched=%d blocked=%d fetch_failed=%d",
+        fetch_stats.get("detail_requested", 0),
+        fetch_stats.get("detail_fetched", 0),
+        fetch_stats.get("blocked", 0),
+        fetch_stats.get("fetch_failed", 0),
+    )
     if not payloads:
         return [], 0, 0
     client = _get_qdrant_client()
@@ -87,9 +89,13 @@ def fetch_new_payloads(
 def sync_bidbuy_to_qdrant(limit: int = 1000, skip_existing: bool = True) -> Dict[str, Any]:
     """Fetch and ingest BidBuy contracts, primarily for manual direct runs."""
     payloads, fetched, skipped = fetch_new_payloads(limit=limit, skip_existing=skip_existing)
-    stats: Dict[str, Any] = {"fetched": fetched, "skipped": skipped, "new": 0, "errors": 0}
+    stats: Dict[str, Any] = {
+        "fetched": fetched,
+        "skipped": skipped,
+        "new": 0,
+        "errors": 0,
+        **get_last_fetch_stats(),
+    }
     if payloads:
-        stats.update(ingest_payloads(payloads, point_id_func=lambda p: deterministic_bidbuy_uuid(
-            str(p.get("bidbuy_doc_id") or uuid.uuid4())
-        )))
+        stats.update(ingest_payloads(payloads))
     return stats

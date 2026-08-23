@@ -19,7 +19,7 @@ from urllib.parse import urljoin
 import requests
 from bs4 import BeautifulSoup
 
-from nigp_naics import nigp_to_naics, normalize_nigp_code
+from nigp_naics import nigp_to_naics_with_source, normalize_nigp_code
 
 log = logging.getLogger(__name__)
 
@@ -31,15 +31,45 @@ BIDBUY_DETAIL_URL = "https://www.bidbuy.illinois.gov/bso/external/bidDetail.sda"
 BIDBUY_BASE_URL = "https://www.bidbuy.illinois.gov"
 ROWS_PER_PAGE = 25
 MIN_REQUEST_INTERVAL_S = 0.5
+DETAIL_MIN_REQUEST_INTERVAL_S = 2.0
+DETAIL_MAX_REQUEST_INTERVAL_S = 4.0
 MAX_RETRIES = 5
 INITIAL_BACKOFF_S = 1.0
 MAX_BACKOFF_S = 30.0
 REQUEST_TIMEOUT = 60
 DESCRIPTION_MAX_CHARS = 6000
+WAF_RECOVERY_WAIT_S = 60.0
+MAX_WAF_RECOVERIES = 3
+
+BROWSER_HEADERS = {
+    "Accept": (
+        "text/html,application/xhtml+xml,application/xml;q=0.9,"
+        "image/avif,image/webp,image/apng,*/*;q=0.8"
+    ),
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-User": "?1",
+    "Upgrade-Insecure-Requests": "1",
+    "Connection": "keep-alive",
+}
+
+_LAST_FETCH_STATS: Dict[str, int] = {
+    "detail_requested": 0, "detail_fetched": 0, "blocked": 0, "fetch_failed": 0,
+}
 
 
 def _text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def _human_bid_type(detail: Dict[str, Any]) -> str:
+    """Return BidBuy's human-readable opportunity type without its code."""
+    type_code = _text(detail.get("Type Code"))
+    type_code = re.sub(r"^\s*\d+\s*[-:]\s*", "", type_code)
+    return (type_code or _text(detail.get("Bid Type"))).lower()
 
 
 def _label_key(value: str) -> str:
@@ -67,34 +97,63 @@ class BidBuyClient:
 
     def __init__(self, session: Optional[requests.Session] = None) -> None:
         self.session = session or requests.Session()
-        self.session.headers.update({
-            "User-Agent": (
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "Chrome/124.0 Safari/537.36"
-            ),
-        })
+        self._set_browser_headers()
         self._last_request = 0.0
         self._view_state = ""
         self._csrf = ""
+        self.blocked_count = 0
+        self.fetch_failed_count = 0
+        self.detail_requested = 0
+        self.detail_fetched = 0
 
-    def _wait(self) -> None:
+    def _set_browser_headers(self) -> None:
+        self.session.headers.update({
+            "User-Agent": (
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+            ),
+            **BROWSER_HEADERS,
+        })
+
+    def _wait(self, detail: bool = False) -> None:
         elapsed = time.monotonic() - self._last_request
-        if elapsed < MIN_REQUEST_INTERVAL_S:
-            time.sleep(MIN_REQUEST_INTERVAL_S - elapsed)
+        minimum = (
+            random.uniform(DETAIL_MIN_REQUEST_INTERVAL_S, DETAIL_MAX_REQUEST_INTERVAL_S)
+            if detail else MIN_REQUEST_INTERVAL_S
+        )
+        if elapsed < minimum:
+            time.sleep(minimum - elapsed)
 
-    def _request(self, method: str, url: str, **kwargs: Any) -> Optional[requests.Response]:
+    @staticmethod
+    def _is_waf_challenge(response: requests.Response) -> bool:
+        body = response.text[:20000].lower()
+        if response.status_code == 202 and (
+            response.headers.get("x-amzn-waf-action") == "challenge"
+        ):
+            return True
+        if response.status_code != 403:
+            return False
+        markers = (
+            "aws waf", "awswaf", "x-amzn-waf", "challenge.js", "captcha",
+            "request could not be satisfied", "request blocked",
+        )
+        return any(marker in body for marker in markers)
+
+    def _request(
+        self, method: str, url: str, *, detail: bool = False, **kwargs: Any
+    ) -> Optional[requests.Response]:
         backoff = INITIAL_BACKOFF_S
         for attempt in range(1, MAX_RETRIES + 1):
-            self._wait()
+            self._wait(detail=detail)
             try:
                 response = self.session.request(
                     method, url, timeout=REQUEST_TIMEOUT, **kwargs
                 )
                 self._last_request = time.monotonic()
-                if response.status_code == 202 and (
-                    response.headers.get("x-amzn-waf-action") == "challenge"
-                ):
-                    log.error("[BidBuy] AWS WAF challenge returned for %s", url)
+                if self._is_waf_challenge(response):
+                    log.error("[BidBuy] WAF challenge returned for %s", url)
+                    if detail:
+                        self.blocked_count += 1
                     return None
                 if response.status_code == 429 or response.status_code >= 500:
                     retry_after = response.headers.get("Retry-After")
@@ -127,6 +186,23 @@ class BidBuyClient:
                 log.error("[BidBuy] Request failed: %s", exc)
                 return None
         return None
+
+    def _recover_from_waf(self, recovery: int) -> bool:
+        """Discard the session and establish a fresh JSF listing session."""
+        log.warning(
+            "[BidBuy] WAF recovery %d/%d: sleeping %.0fs",
+            recovery, MAX_WAF_RECOVERIES, WAF_RECOVERY_WAIT_S,
+        )
+        time.sleep(WAF_RECOVERY_WAIT_S)
+        self.session.close()
+        self.session = requests.Session()
+        self._set_browser_headers()
+        self._last_request = 0.0
+        response = self._request("GET", BIDBUY_LISTING_URL)
+        if not response:
+            return False
+        self._load_listing_state(response.text)
+        return True
 
     def _load_listing_state(self, html: str) -> None:
         self._csrf = _parse_hidden(html, "_csrf")
@@ -200,21 +276,43 @@ class BidBuyClient:
     def fetch_detail(self, doc_id: str) -> Dict[str, Any]:
         """Fetch and parse one open-bid detail page."""
         url = f"{BIDBUY_DETAIL_URL}?docId={doc_id}&external=true&parentUrl=close"
-        response = self._request("GET", url)
-        if not response:
-            return {"doc_id": doc_id, "detail_url": url, "html": ""}
-        detail = parse_detail_html(response.text, doc_id=doc_id, detail_url=url)
-        detail["html"] = response.text
-        return detail
+        self.detail_requested += 1
+        blocked_before = self.blocked_count
+        for recovery in range(MAX_WAF_RECOVERIES + 1):
+            response = self._request(
+                "GET", url, detail=True, headers={"Referer": BIDBUY_LISTING_URL}
+            )
+            if response:
+                self.detail_fetched += 1
+                detail = parse_detail_html(response.text, doc_id=doc_id, detail_url=url)
+                detail["html"] = response.text
+                return detail
+            if self.blocked_count == blocked_before or recovery >= MAX_WAF_RECOVERIES:
+                break
+            if not self._recover_from_waf(recovery + 1):
+                break
+        self.fetch_failed_count += 1
+        return {"doc_id": doc_id, "detail_url": url, "html": ""}
 
     def fetch_bids(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Fetch listing IDs then at most ``limit`` detail records."""
+        self.blocked_count = self.fetch_failed_count = 0
+        self.detail_requested = self.detail_fetched = 0
         details = []
         for doc_id in self.fetch_doc_ids(limit=limit):
             detail = self.fetch_detail(doc_id)
             if detail.get("html"):
                 details.append(detail)
         return details
+
+    def fetch_stats(self) -> Dict[str, int]:
+        """Return counters for the most recent fetch operation."""
+        return {
+            "detail_requested": self.detail_requested,
+            "detail_fetched": self.detail_fetched,
+            "blocked": self.blocked_count,
+            "fetch_failed": self.fetch_failed_count,
+        }
 
 
 def _label_value(soup: BeautifulSoup, label: str) -> str:
@@ -287,6 +385,13 @@ def parse_detail_html(
     }
     for label in labels:
         detail[label] = _label_value(soup, label)
+    requisition_match = re.search(
+        r"\bRequisition\s*:\s*([A-Za-z0-9][A-Za-z0-9-]*)",
+        soup.get_text(" ", strip=True),
+        flags=re.I,
+    )
+    if requisition_match:
+        detail["Requisition"] = requisition_match.group(1)
     detail["Ship-to Address"] = _raw_label_value(soup, "Ship-to Address") or detail["Ship-to Address"]
     attachments = []
     for anchor in soup.find_all("a", href=True):
@@ -360,11 +465,15 @@ def map_bid_to_payload(detail: Dict[str, Any]) -> Dict[str, Any]:
     description = description[:DESCRIPTION_MAX_CHARS]
     nigp_codes: List[str] = []
     naics_codes: List[str] = []
+    naics_sources: List[str] = []
     for item in items:
         code = normalize_nigp_code(item.get("nigp_code"))
         if code and code not in nigp_codes:
             nigp_codes.append(code)
-            for naics in nigp_to_naics(code):
+            mapped_naics, source = nigp_to_naics_with_source(code)
+            if source not in naics_sources and source != "none":
+                naics_sources.append(source)
+            for naics in mapped_naics:
                 if naics not in naics_codes:
                     naics_codes.append(naics)
     organization = _text(detail.get("Organization"))
@@ -400,13 +509,17 @@ def map_bid_to_payload(detail: Dict[str, Any]) -> Dict[str, Any]:
         "cfda_aln": None,
         "document_urls": attachments or None,
         "government_level": "state",
-        "opportunity_type": " / ".join(
-            x for x in (_text(detail.get("Type Code")), _text(detail.get("Bid Type"))) if x
-        ),
+        "opportunity_type": _human_bid_type(detail),
         "opportunity_status": "open",
         "confidence_score": 0.9 if detail.get("Bid Number") and detail.get("Bid Opening Date") else 0.75,
         "validation_status": "bidbuy_scrape",
         "bidbuy_doc_id": detail.get("doc_id", ""),
+        "bidbuy_type_code": _text(detail.get("Type Code")),
+        "bidbuy_bid_type": _text(detail.get("Bid Type")),
+        "bidbuy_naics_source": (
+            "crosswalk_exact" if "crosswalk_exact" in naics_sources
+            else "crosswalk_class" if "crosswalk_class" in naics_sources else "none"
+        ),
         "bidbuy_purchaser": _text(detail.get("Purchaser")),
         "bidbuy_info_contact": _text(detail.get("Info Contact")),
         "bidbuy_nigp_codes": nigp_codes,
@@ -423,7 +536,20 @@ def map_bid_to_payload(detail: Dict[str, Any]) -> Dict[str, Any]:
 def fetch_open_bids(limit: Optional[int] = None) -> List[Dict[str, Any]]:
     """Convenience wrapper returning mapped open-bid payloads."""
     client = BidBuyClient()
-    return [map_bid_to_payload(detail) for detail in client.fetch_bids(limit=limit)]
+    payloads = [map_bid_to_payload(detail) for detail in client.fetch_bids(limit=limit)]
+    _LAST_FETCH_STATS.clear()
+    _LAST_FETCH_STATS.update(client.fetch_stats())
+    log.info(
+        "[BidBuy] detail_requested=%d detail_fetched=%d blocked=%d fetch_failed=%d",
+        client.detail_requested, client.detail_fetched,
+        client.blocked_count, client.fetch_failed_count,
+    )
+    return payloads
+
+
+def get_last_fetch_stats() -> Dict[str, int]:
+    """Return counters from the most recent convenience fetch."""
+    return dict(_LAST_FETCH_STATS)
 
 
 def fetch_opportunities(limit: Optional[int] = None) -> List[Dict[str, Any]]:
@@ -443,6 +569,12 @@ def _main() -> int:
     client = BidBuyClient()
     details = client.fetch_bids(limit=args.limit)
     payloads = [map_bid_to_payload(detail) for detail in details]
+    try:
+        from category_mapping import map_payload_to_category
+        for payload in payloads:
+            payload["category"] = map_payload_to_category(payload)
+    except ImportError:
+        log.warning("Category mapping unavailable; leaving dry-run categories empty")
     Path(args.output).write_text(json.dumps(payloads, indent=2), encoding="utf-8")
     if args.raw_dir:
         raw_dir = Path(args.raw_dir)
@@ -451,7 +583,13 @@ def _main() -> int:
             (raw_dir / f"{detail['doc_id']}.html").write_text(
                 detail.get("html", ""), encoding="utf-8"
             )
-    log.info("Dry-run wrote %d BidBuy payloads to %s", len(payloads), args.output)
+    stats = client.fetch_stats()
+    log.info(
+        "Dry-run wrote %d BidBuy payloads to %s; requested=%d fetched=%d "
+        "blocked=%d fetch_failed=%d",
+        len(payloads), args.output, stats["detail_requested"],
+        stats["detail_fetched"], stats["blocked"], stats["fetch_failed"],
+    )
     return 0
 
 
