@@ -56,6 +56,7 @@ from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence
 from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
+from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
 from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
 from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
 
@@ -314,14 +315,33 @@ def trigger_ingest_proposal():
 
     data = request.get_json(silent=True) or {}
     limit = data.get('limit', 200)
-
-    candidates, fetched, skipped = fetch_new_payloads(limit=limit)
+    requested_sources = data.get("sources") or os.getenv("INGEST_SOURCES", "sam,bidbuy")
+    sources = {
+        str(source).strip().lower()
+        for source in (requested_sources.split(",") if isinstance(requested_sources, str) else requested_sources)
+        if str(source).strip().lower() in {"sam", "bidbuy"}
+    }
+    candidates, fetched, skipped = [], 0, 0
+    if "sam" in sources:
+        new, count, already = fetch_new_payloads(limit=limit)
+        candidates.extend(new)
+        fetched += count
+        skipped += already
+    if "bidbuy" in sources:
+        new, count, already = fetch_bidbuy_payloads(limit=limit)
+        candidates.extend(new)
+        fetched += count
+        skipped += already
     candidates = _dedupe_contracts(candidates)
     if not candidates:
         return jsonify({"success": True, "message": "No new contracts to propose",
                         "fetched": fetched, "skipped": skipped, "new": 0})
 
-    token = create_pending_batch(candidates, source="SAM.gov")
+    source_label = " + ".join(
+        label for key, label in (("sam", "SAM.gov"), ("bidbuy", "BidBuy Illinois"))
+        if key in sources
+    )
+    token = create_pending_batch(candidates, source=source_label)
     if not token:
         return jsonify({"success": False, "error": "Could not store pending batch"}), 500
 

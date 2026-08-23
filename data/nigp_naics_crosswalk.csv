@@ -1,0 +1,1699 @@
+﻿CEI BUSINESS ENTERPRISE PROGRAM CROSSWALK,,,,
+Item,NIGP Description,NIGP CODE,NAICS Description,NAICS CODE
+1,Crop Farming (Not Otherwise Classified),94438,Crop Production,111000
+2,Oilseed and Grain Farming,94457,Oilseed and Grain Farming,111100
+3,Soybean Farming,94476,Soybean Farming,111110
+4,Oilseed and Grain Farming,94457,Oilseed (except Soybean) Farming,111120
+5,Bean and Pea Farming,94426,Dry Pea and Bean Farming,111130
+6,Wheat Farming,94493,Wheat Farming,111140
+7,Corn Farming,94434,Corn Farming,111150
+8,Rice Farming,94472,Rice Farming,111160
+9,Grain Farming (Not Otherwise Classified),94445,Other Grain Farming,111190
+10,Oilseed and Grain Farming,94457,Oilseed and Grain Combination Farming,111191
+11,Grain Farming (Not Otherwise Classified),94445,All Other Grain Farming,111199
+12,Vegetable and Melon Farming,94489,Vegetable and Melon Farming,111200
+13,Vegetable and Melon Farming,94489,Vegetable and Melon Farming,111210
+14,Potato Farming,94464,Potato Farming,111211
+15,Vegetable and Melon Farming,94489,Other Vegetable (except Potato) and Melon Farming,111219
+16,Fruit and Tree Nut Farming (Not Citrus),94442,Fruit and Tree Nut Farming,111300
+17,Citrus Fruit Farming,94431,Orange Groves,111310
+18,Citrus Fruit Farming,94431,Citrus (except Orange) Groves,111320
+19,Fruit and Tree Nut Farming (Not Citrus),94442,Noncitrus Fruit and Tree Nut Farming,111330
+20,Fruit and Tree Nut Farming (Not Citrus),94442,Apple Orchards,111331
+21,Fruit and Tree Nut Farming (Not Citrus),94442,Grape Vineyards,111332
+22,Fruit and Tree Nut Farming (Not Citrus),94442,Strawberry Farming,111333
+23,Fruit and Tree Nut Farming (Not Citrus),94442,Berry (except Strawberry) Farming,111334
+24,Fruit and Tree Nut Farming (Not Citrus),94442,Tree Nut Farming,111335
+25,Fruit and Tree Nut Farming (Not Citrus),94442,Fruit and Tree Nut Combination Farming,111336
+26,Fruit and Tree Nut Farming (Not Citrus),94442,Other Noncitrus Fruit Farming,111339
+27,Nursery Products and Accessories,96751,"Greenhouse, Nursery, and Floriculture Production",111400
+28,Crop Farming (Not Otherwise Classified),94438,Food Crops Grown Under Cover,111410
+29,Crop Farming (Not Otherwise Classified),94438,Mushroom Production,111411
+30,Crop Farming (Not Otherwise Classified),94438,Other Food Crops Grown Under Cover,111419
+31,Nursery Products and Accessories,96751,Nursery and Floriculture Production,111420
+32,Nursery Products and Accessories,96751,Nursery and Tree Production,111421
+33,Nursery Products and Accessories,96751,Floriculture Production,111422
+34,Crop Farming (Not Otherwise Classified),94438,Other Crop Farming,111900
+35,Tobacco Farming,94485,Tobacco Farming,111910
+36,Cotton Farming,94436,Cotton Farming,111920
+37,Sugarcane Farming,94479,Sugarcane Farming,111930
+38,Hay Farming,94448,Hay Farming,111940
+39,Crop Farming (Not Otherwise Classified),94438,All Other Crop Farming,111990
+40,Crop Farming (Not Otherwise Classified),94438,Sugar Beet Farming,111991
+41,Peanut Farming,94460,Peanut Farming,111992
+42,Crop Farming (Not Otherwise Classified),94438,All Other Miscellaneous Crop Farming,111998
+43,"Animal Care, Animal Health, Animal Shelter, Animal Production (Breeding), Animal Training Services, etc. (Including Pet Services, All Types) ",96206,Animal Production,112000
+44,Animal Farming and Ranching Services,94419,Cattle Ranching and Farming,112100
+45,Animal Farming and Ranching Services,94419,"Beef Cattle Ranching and Farming, including Feedlots",112110
+46,Animal Farming and Ranching Services,94419,Beef Cattle Ranching and Farming,112111
+47,Feedlots ,82537,Cattle Feedlots,112112
+48,"Cattle, Dairy ",4020,Dairy Cattle and Milk Production,112120
+49,Dairy Products Processing Services ,96125,Dairy Cattle and Milk Production,112120
+50,Animal Farming and Ranching Services,94419,Dual-Purpose Cattle Ranching and Farming,112130
+51,Animal Farming and Ranching Services,94419,Hog and Pig Farming,112200
+52,Animal Farming and Ranching Services,94419,Hog and Pig Farming,112210
+53,Poultry Farming,94467,Poultry and Egg Production,112300
+54,Poultry Farming,94467,Chicken Egg Production,112310
+55,Poultry Farming,94467,Broilers and Other Meat Type Chicken Production,112320
+56,Poultry Farming,94467,Turkey Production,112330
+57,Poultry Hatching and Processing Services ,96159,Poultry Hatcheries,112340
+58,Poultry Farming,94467,Other Poultry Production,112390
+59,Animal Farming and Ranching Services,94419,Sheep and Goat Farming,112400
+60,Animal Farming and Ranching Services,94419,Sheep Farming,112410
+61,Animal Farming and Ranching Services,94419,Goat Farming,112420
+62,Aquaculture: Cultivation of Fish and Shellfish ,94514,Animal Aquaculture,112500
+63,Aquaculture: Cultivation of Fish and Shellfish ,94514,Animal Aquaculture,112510
+64,Commercial Fishing Services for Finfish ,94531,Finfish Farming and Fish Hatcheries,112511
+65,Commercial Fishing Services for Shellfish ,94532,Shellfish Farming,112512
+66,Aquaculture: Cultivation of Fish and Shellfish ,94514,Other Animal Aquaculture,112519
+67,"Animal Care, Animal Health, Animal Shelter, Animal Production (Breeding), Animal Training Services, etc. (Including Pet Services, All Types) ",96206,Other Animal Production,112900
+68,Bee Keeping Equipment and Supplies (Apiculture) ,82506,Apiculture,112910
+69,Animal Farming and Ranching Services,94419,Horses and Other Equine Production,112920
+70,Animal Farming and Ranching Services,94419,Fur-Bearing Animal and Rabbit Production,112930
+71,Animal Farming and Ranching Services,94419,All Other Animal Production,112990
+72,Timber Production Services ,94781,Forestry and Logging,113000
+73,Tree Farm Operation and Management Services ,94784,Timber Tract Operations,113100
+74,Tree Farm Operation and Management Services ,94784,Timber Tract Operations,113110
+75,Forest Nursery and Gathering Services ,94743,Forest Nurseries and Gathering of Forest Products,113200
+76,Forest Nursery and Gathering Services ,94743,Forest Nurseries and Gathering of Forest Products,113210
+77,Logging Services,94756,Logging,113300
+78,Logging Services,94756,Logging,113310
+79,Commercial Fishing Services for Misc. Marine Products ,94533,Fishing,114100
+80,Commercial Fishing Services for Misc. Marine Products ,94533,Fishing,114110
+81,Commercial Fishing Services for Finfish ,94531,Finfish Fishing,114111
+82,Commercial Fishing Services for Shellfish ,94532,Shellfish Fishing,114112
+83,Commercial Fishing Services for Misc. Marine Products ,94533,Other Marine Fishing,114119
+84,Hunting and Trapping Services ,94549,Hunting and Trapping,114200
+85,Hunting and Trapping Services ,94549,Hunting and Trapping,114210
+86,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,Support Activities for Agriculture and Forestry,115000
+87,Crop Farming (Not Otherwise Classified),94438,Support Activities for Crop Production,115100
+88,Crop Farming (Not Otherwise Classified),94438,Support Activities for Crop Production,115110
+89,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,Cotton Ginning,115111
+90,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,"Soil Preparation, Planting, and Cultivating",115112
+91,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,"Crop Harvesting, Primarily by Machine",115113
+92,Crop Farming (Not Otherwise Classified),94438,Postharvest Crop Activities (except Cotton Ginning),115114
+93,"Farm Management Services (Including Dairy, Pasture and Range Management) ",95838,Farm Labor Contractors and Crew Leaders,115115
+94,"Farm Management Services (Including Dairy, Pasture and Range Management) ",95838,Farm Management Services,115116
+95,Animal Farming and Ranching Services,94419,Support Activities for Animal Production,115200
+96,Animal Farming and Ranching Services,94419,Support Activities for Animal Production,115210
+97,Forestry Economic and Marketing Services (Including Forestry Resources Services) ,94745,Support Activities for Forestry,115300
+98,Forestry Economic and Marketing Services (Including Forestry Resources Services) ,94745,Support Activities for Forestry,115310
+99,Mining and Quarrying Services ,96155,Mining,210000
+100,"Petroleum Production, Transmission, and Distribution Services for Oil and Gas Wells  (Including Drilling, Exploration, Extraction, Project Management, etc.)",96261,Oil and Gas Extraction,211000
+101,"Petroleum Production, Transmission, and Distribution Services for Oil and Gas Wells  (Including Drilling, Exploration, Extraction, Project Management, etc.)",96261,Oil and Gas Extraction,211100
+102,"Petroleum Production, Transmission, and Distribution Services for Oil and Gas Wells  (Including Drilling, Exploration, Extraction, Project Management, etc.)",96261,Oil and Gas Extraction,211110
+103,"Petroleum Production, Transmission, and Distribution Services for Oil and Gas Wells  (Including Drilling, Exploration, Extraction, Project Management, etc.)",96261,Crude Petroleum and Natural Gas Extraction,211111
+104,"Petroleum Production, Transmission, and Distribution Services for Oil and Gas Wells  (Including Drilling, Exploration, Extraction, Project Management, etc.)",96261,Natural Gas Liquid Extraction,211112
+105,Mining and Quarrying Services ,96155,Mining (except Oil and Gas),212000
+106,Mining and Quarrying Services ,96155,Coal Mining,212100
+107,Mining and Quarrying Services ,96155,Coal Mining,212110
+108,Mining and Quarrying Services ,96155,Bituminous Coal and Lignite Surface Mining,212111
+109,Mining and Quarrying Services ,96155,Bituminous Coal Underground Mining,212112
+110,Mining and Quarrying Services ,96155,Anthracite Mining,212113
+111,Mining and Quarrying Services ,96155,Metal Ore Mining,212200
+112,Mining and Quarrying Services ,96155,Iron Ore Mining,212210
+113,Mining and Quarrying Services ,96155,Gold Ore and Silver Ore Mining,212220
+114,Mining and Quarrying Services ,96155,Gold Ore Mining,212221
+115,Mining and Quarrying Services ,96155,Silver Ore Mining,212222
+116,Mining and Quarrying Services ,96155,"Copper, Nickel, Lead, and Zinc Mining",212230
+117,Mining and Quarrying Services ,96155,Lead Ore and Zinc Ore Mining,212231
+118,Mining and Quarrying Services ,96155,Copper Ore and Nickel Ore Mining,212234
+119,Mining and Quarrying Services ,96155,Other Metal Ore Mining,212290
+120,Mining and Quarrying Services ,96155,Uranium-Radium-Vanadium Ore Mining,212291
+121,Mining and Quarrying Services ,96155,All Other Metal Ore Mining,212299
+122,Mining and Quarrying Services ,96155,Nonmetallic Mineral Mining and Quarrying,212300
+123,Mining and Quarrying Services ,96155,Stone Mining and Quarrying,212310
+124,Mining and Quarrying Services ,96155,Dimension Stone Mining and Quarrying,212311
+125,Mining and Quarrying Services ,96155,Crushed and Broken Limestone Mining and Quarrying,212312
+126,Mining and Quarrying Services ,96155,Crushed and Broken Granite Mining and Quarrying,212313
+127,Mining and Quarrying Services ,96155,Other Crushed and Broken Stone Mining and Quarrying,212319
+128,Mining and Quarrying Services ,96155,"Sand, Gravel, Clay, and Ceramic and Refractory Minerals Mining and Quarrying",212320
+129,Mining and Quarrying Services ,96155,Construction Sand and Gravel Mining,212321
+130,Mining and Quarrying Services ,96155,Industrial Sand Mining,212322
+131,Mining and Quarrying Services ,96155,Kaolin and Ball Clay Mining,212324
+132,Mining and Quarrying Services ,96155,Clay and Ceramic and Refractory Minerals Mining,212325
+133,Mining and Quarrying Services ,96155,Other Nonmetallic Mineral Mining and Quarrying,212390
+134,Mining and Quarrying Services ,96155,"Potash, Soda, and Borate Mineral Mining",212391
+135,Mining and Quarrying Services ,96155,Phosphate Rock Mining,212392
+136,Mining and Quarrying Services ,96155,Other Chemical and Fertilizer Mineral Mining,212393
+137,Mining and Quarrying Services ,96155,All Other Nonmetallic Mineral Mining,212399
+138,Mining and Quarrying Services ,96155,Support Activities for Mining,213000
+139,Mining and Quarrying Services ,96155,Support Activities for Mining,213100
+140,Mining and Quarrying Services ,96155,Support Activities for Mining,213110
+141,"Petroleum Production, Transmission, and Distribution Services for Oil and Gas Wells  (Including Drilling, Exploration, Extraction, Project Management, etc.)",96261,Drilling Oil and Gas Wells,213111
+142,"Petroleum Production, Transmission, and Distribution Services for Oil and Gas Wells  (Including Drilling, Exploration, Extraction, Project Management, etc.)",96261,Support Activities for Oil and Gas Operations,213112
+143,Mining and Quarrying Services ,96155,Support Activities for Coal Mining,213113
+144,Mining and Quarrying Services ,96155,Support Activities for Metal Mining,213114
+145,Mining and Quarrying Services ,96155,Support Activities for Nonmetallic Minerals (except Fuels),213115
+146,"Utility Services, Water",96185,Utilities,220000
+147,"Utility Services, Water",96185,Utilities,221000
+148,"Power Generation, Transmission, Distribution - Engineering ",92578,"Electric Power Generation, Transmission and Distribution",221100
+149,"Power Generation, Transmission, Distribution - Engineering ",92578,Electric Power Generation,221110
+150,"Power Generation, Transmission, Distribution - Engineering ",92578,Hydroelectric Power Generation,221111
+151,"Power Generation, Transmission, Distribution - Engineering ",92578,Fossil Fuel Electric Power Generation,221112
+152,"Power Generation, Transmission, Distribution - Engineering ",92578,Nuclear Electric Power Generation,221113
+153,"Power Generation, Transmission, Distribution - Engineering ",92578,Solar Electric Power Generation,221114
+154,"Power Generation, Transmission, Distribution - Engineering ",92578,Wind Electric Power Generation,221115
+155,"Power Generation, Transmission, Distribution - Engineering ",92578,Geothermal Electric Power Generation,221116
+156,"Power Generation, Transmission, Distribution - Engineering ",92578,Biomass Electric Power Generation,221117
+157,"Power Generation, Transmission, Distribution - Engineering ",92578,Other Electric Power Generation,221118
+158,"Power Generation, Transmission, Distribution - Engineering ",92578,Other Electric Power Generation,221119
+159,"Power Generation, Transmission, Distribution - Engineering ",92578,"Electric Power Transmission, Control, and Distribution",221120
+160,"Power Generation, Transmission, Distribution - Engineering ",92578,Electric Bulk Power Transmission and Control,221121
+161,"Power Generation, Transmission, Distribution - Engineering ",92578,Electric Power Distribution,221122
+162,"Gas Systems (Propane, Natural, etc.) Engineering ",92543,Natural Gas Distribution,221200
+163,"Gas Systems (Propane, Natural, etc.) Engineering ",92543,Natural Gas Distribution,221210
+164,"Water Supply, Treatment, and Distribution/Engineering ",92597,"Water, Sewage and Other Systems",221300
+165,"Water Supply, Treatment, and Distribution/Engineering ",92597,Water Supply and Irrigation Systems,221310
+166,"Sewage Collection, Treatment, and Disposal/Engineering ",92587,Sewage Treatment Facilities,221320
+167,"Air Conditioning, Heating and Ventilating Engineering ",92507,Steam and Air-Conditioning Supply,221330
+168,"Building Construction, Commercial and Institutional",90924,Construction of Buildings,236000
+169,"Building Construction, Residential (Apartments, etc.) ",90923,Residential Building Construction,236100
+170,"Building Construction, Residential (Apartments, etc.) ",90923,Residential Building Construction,236110
+171,"Home Construction, Single Family ",90954,New Single-Family Housing Construction (except Operative Builders),236115
+172,"Building Construction, Residential (Apartments, etc.) ",90923,New Multifamily Housing Construction (except Operative Builders),236116
+173,"Building Construction, Residential (Apartments, etc.) ",90923,New Housing Operative Builders,236117
+174,Remodeling and Alterations ,91065,Residential Remodelers,236118
+175,"Building Construction, Non-Residential (Office Bldg., etc.) ",90922,Nonresidential Building Construction,236200
+176,"Building Construction, Industrial (Warehouse, etc.) ",90921,Industrial Building Construction,236210
+177,"Building Construction, Commercial and Institutional",90924,Commercial and Institutional Building Construction,236220
+178,"Construction, General (Backfill Services, Digging, Ditching, Road Grading, Rock Stabilization, etc.)",91223,Heavy and Civil Engineering Construction,237000
+179,"Construction, Utility/Underground Projects ",91356,Utility System Construction,237100
+180,"Construction, Sewer and Storm Drain ",91345,Water and Sewer Line and Related Structures Construction,237110
+181,"Construction, Water System/Plants, Main and Service Line",91360,Water and Sewer Line and Related Structures Construction,237110
+182,"Construction, Pipeline ",91340,Oil and Gas Pipeline and Related Structures Construction,237120
+183,"Construction, Communication Equipment (Includes Antenna Towers) ",91316,Power and Communication Line and Related Structures Construction,237130
+184,"Construction, Power Line (Includes Installation, Maintenance, and Repair) ",91341,Power and Communication Line and Related Structures Construction,237130
+185,Land Development and Sub-Division Services ,90957,Land Subdivision,237200
+186,Land Development and Sub-Division Services ,90957,Land Subdivision,237210
+187,"Construction, Sewer and Storm Drain ",91345,Land Subdivision,237210
+188,"Construction, Bridge and Drawbridge (Includes Reconstruction/Rehabilitation) ",91313,"Highway, Street, and Bridge Construction",237300
+189,"Construction, Highway and Road",91327,"Highway, Street, and Bridge Construction",237300
+190,"Construction, Street (Major and Residential)(Includes Reconstruction) ",91350,"Highway, Street, and Bridge Construction",237300
+191,"Construction, Bridge and Drawbridge (Includes Reconstruction/Rehabilitation) ",91313,"Highway, Street, and Bridge Construction",237310
+192,"Construction, Highway and Road",91327,"Highway, Street, and Bridge Construction",237310
+193,"Construction, Street (Major and Residential)(Includes Reconstruction) ",91350,"Highway, Street, and Bridge Construction",237310
+194,"Construction, General (Backfill Services, Digging, Ditching, Road Grading, Rock Stabilization, etc.)",91223,Other Heavy and Civil Engineering Construction,237900
+195,"Construction, General (Backfill Services, Digging, Ditching, Road Grading, Rock Stabilization, etc.)",91223,Other Heavy and Civil Engineering Construction,237990
+196,"Trade Services, Construction (Not Otherwise Classified)",91484,Specialty Trade Contractors,238000
+197,Concrete ,91430,"Foundation, Structure, and Building Exterior Contractors",238100
+198,Structural and Reinforcement Steel,91479,"Foundation, Structure, and Building Exterior Contractors",238100
+199,Concrete ,91430,Poured Concrete Foundation and Structure Contractors,238110
+200,Concrete ,91430,Structural Steel and Precast Concrete Contractors,238120
+201,Structural and Reinforcement Steel,91479,Structural Steel and Precast Concrete Contractors,238120
+202,Carpentry ,91427,Framing Contractors,238130
+203,Masonry ,91455,Masonry Contractors,238140
+204,Glass and Glazing ,91447,Glass and Glazing Contractors,238150
+205,Roofing and Siding,91473,Roofing Contractors,238160
+206,Roofing and Siding,91473,Siding Contractors,238170
+207,"Trade Services, Construction (Not Otherwise Classified)",91484,"Other Foundation, Structure, and Building Exterior Contractors",238190
+208,"Trade Services, Construction (Not Otherwise Classified)",91484,Building Equipment Contractors,238200
+209,Electrical ,91438,Electrical Contractors,238210
+210,"Heating, Ventilating and Air Conditioning (HVAC) ",91450,"Plumbing, Heating, and Air-Conditioning Contractors",238220
+211,Plumbing ,91468,"Plumbing, Heating, and Air-Conditioning Contractors",238220
+212,"Trade Services, Construction (Not Otherwise Classified)",91484,Other Building Equipment Contractors,238290
+213,"Trade Services, Construction (Not Otherwise Classified)",91484,Building Finishing Contractors,238300
+214,"Insulation and Asbestos Installation, Maintenance, Repair and Removal Services (Includes Spray-On Insulation)",91038,Drywall and Insulation Contractors,238310
+215,Insulation ,91453,Drywall and Insulation Contractors,238310
+216,Painting and Wallpapering,91461,Painting and Wall Covering Contractors,238320
+217,Flooring,91444,Flooring Contractors,238330
+218,"Tile and Marble Work, All Types ",91483,Tile and Terrazzo Contractors,238340
+219,Carpentry ,91427,Finish Carpentry Contractors,238350
+220,Carpentry ,91427,Other Building Finishing Contractors,238390
+221,"Trade Services, Construction (Not Otherwise Classified)",91484,Other Specialty Trade Contractors,238900
+222,Site Work (Incl. Site Clean-Up) ,90976,Site Preparation Contractors,238910
+223,"Trade Services, Construction (Not Otherwise Classified)",91484,All Other Specialty Trade Contractors,238990
+224,Food Manufacturing Services (Including Beverages),96738,Food Manufacturing,311000
+225,Animal Food Manufacturing Services,96703,Animal Food Manufacturing,311100
+226,Animal Food Manufacturing Services,96703,Animal Food Manufacturing,311110
+227,Animal Food Manufacturing Services,96703,Dog and Cat Food Manufacturing,311111
+228,Animal Food Manufacturing Services,96703,Other Animal Food Manufacturing,311119
+229,"Milling Services: Asphalt, Grain, Cottonseed, Vegetable, Wood, etc.",96154,Grain and Oilseed Milling,311200
+230,"Milling Services: Asphalt, Grain, Cottonseed, Vegetable, Wood, etc.",96154,Flour Milling and Malt Manufacturing,311210
+231,"Milling Services: Asphalt, Grain, Cottonseed, Vegetable, Wood, etc.",96154,Flour Milling,311211
+232,"Milling Services: Asphalt, Grain, Cottonseed, Vegetable, Wood, etc.",96154,Rice Milling,311212
+233,"Grains, Sugar, Oils and Fats Processing Services ",96142,Malt Manufacturing,311213
+234,Food Manufacturing Services (Including Beverages),96738,Starch and Vegetable Fats and Oils Manufacturing,311220
+235,"Milling Services: Asphalt, Grain, Cottonseed, Vegetable, Wood, etc.",96154,Wet Corn Milling,311221
+236,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,Soybean Processing,311222
+237,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,Other Oilseed Processing,311223
+238,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,Soybean and Other Oilseed Processing,311224
+239,"Grains, Sugar, Oils and Fats Processing Services ",96142,Fats and Oils Refining and Blending,311225
+240,Food Manufacturing Services (Including Beverages),96738,Breakfast Cereal Manufacturing,311230
+241,Food Manufacturing Services (Including Beverages),96738,Sugar and Confectionery Product Manufacturing,311300
+242,Food Manufacturing Services (Including Beverages),96738,Sugar Manufacturing,311310
+243,"Grinding Mills: Seed, Grain, Dried Vegetable ",2040,Sugarcane Mills,311311
+244,Sugar Refining Services ,96170,Cane Sugar Refining,311312
+245,Food Manufacturing Services (Including Beverages),96738,Beet Sugar Manufacturing,311313
+246,Food Manufacturing Services (Including Beverages),96738,Cane Sugar Manufacturing,311314
+247,Food Manufacturing Services (Including Beverages),96738,Chocolate and Confectionery Manufacturing from Cacao Beans,311320
+248,Food Manufacturing Services (Including Beverages),96738,Confectionery Manufacturing from Purchased Chocolate,311330
+249,Food Manufacturing Services (Including Beverages),96738,Nonchocolate Confectionery Manufacturing,311340
+250,Food Manufacturing Services (Including Beverages),96738,Chocolate and Confectionery Manufacturing,311350
+251,Food Manufacturing Services (Including Beverages),96738,Chocolate and Confectionery Manufacturing from Cacao Beans,311351
+252,Food Manufacturing Services (Including Beverages),96738,Confectionery Manufacturing from Purchased Chocolate,311352
+253,Food Manufacturing Services (Including Beverages),96738,Fruit and Vegetable Preserving and Specialty Food Manufacturing,311400
+254,Food Manufacturing Services (Including Beverages),96738,Frozen Food Manufacturing,311410
+255,Food Manufacturing Services (Including Beverages),96738,"Frozen Fruit, Juice, and Vegetable Manufacturing",311411
+256,Food Manufacturing Services (Including Beverages),96738,Frozen Specialty Food Manufacturing,311412
+257,Food Preparation Services (Including Food Canning Services),96138,"Fruit and Vegetable Canning, Pickling, and Drying",311420
+258,Food Preparation Services (Including Food Canning Services),96138,Fruit and Vegetable Canning,311421
+259,Food Preparation Services (Including Food Canning Services),96138,Specialty Canning,311422
+260,Food Manufacturing Services (Including Beverages),96738,Dried and Dehydrated Food Manufacturing,311423
+261,Food Manufacturing Services (Including Beverages),96738,Dairy Product Manufacturing,311500
+262,Food Manufacturing Services (Including Beverages),96738,Dairy Product (except Frozen) Manufacturing,311510
+263,Food Manufacturing Services (Including Beverages),96738,Fluid Milk Manufacturing,311511
+264,Food Manufacturing Services (Including Beverages),96738,Creamery Butter Manufacturing,311512
+265,Food Manufacturing Services (Including Beverages),96738,Cheese Manufacturing,311513
+266,Food Manufacturing Services (Including Beverages),96738,"Dry, Condensed, and Evaporated Dairy Product Manufacturing",311514
+267,Food Manufacturing Services (Including Beverages),96738,Ice Cream and Frozen Dessert Manufacturing,311520
+268,"Beef, Pork, and Other Meat Processing Services (See 961-59 for Poultry Processing and 962-75 for Seafood Processing)",96106,Animal Slaughtering and Processing,311600
+269,"Beef, Pork, and Other Meat Processing Services (See 961-59 for Poultry Processing and 962-75 for Seafood Processing)",96106,Animal Slaughtering and Processing,311610
+270,"Beef, Pork, and Other Meat Processing Services (See 961-59 for Poultry Processing and 962-75 for Seafood Processing)",96106,Animal (except Poultry) Slaughtering,311611
+271,"Meat: Cured, Fresh, and Frozen",39049,Meat Processed from Carcasses,311612
+272,Seafood Processing Services,96275,Rendering and Meat Byproduct Processing,311613
+273,Poultry Hatching and Processing Services ,96159,Poultry Processing,311615
+274,Seafood Processing Services,96275,Seafood Product Preparation and Packaging,311700
+275,Seafood Processing Services,96275,Seafood Product Preparation and Packaging,311710
+276,Food Preparation Services (Including Food Canning Services),96138,Seafood Canning,311711
+277,Seafood Processing Services,96275,Fresh and Frozen Seafood Processing,311712
+278,Food Manufacturing Services (Including Beverages),96738,Bakeries and Tortilla Manufacturing,311800
+279,Food Manufacturing Services (Including Beverages),96738,Bread and Bakery Product Manufacturing,311810
+280,Food Manufacturing Services (Including Beverages),96738,"Frozen Cakes, Pies, and Other Pastries Manufacturing",311813
+281,Food Manufacturing Services (Including Beverages),96738,"Cookie, Cracker, and Pasta Manufacturing",311820
+282,Food Manufacturing Services (Including Beverages),96738,Cookie and Cracker Manufacturing,311821
+283,Food Manufacturing Services (Including Beverages),96738,Flour Mixes and Dough Manufacturing from Purchased Flour,311822
+284,Food Manufacturing Services (Including Beverages),96738,Dry Pasta Manufacturing,311823
+285,Food Manufacturing Services (Including Beverages),96738,"Dry Pasta, Dough, and Flour Mixes Manufacturing from Purchased Flour",311824
+286,Food Manufacturing Services (Including Beverages),96738,Tortilla Manufacturing,311830
+287,Food Manufacturing Services (Including Beverages),96738,Other Food Manufacturing,311900
+288,Food Manufacturing Services (Including Beverages),96738,Snack Food Manufacturing,311910
+289,Food Manufacturing Services (Including Beverages),96738,Roasted Nuts and Peanut Butter Manufacturing,311911
+290,Food Manufacturing Services (Including Beverages),96738,Other Snack Food Manufacturing,311919
+291,Food Manufacturing Services (Including Beverages),96738,Coffee and Tea Manufacturing,311920
+292,Food Manufacturing Services (Including Beverages),96738,Flavoring Syrup and Concentrate Manufacturing,311930
+293,Food Manufacturing Services (Including Beverages),96738,Seasoning and Dressing Manufacturing,311940
+294,Food Manufacturing Services (Including Beverages),96738,"Mayonnaise, Dressing, and Other Prepared Sauce Manufacturing",311941
+295,Food Manufacturing Services (Including Beverages),96738,Spice and Extract Manufacturing,311942
+296,Food Manufacturing Services (Including Beverages),96738,All Other Food Manufacturing,311990
+297,Food Manufacturing Services (Including Beverages),96738,Perishable Prepared Food Manufacturing,311991
+298,Food Manufacturing Services (Including Beverages),96738,All Other Miscellaneous Food Manufacturing,311999
+299,Food Manufacturing Services (Including Beverages),96738,Beverage and Tobacco Product Manufacturing,312000
+300,Food Manufacturing Services (Including Beverages),96738,Beverage Manufacturing,312100
+301,Food Manufacturing Services (Including Beverages),96738,Soft Drink and Ice Manufacturing,312110
+302,Food Manufacturing Services (Including Beverages),96738,Soft Drink Manufacturing,312111
+303,Food Manufacturing Services (Including Beverages),96738,Bottled Water Manufacturing,312112
+304,Food Manufacturing Services (Including Beverages),96738,Ice Manufacturing,312113
+305,Beverage Processing Services (All Types) ,96107,Breweries,312120
+306,Beverage Processing Services (All Types) ,96107,Wineries,312130
+307,Beverage Processing Services (All Types) ,96107,Distilleries,312140
+308,Tobacco Manufacturing and Processing Services,96783,Tobacco Manufacturing,312200
+309,Tobacco Manufacturing and Processing Services,96783,Tobacco Stemming and Redrying,312210
+310,Tobacco Manufacturing and Processing Services,96783,Tobacco Product Manufacturing,312220
+311,Tobacco Manufacturing and Processing Services,96783,Cigarette Manufacturing,312221
+312,Tobacco Manufacturing and Processing Services,96783,Other Tobacco Product Manufacturing,312229
+313,Tobacco Manufacturing and Processing Services,96783,Tobacco Manufacturing,312230
+314,Tobacco Manufacturing and Processing Services,96783,Tobacco Manufacturing,312230
+315,Textile Mills,85077,"Fiber, Yarn, and Thread Mills",313100
+316,Textile Mills,85077,"Fiber, Yarn, and Thread Mills",313110
+317,Textile Mills,85077,Yarn Spinning Mills,313111
+318,Textile Mills,85077,"Yarn Texturizing, Throwing, and Twisting Mills",313112
+319,Textile Mills,85077,Thread Mills,313113
+320,Textile Mills,85077,Fabric Mills,313200
+321,Textile Mills,85077,Broadwoven Fabric Mills,313210
+322,Textile Mills,85077,Narrow Fabric Mills and Schiffli Machine Embroidery,313220
+323,Textile Mills,85077,Narrow Fabric Mills,313221
+324,"Embroidery Machines, Accessories and Supplies ",79538,Schiffli Machine Embroidery,313222
+325,Textile Mills,85077,Nonwoven Fabric Mills,313230
+326,Textile Mills,85077,Knit Fabric Mills,313240
+327,Textile Mills,85077,Weft Knit Fabric Mills,313241
+328,Textile Mills,85077,Other Knit Fabric and Lace Mills,313249
+329,Textile Mills,85077,Textile and Fabric Finishing and Fabric Coating Mills,313300
+330,Textile Mills,85077,Textile and Fabric Finishing Mills,313310
+331,Textile Mills,85077,Broadwoven Fabric Finishing Mills,313311
+332,Textile Mills,85077,Textile and Fabric Finishing (except Broadwoven Fabric) Mills,313312
+333,Textile Mills,85077,Fabric Coating Mills,313320
+334,Textile Mills,85077,Textile Product Mills,314000
+335,Textile Mills,85077,Textile Furnishings Mills,314100
+336,Textile Mills,85077,Curtain and Linen Mills,314120
+337,Textile Mills,85077,Curtain and Drapery Mills,314121
+338,Textile Mills,85077,Other Household Textile Product Mills,314129
+339,Textile Mills,85077,Other Textile Product Mills,314900
+340,Textile Mills,85077,Textile Bag and Canvas Mills,314910
+341,Textile Mills,85077,Textile Bag Mills,314911
+342,Textile Mills,85077,Canvas and Related Product Mills,314912
+343,Textile Mills,85077,All Other Textile Product Mills,314990
+344,Milling Machines ,85077,"Rope, Cordage, and Twine Mills",314991
+345,Textile Mills,85077,Tire Cord and Tire Fabric Mills,314992
+346,Textile Mills,85077,"Rope, Cordage, Twine, Tire Cord, and Tire Fabric Mills",314994
+347,Milling Machines ,85077,All Other Miscellaneous Textile Product Mills,314999
+348,Clothing (Apparel) and Accessory Manufacturing Services,96734,Apparel Manufacturing,315000
+349,Clothing (Apparel) and Accessory Manufacturing Services,96734,Apparel Knitting Mills,315100
+350,Clothing (Apparel) and Accessory Manufacturing Services,96734,Hosiery and Sock Mills,315110
+351,Clothing (Apparel) and Accessory Manufacturing Services,96734,Sheer Hosiery Mills,315111
+352,Clothing (Apparel) and Accessory Manufacturing Services,96734,Other Hosiery and Sock Mills,315119
+353,Clothing (Apparel) and Accessory Manufacturing Services,96734,Other Apparel Knitting Mills,315190
+354,Clothing (Apparel) and Accessory Manufacturing Services,96734,Outerwear Knitting Mills,315191
+355,Clothing (Apparel) and Accessory Manufacturing Services,96734,Underwear and Nightwear Knitting Mills,315192
+356,Clothing (Apparel) and Accessory Manufacturing Services,96734,Cut and Sew Apparel Manufacturing,315200
+357,"Sewing, Embroidery, Embossing, and Alteration Services ",96278,Cut and Sew Apparel Contractors,315210
+358,"Sewing, Embroidery, Embossing, and Alteration Services ",96278,Men's and Boys' Cut and Sew Apparel Contractors,315211
+359,"Sewing, Embroidery, Embossing, and Alteration Services ",96278,"Women's, Girls', and Infants' Cut and Sew Apparel Contractors",315212
+360,Clothing (Apparel) and Accessory Manufacturing Services,96734,Men's and Boys' Cut and Sew Apparel Manufacturing,315220
+361,Clothing (Apparel) and Accessory Manufacturing Services,96734,Men's and Boys' Cut and Sew Underwear and Nightwear Manufacturing,315221
+362,Clothing (Apparel) and Accessory Manufacturing Services,96734,"Men's and Boys' Cut and Sew Suit, Coat, and Overcoat Manufacturing",315222
+363,Clothing (Apparel) and Accessory Manufacturing Services,96734,Men's and Boys' Cut and Sew Shirt (except Work Shirt) Manufacturing,315223
+364,Clothing (Apparel) and Accessory Manufacturing Services,96734,"Men's and Boys' Cut and Sew Trouser, Slack, and Jean Manufacturing",315224
+365,Clothing (Apparel) and Accessory Manufacturing Services,96734,Men's and Boys' Cut and Sew Work Clothing Manufacturing,315225
+366,Clothing (Apparel) and Accessory Manufacturing Services,96734,Men's and Boys' Cut and Sew Other Outerwear Manufacturing,315228
+367,Clothing (Apparel) and Accessory Manufacturing Services,96734,Women's and Girls' Cut and Sew Apparel Manufacturing,315230
+368,Clothing (Apparel) and Accessory Manufacturing Services,96734,"Women's and Girls' Cut and Sew Lingerie, Loungewear, and Nightwear Manufacturing",315231
+369,Clothing (Apparel) and Accessory Manufacturing Services,96734,Women's and Girls' Cut and Sew Blouse and Shirt Manufacturing,315232
+370,Clothing (Apparel) and Accessory Manufacturing Services,96734,Women's and Girls' Cut and Sew Dress Manufacturing,315233
+371,Clothing (Apparel) and Accessory Manufacturing Services,96734,"Women's and Girls' Cut and Sew Suit, Coat, Tailored Jacket, and Skirt Manufacturing",315234
+372,Clothing (Apparel) and Accessory Manufacturing Services,96734,Women's and Girls' Cut and Sew Other Outerwear Manufacturing,315239
+373,Clothing (Apparel) and Accessory Manufacturing Services,96734,"Women’s, Girls’, and Infants’ Cut and Sew Apparel Manufacturing",315240
+374,Clothing (Apparel) and Accessory Manufacturing Services,96734,"Women’s, Girls’, and Infants’ Cut and Sew Apparel Manufacturing",315240
+375,Clothing (Apparel) and Accessory Manufacturing Services,96734,Other Cut and Sew Apparel Manufacturing,315280
+376,Clothing (Apparel) and Accessory Manufacturing Services,96734,Other Cut and Sew Apparel Manufacturing,315280
+377,Clothing (Apparel) and Accessory Manufacturing Services,96734,Other Cut and Sew Apparel Manufacturing,315290
+378,Clothing (Apparel) and Accessory Manufacturing Services,96734,Infants' Cut and Sew Apparel Manufacturing,315291
+379,Clothing (Apparel) and Accessory Manufacturing Services,96734,Fur and Leather Apparel Manufacturing,315292
+380,Clothing (Apparel) and Accessory Manufacturing Services,96734,All Other Cut and Sew Apparel Manufacturing,315299
+381,Clothing (Apparel) and Accessory Manufacturing Services,96734,Apparel Accessories and Other Apparel Manufacturing,315900
+382,Clothing (Apparel) and Accessory Manufacturing Services,96734,Apparel Accessories and Other Apparel Manufacturing,315990
+383,Clothing (Apparel) and Accessory Manufacturing Services,96734,"Hat, Cap, and Millinery Manufacturing",315991
+384,Clothing (Apparel) and Accessory Manufacturing Services,96734,Glove and Mitten Manufacturing,315992
+385,Clothing (Apparel) and Accessory Manufacturing Services,96734,Men's and Boys' Neckwear Manufacturing,315993
+386,Clothing (Apparel) and Accessory Manufacturing Services,96734,Other Apparel Accessories and Other Apparel Manufacturing,315999
+387,Leather Manufacturing Services,96747,Leather and Allied Product Manufacturing,316000
+388,Leather Tanning and Finishing Services ,96249,Leather and Hide Tanning and Finishing,316100
+389,Leather Tanning and Finishing Services ,96249,Leather and Hide Tanning and Finishing,316110
+390,"Shoe, Boot and Footwear Manufacturing Services, All Kinds",96776,Footwear Manufacturing,316200
+391,"Shoe, Boot and Footwear Manufacturing Services, All Kinds",96776,Footwear Manufacturing,316210
+392,"Shoe, Boot and Footwear Manufacturing Services, All Kinds",96776,Rubber and Plastics Footwear Manufacturing,316211
+393,"Shoe, Boot and Footwear Manufacturing Services, All Kinds",96776,House Slipper Manufacturing,316212
+394,"Shoe, Boot and Footwear Manufacturing Services, All Kinds",96776,Men's Footwear (except Athletic) Manufacturing,316213
+395,"Shoe, Boot and Footwear Manufacturing Services, All Kinds",96776,Women's Footwear (except Athletic) Manufacturing,316214
+396,"Shoe, Boot and Footwear Manufacturing Services, All Kinds",96776,Other Footwear Manufacturing,316219
+397,Leather Manufacturing Services,96747,Other Leather and Allied Product Manufacturing,316900
+398,Leather Manufacturing Services,96747,Other Leather and Allied Product Manufacturing,316990
+399,Manufacturing Services (Not Otherwise Classified),96750,Luggage Manufacturing,316991
+400,Clothing (Apparel) and Accessory Manufacturing Services,96734,Women's Handbag and Purse Manufacturing,316992
+401,Leather Manufacturing Services,96747,Personal Leather Good (except Women's Handbag and Purse) Manufacturing,316993
+402,Leather Manufacturing Services,96747,All Other Leather Good and Allied Product Manufacturing,316998
+403,Leather Manufacturing Services,96747,All Other Leather Good Manufacturing,316999
+404,Wood and Wood Products ,96793,Wood Product Manufacturing,321000
+405,"Pentachlorophenol (Penta), Creosote Oil, and other Wood Preservatives ",19081,Sawmills and Wood Preservation,321100
+406,Milling Machines ,54548,Sawmills and Wood Preservation,321110
+407,Milling Machines ,54548,Sawmills,321113
+408,"Pentachlorophenol (Penta), Creosote Oil, and other Wood Preservatives ",19081,Wood Preservation,321114
+409,Wood and Wood Products ,96793,"Veneer, Plywood, and Engineered Wood Product Manufacturing",321200
+410,Wood and Wood Products ,96793,"Veneer, Plywood, and Engineered Wood Product Manufacturing",321210
+411,Wood and Wood Products ,96793,Hardwood Veneer and Plywood Manufacturing,321211
+412,Wood and Wood Products ,96793,Softwood Veneer and Plywood Manufacturing,321212
+413,Wood and Wood Products ,96793,Engineered Wood Member (except Truss) Manufacturing,321213
+414,Wood and Wood Products ,96793,Truss Manufacturing,321214
+415,Wood and Wood Products ,96793,Reconstituted Wood Product Manufacturing,321219
+416,Wood and Wood Products ,96793,Other Wood Product Manufacturing,321900
+417,"Millwork: Counters, Custom-Made Cabinets, Shelves, Stairs, etc. ",15049,Millwork,321910
+418,Wood and Wood Products ,96793,Wood Window and Door Manufacturing,321911
+419,"Millwork: Counters, Custom-Made Cabinets, Shelves, Stairs, etc. ",15049,"Cut Stock, Resawing Lumber, and Planing",321912
+420,"Millwork: Counters, Custom-Made Cabinets, Shelves, Stairs, etc. ",15049,Other Millwork (including Flooring),321918
+421,Wood and Wood Products ,96793,Wood Container and Pallet Manufacturing,321920
+422,Wood and Wood Products ,96793,All Other Wood Product Manufacturing,321990
+423,Prefabricated and Manufactured Buildings or Homes Manufacturing Services,96762,Manufactured Home (Mobile Home) Manufacturing,321991
+424,Prefabricated and Manufactured Buildings or Homes Manufacturing Services,96762,Prefabricated Wood Building Manufacturing,321992
+425,Wood and Wood Products ,96793,All Other Miscellaneous Wood Product Manufacturing,321999
+426,Paper and Pulp Products ,96754,Paper Manufacturing,322000
+427,Milling Machines ,54548,"Pulp, Paper, and Paperboard Mills",322100
+428,Milling Machines ,54548,Pulp Mills,322110
+429,Milling Machines ,54548,Paper Mills,322120
+430,Milling Machines ,54548,Paper (except Newsprint) Mills,322121
+431,Milling Machines ,54548,Newsprint Mills,322122
+432,Milling Machines ,54548,Paperboard Mills,322130
+433,Paper and Pulp Products ,96754,Converted Paper Product Manufacturing,322200
+434,Paper and Pulp Products ,96754,Paperboard Container Manufacturing,322210
+435,Paper and Pulp Products ,96754,Corrugated and Solid Fiber Box Manufacturing,322211
+436,Paper and Pulp Products ,96754,Folding Paperboard Box Manufacturing,322212
+437,Paper and Pulp Products ,96754,Setup Paperboard Box Manufacturing,322213
+438,Manufacturing Services (Not Otherwise Classified),96750,"Fiber Can, Tube, Drum, and Similar Products Manufacturing",322214
+439,Manufacturing Services (Not Otherwise Classified),96750,Nonfolding Sanitary Food Container Manufacturing,322215
+440,Manufacturing Services (Not Otherwise Classified),96750,Other Paperboard Container Manufacturing,322219
+441,Paper and Pulp Products ,96754,Paper Bag and Coated and Treated Paper Manufacturing,322220
+442,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Coated and Laminated Packaging Paper and Plastics Film Manufacturing,322221
+443,Paper and Pulp Products ,96754,Coated and Laminated Paper Manufacturing,322222
+444,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,"Plastics, Foil, and Coated Paper Bag Manufacturing",322223
+445,Paper and Pulp Products ,96754,Uncoated Paper and Multiwall Bag Manufacturing,322224
+446,Manufacturing Services (Not Otherwise Classified),96750,Laminated Aluminum Foil Manufacturing for Flexible Packaging Uses,322225
+447,Paper and Pulp Products ,96754,Surface-Coated Paperboard Manufacturing,322226
+448,Paper and Pulp Products ,96754,Stationery Product Manufacturing,322230
+449,Paper and Pulp Products ,96754,Die-Cut Paper and Paperboard Office Supplies Manufacturing,322231
+450,Paper and Pulp Products ,96754,Envelope Manufacturing,322232
+451,Paper and Pulp Products ,96754,"Stationery, Tablet, and Related Product Manufacturing",322233
+452,Paper and Pulp Products ,96754,Other Converted Paper Product Manufacturing,322290
+453,Paper and Pulp Products ,96754,Sanitary Paper Product Manufacturing,322291
+454,Paper and Pulp Products ,96754,All Other Converted Paper Product Manufacturing,322299
+455,Silk Screen Printing ,96684,Commercial Screen Printing,323113
+456,"Offset Printing, Books, Perfect Bound (Quan. Over 10,000); 4 Color Process Acceptable ",96666,Books Printing,323117
+457,"Pre-Press: Color Separations, Composite Film, Stripping, Chromolin or Match-Print Proof, etc. ",96570,Prepress Services,323122
+458,"Petroleum Products Manufacturing Services (Including Coal, etc)",96756,Petroleum and Coal Products Manufacturing,324000
+459,"Petroleum Products Manufacturing Services (Including Coal, etc)",96756,Petroleum and Coal Products Manufacturing,324100
+460,Petroleum Refining Services ,96266,Petroleum Refineries,324110
+461,Asphalt and Saturated Materials Manufacturing Services,96718,"Asphalt Paving, Roofing, and Saturated Materials Manufacturing",324120
+462,Asphalt and Saturated Materials Manufacturing Services,96718,Asphalt Paving Mixture and Block Manufacturing,324121
+463,Asphalt and Saturated Materials Manufacturing Services,96718,Asphalt Shingle and Coating Materials Manufacturing,324122
+464,"Petroleum Products Manufacturing Services (Including Coal, etc)",96756,Other Petroleum and Coal Products Manufacturing,324190
+465,"Petroleum Products Manufacturing Services (Including Coal, etc)",96756,Petroleum Lubricating Oil and Grease Manufacturing,324191
+466,"Petroleum Products Manufacturing Services (Including Coal, etc)",96756,All Other Petroleum and Coal Products Manufacturing,324199
+467,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Chemical Manufacturing,325000
+468,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Basic Chemical Manufacturing,325100
+469,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Petrochemical Manufacturing,325110
+470,"Petroleum Products Manufacturing Services (Including Coal, etc)",96756,Industrial Gas Manufacturing,325120
+471,"Paint, Varnish, Lacquer and Related Products Production Services ",96755,Synthetic Dye and Pigment Manufacturing,325130
+472,"Paint, Varnish, Lacquer and Related Products Production Services ",96755,Inorganic Dye and Pigment Manufacturing,325131
+473,"Paint, Varnish, Lacquer and Related Products Production Services ",96755,Synthetic Organic Dye and Pigment Manufacturing,325132
+474,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Other Basic Inorganic Chemical Manufacturing,325180
+475,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Alkalies and Chlorine Manufacturing,325181
+476,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Carbon Black Manufacturing,325182
+477,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,All Other Basic Inorganic Chemical Manufacturing,325188
+478,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Other Basic Organic Chemical Manufacturing,325190
+479,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Gum and Wood Chemical Manufacturing,325191
+480,"Petroleum Products Manufacturing Services (Including Coal, etc)",96756,Cyclic Crude and Intermediate Manufacturing,325192
+481,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Ethyl Alcohol Manufacturing,325193
+482,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,"Cyclic Crude, Intermediate, and Gum and Wood Chemical Manufacturing",325194
+483,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,All Other Basic Organic Chemical Manufacturing,325199
+484,Fiber Products ,96741,"Resin, Synthetic Rubber, and Artificial Synthetic Fibers and Filaments Manufacturing",325200
+485,Rubber and Rubber Products ,96772,Resin and Synthetic Rubber Manufacturing,325210
+486,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Plastics Material and Resin Manufacturing,325211
+487,Rubber and Rubber Products ,96772,Synthetic Rubber Manufacturing,325212
+488,Fiber Products ,96741,Artificial and Synthetic Fibers and Filaments Manufacturing,325220
+489,Fiber Products ,96741,Cellulosic Organic Fiber Manufacturing,325221
+490,Fiber Products ,96741,Noncellulosic Organic Fiber Manufacturing,325222
+491,Fertilizer and Soil Conditioner Products ,96740,"Pesticide, Fertilizer, and Other Agricultural Chemical Manufacturing",325300
+492,Fertilizer and Soil Conditioner Products ,96740,Fertilizer Manufacturing,325310
+493,Fertilizer and Soil Conditioner Products ,96740,Nitrogenous Fertilizer Manufacturing,325311
+494,Fertilizer and Soil Conditioner Products ,96740,Phosphatic Fertilizer Manufacturing,325312
+495,Fertilizer and Soil Conditioner Products ,96740,Fertilizer (Mixing Only) Manufacturing,325314
+496,Manufacturing Services (Not Otherwise Classified),96750,Pesticide and Other Agricultural Chemical Manufacturing,325320
+497,Pharmaceutical and Medical Equipment and Products Manufacturing Services,96757,Pharmaceutical and Medicine Manufacturing,325400
+498,Pharmaceutical and Medical Equipment and Products Manufacturing Services,96757,Pharmaceutical and Medicine Manufacturing,325410
+499,Pharmaceutical and Medical Equipment and Products Manufacturing Services,96757,Medicinal and Botanical Manufacturing,325411
+500,Pharmaceutical and Medical Equipment and Products Manufacturing Services,96757,Pharmaceutical Preparation Manufacturing,325412
+501,Pharmaceutical and Medical Equipment and Products Manufacturing Services,96757,In-Vitro Diagnostic Substance Manufacturing,325413
+502,Pharmaceutical and Medical Equipment and Products Manufacturing Services,96757,Biological Product (except Diagnostic) Manufacturing,325414
+503,"Paint, Varnish, Lacquer and Related Products Production Services ",96755,"Paint, Coating, and Adhesive Manufacturing",325500
+504,"Paint, Varnish, Lacquer and Related Products Production Services ",96755,Paint and Coating Manufacturing,325510
+505,Manufacturing Services (Not Otherwise Classified),96750,Adhesive Manufacturing,325520
+506,Janitorial Products Manufacturing Services,96745,"Soap, Cleaning Compound, and Toilet Preparation Manufacturing",325600
+507,Janitorial Products Manufacturing Services,96745,Soap and Cleaning Compound Manufacturing,325610
+508,Janitorial Products Manufacturing Services,96745,Soap and Other Detergent Manufacturing,325611
+509,Janitorial Products Manufacturing Services,96745,Polish and Other Sanitation Good Manufacturing,325612
+510,Janitorial Products Manufacturing Services,96745,Surface Active Agent Manufacturing,325613
+511,Janitorial Products Manufacturing Services,96745,Toilet Preparation Manufacturing,325620
+512,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Other Chemical Product and Preparation Manufacturing,325900
+513,Manufacturing Services (Not Otherwise Classified),96750,Printing Ink Manufacturing,325910
+514,Manufacturing Services (Not Otherwise Classified),96750,Explosives Manufacturing,325920
+515,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,All Other Chemical Product and Preparation Manufacturing,325990
+516,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,Custom Compounding of Purchased Resins,325991
+517,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,"Photographic Film, Paper, Plate, and Chemical Manufacturing",325992
+518,"Chemical Products (Incl. Biochemical, Petrochemical, etc.) ",96732,All Other Miscellaneous Chemical Product and Preparation Manufacturing,325998
+519,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Plastics and Rubber Products Manufacturing,326000
+520,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Plastics Product Manufacturing,326100
+521,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Plastics Packaging Materials and Unlaminated Film and Sheet Manufacturing,326110
+522,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Plastics Bag Manufacturing,326111
+523,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Plastics Packaging Film and Sheet (including Laminated) Manufacturing,326112
+524,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Unlaminated Plastics Film and Sheet (except Packaging) Manufacturing,326113
+525,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,"Plastics Pipe, Pipe Fitting, and Unlaminated Profile Shape Manufacturing",326120
+526,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Unlaminated Plastics Profile Shape Manufacturing,326121
+527,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Plastics Pipe and Pipe Fitting Manufacturing,326122
+528,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,"Laminated Plastics Plate, Sheet (except Packaging), and Shape Manufacturing",326130
+529,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Polystyrene Foam Product Manufacturing,326140
+530,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Urethane and Other Foam Product (except Polystyrene) Manufacturing,326150
+531,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Plastics Bottle Manufacturing,326160
+532,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,Other Plastics Product Manufacturing,326190
+533,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Plastics Plumbing Fixture Manufacturing,326191
+534,Manufacturing Services (Not Otherwise Classified),96750,Resilient Floor Covering Manufacturing,326192
+535,"Plastics and Plastic Products (Incl. Fiberglass, Poly, etc.)",96759,All Other Plastics Product Manufacturing,326199
+536,Rubber and Rubber Products ,96772,Rubber Product Manufacturing,326200
+537,Rubber and Rubber Products ,96772,Tire Manufacturing,326210
+538,Rubber and Rubber Products ,96772,Tire Manufacturing (except Retreading),326211
+539,"Tire and Tube Mounting, Repair, Retreading, and Rotation (Including Tire Foam Filling Services) ",92882,Tire Retreading,326212
+540,Rubber and Rubber Products ,96772,Rubber and Plastics Hoses and Belting Manufacturing,326220
+541,Rubber and Rubber Products ,96772,Other Rubber Product Manufacturing,326290
+542,Rubber and Rubber Products ,96772,Rubber Product Manufacturing for Mechanical Use,326291
+543,Rubber and Rubber Products ,96772,All Other Rubber Product Manufacturing,326299
+544,Manufacturing Services (Not Otherwise Classified),96750,Nonmetallic Mineral Product Manufacturing,327000
+545,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Clay Product and Refractory Manufacturing,327100
+546,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,"Pottery, Ceramics, and Plumbing Fixture Manufacturing",327110
+547,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Vitreous China Plumbing Fixture and China and Earthenware Bathroom Accessories Manufacturing,327111
+548,"China, Earthenware or Pottery Products ",96733,"Vitreous China, Fine Earthenware, and Other Pottery Product Manufacturing",327112
+549,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Porcelain Electrical Supply Manufacturing,327113
+550,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Clay Building Material and Refractories Manufacturing,327120
+551,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Brick and Structural Clay Tile Manufacturing,327121
+552,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Ceramic Wall and Floor Tile Manufacturing,327122
+553,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Other Structural Clay Product Manufacturing,327123
+554,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Clay Refractory Manufacturing,327124
+555,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Nonclay Refractory Manufacturing,327125
+556,Glass Products ,96743,Glass and Glass Product Manufacturing,327200
+557,Glass Products ,96743,Glass and Glass Product Manufacturing,327210
+558,Glass Products ,96743,Flat Glass Manufacturing,327211
+559,Glass Products ,96743,Other Pressed and Blown Glass and Glassware Manufacturing,327212
+560,Glass Products ,96743,Glass Container Manufacturing,327213
+561,Glass Products ,96743,Glass Product Manufacturing Made of Purchased Glass,327215
+562,"Cement, Lime, Plaster or Stucco Products ",96730,Cement and Concrete Product Manufacturing,327300
+563,"Cement, Lime, Plaster or Stucco Products ",96730,Cement Manufacturing,327310
+564,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Ready-Mix Concrete Manufacturing,327320
+565,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,"Concrete Pipe, Brick, and Block Manufacturing",327330
+566,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Concrete Block and Brick Manufacturing,327331
+567,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Concrete Pipe Manufacturing,327332
+568,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Other Concrete Product Manufacturing,327390
+569,"Cement, Lime, Plaster or Stucco Products ",96730,Lime and Gypsum Product Manufacturing,327400
+570,"Cement, Lime, Plaster or Stucco Products ",96730,Lime Manufacturing,327410
+571,"Cement, Lime, Plaster or Stucco Products ",96730,Gypsum Product Manufacturing,327420
+572,Manufacturing Services (Not Otherwise Classified),96750,Other Nonmetallic Mineral Product Manufacturing,327900
+573,Abrasives Manufacturing Services ,96704,Abrasive Product Manufacturing,327910
+574,Manufacturing Services (Not Otherwise Classified),96750,All Other Nonmetallic Mineral Product Manufacturing,327990
+575,"Aggregate, Concrete or Stone Products (Including Clay, Refractory Materials and Tile Products)",96712,Cut Stone and Stone Product Manufacturing,327991
+576,Manufacturing Services (Not Otherwise Classified),96750,Ground or Treated Mineral and Earth Manufacturing,327992
+577,Manufacturing Services (Not Otherwise Classified),96750,Mineral Wool Manufacturing,327993
+578,Manufacturing Services (Not Otherwise Classified),96750,All Other Miscellaneous Nonmetallic Mineral Product Manufacturing,327999
+579,Metals and Metal Products ,96749,Primary Metal Manufacturing,331000
+580,Metals and Metal Products ,96749,Iron and Steel Mills and Ferroalloy Manufacturing,331100
+581,Metals and Metal Products ,96749,Iron and Steel Mills and Ferroalloy Manufacturing,331110
+582,"Mills, Iron and Steel",54546,Iron and Steel Mills,331111
+583,Metals and Metal Products ,96749,Electrometallurgical Ferroalloy Product Manufacturing,331112
+584,Metals and Metal Products ,96749,Steel Product Manufacturing from Purchased Steel,331200
+585,Metals and Metal Products ,96749,Iron and Steel Pipe and Tube Manufacturing from Purchased Steel,331210
+586,Metals and Metal Products ,96749,Rolling and Drawing of Purchased Steel,331220
+587,Metals and Metal Products ,96749,Rolled Steel Shape Manufacturing,331221
+588,Metals and Metal Products ,96749,Steel Wire Drawing,331222
+589,Metals and Metal Products ,96749,Alumina and Aluminum Production and Processing,331300
+590,Metals and Metal Products ,96749,Alumina and Aluminum Production and Processing,331310
+591,Metals and Metal Products ,96749,Alumina Refining,331311
+592,Metals and Metal Products ,96749,Primary Aluminum Production,331312
+593,Metals and Metal Products ,96749,Alumina Refining and Primary Aluminum Production,331313
+594,Metals and Metal Products ,96749,Secondary Smelting and Alloying of Aluminum,331314
+595,Metals and Metal Products ,96749,"Aluminum Sheet, Plate, and Foil Manufacturing",331315
+596,Metals and Metal Products ,96749,Aluminum Extruded Product Manufacturing,331316
+597,Metals and Metal Products ,96749,"Other Aluminum Rolling, Drawing, and Extruding",331318
+598,Metals and Metal Products ,96749,Other Aluminum Rolling and Drawing,331319
+599,Metals and Metal Products ,96749,Nonferrous Metal (except Aluminum) Production and Processing,331400
+600,Metals and Metal Products ,96749,Nonferrous Metal (except Aluminum) Smelting and Refining,331410
+601,Metals and Metal Products ,96749,Primary Smelting and Refining of Copper,331411
+602,Metals and Metal Products ,96749,Primary Smelting and Refining of Nonferrous Metal (except Copper and Aluminum),331419
+603,Metals and Metal Products ,96749,"Copper Rolling, Drawing, Extruding, and Alloying",331420
+604,Metals and Metal Products ,96749,"Copper Rolling, Drawing, and Extruding",331421
+605,Metals and Metal Products ,96749,Copper Wire (except Mechanical) Drawing,331422
+606,Metals and Metal Products ,96749,"Secondary Smelting, Refining, and Alloying of Copper",331423
+607,Metals and Metal Products ,96749,"Nonferrous Metal (except Copper and Aluminum) Rolling, Drawing, Extruding, and Alloying",331490
+608,Metals and Metal Products ,96749,"Nonferrous Metal (except Copper and Aluminum) Rolling, Drawing, and Extruding",331491
+609,Metals and Metal Products ,96749,"Secondary Smelting, Refining, and Alloying of Nonferrous Metal (except Copper and Aluminum)",331492
+610,"Castings, Ferrous and Non-Ferrous Alloy ",40034,Ferrous Metal Foundries,331510
+611,"Castings, Malleable Iron ",40045,Iron Foundries,331511
+612,"Castings, Steel ",40047,Steel Investment Foundries,331512
+613,"Castings, Steel ",40047,Steel Foundries (except Investment),331513
+614,"Castings, Ferrous and Non-Ferrous Alloy ",40034,Nonferrous Metal Foundries,331520
+615,"Castings, Aluminum ",40015,Aluminum Die-Casting Foundries,331521
+616,"Castings, Ferrous and Non-Ferrous Alloy ",40034,Nonferrous (except Aluminum) Die-Casting Foundries,331522
+617,"Castings, Ferrous and Non-Ferrous Alloy ",40034,Nonferrous Metal Die-Casting Foundries,331523
+618,"Castings, Aluminum ",40015,Aluminum Foundries (except Die-Casting),331524
+619,"Castings, Ferrous and Non-Ferrous Alloy ",40034,Other Nonferrous Metal Foundries (except Die-Casting),331529
+620,Metals and Metal Products ,96749,Fabricated Metal Product Manufacturing,332000
+621,"Foundry Equipment and Supplies: Anvils, Bellows, Clays, Flasks, Fluxes, Ladles, Molds, Sand, Shovels, etc. ",40055,Forging and Stamping,332100
+622,"Foundry Equipment and Supplies: Anvils, Bellows, Clays, Flasks, Fluxes, Ladles, Molds, Sand, Shovels, etc. ",40055,Forging and Stamping,332110
+623,Forgings ,40060,Iron and Steel Forging,332111
+624,Forgings ,40060,Nonferrous Forging,332112
+625,Forgings ,40060,Custom Roll Forming,332114
+626,Manufacturing Services (Not Otherwise Classified),96750,Crown and Closure Manufacturing,332115
+627,"Foundry Equipment and Supplies: Anvils, Bellows, Clays, Flasks, Fluxes, Ladles, Molds, Sand, Shovels, etc. ",40055,Metal Stamping,332116
+628,Manufacturing Services (Not Otherwise Classified),96750,Powder Metallurgy Part Manufacturing,332117
+629,Forgings ,40055,"Metal Crown, Closure, and Other Metal Stamping (except Automotive)",332119
+630,Hardware Manufacturing Services,96744,Cutlery and Handtool Manufacturing,332200
+631,Hardware Manufacturing Services,96744,Cutlery and Handtool Manufacturing,332210
+632,Hardware Manufacturing Services,96744,Cutlery and Flatware (except Precious) Manufacturing,332211
+633,Hardware Manufacturing Services,96744,Hand and Edge Tool Manufacturing,332212
+634,Hardware Manufacturing Services,96744,Saw Blade and Handsaw Manufacturing,332213
+635,Manufacturing Services (Not Otherwise Classified),96750,"Kitchen Utensil, Pot, and Pan Manufacturing",332214
+636,Manufacturing Services (Not Otherwise Classified),96750,"Metal Kitchen Cookware, Utensil, Cutlery, and Flatware (except Precious) Manufacturing",332215
+637,Hardware Manufacturing Services,96744,Saw Blade and Handtool Manufacturing,332216
+638,Metals and Metal Products ,96749,Architectural and Structural Metals Manufacturing,332300
+639,Metals and Metal Products ,96749,Plate Work and Fabricated Structural Product Manufacturing,332310
+640,Prefabricated and Manufactured Buildings or Homes Manufacturing Services,96762,Prefabricated Metal Building and Component Manufacturing,332311
+641,Prefabricated and Manufactured Buildings or Homes Manufacturing Services,96762,Fabricated Structural Metal Manufacturing,332312
+642,Metals and Metal Products ,96749,Plate Work Manufacturing,332313
+643,Metals and Metal Products ,96749,Ornamental and Architectural Metal Products Manufacturing,332320
+644,Metals and Metal Products ,96749,Metal Window and Door Manufacturing,332321
+645,Metals and Metal Products ,96749,Sheet Metal Work Manufacturing,332322
+646,Metals and Metal Products ,96749,Ornamental and Architectural Metal Work Manufacturing,332323
+647,Manufacturing Services (Not Otherwise Classified),96750,"Boiler, Tank, and Shipping Container Manufacturing",332400
+648,Manufacturing Services (Not Otherwise Classified),96750,Power Boiler and Heat Exchanger Manufacturing,332410
+649,Metals and Metal Products ,96749,Metal Tank (Heavy Gauge) Manufacturing,332420
+650,Metals and Metal Products ,96749,"Metal Can, Box, and Other Metal Container (Light Gauge) Manufacturing",332430
+651,Metals and Metal Products ,96749,Metal Can Manufacturing,332431
+652,Metals and Metal Products ,96749,Other Metal Container Manufacturing,332439
+653,Hardware Manufacturing Services,96744,Hardware Manufacturing,332500
+654,Hardware Manufacturing Services,96744,Hardware Manufacturing,332510
+655,Metals and Metal Products ,96749,Spring and Wire Product Manufacturing,332600
+656,Metals and Metal Products ,96749,Spring and Wire Product Manufacturing,332610
+657,Metals and Metal Products ,96749,Spring (Heavy Gauge) Manufacturing,332611
+658,Metals and Metal Products ,96749,Spring (Light Gauge) Manufacturing,332612
+659,Metals and Metal Products ,96749,Spring Manufacturing,332613
+660,Metals and Metal Products ,96749,Other Fabricated Wire Product Manufacturing,332618
+661,Manufacturing Services (Not Otherwise Classified),96750,"Machine Shops; Turned Product; and Screw, Nut, and Bolt Manufacturing",332700
+662,"Machine Shop Services, Automotive Type (See 929-48 for Industrial Type)",92854,Machine Shops,332710
+663,Manufacturing Services (Not Otherwise Classified),96750,"Turned Product and Screw, Nut, and Bolt Manufacturing",332720
+664,Manufacturing Services (Not Otherwise Classified),96750,Precision Turned Product Manufacturing,332721
+665,Manufacturing Services (Not Otherwise Classified),96750,"Bolt, Nut, Screw, Rivet, and Washer Manufacturing",332722
+666,"Engraving Services; Awards, Trophies, Etc. (See 966-28 for Printing Type)",96233,"Coating, Engraving, Heat Treating, and Allied Activities",332800
+667,"Engraving Services; Awards, Trophies, Etc. (See 966-28 for Printing Type)",96233,"Coating, Engraving, Heat Treating, and Allied Activities",332810
+668,Heat Treating and Tracing Services (Including Refractory Dryout) ,96241,Metal Heat Treating,332811
+669,"Engraving Services; Awards, Trophies, Etc. (See 966-28 for Printing Type)",96233,"Metal Coating, Engraving (except Jewelry and Silverware), and Allied Services to Manufacturers",332812
+670,"Industrial Services Not Otherwise Classified (Electroplating, etc.) ",96245,"Electroplating, Plating, Polishing, Anodizing, and Coloring",332813
+671,Metals and Metal Products ,96749,Other Fabricated Metal Product Manufacturing,332900
+672,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Metal Valve Manufacturing,332910
+673,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Industrial Valve Manufacturing,332911
+674,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Fluid Power Valve and Hose Fitting Manufacturing,332912
+675,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Plumbing Fixture Fitting and Trim Manufacturing,332913
+676,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Other Metal Valve and Pipe Fitting Manufacturing,332919
+677,Metals and Metal Products ,96749,All Other Fabricated Metal Product Manufacturing,332990
+678,Manufacturing Services (Not Otherwise Classified),96750,Ball and Roller Bearing Manufacturing,332991
+679,Manufacturing Services (Not Otherwise Classified),96750,Small Arms Ammunition Manufacturing,332992
+680,Manufacturing Services (Not Otherwise Classified),96750,Ammunition (except Small Arms) Manufacturing,332993
+681,Manufacturing Services (Not Otherwise Classified),96750,Small Arms Manufacturing,332994
+682,Manufacturing Services (Not Otherwise Classified),96750,Other Ordnance and Accessories Manufacturing,332995
+683,"Plumbing Equipment, Pipe, Fittings and Fixtures Manufacturing Services",96760,Fabricated Pipe and Pipe Fitting Manufacturing,332996
+684,Manufacturing Services (Not Otherwise Classified),96750,Industrial Pattern Manufacturing,332997
+685,Metals and Metal Products ,96749,Enameled Iron and Metal Sanitary Ware Manufacturing,332998
+686,Metals and Metal Products ,96749,All Other Miscellaneous Fabricated Metal Product Manufacturing,332999
+687,"Machinery, All Types ",96748,Machinery Manufacturing,333000
+688,"Machinery, All Types ",96748,"Agriculture, Construction, and Mining Machinery Manufacturing",333100
+689,"Machinery, All Types ",96748,Agricultural Implement Manufacturing,333110
+690,"Machinery, All Types ",96748,Farm Machinery and Equipment Manufacturing,333111
+691,"Machinery, All Types ",96748,Lawn and Garden Tractor and Home Lawn and Garden Equipment Manufacturing,333112
+692,"Machinery, All Types ",96748,Construction Machinery Manufacturing,333120
+693,"Machinery, All Types ",96748,Mining and Oil and Gas Field Machinery Manufacturing,333130
+694,"Machinery, All Types ",96748,Mining Machinery and Equipment Manufacturing,333131
+695,"Machinery, All Types ",96748,Oil and Gas Field Machinery and Equipment Manufacturing,333132
+696,"Machinery, All Types ",96748,Industrial Machinery Manufacturing,333200
+697,"Machinery, All Types ",96748,Sawmill and Woodworking Machinery Manufacturing,333210
+698,"Machinery, All Types ",96748,Plastics and Rubber Industry Machinery Manufacturing,333220
+699,"Machinery, All Types ",96748,Industrial Machinery Manufacturing,333240
+700,"Machinery, All Types ",96748,Food Product Machinery Manufacturing,333241
+701,Semiconductor and Related Equipment Manufacturing Services,96775,Semiconductor Machinery Manufacturing,333242
+702,"Machinery, All Types ",96748,"Sawmill, Woodworking, and Paper Machinery Manufacturing",333243
+703,"Machinery, All Types ",96748,Printing Machinery and Equipment Manufacturing,333244
+704,"Machinery, All Types ",96748,Other Industrial Machinery Manufacturing,333249
+705,"Machinery, All Types ",96748,Other Industrial Machinery Manufacturing,333290
+706,"Machinery, All Types ",96748,Paper Industry Machinery Manufacturing,333291
+707,"Machinery, All Types ",96748,Textile Machinery Manufacturing,333292
+708,"Machinery, All Types ",96748,Printing Machinery and Equipment Manufacturing,333293
+709,"Machinery, All Types ",96748,Food Product Machinery Manufacturing,333294
+710,"Machinery, All Types ",96748,Semiconductor Machinery Manufacturing,333295
+711,"Machinery, All Types ",96748,All Other Industrial Machinery Manufacturing,333298
+712,"Machinery, All Types ",96748,Commercial and Service Industry Machinery Manufacturing,333300
+713,"Machinery, All Types ",96748,Commercial and Service Industry Machinery Manufacturing,333310
+714,"Machinery, All Types ",96748,Automatic Vending Machine Manufacturing,333311
+715,"Machinery, All Types ",96748,"Commercial Laundry, Drycleaning, and Pressing Machine Manufacturing",333312
+716,"Machinery, All Types ",96748,Office Machinery Manufacturing,333313
+717,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Optical Instrument and Lens Manufacturing,333314
+718,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Photographic and Photocopying Equipment Manufacturing,333315
+719,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Photographic and Photocopying Equipment Manufacturing,333316
+720,"Machinery, All Types ",96748,Other Commercial and Service Industry Machinery Manufacturing,333318
+721,"Machinery, All Types ",96748,Other Commercial and Service Industry Machinery Manufacturing,333319
+722,"Machinery, All Types ",96748,"Ventilation, Heating, Air-Conditioning, and Commercial Refrigeration Equipment Manufacturing",333400
+723,"Machinery, All Types ",96748,"Ventilation, Heating, Air-Conditioning, and Commercial Refrigeration Equipment Manufacturing",333410
+724,"Machinery, All Types ",96748,Air Purification Equipment Manufacturing,333411
+725,"Machinery, All Types ",96748,Industrial and Commercial Fan and Blower Manufacturing,333412
+726,"Machinery, All Types ",96748,Industrial and Commercial Fan and Blower and Air Purification Equipment Manufacturing,333413
+727,"Machinery, All Types ",96748,Heating Equipment (except Warm Air Furnaces) Manufacturing,333414
+728,"Machinery, All Types ",96748,Air-Conditioning and Warm Air Heating Equipment and Commercial and Industrial Refrigeration Equipment Manufacturing,333415
+729,"Machinery, All Types ",96748,Metalworking Machinery Manufacturing,333500
+730,"Machinery, All Types ",96748,Metalworking Machinery Manufacturing,333510
+731,Manufacturing Services (Not Otherwise Classified),96750,Industrial Mold Manufacturing,333511
+732,Hardware Manufacturing Services,96744,Machine Tool (Metal Cutting Types) Manufacturing,333512
+733,Hardware Manufacturing Services,96744,Machine Tool (Metal Forming Types) Manufacturing,333513
+734,Hardware Manufacturing Services,96744,"Special Die and Tool, Die Set, Jig, and Fixture Manufacturing",333514
+735,Hardware Manufacturing Services,96744,Cutting Tool and Machine Tool Accessory Manufacturing,333515
+736,"Machinery, All Types ",96748,Rolling Mill Machinery and Equipment Manufacturing,333516
+737,Tool Manufacturing Services,96785,Machine Tool Manufacturing,333517
+738,"Machinery, All Types ",96748,Other Metalworking Machinery Manufacturing,333518
+739,"Machinery, All Types ",96748,Rolling Mill and Other Metalworking Machinery Manufacturing,333519
+740,"Machinery, All Types ",96748,"Engine, Turbine, and Power Transmission Equipment Manufacturing",333600
+741,"Machinery, All Types ",96748,"Engine, Turbine, and Power Transmission Equipment Manufacturing",333610
+742,"Machinery, All Types ",96748,Turbine and Turbine Generator Set Units Manufacturing,333611
+743,Manufacturing Services (Not Otherwise Classified),96750,"Speed Changer, Industrial High-Speed Drive, and Gear Manufacturing",333612
+744,"Machinery, All Types ",96748,Mechanical Power Transmission Equipment Manufacturing,333613
+745,"Machinery, All Types ",96748,Other Engine Equipment Manufacturing,333618
+746,"Machinery, All Types ",96748,Other General Purpose Machinery Manufacturing,333900
+747,Manufacturing Services (Not Otherwise Classified),96750,Pump and Compressor Manufacturing,333910
+748,"Machinery, All Types ",96748,Pump and Pumping Equipment Manufacturing,333911
+749,Manufacturing Services (Not Otherwise Classified),96750,Air and Gas Compressor Manufacturing,333912
+750,Manufacturing Services (Not Otherwise Classified),96750,Measuring and Dispensing Pump Manufacturing,333913
+751,"Machinery, All Types ",96748,Material Handling Equipment Manufacturing,333920
+752,Manufacturing Services (Not Otherwise Classified),96750,Elevator and Moving Stairway Manufacturing,333921
+753,"Machinery, All Types ",96748,Conveyor and Conveying Equipment Manufacturing,333922
+754,Manufacturing Services (Not Otherwise Classified),96750,"Overhead Traveling Crane, Hoist, and Monorail System Manufacturing",333923
+755,"Machinery, All Types ",96748,"Industrial Truck, Tractor, Trailer, and Stacker Machinery Manufacturing",333924
+756,"Machinery, All Types ",96748,All Other General Purpose Machinery Manufacturing,333990
+757,Hardware Manufacturing Services,96744,Power-Driven Handtool Manufacturing,333991
+758,"Machinery, All Types ",96748,Welding and Soldering Equipment Manufacturing,333992
+759,"Machinery, All Types ",96748,Packaging Machinery Manufacturing,333993
+760,Manufacturing Services (Not Otherwise Classified),96750,Industrial Process Furnace and Oven Manufacturing,333994
+761,Manufacturing Services (Not Otherwise Classified),96750,Fluid Power Cylinder and Actuator Manufacturing,333995
+762,Manufacturing Services (Not Otherwise Classified),96750,Fluid Power Pump and Motor Manufacturing,333996
+763,Manufacturing Services (Not Otherwise Classified),96750,Scale and Balance (except Laboratory) Manufacturing,333997
+764,"Machinery, All Types ",96748,All Other Miscellaneous General Purpose Machinery Manufacturing,333999
+765,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Computer and Electronic Product Manufacturing,334000
+766,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Computer and Peripheral Equipment Manufacturing,334100
+767,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Computer and Peripheral Equipment Manufacturing,334110
+768,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electronic Computer Manufacturing,334111
+769,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Computer Storage Device Manufacturing,334112
+770,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Computer Terminal Manufacturing,334113
+771,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Computer Terminal and Other Computer Peripheral Equipment Manufacturing,334118
+772,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Other Computer Peripheral Equipment Manufacturing,334119
+773,Communications Equipment Manufacturing Services,96735,Communications Equipment Manufacturing,334200
+774,Communications Equipment Manufacturing Services,96735,Telephone Apparatus Manufacturing,334210
+775,Communications Equipment Manufacturing Services,96735,Radio and Television Broadcasting and Wireless Communications Equipment Manufacturing,334220
+776,Communications Equipment Manufacturing Services,96735,Other Communications Equipment Manufacturing,334290
+777,Communications Equipment Manufacturing Services,96735,Audio and Video Equipment Manufacturing,334300
+778,Communications Equipment Manufacturing Services,96735,Audio and Video Equipment Manufacturing,334310
+779,Semiconductor and Related Equipment Manufacturing Services,96775,Semiconductor and Other Electronic Component Manufacturing,334400
+780,Semiconductor and Related Equipment Manufacturing Services,96775,Semiconductor and Other Electronic Component Manufacturing,334410
+781,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electron Tube Manufacturing,334411
+782,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Bare Printed Circuit Board Manufacturing,334412
+783,Semiconductor and Related Equipment Manufacturing Services,96775,Semiconductor and Related Device Manufacturing,334413
+784,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electronic Capacitor Manufacturing,334414
+785,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electronic Resistor Manufacturing,334415
+786,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,"Electronic Coil, Transformer, and Other Inductor Manufacturing",334416
+787,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electronic Connector Manufacturing,334417
+788,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Printed Circuit Assembly (Electronic Assembly) Manufacturing,334418
+789,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Other Electronic Component Manufacturing,334419
+790,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,"Navigational, Measuring, Electromedical, and Control Instruments Manufacturing",334500
+791,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,"Navigational, Measuring, Electromedical, and Control Instruments Manufacturing",334510
+792,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,"Search, Detection, Navigation, Guidance, Aeronautical, and Nautical System and Instrument Manufacturing",334511
+793,Manufacturing Services (Not Otherwise Classified),96750,"Automatic Environmental Control Manufacturing for Residential, Commercial, and Appliance Use",334512
+794,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,"Instruments and Related Products Manufacturing for Measuring, Displaying, and Controlling Industrial Process Variables",334513
+795,Manufacturing Services (Not Otherwise Classified),96750,Totalizing Fluid Meter and Counting Device Manufacturing,334514
+796,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Instrument Manufacturing for Measuring and Testing Electricity and Electrical Signals,334515
+797,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Analytical Laboratory Instrument Manufacturing,334516
+798,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Irradiation Apparatus Manufacturing,334517
+799,Manufacturing Services (Not Otherwise Classified),96750,"Watch, Clock, and Part Manufacturing",334518
+800,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Other Measuring and Controlling Device Manufacturing,334519
+801,Manufacturing Services (Not Otherwise Classified),96750,Manufacturing and Reproducing Magnetic and Optical Media,334600
+802,Manufacturing Services (Not Otherwise Classified),96750,Manufacturing and Reproducing Magnetic and Optical Media,334610
+803,Copying Services (Reproduction) ,96618,Software Reproducing,334611
+804,Audio Recording ,91507,"Prerecorded Compact Disc (except Software), Tape, and Record Reproducing",334612
+805,Manufacturing Services (Not Otherwise Classified),96750,Magnetic and Optical Recording Media Manufacturing,334613
+806,Audio Recording ,91507,"Software and Other Prerecorded Compact Disc, Tape, and Record Reproducing",334614
+807,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,"Electrical Equipment, Appliance, and Component Manufacturing",335000
+808,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electric Lighting Equipment Manufacturing,335100
+809,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electric Lamp Bulb and Part Manufacturing,335110
+810,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Lighting Fixture Manufacturing,335120
+811,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Residential Electric Lighting Fixture Manufacturing,335121
+812,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,"Commercial, Industrial, and Institutional Electric Lighting Fixture Manufacturing",335122
+813,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Other Lighting Equipment Manufacturing,335129
+814,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Household Appliance Manufacturing,335200
+815,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Small Electrical Appliance Manufacturing,335210
+816,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electric Housewares and Household Fan Manufacturing,335211
+817,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Household Vacuum Cleaner Manufacturing,335212
+818,"Machinery, All Types ",96748,Major Appliance Manufacturing,335220
+819,"Machinery, All Types ",96748,Household Cooking Appliance Manufacturing,335221
+820,"Machinery, All Types ",96748,Household Refrigerator and Home Freezer Manufacturing,335222
+821,"Machinery, All Types ",96748,Household Laundry Equipment Manufacturing,335224
+822,"Machinery, All Types ",96748,Other Major Household Appliance Manufacturing,335228
+823,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electrical Equipment Manufacturing,335300
+824,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Electrical Equipment Manufacturing,335310
+825,Manufacturing Services (Not Otherwise Classified),96750,"Power, Distribution, and Specialty Transformer Manufacturing",335311
+826,"Machinery, All Types ",96748,Motor and Generator Manufacturing,335312
+827,Manufacturing Services (Not Otherwise Classified),96750,Switchgear and Switchboard Apparatus Manufacturing,335313
+828,Manufacturing Services (Not Otherwise Classified),96750,Relay and Industrial Control Manufacturing,335314
+829,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Other Electrical Equipment and Component Manufacturing,335900
+830,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Battery Manufacturing,335910
+831,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Storage Battery Manufacturing,335911
+832,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Primary Battery Manufacturing,335912
+833,Communications Equipment Manufacturing Services,96735,Communication and Energy Wire and Cable Manufacturing,335920
+834,Communications Equipment Manufacturing Services,96735,Fiber Optic Cable Manufacturing,335921
+835,Communications Equipment Manufacturing Services,96735,Other Communication and Energy Wire Manufacturing,335929
+836,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Wiring Device Manufacturing,335930
+837,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Current-Carrying Wiring Device Manufacturing,335931
+838,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,Noncurrent-Carrying Wiring Device Manufacturing,335932
+839,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,All Other Electrical Equipment and Component Manufacturing,335990
+840,Manufacturing Services (Not Otherwise Classified),96750,Carbon and Graphite Product Manufacturing,335991
+841,Electrical and Electronic Products (Incl. Computers and Peripherals),96737,All Other Miscellaneous Electrical Equipment and Component Manufacturing,335999
+842,Transport Equipment ,96784,Transportation Equipment Manufacturing,336000
+843,Transport Equipment ,96784,Motor Vehicle Manufacturing,336100
+844,Transport Equipment ,96784,Automobile and Light Duty Motor Vehicle Manufacturing,336110
+845,Transport Equipment ,96784,Automobile Manufacturing,336111
+846,Transport Equipment ,96784,Light Truck and Utility Vehicle Manufacturing,336112
+847,Transport Equipment ,96784,Heavy Duty Truck Manufacturing,336120
+848,Transport Equipment ,96784,Motor Vehicle Body and Trailer Manufacturing,336200
+849,Transport Equipment ,96784,Motor Vehicle Body and Trailer Manufacturing,336210
+850,Transport Equipment ,96784,Motor Vehicle Body Manufacturing,336211
+851,Transport Equipment ,96784,Truck Trailer Manufacturing,336212
+852,Transport Equipment ,96784,Motor Home Manufacturing,336213
+853,Transport Equipment ,96784,Travel Trailer and Camper Manufacturing,336214
+854,Transport Equipment ,96784,Motor Vehicle Parts Manufacturing,336300
+855,Transport Equipment ,96784,Motor Vehicle Gasoline Engine and Engine Parts Manufacturing,336310
+856,Transport Equipment ,96784,"Carburetor, Piston, Piston Ring, and Valve Manufacturing",336311
+857,Transport Equipment ,96784,Gasoline Engine and Engine Parts Manufacturing,336312
+858,Transport Equipment ,96784,Motor Vehicle Electrical and Electronic Equipment Manufacturing,336320
+859,Transport Equipment ,96784,Vehicular Lighting Equipment Manufacturing,336321
+860,Transport Equipment ,96784,Other Motor Vehicle Electrical and Electronic Equipment Manufacturing,336322
+861,Transport Equipment ,96784,Motor Vehicle Steering and Suspension Components (except Spring) Manufacturing,336330
+862,Transport Equipment ,96784,Motor Vehicle Brake System Manufacturing,336340
+863,Transport Equipment ,96784,Motor Vehicle Transmission and Power Train Parts Manufacturing,336350
+864,Transport Equipment ,96784,Motor Vehicle Seating and Interior Trim Manufacturing,336360
+865,Transport Equipment ,96784,Motor Vehicle Metal Stamping,336370
+866,Transport Equipment ,96784,Other Motor Vehicle Parts Manufacturing,336390
+867,Transport Equipment ,96784,Motor Vehicle Air-Conditioning Manufacturing,336391
+868,Transport Equipment ,96784,All Other Motor Vehicle Parts Manufacturing,336399
+869,Manufacturing Services (Not Otherwise Classified),96750,Aerospace Product and Parts Manufacturing,336400
+870,Manufacturing Services (Not Otherwise Classified),96750,Aerospace Product and Parts Manufacturing,336410
+871,Manufacturing Services (Not Otherwise Classified),96750,Aircraft Manufacturing,336411
+872,Manufacturing Services (Not Otherwise Classified),96750,Aircraft Engine and Engine Parts Manufacturing,336412
+873,Manufacturing Services (Not Otherwise Classified),96750,Other Aircraft Parts and Auxiliary Equipment Manufacturing,336413
+874,Manufacturing Services (Not Otherwise Classified),96750,Guided Missile and Space Vehicle Manufacturing,336414
+875,Manufacturing Services (Not Otherwise Classified),96750,Guided Missile and Space Vehicle Propulsion Unit and Propulsion Unit Parts Manufacturing,336415
+876,Manufacturing Services (Not Otherwise Classified),96750,Other Guided Missile and Space Vehicle Parts and Auxiliary Equipment Manufacturing,336419
+877,Transport Equipment ,96784,Railroad Rolling Stock Manufacturing,336500
+878,Transport Equipment ,96784,Railroad Rolling Stock Manufacturing,336510
+879,"Construction Services: Boats, Barges, Ferries, Ships, etc. ",95934,Ship and Boat Building,336600
+880,"Construction Services: Boats, Barges, Ferries, Ships, etc. ",95934,Ship and Boat Building,336610
+881,"Construction Services: Boats, Barges, Ferries, Ships, etc. ",95934,Ship Building and Repairing,336611
+882,"Construction Services: Boats, Barges, Ferries, Ships, etc. ",95934,Boat Building,336612
+883,Transport Equipment ,96784,Other Transportation Equipment Manufacturing,336900
+884,Transport Equipment ,96784,Other Transportation Equipment Manufacturing,336990
+885,Transport Equipment ,96784,"Motorcycle, Bicycle, and Parts Manufacturing",336991
+886,Transport Equipment ,96784,"Military Armored Vehicle, Tank, and Tank Component Manufacturing",336992
+887,Transport Equipment ,96784,All Other Transportation Equipment Manufacturing,336999
+888,Furniture and Furnishings Manufacturing and Production Services,96742,Furniture and Related Product Manufacturing,337000
+889,Furniture and Furnishings Manufacturing and Production Services,96742,Household and Institutional Furniture and Kitchen Cabinet Manufacturing,337100
+890,Furniture and Furnishings Manufacturing and Production Services,96742,Wood Kitchen Cabinet and Countertop Manufacturing,337110
+891,Furniture and Furnishings Manufacturing and Production Services,96742,Household and Institutional Furniture Manufacturing,337120
+892,Furniture and Furnishings Manufacturing and Production Services,96742,Upholstered Household Furniture Manufacturing,337121
+893,Furniture and Furnishings Manufacturing and Production Services,96742,Nonupholstered Wood Household Furniture Manufacturing,337122
+894,Furniture and Furnishings Manufacturing and Production Services,96742,Metal Household Furniture Manufacturing,337124
+895,Furniture and Furnishings Manufacturing and Production Services,96742,Household Furniture (except Wood and Metal) Manufacturing,337125
+896,Furniture and Furnishings Manufacturing and Production Services,96742,Institutional Furniture Manufacturing,337127
+897,Wood and Wood Products ,96793,"Wood Television, Radio, and Sewing Machine Cabinet Manufacturing",337129
+898,Furniture and Furnishings Manufacturing and Production Services,96742,Office Furniture (including Fixtures) Manufacturing,337200
+899,Furniture and Furnishings Manufacturing and Production Services,96742,Office Furniture (including Fixtures) Manufacturing,337210
+900,Furniture and Furnishings Manufacturing and Production Services,96742,Wood Office Furniture Manufacturing,337211
+901,Wood and Wood Products ,96793,Custom Architectural Woodwork and Millwork Manufacturing,337212
+902,Furniture and Furnishings Manufacturing and Production Services,96742,Office Furniture (except Wood) Manufacturing,337214
+903,Furniture and Furnishings Manufacturing and Production Services,96742,"Showcase, Partition, Shelving, and Locker Manufacturing",337215
+904,Furniture and Furnishings Manufacturing and Production Services,96742,Other Furniture Related Product Manufacturing,337900
+905,Transport Equipment ,96784,Mattress Manufacturing,337910
+906,Manufacturing Services (Not Otherwise Classified),96750,Blind and Shade Manufacturing,337920
+907,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Medical Equipment and Supplies Manufacturing,339110
+908,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Laboratory Apparatus and Furniture Manufacturing,339111
+909,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Surgical and Medical Instrument Manufacturing,339112
+910,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Surgical Appliance and Supplies Manufacturing,339113
+911,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Dental Equipment and Supplies Manufacturing,339114
+912,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Ophthalmic Goods Manufacturing,339115
+913,"Precision Instruments (Incl. Scientific, Measuring, Photographic, Optical, Laboratory, etc.)",96761,Dental Laboratories,339116
+914,Manufacturing Services (Not Otherwise Classified),96750,Jewelry and Silverware Manufacturing,339910
+915,Manufacturing Services (Not Otherwise Classified),96750,Jewelry (except Costume) Manufacturing,339911
+916,Manufacturing Services (Not Otherwise Classified),96750,Silverware and Hollowware Manufacturing,339912
+917,Manufacturing Services (Not Otherwise Classified),96750,Jewelers' Material and Lapidary Work Manufacturing,339913
+918,Manufacturing Services (Not Otherwise Classified),96750,Costume Jewelry and Novelty Manufacturing,339914
+919,Manufacturing Services (Not Otherwise Classified),96750,Sporting and Athletic Goods Manufacturing,339920
+920,Manufacturing Services (Not Otherwise Classified),96750,"Doll, Toy, and Game Manufacturing",339930
+921,Manufacturing Services (Not Otherwise Classified),96750,Doll and Stuffed Toy Manufacturing,339931
+922,Manufacturing Services (Not Otherwise Classified),96750,"Game, Toy, and Children's Vehicle Manufacturing",339932
+923,Manufacturing Services (Not Otherwise Classified),96750,Office Supplies (except Paper) Manufacturing,339940
+924,Manufacturing Services (Not Otherwise Classified),96750,Pen and Mechanical Pencil Manufacturing,339941
+925,Manufacturing Services (Not Otherwise Classified),96750,Lead Pencil and Art Good Manufacturing,339942
+926,Manufacturing Services (Not Otherwise Classified),96750,Marking Device Manufacturing,339943
+927,Manufacturing Services (Not Otherwise Classified),96750,Carbon Paper and Inked Ribbon Manufacturing,339944
+928,Manufacturing Services (Not Otherwise Classified),96750,Sign Manufacturing,339950
+929,Manufacturing Services (Not Otherwise Classified),96750,All Other Miscellaneous Manufacturing,339990
+930,Rubber and Rubber Products ,96772,"Gasket, Packing, and Sealing Device Manufacturing",339991
+931,Manufacturing Services (Not Otherwise Classified),96750,Musical Instrument Manufacturing,339992
+932,Manufacturing Services (Not Otherwise Classified),96750,"Fastener, Button, Needle, and Pin Manufacturing",339993
+933,Manufacturing Services (Not Otherwise Classified),96750,"Broom, Brush, and Mop Manufacturing",339994
+934,Manufacturing Services (Not Otherwise Classified),96750,Burial Casket Manufacturing,339995
+935,Manufacturing Services (Not Otherwise Classified),96750,All Other Miscellaneous Manufacturing,339999
+936,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,Wholesale Trade,420000
+937,Industrial Commercial and Professional Equipment and Supplies (Not Otherwise Classified),54529,Professional and Commercial Equipment and Supplies Merchant Wholesalers,423400
+938,Industrial Commercial and Professional Equipment and Supplies (Not Otherwise Classified),54529,Other Commercial Equipment Merchant Wholesalers,423440
+939,Industrial Commercial and Professional Equipment and Supplies (Not Otherwise Classified),54529,Other Professional Equipment and Supplies Merchant Wholesalers,423490
+940,Minerals and Ores ,57856,Metal and Mineral (except Petroleum) Merchant Wholesalers,423500
+941,Minerals and Ores ,57856,Metal Service Centers and Other Metal Merchant Wholesalers,423510
+942,"Coal, Coke, Lignite and Peat ",40506,Coal and Other Mineral and Ore Merchant Wholesalers,423520
+943,Minerals and Ores ,57856,Coal and Other Mineral and Ore Merchant Wholesalers,423520
+944,Industrial Commercial and Professional Equipment and Supplies (Not Otherwise Classified),54529,Industrial Machinery and Equipment Merchant Wholesalers,423830
+945,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,Service Establishment Equipment and Supplies Merchant Wholesalers,423850
+946,Toys and Games (Not Educational Type)(See 208-47; 209-48; 785-53; and 805-51 for other type games) (Incl. Children's Coloring Books and Activity Items),3784,Toy and Hobby Goods and Supplies Merchant Wholesalers,423920
+947,"Recycled Paper, Plastic, and Styrofoam Products (Disposable Type) (Incl. Wax Paper, Aluminum Foil and Cellophane)",64066,Recyclable Material Merchant Wholesalers,423930
+948,"Candy, Confectionery and Marshmallows (Including After Dinner Mints or Savories)",39334,Confectionery Merchant Wholesalers,424450
+949,"Seafood, Fresh ",39070,Fish and Seafood Merchant Wholesalers,424460
+950,"Meat: Cured, Fresh, and Frozen",39049,Meat and Meat Product Merchant Wholesalers,424470
+951,"Fruits, Fresh ",39028,Fresh Fruit and Vegetable Merchant Wholesalers,424480
+952,"Vegetables, Fresh ",39084,Fresh Fruit and Vegetable Merchant Wholesalers,424480
+953,"Alcoholic Beverages, All Types",66005,"Beer, Wine, and Distilled Alcoholic Beverage Merchant Wholesalers",424800
+954,"Alcoholic Beverages, All Types",66005,Beer and Ale Merchant Wholesalers,424810
+955,"Alcoholic Beverages, All Types",66005,Wine and Distilled Alcoholic Beverage Merchant Wholesalers,424820
+956,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,Wholesale Trade Agents and Brokers,425120
+957,Automobiles and Station Wagons,7104,Automobile Dealers,441100
+958,Automobiles and Station Wagons,7104,New Car Dealers,441110
+959,Automobiles and Station Wagons,7104,Used Car Dealers,441120
+960,"Motor Homes (Incl. Bookmobiles, Mobile and Field Offices, etc.)",7155,Recreational Vehicle Dealers,441210
+961,Motorcycles,7156,"Motorcycle, Boat, and Other Motor Vehicle Dealers",441220
+962,"Boats, 21 Feet and Under ",12021,"Motorcycle, Boat, and Other Motor Vehicle Dealers",441220
+963,Motorcycles,7156,Motorcycle Dealers,441221
+964,Motorcycles,7156,"Motorcycle, ATV, and All Other Motor Vehicle Dealers",441228
+965,"Replacement Parts for other than Chrysler, Ford, General Motors, and International Harvester ",6074,"Automotive Parts, Accessories, and Tire Stores",441300
+966,"Replacement Parts for other than Chrysler, Ford, General Motors, and International Harvester ",6074,Automotive Parts and Accessories Stores,441310
+967,"Household Furniture, General Line ",42040,Furniture and Home Furnishings Stores,442000
+968,"Household Furniture, General Line ",42040,Furniture Stores,442100
+969,"Household Furniture, General Line ",42040,Furniture Stores,442110
+970,"Household Furniture, General Line ",42040,Home Furnishings Stores,442200
+971,"Household Furniture, General Line ",42040,Other Home Furnishings Stores,442290
+972,"Curtains, Draperies, and Scarves ",26520,Window Treatment Stores,442291
+973,"Household Furniture, General Line ",42040,All Other Home Furnishings Stores,442299
+974,"Household Furniture, General Line ",42040,Home Centers,444110
+975,"Meat: Cured, Fresh, and Frozen",39049,Meat Markets,445210
+976,"Seafood, Fresh ",39070,Fish and Seafood Markets,445220
+977,"Fruits, Fresh ",39028,Fruit and Vegetable Markets,445230
+978,"Candy, Confectionery and Marshmallows (Including After Dinner Mints or Savories)",39334,Confectionery and Nut Stores,445292
+979,"Alcoholic Beverages, All Types",66005,"Beer, Wine, and Liquor Stores",445310
+980,"Cosmetics and Skin Care: Colognes, Creams, Lipsticks, Lotions, Perfumes, Powders, Soaps w/Lotion, etc. ",65229,"Cosmetics, Beauty Supplies, and Perfume Stores",446120
+981,Protein Food Supplement ,39370,Food (Health) Supplement Stores,446191
+982,"Gasoline, Automotive ",40515,Gasoline Stations,447100
+983,Children's Clothing ,20013,Children's and Infants' Clothing Stores,448130
+984,Luggage and Trunks ,53060,"Jewelry, Luggage, and Leather Goods Stores",448300
+985,"Jewelry, Fine ",19533,Jewelry Stores,448310
+986,Toys and Games (Not Educational Type)(See 208-47; 209-48; 785-53; and 805-51 for other type games) (Incl. Children's Coloring Books and Activity Items),3784,"Hobby, Toy, and Game Stores",451120
+987,"Needlework Kits and Supplies: Crewel, Embroidery, etc. ",23260,"Sewing, Needlework, and Piece Goods Stores",451130
+988,"Video Cassettes, Disks, Tapes, etc. (For Computer and TV, Prerecorded) ",71590,"Prerecorded Tape, Compact Disc, and Record Stores",451220
+989,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,Miscellaneous Store Retailers,453000
+990,Floral Designing and Arranging Services ,96139,Florists,453100
+991,Floral Designing and Arranging Services ,96139,Florists,453110
+992,Gifts (Incl. Gift Certificates),3743,"Gift, Novelty, and Souvenir Stores",453220
+993,"Novelties and Advertising Specialty Products, Including Biodegradable",3752,"Gift, Novelty, and Souvenir Stores",453220
+994,"Souvenirs: Promotional, Advertising, etc. ",3778,"Gift, Novelty, and Souvenir Stores",453220
+995,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,Other Miscellaneous Store Retailers,453900
+996,"Animal Care Supplies (Collars, Clothing, Leashes, Litter Boxes, etc.)",4003,Pet and Pet Supplies Stores,453910
+997,"Residential Structures, Prefabricated ",15573,Manufactured (Mobile) Home Dealers,453930
+998,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,All Other Miscellaneous Store Retailers,453990
+999,"Tobacco, Smoking ",66060,Tobacco Stores,453991
+1000,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,All Other Miscellaneous Store Retailers (except Tobacco Stores),453998
+1001,"Trade Services (Facilitation, Information, Marketing, Promotion, etc.) ",96179,Nonstore Retailers,454000
+1002,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Electronic Shopping and Mail-Order Houses,454100
+1003,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Electronic Shopping and Mail-Order Houses,454110
+1004,"Electronic Publications: Directories, Dictionaries, Encyclopedias, etc. ",71535,Electronic Shopping,454111
+1005,Auctioneering Services (To include Internet Type),96209,Electronic Auctions,454112
+1006,"Electronic Publications: Directories, Dictionaries, Encyclopedias, etc. ",71535,Mail-Order Houses,454113
+1007,"Concessions, Catering, Vending: Mobile and Stationary (See Class 905 for Airport Concessions)",96115,Vending Machine Operators,454200
+1008,"Concessions, Catering, Vending: Mobile and Stationary (See Class 905 for Airport Concessions)",96115,Vending Machine Operators,454210
+1009,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Direct Selling Establishments,454300
+1010,"Fuel Oil, Heating (Use 405-02 for Biodiesel)",40512,Heating Oil Dealers,454311
+1011,Butane and Propane (Including Liquefied Petroleum Gas),40503,Liquefied Petroleum Gas (Bottled Gas) Dealers,454312
+1012,"Marketing Services (Incl. Distribution, Research, Sales Promotions, etc.) ",96153,Other Direct Selling Establishments,454390
+1013,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Air Transportation,481000
+1014,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Scheduled Air Transportation,481100
+1015,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Scheduled Air Transportation,481110
+1016,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Scheduled Passenger Air Transportation,481111
+1017,Transportation of Goods and Other Freight Services,96286,Scheduled Freight Air Transportation,481112
+1018,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Nonscheduled Air Transportation,481200
+1019,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Nonscheduled Air Transportation,481210
+1020,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Nonscheduled Chartered Passenger Air Transportation,481211
+1021,Transportation of Goods and Other Freight Services,96286,Nonscheduled Chartered Freight Air Transportation,481212
+1022,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Other Nonscheduled Air Transportation,481219
+1023,"Passenger Transportation Services, Ship or Ferry ",95956,Water Transportation,483000
+1024,"Passenger Transportation Services, Ship or Ferry ",95956,"Deep Sea, Coastal, and Great Lakes Water Transportation",483100
+1025,"Passenger Transportation Services, Ship or Ferry ",95956,"Deep Sea, Coastal, and Great Lakes Water Transportation",483110
+1026,Transportation of Goods and Other Freight Services,96286,Deep Sea Freight Transportation,483111
+1027,"Passenger Transportation Services, Ship or Ferry ",95956,Deep Sea Passenger Transportation,483112
+1028,Transportation of Goods and Other Freight Services,96286,Coastal and Great Lakes Freight Transportation,483113
+1029,"Passenger Transportation Services, Ship or Ferry ",95956,Coastal and Great Lakes Passenger Transportation,483114
+1030,"Passenger Transportation Services, Ship or Ferry ",95956,Inland Water Transportation,483200
+1031,"Passenger Transportation Services, Ship or Ferry ",95956,Inland Water Transportation,483210
+1032,Transportation of Goods and Other Freight Services,96286,Inland Water Freight Transportation,483211
+1033,"Passenger Transportation Services, Ship or Ferry ",95956,Inland Water Passenger Transportation,483212
+1034,Warehousing and Storage Services (Not Storage Space Rental) (Includes Farm Product Storage in Silos and Grain Elevators),96295,Truck Transportation,484000
+1035,Transportation of Goods and Other Freight Services,96286,General Freight Trucking,484100
+1036,Transportation of Goods and Other Freight Services,96286,"General Freight Trucking, Local",484110
+1037,Transportation of Goods and Other Freight Services,96286,"General Freight Trucking, Long-Distance",484120
+1038,Transportation of Goods and Other Freight Services,96286,"General Freight Trucking, Long-Distance, Truckload",484121
+1039,Transportation of Goods and Other Freight Services,96286,"General Freight Trucking, Long-Distance, Less Than Truckload",484122
+1040,Transportation of Goods and Other Freight Services,96286,Specialized Freight Trucking,484200
+1041,Moving Services ,96256,Used Household and Office Goods Moving,484210
+1042,Transportation of Goods and Other Freight Services,96286,"Specialized Freight (except Used Goods) Trucking, Local",484220
+1043,Transportation of Goods and Other Freight Services,96286,"Specialized Freight (except Used Goods) Trucking, Long-Distance",484230
+1044,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Transit and Ground Passenger Transportation,485000
+1045,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Urban Transit Systems,485100
+1046,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Urban Transit Systems,485110
+1047,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Mixed Mode Transit Systems,485111
+1048,"Passenger Transportation Services, Railroad ",94050,Commuter Rail Systems,485112
+1049,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Bus and Other Motor Vehicle Transit Systems,485113
+1050,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Other Urban Transit Systems,485119
+1051,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Interurban and Rural Bus Transportation,485200
+1052,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Interurban and Rural Bus Transportation,485210
+1053,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Taxi and Limousine Service,485300
+1054,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Taxi Service,485310
+1055,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Limousine Service,485320
+1056,"Bus Transportation Services, School",96216,School and Employee Bus Transportation,485400
+1057,"Bus Transportation Services, School",96216,School and Employee Bus Transportation,485410
+1058,Travel Agency Services,96178,Charter Bus Industry,485500
+1059,Travel Agency Services,96178,Charter Bus Industry,485510
+1060,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Other Transit and Ground Passenger Transportation,485900
+1061,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,Other Transit and Ground Passenger Transportation,485990
+1062,"Transportation Services For the Elderly, Handicapped, Incapacitated, Prisoners, Juries, etc. ",95294,Special Needs Transportation,485991
+1063,"Bus and Taxi Services, Limousines and Vans (Including Operations, Management, and Terminal Services) ",96217,All Other Transit and Ground Passenger Transportation,485999
+1064,Pipeline Management Services ,95876,Pipeline Transportation,486000
+1065,Pipeline Management Services ,95876,Pipeline Transportation of Crude Oil,486100
+1066,Pipeline Management Services ,95876,Pipeline Transportation of Crude Oil,486110
+1067,Pipeline Management Services ,95876,Pipeline Transportation of Natural Gas,486200
+1068,Pipeline Management Services ,95876,Pipeline Transportation of Natural Gas,486210
+1069,Pipeline Management Services ,95876,Other Pipeline Transportation,486900
+1070,Pipeline Management Services ,95876,Pipeline Transportation of Refined Petroleum Products,486910
+1071,Pipeline Management Services ,95876,All Other Pipeline Transportation,486990
+1072,"Trams, Touring",7186,Scenic and Sightseeing Transportation,487000
+1073,"Trams, Touring",7186,"Scenic and Sightseeing Transportation, Land",487100
+1074,"Trams, Touring",7186,"Scenic and Sightseeing Transportation, Land",487110
+1075,"Touring Transportation, Marine",95983,"Scenic and Sightseeing Transportation, Water",487200
+1076,"Touring Transportation, Marine",95983,"Scenic and Sightseeing Transportation, Water",487210
+1077,"Trams, Touring",7186,"Scenic and Sightseeing Transportation, Other",487900
+1078,"Trams, Touring",7186,"Scenic and Sightseeing Transportation, Other",487990
+1079,Transportation Consulting ,91896,Support Activities for Transportation,488000
+1080,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Support Activities for Air Transportation,488100
+1081,Airport Management Services ,95803,Airport Operations,488110
+1082,Air Traffic Control Services ,90526,Air Traffic Control,488111
+1083,Airport Management Services ,95803,Other Airport Operations,488119
+1084,"Travel, Non-Local (Scheduled and Unscheduled), Provided by Third Party (Incl. Commercial Airplane Travel and Helicopter Services) ",96288,Other Support Activities for Air Transportation,488190
+1085,"Passenger Transportation Services, Railroad ",94050,Support Activities for Rail Transportation,488200
+1086,"Passenger Transportation Services, Railroad ",94050,Support Activities for Rail Transportation,488210
+1087,"Passenger Transportation Services, Ship or Ferry ",95956,Support Activities for Water Transportation,488300
+1088,Port and Harbor Operation Services,95959,Port and Harbor Operations,488310
+1089,"Cargo Handling Services, Marine ",95930,Marine Cargo Handling,488320
+1090,"Airports (Lighting, Fueling, Navaids) - Engineering ",92508,Navigational Services to Shipping,488330
+1091,"Passenger Transportation Services, Ship or Ferry ",95956,Other Support Activities for Water Transportation,488390
+1092,Transportation of Goods and Other Freight Services,96286,Support Activities for Road Transportation,488400
+1093,Vehicle Towing and Storage ,96890,Motor Vehicle Towing,488410
+1094,Transportation of Goods and Other Freight Services,96286,Other Support Activities for Road Transportation,488490
+1095,Transportation of Goods and Other Freight Services,96286,Freight Transportation Arrangement,488500
+1096,Transportation of Goods and Other Freight Services,96286,Freight Transportation Arrangement,488510
+1097,Transportation Consulting ,91896,Other Support Activities for Transportation,488900
+1098,Transportation Consulting ,91896,Other Support Activities for Transportation,488990
+1099,Crating and Packing Services for Transportation (Including Material Handling Services) ,96126,Packing and Crating,488991
+1100,Transportation Consulting ,91896,All Other Support Activities for Transportation,488999
+1101,"Mailing Services (Includes, Addressing, Collating, Packaging, Sorting and Delivery)",91558,Postal Service,491000
+1102,"Mailing Services (Includes, Addressing, Collating, Packaging, Sorting and Delivery)",91558,Postal Service,491100
+1103,"Mailing Services (Includes, Addressing, Collating, Packaging, Sorting and Delivery)",91558,Postal Service,491110
+1104,Courier/Delivery Services (Including Air Courier Services) ,96224,Couriers and Messengers,492000
+1105,Courier/Delivery Services (Including Air Courier Services) ,96224,Couriers,492100
+1106,Courier/Delivery Services (Including Air Courier Services) ,96224,Couriers,492110
+1107,Courier/Delivery Services (Including Air Courier Services) ,96224,Local Messengers and Local Delivery,492200
+1108,Courier/Delivery Services (Including Air Courier Services) ,96224,Local Messengers and Local Delivery,492210
+1109,Warehousing and Storage Services (Not Storage Space Rental) (Includes Farm Product Storage in Silos and Grain Elevators),96295,Warehousing and Storage,493000
+1110,Warehousing and Storage Services (Not Storage Space Rental) (Includes Farm Product Storage in Silos and Grain Elevators),96295,Warehousing and Storage,493100
+1111,Warehousing and Storage Services (Not Storage Space Rental) (Includes Farm Product Storage in Silos and Grain Elevators),96295,General Warehousing and Storage,493110
+1112,Youth Care Services ,95295,Refrigerated Warehousing and Storage,493120
+1113,Warehousing and Storage Services (Not Storage Space Rental) (Includes Farm Product Storage in Silos and Grain Elevators),96295,Farm Product Warehousing and Storage,493130
+1114,Warehousing and Storage Services (Not Storage Space Rental) (Includes Farm Product Storage in Silos and Grain Elevators),96295,Other Warehousing and Storage,493190
+1115,Public Information Services (Incl. Press Releases) ,91573,Information,510000
+1116,"Books, Curriculum Guides, Directories, Magazines, Pamphlets, Periodicals, Publications, Reprints, etc.",71510,"Newspaper, Periodical, Book, and Directory Publishers",511100
+1117,"Books, Curriculum Guides, Directories, Magazines, Pamphlets, Periodicals, Publications, Reprints, etc.",71510,Newspaper Publishers,511110
+1118,"Books, Curriculum Guides, Directories, Magazines, Pamphlets, Periodicals, Publications, Reprints, etc.",71510,Periodical Publishers,511120
+1119,"Books, Curriculum Guides, Directories, Magazines, Pamphlets, Periodicals, Publications, Reprints, etc.",71510,Book Publishers,511130
+1120,"Books, Curriculum Guides, Directories, Magazines, Pamphlets, Periodicals, Publications, Reprints, etc.",71510,Directory and Mailing List Publishers,511140
+1121,"Books, Curriculum Guides, Directories, Magazines, Pamphlets, Periodicals, Publications, Reprints, etc.",71510,Other Publishers,511190
+1122,"Display, Exhibit, and Promotional Materials ",71530,Greeting Card Publishers,511191
+1123,"Books, Curriculum Guides, Directories, Magazines, Pamphlets, Periodicals, Publications, Reprints, etc.",71510,All Other Publishers,511199
+1124,Printing Software (Microcomputer) ,20870,Software Publishers,511200
+1125,Printing Software (Microcomputer) ,20870,Software Publishers,511210
+1126,Motion Picture Production and Distribution Services ,91569,Motion Picture and Sound Recording Industries,512000
+1127,Motion Picture Production and Distribution Services ,91569,Motion Picture and Video Industries,512100
+1128,Motion Picture Production and Distribution Services ,91569,Motion Picture and Video Production,512110
+1129,Motion Picture Production and Distribution Services ,91569,Motion Picture and Video Distribution,512120
+1130,Motion Picture Production and Distribution Services ,91569,Motion Picture and Video Exhibition,512130
+1131,Motion Picture Production and Distribution Services ,91569,Motion Picture Theaters (except Drive-Ins),512131
+1132,Motion Picture Production and Distribution Services ,91569,Drive-In Motion Picture Theaters,512132
+1133,Motion Pictures (See Class 475 for Medical Training Films) ,71555,Postproduction Services and Other Motion Picture and Video Industries,512190
+1134,Motion Pictures (See Class 475 for Medical Training Films) ,71555,Teleproduction and Other Postproduction Services,512191
+1135,Motion Picture Production and Distribution Services ,91569,Other Motion Picture and Video Industries,512199
+1136,Audio Recording ,91507,Sound Recording Industries,512200
+1137,Audio/Video Production Services Complete ,91509,Record Production,512210
+1138,Audio Production ,91506,Integrated Record Production/Distribution,512220
+1139,"Music, Sheet and Folio ",58035,Music Publishers,512230
+1140,"Studio Monitors, Broadcasting and Recording ",80382,Sound Recording Studios,512240
+1141,Audio Recording ,91507,Other Sound Recording Industries,512290
+1142,"Broadcasting Services, Radio ",91514,Broadcasting (except Internet),515000
+1143,"Broadcasting Services, Radio ",91514,Radio and Television Broadcasting,515100
+1144,"Broadcasting Services, Television ",91515,Radio and Television Broadcasting,515100
+1145,"Broadcasting Services, Radio ",91514,Radio Broadcasting,515110
+1146,"Broadcasting Services, Radio ",91514,Radio Networks,515111
+1147,"Broadcasting Services, Radio ",91514,Radio Stations,515112
+1148,"Broadcasting Services, Television ",91515,Television Broadcasting,515120
+1149,Cable Television Services (Includes Pay-Per-View Services) ,91524,Cable and Other Subscription Programming,515200
+1150,Cable Television Services (Includes Pay-Per-View Services) ,91524,Cable and Other Subscription Programming,515210
+1151,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Internet Publishing and Broadcasting,516000
+1152,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Internet Publishing and Broadcasting,516100
+1153,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Internet Publishing and Broadcasting,516110
+1154,Telecommunication Services (Not Otherwise Classified) ,91579,Telecommunications,517000
+1155,Telecommunication Services (Not Otherwise Classified) ,91579,Wired Telecommunications Carriers,517100
+1156,Telecommunication Services (Not Otherwise Classified) ,91579,Wired Telecommunications Carriers,517110
+1157,"Telephone Services, Cellular ",91575,Wireless Telecommunications Carriers (except Satellite),517200
+1158,"Telephone Services, Cellular ",91575,Wireless Telecommunications Carriers (except Satellite),517210
+1159,Answering/Paging Services ,91505,Paging,517211
+1160,"Telephone Services, Cellular ",91575,Cellular and Other Wireless Telecommunications,517212
+1161,Telecommunication Services (Not Otherwise Classified) ,91579,Telecommunications Resellers,517300
+1162,Telecommunication Services (Not Otherwise Classified) ,91579,Telecommunications Resellers,517310
+1163,"Satellites (Navigation, Geosynchrous, Orbiting, etc.) (See 257-75 for Military Types) ",80474,Satellite Telecommunications,517400
+1164,"Satellites (Navigation, Geosynchrous, Orbiting, etc.) (See 257-75 for Military Types) ",80474,Satellite Telecommunications,517410
+1165,Cable Television Services (Includes Pay-Per-View Services) ,91524,Cable and Other Program Distribution,517500
+1166,Cable Television Services (Includes Pay-Per-View Services) ,91524,Cable and Other Program Distribution,517510
+1167,Telecommunication Services (Not Otherwise Classified) ,91579,Other Telecommunications,517900
+1168,Telecommunication Services (Not Otherwise Classified) ,91579,Other Telecommunications,517910
+1169,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,"Internet Service Providers, Web Search Portals, and Data Processing Services",518000
+1170,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Internet Service Providers and Web Search Portals,518100
+1171,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Internet Service Providers and Web Search Portals,518110
+1172,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Internet Service Providers,518111
+1173,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Web Search Portals,518112
+1174,Data Preparation and Processing Services ,92022,"Data Processing, Hosting, and Related Services",518200
+1175,Data Preparation and Processing Services ,92022,"Data Processing, Hosting, and Related Services",518210
+1176,Public Information Services (Incl. Press Releases) ,91573,Other Information Services,519000
+1177,Public Information Services (Incl. Press Releases) ,91573,Other Information Services,519100
+1178,Newspaper Subscriptions ,95650,News Syndicates,519110
+1179,Library Services (Not Otherwise Classified) ,95638,Libraries and Archives,519120
+1180,"Information Highway Electronic Services (Internet, World Wide Web, Virtual Tours to Include Construction Renderings, etc.)",91551,Internet Publishing and Broadcasting and Web Search Portals,519130
+1181,Public Information Services (Incl. Press Releases) ,91573,All Other Information Services,519190
+1182,"Monetary Systems (Incl. Analysis, Liquidity, Policy, etc.) ",94666,Monetary Authorities - Central Bank,521000
+1183,"Monetary Systems (Incl. Analysis, Liquidity, Policy, etc.) ",94666,Monetary Authorities - Central Bank,521100
+1184,"Monetary Systems (Incl. Analysis, Liquidity, Policy, etc.) ",94666,Monetary Authorities - Central Bank,521110
+1185,Credit Investigation and Reporting ,94636,Credit Intermediation and Related Activities,522000
+1186,Credit Investigation and Reporting ,94636,Depository Credit Intermediation,522100
+1187,Banking Services ,94625,Commercial Banking,522110
+1188,Financial Services (Not Otherwise Classified) ,94649,Savings Institutions,522120
+1189,Financial Services (Not Otherwise Classified) ,94649,Credit Unions,522130
+1190,Credit Investigation and Reporting ,94636,Other Depository Credit Intermediation,522190
+1191,Credit Investigation and Reporting ,94636,Nondepository Credit Intermediation,522200
+1192,"Credit Card, Charge Card Services ",94635,Credit Card Issuing,522210
+1193,Financial Services (Not Otherwise Classified) ,94649,Sales Financing,522220
+1194,Credit Investigation and Reporting ,94636,Other Nondepository Credit Intermediation,522290
+1195,Loan Administration ,94660,Consumer Lending,522291
+1196,Mortgage Banking Services ,94664,Real Estate Credit,522292
+1197,Financial Services (Not Otherwise Classified) ,94649,International Trade Financing,522293
+1198,Financial Services (Not Otherwise Classified) ,94649,Secondary Market Financing,522294
+1199,Credit Investigation and Reporting ,94636,All Other Nondepository Credit Intermediation,522298
+1200,Credit Investigation and Reporting ,94636,Activities Related to Credit Intermediation,522300
+1201,Mortgage Banking Services ,94664,Mortgage and Nonmortgage Loan Brokers,522310
+1202,Financial Services (Not Otherwise Classified) ,94649,"Financial Transactions Processing, Reserve, and Clearinghouse Activities",522320
+1203,Credit Investigation and Reporting ,94636,Other Activities Related to Credit Intermediation,522390
+1204,Cash/Securities and Bonding Services ,94630,"Securities, Commodity Contracts, and Other Financial Investments and Related Activities",523000
+1205,Custom Brokerage Services (Incl. Stock and Bonds) ,94638,Securities and Commodity Contracts Intermediation and Brokerage,523100
+1206,Investment Management Services,94656,Investment Banking and Securities Dealing,523110
+1207,Custom Brokerage Services (Incl. Stock and Bonds) ,94638,Securities Brokerage,523120
+1208,Cash/Securities and Bonding Services ,94630,Commodity Contracts Dealing,523130
+1209,Custom Brokerage Services (Incl. Stock and Bonds) ,94638,Commodity Contracts Brokerage,523140
+1210,Cash/Securities and Bonding Services ,94630,Securities and Commodity Exchanges,523200
+1211,Cash/Securities and Bonding Services ,94630,Securities and Commodity Exchanges,523210
+1212,Investment Management Services,94656,Other Financial Investment Activities,523900
+1213,Credit Investigation and Reporting ,94636,Miscellaneous Intermediation,523910
+1214,Investment Management Services,94656,Portfolio Management,523920
+1215,Investment Management Services,94656,Investment Advice,523930
+1216,Investment Management Services,94656,All Other Financial Investment Activities,523990
+1217,Financial Services (Not Otherwise Classified) ,94649,"Trust, Fiduciary, and Custody Activities",523991
+1218,Investment Management Services,94656,Miscellaneous Financial Investment Activities,523999
+1219,Health/Hospitalization (Including Dental and Visual Insurance) ,95348,"Direct Life, Health, and Medical Insurance Carriers",524110
+1220,Life Insurance,95363,Direct Life Insurance Carriers,524113
+1221,Health/Hospitalization (Including Dental and Visual Insurance) ,95348,Direct Health and Medical Insurance Carriers,524114
+1222,Insurance and Insurance Services (Not otherwise classified),95352,"Direct Insurance (except Life, Health, and Medical) Carriers",524120
+1223,Property and Casualty ,95377,Direct Property and Casualty Insurance Carriers,524126
+1224,Title ,95387,Direct Title Insurance Carriers,524127
+1225,Insurance and Insurance Services (Not otherwise classified),95352,"Other Direct Insurance (except Life, Health, and Medical) Carriers",524128
+1226,Insurance and Insurance Services (Not otherwise classified),95352,Reinsurance Carriers,524130
+1227,Insurance and Insurance Services (Not otherwise classified),95352,"Agencies, Brokerages, and Other Insurance Related Activities",524200
+1228,Insurance and Insurance Services (Not otherwise classified),95352,Insurance Agencies and Brokerages,524210
+1229,Insurance and Insurance Services (Not otherwise classified),95352,Other Insurance Related Activities,524290
+1230,Insurance and Insurance Services (Not otherwise classified),95352,Claims Adjusting,524291
+1231,Insurance and Insurance Services (Not otherwise classified),95352,Third Party Administration of Insurance and Pension Funds,524292
+1232,Insurance and Insurance Services (Not otherwise classified),95352,All Other Insurance Related Activities,524298
+1233,"Trusts, Estates and Agency Accounts",94685,"Funds, Trusts, and Other Financial Vehicles",525000
+1234,Employee Benefit Funds,94645,Insurance and Employee Benefit Funds,525100
+1235,Retirement Benefit Plan Insurance ,95380,Pension Funds,525110
+1236,Employee Benefit Funds,94645,Health and Welfare Funds,525120
+1237,Insurance and Insurance Services (Not otherwise classified),95352,Other Insurance Funds,525190
+1238,Investment Management Services,94656,Other Investment Pools and Funds,525900
+1239,Investment Management Services,94656,Open-End Investment Funds,525910
+1240,"Trusts, Estates and Agency Accounts",94685,"Trusts, Estates, and Agency Accounts",525920
+1241,"Trusts, Estates and Agency Accounts",94685,Real Estate Investment Trusts,525930
+1242,Financial Services (Not Otherwise Classified) ,94649,Other Financial Vehicles,525990
+1243,Real Estate Management Services (To include Listing and Sales Services),95883,Lessors of Real Estate,531100
+1244,Residential Space Rental or Lease ,97164,Lessors of Residential Buildings and Dwellings,531110
+1245,Office Space Rental or Lease ,97145,Lessors of Nonresidential Buildings (except Miniwarehouses),531120
+1246,Storage Space Rental or Lease,97170,Lessors of Miniwarehouses and Self-Storage Units,531130
+1247,Real Estate Management Services (To include Listing and Sales Services),95883,Offices of Real Estate Agents and Brokers,531200
+1248,Real Estate Management Services (To include Listing and Sales Services),95883,Offices of Real Estate Agents and Brokers,531210
+1249,Real Estate Management Services (To include Listing and Sales Services),95883,Activities Related to Real Estate,531300
+1250,Property Management Services ,95878,Real Estate Property Managers,531310
+1251,Property Management Services ,95878,Residential Property Managers,531311
+1252,Property Management Services ,95878,Nonresidential Property Managers,531312
+1253,"Appraisal Services, Real Estate ",94615,Offices of Real Estate Appraisers,531320
+1254,Real Estate Management Services (To include Listing and Sales Services),95883,Other Activities Related to Real Estate,531390
+1255,Automobiles and Other Passenger Vehicles (Including Emergency Type) Rental or Lease ,97514,Automotive Equipment Rental and Leasing,532100
+1256,Automobiles and Other Passenger Vehicles (Including Emergency Type) Rental or Lease ,97514,Passenger Car Rental and Leasing,532110
+1257,Automobiles and Other Passenger Vehicles (Including Emergency Type) Rental or Lease ,97514,Passenger Car Rental,532111
+1258,Automobiles and Other Passenger Vehicles (Including Emergency Type) Rental or Lease ,97514,Passenger Car Leasing,532112
+1259,Truck and Van Rental or Lease (Incl. Fire and Garbage Trucks),97586,"Truck, Utility Trailer, and RV (Recreational Vehicle) Rental and Leasing",532120
+1260,"Appliances and Equipment, Household, Rental or Lease ",97710,Consumer Electronics and Appliances Rental,532210
+1261,Theatrical Equipment and Supplies (Including Costumes) Rental or Lease ,98174,Formal Wear and Costume Rental,532220
+1262,"Albums, Tapes, Compact Disks, etc. Rental or Lease ",97708,Video Tape and Disc Rental,532230
+1263,"Hospital Equipment - General, Rental or Lease ",97945,Home Health Equipment Rental,532291
+1264,"Recreational, Park, Picnic and Playground Equipment and Accessories Rental or Lease ",98161,Recreational Goods Rental,532292
+1265,"Tractors, Industrial and Construction, Rental or Lease ",97583,Commercial and Industrial Machinery and Equipment Rental and Leasing,532400
+1266,Machinery and Heavy Hardware Rental or Lease ,97542,"Construction, Transportation, Mining, and Forestry Machinery and Equipment Rental and Leasing",532410
+1267,"Mass Transit Bus, School Bus, and Rail Vehicle Rental or Lease",97544,"Commercial Air, Rail, and Water Transportation Equipment Rental and Leasing",532411
+1268,Machinery and Heavy Hardware Rental or Lease ,97542,"Construction, Mining, and Forestry Machinery and Equipment Rental and Leasing",532412
+1269,"Office Machines, Equipment, and Accessories Rental or Lease (Not Otherwise Classified)",98559,Office Machinery and Equipment Rental and Leasing,532420
+1270,Machinery and Heavy Hardware Rental or Lease ,97542,Other Commercial and Industrial Machinery and Equipment Rental and Leasing,532490
+1271,Professional Services (Not Otherwise Classified) ,96258,"Professional, Scientific, and Technical Services",540000
+1272,Professional Services (Not Otherwise Classified) ,96258,"Professional, Scientific, and Technical Services",541000
+1273,Legal Services Including Depositions and Expert Witness Testimony ,96150,Legal Services,541100
+1274,"Legal Services, Attorneys ",96149,Offices of Lawyers,541110
+1275,Notary Public Services ,94667,Offices of Notaries,541120
+1276,Legal Services Including Depositions and Expert Witness Testimony ,96150,Other Legal Services,541190
+1277,Escrow and Title Services ,94646,Title Abstract and Settlement Offices,541191
+1278,Legal Services Including Depositions and Expert Witness Testimony ,96150,All Other Legal Services,541199
+1279,"Accounting and Billing Services (Including Payroll Services, 3rd Party Reimbursement for Medicare, Medicaid, Private Insurance, etc)",94610,"Accounting, Tax Preparation, Bookkeeping, and Payroll Services",541210
+1280,Certified Public Accountant (CPA) Services ,94631,Offices of Certified Public Accountants,541211
+1281,"Accounting and Billing Services (Including Payroll Services, 3rd Party Reimbursement for Medicare, Medicaid, Private Insurance, etc)",94610,Tax Preparation Services,541213
+1282,"Accounting and Billing Services (Including Payroll Services, 3rd Party Reimbursement for Medicare, Medicaid, Private Insurance, etc)",94610,Payroll Services,541214
+1283,"Accounting and Billing Services (Including Payroll Services, 3rd Party Reimbursement for Medicare, Medicaid, Private Insurance, etc)",94610,Other Accounting Services,541219
+1284,"Architectural Services, Non-Licensed (Not Otherwise Classified) ",90714,Architectural Services,541310
+1285,Landscape Architecture ,90656,Landscape Architectural Services,541320
+1286,Drafting Services ,90738,Drafting Services,541340
+1287,"Inspection Services, Construction Type ",96847,Building Inspection Services,541350
+1288,"Scientist Services (Geology, Geophysics, etc) ",96174,Geophysical Surveying and Mapping Services,541360
+1289,"Mapping Services (Including Cartography and Surveying Services, Not Aerial)(See 920-33 for Digitized Mapping Services) and 905-10 for Aerial Mapping and Survey Services)",96252,Surveying and Mapping (except Geophysical) Services,541370
+1290,Laboratory and Field Testing Services (Not Otherwise Classified) Incl. Hazardous Waste,96148,Testing Laboratories,541380
+1291,Designing Services ,90735,Specialized Design Services,541400
+1292,Interior Design/Decorator Services ,96248,Interior Design Services,541410
+1293,Industrial Processes; Quality Control ,90650,Industrial Design Services,541420
+1294,Graphic Design - Architectural,90640,Graphic Design Services,541430
+1295,Designing Services ,90735,Other Specialized Design Services,541490
+1296,"Programming Services, Computer",92040,Computer Systems Design and Related Services,541500
+1297,"Programming Services, Computer",92040,Computer Systems Design and Related Services,541510
+1298,"Programming Services, Computer",92040,Custom Computer Programming Services,541511
+1299,"Programming Services, Computer",92040,Computer Systems Design Services,541512
+1300,"Facilities Management Services, Computer ",92029,Computer Facilities Management Services,541513
+1301,Management Consulting ,91875,"Management, Scientific, and Technical Consulting Services",541600
+1302,Management Consulting ,91875,Management Consulting Services,541610
+1303,Management Consulting ,91875,Administrative Management and General Management Consulting Services,541611
+1304,Human Resources Consulting Services,91866,Human Resources and Executive Search Consulting Services,541612
+1305,Marketing Consulting ,91876,Marketing Consulting Services,541613
+1306,Consulting Services (Not Otherwise Classified),91832,"Process, Physical Distribution, and Logistics Consulting Services",541614
+1307,Management Consulting ,91875,Other Management Consulting Services,541618
+1308,Environmental Consulting ,91843,Environmental Consulting Services,541620
+1309,Consulting Services (Not Otherwise Classified),91832,Other Scientific and Technical Consulting Services,541690
+1310,Research Services (Other Than Business) ,95670,Scientific Research and Development Services,541700
+1311,Research Services (Other Than Business) ,95670,"Research and Development in the Physical, Engineering, and Life Sciences",541710
+1312,Research Services (Other Than Business) ,95670,Research and Development in Biotechnology,541711
+1313,Research Services (Other Than Business) ,95670,"Reseach and Development in the Physical, Engineering, and Life Sciences (except Biotechnology)",541712
+1314,Research Services (Other Than Business) ,95670,Research and Development in the Social Sciences and Humanities,541720
+1315,Advertising/Public Relations (Incl. Skywriting),91503,Advertising and Related Services,541800
+1316,Advertising Agency Services ,91501,Advertising Agencies,541810
+1317,Advertising/Public Relations (Incl. Skywriting),91503,Public Relations Agencies,541820
+1318,Newspaper and Publication Advertising ,91571,Media Buying Agencies,541830
+1319,Newspaper and Publication Advertising ,91571,Media Representatives,541840
+1320,"Advertising, Outdoor Billboard, etc. ",91504,Display Advertising,541850
+1321,"Mailing Services (Includes, Addressing, Collating, Packaging, Sorting and Delivery)",91558,Direct Mail Advertising,541860
+1322,"Marketing Services (Incl. Distribution, Research, Sales Promotions, etc.) ",96153,Advertising Material Distribution Services,541870
+1323,Advertising Agency Services ,91501,Other Services Related to Advertising,541890
+1324,Professional Services (Not Otherwise Classified) ,96258,"Other Professional, Scientific, and Technical Services",541900
+1325,Public Opinion Surveys ,96160,Marketing Research and Public Opinion Polling,541910
+1326,Photography (Not Including Aerial Photography) ,91572,Photographic Services,541920
+1327,Photography (Not Including Aerial Photography) ,91572,"Photography Studios, Portrait",541921
+1328,Photography (Not Including Aerial Photography) ,91572,Commercial Photography,541922
+1329,Translation Services ,96175,Translation and Interpretation Services,541930
+1330,Veterinary Services ,96186,Veterinary Services,541940
+1331,Professional Services (Not Otherwise Classified) ,96258,"All Other Professional, Scientific, and Technical Services",541990
+1332,Business Management Services ,95816,Management of Companies and Enterprises,550000
+1333,Business Management Services ,95816,Management of Companies and Enterprises,551000
+1334,Business Management Services ,95816,Management of Companies and Enterprises,551100
+1335,Business Management Services ,95816,Management of Companies and Enterprises,551110
+1336,Financial Services (Not Otherwise Classified) ,94649,Offices of Bank Holding Companies,551111
+1337,"Business Consulting, Large ",91821,Offices of Other Holding Companies,551112
+1338,Business Management Services ,95816,"Corporate, Subsidiary, and Regional Managing Offices",551114
+1339,Waste Management Services ,95896,Administrative and Support and Waste Management and Remediation Services,560000
+1340,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Administrative and Support Services,561000
+1341,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Office Administrative Services,561100
+1342,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Office Administrative Services,561110
+1343,Building and Facilities Management Services ,95815,Facilities Support Services,561200
+1344,Building and Facilities Management Services ,95815,Facilities Support Services,561210
+1345,Employment Agency and Search Firm Services (Including Background Investigations and Drug Testing for Employment) ,96130,Employment Services,561300
+1346,Employment Generating Activities ,95239,Employment Placement Agencies and Executive Search Services,561310
+1347,Employment Agency and Search Firm Services (Including Background Investigations and Drug Testing for Employment) ,96130,Employment Placement Agencies,561311
+1348,Employment Agency and Search Firm Services (Including Background Investigations and Drug Testing for Employment) ,96130,Executive Search Services,561312
+1349,"Personnel Services, Temporary ",96269,Temporary Help Services,561320
+1350,Professional Services (Not Otherwise Classified) ,96258,Professional Employer Organizations,561330
+1351,Business Management Services ,95816,Business Support Services,561400
+1352,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Document Preparation Services,561410
+1353,Automatic Call Distribution (ACD) Systems ,88319,Telephone Call Centers,561420
+1354,"High Volume, Telephone Call Answering Services (See 915-05 for Low Volume Services) ",91549,Telephone Answering Services,561421
+1355,"Marketing Services (Incl. Distribution, Research, Sales Promotions, etc.) ",96153,Telemarketing Bureaus,561422
+1356,Business Management Services ,95816,Business Service Centers,561430
+1357,"Mailing Services (Includes, Addressing, Collating, Packaging, Sorting and Delivery)",91558,Private Mail Centers,561431
+1358,Copying Services (Reproduction) ,96618,Other Business Service Centers (including Copy Shops),561439
+1359,"Collection Services, Financial Debt",94633,Collection Agencies,561440
+1360,Credit Investigation and Reporting ,94636,Credit Bureaus,561450
+1361,Business Management Services ,95816,Other Business Support Services,561490
+1362,"Collection Services, Financial Debt",94633,Repossession Services,561491
+1363,Court Reporting Services ,96124,Court Reporting and Stenotype Services,561492
+1364,Business Management Services ,95816,All Other Business Support Services,561499
+1365,Travel Agency Services,96178,Travel Arrangement and Reservation Services,561500
+1366,Travel Agency Services,96178,Travel Agencies,561510
+1367,Travel Agency Services,96178,Tour Operators,561520
+1368,Travel Agency Services,96178,Other Travel Arrangement and Reservation Services,561590
+1369,Event Planning Services ,96234,Convention and Visitors Bureaus,561591
+1370,Travel Agency Services,96178,All Other Travel Arrangement and Reservation Services,561599
+1371,Investigative Services ,99052,Investigation and Security Services,561600
+1372,Investigative Services ,99052,Investigation Services,561611
+1373,Guard and Security Services ,99046,Security Guards and Patrol Services,561612
+1374,Armored Car Services ,99010,Armored Car Services,561613
+1375,Locksmith Services ,91048,Locksmiths,561622
+1376,"Pest Control (Incl. Termite Inspection and Control, Bird Proofing, Animal Trapping, Rodent Control, Exterminating and Fumigation) ",91059,Exterminating and Pest Control Services,561710
+1377,Janitorial/Custodial Services ,91039,Janitorial Services,561720
+1378,"Landscaping (Including Design, Fertilizing, Planting, etc., But Not Grounds Maintenance or Tree Trimming Services) ",98852,Landscaping Services,561730
+1379,"Carpet Cleaning, Dyeing, Installation and Repair ",91009,Carpet and Upholstery Cleaning Services,561740
+1380,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Other Support Services,561900
+1381,Packaging and Wrapping Services (Incl. Shrink Wrapping) ,96264,Packaging and Labeling Services,561910
+1382,Exhibition/Exposition Management Services ,95836,Convention and Trade Show Organizers,561920
+1383,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,All Other Support Services,561990
+1384,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Waste Management and Remediation Services,562000
+1385,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Waste Collection,562100
+1386,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Waste Collection,562110
+1387,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Solid Waste Collection,562111
+1388,Hazardous Material and Waste Services (Including Emergency Response and Nuclear Wastes),92645,Hazardous Waste Collection,562112
+1389,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Other Waste Collection,562119
+1390,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Waste Treatment and Disposal,562200
+1391,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Waste Treatment and Disposal,562210
+1392,Hazardous Material and Waste Services (Including Emergency Response and Nuclear Wastes),92645,Hazardous Waste Treatment and Disposal,562211
+1393,Landfill Services ,98846,Solid Waste Landfill,562212
+1394,Incinerator Services (To Include Ash Vacuuming),96846,Solid Waste Combustors and Incinerators,562213
+1395,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Other Nonhazardous Waste Treatment and Disposal,562219
+1396,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,Remediation and Other Waste Management Services,562900
+1397,"Remediation Services, Environmental (Including Rehabilitation Services Hazardous Waste and Mold Remediation)",92678,Remediation Services,562910
+1398,Dump Site Services (Resource Recovery) ,96228,Materials Recovery Facilities,562920
+1399,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,All Other Waste Management Services,562990
+1400,Septic Tank Maintenance and Repair Services (Includes Absorption/Leach Field Construction),91068,Septic Tank and Related Services,562991
+1401,Solid or Liquid Waste Disposal (Including Management Services) (See 926-45 for Hazardous Waste Disposal),96871,All Other Miscellaneous Waste Management Services,562998
+1402,"Vocational Training, All Types  (Including Vocational Rehabilitation and Technical Education)",92486,Business and Secretarial Schools,611410
+1403,"Training, Computer Based (Software Supported) ",92091,Computer Training,611420
+1404,In-Service Training (For Employees) ,92435,Professional and Management Development Training,611430
+1405,"Vocational Training, All Types  (Including Vocational Rehabilitation and Technical Education)",92486,Technical and Trade Schools,611500
+1406,"Vocational Training, All Types  (Including Vocational Rehabilitation and Technical Education)",92486,Technical and Trade Schools,611510
+1407,"Vocational Training, All Types  (Including Vocational Rehabilitation and Technical Education)",92486,Cosmetology and Barber Schools,611511
+1408,Pilot Training Services ,90553,Flight Training,611512
+1409,"Vocational Training, All Types  (Including Vocational Rehabilitation and Technical Education)",92486,Apprenticeship Training,611513
+1410,"Vocational Training, All Types  (Including Vocational Rehabilitation and Technical Education)",92486,Other Technical and Trade Schools,611519
+1411,"Vocational Training, All Types  (Including Vocational Rehabilitation and Technical Education)",92486,Other Schools and Instruction,611600
+1412,School Operation and Management Services ,92471,Fine Arts Schools,611610
+1413,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Sports and Recreation Instruction,611620
+1414,School Operation and Management Services ,92471,Language Schools,611630
+1415,School Operation and Management Services ,92471,All Other Schools and Instruction,611690
+1416,Tutoring ,92480,Exam Preparation and Tutoring,611691
+1417,Special Education ,92474,Automobile Driving Schools,611692
+1418,"Ambulance Services, Non-emergency (See 990-37 for Emergency Ambulance Services) ",94812,Ambulatory Health Care Services,621000
+1419,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Offices of Physicians,621100
+1420,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Offices of Physicians,621110
+1421,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Offices of Physicians (except Mental Health Specialists),621111
+1422,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,"Offices of Physicians, Mental Health Specialists",621112
+1423,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Offices of Dentists,621200
+1424,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Offices of Dentists,621210
+1425,Health Care Center Services ,94847,Offices of Other Health Practitioners,621300
+1426,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Offices of Chiropractors,621310
+1427,Optician/Optometrical Services (Non-Physician) ,94868,Offices of Optometrists,621320
+1428,"Mental Health Services: Vocational, Residential, Etc. ",95262,Offices of Mental Health Practitioners (except Physicians),621330
+1429,Therapy and Rehabilitation Services ,94886,"Offices of Physical, Occupational and Speech Therapists, and Audiologists",621340
+1430,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Offices of Podiatrists,621391
+1431,Health Care Center Services ,94847,Outpatient Care Centers,621400
+1432,Family Planning ,95242,Family Planning Centers,621410
+1433,"Mental Health Services: Vocational, Residential, Etc. ",95262,Outpatient Mental Health and Substance Abuse Centers,621420
+1434,"Hospital Services, Inpatient and Outpatient ",94846,Other Outpatient Care Centers,621490
+1435,Health Care Center Services ,94847,HMO Medical Centers,621491
+1436,Medical and Laboratory Services (Non-Physician) ,94855,Kidney Dialysis Centers,621492
+1437,Health Care Services (Not Otherwise Classified) ,94848,Freestanding Ambulatory Surgical and Emergency Centers,621493
+1438,Health Care Services (Not Otherwise Classified) ,94848,All Other Outpatient Care Centers,621498
+1439,Medical and Laboratory Services (Non-Physician) ,94855,Medical and Diagnostic Laboratories,621500
+1440,Medical and Laboratory Services (Non-Physician) ,94855,Medical and Diagnostic Laboratories,621510
+1441,Medical and Laboratory Services (Non-Physician) ,94855,Medical Laboratories,621511
+1442,Medical and Laboratory Services (Non-Physician) ,94855,Diagnostic Imaging Centers,621512
+1443,Health Care Services (Not Otherwise Classified) ,94848,Home Health Care Services,621600
+1444,Health Care Services (Not Otherwise Classified) ,94848,Home Health Care Services,621610
+1445,Health Care Services (Not Otherwise Classified) ,94848,Other Ambulatory Health Care Services,621900
+1446,"Ambulance Services, Non-emergency (See 990-37 for Emergency Ambulance Services) ",94812,Ambulance Services,621910
+1447,"Ambulance Services, Non-emergency (See 990-37 for Emergency Ambulance Services) ",94812,All Other Ambulatory Health Care Services,621990
+1448,"Professional Medical Services (Including Physicians, Pharmacists, and All Specialties)",94874,Blood and Organ Banks,621991
+1449,"Ambulance Services, Non-emergency (See 990-37 for Emergency Ambulance Services) ",94812,All Other Miscellaneous Ambulatory Health Care Services,621999
+1450,"Hospital Services, Inpatient and Outpatient ",94846,Hospitals,622000
+1451,"Hospital Services, Inpatient and Outpatient ",94846,General Medical and Surgical Hospitals,622100
+1452,"Hospital Services, Inpatient and Outpatient ",94846,General Medical and Surgical Hospitals,622110
+1453,Psychologists/Psychological and Psychiatric Services (Including Behavioral Management Services),94876,Psychiatric and Substance Abuse Hospitals,622200
+1454,Psychologists/Psychological and Psychiatric Services (Including Behavioral Management Services),94876,Psychiatric and Substance Abuse Hospitals,622210
+1455,"Hospital Services, Inpatient and Outpatient ",94846,Specialty (except Psychiatric and Substance Abuse) Hospitals,622300
+1456,"Hospital Services, Inpatient and Outpatient ",94846,Specialty (except Psychiatric and Substance Abuse) Hospitals,622310
+1457,Nursing Home Services ,94865,Nursing and Residential Care Facilities,623000
+1458,Nursing Home Services ,94865,Nursing Care Facilities,623100
+1459,Nursing Home Services ,94865,Nursing Care Facilities,623110
+1460,"Mental Health Services: Vocational, Residential, Etc. ",95262,"Residential Mental Retardation, Mental Health and Substance Abuse Facilities",623200
+1461,"Mental Health Services: Vocational, Residential, Etc. ",95262,Residential Mental Retardation Facilities,623210
+1462,"Mental Health Services: Vocational, Residential, Etc. ",95262,Residential Mental Health and Substance Abuse Facilities,623220
+1463,Nursing Home Services ,94865,Community Care Facilities for the Elderly,623300
+1464,Nursing Home Services ,94865,Community Care Facilities for the Elderly,623310
+1465,Nursing Home Services ,94865,Continuing Care Retirement Communities,623311
+1466,Nursing Home Services ,94865,Homes for the Elderly,623312
+1467,Health Care Services (Not Otherwise Classified) ,94848,Other Residential Care Facilities,623900
+1468,Health Care Services (Not Otherwise Classified) ,94848,Other Residential Care Facilities,623990
+1469,Family and Social Services (Including Shopping and Buying Services) ,95243,Social Assistance,624000
+1470,Family and Social Services (Including Shopping and Buying Services) ,95243,Individual and Family Services,624100
+1471,Family and Social Services (Including Shopping and Buying Services) ,95243,Child and Youth Services,624110
+1472,Elderly Assistance Services ,95240,Services for the Elderly and Persons with Disabilities,624120
+1473,Family and Social Services (Including Shopping and Buying Services) ,95243,Other Individual and Family Services,624190
+1474,Supplemental Food Services ,95284,"Community Food and Housing, and Emergency and Other Relief Services",624200
+1475,Supplemental Food Services ,95284,Community Food Services,624210
+1476,Emergency Shelter ,95237,Community Housing Services,624220
+1477,Emergency Shelter ,95237,Temporary Shelters,624221
+1478,Emergency Shelter ,95237,Other Community Housing Services,624229
+1479,Family and Social Services (Including Shopping and Buying Services) ,95243,Emergency and Other Relief Services,624230
+1480,Therapy and Rehabilitation Services ,94886,Vocational Rehabilitation Services,624300
+1481,Therapy and Rehabilitation Services ,94886,Vocational Rehabilitation Services,624310
+1482,Day Care (Preschool) ,95225,Child Day Care Services,624400
+1483,Day Care (Preschool) ,95225,Child Day Care Services,624410
+1484,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,"Arts, Entertainment, and Recreation",710000
+1485,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,"Performing Arts, Spectator Sports, and Related Industries",711000
+1486,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Performing Arts Companies,711100
+1487,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Theater Companies and Dinner Theaters,711110
+1488,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Dance Companies,711120
+1489,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Musical Groups and Artists,711130
+1490,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Other Performing Arts Companies,711190
+1491,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Spectator Sports,711200
+1492,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Spectator Sports,711210
+1493,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Sports Teams and Clubs,711211
+1494,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Racetracks,711212
+1495,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Other Spectator Sports,711219
+1496,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,"Promoters of Performing Arts, Sports, and Similar Events",711300
+1497,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,"Promoters of Performing Arts, Sports, and Similar Events with Facilities",711310
+1498,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,"Promoters of Performing Arts, Sports, and Similar Events without Facilities",711320
+1499,Talent Agency Services ,96171,"Agents and Managers for Artists, Athletes, Entertainers, and Other Public Figures",711400
+1500,Talent Agency Services ,96171,"Agents and Managers for Artists, Athletes, Entertainers, and Other Public Figures",711410
+1501,Artists (Including Digital Artists),96104,"Independent Artists, Writers, and Performers",711500
+1502,Artists (Including Digital Artists),96104,"Independent Artists, Writers, and Performers",711510
+1503,"Arts Services (Cultural, Design, Visual, etc.) ",96207,"Museums, Historical Sites, and Similar Institutions",712000
+1504,"Arts Services (Cultural, Design, Visual, etc.) ",96207,"Museums, Historical Sites, and Similar Institutions",712100
+1505,"Arts Services (Cultural, Design, Visual, etc.) ",96207,Museums,712110
+1506,"Arts Services (Cultural, Design, Visual, etc.) ",96207,Historical Sites,712120
+1507,"Animal Care, Animal Health, Animal Shelter, Animal Production (Breeding), Animal Training Services, etc. (Including Pet Services, All Types) ",96206,Zoos and Botanical Gardens,712130
+1508,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Nature Parks and Other Similar Institutions,712190
+1509,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,"Amusement, Gambling, and Recreation Industries",713000
+1510,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Amusement Parks and Arcades,713100
+1511,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Amusement and Theme Parks,713110
+1512,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Amusement Arcades,713120
+1513,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Gambling Industries,713200
+1514,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Casinos (except Casino Hotels),713210
+1515,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Other Gambling Industries,713290
+1516,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,Other Amusement and Recreation Industries,713900
+1517,Golf Course Management and Operation ,98831,Golf Courses and Country Clubs,713910
+1518,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Skiing Facilities,713920
+1519,Marina Services ,95950,Marinas,713930
+1520,Physical Fitness Programs ,94873,Fitness and Recreational Sports Centers,713940
+1521,Sports Professionals Services (Including Sports and Recreational Programs and Referee/Umpire Services) ,96168,Bowling Centers,713950
+1522,Amusement and Entertainment Services (Incl. Performing Arts Professionals) ,96205,All Other Amusement and Recreation Industries,713990
+1523,"Hotel/Motel Accommodations (Incl. Lodges, Resorts, Bed/Breakfast Inns, etc.) Rental or Lease",97130,Traveler Accommodation,721100
+1524,"Hotel/Motel Accommodations (Incl. Lodges, Resorts, Bed/Breakfast Inns, etc.) Rental or Lease",97130,Hotels (except Casino Hotels) and Motels,721110
+1525,"Hotel/Motel Accommodations (Incl. Lodges, Resorts, Bed/Breakfast Inns, etc.) Rental or Lease",97130,Casino Hotels,721120
+1526,"Hotel/Motel Accommodations (Incl. Lodges, Resorts, Bed/Breakfast Inns, etc.) Rental or Lease",97130,Other Traveler Accommodation,721190
+1527,"Hotel/Motel Accommodations (Incl. Lodges, Resorts, Bed/Breakfast Inns, etc.) Rental or Lease",97130,Bed-and-Breakfast Inns,721191
+1528,"Hotel/Motel Accommodations (Incl. Lodges, Resorts, Bed/Breakfast Inns, etc.) Rental or Lease",97130,All Other Traveler Accommodation,721199
+1529,"Processing Services, Food (Not Otherwise Classified in Classes 961 or 962)",96259,RV (Recreational Vehicle) Parks and Recreational Camps,721200
+1530,"Processing Services, Food (Not Otherwise Classified in Classes 961 or 962)",96259,RV (Recreational Vehicle) Parks and Recreational Camps,721210
+1531,"Processing Services, Food (Not Otherwise Classified in Classes 961 or 962)",96259,RV (Recreational Vehicle) Parks and Campgrounds,721211
+1532,"Processing Services, Food (Not Otherwise Classified in Classes 961 or 962)",96259,Recreational and Vacation Camps (except Campgrounds),721214
+1533,Residential Space Rental or Lease ,97164,Rooming and Boarding Houses,721300
+1534,Residential Space Rental or Lease ,97164,Rooming and Boarding Houses,721310
+1535,Cafeteria and Restaurant Services ,96219,Food Services and Drinking Places,722000
+1536,Cafeteria and Restaurant Services ,96219,Full-Service Restaurants,722100
+1537,Cafeteria and Restaurant Services ,96219,Full-Service Restaurants,722110
+1538,Cafeteria and Restaurant Services ,96219,Limited-Service Eating Places,722200
+1539,Cafeteria and Restaurant Services ,96219,Limited-Service Eating Places,722210
+1540,Cafeteria and Restaurant Services ,96219,Limited-Service Restaurants,722211
+1541,Cafeteria and Restaurant Services ,96219,Cafeterias,722212
+1542,Cafeteria and Restaurant Services ,96219,Snack and Nonalcoholic Beverage Bars,722213
+1543,Cafeteria and Restaurant Services ,96219,Special Food Services,722300
+1544,Cafeteria and Restaurant Services ,96219,Food Service Contractors,722310
+1545,"Concessions, Catering, Vending: Mobile and Stationary (See Class 905 for Airport Concessions)",96115,Caterers,722320
+1546,"Concessions, Catering, Vending: Mobile and Stationary (See Class 905 for Airport Concessions)",96115,Mobile Food Services,722330
+1547,"Alcoholic Beverages, All Types",66005,Drinking Places (Alcoholic Beverages),722400
+1548,"Alcoholic Beverages, All Types",66005,Drinking Places (Alcoholic Beverages),722410
+1549,Cafeteria and Restaurant Services ,96219,Restaurants and Other Eating Places,722500
+1550,Cafeteria and Restaurant Services ,96219,Restaurants and Other Eating Places,722510
+1551,Cafeteria and Restaurant Services ,96219,Full-Service Restaurants,722511
+1552,Cafeteria and Restaurant Services ,96219,Limited-Service Restaurants,722513
+1553,Cafeteria and Restaurant Services ,96219,"Cafeterias, Grill Buffets, and Buffets",722514
+1554,"Concessions, Catering, Vending: Mobile and Stationary (See Class 905 for Airport Concessions)",96115,Snack and Nonalcoholic Beverage Bars,722515
+1555,"Concessions, Catering, Vending: Mobile and Stationary (See Class 905 for Airport Concessions)",96115,Other Services (except Public Administration),810000
+1556,Automobile and Other Passenger Vehicles Maintenance and Repair (Not Otherwise Classified),92815,Automotive Repair and Maintenance,811100
+1557,"Electrical (Alternator/Generator, Battery, Ignition System, Lights, etc.) Maintenance and Repair ",92838,Automotive Mechanical and Electrical Repair and Maintenance,811110
+1558,Automobile and Other Passenger Vehicles Maintenance and Repair (Not Otherwise Classified),92815,General Automotive Repair,811111
+1559,Exhaust System Maintenance and Repair ,92840,Automotive Exhaust System Repair,811112
+1560,"Transmission (Main, Transfer Case, Chain and Final Drives) Maintenance and Repair ",92885,Automotive Transmission Repair,811113
+1561,"Electrical (Alternator/Generator, Battery, Ignition System, Lights, etc.) Maintenance and Repair ",92838,Other Automotive Mechanical and Electrical Repair and Maintenance,811118
+1562,Body and Frame Work (Including Undercoating) ,92819,"Automotive Body, Paint, Interior, and Glass Repair",811120
+1563,Body and Frame Work (Including Undercoating) ,92819,"Automotive Body, Paint, and Interior Repair and Maintenance",811121
+1564,"Glass Replacement and Repair Services, Windshield and Window (Auto), (Including Window Tinting Services) ",92846,Automotive Glass Replacement Shops,811122
+1565,Automobile and Other Passenger Vehicles Maintenance and Repair (Not Otherwise Classified),92815,Other Automotive Repair and Maintenance,811190
+1566,"General Maintenance and Repair, Vehicle (Not Otherwise Classified), to Include Oil Changes, Lubrication, Guaranteed Maintenance Programs, etc. (See 928-88 for Tune-Ups)",92847,Automotive Oil Change and Lubrication Shops,811191
+1567,"Washing, Waxing, Polishing, Steam Cleaning, Disinfecting, etc. ",92893,Car Washes,811192
+1568,Automobile and Other Passenger Vehicles Maintenance and Repair (Not Otherwise Classified),92815,All Other Automotive Repair and Maintenance,811198
+1569,Electronic Equipment Maintenance and Repair ,93937,Electronic and Precision Equipment Repair and Maintenance,811210
+1570,Electronic Equipment Maintenance and Repair ,93937,Consumer Electronics Repair and Maintenance,811211
+1571,Electronic Equipment Maintenance and Repair ,93937,Computer and Office Machine Repair and Maintenance,811212
+1572,Electronic Equipment Maintenance and Repair ,93937,Other Electronic and Precision Equipment Repair and Maintenance,811219
+1573,"Appliances and Equipment, Household, (Not Laundry or HVAC) Maintenance and Repair ",93107,Personal and Household Goods Repair and Maintenance,811400
+1574,Lawn Equipment Maintenance and Repair ,93446,Home and Garden Equipment and Appliance Repair and Maintenance,811410
+1575,Lawn Equipment Maintenance and Repair ,93446,Home and Garden Equipment Repair and Maintenance,811411
+1576,"Appliances and Equipment, Household, (Not Laundry or HVAC) Maintenance and Repair ",93107,Appliance Repair and Maintenance,811412
+1577,Upholstery and Drapery Maintenance and Repair (Including Cleaning),93688,Reupholstery and Furniture Repair,811420
+1578,Shoe and Boot Repairs (Including Maintenance and Shining) ,96280,Footwear and Leather Goods Repair,811430
+1579,Laundry and Linen Service ,95405,Personal and Laundry Services,812000
+1580,Personal Care Services ,95268,Personal Care Services,812100
+1581,Barber/Beautician Services ,95210,"Hair, Nail, and Skin Care Services",812110
+1582,Barber/Beautician Services ,95210,Barber Shops,812111
+1583,Barber/Beautician Services ,95210,Beauty Salons,812112
+1584,Barber/Beautician Services ,95210,Nail Salons,812113
+1585,Personal Care Services ,95268,Other Personal Care Services,812190
+1586,Dietician Services ,94832,Diet and Weight Reducing Centers,812191
+1587,Personal Care Services ,95268,Other Personal Care Services,812199
+1588,Mortuary and Funeral (Including Crematory Services) ,95264,Death Care Services,812200
+1589,Mortuary and Funeral (Including Crematory Services) ,95264,Funeral Homes and Funeral Services,812210
+1590,Mortuary and Funeral (Including Crematory Services) ,95264,Cemeteries and Crematories,812220
+1591,Dry Cleaning Service ,95420,Drycleaning and Laundry Services,812300
+1592,Washing Machines ,50095,Coin-Operated Laundries and Drycleaners,812310
+1593,Laundry and Linen Service ,95405,Drycleaning and Laundry Services (except Coin-Operated),812320
+1594,Laundry and Linen Service ,95405,Linen and Uniform Supply,812330
+1595,Laundry and Linen Service ,95405,Linen Supply,812331
+1596,Laundry and Linen Service ,95405,Industrial Launderers,812332
+1597,Personal Care Services ,95268,Other Personal Services,812900
+1598,"Animal Care, Animal Health, Animal Shelter, Animal Production (Breeding), Animal Training Services, etc. (Including Pet Services, All Types) ",96206,Pet Care (except Veterinary) Services,812910
+1599,"Film and Slide Processing, Duplicating and Touch Up Services",91538,Photofinishing,812920
+1600,"Film and Slide Processing, Duplicating and Touch Up Services",91538,Photofinishing Laboratories (except One-Hour),812921
+1601,"Film and Slide Processing, Duplicating and Touch Up Services",91538,One-Hour Photofinishing,812922
+1602,"Processing Services, Food (Not Otherwise Classified in Classes 961 or 962)",96259,Parking Lots and Garages,812930
+1603,Personal Care Services ,95268,All Other Personal Services,812990
+1604,Religious Services ,96271,"Religious, Grantmaking, Civic, Professional, and Similar Organizations",813000
+1605,Religious Services ,96271,Religious Organizations,813100
+1606,Religious Services ,96271,Religious Organizations,813110
+1607,Financial Services (Not Otherwise Classified) ,94649,Grantmaking and Giving Services,813200
+1608,Financial Services (Not Otherwise Classified) ,94649,Grantmaking and Giving Services,813210
+1609,Financial Services (Not Otherwise Classified) ,94649,Grantmaking Foundations,813211
+1610,Volunteer Services (Aid in Locating Volunteers) ,96187,Voluntary Health Organizations,813212
+1611,Financial Services (Not Otherwise Classified) ,94649,Other Grantmaking and Giving Services,813219
+1612,Family and Social Services (Including Shopping and Buying Services) ,95243,Social Advocacy Organizations,813300
+1613,Human Services (Not Otherwise Classified) ,95259,Social Advocacy Organizations,813310
+1614,Cultural Administration and Promotion Services ,95224,Human Rights Organizations,813311
+1615,Human Services (Not Otherwise Classified) ,95259,Other Social Advocacy Organizations,813319
+1616,Human Services (Not Otherwise Classified) ,95259,Civic and Social Organizations,813400
+1617,Human Services (Not Otherwise Classified) ,95259,Civic and Social Organizations,813410
+1618,Professional Services (Not Otherwise Classified) ,96258,"Business, Professional, Labor, Political, and Similar Organizations",813900
+1619,"Business Consulting, Small ",91820,Business Associations,813910
+1620,Professional Services (Not Otherwise Classified) ,96258,Professional Organizations,813920
+1621,Employee Assistance Programs (Including Unemployment Compensation Administration Services),95238,Labor Unions and Similar Labor Organizations,813930
+1622,Governmental Consulting ,91858,Political Organizations,813940
+1623,Law Enforcement Services (Including Process Server Services),96147,"Other Similar Organizations (except Business, Professional, Labor, and Political Organizations)",813990
+1624,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Public Administration,920000
+1625,Governmental Consulting ,91858,"Executive, Legislative, and Other General Government Support",921000
+1626,Governmental Consulting ,91858,"Executive, Legislative, and Other General Government Support",921100
+1627,Office Space Rental or Lease ,97145,Executive Offices,921110
+1628,Governmental Consulting ,91858,Legislative Bodies,921120
+1629,"Tax Services (Including Tax Preparation, Advisory Services, etc.) ",94682,Public Finance Activities,921130
+1630,Office Space Rental or Lease ,97145,"Executive and Legislative Offices, Combined",921140
+1631,Governmental Consulting ,91858,American Indian and Alaska Native Tribal Governments,921150
+1632,Governmental Consulting ,91858,Other General Government Support,921190
+1633,Legal Services Including Depositions and Expert Witness Testimony ,96150,"Justice, Public Order, and Safety Activities",922000
+1634,Legal Services Including Depositions and Expert Witness Testimony ,96150,"Justice, Public Order, and Safety Activities",922100
+1635,Legal Services Including Depositions and Expert Witness Testimony ,96150,Courts,922110
+1636,Law Enforcement - Community Relations Services (Incl. Victim Notification Services),95261,Police Protection,922120
+1637,Legal Services Including Depositions and Expert Witness Testimony ,96150,Legal Counsel and Prosecution,922130
+1638,Correctional ,95220,Correctional Institutions,922140
+1639,"Monitoring Services: Parolee, Patient, Convict, etc. ",91570,Parole Offices and Probation Offices,922150
+1640,Fire and Safety Services ,99042,Fire Protection,922160
+1641,Legal Services Including Depositions and Expert Witness Testimony ,96150,"Other Justice, Public Order, and Safety Activities",922190
+1642,Human Resources Development Services ,95258,Administration of Human Resource Programs,923000
+1643,Human Resources Development Services ,95258,Administration of Human Resource Programs,923100
+1644,"Administration Services, Health ",94807,Administration of Public Health Programs,923120
+1645,Family and Social Services (Including Shopping and Buying Services) ,95243,"Administration of Human Resource Programs (except Education, Public Health, and Veterans' Affairs Programs)",923130
+1646,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Administration of Veterans' Affairs,923140
+1647,Environmental Engineering ,92535,Administration of Environmental Quality Programs,924000
+1648,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Administration of Environmental Quality Programs,924100
+1649,Water Supply Plant Operating and Monitoring System Services (Including Water Resources Development and Water Quality Management Services) ,96892,Administration of Air and Water Resource and Solid Waste Management Programs,924110
+1650,Restoration/Reclamation Services of Land and Other Properties ,96273,Administration of Conservation Programs,924120
+1651,"Planning, Urban (Community, Regional, Area wide, and State)",90664,"Administration of Housing Programs, Urban Planning, and Community Development",925100
+1652,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Administration of Housing Programs,925110
+1653,Urban and Regional Development Services ,95296,Administration of Urban Planning and Community and Rural Development,925120
+1654,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Administration of Economic Programs,926000
+1655,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Administration of Economic Programs,926100
+1656,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Administration of General Economic Programs,926110
+1657,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,Regulation and Administration of Transportation Programs,926120
+1658,"Administrative Services, All Kinds  (Incl. Clerical, Secretarial Services, etc.)",96102,"Regulation and Administration of Communications, Electric, Gas, and Other Utilities",926130
+1659,"Agricultural Services (Including Production, Cotton Ginning, Planting, Harvesting, Marketing, Seed Extraction, Processing, etc.) ",96103,Regulation of Agricultural Marketing and Commodities,926140
+1660,Inspection and Certification Services ,96145,"Regulation, Licensing, and Inspection of Miscellaneous Commercial Sectors",926150
+1661,Research Services (Other Than Business) ,95670,Space Research and Technology,927000
+1662,Research Services (Other Than Business) ,95670,Space Research and Technology,927100
+1663,Research Services (Other Than Business) ,95670,Space Research and Technology,927110
+1664,Security/Safety Consulting ,91893,National Security and International Affairs,928000
+1665,Security/Safety Consulting ,91893,National Security and International Affairs,928100
+1666,Security/Safety Consulting ,91893,National Security,928110
+1667,Governmental Consulting ,91858,International Affairs,928120
+1668,Customer Flow Management System (Queuing System) Including Parts,20834,,
+1669,RPA Software,20879  ,,
+1670,Reusable Water Bottle (Screw On Top,37005  ,,
+1671,Shoe Accessories (Not otherwise classified),52067 ,,
+1672,SEAL COATING,74586 ,,
+1673,Special Education Consultant,92475 ,,
+1674,WASTEWATER FACILITY ODOR MONITORING,92692 ,,
+1675,MEDICAL SERVICES,94857 ,,
+1676,SUICIDE PREVENTION SERVICES,95282  ,,
+1677,Wastewater Mud Treatment Services,95811 ,,
+1678,Lakes,95869  ,,
+1679,Interpreter Services for American Sign Language and other forms of sign language for deaf/hard of hearing whose first language is sign language,96192  ,,
+1680,Communication Access Realtime Translation (CART) as further explained here in the ADA Requirements for Effective Communication and Closed Captioning for Broadcast Television/Webcasts,96193 ,,
+1681,Vehicle Sharing (Bike),96212  ,,
+1682,Roadside Assistance; flat tire,96887  ,,
+1683,Professional Services/Contract Sponsorships,96939  ,,
+1684,"Insulation, Reflective, Radiant Barrier",1061,,
+1685,"Processing Machinery and Equipment, Agricultural Environmental: Anaerobic Digesters, Waste to Energy",2254,,
+1686,"Implement Parts, Kubota",2254,,
+1687,"Processing Machinery Parts, Environmental",2271,,
+1688,"Insects, (Not Otherwise Classified)",4072,,
+1689,"Photo Identification Software, Microcomputer",20862,,
+1690,Soap Making Materials and Supplies,23278,,
+1691,"Fencing, Adobe, Cinderblock and Sand",33005,,
+1692,Night Vision Devices,62580,,
+1693,"Shoes and Sandals, Disposable",80089,,
+1694,"Athletic Field Groomers and Equipment, Artificial Turf",80518,,
+1695,"Orthopedic Device, Veterinary",90683,,
+1696,"Sports Facility, Architectural Services",90683,,
+1697,Computer Hardware Manufacturing Services,96727,,

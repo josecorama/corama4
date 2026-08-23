@@ -15,7 +15,7 @@ import uuid
 import logging
 import hashlib
 from datetime import datetime, date
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Callable, List, Dict, Any, Optional, Tuple
 
 from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
@@ -56,6 +56,11 @@ def _get_qdrant_client() -> Optional[QdrantClient]:
 def _deterministic_uuid(notice_id: str) -> str:
     """Generate a deterministic UUID-style id from SAM notice ID for dedup."""
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"sam.gov:{notice_id}"))
+
+
+def _deterministic_bidbuy_uuid(doc_id: str) -> str:
+    """Generate the stable point ID used for BidBuy records."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"bidbuy.illinois.gov:{doc_id}"))
 
 
 def _existing_notice_ids(client: QdrantClient, notice_ids: List[str]) -> set:
@@ -179,6 +184,7 @@ def _summarize_contract(payload: Dict[str, Any]) -> Dict[str, Any]:
     else:
         naics_str = str(naics)
     return {
+        "source": payload.get("source") or "SAM.gov",
         "title": payload.get("title") or "Untitled",
         "agency": payload.get("agency") or "Unknown agency",
         "category": payload.get("category") or "Uncategorized",
@@ -359,7 +365,10 @@ def fetch_new_payloads(
     return [_enrich_category(p) for p in new_payloads], fetched, skipped
 
 
-def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
+def ingest_payloads(
+    payloads: List[Dict[str, Any]],
+    point_id_func: Optional[Callable[[Dict[str, Any]], str]] = None,
+) -> Dict[str, Any]:
     """Embed and upsert already-fetched contract payloads into Qdrant.
 
     Used both by the direct sync and by the approval flow (after the admin
@@ -388,10 +397,15 @@ def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
     except Exception:
         dim = 1536
 
-    point_ids = [
-        _deterministic_uuid(p.get("sam_notice_id")) if p.get("sam_notice_id") else str(uuid.uuid4())
-        for p in payloads
-    ]
+    if point_id_func is None:
+        point_id_func = lambda p: (
+            _deterministic_bidbuy_uuid(p.get("bidbuy_doc_id"))
+            if p.get("bidbuy_doc_id") else (
+                _deterministic_uuid(p.get("sam_notice_id"))
+                if p.get("sam_notice_id") else str(uuid.uuid4())
+            )
+        )
+    point_ids = [point_id_func(p) for p in payloads]
 
     # Generate REAL embeddings; fall back to placeholder only if unavailable.
     vectors = _embed_payload_texts(payloads)
