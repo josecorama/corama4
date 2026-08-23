@@ -65,9 +65,11 @@ def fetch_new_payloads(
     fetched = len(payloads)
     fetch_stats = get_last_fetch_stats()
     log.info(
-        "[BidBuy Sync] detail_requested=%d detail_fetched=%d blocked=%d fetch_failed=%d",
+        "[BidBuy Sync] detail_requested=%d detail_fetched=%d filtered=%d "
+        "blocked=%d fetch_failed=%d",
         fetch_stats.get("detail_requested", 0),
         fetch_stats.get("detail_fetched", 0),
+        fetch_stats.get("filtered", 0),
         fetch_stats.get("blocked", 0),
         fetch_stats.get("fetch_failed", 0),
     )

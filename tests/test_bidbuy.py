@@ -5,6 +5,7 @@ from datetime import datetime
 
 from bidbuy_client import (
     DESCRIPTION_MAX_CHARS,
+    is_actionable_bid,
     map_bid_to_payload,
     parse_bidbuy_date,
     parse_detail_html,
@@ -82,6 +83,7 @@ def test_detail_fixture_maps_to_canonical_payload():
     assert payload["naics_codes"]
     assert payload["bidbuy_naics_source"] == "crosswalk_class"
     assert payload["opportunity_type"] == "emergency"
+    assert payload["bidbuy_actionable"] is True
     assert payload["bidbuy_type_code"] == "40 - Emergency"
     assert payload["bidbuy_bid_type"] == "OPEN"
     assert payload["document_urls"][0].startswith("https://")
@@ -126,3 +128,29 @@ def test_dashboard_mapping_supports_bidbuy_payload():
     assert dashboard["due_date_ts"] == int(
         datetime.strptime("23/08/2026", "%d/%m/%Y").timestamp()
     )
+
+
+def test_bidbuy_actionability_keeps_solicitations_and_filters_notice_families():
+    cases = (
+        ("10 - Invitation for Bid (IFB)", True),
+        ("43 - Emergency - Final Cost", False),
+        ("15 - Request for Proposal (RFP)", True),
+        ("55 - Amendment/Change Order (Increase or No Dollar)", False),
+        ("35 - Sole Source", True),
+        ("65 - Exempt Notice", False),
+    )
+    for type_code, expected in cases:
+        assert is_actionable_bid({"Type Code": type_code}) is expected
+
+
+def test_filtered_fixture_type_is_marked_non_actionable():
+    detail = parse_detail_html(
+        (FIXTURES / "bidbuy_detail_27-406AGR-ADMIN-B-53800.html").read_text(
+            encoding="utf-8"
+        ),
+        doc_id="27-406AGR-ADMIN-B-53800",
+    )
+    detail["Type Code"] = "43 - Emergency - Final-Cost"
+    payload = map_bid_to_payload(detail)
+    assert payload["bidbuy_actionable"] is False
+    assert payload["bidbuy_filter_reason"] == "final_cost_or_award"

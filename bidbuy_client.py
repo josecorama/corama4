@@ -57,7 +57,11 @@ BROWSER_HEADERS = {
 }
 
 _LAST_FETCH_STATS: Dict[str, int] = {
-    "detail_requested": 0, "detail_fetched": 0, "blocked": 0, "fetch_failed": 0,
+    "detail_requested": 0,
+    "detail_fetched": 0,
+    "blocked": 0,
+    "fetch_failed": 0,
+    "filtered": 0,
 }
 
 
@@ -105,6 +109,7 @@ class BidBuyClient:
         self.fetch_failed_count = 0
         self.detail_requested = 0
         self.detail_fetched = 0
+        self.filtered_count = 0
 
     def _set_browser_headers(self) -> None:
         self.session.headers.update({
@@ -296,7 +301,7 @@ class BidBuyClient:
 
     def fetch_bids(self, limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """Fetch listing IDs then at most ``limit`` detail records."""
-        self.blocked_count = self.fetch_failed_count = 0
+        self.blocked_count = self.fetch_failed_count = self.filtered_count = 0
         self.detail_requested = self.detail_fetched = 0
         details = []
         for doc_id in self.fetch_doc_ids(limit=limit):
@@ -312,6 +317,7 @@ class BidBuyClient:
             "detail_fetched": self.detail_fetched,
             "blocked": self.blocked_count,
             "fetch_failed": self.fetch_failed_count,
+            "filtered": self.filtered_count,
         }
 
 
@@ -411,6 +417,33 @@ def parse_detail_html(
     return detail
 
 
+def bidbuy_filter_reason(detail: Dict[str, Any]) -> Optional[str]:
+    """Return why a BidBuy notice is non-actionable, if applicable."""
+    type_text = " ".join(
+        _text(detail.get(key))
+        for key in (
+            "Type Code",
+            "Bid Type",
+            "bidbuy_type_code",
+            "opportunity_type",
+        )
+    ).lower()
+    normalized = re.sub(r"[_/-]+", " ", type_text)
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    if re.search(r"\bfinal\s*cost\b|\baward(?:ed)?(?:\s+notice)?\b", normalized):
+        return "final_cost_or_award"
+    if re.search(r"\bamend\w*\b|\bchange\s*order\b", normalized):
+        return "amendment_or_change_order"
+    if re.search(r"\bexempt(?:\s+notice)?\b", normalized):
+        return "exempt_notice"
+    return None
+
+
+def is_actionable_bid(detail: Dict[str, Any]) -> bool:
+    """Return whether a BidBuy notice should be offered for ingestion."""
+    return bidbuy_filter_reason(detail) is None
+
+
 def parse_bidbuy_date(value: object) -> Optional[str]:
     """Convert BidBuy MM/DD/YYYY dates to the corpus DD/MM/YYYY format."""
     raw = _text(value)
@@ -487,6 +520,7 @@ def map_bid_to_payload(detail: Dict[str, Any]) -> Dict[str, Any]:
         location = _parse_address(detail.get("Location", ""))
         location["location_source"] = "Location field/fallback"
     attachments = detail.get("file_attachments") or []
+    filter_reason = bidbuy_filter_reason(detail)
     return {
         "source": "BidBuy Illinois",
         "source_url": detail.get("detail_url", ""),
@@ -511,6 +545,8 @@ def map_bid_to_payload(detail: Dict[str, Any]) -> Dict[str, Any]:
         "government_level": "state",
         "opportunity_type": _human_bid_type(detail),
         "opportunity_status": "open",
+        "bidbuy_actionable": filter_reason is None,
+        "bidbuy_filter_reason": filter_reason,
         "confidence_score": 0.9 if detail.get("Bid Number") and detail.get("Bid Opening Date") else 0.75,
         "validation_status": "bidbuy_scrape",
         "bidbuy_doc_id": detail.get("doc_id", ""),
@@ -533,18 +569,31 @@ def map_bid_to_payload(detail: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def fetch_open_bids(limit: Optional[int] = None) -> List[Dict[str, Any]]:
-    """Convenience wrapper returning mapped open-bid payloads."""
+def fetch_open_bids(
+    limit: Optional[int] = None, include_filtered: bool = False
+) -> List[Dict[str, Any]]:
+    """Return actionable payloads, optionally retaining filtered diagnostics."""
     client = BidBuyClient()
     payloads = [map_bid_to_payload(detail) for detail in client.fetch_bids(limit=limit)]
+    filtered = [p for p in payloads if not p["bidbuy_actionable"]]
+    client.filtered_count = len(filtered)
+    if filtered:
+        log.info(
+            "[BidBuy] filtered=%d non-actionable notices: %s",
+            len(filtered),
+            ", ".join(str(p.get("bidbuy_doc_id") or "") for p in filtered),
+        )
     _LAST_FETCH_STATS.clear()
     _LAST_FETCH_STATS.update(client.fetch_stats())
     log.info(
-        "[BidBuy] detail_requested=%d detail_fetched=%d blocked=%d fetch_failed=%d",
+        "[BidBuy] detail_requested=%d detail_fetched=%d filtered=%d "
+        "blocked=%d fetch_failed=%d",
         client.detail_requested, client.detail_fetched,
-        client.blocked_count, client.fetch_failed_count,
+        client.filtered_count, client.blocked_count, client.fetch_failed_count,
     )
-    return payloads
+    return payloads if include_filtered else [
+        payload for payload in payloads if payload["bidbuy_actionable"]
+    ]
 
 
 def get_last_fetch_stats() -> Dict[str, int]:
@@ -561,6 +610,10 @@ parse_bid_detail = parse_detail_html
 
 
 def _main() -> int:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    )
     parser = argparse.ArgumentParser(description="Dry-run BidBuy Illinois ingestion")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--output", default="bidbuy_dryrun.json")
@@ -569,6 +622,14 @@ def _main() -> int:
     client = BidBuyClient()
     details = client.fetch_bids(limit=args.limit)
     payloads = [map_bid_to_payload(detail) for detail in details]
+    filtered = [p for p in payloads if not p["bidbuy_actionable"]]
+    client.filtered_count = len(filtered)
+    if filtered:
+        log.info(
+            "[BidBuy] filtered=%d non-actionable notices: %s",
+            len(filtered),
+            ", ".join(str(p.get("bidbuy_doc_id") or "") for p in filtered),
+        )
     try:
         from category_mapping import map_payload_to_category
         for payload in payloads:
@@ -586,9 +647,10 @@ def _main() -> int:
     stats = client.fetch_stats()
     log.info(
         "Dry-run wrote %d BidBuy payloads to %s; requested=%d fetched=%d "
-        "blocked=%d fetch_failed=%d",
+        "filtered=%d blocked=%d fetch_failed=%d",
         len(payloads), args.output, stats["detail_requested"],
-        stats["detail_fetched"], stats["blocked"], stats["fetch_failed"],
+        stats["detail_fetched"], stats["filtered"], stats["blocked"],
+        stats["fetch_failed"],
     )
     return 0
 
