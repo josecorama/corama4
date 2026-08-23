@@ -1081,50 +1081,11 @@ class CorporatePDF(_TemplatePDF):
         snapshot_values = any(self.data.get(key) for key in (
             "uei_code", "cage_code", "naics_codes", "certifications",
         ))
-        left_sections = sum(bool(value) for value in (
-            description,
-            differentiators,
-            contact_values,
-        ))
-        right_sections = sum(bool(value) for value in (
-            competencies,
-            performance,
-            snapshot_values,
-        ))
-        gap_max = 6
         self.set_font("Helvetica", "", 8)
         description_lines = min(
             10, len(self._wrap(description, col_w - 8))
         ) if description else 0
         who_box_h = description_lines * 4 + 6 if description else 0
-        differentiator_lines = len(
-            self._list_lines(differentiators, col_w - 6, 12, check=True)
-        ) if differentiators else 0
-        contact_line_count = 0
-        for value in (
-            self.data.get("contact_name"),
-            self.data.get("contact_title"),
-            self.data.get("contact_phone"),
-            self.data.get("contact_email"),
-            self._contact_address(),
-            self.data.get("contact_website"),
-        ):
-            if value:
-                contact_line_count += len(self._wrap(value, col_w - 6))
-        contact_lines = min(12, contact_line_count)
-        left_min = 0
-        if description:
-            left_min += 10 + who_box_h + 5
-        if differentiators:
-            left_min += 10 + differentiator_lines * 4 + 4
-        if contact_values:
-            left_min += 10 + contact_lines * 4 + 2
-        left_slack = max(
-            0, bottom - left_y - left_min - gap_max * max(0, left_sections - 1)
-        )
-        if description:
-            who_box_h += left_slack
-
         snapshot_lines = []
         if self.data.get("uei_code"):
             snapshot_lines.append("UEI: " + str(self.data["uei_code"]))
@@ -1142,28 +1103,11 @@ class CorporatePDF(_TemplatePDF):
             snapshot_lines.extend(self._limited_lines(
                 self._wrap(certifications_text, col_w - 8), 1, col_w - 8,
             ))
-        snapshot_base_h = max(18, len(snapshot_lines) * 3.7 + 20)
-        snapshot_base_h = min(52, snapshot_base_h)
-        service_lines = len(
-            self._list_lines(competencies, col_w - 6, 12)
-        ) if competencies else 0
-        performance_lines = len(
-            self._list_lines(performance, col_w - 6, 9)
-        ) if performance else 0
-        right_min = 0
-        if competencies:
-            right_min += 10 + service_lines * 4 + 4
-        if performance:
-            right_min += 10 + performance_lines * 3.8 + 2
-            if self.data.get("image_path"):
-                right_min += 28
-        if snapshot_values:
-            right_min += 10 + snapshot_base_h + 4
-        right_slack = max(
-            0, bottom - right_y - right_min - gap_max * max(0, right_sections - 1)
-        )
-        snapshot_h = snapshot_base_h + (right_slack if snapshot_values else 0)
-        left_index = right_index = 0
+        content_lines = len(snapshot_lines) or 1
+        badge_h = 13 if self.data.get("certifications") else 0
+        snapshot_h = min(52, max(
+            18, content_lines * 3.7 + badge_h + 7
+        ))
 
         if description:
             left_y = self._section_title("Who We Are", left_x, left_y, col_w, self.secondary_color) + 2
@@ -1174,11 +1118,7 @@ class CorporatePDF(_TemplatePDF):
                 description, left_x + 4, left_y + 3, col_w - 8,
                 font_size=8, max_lines=description_lines,
             )
-            left_y = max(content_end + 5, left_y + who_box_h + 2)
-            left_index += 1
-            left_y += self._distributed_gap(
-                left_y, bottom, left_sections - left_index, maximum=gap_max,
-            )
+            left_y = max(content_end + 5, left_y + who_box_h + 2) + 5
 
         if differentiators:
             left_y = self._section_title("Differentiators", left_x, left_y, col_w, self.secondary_color) + 2
@@ -1186,10 +1126,7 @@ class CorporatePDF(_TemplatePDF):
                 differentiators, left_x + 3, left_y, col_w - 6,
                 font_size=7.5, max_lines=12, check=True,
             ) + 4
-            left_index += 1
-            left_y += self._distributed_gap(
-                left_y, bottom, left_sections - left_index, maximum=gap_max,
-            )
+            left_y += 5
 
         if contact_values:
             left_y = self._section_title("Contact Information", left_x, left_y, col_w, self.secondary_color) + 2
@@ -1214,10 +1151,7 @@ class CorporatePDF(_TemplatePDF):
                     self.cell(col_w - 6, 4, line, 0, 1, "L")
                     contact_y += 4
             left_y = contact_y + 2
-            left_index += 1
-            left_y += self._distributed_gap(
-                left_y, bottom, left_sections - left_index, maximum=gap_max,
-            )
+            left_y += 5
 
         if competencies:
             right_y = self._section_title("Services", right_x, right_y, col_w, self.primary_color) + 2
@@ -1225,10 +1159,7 @@ class CorporatePDF(_TemplatePDF):
                 competencies, right_x + 3, right_y, col_w - 6,
                 font_size=7.5, max_lines=12,
             ) + 4
-            right_index += 1
-            right_y += self._distributed_gap(
-                right_y, bottom, right_sections - right_index, maximum=gap_max,
-            )
+            right_y += 5
 
         if performance:
             right_y = self._section_title("Past Performance", right_x, right_y, col_w, self.primary_color) + 2
@@ -1239,10 +1170,7 @@ class CorporatePDF(_TemplatePDF):
             if self.data.get("image_path") and right_y + 25 < bottom:
                 self._safe_image(self.data.get("image_path"), right_x, right_y, col_w, 26)
                 right_y += 28
-            right_index += 1
-            right_y += self._distributed_gap(
-                right_y, bottom, right_sections - right_index, maximum=gap_max,
-            )
+            right_y += 5
 
         if snapshot_values:
             right_y = self._section_title("Corporate Snapshot", right_x, right_y, col_w, self.primary_color) + 2
@@ -1265,10 +1193,7 @@ class CorporatePDF(_TemplatePDF):
                     right_y + 3 + content_lines * 3.7 + 1, col_w - 8, size=10,
                 )
             right_y += snapshot_h + 4
-            right_index += 1
-            right_y += self._distributed_gap(
-                right_y, bottom, right_sections - right_index, maximum=gap_max,
-            )
+            right_y += 5
 
         self.set_fill_color(*self.primary_color)
         self.rect(0, self.h - 3, self.w, 3, "F")
@@ -1296,7 +1221,7 @@ class BandedPDF(_TemplatePDF):
 
         y = 41
         bottom = footer_top - 4
-        gap_max = 6
+        gap = 5
         dark = self._dark_primary()
         competencies = self.data.get("core_competencies")
         description = self.data.get("company_description")
@@ -1305,6 +1230,44 @@ class BandedPDF(_TemplatePDF):
         ))
         performance = self.data.get("private_performance")
         certifications = self.data.get("certifications")
+        description_lines = len(self._wrap(
+            description, self.w / 2 - 13
+        )) if description else 1
+        data_width = self.w / 2 - margin - 10
+        values = []
+        if self.data.get("uei_code"):
+            values.append("UEI: " + str(self.data["uei_code"]))
+        if self.data.get("cage_code"):
+            values.append("CAGE: " + str(self.data["cage_code"]))
+        if self.data.get("naics_codes"):
+            naics_text = "NAICS: " + ", ".join(
+                self._items(self.data["naics_codes"])
+            )
+            naics_max_lines = 5 if self.data.get("certifications") else 7
+            values.append("\n".join(self._limited_lines(
+                self._wrap(naics_text, data_width),
+                naics_max_lines, data_width,
+            )))
+        if self.data.get("certifications"):
+            certifications_text = "CERTIFICATIONS: " + ", ".join(
+                self._items(self.data["certifications"])
+            )
+            values.append("\n".join(self._limited_lines(
+                self._wrap(certifications_text, data_width),
+                2, data_width,
+            )))
+        value_lines = sum(len(self._wrap(value, data_width)) for value in values)
+        pair_h = min(42, max(
+            18, max(description_lines, value_lines) * 3.7 + 8
+        )) if (description or company_data) else 0
+        perf_w = self.w - 2 * margin - (38 if certifications else 0)
+        performance_lines = len(
+            self._list_lines(performance, perf_w, 12)
+        ) if performance else 0
+        past_content_h = max(
+            performance_lines * 3.8 + 3 if performance else 0,
+            13 if certifications else 0,
+        )
         if competencies:
             self.set_fill_color(*dark)
             self.rect(0, y, self.w, 8, "F")
@@ -1319,12 +1282,18 @@ class BandedPDF(_TemplatePDF):
             ) + 3
             image_ratio = self._image_aspect_ratio(self.data.get("image_path"))
             if image_ratio:
-                hero_h = min(60, max(20, self.w / image_ratio))
-                if y + hero_h < bottom and self._cover_image(
+                future_height = 0
+                if description or company_data:
+                    future_height += gap + 8 + 11 + pair_h + 4
+                if performance or certifications:
+                    future_height += gap + 8 + 11 + past_content_h
+                available = bottom - y - future_height
+                hero_h = min(35, available)
+                if hero_h >= 15 and self._cover_image(
                     self.data["image_path"], 0, y, self.w, hero_h
                 ):
                     y += hero_h + 3
-            y += gap_max
+            y += gap
 
         if description or company_data:
             self.set_fill_color(*dark)
@@ -1336,40 +1305,6 @@ class BandedPDF(_TemplatePDF):
             self.set_xy(self.w / 2 + 3, y + 1)
             self.cell((self.w - 2 * margin) / 2, 6, "COMPANY DATA", 0, 0, "L")
             y += 11
-            self.set_font("Helvetica", "", 7.4)
-            description_lines = len(self._wrap(description, self.w / 2 - 13)) if description else 1
-            data_width = self.w / 2 - margin - 10
-            values = []
-            if self.data.get("uei_code"):
-                values.append("UEI: " + str(self.data["uei_code"]))
-            if self.data.get("cage_code"):
-                values.append("CAGE: " + str(self.data["cage_code"]))
-            if self.data.get("naics_codes"):
-                naics_text = "NAICS: " + ", ".join(
-                    self._items(self.data["naics_codes"])
-                )
-                naics_max_lines = 5 if self.data.get("certifications") else 7
-                values.append("\n".join(self._limited_lines(
-                    self._wrap(naics_text, data_width),
-                    naics_max_lines, data_width,
-                )))
-            if self.data.get("certifications"):
-                certifications_text = "CERTIFICATIONS: " + ", ".join(
-                    self._items(self.data["certifications"])
-                )
-                values.append("\n".join(self._limited_lines(
-                    self._wrap(certifications_text, data_width),
-                    2, data_width,
-                )))
-            value_lines = sum(len(self._wrap(value, data_width)) for value in values)
-            pair_h = min(42, max(18, max(description_lines, value_lines) * 3.7 + 8))
-            performance_lines = len(
-                self._list_lines(performance, self.w - 2 * margin - 38, 12)
-            ) if performance else 0
-            future_height = gap_max
-            if performance or certifications:
-                future_height += 11 + performance_lines * 3.8 + 3
-            pair_h = max(pair_h, bottom - y - future_height)
             if description:
                 self.set_fill_color(*LIGHT_GRAY)
                 self.rect(margin, y, self.w / 2 - 5, pair_h, "F")
@@ -1382,7 +1317,7 @@ class BandedPDF(_TemplatePDF):
                 font_size=7.3, line_height=4, max_lines=9, check=True,
             )
             y += pair_h + 4
-            y += gap_max
+            y += gap
 
         if performance or certifications:
             self.set_fill_color(*dark)
@@ -1392,7 +1327,6 @@ class BandedPDF(_TemplatePDF):
             self.set_text_color(*LIGHT_GRAY)
             self.cell(self.w - 2 * margin, 6, "PAST PERFORMANCE", 0, 0, "L")
             y += 11
-            perf_w = self.w - 2 * margin - (38 if certifications else 0)
             if performance:
                 available_lines = max(1, int((footer_top - y - 4) / 3.8))
                 y = self._draw_list(
@@ -1401,7 +1335,8 @@ class BandedPDF(_TemplatePDF):
                 ) + 3
             if certifications:
                 self._draw_badges(
-                    certifications, self.w - margin - 34, y, 34, size=11, align="right"
+                    certifications, self.w - margin - 34,
+                    min(y, footer_top - 13), 34, size=11, align="right"
                 )
 
         self.set_fill_color(*self.primary_color)
@@ -1580,13 +1515,7 @@ class ProductPDF(_TemplatePDF):
         competencies = self.data.get("core_competencies")
         data_values = any(self.data.get(key) for key in ("uei_code", "cage_code", "naics_codes"))
         certifications = self.data.get("certifications")
-        left_sections = sum(bool(value) for value in (
-            description, differentiators, performance,
-        ))
-        right_sections = sum(bool(value) for value in (
-            competencies, data_values, certifications,
-        ))
-        gap_max = 6
+        gap = 5
         competency_lines = len(
             self._list_lines(competencies, col_w - 8, 13, check=True)
         ) if competencies else 0
@@ -1603,26 +1532,6 @@ class ProductPDF(_TemplatePDF):
         certification_lines = len(
             self._list_lines(certifications, col_w - 3, 7)
         ) if certifications else 0
-        right_min = 0
-        if competencies:
-            right_min += 8 + expertise_base_h + 6
-        if data_values:
-            right_min += 8 + data_base_h + 6
-        if certifications:
-            right_min += 8 + certification_lines * 3.7 + 13
-        right_slack = max(
-            0, bottom - right_y - right_min - gap_max * max(0, right_sections - 1)
-        )
-        expertise_extra = 0
-        data_extra = 0
-        panel_targets = int(bool(competencies)) + int(bool(data_values))
-        if panel_targets:
-            if competencies:
-                expertise_extra = right_slack // panel_targets
-            if data_values:
-                data_extra = right_slack - expertise_extra
-        left_index = right_index = 0
-
         def heading(title, x, y):
             self.set_xy(x, y)
             self.set_font("Helvetica", "B", 12)
@@ -1637,10 +1546,7 @@ class ProductPDF(_TemplatePDF):
                 description, left_x, left_y, col_w - 3,
                 font_size=7.5, line_height=3.8, max_lines=min(10, description_lines),
             ) + 5
-            left_index += 1
-            left_y += self._distributed_gap(
-                left_y, bottom, left_sections - left_index, maximum=gap_max,
-            )
+            left_y += gap
 
         if differentiators:
             left_y = heading("Our Approach", left_x, left_y)
@@ -1650,10 +1556,7 @@ class ProductPDF(_TemplatePDF):
                 font_size=7.2, line_height=3.8,
                 max_lines=min(10, differentiator_lines),
             ) + 5
-            left_index += 1
-            left_y += self._distributed_gap(
-                left_y, bottom, left_sections - left_index, maximum=gap_max,
-            )
+            left_y += gap
 
         if performance:
             left_y = heading("Past Performance", left_x, left_y)
@@ -1662,14 +1565,11 @@ class ProductPDF(_TemplatePDF):
                 performance, left_x, left_y, col_w - 3,
                 font_size=7.1, line_height=3.7, max_lines=min(10, performance_lines),
             )
-            left_index += 1
-            left_y += self._distributed_gap(
-                left_y, bottom, left_sections - left_index, maximum=gap_max,
-            )
+            left_y += gap
 
         if competencies:
             right_y = heading("Areas of Expertise", right_x, right_y)
-            panel_h = expertise_base_h + expertise_extra
+            panel_h = expertise_base_h
             self.set_fill_color(*LIGHT_GRAY)
             self.rect(right_x, right_y, col_w, panel_h, "F")
             self._draw_list(
@@ -1677,14 +1577,11 @@ class ProductPDF(_TemplatePDF):
                 font_size=7.2, line_height=3.8, max_lines=13, check=True,
             )
             right_y += panel_h + 6
-            right_index += 1
-            right_y += self._distributed_gap(
-                right_y, bottom, right_sections - right_index, maximum=gap_max,
-            )
+            right_y += gap
 
         if data_values:
             right_y = heading("Company Data", right_x, right_y)
-            panel_h = data_base_h + data_extra
+            panel_h = data_base_h
             self.set_fill_color(*LIGHT_GRAY)
             self.rect(right_x, right_y, col_w, panel_h, "F")
             value_y = right_y + 4
@@ -1713,10 +1610,7 @@ class ProductPDF(_TemplatePDF):
                     self.set_xy(right_x + 4 + col * cell_w, value_y + row * 4)
                     self.cell(cell_w, 3.5, self._to_pdf_text(code), 0, 0, "L")
             right_y += panel_h + 6
-            right_index += 1
-            right_y += self._distributed_gap(
-                right_y, bottom, right_sections - right_index, maximum=gap_max,
-            )
+            right_y += gap
 
         if certifications:
             right_y = heading("Certifications", right_x, right_y)
@@ -1728,10 +1622,7 @@ class ProductPDF(_TemplatePDF):
             badge_y = min(right_y + 1, bottom - 13)
             self._draw_badges(certifications, right_x, badge_y, col_w, size=11)
             right_y = max(right_y, badge_y + 11)
-            right_index += 1
-            right_y += self._distributed_gap(
-                right_y, bottom, right_sections - right_index, maximum=gap_max,
-            )
+            right_y += gap
 
         self.set_fill_color(*LIGHT_GRAY)
         self.rect(0, footer_top, self.w, self.h - footer_top, "F")
