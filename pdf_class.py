@@ -1,6 +1,7 @@
 from fpdf import FPDF
 from PIL import Image
 import os
+import tempfile
 
 PRIMARY_BLUE = (11, 44, 72)  # #0B2C48 - Primary color for headers
 LIGHT_BLUE = (153, 200, 202)  # #99C8CA - Secondary color for section backgrounds
@@ -20,6 +21,17 @@ CERT_BADGES = {
     'WOSB': 'static/images/certs/wosb.png',
     'MBE': 'static/images/certs/mbe.png',
     'WBE': 'static/images/certs/wbe.png',
+}
+
+SECTION_LABELS = {
+    "about_us": "About Us",
+    "core_competencies": "Core Competencies",
+    "differentiators": "Differentiators",
+    "past_performance": "Past Performance",
+    "naics_codes": "NAICS Codes",
+    "certifications": "Certifications",
+    "company_data": "Company Data",
+    "contact_information": "Contact Information",
 }
 
 
@@ -453,7 +465,10 @@ class PDF(FPDF):
         # ── Left column: About Us → Differentiators → Past Performance ──
         company_desc = self.data.get("company_description", "")
         if company_desc:
-            left_y = self.section_title("ABOUT US", left_x, left_y, col_w, use_secondary_bg=True)
+            left_y = self.section_title(
+                SECTION_LABELS["about_us"].upper(),
+                left_x, left_y, col_w, use_secondary_bg=True,
+            )
             left_y = self.add_paragraph_bounded(
                 company_desc, left_x + pad, left_y + 2, col_w - 2 * pad,
                 font_size=8.0, line_height=4.0, bottom_limit=bottom_limit)
@@ -461,7 +476,10 @@ class PDF(FPDF):
 
         differentiators = self.data.get("differentiators", [])
         if differentiators:
-            left_y = self.section_title("DIFFERENTIATORS", left_x, left_y, col_w, use_secondary_bg=False)
+            left_y = self.section_title(
+                SECTION_LABELS["differentiators"].upper(),
+                left_x, left_y, col_w, use_secondary_bg=False,
+            )
             left_y = self.add_bullet_list(
                 differentiators, left_x + pad, left_y + 2, col_w - pad,
                 font_size=8.0, bottom_limit=bottom_limit)
@@ -469,7 +487,10 @@ class PDF(FPDF):
 
         past_performance = self.data.get("private_performance", [])
         if past_performance:
-            left_y = self.section_title("PAST PERFORMANCE", left_x, left_y, col_w, use_secondary_bg=True)
+            left_y = self.section_title(
+                SECTION_LABELS["past_performance"].upper(),
+                left_x, left_y, col_w, use_secondary_bg=True,
+            )
             left_y = self.add_bullet_list(
                 past_performance, left_x + pad, left_y + 2, col_w - pad,
                 font_size=8.0, bottom_limit=bottom_limit)
@@ -478,7 +499,10 @@ class PDF(FPDF):
         # ── Right column: NAICS Codes → Core Competencies → Certifications ──
         naics_codes = self.data.get("naics_codes", [])
         if naics_codes:
-            right_y = self.section_title("NAICS CODES", right_x, right_y, col_w, use_secondary_bg=True)
+            right_y = self.section_title(
+                SECTION_LABELS["naics_codes"].upper(),
+                right_x, right_y, col_w, use_secondary_bg=True,
+            )
             right_y = self.add_bullet_list(
                 naics_codes, right_x + pad, right_y + 2, col_w - pad,
                 font_size=8.0, bottom_limit=bottom_limit)
@@ -486,7 +510,10 @@ class PDF(FPDF):
 
         core_competencies = self.data.get("core_competencies", [])
         if core_competencies:
-            right_y = self.section_title("CORE COMPETENCIES", right_x, right_y, col_w, use_secondary_bg=False)
+            right_y = self.section_title(
+                SECTION_LABELS["core_competencies"].upper(),
+                right_x, right_y, col_w, use_secondary_bg=False,
+            )
             right_y = self.add_bullet_list(
                 core_competencies, right_x + pad, right_y + 2, col_w - pad,
                 font_size=8.0, bottom_limit=bottom_limit)
@@ -494,7 +521,10 @@ class PDF(FPDF):
 
         certifications = self.data.get("certifications", [])
         if certifications:
-            right_y = self.section_title("CERTIFICATIONS", right_x, right_y, col_w, use_secondary_bg=True)
+            right_y = self.section_title(
+                SECTION_LABELS["certifications"].upper(),
+                right_x, right_y, col_w, use_secondary_bg=True,
+            )
             right_y = self.add_bullet_list(
                 certifications, right_x + pad, right_y + 2, col_w - pad,
                 font_size=8.0, bottom_limit=bottom_limit)
@@ -718,11 +748,15 @@ class ModernPDF(FPDF):
         # Sidebar sections
         naics = self.data.get("naics_codes", [])
         if naics:
-            sy = self._add_sidebar_section("NAICS CODES", naics, sy)
+            sy = self._add_sidebar_section(
+                SECTION_LABELS["naics_codes"].upper(), naics, sy
+            )
 
         certs = self.data.get("certifications", [])
         if certs:
-            sy = self._add_sidebar_section("CERTIFICATIONS", certs, sy)
+            sy = self._add_sidebar_section(
+                SECTION_LABELS["certifications"].upper(), certs, sy
+            )
 
         # ---------- Main area ----------
         my = 12
@@ -761,19 +795,970 @@ class ModernPDF(FPDF):
         # Main sections
         desc = self.data.get("company_description", "")
         if desc:
-            my = self._add_main_section("ABOUT US", desc, my, is_text=True)
+            my = self._add_main_section(
+                SECTION_LABELS["about_us"].upper(), desc, my, is_text=True
+            )
 
         comps = self.data.get("core_competencies", [])
         if comps:
-            my = self._add_main_section("CORE COMPETENCIES", comps, my)
+            my = self._add_main_section(
+                SECTION_LABELS["core_competencies"].upper(), comps, my
+            )
 
         diffs = self.data.get("differentiators", [])
         if diffs:
-            my = self._add_main_section("KEY DIFFERENTIATORS", diffs, my)
+            my = self._add_main_section(
+                SECTION_LABELS["differentiators"].upper(), diffs, my
+            )
 
         perf = self.data.get("private_performance", [])
         if perf:
-            my = self._add_main_section("PAST PERFORMANCE", perf, my)
+            my = self._add_main_section(
+                SECTION_LABELS["past_performance"].upper(), perf, my
+            )
+
+
+class _TemplatePDF(FPDF):
+    """Shared bounded drawing helpers for the reference-inspired templates."""
+
+    def __init__(self, data, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.data = data or {}
+        colors = self.data.get("logo_color", [PRIMARY_BLUE, LIGHT_BLUE])
+        self.primary_color = tuple(colors[0]) if colors else PRIMARY_BLUE
+        self.secondary_color = tuple(colors[1]) if len(colors) > 1 else LIGHT_BLUE
+        self.set_auto_page_break(auto=False)
+
+    def _to_pdf_text(self, text):
+        return PDF._to_pdf_text(self, text)
+
+    def _items(self, value):
+        if not value:
+            return []
+        if isinstance(value, str):
+            return [value.strip()] if value.strip() else []
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    def _dark_primary(self):
+        return tuple(max(0, int(channel * 0.62)) for channel in self.primary_color)
+
+    def _distributed_gap(self, y, bottom, remaining, maximum=32):
+        if remaining <= 0:
+            return 0
+        return max(0, min(maximum, (bottom - y) / (remaining + 1)))
+
+    def _rounded_fill(self, x, y, width, height, color, radius=3):
+        radius = min(radius, width / 2, height / 2)
+        self.set_fill_color(*color)
+        self.rect(x + radius, y, width - 2 * radius, height, "F")
+        self.rect(x, y + radius, width, height - 2 * radius, "F")
+        self.ellipse(x, y, radius * 2, radius * 2, "F")
+        self.ellipse(x + width - radius * 2, y, radius * 2, radius * 2, "F")
+        self.ellipse(x, y + height - radius * 2, radius * 2, radius * 2, "F")
+        self.ellipse(
+            x + width - radius * 2, y + height - radius * 2,
+            radius * 2, radius * 2, "F",
+        )
+
+    def _wrap(self, text, width):
+        text = self._to_pdf_text(text or "")
+        lines = []
+        for paragraph in str(text).splitlines() or [""]:
+            words = paragraph.split()
+            if not words:
+                lines.append("")
+                continue
+            line = ""
+            for word in words:
+                if self.get_string_width(word) > width:
+                    if line:
+                        lines.append(line)
+                        line = ""
+                    part = ""
+                    for char in word:
+                        if self.get_string_width(part + char) > width and part:
+                            lines.append(part)
+                            part = char
+                        else:
+                            part += char
+                    line = part
+                    continue
+                candidate = word if not line else line + " " + word
+                if line and self.get_string_width(candidate) > width:
+                    lines.append(line)
+                    line = word
+                else:
+                    line = candidate
+            if line:
+                lines.append(line)
+        return lines or [""]
+
+    def _limited_lines(self, lines, max_lines, width):
+        if len(lines) <= max_lines:
+            return lines
+        kept = lines[:max(1, max_lines)]
+        suffix = "..."
+        last = kept[-1]
+        while last and self.get_string_width(last + suffix) > width:
+            last = last[:-1].rstrip()
+        kept[-1] = last + suffix
+        return kept
+
+    def _draw_fitted_text(
+        self, text, x, y, width, height, max_lines=2,
+        max_size=16, min_size=10, color=BLACK, align="L",
+    ):
+        if not text or width <= 0 or height <= 0:
+            return
+        clean_text = self._to_pdf_text(text)
+        selected_size = min_size
+        selected_lines = []
+        for step in range(int(round((max_size - min_size) * 2)) + 1):
+            size = max_size - step * 0.5
+            self.set_font("Helvetica", "B", size)
+            lines = self._wrap(clean_text, width)
+            if len(lines) <= max_lines:
+                selected_size = size
+                selected_lines = lines
+                break
+        if not selected_lines:
+            self.set_font("Helvetica", "B", min_size)
+            selected_lines = self._limited_lines(
+                self._wrap(clean_text, width), max_lines, width
+            )
+        line_height = min(7.0, max(4.5, selected_size * 0.43))
+        total_height = line_height * len(selected_lines)
+        text_y = y + max(0, (height - total_height) / 2)
+        self.set_font("Helvetica", "B", selected_size)
+        self.set_text_color(*color)
+        for line in selected_lines:
+            self.set_xy(x, text_y)
+            self.cell(width, line_height, line, 0, 1, align)
+            text_y += line_height
+
+    def _draw_lines(
+        self, text, x, y, width, font_size=8, line_height=4,
+        max_lines=10, style="", color=BLACK, align="L",
+    ):
+        if not text or max_lines <= 0:
+            return y
+        self.set_font("Helvetica", style, font_size)
+        self.set_text_color(*color)
+        lines = self._limited_lines(self._wrap(text, width), max_lines, width)
+        for line in lines:
+            self.set_xy(x, y)
+            self.cell(width, line_height, line, 0, 1, align)
+            y += line_height
+        return y
+
+    def _list_lines(self, items, width, max_lines, check=False):
+        lines = []
+        bullet = ">" if check else chr(0x95)
+        for item in self._items(items):
+            wrapped = self._wrap(item, width - 5)
+            for index, line in enumerate(wrapped):
+                lines.append((bullet if index == 0 else " ", line))
+        if len(lines) <= max_lines:
+            return lines
+        kept = lines[:max(1, max_lines)]
+        marker, line = kept[-1]
+        suffix = "..."
+        while line and self.get_string_width(line + suffix) > width - 5:
+            line = line[:-1].rstrip()
+        kept[-1] = (marker, line + suffix)
+        return kept
+
+    def _draw_list(
+        self, items, x, y, width, font_size=8, line_height=4,
+        max_lines=10, color=BLACK, check=False, style="",
+    ):
+        if not items or max_lines <= 0:
+            return y
+        self.set_font("Helvetica", style, font_size)
+        self.set_text_color(*color)
+        for marker, line in self._list_lines(items, width, max_lines, check):
+            self.set_xy(x, y)
+            if check and marker.strip():
+                try:
+                    self.set_font("ZapfDingbats", "", font_size)
+                    self.cell(5, line_height, chr(52), 0, 0, "L")
+                except Exception:
+                    self.set_font("Helvetica", style, font_size)
+                    self.cell(5, line_height, chr(0x95), 0, 0, "L")
+                self.set_font("Helvetica", style, font_size)
+            else:
+                self.cell(5, line_height, marker, 0, 0, "L")
+            self.cell(width - 5, line_height, line, 0, 1, "L")
+            y += line_height
+        return y
+
+    def _safe_image(self, path, x, y, max_width, max_height, align="center"):
+        if not path or not os.path.exists(path):
+            return False
+        try:
+            with Image.open(path) as image:
+                image.verify()
+            with Image.open(path) as image:
+                image_width, image_height = image.size
+            if not image_width or not image_height:
+                return False
+            scale = min(max_width / image_width, max_height / image_height)
+            width = image_width * scale
+            height = image_height * scale
+            if align == "right":
+                image_x = x + max_width - width
+            elif align == "left":
+                image_x = x
+            else:
+                image_x = x + (max_width - width) / 2
+            image_y = y + (max_height - height) / 2
+            self.image(path, image_x, image_y, width, height)
+            return True
+        except Exception:
+            return False
+
+    def _cover_image(self, path, x, y, width, height):
+        if not path or not os.path.exists(path):
+            return False
+        temporary_path = None
+        try:
+            with Image.open(path) as source:
+                source.verify()
+            with Image.open(path) as source:
+                image = source.convert("RGB")
+                source_ratio = image.width / image.height
+                target_ratio = width / height
+                if source_ratio > target_ratio:
+                    crop_width = int(image.height * target_ratio)
+                    left = (image.width - crop_width) // 2
+                    image = image.crop((left, 0, left + crop_width, image.height))
+                else:
+                    crop_height = int(image.width / target_ratio)
+                    top = (image.height - crop_height) // 2
+                    image = image.crop((0, top, image.width, top + crop_height))
+                with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:
+                    temporary_path = handle.name
+                image.save(temporary_path)
+            self.image(temporary_path, x, y, width, height)
+            return True
+        except Exception:
+            return False
+        finally:
+            if temporary_path:
+                try:
+                    os.unlink(temporary_path)
+                except OSError:
+                    pass
+
+    def _draw_badges(self, certifications, x, y, width, size=12, align="left"):
+        paths = []
+        for cert in self._items(certifications):
+            cert_text = cert.lower()
+            for label, path in CERT_BADGES.items():
+                if label.lower() in cert_text and os.path.exists(path):
+                    if path not in paths:
+                        paths.append(path)
+                    break
+        paths = paths[:max(1, int(width // (size + 2)))]
+        total = len(paths) * size + max(0, len(paths) - 1) * 2
+        start_x = x + (width - total if align == "right" else 0)
+        for path in paths:
+            self._safe_image(path, start_x, y, size, size)
+            start_x += size + 2
+        return len(paths)
+
+    def _contact_address(self):
+        first = self.data.get("contact_address", "")
+        second = ", ".join(filter(None, [
+            self.data.get("city", ""), self.data.get("state", ""),
+            self.data.get("zip", ""),
+        ]))
+        return "\n".join(filter(None, [first, second]))
+
+    def _draw_contact(self, x, y, width, line_height=4, max_lines=7, align="L"):
+        lines = []
+        for value in (
+            self.data.get("contact_name"),
+            self.data.get("contact_title"),
+            self.data.get("contact_phone"),
+            self.data.get("contact_email"),
+            self._contact_address(),
+            self.data.get("contact_website"),
+        ):
+            if value:
+                lines.extend(self._wrap(value, width))
+        self.set_font("Helvetica", "", 7.5)
+        self.set_text_color(*BLACK)
+        for line in self._limited_lines(lines, max_lines, width):
+            self.set_xy(x, y)
+            self.cell(width, line_height, line, 0, 1, align)
+            y += line_height
+        return y
+
+    def _section_title(self, title, x, y, width, color, height=8, size=8.5):
+        self._rounded_fill(x, y, width, height, color, radius=2)
+        self.set_xy(x + 2, y + 1)
+        self.set_font("Helvetica", "B", size)
+        self.set_text_color(*WHITE)
+        self.cell(width - 4, height - 2, self._to_pdf_text(title.upper()), 0, 0, "L")
+        return y + height
+
+
+class CorporatePDF(_TemplatePDF):
+    """Corporate two-column capability statement."""
+
+    def create_content(self):
+        margin = 8
+        footer_top = self.h - 3
+        header_h = 35
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, 0, self.w, header_h, "F")
+        self._safe_image(self.data.get("logo_path"), margin, 7, 27, 20, "left")
+        pill_x = self.w - margin - 68
+        name_x = margin + 31
+        self._draw_fitted_text(
+            self.data.get("company_name", ""),
+            name_x, 5, pill_x - name_x - 4, header_h - 10,
+            max_lines=2, max_size=16, min_size=10, color=WHITE,
+        )
+        self._rounded_fill(pill_x, 11, 60, 13, self.secondary_color, 3)
+        self.set_xy(pill_x + 2, 14)
+        self.set_font("Helvetica", "B", 9)
+        self.cell(56, 6, "CAPABILITY STATEMENT", 0, 0, "C")
+
+        left_x, right_x = margin, self.w / 2 + 3
+        col_w = (self.w - 2 * margin - 7) / 2
+        self.set_draw_color(*self.primary_color)
+        self.set_line_width(0.35)
+        self.line(self.w / 2, header_h + 4, self.w / 2, footer_top - 2)
+        left_y = right_y = header_h + 7
+        bottom = footer_top - 4
+        description = self.data.get("company_description")
+        differentiators = self.data.get("differentiators")
+        contact_values = any(self.data.get(key) for key in (
+            "contact_name", "contact_title", "contact_phone", "contact_email",
+            "contact_address", "city", "state", "zip", "contact_website",
+        ))
+        competencies = self.data.get("core_competencies")
+        performance = self.data.get("private_performance")
+        snapshot_values = any(self.data.get(key) for key in (
+            "uei_code", "cage_code", "naics_codes", "certifications",
+        ))
+        self.set_font("Helvetica", "", 8)
+        description_lines = min(
+            10, len(self._wrap(description, col_w - 8))
+        ) if description else 0
+        who_box_h = description_lines * 4 + 6 if description else 0
+        snapshot_lines = []
+        if self.data.get("uei_code"):
+            snapshot_lines.append("UEI: " + str(self.data["uei_code"]))
+        if self.data.get("cage_code"):
+            snapshot_lines.append("CAGE: " + str(self.data["cage_code"]))
+        if self.data.get("naics_codes"):
+            naics_text = "NAICS: " + ", ".join(self._items(self.data["naics_codes"]))
+            snapshot_lines.extend(self._limited_lines(
+                self._wrap(naics_text, col_w - 8), 1, col_w - 8,
+            ))
+        if self.data.get("certifications"):
+            certifications_text = "CERTIFICATIONS: " + ", ".join(
+                self._items(self.data["certifications"])
+            )
+            snapshot_lines.extend(self._limited_lines(
+                self._wrap(certifications_text, col_w - 8), 1, col_w - 8,
+            ))
+        content_lines = len(snapshot_lines) or 1
+        badge_h = 13 if self.data.get("certifications") else 0
+        snapshot_h = min(52, max(
+            18, content_lines * 3.7 + badge_h + 7
+        ))
+
+        if description:
+            left_y = self._section_title(
+                SECTION_LABELS["about_us"], left_x, left_y, col_w,
+                self.secondary_color,
+            ) + 2
+            self.set_font("Helvetica", "", 8)
+            self.set_fill_color(*LIGHT_GRAY)
+            self.rect(left_x, left_y, col_w, who_box_h, "F")
+            content_end = self._draw_lines(
+                description, left_x + 4, left_y + 3, col_w - 8,
+                font_size=8, max_lines=description_lines,
+            )
+            left_y = max(content_end + 5, left_y + who_box_h + 2) + 5
+
+        if differentiators:
+            left_y = self._section_title(
+                SECTION_LABELS["differentiators"], left_x, left_y, col_w,
+                self.secondary_color,
+            ) + 2
+            left_y = self._draw_list(
+                differentiators, left_x + 3, left_y, col_w - 6,
+                font_size=7.5, max_lines=12, check=True,
+            ) + 4
+            left_y += 5
+
+        if contact_values:
+            left_y = self._section_title(
+                SECTION_LABELS["contact_information"], left_x, left_y, col_w,
+                self.secondary_color,
+            ) + 2
+            contact_fields = (
+                (self.data.get("contact_name"), True),
+                (self.data.get("contact_title"), False),
+                (self.data.get("contact_phone"), True),
+                (self.data.get("contact_email"), False),
+                (self._contact_address(), False),
+                (self.data.get("contact_website"), True),
+            )
+            contact_y = left_y
+            for value, bold in contact_fields:
+                if not value:
+                    continue
+                self.set_font("Helvetica", "B" if bold else "", 7.5)
+                self.set_text_color(*BLACK)
+                for line in self._wrap(value, col_w - 6):
+                    if contact_y + 4 > bottom:
+                        break
+                    self.set_xy(left_x + 3, contact_y)
+                    self.cell(col_w - 6, 4, line, 0, 1, "L")
+                    contact_y += 4
+            left_y = contact_y + 2
+            left_y += 5
+
+        if competencies:
+            right_y = self._section_title(
+                SECTION_LABELS["core_competencies"], right_x, right_y, col_w,
+                self.primary_color,
+            ) + 2
+            right_y = self._draw_list(
+                competencies, right_x + 3, right_y, col_w - 6,
+                font_size=7.5, max_lines=12,
+            ) + 4
+            right_y += 5
+
+        if performance:
+            right_y = self._section_title(
+                SECTION_LABELS["past_performance"], right_x, right_y, col_w,
+                self.primary_color,
+            ) + 2
+            right_y = self._draw_list(
+                performance, right_x + 3, right_y, col_w - 6,
+                font_size=7.2, max_lines=9,
+            ) + 2
+            right_y += 5
+
+        if snapshot_values:
+            right_y = self._section_title(
+                SECTION_LABELS["company_data"], right_x, right_y, col_w,
+                self.primary_color,
+            ) + 2
+            self.set_font("Helvetica", "", 7.2)
+            snapshot_h = min(snapshot_h, max(1, bottom - right_y))
+            self.set_fill_color(*LIGHT_GRAY)
+            self.rect(right_x, right_y, col_w, snapshot_h, "F")
+            self._draw_lines(
+                "\n".join(snapshot_lines), right_x + 4, right_y + 3, col_w - 8,
+                font_size=7.2, line_height=3.7,
+                max_lines=max(1, min(content_lines, int(
+                    (snapshot_h - badge_h - 5) / 3.7
+                ))),
+            )
+            if self.data.get("certifications"):
+                self._draw_badges(
+                    self.data["certifications"], right_x + 4,
+                    right_y + 3 + content_lines * 3.7 + 1, col_w - 8, size=10,
+                )
+            right_y += snapshot_h + 4
+            right_y += 5
+
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, self.h - 3, self.w, 3, "F")
+
+
+class BandedPDF(_TemplatePDF):
+    """Full-width banded capability statement."""
+
+    def create_content(self):
+        margin = 8
+        footer_top = self.h - 28
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, 0, self.w, 34, "F")
+        self._safe_image(self.data.get("logo_path"), margin, 6, 25, 20, "left")
+        name_x = margin + 29
+        name_right = self.w - 78
+        self._draw_fitted_text(
+            self.data.get("company_name", ""),
+            name_x, 5, name_right - name_x - 4, 24,
+            max_lines=2, max_size=16, min_size=10,
+            color=self.secondary_color,
+        )
+        self.set_font("Helvetica", "B", 13)
+        self.set_text_color(*WHITE)
+        self.set_xy(self.w - 78, 8)
+        self.multi_cell(70, 6, "CAPABILITY\nSTATEMENT", 0, "R")
+        self.set_fill_color(*self.secondary_color)
+        self.rect(0, 34, self.w, 2, "F")
+
+        y = 41
+        gap = 5
+        dark = self._dark_primary()
+        competencies = self.data.get("core_competencies")
+        description = self.data.get("company_description")
+        company_data = any(self.data.get(key) for key in (
+            "uei_code", "cage_code", "naics_codes", "certifications",
+        ))
+        performance = self.data.get("private_performance")
+        certifications = self.data.get("certifications")
+        section_count = sum(bool(value) for value in (
+            competencies, description or company_data, performance or certifications,
+        ))
+        section_index = 0
+
+        def advance_section():
+            nonlocal y, section_index
+            section_index += 1
+            y += gap
+            y += self._distributed_gap(
+                y, footer_top - 4, section_count - section_index, maximum=30,
+            )
+
+        description_lines = len(self._wrap(
+            description, self.w / 2 - 13
+        )) if description else 1
+        data_width = self.w / 2 - margin - 10
+        values = []
+        if self.data.get("uei_code"):
+            values.append("UEI: " + str(self.data["uei_code"]))
+        if self.data.get("cage_code"):
+            values.append("CAGE: " + str(self.data["cage_code"]))
+        if self.data.get("naics_codes"):
+            naics_text = "NAICS: " + ", ".join(
+                self._items(self.data["naics_codes"])
+            )
+            naics_max_lines = 5 if self.data.get("certifications") else 7
+            values.append("\n".join(self._limited_lines(
+                self._wrap(naics_text, data_width),
+                naics_max_lines, data_width,
+            )))
+        if self.data.get("certifications"):
+            certifications_text = "CERTIFICATIONS: " + ", ".join(
+                self._items(self.data["certifications"])
+            )
+            values.append("\n".join(self._limited_lines(
+                self._wrap(certifications_text, data_width),
+                2, data_width,
+            )))
+        value_lines = sum(len(self._wrap(value, data_width)) for value in values)
+        pair_h = min(42, max(
+            18, max(description_lines, value_lines) * 3.7 + 8
+        )) if (description or company_data) else 0
+        perf_w = self.w - 2 * margin - (38 if certifications else 0)
+        if competencies:
+            self.set_fill_color(*dark)
+            self.rect(0, y, self.w, 8, "F")
+            self.set_xy(margin, y + 1)
+            self.set_font("Helvetica", "B", 9)
+            self.set_text_color(*LIGHT_GRAY)
+            self.cell(
+                self.w - 2 * margin, 6,
+                SECTION_LABELS["core_competencies"].upper(), 0, 0, "L",
+            )
+            y += 11
+            y = self._draw_list(
+                competencies, margin, y, self.w - 2 * margin,
+                font_size=7.5, line_height=4, max_lines=7,
+            ) + 3
+            advance_section()
+
+        if description or company_data:
+            self.set_fill_color(*dark)
+            self.rect(0, y, self.w, 8, "F")
+            self.set_xy(margin, y + 1)
+            self.set_font("Helvetica", "B", 9)
+            self.set_text_color(*LIGHT_GRAY)
+            self.cell(
+                (self.w - 2 * margin) / 2, 6,
+                SECTION_LABELS["about_us"].upper(), 0, 0, "L",
+            )
+            self.set_xy(self.w / 2 + 3, y + 1)
+            self.cell(
+                (self.w - 2 * margin) / 2, 6,
+                SECTION_LABELS["company_data"].upper(), 0, 0, "L",
+            )
+            y += 11
+            if description:
+                self.set_fill_color(*LIGHT_GRAY)
+                self.rect(margin, y, self.w / 2 - 5, pair_h, "F")
+                self._draw_lines(
+                    description, margin + 4, y + 3, self.w / 2 - 13,
+                    font_size=7.4, line_height=3.7, max_lines=10,
+                )
+            self._draw_list(
+                values, self.w / 2 + 3, y + 3, self.w / 2 - margin - 5,
+                font_size=7.3, line_height=4, max_lines=9, check=True,
+            )
+            y += pair_h + 4
+            advance_section()
+
+        if performance or certifications:
+            self.set_fill_color(*dark)
+            self.rect(0, y, self.w, 8, "F")
+            self.set_xy(margin, y + 1)
+            self.set_font("Helvetica", "B", 9)
+            self.set_text_color(*LIGHT_GRAY)
+            self.cell(
+                self.w - 2 * margin, 6,
+                SECTION_LABELS["past_performance"].upper(), 0, 0, "L",
+            )
+            y += 11
+            if performance:
+                available_lines = max(1, int((footer_top - y - 4) / 3.8))
+                y = self._draw_list(
+                    performance, margin, y, perf_w,
+                    font_size=7.2, line_height=3.8, max_lines=min(12, available_lines),
+                ) + 3
+            if certifications:
+                self._draw_badges(
+                    certifications, self.w - margin - 34,
+                    min(y, footer_top - 13), 34, size=11, align="right"
+                )
+            advance_section()
+
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, footer_top, self.w, self.h - footer_top, "F")
+        usable = self.w - 2 * margin
+        col_w = usable / 3
+        self.set_text_color(*WHITE)
+        self.set_font("Helvetica", "B", 7)
+        self._draw_lines(
+            "\n".join(filter(None, [
+                self.data.get("company_name"), self.data.get("contact_address"),
+                ", ".join(filter(None, [self.data.get("city"), self.data.get("state"), self.data.get("zip")])),
+                self.data.get("contact_phone"),
+            ])),
+            margin, footer_top + 4, col_w - 2, font_size=6.5, line_height=3.5, max_lines=5, color=WHITE,
+        )
+        self._draw_lines(
+            self.data.get("contact_website", ""), margin + col_w, footer_top + 10,
+            col_w - 2, font_size=7, line_height=4, max_lines=2, color=WHITE, align="C",
+        )
+        self._draw_lines(
+            "\n".join(filter(None, [
+                self.data.get("contact_name"), self.data.get("contact_title"),
+                self.data.get("contact_email"), self.data.get("contact_phone"),
+            ])),
+            margin + col_w * 2, footer_top + 4, col_w - 2,
+            font_size=6.5, line_height=3.5, max_lines=5, color=WHITE, align="R",
+        )
+
+
+class RailPDF(_TemplatePDF):
+    """Capability statement with a narrow labeled left rail."""
+
+    def create_content(self):
+        margin = 7
+        rail_w = 42
+        footer_top = self.h - 25
+        right_x = self.w - 73
+        name_x = margin + 31
+        name_width = right_x - name_x - 4
+        self.set_font("Helvetica", "B", 15)
+        name_lines = self._wrap(
+            self._to_pdf_text(self.data.get("company_name", "")), name_width
+        ) if self.data.get("company_name") else []
+        header_h = max(28, 27 + max(0, min(2, len(name_lines)) - 1) * 5)
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, 0, self.w, 2, "F")
+        self._safe_image(self.data.get("logo_path"), margin, 7, 28, 18, "left")
+        self._draw_fitted_text(
+            self.data.get("company_name", ""),
+            name_x, 5, name_width, header_h - 8,
+            max_lines=2, max_size=15, min_size=10, color=self.primary_color,
+        )
+        self.set_font("Helvetica", "B", 9)
+        self.set_xy(right_x, 8)
+        self.cell(66, 5, "CAPABILITY STATEMENT", 0, 0, "R")
+        location = ", ".join(filter(None, [self.data.get("city"), self.data.get("state")]))
+        if location:
+            self.set_font("Helvetica", "", 7.5)
+            self.set_xy(right_x, 14)
+            self.cell(66, 5, self._to_pdf_text(location), 0, 0, "R")
+
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, header_h, rail_w, footer_top - header_h, "F")
+        y = header_h + 2
+        content_x = rail_w + 7
+        content_w = self.w - content_x - 7
+        block_count = sum(bool(value) for value in (
+            self.data.get("company_description"),
+            self.data.get("core_competencies"),
+            self.data.get("differentiators"),
+            self.data.get("private_performance"),
+            self.data.get("certifications"),
+            self.data.get("naics_codes"),
+            self.data.get("uei_code") or self.data.get("cage_code"),
+        ))
+        block_index = 0
+
+        def block(label, text=None, items=None, max_lines=8):
+            nonlocal y, block_index
+            if not text and not items:
+                return
+            self.set_draw_color(*self.primary_color)
+            self.set_line_width(0.3)
+            self.line(0, y, self.w, y)
+            self.set_xy(4, y + 2)
+            self.set_font("Helvetica", "B", 7.5)
+            self.set_text_color(*WHITE)
+            self.cell(rail_w - 8, 5, label, 0, 0, "L")
+            text_w = content_w
+            start = y + 3
+            if text:
+                end = self._draw_lines(
+                    text, content_x, start, text_w, font_size=7.1,
+                    line_height=3.6, max_lines=max_lines,
+                )
+            else:
+                end = self._draw_list(
+                    items, content_x, start, text_w, font_size=7.1,
+                    line_height=3.6, max_lines=max_lines, check=True,
+                )
+            y = min(footer_top - 3, max(y + 14, end + 3))
+            block_index += 1
+            y += self._distributed_gap(y, footer_top - 3, block_count - block_index, maximum=18)
+
+        block(
+            SECTION_LABELS["about_us"].upper(),
+            text=self.data.get("company_description"), max_lines=8,
+        )
+        block(
+            SECTION_LABELS["core_competencies"].upper(),
+            items=self.data.get("core_competencies"), max_lines=9,
+        )
+        block(
+            SECTION_LABELS["differentiators"].upper(),
+            items=self.data.get("differentiators"), max_lines=8,
+        )
+        block(
+            SECTION_LABELS["past_performance"].upper(),
+            items=self.data.get("private_performance"), max_lines=8,
+        )
+        certs = self.data.get("certifications")
+        if certs:
+            block(
+                SECTION_LABELS["certifications"].upper(),
+                items=certs, max_lines=4,
+            )
+            self._draw_badges(certs, content_x, y - 1, content_w, size=10)
+            y += 12
+        if self.data.get("naics_codes"):
+            block(
+                SECTION_LABELS["naics_codes"].upper(),
+                text=", ".join(self._items(self.data["naics_codes"])), max_lines=3,
+            )
+        identifiers = "  /  ".join(filter(None, [
+            ("UEI " + str(self.data["uei_code"])) if self.data.get("uei_code") else "",
+            ("CAGE " + str(self.data["cage_code"])) if self.data.get("cage_code") else "",
+        ]))
+        block(
+            SECTION_LABELS["company_data"].upper(),
+            text=identifiers, max_lines=2,
+        )
+
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, footer_top, self.w, self.h - footer_top, "F")
+        self.set_text_color(*WHITE)
+        contact = " | ".join(filter(None, [
+            self.data.get("contact_name"), self.data.get("contact_title"),
+            self.data.get("company_name"),
+        ]))
+        address = " | ".join(filter(None, [
+            self._contact_address(), self.data.get("contact_phone"),
+            self.data.get("contact_email"),
+        ]))
+        self._draw_lines(contact, rail_w + 7, footer_top + 3, self.w - rail_w - 14,
+                         font_size=7, line_height=3.5, max_lines=1, color=WHITE, align="C")
+        self._draw_lines(address, rail_w + 7, footer_top + 7, self.w - rail_w - 14,
+                         font_size=6.5, line_height=3.5, max_lines=2, color=WHITE, align="C")
+        self._draw_lines(self.data.get("contact_website", ""), rail_w + 7, footer_top + 17,
+                         self.w - rail_w - 14, font_size=7, line_height=3.5,
+                         max_lines=1, color=WHITE, align="C")
+
+
+class ProductPDF(_TemplatePDF):
+    """Product-style hero and two-column capability statement."""
+
+    def create_content(self):
+        margin = 8
+        footer_top = self.h - 27
+        hero_h = 43
+        self.set_fill_color(*self.primary_color)
+        self.rect(0, 0, self.w, hero_h, "F")
+        strip_w = min(100, self.w * 0.42)
+        self.set_fill_color(*self._dark_primary())
+        self.rect(0, 0, strip_w, hero_h, "F")
+        self._safe_image(self.data.get("logo_path"), margin, 7, 26, 20, "left")
+        self.set_font("Helvetica", "B", 15)
+        self.set_text_color(*WHITE)
+        self._draw_lines(
+            self.data.get("company_name", ""), margin + 30, 12,
+            strip_w - margin - 33, font_size=15, line_height=7.5, max_lines=3,
+            style="B", color=WHITE,
+        )
+        if self.data.get("image_path"):
+            self._safe_image(
+                self.data["image_path"], strip_w, 0,
+                self.w - strip_w, hero_h,
+            )
+        self.set_fill_color(*self.secondary_color)
+        self.rect(0, hero_h, self.w, 3, "F")
+
+        left_x, right_x = margin, self.w / 2 + 3
+        col_w = (self.w - 2 * margin - 7) / 2
+        left_y = right_y = hero_h + 8
+        bottom = footer_top - 4
+        description = self.data.get("company_description")
+        differentiators = self.data.get("differentiators")
+        performance = self.data.get("private_performance")
+        competencies = self.data.get("core_competencies")
+        data_values = any(self.data.get(key) for key in ("uei_code", "cage_code", "naics_codes"))
+        certifications = self.data.get("certifications")
+        gap = 5
+        competency_lines = len(
+            self._list_lines(competencies, col_w - 8, 13, check=True)
+        ) if competencies else 0
+        expertise_base_h = (
+            max(20, competency_lines * 3.8 + 8) if competencies else 0
+        )
+        naics = self._items(self.data.get("naics_codes"))
+        naics_cols = 3
+        naics_rows = min(6, (len(naics) + naics_cols - 1) // naics_cols)
+        data_base_h = (
+            min(54, max(20, 16 + max(0, naics_rows) * 4))
+            if data_values else 0
+        )
+        certification_lines = len(
+            self._list_lines(certifications, col_w - 3, 7)
+        ) if certifications else 0
+        def heading(title, x, y):
+            self.set_xy(x, y)
+            self.set_font("Helvetica", "B", 12)
+            self.set_text_color(*self.primary_color)
+            self.cell(col_w, 7, title, 0, 1, "L")
+            return y + 8
+
+        if description:
+            left_y = heading(SECTION_LABELS["about_us"], left_x, left_y)
+            description_lines = max(1, int((bottom - left_y - 5) / 3.8))
+            left_y = self._draw_lines(
+                description, left_x, left_y, col_w - 3,
+                font_size=7.5, line_height=3.8, max_lines=min(10, description_lines),
+            ) + 5
+            left_y += gap
+
+        if differentiators:
+            left_y = heading(SECTION_LABELS["differentiators"], left_x, left_y)
+            differentiator_lines = max(1, int((bottom - left_y - 5) / 3.8))
+            left_y = self._draw_list(
+                differentiators, left_x, left_y, col_w - 3,
+                font_size=7.2, line_height=3.8,
+                max_lines=min(10, differentiator_lines),
+            ) + 5
+            left_y += gap
+
+        if performance:
+            left_y = heading(SECTION_LABELS["past_performance"], left_x, left_y)
+            performance_lines = max(1, int((bottom - left_y) / 3.7))
+            left_y = self._draw_list(
+                performance, left_x, left_y, col_w - 3,
+                font_size=7.1, line_height=3.7, max_lines=min(10, performance_lines),
+            )
+            left_y += gap
+
+        if competencies:
+            right_y = heading(SECTION_LABELS["core_competencies"], right_x, right_y)
+            panel_h = expertise_base_h
+            self.set_fill_color(*LIGHT_GRAY)
+            self.rect(right_x, right_y, col_w, panel_h, "F")
+            self._draw_list(
+                competencies, right_x + 4, right_y + 4, col_w - 8,
+                font_size=7.2, line_height=3.8, max_lines=13, check=True,
+            )
+            right_y += panel_h + 6
+            right_y += gap
+
+        if data_values:
+            right_y = heading(SECTION_LABELS["company_data"], right_x, right_y)
+            panel_h = data_base_h
+            self.set_fill_color(*LIGHT_GRAY)
+            self.rect(right_x, right_y, col_w, panel_h, "F")
+            value_y = right_y + 4
+            self.set_font("Helvetica", "B", 7)
+            self.set_text_color(*BLACK)
+            if self.data.get("uei_code"):
+                self.set_xy(right_x + 4, value_y)
+                self.cell(col_w - 8, 3.7, "UEI: " + str(self.data["uei_code"]), 0, 1, "L")
+                value_y += 4
+            if self.data.get("cage_code"):
+                self.set_xy(right_x + 4, value_y)
+                self.cell(col_w - 8, 3.7, "CAGE: " + str(self.data["cage_code"]), 0, 1, "L")
+                value_y += 4
+            if naics:
+                self.set_font("Helvetica", "", 6.5)
+                self.set_xy(right_x + 4, value_y)
+                self.cell(
+                    col_w - 8, 3.5,
+                    SECTION_LABELS["naics_codes"].upper(), 0, 1, "L",
+                )
+                value_y += 4
+                visible_naics = naics[:naics_cols * 6]
+                if len(naics) > len(visible_naics):
+                    visible_naics[-1] = visible_naics[-1] + "..."
+                cell_w = (col_w - 8) / naics_cols
+                for index, code in enumerate(visible_naics):
+                    col = index % naics_cols
+                    row = index // naics_cols
+                    self.set_xy(right_x + 4 + col * cell_w, value_y + row * 4)
+                    self.cell(cell_w, 3.5, self._to_pdf_text(code), 0, 0, "L")
+            right_y += panel_h + 6
+            right_y += gap
+
+        if certifications:
+            right_y = heading(SECTION_LABELS["certifications"], right_x, right_y)
+            right_y = self._draw_list(
+                certifications, right_x, right_y, col_w - 3,
+                font_size=7.1, line_height=3.7,
+                max_lines=min(7, certification_lines),
+            )
+            badge_y = min(right_y + 1, bottom - 13)
+            self._draw_badges(certifications, right_x, badge_y, col_w, size=11)
+            right_y = max(right_y, badge_y + 11)
+            right_y += gap
+
+        self.set_fill_color(*LIGHT_GRAY)
+        self.rect(0, footer_top, self.w, self.h - footer_top, "F")
+        usable = self.w - 2 * margin
+        col_w_footer = usable / 3
+        self._draw_lines(
+            "\n".join(filter(None, [
+                self.data.get("contact_name"), self.data.get("contact_title"),
+                self.data.get("contact_phone"), self.data.get("contact_email"),
+            ])),
+            margin, footer_top + 4, col_w_footer - 2, font_size=6.5,
+            line_height=3.5, max_lines=5,
+        )
+        self._draw_lines(
+            "\n".join(filter(None, [
+                self.data.get("company_name"), self._contact_address(),
+            ])),
+            margin + col_w_footer, footer_top + 4, col_w_footer - 2,
+            font_size=6.5, line_height=3.5, max_lines=5, align="C",
+        )
+        self._draw_lines(
+            self.data.get("contact_website", ""), margin + col_w_footer * 2,
+            footer_top + 10, col_w_footer - 2, font_size=7,
+            line_height=4, max_lines=2, align="R",
+        )
 
 
 def create_pdf(data, output_path="output.pdf", template="default"):
@@ -782,9 +1767,18 @@ def create_pdf(data, output_path="output.pdf", template="default"):
     Args:
         data: dict with capability statement fields.
         output_path: destination file path.
-        template: 'default' for the classic layout, 'modern' for a sidebar layout.
+        template: 'default'/'modern' for the existing layouts, or
+            'corporate', 'banded', 'rail', or 'product' for new layouts.
     """
-    if template == "modern":
+    template_classes = {
+        "corporate": CorporatePDF,
+        "banded": BandedPDF,
+        "rail": RailPDF,
+        "product": ProductPDF,
+    }
+    if template in template_classes:
+        pdf = template_classes[template](data)
+    elif template == "modern":
         pdf = ModernPDF(data)
     else:
         pdf = PDF(data)

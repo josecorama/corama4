@@ -560,7 +560,9 @@ const CapabilityBuilder = () => {
     return str.split('\n').map(s => s.trim()).filter(s => s.length > 0)
   }
 
-  const handleGeneratePdf = async (template: 'default' | 'modern' = 'default') => {
+  const handleGeneratePdf = async (
+    template: 'default' | 'modern' | 'corporate' | 'banded' | 'rail' | 'product' = 'default'
+  ) => {
     setShowTemplateModal(false)
     setGeneratingPdf(true)
     try {
@@ -590,6 +592,20 @@ const CapabilityBuilder = () => {
       pdfFormData.append('differentiators', JSON.stringify(stringToArray(formData.keyDifferentiators)))
       pdfFormData.append('naicsCodes', JSON.stringify(stringToArray(formData.naicsCodes)))
       pdfFormData.append('certifications', JSON.stringify(stringToArray(formData.certifications)))
+
+      const hasPastPerformance = Boolean(
+        formData.clientAgency?.trim() ||
+        formData.contractValue?.trim() ||
+        formData.projectDescription?.trim()
+      )
+      if (hasPastPerformance) {
+        pdfFormData.append('pastPerformanceClient', formData.clientAgency || '')
+        pdfFormData.append('pastPerformanceValue', formData.contractValue || '')
+        pdfFormData.append(
+          'pastPerformanceDescription',
+          formData.projectDescription || ''
+        )
+      }
       
       // File uploads (if available)
       if (logoFile) {
@@ -1422,7 +1438,7 @@ const CapabilityBuilder = () => {
             onClick={() => setShowTemplateModal(false)}
           />
           <div
-            className="relative rounded-2xl p-6 sm:p-8 max-w-lg w-full mx-4 border border-white/20 animate-popup-pop"
+            className="relative rounded-2xl p-6 sm:p-8 max-w-4xl w-full mx-4 border border-white/20 animate-popup-pop max-h-[90vh] overflow-y-auto"
             style={{ backgroundColor: 'rgb(11, 44, 72)' }}
           >
             <button
@@ -1442,7 +1458,7 @@ const CapabilityBuilder = () => {
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Classic Template */}
               <button
                 onClick={() => handleGeneratePdf('default')}
@@ -1478,7 +1494,7 @@ const CapabilityBuilder = () => {
               {/* Modern Template */}
               <button
                 onClick={() => handleGeneratePdf('modern')}
-                className="flex-1 group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
+                className="group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
                 style={{ backgroundColor: 'rgb(28, 66, 98)' }}
               >
                 <div className="flex items-center gap-3 mb-2">
@@ -1504,6 +1520,138 @@ const CapabilityBuilder = () => {
                       <div className="h-1.5 rounded bg-gray-300 w-2/3" />
                       <div className="h-1 rounded bg-gray-200 w-full" />
                       <div className="h-1 rounded bg-gray-200 w-4/5" />
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Corporate Template */}
+              <button
+                onClick={() => handleGeneratePdf('corporate')}
+                className="group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#5CBFC0' }}>
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7h18M3 12h18M3 17h18" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-poppins font-bold text-sm">{t('corporateTemplate')}</p>
+                    <p className="text-gray-400 font-poppins text-xs">{t('corporateTemplateDescription')}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg overflow-hidden border border-white/10" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="h-5 flex items-center px-2" style={{ backgroundColor: '#0B2C48' }}>
+                    <div className="h-2 w-8 rounded bg-white/70" />
+                    <div className="h-2 w-14 rounded bg-[#5CBFC0] ml-auto" />
+                  </div>
+                  <div className="flex h-12 p-2 gap-1">
+                    <div className="w-[44%] space-y-1">
+                      <div className="h-2 rounded bg-[#5CBFC0] w-full" />
+                      <div className="h-1 rounded bg-gray-300 w-full" />
+                      <div className="h-1 rounded bg-gray-300 w-4/5" />
+                    </div>
+                    <div className="w-px bg-gray-300" />
+                    <div className="flex-1 space-y-1">
+                      <div className="h-2 rounded bg-[#0B2C48] w-full" />
+                      <div className="h-1 rounded bg-gray-300 w-11/12" />
+                      <div className="h-1 rounded bg-gray-300 w-3/4" />
+                    </div>
+                  </div>
+                </div>
+              </button>
+
+              {/* Banded Template */}
+              <button
+                onClick={() => handleGeneratePdf('banded')}
+                className="group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0B2C48' }}>
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-poppins font-bold text-sm">{t('bandedTemplate')}</p>
+                    <p className="text-gray-400 font-poppins text-xs">{t('bandedTemplateDescription')}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg overflow-hidden border border-white/10 p-2 space-y-1" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="h-3 rounded-sm" style={{ backgroundColor: '#0B2C48' }} />
+                  <div className="h-2 rounded-sm" style={{ backgroundColor: '#263F54' }} />
+                  <div className="h-5 rounded-sm bg-gray-200" />
+                  <div className="h-2 rounded-sm" style={{ backgroundColor: '#263F54' }} />
+                  <div className="h-5 rounded-sm bg-gray-200" />
+                </div>
+              </button>
+
+              {/* Rail Template */}
+              <button
+                onClick={() => handleGeneratePdf('rail')}
+                className="group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#0B2C48' }}>
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 4v16M9 6h10M9 12h10M9 18h10" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-poppins font-bold text-sm">{t('railTemplate')}</p>
+                    <p className="text-gray-400 font-poppins text-xs">{t('railTemplateDescription')}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg overflow-hidden border border-white/10 flex h-16" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="w-1/5 p-1 space-y-2" style={{ backgroundColor: '#0B2C48' }}>
+                    <div className="h-1 rounded bg-white/70 w-full" />
+                    <div className="h-1 rounded bg-white/50 w-4/5" />
+                    <div className="h-1 rounded bg-white/50 w-full" />
+                  </div>
+                  <div className="flex-1 p-2 space-y-2">
+                    <div className="h-1 rounded bg-gray-300 w-3/4" />
+                    <div className="h-1 rounded bg-gray-200 w-full" />
+                    <div className="h-1 rounded bg-gray-200 w-5/6" />
+                    <div className="h-px bg-gray-300" />
+                  </div>
+                </div>
+              </button>
+
+              {/* Product Template */}
+              <button
+                onClick={() => handleGeneratePdf('product')}
+                className="group rounded-xl p-4 border-2 border-white/20 hover:border-[#5CBFC0] transition-all text-left"
+                style={{ backgroundColor: 'rgb(28, 66, 98)' }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: '#5CBFC0' }}>
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5h16v5H4zM4 14h7v5H4zM14 14h6v5h-6z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-white font-poppins font-bold text-sm">{t('productTemplate')}</p>
+                    <p className="text-gray-400 font-poppins text-xs">{t('productTemplateDescription')}</p>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-lg overflow-hidden border border-white/10" style={{ backgroundColor: '#f8f9fa' }}>
+                  <div className="h-6 flex items-center px-2" style={{ backgroundColor: '#0B2C48' }}>
+                    <div className="h-2 w-16 rounded bg-white/70" />
+                  </div>
+                  <div className="h-1" style={{ backgroundColor: '#5CBFC0' }} />
+                  <div className="flex h-10 gap-2 p-2">
+                    <div className="flex-1 space-y-1">
+                      <div className="h-2 rounded bg-gray-400 w-3/4" />
+                      <div className="h-1 rounded bg-gray-200 w-full" />
+                      <div className="h-1 rounded bg-gray-200 w-5/6" />
+                    </div>
+                    <div className="flex-1 rounded bg-gray-200 p-1 space-y-1">
+                      <div className="h-1.5 rounded bg-gray-400 w-full" />
+                      <div className="h-1 rounded bg-gray-300 w-4/5" />
                     </div>
                   </div>
                 </div>

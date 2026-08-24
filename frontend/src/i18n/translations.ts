@@ -492,6 +492,14 @@ export const translations = {
     classicTemplateDescription: 'Traditional single-column layout',
     modernTemplate: 'Modern',
     modernTemplateDescription: 'Two-column sidebar layout',
+    corporateTemplate: 'Corporate',
+    corporateTemplateDescription: 'Two-column layout with pill section headers',
+    bandedTemplate: 'Banded',
+    bandedTemplateDescription: 'Full-width bands with structured content blocks',
+    railTemplate: 'Rail',
+    railTemplateDescription: 'Labeled side rail with horizontal content sections',
+    productTemplate: 'Product',
+    productTemplateDescription: 'Hero image layout with two content columns',
 
     // Proposal Assistant page
     proposalAssistantPageTitle: 'Proposal Assistant',
@@ -1101,6 +1109,14 @@ export const translations = {
     classicTemplateDescription: 'Dise\u00f1o tradicional de una columna',
     modernTemplate: 'Moderno',
     modernTemplateDescription: 'Dise\u00f1o de dos columnas con barra lateral',
+    corporateTemplate: 'Corporativo',
+    corporateTemplateDescription: 'Dise\u00f1o de dos columnas con encabezados tipo p\u00edldora',
+    bandedTemplate: 'Bandas',
+    bandedTemplateDescription: 'Bandas de ancho completo con bloques estructurados',
+    railTemplate: 'Riel',
+    railTemplateDescription: 'Riel lateral etiquetado con secciones horizontales',
+    productTemplate: 'Producto',
+    productTemplateDescription: 'Dise\u00f1o con imagen principal y dos columnas',
 
     // Proposal Assistant page
     proposalAssistantPageTitle: 'Asistente de Propuestas',
