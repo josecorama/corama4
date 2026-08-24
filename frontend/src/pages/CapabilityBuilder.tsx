@@ -592,6 +592,20 @@ const CapabilityBuilder = () => {
       pdfFormData.append('differentiators', JSON.stringify(stringToArray(formData.keyDifferentiators)))
       pdfFormData.append('naicsCodes', JSON.stringify(stringToArray(formData.naicsCodes)))
       pdfFormData.append('certifications', JSON.stringify(stringToArray(formData.certifications)))
+
+      const hasPastPerformance = Boolean(
+        formData.clientAgency?.trim() ||
+        formData.contractValue?.trim() ||
+        formData.projectDescription?.trim()
+      )
+      if (hasPastPerformance) {
+        pdfFormData.append('pastPerformanceClient', formData.clientAgency || '')
+        pdfFormData.append('pastPerformanceValue', formData.contractValue || '')
+        pdfFormData.append(
+          'pastPerformanceDescription',
+          formData.projectDescription || ''
+        )
+      }
       
       // File uploads (if available)
       if (logoFile) {
