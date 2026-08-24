@@ -1050,19 +1050,6 @@ class _TemplatePDF(FPDF):
                 except OSError:
                     pass
 
-    def _image_aspect_ratio(self, path):
-        if not path or not os.path.exists(path):
-            return None
-        try:
-            with Image.open(path) as image:
-                image.verify()
-            with Image.open(path) as image:
-                if not image.height:
-                    return None
-                return image.width / image.height
-        except Exception:
-            return None
-
     def _draw_badges(self, certifications, x, y, width, size=12, align="left"):
         paths = []
         for cert in self._items(certifications):
@@ -1297,10 +1284,14 @@ class BandedPDF(_TemplatePDF):
         self.set_fill_color(*self.primary_color)
         self.rect(0, 0, self.w, 34, "F")
         self._safe_image(self.data.get("logo_path"), margin, 6, 25, 20, "left")
-        self.set_font("Helvetica", "B", 16)
-        self.set_text_color(*self.secondary_color)
-        self.set_xy(margin + 29, 12)
-        self.cell(82, 8, self._to_pdf_text(self.data.get("company_name", "")), 0, 0, "L")
+        name_x = margin + 29
+        name_right = self.w - 78
+        self._draw_fitted_text(
+            self.data.get("company_name", ""),
+            name_x, 5, name_right - name_x - 4, 24,
+            max_lines=2, max_size=16, min_size=10,
+            color=self.secondary_color,
+        )
         self.set_font("Helvetica", "B", 13)
         self.set_text_color(*WHITE)
         self.set_xy(self.w - 78, 8)
@@ -1318,6 +1309,19 @@ class BandedPDF(_TemplatePDF):
         ))
         performance = self.data.get("private_performance")
         certifications = self.data.get("certifications")
+        section_count = sum(bool(value) for value in (
+            competencies, description or company_data, performance or certifications,
+        ))
+        section_index = 0
+
+        def advance_section():
+            nonlocal y, section_index
+            section_index += 1
+            y += gap
+            y += self._distributed_gap(
+                y, footer_top - 4, section_count - section_index, maximum=30,
+            )
+
         description_lines = len(self._wrap(
             description, self.w / 2 - 13
         )) if description else 1
@@ -1364,7 +1368,7 @@ class BandedPDF(_TemplatePDF):
                 competencies, margin, y, self.w - 2 * margin,
                 font_size=7.5, line_height=4, max_lines=7,
             ) + 3
-            y += gap
+            advance_section()
 
         if description or company_data:
             self.set_fill_color(*dark)
@@ -1394,7 +1398,7 @@ class BandedPDF(_TemplatePDF):
                 font_size=7.3, line_height=4, max_lines=9, check=True,
             )
             y += pair_h + 4
-            y += gap
+            advance_section()
 
         if performance or certifications:
             self.set_fill_color(*dark)
@@ -1418,6 +1422,7 @@ class BandedPDF(_TemplatePDF):
                     certifications, self.w - margin - 34,
                     min(y, footer_top - 13), 34, size=11, align="right"
                 )
+            advance_section()
 
         self.set_fill_color(*self.primary_color)
         self.rect(0, footer_top, self.w, self.h - footer_top, "F")
@@ -1455,7 +1460,7 @@ class RailPDF(_TemplatePDF):
         rail_w = 42
         footer_top = self.h - 25
         right_x = self.w - 73
-        name_x = margin + rail_w + 31
+        name_x = margin + 31
         name_width = right_x - name_x - 4
         self.set_font("Helvetica", "B", 15)
         name_lines = self._wrap(
@@ -1464,7 +1469,7 @@ class RailPDF(_TemplatePDF):
         header_h = max(28, 27 + max(0, min(2, len(name_lines)) - 1) * 5)
         self.set_fill_color(*self.primary_color)
         self.rect(0, 0, self.w, 2, "F")
-        self._safe_image(self.data.get("logo_path"), margin + rail_w, 7, 28, 18, "left")
+        self._safe_image(self.data.get("logo_path"), margin, 7, 28, 18, "left")
         self._draw_fitted_text(
             self.data.get("company_name", ""),
             name_x, 5, name_width, header_h - 8,
@@ -1589,8 +1594,6 @@ class ProductPDF(_TemplatePDF):
         hero_h = 43
         self.set_fill_color(*self.primary_color)
         self.rect(0, 0, self.w, hero_h, "F")
-        if self.data.get("image_path"):
-            self._safe_image(self.data["image_path"], 0, 0, self.w, hero_h)
         strip_w = min(100, self.w * 0.42)
         self.set_fill_color(*self._dark_primary())
         self.rect(0, 0, strip_w, hero_h, "F")
@@ -1602,6 +1605,11 @@ class ProductPDF(_TemplatePDF):
             strip_w - margin - 33, font_size=15, line_height=7.5, max_lines=3,
             style="B", color=WHITE,
         )
+        if self.data.get("image_path"):
+            self._safe_image(
+                self.data["image_path"], strip_w, 0,
+                self.w - strip_w, hero_h,
+            )
         self.set_fill_color(*self.secondary_color)
         self.rect(0, hero_h, self.w, 3, "F")
 
