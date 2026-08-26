@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { api } from '../services/api'
 
-const SESSION_TIMEOUT_MS = 15 * 60 * 1000
+// Long inactivity window so live demos/presentations aren't logged out mid-use.
+const SESSION_TIMEOUT_MS = 12 * 60 * 60 * 1000
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click']
 
 const SessionTimeout = () => {

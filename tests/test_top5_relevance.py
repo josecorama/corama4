@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from cs_processor import (
     build_capability_query_text,
     payload_has_excluded_term,
+    payload_is_hidden_from_dashboard,
 )
 
 
@@ -47,6 +48,26 @@ def test_icee_word_boundary_no_false_positive():
 def test_non_dict_payload():
     assert payload_has_excluded_term(None) is False
     assert payload_has_excluded_term("icee") is False
+
+
+def test_bidbuy_source_hidden_from_dashboard():
+    assert payload_is_hidden_from_dashboard(
+        {"title": "Fire Pump Replacement", "source": "BidBuy Illinois"}
+    ) is True
+
+
+def test_bidbuy_url_hidden_from_dashboard():
+    assert payload_is_hidden_from_dashboard(
+        {"title": "Fire Pump Replacement",
+         "source_url": "https://www.bidbuy.illinois.gov/bso/external/bidDetail.sda?docId=1"}
+    ) is True
+
+
+def test_sam_gov_source_not_hidden_from_dashboard():
+    assert payload_is_hidden_from_dashboard(
+        {"title": "Cellphone Services", "source": "SAM.gov",
+         "source_url": "https://sam.gov/opp/view"}
+    ) is False
 
 
 def test_query_builder_strips_contact_noise():

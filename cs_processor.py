@@ -87,6 +87,30 @@ def payload_has_excluded_term(payload):
     return any(rx.search(haystack) for rx in _EXCLUDED_TERM_RES)
 
 
+# Contracts ingested from these sources are hidden from the dashboard listings
+# and dashboard search (matched case insensitively as a substring of the
+# payload's source, e.g. "BidBuy Illinois").
+EXCLUDED_CONTRACT_SOURCES = ('bidbuy',)
+
+
+def payload_has_excluded_source(payload):
+    """True when a contract payload comes from a source hidden on the dashboard
+    (e.g. BidBuy)."""
+    if not isinstance(payload, dict):
+        return False
+    # Older records don't always carry a source, so the origin URL is checked too.
+    haystack = ' '.join(str(payload.get(field) or '') for field in (
+        'source', 'Source', 'source_url', 'detail_link', 'Detail Link', 'detail_url',
+    )).lower()
+    return any(excluded in haystack for excluded in EXCLUDED_CONTRACT_SOURCES)
+
+
+def payload_is_hidden_from_dashboard(payload):
+    """True when a contract should not be listed on the dashboard, either
+    because of an excluded term or because of an excluded source."""
+    return payload_has_excluded_term(payload) or payload_has_excluded_source(payload)
+
+
 # --- NAICS helpers ---------------------------------------------------------
 # NAICS codes are the strongest signal we have for matching a company to a
 # contract, so when the capability statement declares them the Top 5 is ranked

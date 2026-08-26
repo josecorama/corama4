@@ -49,7 +49,7 @@ from nltk import ne_chunk, pos_tag
 from pdf_class import create_pdf
 from capability_statement_preprocessing import process_pdfs
 from cs_processor import (CSQueryHandler, extract_naics_codes_from_text, extract_state_codes,
-                          naics_match_tier, payload_has_excluded_term)
+                          naics_match_tier, payload_is_hidden_from_dashboard)
 from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
@@ -89,6 +89,15 @@ app.config['WTF_CSRF_ENABLED'] = True
 app.config['SESSION_COOKIE_SECURE'] = os.getenv('ENV') == 'production'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# Long-lived sessions so a logged-in user isn't kicked out during long
+# uninterrupted use (demos/presentations). Overridable with SESSION_LIFETIME_HOURS.
+try:
+    SESSION_LIFETIME_HOURS = float(os.getenv('SESSION_LIFETIME_HOURS', '12'))
+except ValueError:
+    SESSION_LIFETIME_HOURS = 12
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=SESSION_LIFETIME_HOURS)
+# Re-issue the cookie on every request so the lifetime counts from last activity.
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
@@ -1395,7 +1404,8 @@ def api_auth_login():
             'localId': local_id,
             'idToken': refreshed_user['idToken'],
             'email': email,
-            'refreshToken': refreshed_user['refreshToken']
+            'refreshToken': refreshed_user['refreshToken'],
+            'token_issued_at': time.time()
         }
 
         # Retrieve user data from Firebase
@@ -1649,7 +1659,8 @@ def api_auth_signup():
             'localId': user_id,
             'idToken': user_logged_in['idToken'],
             'email': email,
-            'refreshToken': user_logged_in['refreshToken']
+            'refreshToken': user_logged_in['refreshToken'],
+            'token_issued_at': time.time()
         }
         
         # CRITICAL: Write user data to Firebase DB immediately with email_verified=false
@@ -2844,6 +2855,40 @@ def cleanup_session():
         session.modified = True
 
 
+# Firebase ID tokens expire after 1 hour, so they are refreshed well before that
+# to keep long sessions (demos/presentations) from being logged out mid-use.
+FIREBASE_TOKEN_REFRESH_SECONDS = 45 * 60
+
+
+@app.before_request
+def keep_session_alive():
+    """Keep the cookie alive for PERMANENT_SESSION_LIFETIME and refresh the
+    Firebase ID token before it expires."""
+    if request.path.startswith('/static/') or request.path == '/healthz':
+        return
+
+    session.permanent = True
+
+    user = session.get('user')
+    if not isinstance(user, dict) or not user.get('refreshToken'):
+        return
+
+    now = time.time()
+    if now - float(user.get('token_issued_at') or 0) < FIREBASE_TOKEN_REFRESH_SECONDS:
+        return
+
+    try:
+        refreshed = auth.refresh(user['refreshToken'])
+        user['idToken'] = refreshed['idToken']
+        user['refreshToken'] = refreshed['refreshToken']
+        user['token_issued_at'] = now
+        session['user'] = user
+        session.modified = True
+        app.logger.info(f"🔄 Refreshed Firebase token for {user.get('localId')}")
+    except Exception as token_error:
+        app.logger.warning(f"Could not refresh Firebase token: {token_error}")
+
+
 # Set secure HTTP headers
 @app.after_request
 def set_secure_headers(response):
@@ -3078,7 +3123,7 @@ def scan_dashboard_contracts(predicate, max_results, scan_limit=NAICS_SCAN_LIMIT
         for point in points:
             if str(point.id) in hidden_ids:
                 continue
-            if payload_has_excluded_term(point.payload):
+            if payload_is_hidden_from_dashboard(point.payload):
                 continue
             contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
             if (contract.get('category') or '').strip().lower() in ('unknown', ''):
@@ -7472,8 +7517,8 @@ def dashboard_search():
                 for point in all_points:
                     if str(point.id) in hidden_ids:
                         continue
-                    # Hide excluded contracts (e.g. ICEE in title/description)
-                    if payload_has_excluded_term(point.payload):
+                    # Hide excluded contracts (ICEE in title/description, BidBuy source)
+                    if payload_is_hidden_from_dashboard(point.payload):
                         continue
                     contract = qdrant_payload_to_dashboard_contract(point.payload, point_id=point.id)
                     cat = (contract.get('category') or '').strip().lower()
@@ -13179,8 +13224,8 @@ def _refresh_dashboard_contracts_cache():
             from datetime import date as _date_type
             today_iso = _date_type.today().isoformat()
             for point in points:
-                # Hide excluded contracts (e.g. ICEE in title/description)
-                if payload_has_excluded_term(point.payload):
+                # Hide excluded contracts (ICEE in title/description, BidBuy source)
+                if payload_is_hidden_from_dashboard(point.payload):
                     continue
                 # Skip contracts whose due date has passed
                 raw_dd = point.payload.get("due_date") or point.payload.get("Due Date")
@@ -13366,8 +13411,8 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                     if str(point.id) in hidden_ids:
                         continue
 
-                    # Hide excluded contracts (e.g. ICEE in title/description)
-                    if payload_has_excluded_term(point.payload):
+                    # Hide excluded contracts (ICEE in title/description, BidBuy source)
+                    if payload_is_hidden_from_dashboard(point.payload):
                         continue
 
                     # Only show contracts whose due date has NOT passed
@@ -13450,8 +13495,8 @@ def get_dashboard_contracts_from_qdrant(page=1, items_per_page=10, cursor=None):
                 if str(point.id) in hidden_ids:
                     continue
 
-                # Hide excluded contracts (e.g. ICEE in title/description)
-                if payload_has_excluded_term(point.payload):
+                # Hide excluded contracts (ICEE in title/description, BidBuy source)
+                if payload_is_hidden_from_dashboard(point.payload):
                     continue
 
                 # Only show contracts whose due date has NOT passed
