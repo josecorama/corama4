@@ -23,7 +23,7 @@ import hashlib
 import tempfile
 import uuid
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Any, Iterable, Optional, Set
+from typing import List, Dict, Any, Iterable, Optional, Set, Union
 
 import requests
 
@@ -78,6 +78,14 @@ def _get_api_key() -> Optional[str]:
 # call in the process short-circuits instead of sleeping through retries.
 _QUOTA_STATE: Dict[str, Any] = {"reset_at": None}
 _FETCH_ERROR: Dict[str, Optional[str]] = {"code": None, "detail": None}
+_HYDRATION_STATS: Dict[str, Union[int, str]] = {
+    "attempted": 0,
+    "hydrated": 0,
+    "failed": 0,
+    "from_bulk": 0,
+    "api_calls": 0,
+    "stopped_reason": "",
+}
 
 
 def quota_exhausted() -> bool:
@@ -97,6 +105,11 @@ def last_fetch_error() -> Dict[str, str]:
     if not code or not detail:
         return {}
     return {"code": code, "detail": detail}
+
+
+def last_hydration_stats() -> Dict[str, Union[int, str]]:
+    """Return stats from the most recent description hydration run."""
+    return dict(_HYDRATION_STATS)
 
 
 def _set_fetch_error(code: str, detail: str) -> None:
@@ -293,16 +306,25 @@ def hydrate_descriptions(
     payloads: List[Dict[str, Any]],
     progress_every: int = 100,
     use_bulk_csv: bool = True,
-) -> Dict[str, int]:
+) -> Dict[str, Union[int, str]]:
     """Replace missing descriptions with the real notice text, in place.
 
     ``map_opportunity_to_payload`` cannot do this itself: it would mean one HTTP
     call per opportunity while paginating. Hydrating after deduplication keeps
     the call count down to the contracts actually being ingested.
 
-    Returns stats: attempted, hydrated, failed.
+    Returns stats: attempted, hydrated, failed, api_calls, stopped_reason.
     """
-    stats = {"attempted": 0, "hydrated": 0, "failed": 0, "from_bulk": 0}
+    stats: Dict[str, Union[int, str]] = {
+        "attempted": 0,
+        "hydrated": 0,
+        "failed": 0,
+        "from_bulk": 0,
+        "api_calls": 0,
+        "stopped_reason": "",
+    }
+    _HYDRATION_STATS.clear()
+    _HYDRATION_STATS.update(stats)
     if not payloads:
         return stats
 
@@ -320,6 +342,11 @@ def hydrate_descriptions(
     if not pending:
         return stats
 
+    try:
+        api_call_cap = max(0, int(os.getenv("SAM_MAX_DESCRIPTION_API_CALLS", "200")))
+    except ValueError:
+        api_call_cap = 200
+
     bulk: Dict[str, str] = {}
     if use_bulk_csv and len(pending) >= BULK_CSV_MIN_NOTICES:
         # Ingestion only sees freshly posted notices, so the (much larger)
@@ -333,26 +360,45 @@ def hydrate_descriptions(
 
         text = bulk.get(notice_id, "")
         if text:
-            stats["from_bulk"] += 1
+            stats["from_bulk"] = int(stats["from_bulk"]) + 1
         else:
+            if quota_exhausted():
+                stats["stopped_reason"] = "quota"
+                stats["attempted"] = int(stats["attempted"]) - 1
+                log.warning(
+                    "[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
+                    index, len(pending),
+                )
+                break
+            if int(stats["api_calls"]) >= api_call_cap:
+                stats["stopped_reason"] = "api_call_cap"
+                stats["attempted"] = int(stats["attempted"]) - 1
+                log.warning(
+                    "[SAM.gov] Stopping description hydration at %d/%d — "
+                    "reached SAM_MAX_DESCRIPTION_API_CALLS=%d",
+                    index, len(pending), api_call_cap,
+                )
+                break
             if stats["attempted"] - stats["from_bulk"] > 1:
                 time.sleep(MIN_DESC_INTERVAL_S)
+            stats["api_calls"] = int(stats["api_calls"]) + 1
             text = fetch_notice_description(notice_id)
 
         if text:
             payload["description"] = text
-            stats["hydrated"] += 1
+            stats["hydrated"] = int(stats["hydrated"]) + 1
         elif quota_exhausted():
             # Quota, not a bad notice: keep the URL so a later run can retry.
             log.warning("[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
                         index, len(pending))
-            stats["attempted"] -= 1
+            stats["attempted"] = int(stats["attempted"]) - 1
+            stats["stopped_reason"] = "quota"
             break
         else:
             # Never leave a URL behind: it would be embedded as if it were text.
             if _is_url(payload.get("description")):
                 payload["description"] = ""
-            stats["failed"] += 1
+            stats["failed"] = int(stats["failed"]) + 1
 
         if progress_every and index % progress_every == 0:
             log.info(
@@ -362,9 +408,12 @@ def hydrate_descriptions(
 
     log.info(
         "[SAM.gov] Description hydration complete: attempted=%d hydrated=%d "
-        "(%d from bulk CSV) failed=%d",
+        "(%d from bulk CSV) failed=%d api_calls=%d stopped_reason=%s",
         stats["attempted"], stats["hydrated"], stats["from_bulk"], stats["failed"],
+        stats["api_calls"], stats["stopped_reason"],
     )
+    _HYDRATION_STATS.clear()
+    _HYDRATION_STATS.update(stats)
     return stats
 
 

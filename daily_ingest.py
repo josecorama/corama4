@@ -41,7 +41,7 @@ except Exception:
 from sam_gov_sync import fetch_new_payloads, ingest_payloads, remove_expired_contracts
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
 from bidbuy_client import get_last_fetch_stats
-from sam_gov_client import last_fetch_error
+from sam_gov_client import last_fetch_error, last_hydration_stats
 from ingest_approval import create_pending_batch
 from ingest_email import build_preview_html, build_result_html, dedupe
 from email_utils import send_email_smtp
@@ -68,6 +68,17 @@ def collect_candidates(
     if "sam" in sources:
         log.info("Fetching federal SAM.gov opportunities (limit=%d)...", limit)
         new, fetched, skipped = fetch_new_payloads(limit=limit)
+        hydration = last_hydration_stats()
+        log.info(
+            "SAM.gov description hydration: attempted=%s hydrated=%s "
+            "from_bulk=%s failed=%s api_calls=%s stopped_reason=%s",
+            hydration.get("attempted", 0),
+            hydration.get("hydrated", 0),
+            hydration.get("from_bulk", 0),
+            hydration.get("failed", 0),
+            hydration.get("api_calls", 0),
+            hydration.get("stopped_reason", ""),
+        )
         sam_error = last_fetch_error()
         if sam_error:
             _LAST_SOURCE_ERRORS.setdefault("sam", sam_error)
@@ -81,6 +92,18 @@ def collect_candidates(
         for st in states:
             log.info("Fetching SAM.gov opportunities for state=%s...", st)
             new, fetched, skipped = fetch_new_payloads(limit=limit, state=st)
+            hydration = last_hydration_stats()
+            log.info(
+                "SAM.gov state description hydration (%s): attempted=%s hydrated=%s "
+                "from_bulk=%s failed=%s api_calls=%s stopped_reason=%s",
+                st,
+                hydration.get("attempted", 0),
+                hydration.get("hydrated", 0),
+                hydration.get("from_bulk", 0),
+                hydration.get("failed", 0),
+                hydration.get("api_calls", 0),
+                hydration.get("stopped_reason", ""),
+            )
             sam_error = last_fetch_error()
             if sam_error:
                 _LAST_SOURCE_ERRORS.setdefault("sam", sam_error)

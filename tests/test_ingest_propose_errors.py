@@ -3,10 +3,11 @@
 import json
 import io
 import sys
+import time
 
 import requests
 
-from sam_gov_client import _QUOTA_STATE
+from sam_gov_client import _QUOTA_STATE, hydrate_descriptions, last_hydration_stats
 
 
 class FakeResponse:
@@ -24,7 +25,9 @@ class FakeResponse:
             raise requests.HTTPError(response=self)
 
 
-def _post_propose(monkeypatch, status_code, body, sources="sam", bidbuy_stats=None):
+def _post_propose(
+    monkeypatch, status_code, body, sources="sam", bidbuy_stats=None, wait=True
+):
     monkeypatch.setenv("SAM_GOV_API_KEY", "test-key")
     monkeypatch.delenv("ADMIN_SECRET_KEY", raising=False)
 
@@ -47,7 +50,7 @@ def _post_propose(monkeypatch, status_code, body, sources="sam", bidbuy_stats=No
 
     return app_module.app.test_client().post(
         "/api/ingest/propose",
-        json={"limit": 1, "sources": sources},
+        json={"limit": 1, "sources": sources, "wait": wait},
     )
 
 
@@ -122,6 +125,77 @@ def test_sam_401_and_bidbuy_blocked_report_both_source_failures(monkeypatch):
             },
         },
     }
+
+
+def test_async_sam_failure_can_be_polled(monkeypatch):
+    response = _post_propose(
+        monkeypatch,
+        401,
+        {"code": "900901", "message": "Invalid Credentials"},
+        wait=False,
+    )
+
+    assert response.status_code == 202
+    started = response.get_json()
+    assert started["success"] is True
+    assert started["status"] == "started"
+    assert started["job_id"]
+    assert started["status_url"] == f"/api/ingest/status/{started['job_id']}"
+
+    import app as app_module
+
+    client = app_module.app.test_client()
+    result = None
+    for _ in range(100):
+        status_response = client.get(started["status_url"])
+        assert status_response.status_code == 200
+        result = status_response.get_json()
+        if result["status"] != "running":
+            break
+        time.sleep(0.01)
+
+    assert result is not None
+    assert result["status"] == "done"
+    assert result["result_status"] == 502
+    assert result["result"] == {
+        "success": False,
+        "error": "auth_failed",
+        "detail": 'SAM.gov returned HTTP 401: {"code": "900901", "message": "Invalid Credentials"}',
+        "fetched": 0,
+    }
+
+
+def test_description_hydration_respects_api_call_cap(monkeypatch):
+    monkeypatch.setenv("SAM_MAX_DESCRIPTION_API_CALLS", "1")
+    _QUOTA_STATE["reset_at"] = None
+    monkeypatch.setattr(
+        "sam_gov_client.fetch_notice_description",
+        lambda notice_id: f"Description for {notice_id}",
+    )
+    payloads = [
+        {
+            "sam_notice_id": "one",
+            "description": "https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=one",
+        },
+        {
+            "sam_notice_id": "two",
+            "description": "https://api.sam.gov/prod/opportunities/v1/noticedesc?noticeid=two",
+        },
+    ]
+
+    stats = hydrate_descriptions(payloads, use_bulk_csv=False)
+
+    assert stats == {
+        "attempted": 1,
+        "hydrated": 1,
+        "failed": 0,
+        "from_bulk": 0,
+        "api_calls": 1,
+        "stopped_reason": "api_call_cap",
+    }
+    assert payloads[0]["description"] == "Description for one"
+    assert payloads[1]["description"].startswith("https://api.sam.gov/")
+    assert last_hydration_stats() == stats
 
 
 def test_bidbuy_filtered_notices_are_not_classified_as_fetch_failure(monkeypatch):

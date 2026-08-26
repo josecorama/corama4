@@ -15,6 +15,7 @@ import uuid
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, Optional, Set, Tuple
 
 import matplotlib
 matplotlib.use('Agg')
@@ -58,7 +59,7 @@ from category_mapping import map_payload_to_category as shared_map_payload_to_ca
 from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
 from bidbuy_client import get_last_fetch_stats
-from sam_gov_client import last_fetch_error
+from sam_gov_client import last_fetch_error, last_hydration_stats
 from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
 from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
 
@@ -105,6 +106,8 @@ else:
 
 proposal_jobs = {}
 job_lock = threading.Lock()
+_INGEST_JOBS: Dict[str, Dict[str, Any]] = {}
+_INGEST_JOBS_LOCK = threading.Lock()
 
 # ============================================================================
 # FINE-TUNED MODEL CONFIGURATION
@@ -301,36 +304,33 @@ def _ingest_result_page(title, message, color="#0f766e"):
 </body></html>"""
 
 
-@app.route('/api/ingest/propose', methods=['POST'])
-def trigger_ingest_proposal():
-    """Admin endpoint: fetch new SAM.gov contracts and email an approval preview.
+def _add_hydration_stats(response: Dict[str, Any], hydration: Dict[str, Any]) -> Dict[str, Any]:
+    """Include useful hydration diagnostics when SAM descriptions were processed."""
+    if hydration and (
+        hydration.get("attempted")
+        or hydration.get("api_calls")
+        or hydration.get("stopped_reason")
+    ):
+        response["hydration"] = hydration
+    return response
 
-    Lets you trigger the approval email on demand (e.g. to get the first email
-    without waiting for the daily cron). Requires X-Admin-Key.
-    """
-    admin_key = request.headers.get('X-Admin-Key') or (
-        request.json.get('admin_key') if request.is_json else None
-    )
-    expected_key = os.getenv('ADMIN_SECRET_KEY')
-    if expected_key and admin_key != expected_key:
-        return jsonify({"error": "Unauthorized"}), 401
 
-    data = request.get_json(silent=True) or {}
-    limit = data.get('limit', 200)
-    requested_sources = data.get("sources") or os.getenv("INGEST_SOURCES", "sam,bidbuy")
-    sources = {
-        str(source).strip().lower()
-        for source in (requested_sources.split(",") if isinstance(requested_sources, str) else requested_sources)
-        if str(source).strip().lower() in {"sam", "bidbuy"}
-    }
+def _run_ingest_proposal(
+    limit: int,
+    sources: Set[str],
+    base_url: Optional[str] = None,
+) -> Tuple[Dict[str, Any], int]:
+    """Fetch candidates and send the approval preview without an HTTP context."""
     candidates, fetched, skipped = [], 0, 0
     source_errors = {}
     source_status = {}
+    hydration: Dict[str, Any] = {}
     if "sam" in sources:
         new, count, already = fetch_new_payloads(limit=limit)
         candidates.extend(new)
         fetched += count
         skipped += already
+        hydration = last_hydration_stats()
         sam_error = last_fetch_error()
         source_status["sam"] = {
             "success": not bool(sam_error),
@@ -383,10 +383,11 @@ def trigger_ingest_proposal():
                 "detail": first_error["detail"],
                 "fetched": fetched,
             }
+            _add_hydration_stats(error_response, hydration)
             if len(sources) > 1:
                 error_response["sources"] = source_status
             if all_sources_failed:
-                return jsonify(error_response), 502
+                return error_response, 502
             app.logger.warning(
                 "[Ingest] Source failure while another source returned no candidates: %s",
                 source_errors,
@@ -399,9 +400,14 @@ def trigger_ingest_proposal():
                 "new": 0,
                 "sources": source_status,
             }
-            return jsonify(no_new_response)
-        return jsonify({"success": True, "message": "No new contracts to propose",
-                        "fetched": fetched, "skipped": skipped, "new": 0})
+            _add_hydration_stats(no_new_response, hydration)
+            return no_new_response, 200
+        no_new_response = {
+            "success": True, "message": "No new contracts to propose",
+            "fetched": fetched, "skipped": skipped, "new": 0,
+        }
+        _add_hydration_stats(no_new_response, hydration)
+        return no_new_response, 200
 
     source_label = " + ".join(
         label for key, label in (("sam", "SAM.gov"), ("bidbuy", "BidBuy Illinois"))
@@ -409,9 +415,9 @@ def trigger_ingest_proposal():
     )
     token = create_pending_batch(candidates, source=source_label)
     if not token:
-        return jsonify({"success": False, "error": "Could not store pending batch"}), 500
+        return {"success": False, "error": "Could not store pending batch"}, 500
 
-    base_url = os.getenv('APP_BASE_URL', request.url_root.rstrip('/'))
+    base_url = base_url or os.getenv("APP_BASE_URL", "https://corama.ai")
     confirm_url = f"{base_url.rstrip('/')}/api/ingest/confirm/{token}"
     reject_url = f"{base_url.rstrip('/')}/api/ingest/reject/{token}"
 
@@ -428,7 +434,129 @@ def trigger_ingest_proposal():
                 "fetched": fetched, "skipped": skipped, "emailed": sent}
     if source_errors:
         response["sources"] = source_status
-    return jsonify(response)
+    _add_hydration_stats(response, hydration)
+    return response, 200
+
+
+def _ingest_job_timestamp() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def _running_ingest_job() -> Optional[Dict[str, Any]]:
+    return next(
+        (job for job in _INGEST_JOBS.values() if job["status"] == "running"),
+        None,
+    )
+
+
+def _run_ingest_job(job_id: str, limit: int, sources: Set[str], base_url: str) -> None:
+    try:
+        result, result_status = _run_ingest_proposal(limit, sources, base_url)
+    except Exception as exc:
+        app.logger.exception("[Ingest] Background proposal job %s failed", job_id)
+        with _INGEST_JOBS_LOCK:
+            _INGEST_JOBS[job_id].update({
+                "finished_at": _ingest_job_timestamp(),
+                "status": "failed",
+                "result": {
+                    "success": False,
+                    "error": "job_failed",
+                    "detail": str(exc),
+                },
+                "result_status": 500,
+                "error": str(exc),
+            })
+        return
+
+    with _INGEST_JOBS_LOCK:
+        _INGEST_JOBS[job_id].update({
+            "finished_at": _ingest_job_timestamp(),
+            "status": "done",
+            "result": result,
+            "result_status": result_status,
+        })
+
+
+@app.route('/api/ingest/propose', methods=['POST'])
+def trigger_ingest_proposal():
+    """Start an ingestion proposal, or run it inline when ``wait`` is true."""
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    if expected_key and admin_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    limit = data.get('limit', 200)
+    requested_sources = data.get("sources") or os.getenv("INGEST_SOURCES", "sam,bidbuy")
+    sources = {
+        str(source).strip().lower()
+        for source in (requested_sources.split(",") if isinstance(requested_sources, str) else requested_sources)
+        if str(source).strip().lower() in {"sam", "bidbuy"}
+    }
+    if data.get("wait") is True:
+        with _INGEST_JOBS_LOCK:
+            running_job = _running_ingest_job()
+            if running_job:
+                return jsonify({
+                    "success": False,
+                    "status": "running",
+                    "job_id": running_job["job_id"],
+                }), 409
+        result, result_status = _run_ingest_proposal(
+            limit, sources, request.url_root.rstrip("/")
+        )
+        return jsonify(result), result_status
+
+    with _INGEST_JOBS_LOCK:
+        running_job = _running_ingest_job()
+        if running_job:
+            return jsonify({
+                "success": False,
+                "status": "running",
+                "job_id": running_job["job_id"],
+            }), 409
+
+        job_id = uuid.uuid4().hex
+        _INGEST_JOBS[job_id] = {
+            "job_id": job_id,
+            "started_at": _ingest_job_timestamp(),
+            "finished_at": None,
+            "status": "running",
+            "result": None,
+            "result_status": None,
+        }
+
+    thread = threading.Thread(
+        target=_run_ingest_job,
+        args=(job_id, limit, sources, request.url_root.rstrip("/")),
+        daemon=True,
+    )
+    thread.start()
+    return jsonify({
+        "success": True,
+        "status": "started",
+        "job_id": job_id,
+        "status_url": f"/api/ingest/status/{job_id}",
+    }), 202
+
+
+@app.route('/api/ingest/status/<job_id>', methods=['GET'])
+def ingest_proposal_status(job_id: str):
+    """Return the result of an asynchronous ingestion proposal job."""
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    if expected_key and admin_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    with _INGEST_JOBS_LOCK:
+        job = _INGEST_JOBS.get(job_id)
+        if job is None:
+            return jsonify({"error": "Job not found"}), 404
+        return jsonify(dict(job))
 
 
 @app.route('/api/ingest/confirm/<token>', methods=['GET'])
