@@ -1,4 +1,4 @@
-import{u as et,r as l,j as t}from"./react-vendor-gT-OydQZ.js";import{u as at,a as _,H as st,S as nt}from"./Header-Dcfn3TRt.js";import{F as ot}from"./FilterPopup-BvoBd6-Q.js";import{I as G}from"./ThinkingPopup-DywD6nfH.js";import{f as rt}from"./currency-DWz4pj4s.js";import{h as it,E as lt}from"./jspdf-CzZ61QgE.js";import{R as ct}from"./refresh-cw-jVsfvclS.js";import"./createLucideIcon-in9Qc8Ri.js";import"./lottie-0OdDbsOy.js";const pt=`
+import{u as et,r as l,j as t}from"./react-vendor-gT-OydQZ.js";import{u as at,a as _,H as st,S as nt}from"./Header-3O_MkRAi.js";import{F as ot}from"./FilterPopup-BvoBd6-Q.js";import{I as G}from"./ThinkingPopup-DywD6nfH.js";import{f as rt}from"./currency-DWz4pj4s.js";import{h as it,E as lt}from"./jspdf-CzZ61QgE.js";import{R as ct}from"./refresh-cw-jVsfvclS.js";import"./createLucideIcon-in9Qc8Ri.js";import"./lottie-0OdDbsOy.js";const pt=`
 @media print {
   /* Force print background colors and images */
   * {
