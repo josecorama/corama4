@@ -176,7 +176,7 @@ def claim_ingest_job(
         try:
             def transaction(current: Any) -> Dict[str, Any]:
                 records = dict(current or {})
-                for existing_id, existing_record in records.items():
+                for existing_id, existing_record in list(records.items()):
                     if isinstance(existing_record, dict) and _record_expired(existing_record):
                         records.pop(existing_id)
                         continue
