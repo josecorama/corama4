@@ -77,6 +77,7 @@ def _get_api_key() -> Optional[str]:
 # Set when SAM.gov reports the daily request quota is spent, so every later
 # call in the process short-circuits instead of sleeping through retries.
 _QUOTA_STATE: Dict[str, Any] = {"reset_at": None}
+_FETCH_ERROR: Dict[str, Optional[str]] = {"code": None, "detail": None}
 
 
 def quota_exhausted() -> bool:
@@ -89,6 +90,32 @@ def quota_reset_at() -> Optional[str]:
     return _QUOTA_STATE["reset_at"]
 
 
+def last_fetch_error() -> Dict[str, str]:
+    """Return the reason the most recent SAM.gov fetch failed, if any."""
+    code = _FETCH_ERROR["code"]
+    detail = _FETCH_ERROR["detail"]
+    if not code or not detail:
+        return {}
+    return {"code": code, "detail": detail}
+
+
+def _set_fetch_error(code: str, detail: str) -> None:
+    _FETCH_ERROR["code"] = code
+    _FETCH_ERROR["detail"] = _scrub_key(detail)
+
+
+def _response_detail(resp: "requests.Response") -> str:
+    """Describe an HTTP response without leaking the API key."""
+    try:
+        body = resp.text.strip()
+    except (AttributeError, TypeError):
+        body = ""
+    detail = f"SAM.gov returned HTTP {resp.status_code}"
+    if body:
+        detail += f": {_scrub_key(body[:500])}"
+    return detail
+
+
 def _note_quota_exhaustion(resp: "requests.Response") -> bool:
     """Record a spent daily quota from a 429 response. True when that's the case."""
     try:
@@ -98,6 +125,10 @@ def _note_quota_exhaustion(resp: "requests.Response") -> bool:
     if str(body.get("code")) != "900804" and "quota" not in str(body.get("description", "")).lower():
         return False
     _QUOTA_STATE["reset_at"] = body.get("nextAccessTime") or "unknown"
+    _set_fetch_error(
+        "quota_exhausted",
+        f"{_response_detail(resp)}; quota resets at {_QUOTA_STATE['reset_at']}",
+    )
     log.error(
         "[SAM.gov] Daily request quota exhausted — resets at %s",
         _QUOTA_STATE["reset_at"],
@@ -154,6 +185,7 @@ def fetch_notice_description(notice_id: str, max_chars: int = DESCRIPTION_MAX_CH
     api_key = _get_api_key()
     if not api_key:
         log.error("[SAM.gov] SAM_GOV_API_KEY not configured — cannot fetch descriptions")
+        _set_fetch_error("not_configured", "SAM.gov API key is not configured")
         return ""
 
     data = _request_with_backoff(
@@ -466,9 +498,14 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
 def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
     """Execute a GET request with exponential backoff + jitter on transient errors."""
     backoff = INITIAL_BACKOFF_S
+    last_response: Optional[requests.Response] = None
+    last_status: Optional[int] = None
+    last_exception: Optional[str] = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             resp = requests.get(url, params=params, timeout=60)
+            last_response = resp
+            last_status = resp.status_code
 
             if resp.status_code == 429:
                 # A blown daily quota is not a transient burst: SAM.gov reports
@@ -493,6 +530,12 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
                 backoff = min(backoff * 2, MAX_BACKOFF_S)
                 continue
 
+            if resp.status_code in (401, 403):
+                detail = _response_detail(resp)
+                _set_fetch_error("auth_failed", detail)
+                log.error("[SAM.gov] Authentication failed: %s", detail)
+                return None
+
             if resp.status_code >= 500:
                 jitter = random.uniform(0, backoff * 0.5)
                 wait = backoff + jitter
@@ -508,6 +551,9 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             return resp.json()
 
         except requests.ConnectionError as e:
+            last_response = None
+            last_status = None
+            last_exception = _scrub_key(str(e))
             jitter = random.uniform(0, backoff * 0.5)
             wait = backoff + jitter
             log.warning(
@@ -518,6 +564,9 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             backoff = min(backoff * 2, MAX_BACKOFF_S)
 
         except requests.Timeout as e:
+            last_response = None
+            last_status = None
+            last_exception = _scrub_key(str(e))
             jitter = random.uniform(0, backoff * 0.5)
             wait = backoff + jitter
             log.warning(
@@ -528,9 +577,32 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             backoff = min(backoff * 2, MAX_BACKOFF_S)
 
         except requests.RequestException as e:
-            log.error("[SAM.gov] Non-retryable request error: %s", _scrub_key(e))
+            last_exception = _scrub_key(str(e))
+            detail = (
+                _response_detail(last_response)
+                if last_response is not None
+                else f"SAM.gov request failed: {last_exception}"
+            )
+            _set_fetch_error("request_failed", detail)
+            log.error("[SAM.gov] Non-retryable request error: %s", detail)
             return None
 
+    if last_status == 429:
+        detail = (
+            _response_detail(last_response)
+            if last_response is not None
+            else "SAM.gov returned HTTP 429"
+        )
+        _set_fetch_error("rate_limited", f"{detail} after {MAX_RETRIES} retries")
+    elif last_status is not None and last_status >= 500:
+        detail = _response_detail(last_response)
+        _set_fetch_error("server_error", f"{detail} after {MAX_RETRIES} retries")
+    else:
+        detail = (
+            f"SAM.gov request failed after {MAX_RETRIES} retries"
+            + (f": {last_exception}" if last_exception else "")
+        )
+        _set_fetch_error("request_failed", detail)
     log.error("[SAM.gov] Exhausted %d retries — giving up on request", MAX_RETRIES)
     return None
 
@@ -562,9 +634,20 @@ def fetch_opportunities(
     Returns:
         List of Qdrant-compatible payload dicts
     """
+    _FETCH_ERROR["code"] = None
+    _FETCH_ERROR["detail"] = None
     api_key = _get_api_key()
     if not api_key:
         log.error("[SAM.gov] SAM_GOV_API_KEY not configured")
+        _set_fetch_error("not_configured", "SAM.gov API key is not configured")
+        return []
+
+    if quota_exhausted():
+        detail = (
+            "SAM.gov returned HTTP 429: daily request quota exhausted; "
+            f"quota resets at {quota_reset_at()}"
+        )
+        _set_fetch_error("quota_exhausted", detail)
         return []
 
     today = date.today()

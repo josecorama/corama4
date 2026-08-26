@@ -57,6 +57,7 @@ from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
+from sam_gov_client import last_fetch_error
 from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
 from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
 
@@ -322,18 +323,59 @@ def trigger_ingest_proposal():
         if str(source).strip().lower() in {"sam", "bidbuy"}
     }
     candidates, fetched, skipped = [], 0, 0
+    source_errors = {}
+    source_status = {}
     if "sam" in sources:
         new, count, already = fetch_new_payloads(limit=limit)
         candidates.extend(new)
         fetched += count
         skipped += already
+        sam_error = last_fetch_error()
+        source_status["sam"] = {
+            "success": not bool(sam_error),
+            "fetched": count,
+            "new": len(new),
+        }
+        if sam_error:
+            source_errors["sam"] = sam_error
     if "bidbuy" in sources:
         new, count, already = fetch_bidbuy_payloads(limit=limit)
         candidates.extend(new)
         fetched += count
         skipped += already
+        source_status["bidbuy"] = {
+            "success": True,
+            "fetched": count,
+            "new": len(new),
+        }
     candidates = _dedupe_contracts(candidates)
     if not candidates:
+        if source_errors:
+            all_sources_failed = all(source in source_errors for source in sources)
+            first_error = next(iter(source_errors.values()))
+            error_response = {
+                "success": False,
+                "error": first_error["code"],
+                "detail": first_error["detail"],
+                "fetched": fetched,
+            }
+            if len(sources) > 1:
+                error_response["sources"] = source_status
+            if all_sources_failed:
+                return jsonify(error_response), 502
+            app.logger.warning(
+                "[Ingest] Source failure while another source returned no candidates: %s",
+                source_errors,
+            )
+            no_new_response = {
+                "success": True,
+                "message": "No new contracts to propose",
+                "fetched": fetched,
+                "skipped": skipped,
+                "new": 0,
+                "sources": source_status,
+            }
+            return jsonify(no_new_response)
         return jsonify({"success": True, "message": "No new contracts to propose",
                         "fetched": fetched, "skipped": skipped, "new": 0})
 
@@ -358,8 +400,11 @@ def trigger_ingest_proposal():
         if ok:
             sent.append(r)
 
-    return jsonify({"success": True, "token": token, "new": len(candidates),
-                    "fetched": fetched, "skipped": skipped, "emailed": sent})
+    response = {"success": True, "token": token, "new": len(candidates),
+                "fetched": fetched, "skipped": skipped, "emailed": sent}
+    if source_errors:
+        response["sources"] = source_status
+    return jsonify(response)
 
 
 @app.route('/api/ingest/confirm/<token>', methods=['GET'])

@@ -22,6 +22,7 @@ from qdrant_client.models import PointStruct, Filter, FieldCondition, MatchValue
 
 from sam_gov_client import (
     fetch_opportunities,
+    last_fetch_error,
     map_opportunity_to_payload,
     hydrate_descriptions,
 )
@@ -297,7 +298,14 @@ def sync_sam_gov_to_qdrant(
     stats["skipped"] = skipped
 
     if not new_payloads:
-        log.info("[SAM Sync] Nothing new to ingest (fetched=%d skipped=%d)", fetched, skipped)
+        fetch_error = last_fetch_error()
+        if fetch_error:
+            log.error(
+                "[SAM Sync] Cannot ingest because SAM.gov fetch failed (%s): %s",
+                fetch_error["code"], fetch_error["detail"],
+            )
+        else:
+            log.info("[SAM Sync] Nothing new to ingest (fetched=%d skipped=%d)", fetched, skipped)
         return stats
 
     ingest_stats = ingest_payloads(new_payloads)
@@ -333,6 +341,12 @@ def fetch_new_payloads(
         only_active=True,
         state=state,
     )
+    fetch_error = last_fetch_error()
+    if fetch_error:
+        log.error(
+            "[SAM Sync] SAM.gov fetch failed (%s): %s",
+            fetch_error["code"], fetch_error["detail"],
+        )
     fetched = len(payloads)
     if not payloads:
         log.info("[SAM Sync] No opportunities fetched from SAM.gov")
