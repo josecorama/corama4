@@ -15,6 +15,7 @@ import uuid
 import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any, Dict, Optional, Set, Tuple
 
 import matplotlib
 matplotlib.use('Agg')
@@ -57,7 +58,18 @@ from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
-from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
+from bidbuy_client import get_last_fetch_stats
+from sam_gov_client import last_fetch_error, last_hydration_stats
+from ingest_approval import (
+    get_pending_batch,
+    set_status,
+    is_expired,
+    create_pending_batch,
+    claim_ingest_job,
+    update_ingest_job,
+    get_ingest_job,
+    find_running_ingest_job,
+)
 from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
 
 # Load environment variables - use override=False to preserve system environment variables
@@ -103,6 +115,8 @@ else:
 
 proposal_jobs = {}
 job_lock = threading.Lock()
+_INGEST_JOBS: Dict[str, Dict[str, Any]] = {}
+_INGEST_JOBS_LOCK = threading.Lock()
 
 # ============================================================================
 # FINE-TUNED MODEL CONFIGURATION
@@ -299,13 +313,175 @@ def _ingest_result_page(title, message, color="#0f766e"):
 </body></html>"""
 
 
+def _add_hydration_stats(response: Dict[str, Any], hydration: Dict[str, Any]) -> Dict[str, Any]:
+    """Include useful hydration diagnostics when SAM descriptions were processed."""
+    if hydration and (
+        hydration.get("attempted")
+        or hydration.get("api_calls")
+        or hydration.get("stopped_reason")
+    ):
+        response["hydration"] = hydration
+    return response
+
+
+def _run_ingest_proposal(
+    limit: int,
+    sources: Set[str],
+    base_url: Optional[str] = None,
+) -> Tuple[Dict[str, Any], int]:
+    """Fetch candidates and send the approval preview without an HTTP context."""
+    candidates, fetched, skipped = [], 0, 0
+    source_errors = {}
+    source_status = {}
+    hydration: Dict[str, Any] = {}
+    if "sam" in sources:
+        new, count, already = fetch_new_payloads(limit=limit)
+        candidates.extend(new)
+        fetched += count
+        skipped += already
+        hydration = last_hydration_stats()
+        sam_error = last_fetch_error()
+        source_status["sam"] = {
+            "success": not bool(sam_error),
+            "fetched": count,
+            "new": len(new),
+        }
+        if sam_error:
+            source_errors["sam"] = sam_error
+            source_status["sam"].update({
+                "error": sam_error["code"],
+                "detail": sam_error["detail"],
+            })
+    if "bidbuy" in sources:
+        new, count, already = fetch_bidbuy_payloads(limit=limit)
+        candidates.extend(new)
+        fetched += count
+        skipped += already
+        bidbuy_stats = get_last_fetch_stats()
+        blocked = bidbuy_stats.get("blocked", 0)
+        fetch_failed = bidbuy_stats.get("fetch_failed", 0)
+        bidbuy_error = {}
+        if not new and (blocked or fetch_failed):
+            code = "scrape_blocked" if blocked else "scrape_failed"
+            bidbuy_error = {
+                "code": code,
+                "detail": (
+                    "BidBuy fetch diagnostics: "
+                    f"blocked={blocked}, fetch_failed={fetch_failed}"
+                ),
+            }
+            source_errors["bidbuy"] = bidbuy_error
+        source_status["bidbuy"] = {
+            "success": not bool(bidbuy_error),
+            "fetched": count,
+            "new": len(new),
+        }
+        if bidbuy_error:
+            source_status["bidbuy"].update({
+                "error": bidbuy_error["code"],
+                "detail": bidbuy_error["detail"],
+            })
+    candidates = _dedupe_contracts(candidates)
+    if not candidates:
+        if source_errors:
+            all_sources_failed = all(source in source_errors for source in sources)
+            first_error = next(iter(source_errors.values()))
+            error_response = {
+                "success": False,
+                "error": first_error["code"],
+                "detail": first_error["detail"],
+                "fetched": fetched,
+            }
+            _add_hydration_stats(error_response, hydration)
+            if len(sources) > 1:
+                error_response["sources"] = source_status
+            if all_sources_failed:
+                return error_response, 502
+            app.logger.warning(
+                "[Ingest] Source failure while another source returned no candidates: %s",
+                source_errors,
+            )
+            no_new_response = {
+                "success": True,
+                "message": "No new contracts to propose",
+                "fetched": fetched,
+                "skipped": skipped,
+                "new": 0,
+                "sources": source_status,
+            }
+            _add_hydration_stats(no_new_response, hydration)
+            return no_new_response, 200
+        no_new_response = {
+            "success": True, "message": "No new contracts to propose",
+            "fetched": fetched, "skipped": skipped, "new": 0,
+        }
+        _add_hydration_stats(no_new_response, hydration)
+        return no_new_response, 200
+
+    source_label = " + ".join(
+        label for key, label in (("sam", "SAM.gov"), ("bidbuy", "BidBuy Illinois"))
+        if key in sources
+    )
+    token = create_pending_batch(candidates, source=source_label)
+    if not token:
+        return {"success": False, "error": "Could not store pending batch"}, 500
+
+    base_url = base_url or os.getenv("APP_BASE_URL", "https://corama.ai")
+    confirm_url = f"{base_url.rstrip('/')}/api/ingest/confirm/{token}"
+    reject_url = f"{base_url.rstrip('/')}/api/ingest/reject/{token}"
+
+    recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', 'admin@corama.ai').split(',') if e.strip()]
+    body = build_preview_html(candidates, confirm_url, reject_url)
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    sent = []
+    for r in recipients:
+        ok, _ = send_email_smtp(r, f"Corama: approve ingest of {len(candidates)} new contracts ({today})", body)
+        if ok:
+            sent.append(r)
+
+    response = {"success": True, "token": token, "new": len(candidates),
+                "fetched": fetched, "skipped": skipped, "emailed": sent}
+    if source_errors:
+        response["sources"] = source_status
+    _add_hydration_stats(response, hydration)
+    return response, 200
+
+
+def _ingest_job_timestamp() -> str:
+    return datetime.utcnow().isoformat() + "Z"
+
+
+def _run_ingest_job(job_id: str, limit: int, sources: Set[str], base_url: str) -> None:
+    try:
+        result, result_status = _run_ingest_proposal(limit, sources, base_url)
+    except Exception as exc:
+        app.logger.exception("[Ingest] Background proposal job %s failed", job_id)
+        with _INGEST_JOBS_LOCK:
+            update_ingest_job(job_id, {
+                "finished_at": _ingest_job_timestamp(),
+                "status": "failed",
+                "result": {
+                    "success": False,
+                    "error": "job_failed",
+                    "detail": str(exc),
+                },
+                "result_status": 500,
+                "error": str(exc),
+            }, _INGEST_JOBS)
+        return
+
+    with _INGEST_JOBS_LOCK:
+        update_ingest_job(job_id, {
+            "finished_at": _ingest_job_timestamp(),
+            "status": "done",
+            "result": result,
+            "result_status": result_status,
+        }, _INGEST_JOBS)
+
+
 @app.route('/api/ingest/propose', methods=['POST'])
 def trigger_ingest_proposal():
-    """Admin endpoint: fetch new SAM.gov contracts and email an approval preview.
-
-    Lets you trigger the approval email on demand (e.g. to get the first email
-    without waiting for the daily cron). Requires X-Admin-Key.
-    """
+    """Start an ingestion proposal, or run it inline when ``wait`` is true."""
     admin_key = request.headers.get('X-Admin-Key') or (
         request.json.get('admin_key') if request.is_json else None
     )
@@ -321,45 +497,67 @@ def trigger_ingest_proposal():
         for source in (requested_sources.split(",") if isinstance(requested_sources, str) else requested_sources)
         if str(source).strip().lower() in {"sam", "bidbuy"}
     }
-    candidates, fetched, skipped = [], 0, 0
-    if "sam" in sources:
-        new, count, already = fetch_new_payloads(limit=limit)
-        candidates.extend(new)
-        fetched += count
-        skipped += already
-    if "bidbuy" in sources:
-        new, count, already = fetch_bidbuy_payloads(limit=limit)
-        candidates.extend(new)
-        fetched += count
-        skipped += already
-    candidates = _dedupe_contracts(candidates)
-    if not candidates:
-        return jsonify({"success": True, "message": "No new contracts to propose",
-                        "fetched": fetched, "skipped": skipped, "new": 0})
+    if data.get("wait") is True:
+        with _INGEST_JOBS_LOCK:
+            running_job = find_running_ingest_job(_INGEST_JOBS)
+            if running_job:
+                return jsonify({
+                    "success": False,
+                    "status": "running",
+                    "job_id": running_job["job_id"],
+                }), 409
+        result, result_status = _run_ingest_proposal(
+            limit, sources, request.url_root.rstrip("/")
+        )
+        return jsonify(result), result_status
 
-    source_label = " + ".join(
-        label for key, label in (("sam", "SAM.gov"), ("bidbuy", "BidBuy Illinois"))
-        if key in sources
+    with _INGEST_JOBS_LOCK:
+        job_id = uuid.uuid4().hex
+        job = {
+            "job_id": job_id,
+            "started_at": _ingest_job_timestamp(),
+            "finished_at": None,
+            "status": "running",
+            "result": None,
+            "result_status": None,
+        }
+        running_job = claim_ingest_job(job_id, job, _INGEST_JOBS)
+        if running_job is not None:
+            return jsonify({
+                "success": False,
+                "status": "running",
+                "job_id": running_job["job_id"],
+            }), 409
+
+    thread = threading.Thread(
+        target=_run_ingest_job,
+        args=(job_id, limit, sources, request.url_root.rstrip("/")),
+        daemon=True,
     )
-    token = create_pending_batch(candidates, source=source_label)
-    if not token:
-        return jsonify({"success": False, "error": "Could not store pending batch"}), 500
+    thread.start()
+    return jsonify({
+        "success": True,
+        "status": "started",
+        "job_id": job_id,
+        "status_url": f"/api/ingest/status/{job_id}",
+    }), 202
 
-    base_url = os.getenv('APP_BASE_URL', request.url_root.rstrip('/'))
-    confirm_url = f"{base_url.rstrip('/')}/api/ingest/confirm/{token}"
-    reject_url = f"{base_url.rstrip('/')}/api/ingest/reject/{token}"
 
-    recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', 'admin@corama.ai').split(',') if e.strip()]
-    body = build_preview_html(candidates, confirm_url, reject_url)
-    today = datetime.utcnow().strftime('%Y-%m-%d')
-    sent = []
-    for r in recipients:
-        ok, _ = send_email_smtp(r, f"Corama: approve ingest of {len(candidates)} new contracts ({today})", body)
-        if ok:
-            sent.append(r)
+@app.route('/api/ingest/status/<job_id>', methods=['GET'])
+def ingest_proposal_status(job_id: str):
+    """Return the result of an asynchronous ingestion proposal job."""
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    if expected_key and admin_key != expected_key:
+        return jsonify({"error": "Unauthorized"}), 401
 
-    return jsonify({"success": True, "token": token, "new": len(candidates),
-                    "fetched": fetched, "skipped": skipped, "emailed": sent})
+    with _INGEST_JOBS_LOCK:
+        job = get_ingest_job(job_id, _INGEST_JOBS)
+        if job is None:
+            return jsonify({"error": "Job not found"}), 404
+        return jsonify(job)
 
 
 @app.route('/api/ingest/confirm/<token>', methods=['GET'])

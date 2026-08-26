@@ -40,6 +40,8 @@ except Exception:
 
 from sam_gov_sync import fetch_new_payloads, ingest_payloads, remove_expired_contracts
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
+from bidbuy_client import get_last_fetch_stats
+from sam_gov_client import last_fetch_error, last_hydration_stats
 from ingest_approval import create_pending_batch
 from ingest_email import build_preview_html, build_result_html, dedupe
 from email_utils import send_email_smtp
@@ -49,6 +51,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 log = logging.getLogger("daily_ingest")
+_LAST_SOURCE_ERRORS: Dict[str, Dict[str, str]] = {}
 
 DEFAULT_DIGEST_EMAIL = "admin@corama.ai"
 DEFAULT_BASE_URL = "https://corama.ai"
@@ -60,16 +63,54 @@ def collect_candidates(
     """Fetch new (not-yet-ingested) contracts from the enabled sources."""
     all_new: List[Dict[str, Any]] = []
     fetched_total = skipped_total = 0
+    _LAST_SOURCE_ERRORS.clear()
 
     if "sam" in sources:
         log.info("Fetching federal SAM.gov opportunities (limit=%d)...", limit)
         new, fetched, skipped = fetch_new_payloads(limit=limit)
+        hydration = last_hydration_stats()
+        log.info(
+            "SAM.gov description hydration: attempted=%s hydrated=%s "
+            "from_bulk=%s failed=%s api_calls=%s stopped_reason=%s",
+            hydration.get("attempted", 0),
+            hydration.get("hydrated", 0),
+            hydration.get("from_bulk", 0),
+            hydration.get("failed", 0),
+            hydration.get("api_calls", 0),
+            hydration.get("stopped_reason", ""),
+        )
+        sam_error = last_fetch_error()
+        if sam_error:
+            _LAST_SOURCE_ERRORS.setdefault("sam", sam_error)
+            log.error(
+                "SAM.gov fetch failed (%s): %s",
+                sam_error["code"], sam_error["detail"],
+            )
         all_new.extend(new)
         fetched_total += fetched
         skipped_total += skipped
         for st in states:
             log.info("Fetching SAM.gov opportunities for state=%s...", st)
             new, fetched, skipped = fetch_new_payloads(limit=limit, state=st)
+            hydration = last_hydration_stats()
+            log.info(
+                "SAM.gov state description hydration (%s): attempted=%s hydrated=%s "
+                "from_bulk=%s failed=%s api_calls=%s stopped_reason=%s",
+                st,
+                hydration.get("attempted", 0),
+                hydration.get("hydrated", 0),
+                hydration.get("from_bulk", 0),
+                hydration.get("failed", 0),
+                hydration.get("api_calls", 0),
+                hydration.get("stopped_reason", ""),
+            )
+            sam_error = last_fetch_error()
+            if sam_error:
+                _LAST_SOURCE_ERRORS.setdefault("sam", sam_error)
+                log.error(
+                    "SAM.gov state fetch failed (%s): %s",
+                    sam_error["code"], sam_error["detail"],
+                )
             all_new.extend(new)
             fetched_total += fetched
             skipped_total += skipped
@@ -77,6 +118,23 @@ def collect_candidates(
     if "bidbuy" in sources:
         log.info("Fetching BidBuy Illinois opportunities (limit=%d)...", limit)
         new, fetched, skipped = fetch_bidbuy_payloads(limit=limit)
+        bidbuy_stats = get_last_fetch_stats()
+        blocked = bidbuy_stats.get("blocked", 0)
+        fetch_failed = bidbuy_stats.get("fetch_failed", 0)
+        if not new and (blocked or fetch_failed):
+            code = "scrape_blocked" if blocked else "scrape_failed"
+            error = {
+                "code": code,
+                "detail": (
+                    "BidBuy fetch diagnostics: "
+                    f"blocked={blocked}, fetch_failed={fetch_failed}"
+                ),
+            }
+            _LAST_SOURCE_ERRORS.setdefault("bidbuy", error)
+            log.error(
+                "BidBuy fetch failed (%s): %s",
+                error["code"], error["detail"],
+            )
         all_new.extend(new)
         fetched_total += fetched
         skipped_total += skipped
@@ -118,6 +176,36 @@ def run_propose(limit: int, states: List[str], recipients: List[str],
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if not candidates:
+        if _LAST_SOURCE_ERRORS:
+            all_sources_failed = all(source in _LAST_SOURCE_ERRORS for source in sources)
+            details = "; ".join(
+                f"{source}={error['code']}: {error['detail']}"
+                for source, error in _LAST_SOURCE_ERRORS.items()
+            )
+            if all_sources_failed:
+                log.error("All ingestion sources failed; no contracts to propose: %s", details)
+                if send_email:
+                    body = build_result_html(
+                        {"new": 0, "fetched": fetched, "skipped": skipped,
+                         "removed_expired": removed, "errors": len(_LAST_SOURCE_ERRORS),
+                         "source_errors": _LAST_SOURCE_ERRORS, "added_contracts": []},
+                        title="Daily Ingestion — source fetch failed",
+                    )
+                    send_mail(recipients, f"Corama daily ingest: source failure ({today})", body)
+                return 1
+            log.warning(
+                "Some ingestion sources failed; no new contracts from remaining sources: %s",
+                details,
+            )
+            if send_email:
+                body = build_result_html(
+                    {"new": 0, "fetched": fetched, "skipped": skipped,
+                     "removed_expired": removed, "errors": len(_LAST_SOURCE_ERRORS),
+                     "source_errors": _LAST_SOURCE_ERRORS, "added_contracts": []},
+                    title="Daily Ingestion — source warning",
+                )
+                send_mail(recipients, f"Corama daily ingest: source warning ({today})", body)
+            return 0
         log.info("No new contracts to propose (fetched=%d skipped=%d)", fetched, skipped)
         if send_email:
             body = build_result_html(

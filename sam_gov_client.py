@@ -23,7 +23,7 @@ import hashlib
 import tempfile
 import uuid
 from datetime import datetime, date, timedelta
-from typing import List, Dict, Any, Iterable, Optional, Set
+from typing import List, Dict, Any, Iterable, Optional, Set, Union
 
 import requests
 
@@ -77,6 +77,15 @@ def _get_api_key() -> Optional[str]:
 # Set when SAM.gov reports the daily request quota is spent, so every later
 # call in the process short-circuits instead of sleeping through retries.
 _QUOTA_STATE: Dict[str, Any] = {"reset_at": None}
+_FETCH_ERROR: Dict[str, Optional[str]] = {"code": None, "detail": None}
+_HYDRATION_STATS: Dict[str, Union[int, str]] = {
+    "attempted": 0,
+    "hydrated": 0,
+    "failed": 0,
+    "from_bulk": 0,
+    "api_calls": 0,
+    "stopped_reason": "",
+}
 
 
 def quota_exhausted() -> bool:
@@ -89,6 +98,37 @@ def quota_reset_at() -> Optional[str]:
     return _QUOTA_STATE["reset_at"]
 
 
+def last_fetch_error() -> Dict[str, str]:
+    """Return the reason the most recent SAM.gov fetch failed, if any."""
+    code = _FETCH_ERROR["code"]
+    detail = _FETCH_ERROR["detail"]
+    if not code or not detail:
+        return {}
+    return {"code": code, "detail": detail}
+
+
+def last_hydration_stats() -> Dict[str, Union[int, str]]:
+    """Return stats from the most recent description hydration run."""
+    return dict(_HYDRATION_STATS)
+
+
+def _set_fetch_error(code: str, detail: str) -> None:
+    _FETCH_ERROR["code"] = code
+    _FETCH_ERROR["detail"] = _scrub_key(detail)
+
+
+def _response_detail(resp: "requests.Response") -> str:
+    """Describe an HTTP response without leaking the API key."""
+    try:
+        body = resp.text.strip()
+    except (AttributeError, TypeError):
+        body = ""
+    detail = f"SAM.gov returned HTTP {resp.status_code}"
+    if body:
+        detail += f": {_scrub_key(body[:500])}"
+    return detail
+
+
 def _note_quota_exhaustion(resp: "requests.Response") -> bool:
     """Record a spent daily quota from a 429 response. True when that's the case."""
     try:
@@ -98,6 +138,10 @@ def _note_quota_exhaustion(resp: "requests.Response") -> bool:
     if str(body.get("code")) != "900804" and "quota" not in str(body.get("description", "")).lower():
         return False
     _QUOTA_STATE["reset_at"] = body.get("nextAccessTime") or "unknown"
+    _set_fetch_error(
+        "quota_exhausted",
+        f"{_response_detail(resp)}; quota resets at {_QUOTA_STATE['reset_at']}",
+    )
     log.error(
         "[SAM.gov] Daily request quota exhausted — resets at %s",
         _QUOTA_STATE["reset_at"],
@@ -154,6 +198,7 @@ def fetch_notice_description(notice_id: str, max_chars: int = DESCRIPTION_MAX_CH
     api_key = _get_api_key()
     if not api_key:
         log.error("[SAM.gov] SAM_GOV_API_KEY not configured — cannot fetch descriptions")
+        _set_fetch_error("not_configured", "SAM.gov API key is not configured")
         return ""
 
     data = _request_with_backoff(
@@ -261,18 +306,30 @@ def hydrate_descriptions(
     payloads: List[Dict[str, Any]],
     progress_every: int = 100,
     use_bulk_csv: bool = True,
-) -> Dict[str, int]:
+) -> Dict[str, Union[int, str]]:
     """Replace missing descriptions with the real notice text, in place.
 
     ``map_opportunity_to_payload`` cannot do this itself: it would mean one HTTP
     call per opportunity while paginating. Hydrating after deduplication keeps
     the call count down to the contracts actually being ingested.
 
-    Returns stats: attempted, hydrated, failed.
+    Returns stats: attempted, hydrated, failed, api_calls, stopped_reason.
     """
-    stats = {"attempted": 0, "hydrated": 0, "failed": 0, "from_bulk": 0}
+    stats: Dict[str, int] = {
+        "attempted": 0,
+        "hydrated": 0,
+        "failed": 0,
+        "from_bulk": 0,
+        "api_calls": 0,
+    }
+    stopped_reason = ""
+    _HYDRATION_STATS.clear()
+    _HYDRATION_STATS.update(stats)
+    _HYDRATION_STATS["stopped_reason"] = stopped_reason
     if not payloads:
-        return stats
+        result = dict(stats)
+        result["stopped_reason"] = stopped_reason
+        return result
 
     pending: List[Any] = []
     for payload in payloads:
@@ -286,7 +343,14 @@ def hydrate_descriptions(
             pending.append((payload, notice_id))
 
     if not pending:
-        return stats
+        result = dict(stats)
+        result["stopped_reason"] = stopped_reason
+        return result
+
+    try:
+        api_call_cap = max(0, int(os.getenv("SAM_MAX_DESCRIPTION_API_CALLS", "200")))
+    except ValueError:
+        api_call_cap = 200
 
     bulk: Dict[str, str] = {}
     if use_bulk_csv and len(pending) >= BULK_CSV_MIN_NOTICES:
@@ -303,8 +367,26 @@ def hydrate_descriptions(
         if text:
             stats["from_bulk"] += 1
         else:
+            if quota_exhausted():
+                stopped_reason = "quota"
+                stats["attempted"] -= 1
+                log.warning(
+                    "[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
+                    index, len(pending),
+                )
+                break
+            if stats["api_calls"] >= api_call_cap:
+                stopped_reason = "api_call_cap"
+                stats["attempted"] -= 1
+                log.warning(
+                    "[SAM.gov] Stopping description hydration at %d/%d — "
+                    "reached SAM_MAX_DESCRIPTION_API_CALLS=%d",
+                    index, len(pending), api_call_cap,
+                )
+                break
             if stats["attempted"] - stats["from_bulk"] > 1:
                 time.sleep(MIN_DESC_INTERVAL_S)
+            stats["api_calls"] += 1
             text = fetch_notice_description(notice_id)
 
         if text:
@@ -315,6 +397,7 @@ def hydrate_descriptions(
             log.warning("[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
                         index, len(pending))
             stats["attempted"] -= 1
+            stopped_reason = "quota"
             break
         else:
             # Never leave a URL behind: it would be embedded as if it were text.
@@ -330,10 +413,15 @@ def hydrate_descriptions(
 
     log.info(
         "[SAM.gov] Description hydration complete: attempted=%d hydrated=%d "
-        "(%d from bulk CSV) failed=%d",
+        "(%d from bulk CSV) failed=%d api_calls=%d stopped_reason=%s",
         stats["attempted"], stats["hydrated"], stats["from_bulk"], stats["failed"],
+        stats["api_calls"], stopped_reason,
     )
-    return stats
+    result = dict(stats)
+    result["stopped_reason"] = stopped_reason
+    _HYDRATION_STATS.clear()
+    _HYDRATION_STATS.update(result)
+    return result
 
 
 def _parse_sam_date(date_str: Optional[str]) -> Optional[str]:
@@ -466,9 +554,14 @@ def map_opportunity_to_payload(opp: Dict[str, Any]) -> Dict[str, Any]:
 def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
     """Execute a GET request with exponential backoff + jitter on transient errors."""
     backoff = INITIAL_BACKOFF_S
+    last_response: Optional[requests.Response] = None
+    last_status: Optional[int] = None
+    last_exception: Optional[str] = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             resp = requests.get(url, params=params, timeout=60)
+            last_response = resp
+            last_status = resp.status_code
 
             if resp.status_code == 429:
                 # A blown daily quota is not a transient burst: SAM.gov reports
@@ -493,6 +586,12 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
                 backoff = min(backoff * 2, MAX_BACKOFF_S)
                 continue
 
+            if resp.status_code in (401, 403):
+                detail = _response_detail(resp)
+                _set_fetch_error("auth_failed", detail)
+                log.error("[SAM.gov] Authentication failed: %s", detail)
+                return None
+
             if resp.status_code >= 500:
                 jitter = random.uniform(0, backoff * 0.5)
                 wait = backoff + jitter
@@ -508,6 +607,9 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             return resp.json()
 
         except requests.ConnectionError as e:
+            last_response = None
+            last_status = None
+            last_exception = _scrub_key(str(e))
             jitter = random.uniform(0, backoff * 0.5)
             wait = backoff + jitter
             log.warning(
@@ -518,6 +620,9 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             backoff = min(backoff * 2, MAX_BACKOFF_S)
 
         except requests.Timeout as e:
+            last_response = None
+            last_status = None
+            last_exception = _scrub_key(str(e))
             jitter = random.uniform(0, backoff * 0.5)
             wait = backoff + jitter
             log.warning(
@@ -528,9 +633,32 @@ def _request_with_backoff(url: str, params: Dict[str, Any]) -> Optional[Dict]:
             backoff = min(backoff * 2, MAX_BACKOFF_S)
 
         except requests.RequestException as e:
-            log.error("[SAM.gov] Non-retryable request error: %s", _scrub_key(e))
+            last_exception = _scrub_key(str(e))
+            detail = (
+                _response_detail(last_response)
+                if last_response is not None
+                else f"SAM.gov request failed: {last_exception}"
+            )
+            _set_fetch_error("request_failed", detail)
+            log.error("[SAM.gov] Non-retryable request error: %s", detail)
             return None
 
+    if last_status == 429:
+        detail = (
+            _response_detail(last_response)
+            if last_response is not None
+            else "SAM.gov returned HTTP 429"
+        )
+        _set_fetch_error("rate_limited", f"{detail} after {MAX_RETRIES} retries")
+    elif last_status is not None and last_status >= 500:
+        detail = _response_detail(last_response)
+        _set_fetch_error("server_error", f"{detail} after {MAX_RETRIES} retries")
+    else:
+        detail = (
+            f"SAM.gov request failed after {MAX_RETRIES} retries"
+            + (f": {last_exception}" if last_exception else "")
+        )
+        _set_fetch_error("request_failed", detail)
     log.error("[SAM.gov] Exhausted %d retries — giving up on request", MAX_RETRIES)
     return None
 
@@ -562,9 +690,20 @@ def fetch_opportunities(
     Returns:
         List of Qdrant-compatible payload dicts
     """
+    _FETCH_ERROR["code"] = None
+    _FETCH_ERROR["detail"] = None
     api_key = _get_api_key()
     if not api_key:
         log.error("[SAM.gov] SAM_GOV_API_KEY not configured")
+        _set_fetch_error("not_configured", "SAM.gov API key is not configured")
+        return []
+
+    if quota_exhausted():
+        detail = (
+            "SAM.gov returned HTTP 429: daily request quota exhausted; "
+            f"quota resets at {quota_reset_at()}"
+        )
+        _set_fetch_error("quota_exhausted", detail)
         return []
 
     today = date.today()
