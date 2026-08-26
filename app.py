@@ -60,7 +60,16 @@ from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, inges
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
 from bidbuy_client import get_last_fetch_stats
 from sam_gov_client import last_fetch_error, last_hydration_stats
-from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
+from ingest_approval import (
+    get_pending_batch,
+    set_status,
+    is_expired,
+    create_pending_batch,
+    claim_ingest_job,
+    update_ingest_job,
+    get_ingest_job,
+    find_running_ingest_job,
+)
 from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
 
 # Load environment variables - use override=False to preserve system environment variables
@@ -442,20 +451,13 @@ def _ingest_job_timestamp() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
 
-def _running_ingest_job() -> Optional[Dict[str, Any]]:
-    return next(
-        (job for job in _INGEST_JOBS.values() if job["status"] == "running"),
-        None,
-    )
-
-
 def _run_ingest_job(job_id: str, limit: int, sources: Set[str], base_url: str) -> None:
     try:
         result, result_status = _run_ingest_proposal(limit, sources, base_url)
     except Exception as exc:
         app.logger.exception("[Ingest] Background proposal job %s failed", job_id)
         with _INGEST_JOBS_LOCK:
-            _INGEST_JOBS[job_id].update({
+            update_ingest_job(job_id, {
                 "finished_at": _ingest_job_timestamp(),
                 "status": "failed",
                 "result": {
@@ -465,16 +467,16 @@ def _run_ingest_job(job_id: str, limit: int, sources: Set[str], base_url: str) -
                 },
                 "result_status": 500,
                 "error": str(exc),
-            })
+            }, _INGEST_JOBS)
         return
 
     with _INGEST_JOBS_LOCK:
-        _INGEST_JOBS[job_id].update({
+        update_ingest_job(job_id, {
             "finished_at": _ingest_job_timestamp(),
             "status": "done",
             "result": result,
             "result_status": result_status,
-        })
+        }, _INGEST_JOBS)
 
 
 @app.route('/api/ingest/propose', methods=['POST'])
@@ -497,7 +499,7 @@ def trigger_ingest_proposal():
     }
     if data.get("wait") is True:
         with _INGEST_JOBS_LOCK:
-            running_job = _running_ingest_job()
+            running_job = find_running_ingest_job(_INGEST_JOBS)
             if running_job:
                 return jsonify({
                     "success": False,
@@ -510,16 +512,8 @@ def trigger_ingest_proposal():
         return jsonify(result), result_status
 
     with _INGEST_JOBS_LOCK:
-        running_job = _running_ingest_job()
-        if running_job:
-            return jsonify({
-                "success": False,
-                "status": "running",
-                "job_id": running_job["job_id"],
-            }), 409
-
         job_id = uuid.uuid4().hex
-        _INGEST_JOBS[job_id] = {
+        job = {
             "job_id": job_id,
             "started_at": _ingest_job_timestamp(),
             "finished_at": None,
@@ -527,6 +521,13 @@ def trigger_ingest_proposal():
             "result": None,
             "result_status": None,
         }
+        running_job = claim_ingest_job(job_id, job, _INGEST_JOBS)
+        if running_job is not None:
+            return jsonify({
+                "success": False,
+                "status": "running",
+                "job_id": running_job["job_id"],
+            }), 409
 
     thread = threading.Thread(
         target=_run_ingest_job,
@@ -553,10 +554,10 @@ def ingest_proposal_status(job_id: str):
         return jsonify({"error": "Unauthorized"}), 401
 
     with _INGEST_JOBS_LOCK:
-        job = _INGEST_JOBS.get(job_id)
+        job = get_ingest_job(job_id, _INGEST_JOBS)
         if job is None:
             return jsonify({"error": "Job not found"}), 404
-        return jsonify(dict(job))
+        return jsonify(job)
 
 
 @app.route('/api/ingest/confirm/<token>', methods=['GET'])

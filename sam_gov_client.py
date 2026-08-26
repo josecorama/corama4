@@ -315,18 +315,21 @@ def hydrate_descriptions(
 
     Returns stats: attempted, hydrated, failed, api_calls, stopped_reason.
     """
-    stats: Dict[str, Union[int, str]] = {
+    stats: Dict[str, int] = {
         "attempted": 0,
         "hydrated": 0,
         "failed": 0,
         "from_bulk": 0,
         "api_calls": 0,
-        "stopped_reason": "",
     }
+    stopped_reason = ""
     _HYDRATION_STATS.clear()
     _HYDRATION_STATS.update(stats)
+    _HYDRATION_STATS["stopped_reason"] = stopped_reason
     if not payloads:
-        return stats
+        result = dict(stats)
+        result["stopped_reason"] = stopped_reason
+        return result
 
     pending: List[Any] = []
     for payload in payloads:
@@ -340,7 +343,9 @@ def hydrate_descriptions(
             pending.append((payload, notice_id))
 
     if not pending:
-        return stats
+        result = dict(stats)
+        result["stopped_reason"] = stopped_reason
+        return result
 
     try:
         api_call_cap = max(0, int(os.getenv("SAM_MAX_DESCRIPTION_API_CALLS", "200")))
@@ -360,19 +365,19 @@ def hydrate_descriptions(
 
         text = bulk.get(notice_id, "")
         if text:
-            stats["from_bulk"] = int(stats["from_bulk"]) + 1
+            stats["from_bulk"] += 1
         else:
             if quota_exhausted():
-                stats["stopped_reason"] = "quota"
-                stats["attempted"] = int(stats["attempted"]) - 1
+                stopped_reason = "quota"
+                stats["attempted"] -= 1
                 log.warning(
                     "[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
                     index, len(pending),
                 )
                 break
-            if int(stats["api_calls"]) >= api_call_cap:
-                stats["stopped_reason"] = "api_call_cap"
-                stats["attempted"] = int(stats["attempted"]) - 1
+            if stats["api_calls"] >= api_call_cap:
+                stopped_reason = "api_call_cap"
+                stats["attempted"] -= 1
                 log.warning(
                     "[SAM.gov] Stopping description hydration at %d/%d — "
                     "reached SAM_MAX_DESCRIPTION_API_CALLS=%d",
@@ -381,24 +386,24 @@ def hydrate_descriptions(
                 break
             if stats["attempted"] - stats["from_bulk"] > 1:
                 time.sleep(MIN_DESC_INTERVAL_S)
-            stats["api_calls"] = int(stats["api_calls"]) + 1
+            stats["api_calls"] += 1
             text = fetch_notice_description(notice_id)
 
         if text:
             payload["description"] = text
-            stats["hydrated"] = int(stats["hydrated"]) + 1
+            stats["hydrated"] += 1
         elif quota_exhausted():
             # Quota, not a bad notice: keep the URL so a later run can retry.
             log.warning("[SAM.gov] Stopping description hydration at %d/%d — daily quota spent",
                         index, len(pending))
-            stats["attempted"] = int(stats["attempted"]) - 1
-            stats["stopped_reason"] = "quota"
+            stats["attempted"] -= 1
+            stopped_reason = "quota"
             break
         else:
             # Never leave a URL behind: it would be embedded as if it were text.
             if _is_url(payload.get("description")):
                 payload["description"] = ""
-            stats["failed"] = int(stats["failed"]) + 1
+            stats["failed"] += 1
 
         if progress_every and index % progress_every == 0:
             log.info(
@@ -410,11 +415,13 @@ def hydrate_descriptions(
         "[SAM.gov] Description hydration complete: attempted=%d hydrated=%d "
         "(%d from bulk CSV) failed=%d api_calls=%d stopped_reason=%s",
         stats["attempted"], stats["hydrated"], stats["from_bulk"], stats["failed"],
-        stats["api_calls"], stats["stopped_reason"],
+        stats["api_calls"], stopped_reason,
     )
+    result = dict(stats)
+    result["stopped_reason"] = stopped_reason
     _HYDRATION_STATS.clear()
-    _HYDRATION_STATS.update(stats)
-    return stats
+    _HYDRATION_STATS.update(result)
+    return result
 
 
 def _parse_sam_date(date_str: Optional[str]) -> Optional[str]:
