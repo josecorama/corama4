@@ -57,6 +57,7 @@ from credit_manager import CreditManager
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
+from bidbuy_client import get_last_fetch_stats
 from sam_gov_client import last_fetch_error
 from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
 from ingest_email import build_result_html, build_preview_html, dedupe as _dedupe_contracts
@@ -338,16 +339,39 @@ def trigger_ingest_proposal():
         }
         if sam_error:
             source_errors["sam"] = sam_error
+            source_status["sam"].update({
+                "error": sam_error["code"],
+                "detail": sam_error["detail"],
+            })
     if "bidbuy" in sources:
         new, count, already = fetch_bidbuy_payloads(limit=limit)
         candidates.extend(new)
         fetched += count
         skipped += already
+        bidbuy_stats = get_last_fetch_stats()
+        blocked = bidbuy_stats.get("blocked", 0)
+        fetch_failed = bidbuy_stats.get("fetch_failed", 0)
+        bidbuy_error = {}
+        if not new and (blocked or fetch_failed):
+            code = "scrape_blocked" if blocked else "scrape_failed"
+            bidbuy_error = {
+                "code": code,
+                "detail": (
+                    "BidBuy fetch diagnostics: "
+                    f"blocked={blocked}, fetch_failed={fetch_failed}"
+                ),
+            }
+            source_errors["bidbuy"] = bidbuy_error
         source_status["bidbuy"] = {
-            "success": True,
+            "success": not bool(bidbuy_error),
             "fetched": count,
             "new": len(new),
         }
+        if bidbuy_error:
+            source_status["bidbuy"].update({
+                "error": bidbuy_error["code"],
+                "detail": bidbuy_error["detail"],
+            })
     candidates = _dedupe_contracts(candidates)
     if not candidates:
         if source_errors:

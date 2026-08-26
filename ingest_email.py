@@ -107,6 +107,19 @@ def build_result_html(stats: Dict[str, Any], title: str = "Daily Contract Ingest
             "generated for some/all contracts — placeholder vectors were used, so "
             f"matching quality is degraded until this is fixed.{detail}</p>"
         )
+    source_errors = stats.get("source_errors") or {}
+    source_warn = ""
+    if source_errors:
+        items = "".join(
+            f"<li><b>{html.escape(str(source))}</b>: "
+            f"<code>{html.escape(str(error.get('code', 'unknown')))}</code> — "
+            f"{html.escape(str(error.get('detail', '')))}</li>"
+            for source, error in source_errors.items()
+        )
+        source_warn = (
+            "<p style='color:#b00;font-weight:bold'>⚠️ Source fetch failures:</p>"
+            f"<ul style='color:#b00;font-weight:normal'>{items}</ul>"
+        )
     summary = "".join(
         f"<tr><td style='padding:2px 12px 2px 0'>{label}</td><td>{stats.get(key, 0)}</td></tr>"
         for label, key in (
@@ -123,6 +136,7 @@ def build_result_html(stats: Dict[str, Any], title: str = "Daily Contract Ingest
   <p style="color:#666">{now}</p>
   {f'<p>Sources: <b>{html.escape(source_label)}</b></p>' if source_label else ''}
   {warn}
+  {source_warn}
   <table style="font-size:14px;margin:12px 0">{summary}</table>
   <h3 style="color:{TEAL}">Newly added contracts ({len(added)})</h3>
   {_table(added, "No new contracts were added in this run.")}

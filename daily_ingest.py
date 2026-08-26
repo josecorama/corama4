@@ -40,6 +40,7 @@ except Exception:
 
 from sam_gov_sync import fetch_new_payloads, ingest_payloads, remove_expired_contracts
 from bidbuy_sync import fetch_new_payloads as fetch_bidbuy_payloads
+from bidbuy_client import get_last_fetch_stats
 from sam_gov_client import last_fetch_error
 from ingest_approval import create_pending_batch
 from ingest_email import build_preview_html, build_result_html, dedupe
@@ -94,6 +95,23 @@ def collect_candidates(
     if "bidbuy" in sources:
         log.info("Fetching BidBuy Illinois opportunities (limit=%d)...", limit)
         new, fetched, skipped = fetch_bidbuy_payloads(limit=limit)
+        bidbuy_stats = get_last_fetch_stats()
+        blocked = bidbuy_stats.get("blocked", 0)
+        fetch_failed = bidbuy_stats.get("fetch_failed", 0)
+        if not new and (blocked or fetch_failed):
+            code = "scrape_blocked" if blocked else "scrape_failed"
+            error = {
+                "code": code,
+                "detail": (
+                    "BidBuy fetch diagnostics: "
+                    f"blocked={blocked}, fetch_failed={fetch_failed}"
+                ),
+            }
+            _LAST_SOURCE_ERRORS.setdefault("bidbuy", error)
+            log.error(
+                "BidBuy fetch failed (%s): %s",
+                error["code"], error["detail"],
+            )
         all_new.extend(new)
         fetched_total += fetched
         skipped_total += skipped
