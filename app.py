@@ -2602,6 +2602,11 @@ import threading
 import uuid
 import time as time_module
 
+# Lease held by in-process (inline) job threads. Must match LEASE_DURATION in
+# proposal_worker.py so the background worker only takes over a job after the
+# inline thread has died (e.g. Gunicorn restart) and the lease has expired.
+INLINE_JOB_LEASE_SECONDS = 600
+
 def create_proposal_job(draft_id: str, user_id: str) -> str:
     """Create a new proposal generation job in Firebase and return its ID.
     
@@ -2622,8 +2627,8 @@ def create_proposal_job(draft_id: str, user_id: str) -> str:
         'error': None,
         'events': {},  # Will use push() for events
         'created_at': time_module.time(),
-        'claimed_by': None,
-        'lease_expires_at': 0
+        'claimed_by': 'inline',
+        'lease_expires_at': time_module.time() + INLINE_JOB_LEASE_SECONDS
     }
     
     try:
@@ -15298,6 +15303,9 @@ def _inline_process_contract_analysis(job_id, job_data, local_pdf_path):
 
     try:
         job_ref.update({'status': 'running', 'started_at': time.time(),
+                        'claimed_by': 'inline',
+                        'lease_expires_at': time.time() + INLINE_JOB_LEASE_SECONDS,
+                        'last_heartbeat': time.time(),
                         'progress': 'Extracting text from PDF...'})
 
         contract_name = job_data.get('contract_name', 'Contract')
@@ -15527,8 +15535,10 @@ def create_contract_analysis_job():
             blob.upload_from_file(file, content_type='application/pdf')
             logging.info(f"Uploaded PDF to Firebase Storage: {storage_path}")
         except Exception as upload_error:
-            logging.warning(f"Firebase Storage not available, using local fallback: {upload_error}")
-            # Fallback to local storage
+            logging.error(
+                f"Firebase Storage upload failed for contract analysis {job_id}; "
+                f"falling back to local disk (only processable by this instance): {upload_error}"
+            )
             try:
                 local_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], f"contract_analysis/{user_id}")
                 os.makedirs(local_upload_dir, exist_ok=True)
@@ -15548,6 +15558,8 @@ def create_contract_analysis_job():
             'contract_name': contract_name,
             'status': 'queued',
             'created_at': time.time(),
+            'claimed_by': 'inline',
+            'lease_expires_at': time.time() + INLINE_JOB_LEASE_SECONDS,
             'progress': 'Waiting for worker...'
         }
         
@@ -17756,7 +17768,10 @@ def _inline_process_proposal_job(job_id: str, user_id: str, draft_id: str):
     job_ref = _admin_db.reference(f'proposal_jobs/{job_id}')
 
     try:
-        job_ref.update({'status': 'running', 'claimed_by': 'inline'})
+        job_ref.update({'status': 'running', 'claimed_by': 'inline',
+                        'started_at': time.time(),
+                        'lease_expires_at': time.time() + INLINE_JOB_LEASE_SECONDS,
+                        'last_heartbeat': time.time()})
 
         # Fetch draft data
         draft_ref = _admin_db.reference(f'proposal_drafts/{user_id}/{draft_id}')

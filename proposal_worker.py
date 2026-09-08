@@ -677,7 +677,10 @@ def download_pdf_from_firebase(storage_path: str) -> str:
                 shutil.copy(local_path, tmp_path)
                 return tmp_path
             else:
-                raise FileNotFoundError(f"Local PDF file not found: {local_path}")
+                raise FileNotFoundError(
+                    "The uploaded PDF is no longer available (it was stored on the web "
+                    "server's temporary disk, not in Firebase Storage). Please upload it again."
+                )
         
         # Download from Firebase Storage
         from firebase_admin import storage
