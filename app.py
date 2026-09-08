@@ -18728,11 +18728,11 @@ def api_admin_contracts_list():
         # Build filter if search is provided
         query_filter = None
         if search:
-            # Search in title field
+            # Only fields with a full-text payload index can be used with MatchText
             query_filter = Filter(
                 should=[
-                    FieldCondition(key="Title", match=MatchText(text=search)),
                     FieldCondition(key="title", match=MatchText(text=search)),
+                    FieldCondition(key="description", match=MatchText(text=search)),
                 ]
             )
         
@@ -18776,15 +18776,19 @@ def api_admin_contracts_list():
                 'id': contract_id,
                 'title': payload.get('Title') or payload.get('title') or 'Untitled',
                 'state': payload.get('State') or payload.get('state') or 'N/A',
-                'contract_type': payload.get('Contract Type') or payload.get('contract_type') or 'N/A',
+                'contract_type': payload.get('Contract Type') or payload.get('contract_type') or payload.get('opportunity_type') or payload.get('category') or 'N/A',
                 'agency': payload.get('Agency') or payload.get('agency') or 'N/A',
-                'deadline': payload.get('Deadline') or payload.get('deadline') or 'N/A',
+                'deadline': payload.get('Deadline') or payload.get('deadline') or payload.get('due_date') or 'N/A',
                 'hidden': contract_id in hidden_ids
             })
         
         # Recalculate total if search filter is applied
         if search:
-            total_contracts = len(all_points)
+            total_contracts = client.count(
+                collection_name="government_contracts",
+                count_filter=query_filter,
+                exact=True
+            ).count
         
         total_pages = (total_contracts + per_page - 1) // per_page
         
