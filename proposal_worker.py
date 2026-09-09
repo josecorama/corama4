@@ -145,6 +145,19 @@ def initialize_openai():
     return OpenAI(api_key=api_key)
 
 
+def get_active_jobs(db, path: str) -> dict:
+    """Return only queued/running jobs under `path`.
+
+    Uses indexed queries (requires ".indexOn": ["status"] in the RTDB rules)
+    so completed jobs, which hold the bulk of the data, are never downloaded.
+    """
+    ref = db.reference(path)
+    jobs = {}
+    for status in ('queued', 'running'):
+        jobs.update(ref.order_by_child('status').equal_to(status).get() or {})
+    return jobs
+
+
 def claim_job(db, job_id: str) -> bool:
     """
     Attempt to claim a job using atomic transaction.
@@ -677,7 +690,10 @@ def download_pdf_from_firebase(storage_path: str) -> str:
                 shutil.copy(local_path, tmp_path)
                 return tmp_path
             else:
-                raise FileNotFoundError(f"Local PDF file not found: {local_path}")
+                raise FileNotFoundError(
+                    "The uploaded PDF is no longer available (it was stored on the web "
+                    "server's temporary disk, not in Firebase Storage). Please upload it again."
+                )
         
         # Download from Firebase Storage
         from firebase_admin import storage
@@ -904,7 +920,7 @@ def find_and_process_contract_analysis_jobs(db, openai_client):
     """Find queued contract analysis jobs and process one"""
     try:
         jobs_ref = db.reference('contract_analysis_jobs')
-        all_jobs = jobs_ref.get() or {}
+        all_jobs = get_active_jobs(db, 'contract_analysis_jobs')
         
         for job_id, job_data in all_jobs.items():
             if shutdown_requested:
@@ -1358,7 +1374,7 @@ def find_and_process_naics_enrichment_jobs(db, openai_client):
     """Find queued NAICS enrichment jobs and process one"""
     try:
         jobs_ref = db.reference('naics_enrichment_jobs')
-        all_jobs = jobs_ref.get() or {}
+        all_jobs = get_active_jobs(db, 'naics_enrichment_jobs')
         
         for job_id, job_data in all_jobs.items():
             if shutdown_requested:
@@ -1394,7 +1410,7 @@ def cleanup_stale_naics_enrichment_jobs(db):
     """Clean up NAICS enrichment jobs that have been running too long"""
     try:
         jobs_ref = db.reference('naics_enrichment_jobs')
-        all_jobs = jobs_ref.get() or {}
+        all_jobs = get_active_jobs(db, 'naics_enrichment_jobs')
         
         current_time = time.time()
         stale_threshold = LEASE_DURATION * 2  # 20 minutes
@@ -1439,7 +1455,7 @@ def check_and_queue_naics_backlog(db):
     try:
         # Check if there's already a running or queued job
         jobs_ref = db.reference('naics_enrichment_jobs')
-        all_jobs = jobs_ref.get() or {}
+        all_jobs = get_active_jobs(db, 'naics_enrichment_jobs')
         
         for job_id, job_data in all_jobs.items():
             status = job_data.get('status', '')
@@ -2016,9 +2032,8 @@ any official use. Please follow these steps:
 def find_and_process_jobs(db, openai_client):
     """Find queued jobs and process one at a time"""
     try:
-        # Query for all jobs
         jobs_ref = db.reference('proposal_jobs')
-        all_jobs = jobs_ref.get() or {}
+        all_jobs = get_active_jobs(db, 'proposal_jobs')
         
         for job_id, job_data in all_jobs.items():
             if shutdown_requested:
@@ -2057,7 +2072,7 @@ def cleanup_stale_jobs(db):
     """Clean up jobs that have been running too long without heartbeat"""
     try:
         jobs_ref = db.reference('proposal_jobs')
-        all_jobs = jobs_ref.get() or {}
+        all_jobs = get_active_jobs(db, 'proposal_jobs')
         
         current_time = time.time()
         stale_threshold = LEASE_DURATION * 2  # 20 minutes
@@ -2077,7 +2092,7 @@ def cleanup_stale_contract_analysis_jobs(db):
     """Clean up contract analysis jobs that have been running too long"""
     try:
         jobs_ref = db.reference('contract_analysis_jobs')
-        all_jobs = jobs_ref.get() or {}
+        all_jobs = get_active_jobs(db, 'contract_analysis_jobs')
         
         current_time = time.time()
         stale_threshold = LEASE_DURATION * 2  # 20 minutes
