@@ -680,7 +680,7 @@ const LandingPage = () => {
             </div>
             
             <div className="text-center mb-2 sm:mb-4 text-[10px] sm:text-xs lg:text-sm">
-              <span className="text-white font-poppins">contact@corama.ai</span>
+              <span className="text-white font-poppins">admin@corama.ai</span>
             </div>
             
             {/* CORAMA Logo */}

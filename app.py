@@ -1319,7 +1319,7 @@ def send_otp_email(email: str, otp: str) -> bool:
                 <div class="footer">
                     <p style="font-weight: 700; font-size: 14px;">Corama</p>
                     <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
-                    <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                    <p><a href="mailto:admin@corama.ai">admin@corama.ai</a></p>
                     <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
                     <div class="copyright">
                                 <p>&copy; 2026 Corama. All rights reserved.</p>
@@ -2168,7 +2168,7 @@ def send_password_reset_email(to_email, reset_link):
             </div>
             <div class="footer">
                 <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
-                <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                <p><a href="mailto:admin@corama.ai">admin@corama.ai</a></p>
                 <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
                 <div class="copyright">
                     <p>&copy; 2026 Corama. All rights reserved.</p>
@@ -16418,7 +16418,7 @@ def send_team_assignment_email():
         <div class="footer">
 
             <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
-            <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+            <p><a href="mailto:admin@corama.ai">admin@corama.ai</a></p>
             <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
             
             <div class="copyright">
@@ -20412,7 +20412,7 @@ def api_send_support_message():
                 <div class="message-box">{message}</div>
                 <div class="footer">
                     <p>180 North Michigan Avenue Suite 500<br>Chicago, IL 60601</p>
-                    <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+                    <p><a href="mailto:admin@corama.ai">admin@corama.ai</a></p>
                     <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
                     <div class="copyright">
                         <p>&copy; 2026 Corama. All rights reserved.</p>
@@ -20621,11 +20621,11 @@ def api_change_password():
             <p class="text-small">
                 If you did not authorize this change, please contact our support team immediately to secure your account:
             </p>
-            <a href="mailto:contact@corama.ai" class="btn-contact">contact@corama.ai</a>
+            <a href="mailto:admin@corama.ai" class="btn-contact">admin@corama.ai</a>
         </div>
         <div class="footer">
             <p>180 North Michigan Avenue, Suite 500<br>Chicago, IL 60601</p>
-            <p><a href="mailto:contact@corama.ai">contact@corama.ai</a></p>
+            <p><a href="mailto:admin@corama.ai">admin@corama.ai</a></p>
             <p>Monday to Friday: 9:00 a.m. to 5:00 p.m.</p>
             <div class="footer-links">
                 <p>

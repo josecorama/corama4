@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+{% include 'head.html' %}
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        /* General Font */
+        body {
+            font-family: 'Jost', sans-serif;
+        }
+
+        /* Capability Statement */
+        .capability-statement {
+            font-size: 1.2rem !important;
+            color: #ffffff !important;
+            font-weight: 400 !important;
+            text-align: center;
+            align-items: center;
+            margin: 0px;
+            font-family: 'Jost', sans-serif !important;
+        }
+
+        /* Clementine Button */
+        .btn-clementine {
+            background-color: #F67F00 !important;
+            color: white !important;
+            border: none;
+            text-transform: none;
+            font-weight: normal;
+            padding: 8px 16px;
+            border-radius: 5px;
+        }
+
+        .btn-clementine:hover {
+            background-color: #d85b02 !important;
+        }
+
+        /* Top 5 Fitting Contracts Section */
+        .top-contracts-section {
+            padding: 40px 30px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .top-contracts-section h4 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #F67F00;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        /* Contract item styling */
+        .contract-item {
+            background-color: #f2f2f2;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .contract-details {
+            max-width: 75%;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Bid Name */
+        .contract-item .bid-name {
+            font-size: 1.5rem;
+            color: #333333;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        /* Relevance Score */
+        .contract-item .relevance-score {
+            font-size: 1.1rem;
+            color: #777777;
+            margin-bottom: 5px;
+        }
+
+        .contract-item .relevance-score i {
+            color: #F67F00;
+            margin-right: 5px;
+        }
+
+        /* Bid number */
+        .contract-item .bid-number {
+            font-size: 1rem;
+            color: #55666D;
+        }
+
+        /* Select button */
+        .contract-item .select-button .btn-clementine {
+            background-color: #F67F00 !important;
+            color: white !important;
+            border: none;
+        }
+
+        .contract-item .select-button .btn-clementine:hover {
+            background-color: #d85b02 !important;
+        }
+
+        .select-button {
+            margin-left: auto;
+        }
+
+        /* Number styling */
+        .contract-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #F67F00;
+            margin-right: 15px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            width: 70%;
+            position: relative;
+            border-radius: 10px;
+        }
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            cursor: pointer;
+        }
+
+        /* Find More Opportunities Section */
+        .find-opportunities-section {
+            background-color: white;
+            padding: 40px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .find-opportunities-section h4 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #F67F00;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+       
+
+
+        .table th::after {
+            content: '\25BC';
+            font-size: 0.8rem;
+            margin-left: 5px;
+            display: inline-block;
+        }
+
+        .table th.sort-asc::after {
+            content: '\25B2';
+        }
+
+        .table th.sort-desc::after {
+            content: '\25BC';
+        }
+
+        thead th{
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+
+       
+
+        /* Status Colors */
+        .status-open {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .status-closed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        /* Filter Button */
+        .filter-apply-btn,
+        .btn-secondary {
+            background-color: #F67F00 !important;
+            color: white !important;
+            border: none;
+            text-transform: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+        }
+
+        .filter-apply-btn:hover,
+        .btn-secondary:hover {
+            background-color: #d85b02 !important;
+        }
+
+        /* Go Back Home Button */
+        .btn-compare {
+            background-color: #F67F00;
+            color: white;
+            padding: 8px 16px;
+            text-transform: none;
+            margin-top: 20px;
+        }
+
+        .btn-compare:hover {
+            background-color: #d85b02;
+        }
+
+        .table-header-contracts {
+            background-color: #002f49 !important;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container main-container">
+        <!-- Header Section -->
+        <section class="page-title-section text-center">
+            <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background">
+            <div class="container">
+                <h1 class="title">Contracts</h1>
+                <h2 class="subtitle">Connecting Your Company to Government Opportunities</h2>
+            </div>
+        </section>
+    </div>
+
+</div>
+
+    
+
+    <!-- Find More Opportunities Section -->
+    <div class="container mt-5" style="max-width: fit-content;">
+        <section class="find-opportunities-section">
+            <h4>FIND MORE OPPORTUNITIES</h4>
+
+
+            <form method="GET" action="/contractsAll">
+                <div class="filter-container">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <select class="form-select" name="category">
+                                <option selected disabled>Category</option>
+                                {% for category in categories %}
+                                    <option value="{{ category }}">{{ category }}</option>
+                                {% endfor %}
+                            </select>
+            
+                            <select class="form-select" name="industry">
+                                <option selected disabled>Industry</option>
+                                {% for industry in industries %}
+                                    <option value="{{ industry }}">{{ industry }}</option>
+                                {% endfor %}
+                            </select>
+            
+                            <select class="form-select" name="organization">
+                                <option selected disabled>Organization</option>
+                                {% for organization in organizations %}
+                                    <option value="{{ organization }}">{{ organization }}</option>
+                                {% endfor %}
+                            </select>
+            
+                            <!-- FIXED: Corrected the variable name from 'department' to 'departments' -->
+                            <select class="form-select" name="department">
+                                <option selected disabled>Departments</option>
+                                {% for department in departments %}
+                                    <option value="{{ department }}">{{ department }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <select class="form-select" name="due_date">
+                                <option selected disabled>Due Date</option>
+                                <option value="7">Within 7 days</option>
+                                <option value="30">Within 30 days</option>
+                                <option value="open_until_contracted">Open Until Contracted</option>
+                                <option value="all">Anytime</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-12 text-end">
+                            <button class="btn btn-primary filter-apply-btn" type="submit">Apply Filters</button>
+                            <!-- Clear Filters Button -->
+                            <a href="/contractsAll" class="btn btn-secondary ms-2" style="background-color: #6899b4 !important;">Clear Filters</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            
+
+            <section class="scrollable-table-container">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th class="table-header-contracts" data-sort="Bid Name">Name</th>
+                            <th class="table-header-contracts" data-sort="Bid Number">Bid Number</th>
+                            <th class="table-header-contracts" data-sort="Due Date">Due</th>
+                            <th class="table-header-contracts" data-sort="Category">Category</th>
+                            <th class="table-header-contracts" data-sort="Industry">Industry</th>
+                            <th class="table-header-contracts" data-sort="Status">Status</th>
+                            <th class="table-header-contracts" data-sort="Organization">Organization</th>
+                            <th class="table-header-contracts" data-sort="Department">Department</th>
+                            <th class="table-header-contracts" data-sort="State">State</th>
+                            <th class="table-header-contracts">Select</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        {% if embedded_bids %}
+                            {% for bid in embedded_bids %}
+                            <tr>
+                                <td>{{ bid['Bid Name'] }}</td>
+                                <td>{{ bid['Bid Number'] }}</td>
+                                <td>{{ bid['Due Date'] }}</td>
+                                <td>{{ bid['Category'] }}</td>
+                                <td>{{ bid['Industry'] }}</td>
+                                <td class="{% if bid['Status'] == 'Open' %}status-open{% else %}status-closed{% endif %}">
+                                    {{ bid['Status'] }}
+                                </td>
+                                <td>{{ bid['Organization'] }}</td>
+                                <td>{{ bid['Department'] }}</td>
+                                <td>{{ bid['State'] }}</td>
+                                <td class="text-center">
+                                    <a href="#" class="btn btn-clementine" data-bid-number="{{ bid['Bid Number'] }}">Select</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6">No bids found in embedded_bids.csv</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>                
+            </section>
+        </section>
+    </div>
+
+    <!-- Modal Structure -->
+    <div id="contractModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modal-body">
+                <!-- Contract details will be dynamically injected here -->
+            </div>
+        </div>
+    </div>
+
+    {% include 'userNavFooter_ContractsAll.html' %}
+
+    <br>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+
+    <!-- Script for Modal Interaction -->
+    <script>
+        // Get modal element
+        var modal = document.getElementById("contractModal");
+        var modalContent = document.getElementById("modal-body");
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks on "Select", open the modal
+        document.querySelectorAll('.btn-clementine').forEach(function(button) {
+            button.onclick = function(event) {
+                event.preventDefault();
+                var bidNumber = this.getAttribute('data-bid-number');
+
+                // Make an AJAX request to fetch contract details
+                fetch('/viewcontractdetails?bid_number=' + bidNumber)
+                    .then(response => response.text())
+                    .then(data => {
+                        modalContent.innerHTML = data; // Inject the fetched content into the modal
+                        modal.style.display = "block"; // Show the modal
+                    });
+            };
+        });
+
+        // Close the modal
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        // Close if clicking outside modal
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // These scripts all handle the sorting when a table header is clicked
+        $('.table-header-contracts').click(function() {
+            var table = $(this).parents('table').eq(0);
+            var rows = table.find('tbody > tr').toArray().sort(compare($(this).index()));
+    
+            this.asc = !this.asc;
+            if (!this.asc) rows = rows.reverse();
+    
+            for (var i = 0; i < rows.length; i++) {
+                table.children('tbody').append(rows[i]);
+            }
+        });
+
+        function compare(index) {
+            return function(a, b) {
+                var valA = getCellValue(a, index), valB = getCellValue(b, index);
+                return $.isNumeric(valA) && $.isNumeric(valB) ?
+                valA - valB : valA.toString().localeCompare(valB);
+            };
+        }
+        
+        function getCellValue(row, index) {
+            return $(row).children('td').eq(index).text();
+        };
+    </script>
+</body>
+</html>
