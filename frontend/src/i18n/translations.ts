@@ -27,7 +27,7 @@ export const translations = {
     of: 'of',
     
     // Header
-    searchInCorama: 'SEARCH IN CORAMA',
+    searchInCorama: 'Search in Corama',
     credits: 'Credits',
     logOut: 'Log out',
     settings: 'Settings',
@@ -59,8 +59,8 @@ export const translations = {
     contracts: 'contracts',
     availableContracts: 'Available Contracts',
     availableGrants: 'Available Grants',
-    searchContracts: 'SEARCH CONTRACT BY NAME, NAICS CODE OR LOCATION',
-    searchGrants: 'SEARCH GRANTS',
+    searchContracts: 'Search contracts by name, NAICS code or location',
+    searchGrants: 'Search grants',
     contractName: 'Contract Name',
     grantName: 'Grant Name',
     category: 'Category',
@@ -644,7 +644,7 @@ export const translations = {
       of: 'de',
     
       // Header
-      searchInCorama: 'BUSCAR EN CORAMA',
+      searchInCorama: 'Buscar en Corama',
       credits: 'Créditos',
       logOut: 'Cerrar sesión',
       settings: 'Configuración',
@@ -676,8 +676,8 @@ export const translations = {
         contracts: 'contratos',
         availableContracts: 'Contratos Disponibles',
         availableGrants: 'Subvenciones Disponibles',
-        searchContracts: 'BUSCAR CONTRATO POR NOMBRE, CÓDIGO NAICS O UBICACIÓN',
-        searchGrants: 'BUSCAR SUBVENCIONES',
+        searchContracts: 'Buscar contratos por nombre, código NAICS o ubicación',
+        searchGrants: 'Buscar subvenciones',
         contractName: 'Nombre del Contrato',
         grantName: 'Nombre de la Subvención',
         category: 'Categoría',
