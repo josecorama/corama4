@@ -37,6 +37,7 @@ from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.middleware.proxy_fix import ProxyFix
 from sklearn.metrics.pairwise import cosine_similarity
 from rank_bm25 import BM25Okapi
 from pdf2docx import parse
@@ -121,13 +122,47 @@ def get_rate_limit_key():
         return f"user:{session['user_data']['user_id']}"
     return f"ip:{get_remote_address()}"
 
+if os.getenv('ENV') == 'production':
+    # Behind Render's reverse proxy the client IP arrives in X-Forwarded-For.
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
 limiter = Limiter(
     app=app,
     key_func=get_rate_limit_key,
     default_limits=[],  # No global limit; only the AI Assistant is throttled (see below).
-    storage_uri="memory://",
+    storage_uri=os.getenv('RATELIMIT_STORAGE_URI', 'memory://'),
     strategy="fixed-window"
 )
+
+AUTH_RATE_LIMIT = "10 per minute; 100 per hour"
+PUBLIC_AI_RATE_LIMIT = "20 per hour"
+
+
+def check_admin_key():
+    """Validate the X-Admin-Key header (or JSON admin_key) against ADMIN_SECRET_KEY.
+
+    Returns None when authorized, otherwise a (response, status) tuple. Fails closed
+    when ADMIN_SECRET_KEY is not configured.
+    """
+    expected_key = os.getenv('ADMIN_SECRET_KEY')
+    if not expected_key:
+        logging.warning("[Admin] ADMIN_SECRET_KEY not configured")
+        return jsonify({"error": "Admin functionality not configured"}), 503
+    admin_key = request.headers.get('X-Admin-Key') or (
+        request.json.get('admin_key') if request.is_json else None
+    )
+    if not admin_key or not secrets.compare_digest(str(admin_key), expected_key):
+        logging.warning("[Admin] Invalid admin key attempt")
+        return jsonify({"error": "Unauthorized"}), 401
+    return None
+
+
+def clamp_int(value, default, minimum, maximum):
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(value, maximum))
 
 # Exempt health check and static files from rate limiting
 @limiter.request_filter
@@ -234,16 +269,12 @@ def trigger_sam_sync():
         posted_from (str): MM/DD/YYYY start date
         posted_to (str): MM/DD/YYYY end date
     """
-    admin_key = request.headers.get('X-Admin-Key') or (
-        request.json.get('admin_key') if request.is_json else None
-    )
-    expected_key = os.getenv('ADMIN_SECRET_KEY')
-
-    if expected_key and admin_key != expected_key:
-        return jsonify({"error": "Unauthorized"}), 401
+    denied = check_admin_key()
+    if denied:
+        return denied
 
     data = request.get_json(silent=True) or {}
-    limit = data.get('limit', 1000)
+    limit = clamp_int(data.get('limit'), 1000, 1, 5000)
     posted_from = data.get('posted_from')
     posted_to = data.get('posted_to')
 
@@ -272,13 +303,9 @@ def trigger_sam_sync():
 @app.route('/api/sam-sync/cleanup', methods=['POST'])
 def trigger_expired_cleanup():
     """Remove contracts with past due dates from Qdrant."""
-    admin_key = request.headers.get('X-Admin-Key') or (
-        request.json.get('admin_key') if request.is_json else None
-    )
-    expected_key = os.getenv('ADMIN_SECRET_KEY')
-
-    if expected_key and admin_key != expected_key:
-        return jsonify({"error": "Unauthorized"}), 401
+    denied = check_admin_key()
+    if denied:
+        return denied
 
     stats = remove_expired_contracts()
     return jsonify({"success": True, "cleanup": stats})
@@ -305,15 +332,12 @@ def trigger_ingest_proposal():
     Lets you trigger the approval email on demand (e.g. to get the first email
     without waiting for the daily cron). Requires X-Admin-Key.
     """
-    admin_key = request.headers.get('X-Admin-Key') or (
-        request.json.get('admin_key') if request.is_json else None
-    )
-    expected_key = os.getenv('ADMIN_SECRET_KEY')
-    if expected_key and admin_key != expected_key:
-        return jsonify({"error": "Unauthorized"}), 401
+    denied = check_admin_key()
+    if denied:
+        return denied
 
     data = request.get_json(silent=True) or {}
-    limit = data.get('limit', 200)
+    limit = clamp_int(data.get('limit'), 200, 1, 2000)
 
     candidates, fetched, skipped = fetch_new_payloads(limit=limit)
     candidates = _dedupe_contracts(candidates)
@@ -1359,6 +1383,7 @@ def mark_user_email_verified(user_id: str, id_token: str):
 
 
 @app.route('/api/auth/login', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_login():
     """API endpoint for React login page with email verification check.
     
@@ -1504,6 +1529,7 @@ def api_auth_login():
 
 
 @app.route('/api/auth/check-username', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_check_username():
     """Check if a username is available for registration.
     
@@ -1545,6 +1571,7 @@ def api_auth_check_username():
 
 
 @app.route('/api/auth/signup', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_signup():
     """API endpoint for React signup page with 2-step email verification.
     
@@ -1718,6 +1745,7 @@ def api_auth_signup():
 
 
 @app.route('/api/auth/verify-email', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_verify_email():
     """API endpoint to verify email with OTP code.
     
@@ -1817,6 +1845,7 @@ def api_auth_verify_email():
 
 
 @app.route('/api/auth/resend-otp', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_resend_otp():
     """API endpoint to resend OTP verification code.
     
@@ -2191,6 +2220,7 @@ def send_password_reset_email(to_email, reset_link):
 
 
 @app.route('/api/auth/reset-password', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_reset_password():
     """API endpoint for React password reset page.
     
@@ -2320,6 +2350,7 @@ def api_auth_recaptcha_site_key():
 
 
 @app.route('/api/auth/verify-reset-code', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_verify_reset_code():
     """API endpoint to verify a password reset code (oobCode) is valid.
     
@@ -2359,6 +2390,7 @@ def api_auth_verify_reset_code():
 
 
 @app.route('/api/auth/confirm-reset-password', methods=['POST'])
+@limiter.limit(AUTH_RATE_LIMIT)
 def api_auth_confirm_reset_password():
     """API endpoint to confirm password reset with new password.
     
@@ -5806,6 +5838,7 @@ THE USER IS GOING TO INPUT THEIR OWN company description YOU NEED TO TRANSFORM
 
 #CS BUILDER
 @app.route('/generate_description', methods=['POST'])
+@limiter.limit(PUBLIC_AI_RATE_LIMIT)
 def generate_description():
     data = request.json
     company_name = data.get('companyName', 'your company')
@@ -5867,6 +5900,7 @@ If you do this correctly I will tip you $100000000000
 """
 #CS BUILDER
 @app.route('/generate_bullet_points', methods=['POST'])
+@limiter.limit(PUBLIC_AI_RATE_LIMIT)
 def generate_bullet_points():
     data = request.json
     ideas = data.get('ideas', '')
@@ -6085,11 +6119,10 @@ def preview():
 # CS GENERATIONlogging.info(f"PDF downloaded: {filename}")
 @app.route('/download_pdf', methods=['POST'])
 def download_pdf():
-    filename = request.form.get('filename', 'static/uploads/output.pdf')
-    if not filename.startswith('static/'):
-        filename = os.path.join('static', filename)
+    requested = request.form.get('filename', 'output.pdf')
+    filename = secure_filename(os.path.basename(requested)) or 'output.pdf'
     logging.info(f"PDF downloaded: {filename}")
-    return send_file(filename, as_attachment=True)
+    return send_from_directory(os.path.join(base_dir, 'static', 'uploads'), filename, as_attachment=True)
 
 
 
@@ -7247,7 +7280,7 @@ def queue_naics_enrichment_api():
         # Verify admin access (optional - can be removed if you want any user to trigger)
         admin_secret = request.headers.get('X-Admin-Secret')
         expected_secret = os.getenv('ADMIN_SECRET_KEY')
-        if expected_secret and admin_secret != expected_secret:
+        if not expected_secret or not admin_secret or not secrets.compare_digest(admin_secret, expected_secret):
             return jsonify({"success": False, "error": "Unauthorized"}), 401
         
         data = request.get_json() or {}
