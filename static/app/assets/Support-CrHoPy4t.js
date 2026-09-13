@@ -1,1 +1,0 @@
-import{j as t}from"./react-vendor-gT-OydQZ.js";import o from"./Settings-BtYLn6XH.js";import"./Header-BKkHeLbt.js";import"./index-BtnH_Dg-.js";import"./createLucideIcon-in9Qc8Ri.js";const e=()=>t.jsx(o,{});export{e as default};
