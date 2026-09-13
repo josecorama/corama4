@@ -1,0 +1,172 @@
+/* Light theme: remaps the dark palette onto light surfaces while keeping the
+   teal accents and primary gradients of the current design. Activated by
+   adding the `light` class to <html>. */
+
+html.light {
+  --lt-page: #f3f6f9;
+  --lt-surface: #ffffff;
+  --lt-surface-2: #e8eef4;
+  --lt-surface-3: #d9e3ec;
+  --lt-text: #0b2c48;
+  --lt-text-muted: #4a5f73;
+  --lt-text-soft: #6b7f92;
+  --lt-border: #c9d6e2;
+  --lt-border-strong: #a9bccb;
+  color-scheme: light;
+}
+
+html.light body {
+  background-color: var(--lt-page);
+  color: var(--lt-text);
+}
+
+/* ---- Backgrounds ------------------------------------------------------- */
+html.light .bg-corama-dark,
+html.light .bg-\[\#0B2C48\],
+html.light .bg-\[\#0b2c48\],
+html.light [style*="rgb(11, 44, 72)"],
+html.light [style*="#0B2C48"],
+html.light [style*="#0b2c48"],
+html.light [style*="#0B0B0F"],
+html.light .bg-\[\#0B0B0F\] {
+  background-color: var(--lt-page) !important;
+  background-image: none !important;
+}
+
+html.light .gradient-bg {
+  background: linear-gradient(135deg, #f3f6f9 0%, #e8eef4 50%, #dfe8f0 100%) !important;
+}
+
+html.light .bg-corama-darker,
+html.light .bg-\[\#2F3C4F\],
+html.light .bg-\[\#2a3a4a\],
+html.light .bg-\[\#1a2332\],
+html.light .bg-\[\#0f1419\],
+html.light .bg-gray-800,
+html.light .card-gradient,
+html.light [style*="rgb(47, 60, 79)"],
+html.light [style*="#2F3C4F"],
+html.light [style*="#333c4d"],
+html.light [style*="#3D4F5F"],
+html.light [style*="#3a4a5a"],
+html.light [style*="#2a3a4a"],
+html.light [style*="#1a2332"],
+html.light [style*="#0f1419"],
+html.light [style*="rgb(19, 41, 71)"],
+html.light [style*="rgb(39, 69, 110)"],
+html.light [style*="rgb(45, 81, 112)"],
+html.light [style*="rgba(45, 81, 112"],
+html.light [style*="rgb(28, 66, 98)"] {
+  background-color: var(--lt-surface) !important;
+  border-color: var(--lt-border) !important;
+}
+
+html.light .card-gradient,
+html.light .card-gradient-original {
+  background: var(--lt-surface) !important;
+  border: 1px solid var(--lt-border) !important;
+}
+
+html.light .bg-white\/10,
+html.light .bg-white\/20,
+html.light .hover\:bg-white\/10:hover,
+html.light [style*="rgba(255, 255, 255, 0.1)"] {
+  background-color: var(--lt-surface-2) !important;
+}
+
+/* ---- Text -------------------------------------------------------------- */
+html.light .text-white,
+html.light .text-white\/70,
+html.light .text-white\/80,
+html.light .text-gray-100,
+html.light .hover\:text-white:hover,
+html.light [style*="color: white"],
+html.light [style*="color: #fff"],
+html.light [style*="color: rgb(255, 255, 255)"] {
+  color: var(--lt-text) !important;
+}
+
+/* Primary CTA gradients and teal fills stay as-is; keep their text white. */
+html.light [style*="linear-gradient(90deg, #1C4262"].text-white,
+html.light [style*="linear-gradient(180deg, #6BB4B5"].text-white,
+html.light .bg-corama-teal.text-white,
+html.light .bg-\[\#6bb4b5\].text-white,
+html.light .bg-\[\#1C4262\].text-white,
+html.light .bg-\[\#1c4262\].text-white,
+html.light [style*="linear-gradient(90deg, #1C4262"] .text-white,
+html.light [style*="linear-gradient(180deg, #6BB4B5"] .text-white,
+html.light .bg-corama-teal .text-white,
+html.light .bg-\[\#6bb4b5\] .text-white,
+html.light .bg-\[\#1C4262\] .text-white,
+html.light .bg-\[\#1c4262\] .text-white {
+  color: #ffffff !important;
+}
+
+html.light .text-gray-300,
+html.light .text-gray-400 {
+  color: var(--lt-text-muted) !important;
+}
+
+html.light .text-gray-500 {
+  color: var(--lt-text-soft) !important;
+}
+
+html.light .placeholder-gray-400::placeholder,
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: var(--lt-text-soft) !important;
+}
+
+html.light .text-\[\#9bb9bc\],
+html.light [style*="#9bb9bc"] {
+  color: var(--lt-text-muted) !important;
+}
+
+/* ---- Borders ----------------------------------------------------------- */
+html.light .border-corama-darker,
+html.light .border-white,
+html.light .border-gray-700,
+html.light .border-\[\#1C4262\],
+html.light .border-\[\#3D4F5F\],
+html.light .border-\[\#3a4a5a\],
+html.light .border-\[\#5a6a7a\],
+html.light .border-\[\#2D5170\],
+html.light [style*="border: 1px solid rgb(60, 87, 114)"],
+html.light [style*="border-color: rgb(90, 122, 138)"] {
+  border-color: var(--lt-border) !important;
+}
+
+html.light .border-corama-teal,
+html.light .border-\[\#6bb4b5\],
+html.light .border-\[\#6BA4A7\],
+html.light .border-\[\#5CBFC0\] {
+  border-color: #6bb4b5 !important;
+}
+
+/* Sidebar divider line */
+html.light [style*="background-color: #2D5170"] {
+  background-color: var(--lt-border-strong) !important;
+  box-shadow: none !important;
+}
+
+/* ---- Inputs ------------------------------------------------------------ */
+html.light input:not([type="checkbox"]):not([type="radio"]),
+html.light textarea,
+html.light select {
+  background-color: var(--lt-surface) !important;
+  color: var(--lt-text) !important;
+  border-color: var(--lt-border) !important;
+}
+
+/* ---- Misc -------------------------------------------------------------- */
+html.light .bg-black\/50 {
+  background-color: rgba(11, 44, 72, 0.35) !important;
+}
+
+html.light .glow-effect {
+  box-shadow: 0 0 20px rgba(107, 180, 181, 0.25) !important;
+}
+
+html.light .text-amber-400 {
+  color: #b7791f !important;
+}

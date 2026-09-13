@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Sun, Moon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useTranslation } from '../i18n'
 import SessionTimeout from './SessionTimeout'
+import { useTheme } from '../theme/useTheme'
 
 // Tool suggestions for the search autocomplete
 const TOOL_SUGGESTIONS = [
@@ -20,6 +21,14 @@ interface HeaderProps {
 const Header = ({}: HeaderProps) => {
   const { t, language } = useTranslation()
   const navigate = useNavigate()
+  const { theme, toggleTheme } = useTheme()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    api.checkAdminStatus()
+      .then(result => setIsAdmin(result.success && result.is_admin))
+      .catch(() => setIsAdmin(false))
+  }, [])
 
   // Search autocomplete state
   const [searchValue, setSearchValue] = useState('')
@@ -176,6 +185,19 @@ const Header = ({}: HeaderProps) => {
           
           {/* Header actions: credits link removed; only logout and settings remain */}
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
+            {isAdmin && (
+              <button
+                onClick={toggleTheme}
+                className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
+                aria-label={theme === 'light' ? t('darkMode') : t('lightMode')}
+                title={theme === 'light' ? t('darkMode') : t('lightMode')}
+              >
+                {theme === 'light'
+                  ? <Moon size={18} aria-hidden="true" />
+                  : <Sun size={18} aria-hidden="true" />}
+                <span className="font-poppins text-[8px] sm:text-xs">{theme === 'light' ? t('darkMode') : t('lightMode')}</span>
+              </button>
+            )}
             <button 
               onClick={handleLogout}
               className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"

@@ -30,6 +30,8 @@ export const translations = {
     searchInCorama: 'Search in Corama',
     credits: 'Credits',
     logOut: 'Log out',
+    lightMode: 'Light mode',
+    darkMode: 'Dark mode',
     settings: 'Settings',
     
     // Sidebar
@@ -647,6 +649,8 @@ export const translations = {
       searchInCorama: 'Buscar en Corama',
       credits: 'Créditos',
       logOut: 'Cerrar sesión',
+      lightMode: 'Modo claro',
+      darkMode: 'Modo oscuro',
       settings: 'Configuración',
     
       // Sidebar
