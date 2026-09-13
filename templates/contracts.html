@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+{% include 'head.html' %}
+<head>
+    <!-- Font Awesome (for icons if needed) -->
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+          crossorigin="anonymous">
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        /* 
+         * General Font 
+         */
+        body {
+            font-family: 'Jost', sans-serif;
+        }
+
+        /* 
+         * Prevent background scrolling when .modal-open is on the body 
+         */
+        body.modal-open {
+            overflow: hidden; 
+        }
+
+        /* 
+         * Capability Statement 
+         */
+        .capability-statement {
+            font-size: 1.2rem !important;
+            color: #ffffff !important;
+            font-weight: 400 !important;
+            text-align: center;
+            align-items: center;
+            margin: 0px;
+            font-family: 'Jost', sans-serif !important;
+        }
+
+        /* 
+         * Clementine Button 
+         */
+        .btn-clementine {
+            background-color: #F67F00 !important;
+            color: white !important;
+            border: none;
+            text-transform: none;
+            font-weight: normal;
+            padding: 8px 16px;
+            border-radius: 5px;
+        }
+        .btn-clementine:hover {
+            background-color: #d85b02 !important;
+        }
+
+        /* 
+         * Top 5 Fitting Contracts Section 
+         */
+        .top-contracts-section {
+            padding: 40px 30px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .top-contracts-section h4 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #6899B4;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        /* 
+         * Contract item styling 
+         */
+        .contract-item {
+            background-color: #f2f2f2;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .contract-details {
+            max-width: 75%;
+            display: flex;
+            align-items: center;
+        }
+
+        /* 
+         * Bid Name 
+         */
+        .contract-item .bid-name {
+            font-size: 1.5rem;
+            color: #333333;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        /* 
+         * Relevance Score 
+         */
+        .contract-item .relevance-score {
+            font-size: 1.1rem;
+            color: #777777;
+            margin-bottom: 5px;
+        }
+
+        /* 
+         * Bid number 
+         */
+        .contract-item .bid-number {
+            font-size: 1rem;
+            color: #55666D;
+        }
+
+        /* 
+         * Select button 
+         */
+        .contract-item .select-button .btn-clementine {
+            background-color: #6899B4 !important;
+            color: white !important;
+            border: none;
+        }
+        .contract-item .select-button .btn-clementine:hover {
+            background-color: #6899B4 !important;
+        }
+        
+
+        /* 
+         * Number styling 
+         */
+        .contract-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #F67F00;
+            margin-right: 15px;
+        }
+
+        /*
+         * Pastel Pill Style for Score
+         */
+        .score-pill {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin: 0;
+            text-transform: none;
+            letter-spacing: normal; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* High Similarity – pastel green */
+        .score-pill.high-similarity {
+            background-color: #D8F7D8;
+            color: #2D7D2D;
+        }
+
+        /* Medium Similarity – pastel yellow */
+        .score-pill.medium-similarity {
+            background-color: #FFF7D1;
+            color: #7F6A00;
+        }
+
+        /* Low Similarity – pastel red/pink */
+        .score-pill.low-similarity {
+            background-color: #FFE6E6;
+            color: #CC0000;
+        }
+
+        /* 
+         * Modal Styles 
+         */
+         .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+
+            /* NEW: use Flexbox so we can control alignment */
+            display: flex;
+            align-items: flex-start;   /* Start at top, leaving space as margin in .modal-content */
+            justify-content: center;
+
+            /* Keep if you want the entire overlay to scroll if content is bigger than 100% height */
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: white;
+            /* MARGIN: top = 5% of viewport, so some space at the top; bottom = 0, flush with bottom */
+            margin: 3% auto 0;
+            width: 70%;
+            position: relative;
+            border-radius: 10px;
+
+            /* Make the modal content stretch to (nearly) the bottom */
+            max-height: 95vh;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+
+        .close {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            cursor: pointer;
+        }
+
+        /* 
+         * Scrollable sections inside the modal
+         * ADJUST THE max-height IF YOU WANT MORE OR LESS SPACE
+         */
+        .bid-description {
+            max-height: 300px; /* was 200px */
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 8px;
+            margin-bottom: 15px;
+        }
+        .contract-insight {
+            max-height: 300px; /* was 200px */
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 8px;
+            margin-bottom: 15px;
+        }
+
+        /* 
+         * Find More Opportunities Section 
+         */
+        .find-opportunities-section {
+            background-color: white;
+            padding: 40px 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 90%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .find-opportunities-section h4 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #F67F00;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .table th::after {
+            content: '\25BC';
+            font-size: 0.8rem;
+            margin-left: 5px;
+            display: inline-block;
+        }
+        .table th.sort-asc::after {
+            content: '\25B2';
+        }
+        .table th.sort-desc::after {
+            content: '\25BC';
+        }
+
+        /* 
+         * Status Colors 
+         */
+        .status-open {
+            color: #28a745;
+            font-weight: bold;
+        }
+        .status-closed {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        /* 
+         * Filter Button 
+         */
+        .filter-apply-btn,
+        .btn-secondary {
+            background-color: #F67F00 !important;
+            color: white !important;
+            border: none;
+            text-transform: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+        }
+        .filter-apply-btn:hover,
+        .btn-secondary:hover {
+            background-color: #d85b02 !important;
+        }
+
+        /* 
+         * Go Back Home Button 
+         */
+        .btn-compare {
+            background-color: #F67F00;
+            color: white;
+            padding: 8px 16px;
+            text-transform: none;
+            margin-top: 20px;
+        }
+        .btn-compare:hover {
+            background-color: #d85b02;
+        }
+
+        .table-header-contracts {
+            background-color: #002f49 !important;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container main-container">
+        <!-- Header Section -->
+        <section class="page-title-section text-center">
+            <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background">
+            <div class="container">
+                <h1 class="title">Contracts</h1>
+                <h2 class="subtitle">Connecting Your Company to Government Opportunities</h2>
+            </div>
+        </section>
+    </div>
+
+    <!-- Capability Statement Section -->
+    <div class="container">
+        <div class="container text-center" style="background-color:#689AB5; border-radius: 8px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); width: 80%; max-width: 900px;">
+            <p class="capability-statement" style="margin-top:10px;">
+                Uploaded Capability Statement:
+                <b>{{ cs_name if cs_name else 'No file uploaded' }}</b>
+            </p>
+        </div>
+    </div>
+
+    <!-- Top 5 Fitting Contracts -->
+    <div class="container">
+        <section class="top-contracts-section">
+            <h4>TOP 5 FITTING CONTRACTS</h4>
+            <div class="top-contracts-list">
+                {% if matches %}
+                <div class="row">
+                    {% for match in matches %}
+                    <div class="col-md-12">
+                        <div class="contract-item">
+                            <div class="contract-details">
+                                <div>
+                                    <div style="display: flex; align-items: flex-end;">
+                                        <div class="contract-number" style="margin-right: 15px;">
+                                            {{ loop.index }}
+                                        </div>
+                                        <h5 class="bid-name" style="font-size: 20px; color: #55656D;">
+                                            {{ match.Bid_Name }}
+                                        </h5>
+                                    </div>
+
+                                    {% set clean_str = match.Similarity_Score|replace('%','') %}
+                                    {% set score = clean_str|float %}
+
+                                    <p class="relevance-score">
+                                        {% if score < 20 %}
+                                            <span class="score-pill low-similarity">
+                                                Low Similarity
+                                            </span>
+                                        {% elif score < 35 %}
+                                            <span class="score-pill medium-similarity">
+                                                Medium Similarity
+                                            </span>
+                                        {% else %}
+                                            <span class="score-pill high-similarity">
+                                                High Similarity
+                                            </span>
+                                        {% endif %}
+                                    </p>
+
+                                    <!-- <p class="bid-number">
+                                        Bid Number: {{ match.Bid_Number if match.Bid_Number else 'Not Specified' }}
+                                    </p> -->
+                                </div>
+                            </div>
+                            <div class="select-button">
+                                <a href="#" class="btn btn-clementine" data-hash-value="{{ match.hash_value }}">
+                                    Select
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p>No matching contracts found.</p>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal Structure -->
+    <div id="contractModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modal-body">
+                <!-- Contract details will be dynamically injected here -->
+                <!-- 
+                     Ensure your /viewcontractdetails response includes .bid-description 
+                     or .contract-insight around large text sections so they can scroll 
+                     independently inside the modal.
+                -->
+            </div>
+        </div>
+    </div>
+
+    {% include 'userNavFooter_ContractsAll.html' %}
+    <br>
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+
+    <!-- Script for Modal Interaction and Table Sorting -->
+    <script>
+        // Modal logic
+        var modal = document.getElementById("contractModal");
+        var modalContent = document.getElementById("modal-body");
+        var span = document.getElementsByClassName("close")[0];
+
+        // Open the modal
+        document.querySelectorAll('.btn-clementine').forEach(function(button) {
+            button.onclick = function(event) {
+                event.preventDefault();
+                var hashValue = this.getAttribute('data-hash-value');
+
+                fetch('/viewcontractdetails?hash_value=' + hashValue)
+                    .then(response => response.text())
+                    .then(data => {
+                        modalContent.innerHTML = data;
+                        // Prevent background scrolling
+                        document.body.classList.add('modal-open');
+                        // Show the modal
+                        modal.style.display = "block";
+                    });
+            };
+        });
+
+        // Close the modal (via the "x")
+        span.onclick = function() {
+            closeModal();
+        };
+
+        // Close if user clicks outside the modal content
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        };
+
+        function closeModal() {
+            modal.style.display = "none";
+            // Restore background scrolling
+            document.body.classList.remove('modal-open');
+        }
+
+        // Sorting logic (if you have a table of all contracts, etc.)
+        $('.table-header-contracts').click(function() {
+            var table = $(this).parents('table').eq(0);
+            var rows = table.find('tbody > tr').toArray().sort(compare($(this).index()));
+
+            this.asc = !this.asc;
+            if (!this.asc) rows = rows.reverse();
+
+            for (var i = 0; i < rows.length; i++) {
+                table.children('tbody').append(rows[i]);
+            }
+        });
+
+        function compare(index) {
+            return function(a, b) {
+                var valA = getCellValue(a, index), valB = getCellValue(b, index);
+                return $.isNumeric(valA) && $.isNumeric(valB)
+                    ? valA - valB
+                    : valA.toString().localeCompare(valB);
+            };
+        }
+        function getCellValue(row, index) {
+            return $(row).children('td').eq(index).text();
+        }
+    </script>
+</body>
+</html>

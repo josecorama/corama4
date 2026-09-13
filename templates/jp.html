@@ -1,0 +1,34 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container mt-5">
+        <!-- Header Section -->
+        <header class="teamdetail-background-section text-center text-white py-3">
+            <h3 class="team-member-subtitle">Founder</h3>
+            <h1 class="team-member-title">Jaime di Paulo</h1>
+        </header>
+
+        <!-- Profile Section -->
+        <div class="row my-4 align-items-center">
+            <div class="col-md-6 d-flex justify-content-center">
+                <!-- Profile Image -->
+                <img src="{{ url_for('static', filename='images/TEAMDETAIL/jp.png') }}" class="img-fluid rounded-circle" alt="Jaime di Paulo" style="max-width: 100%; height: auto;">
+            </div>
+            <div class="col-md-6">
+                <!-- Bio Section -->
+                <div class="text-block">
+                    <p><strong>Intro:</strong> Jaime di Paulo is the President & CEO of the Illinois Hispanic Chamber of Commerce (IHCC), a prominent organization dedicated to networking, advocating for, and developing the Hispanic business community in the Midwest.</p>
+                    <p><strong>Leadership and Achievements:</strong> Since assuming leadership in 2019, di Paulo has spearheaded numerous initiatives and collaborations, positioning IHCC as a finalist in the 13th World Chambers Congress. Under his guidance, IHCC established a unique collaboration with the Universidad Nacional Autónoma de Mexico (UNAM) and expanded networks with various chambers of commerce. IHCC's 2022 milestones included creating and retaining 18,092 jobs and facilitating $88.1 million in financial resources for small businesses.</p>
+                    <p><strong>Educational and Entrepreneurial Initiatives:</strong> Recognizing the importance of education and entrepreneurship, di Paulo integrated the Chamber with the Aspen Institute Latinos and Society Program and other initiatives. His insights into the local economy and macroeconomic trends have significantly contributed to the Latino economy in the region.</p>
+                    <p><strong>Awards and Recognition:</strong> Di Paulo has been recognized as one of the 50 most influential Latinos in Chicago and received the 2022 American Mexican Association’s Leader of the Year award. He also testified before the United States House of Representatives Committee on Small Business, showcasing the IHCC's work.</p>
+                    <p><strong>Community Engagement:</strong> Di Paulo has worked to strengthen the LATINX Incubator program and organized the first Roundtable of Women CEOs. He has also facilitated alliances with the Black Chamber of Commerce of Illinois and other organizations to support minority business communities.</p>
+                    <p><strong>Professional Experience:</strong> Before IHCC, di Paulo served as the Executive Director of the Little Village Chamber of Commerce, transforming it into a robust business development center. He holds bachelor’s degrees in Public Administration and Political Science from the Universidad Nacional Autónoma de Mexico (UNAM).</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>

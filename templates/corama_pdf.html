@@ -1,0 +1,15 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+    <div class="container mt-5">
+        <div class="card">
+           
+            <div class="card-body">
+                <iframe src="{{ url_for('static', filename='uploads/onepage.pdf') }}" width="100%" height="600px"></iframe>
+            </div>
+        </div>
+    </div>
+</body>
+
+{% include 'scripts.html' %}
+

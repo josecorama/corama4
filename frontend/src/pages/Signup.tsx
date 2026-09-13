@@ -391,7 +391,7 @@ const Signup = () => {
                     Creating Account...
                   </>
                 ) : (
-                  'Get Started Free'
+                  'Get Started'
                 )}
               </button>
             </form>
@@ -419,7 +419,7 @@ const Signup = () => {
             <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-white transition-colors">Policy Notice</a>
             <a href="/faq" className="hover:text-white transition-colors">Frequently Asked Questions</a>
           </div>
-          <div>contact@corama.ai</div>
+          <div>admin@corama.ai</div>
         </div>
       </footer>
     </div>

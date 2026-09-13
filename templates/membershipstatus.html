@@ -1,0 +1,151 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+    <section class="page-title-section text-center">
+        <div class="container">
+            <img src="{{ url_for('static', filename='images/aboutuslongbg.png') }}" alt="Background">
+            <!-- Title and Subtitle -->
+            <h1 class="blog-title">Membership Status</h1>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="col-md-8 offset-md-2">
+            <div class="card mb-3">
+               
+                <div class="card-body text-center">
+                   
+                    <p>Account Type: {{ account_type }}</p>
+
+                    <p>Stripe ID: {{ stripe_customer_id}}</p>
+
+                    
+
+                    <p>Subscription End Date: {{ subscription_end_date }}</p>
+
+                </div>
+
+                
+                
+                <div class="text-center">
+                    <form id="cancel-form">
+                        <button type="button" class="useButtonLightBlue" onclick="cancelMembership()">CANCEL MEMBERSHIP</button>
+
+                        <br> 
+                        <br>
+
+                        <a href="/welcome" class="useButtonLightBlue" style="border-radius: 5px;">Go Back Home</a>
+                    </form>
+                </div>
+
+                <br>
+
+               
+
+                
+                
+
+                
+
+            </div>
+        </div>
+    </div>
+
+    {% include 'footer.html' %}
+
+    <script>
+            async function upgradeMembership() {
+        const newTier = document.getElementById('new-tier').value;
+        const billingCycle = document.getElementById('billing-cycle').value;
+
+        const response = await fetch('/upgrade_membership', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_tier: newTier, billing_cycle: billingCycle })
+        });
+
+        const data = await response.json();
+        if (data.checkout_url) {
+            window.location.href = data.checkout_url;
+        } else {
+            alert('Error: ' + data.error);
+        }
+    }
+
+    function cancelMembership() {
+    // Create the modal structure
+    const modal = document.createElement('div');
+    modal.classList.add('custom-modal');
+
+    modal.innerHTML = `
+    <div style="
+        background-color: white; 
+        border: 1px solid #ccc; 
+        border-radius: 8px; 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2); 
+        padding: 20px; 
+        width: 90%; 
+        max-width: 500px; 
+        position: fixed; 
+        top: 50%; 
+        left: 50%; 
+        transform: translate(-50%, -50%); 
+        z-index: 1000;
+        font-family: Arial, sans-serif;
+        text-align: center;
+    ">
+        <h2 style="font-size: 24px; margin-bottom: 16px; color: #333;">Cancel Membership</h2>
+        <p style="font-size: 16px; color: #555; margin-bottom: 20px;">
+            Are you sure you want to cancel your membership? This action cannot be undone.
+        </p>
+        <div style="
+            display: flex; 
+            justify-content: center; 
+            gap: 10px;
+        ">
+            <button id="confirm-cancel" style="
+                background-color: #d9534f; 
+                color: white; 
+                border: none; 
+                padding: 10px 16px; 
+                cursor: pointer; 
+                border-radius: 4px; 
+                font-size: 14px;
+            ">Yes, Cancel</button>
+            <button id="close-modal" style="
+                background-color: #f8f9fa; 
+                color: #333; 
+                border: 1px solid #ccc; 
+                padding: 10px 16px; 
+                cursor: pointer; 
+                border-radius: 4px; 
+                font-size: 14px;
+            ">No, Keep It</button>
+        </div>
+    </div>
+`;
+
+    document.body.appendChild(modal);
+
+    // Event listeners for buttons
+    document.getElementById('confirm-cancel').addEventListener('click', async () => {
+        const response = await fetch('/cancel_membership', { method: 'POST' });
+
+        const data = await response.json();
+        if (data.message) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+
+    document.getElementById('close-modal').addEventListener('click', () => {
+        modal.remove();
+    });
+}
+
+
+    </script>
+    {% include 'scripts.html' %}
+</body>

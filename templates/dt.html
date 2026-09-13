@@ -1,0 +1,35 @@
+{% include 'head.html' %}
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container mt-5">
+        <!-- Header Section -->
+        <header class="teamdetail-background-section text-center text-white py-3">
+            <h3 class="team-member-subtitle">Computer And Data Science Intern</h3>
+            <h1 class="team-member-title">Daniel Tobon</h1>
+        </header>
+
+        <!-- Profile Section -->
+        <div class="row my-4 align-items-center">
+            <div class="col-md-6 d-flex justify-content-center">
+                <!-- Profile Image -->
+                <img src="{{ url_for('static', filename='images/TEAMDETAIL/dt.png') }}" class="img-fluid rounded-circle" alt="Magdalena Barros" style="max-width: 100%; height: auto;">
+            </div>
+            <div class="col-md-6">
+                <!-- Bio Section -->
+                <div class="text-block">
+                    <p><strong>Intro:</strong> Daniel Tobon is a Computer Science and Data Science student at the University of Wisconsin–Madison with a strong interest in artificial intelligence and machine learning. He is eager to leverage his academic background and practical experience in the role of Machine Learning Intern.</p>
+                    
+                    <p><strong>Career Journey:</strong> As a Machine Learning Intern at TackleAI, Daniel has gained hands-on experience developing and fine-tuning neural networks, particularly for OCR and image classification tasks. His work has equipped him with deep technical insight and practical problem-solving skills in AI and data-centric applications.</p>
+                    
+                    <p><strong>Professional Experience:</strong> Daniel is bilingual in English and Spanish and brings exceptional communication and leadership abilities to his roles. Beyond technical proficiency, he actively contributes to communities through his involvement in CodeForGood and Badgers for Special Olympics, demonstrating his commitment to social impact and teamwork.</p>
+                    
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    {% include 'footer.html' %}
+    {% include 'scripts.html' %}
+</body>
