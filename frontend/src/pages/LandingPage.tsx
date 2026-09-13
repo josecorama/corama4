@@ -478,7 +478,7 @@ const LandingPage = () => {
             From finding the right contracts to automating winning proposals. Contract Radar Maximizer revolutionizes government contracting streamlining processes, boosting efficiency, and giving you a competitive edge.
           </p>
           <a 
-            href="/login" 
+            href="/signup" 
             className="inline-flex items-center gap-2 text-white font-poppins font-semibold px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:opacity-90 transition-all text-sm sm:text-base"
             style={{ background: 'linear-gradient(90deg, #1C4262 6%, #284165 96%)' }}
           >
@@ -631,7 +631,7 @@ const LandingPage = () => {
                 Get the scope of work of your desired contract in minutes with clear, structured responses, and more.
               </p>
               <a 
-                href="/login" 
+                href="/signup" 
                 className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white font-poppins font-semibold px-6 sm:px-8 py-2.5 sm:py-3.5 rounded-lg hover:bg-white hover:text-[#0B0B0F] transition-all text-sm sm:text-base"
               >
                 Get Started

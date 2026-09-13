@@ -391,7 +391,7 @@ const Signup = () => {
                     Creating Account...
                   </>
                 ) : (
-                  'Get Started for Free'
+                  'Get Started'
                 )}
               </button>
             </form>
