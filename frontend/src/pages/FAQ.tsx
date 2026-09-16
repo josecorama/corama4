@@ -243,8 +243,6 @@ const FAQ = () => {
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="hover:text-corama-teal transition-colors">Learn More About IHCC</a>
-            <a href="/terms-of-use" className="hover:text-corama-teal transition-colors">Terms of Use</a>
-            <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-corama-teal transition-colors">Policy Notice</a>
             <a href="/faq" className="hover:text-corama-teal transition-colors">Frequently Asked Questions</a>
           </div>
           <div>admin@corama.ai</div>

@@ -285,8 +285,6 @@ const AboutUsPublic = () => {
               
               <div className="flex flex-wrap justify-center gap-3 sm:gap-6 mb-3 text-xs sm:text-sm">
                 <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-corama-teal font-poppins transition-colors">Learn More About IHCC</a>
-                <a href="/terms-of-use" className="text-white hover:text-corama-teal font-poppins transition-colors">Terms of Use</a>
-                <a href="/static/docs/policy.pdf" target="_blank" className="text-white hover:text-corama-teal font-poppins transition-colors">Policy Notice</a>
                 <a href="/faq" className="text-white hover:text-corama-teal font-poppins transition-colors">FAQ</a>
               </div>
               
