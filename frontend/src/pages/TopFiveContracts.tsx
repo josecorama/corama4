@@ -7,6 +7,7 @@ import { InlineLoading } from '../components/ThinkingPopup'
 import { RefreshCw } from 'lucide-react'
 import { api, ContractMatch as ApiContractMatch } from '../services/api'
 import { useTranslation } from '../i18n'
+import { formatCurrency } from '../utils/currency'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 
@@ -272,7 +273,7 @@ const TopFiveContracts = () => {
       const nextOffset = currentOffset + 5
       const data = await api.getTopFiveContracts(
         contractType !== 'all' ? contractType : undefined,
-        selectedStates.filter(s => s !== 'all'),
+        selectedStates,
         nextOffset
       )
       if (data.success) {
@@ -349,7 +350,10 @@ const TopFiveContracts = () => {
       const contractTypes = filterContractType && filterContractType !== 'all' && filterContractType !== '' 
         ? [filterContractType] 
         : []
-      const states = filterStates?.filter(s => s !== 'all') || []
+      // Keep the 'all' sentinel so the backend can tell "all states" apart from
+      // a specific state selection (e.g. only Illinois). Without it, picking a
+      // single state while "All Contracts" is active was ignored server-side.
+      const states = filterStates || []
       
       const data = await api.rerunTopFiveMatching(contractTypes, states)
       if (data.success) {
@@ -621,7 +625,7 @@ const TopFiveContracts = () => {
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
                                                       {t('contractValue')}
                                                     </span>
-                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{contract.contractValue}</p>
+                          <p className="text-white font-poppins font-bold text-base lg:text-lg">{formatCurrency(contract.contractValue)}</p>
                         </div>
                         <div>
                                                     <span className="inline-block bg-white text-[#2F3C4F] font-poppins text-sm font-bold px-4 py-1.5 rounded-full mb-2 border border-gray-200">
@@ -738,6 +742,8 @@ const TopFiveContracts = () => {
           isOpen={isFilterOpen}
           onClose={() => setIsFilterOpen(false)}
           onApply={handleApplyFilter}
+          contractType={contractType}
+          states={selectedStates}
         />
       </div>
     )

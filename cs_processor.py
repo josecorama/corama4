@@ -10,6 +10,201 @@ import hashlib
 import io
 import pandas as pd
 
+# --- State normalization helpers (shared with the Top 5 endpoints) ---------
+# The dataset supports Illinois and Indiana state contracts. Different data
+# sources store the location inconsistently (e.g. "IL", "Illinois",
+# "Chicago, IL", "State-IL"), so we extract a normalized 2-letter code from
+# whatever text is available and match on that.
+STATE_NAME_TO_CODE = {'illinois': 'IL', 'indiana': 'IN'}
+KNOWN_STATE_CODES = {'IL', 'IN'}
+_FEDERAL_STATE_MARKERS = {'', 'UNKNOWN', 'N/A', 'DC', 'US', 'USA', 'NAN',
+                          'NONE', 'NULL', 'CLASSIFIED'}
+
+
+def extract_state_codes(text):
+    """Return the set of known state codes (IL/IN) referenced by ``text``.
+
+    Handles full names ("Illinois"), codes ("IL"), "City, ST" and the
+    "State-IL" contract-type bucket. Deterministic; no guessing."""
+    t = str(text or '')
+    codes = set()
+    low = t.lower()
+    for name, code in STATE_NAME_TO_CODE.items():
+        if name in low:
+            codes.add(code)
+    for token in re.findall(r'\b([A-Za-z]{2})\b', t):
+        if token.upper() in KNOWN_STATE_CODES:
+            codes.add(token.upper())
+    return codes
+
+
+def payload_state_codes(payload):
+    """Collect state codes declared across a contract's location-ish fields."""
+    if not isinstance(payload, dict):
+        return set()
+    fields = ('Contract Type', 'contract_type', 'location', 'Location',
+              'state', 'State', 'Geographic_Area', 'geographic_area')
+    codes = set()
+    for f in fields:
+        codes |= extract_state_codes(payload.get(f))
+    return codes
+
+
+def payload_is_federal(payload):
+    """Best-effort federal vs. state classification for a contract payload."""
+    if not isinstance(payload, dict):
+        return False
+    ct = str(payload.get('Contract Type') or payload.get('contract_type') or '').lower().strip()
+    if ct in ('federal', 'fed'):
+        return True
+    if ct == 'state' or ct.startswith('state-'):
+        return False
+    st = str(payload.get('state') or payload.get('State')
+             or payload.get('location') or payload.get('Location') or '').upper().strip()
+    return st in _FEDERAL_STATE_MARKERS
+
+
+# --- Excluded contracts ----------------------------------------------------
+# Contracts whose title/description mention any of these terms are hidden from
+# the Top 5 recommendations and the dashboard listings (whole-word, case
+# insensitive so "ICEE" doesn't match unrelated substrings).
+EXCLUDED_CONTRACT_TERMS = ('icee',)
+_EXCLUDED_TERM_RES = [re.compile(r'\b' + re.escape(t) + r'\b', re.IGNORECASE)
+                      for t in EXCLUDED_CONTRACT_TERMS]
+
+
+def payload_has_excluded_term(payload):
+    """True when a contract payload's title or description contains an excluded
+    term (e.g. 'ICEE')."""
+    if not isinstance(payload, dict):
+        return False
+    title = str(payload.get('title') or payload.get('bid_name')
+                or payload.get('Bid Name') or payload.get('Bid_Name') or '')
+    desc = str(payload.get('summary') or payload.get('bid_description')
+               or payload.get('Bid Description') or payload.get('Bid_Description')
+               or payload.get('description') or '')
+    haystack = f"{title}\n{desc}"
+    return any(rx.search(haystack) for rx in _EXCLUDED_TERM_RES)
+
+
+# --- NAICS helpers ---------------------------------------------------------
+# NAICS codes are the strongest signal we have for matching a company to a
+# contract, so when the capability statement declares them the Top 5 is ranked
+# by NAICS affinity first and by embedding similarity only as a tie-breaker.
+_NAICS_CONTEXT_RE = re.compile(
+    r'naics[^0-9\n]{0,40}((?:\d{2,6}(?:\.\d+)?[\s,;/&|-]*)+)', re.IGNORECASE)
+_NAICS_CODE_RE = re.compile(r'\d{2,6}')
+
+
+def extract_naics_codes_from_text(text, max_codes=20):
+    """Return NAICS codes declared in a capability statement.
+
+    Only digits that appear right after a "NAICS" label are considered, so
+    phone numbers, UEI/CAGE codes and years are never mistaken for codes.
+    """
+    codes = []
+    for match in _NAICS_CONTEXT_RE.finditer(str(text or '')):
+        for code in _NAICS_CODE_RE.findall(match.group(1)):
+            if code not in codes:
+                codes.append(code)
+            if len(codes) >= max_codes:
+                return codes
+    return codes
+
+
+def payload_naics_codes(payload):
+    """Collect the NAICS codes declared by a contract payload."""
+    if not isinstance(payload, dict):
+        return []
+    codes = []
+    for field in ('naics_code', 'NAICS_CODE', 'naics_codes', 'naics_codes_all',
+                  'NAICS_CODES_ALL', 'NAICS Code'):
+        raw = payload.get(field)
+        if not raw:
+            continue
+        items = raw if isinstance(raw, list) else [raw]
+        for item in items:
+            item_str = str(item)
+            if item_str.lower() in ('nan', 'none', 'null'):
+                continue
+            for code in re.findall(r'(\d{2,6})(?:\.\d+)?', item_str):
+                if code not in codes:
+                    codes.append(code)
+    return codes
+
+
+def naics_match_tier(user_codes, contract_codes):
+    """Score how closely a contract's NAICS codes match the company's.
+
+    3 = same 6-digit industry, 2 = same 4-digit industry group,
+    1 = same 3-digit subsector, 0 = no relation.
+    """
+    tier = 0
+    for user_code in user_codes or []:
+        for contract_code in contract_codes or []:
+            if user_code == contract_code:
+                return 3
+            if len(user_code) >= 4 and len(contract_code) >= 4 and user_code[:4] == contract_code[:4]:
+                tier = max(tier, 2)
+            elif len(user_code) >= 3 and len(contract_code) >= 3 and user_code[:3] == contract_code[:3]:
+                tier = max(tier, 1)
+    return tier
+
+
+# --- Capability-statement query building -----------------------------------
+# Before embedding, we strip obvious contact/boilerplate noise so the vector
+# focuses on what the company actually does, then append the most frequent
+# meaningful terms so the semantic match keys on the real capabilities.
+_QUERY_EMAIL_RE = re.compile(r'\b[\w.+-]+@[\w-]+\.[\w.-]+\b')
+_QUERY_URL_RE = re.compile(r'\bhttps?://\S+|\bwww\.\S+', re.IGNORECASE)
+_QUERY_PHONE_RE = re.compile(r'\+?\d[\d\s().-]{7,}\d')
+_QUERY_WORD_RE = re.compile(r"[A-Za-z][A-Za-z&/-]{2,}")
+
+_QUERY_STOPWORDS = {
+    'the', 'and', 'for', 'with', 'our', 'are', 'you', 'your', 'that', 'this',
+    'from', 'have', 'has', 'was', 'were', 'will', 'can', 'all', 'any', 'its',
+    'their', 'they', 'them', 'who', 'what', 'when', 'where', 'which', 'into',
+    'over', 'under', 'more', 'most', 'other', 'such', 'than', 'then', 'these',
+    'those', 'also', 'been', 'being', 'about', 'above', 'across', 'after',
+    'inc', 'llc', 'ltd', 'corp', 'company', 'companies', 'capability',
+    'statement', 'contact', 'point', 'email', 'phone', 'fax', 'website',
+    'address', 'street', 'suite', 'avenue', 'road', 'city', 'state', 'zip',
+    'uei', 'cage', 'duns', 'naics', 'code', 'codes', 'number',
+    'not', 'but', 'our', 'per', 'via', 'etc', 'page',
+}
+
+
+def build_capability_query_text(text, max_chars=30000, top_keywords=30):
+    """Turn the raw PDF text into a focused embedding query.
+
+    Deterministic: removes emails/URLs/phone numbers, then appends the most
+    frequent meaningful (non-stopword) terms so the Qdrant vector match keys on
+    the company's actual capabilities rather than boilerplate/contact noise.
+    """
+    raw = str(text or '')
+    cleaned = _QUERY_EMAIL_RE.sub(' ', raw)
+    cleaned = _QUERY_URL_RE.sub(' ', cleaned)
+    cleaned = _QUERY_PHONE_RE.sub(' ', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+
+    counts = {}
+    for token in _QUERY_WORD_RE.findall(cleaned):
+        low = token.lower()
+        if low in _QUERY_STOPWORDS or len(low) < 4:
+            continue
+        counts[low] = counts.get(low, 0) + 1
+
+    keywords = [w for w, _ in sorted(
+        counts.items(), key=lambda kv: (-kv[1], kv[0]))[:top_keywords]]
+
+    if keywords:
+        cleaned = f"{cleaned}\n\nKey capabilities and services: {', '.join(keywords)}."
+
+    if len(cleaned) > max_chars:
+        cleaned = cleaned[:max_chars]
+    return cleaned
+
+
 class CSQueryHandler:
     def __init__(self, openai_api_key, qdrant_url, qdrant_api_key, user_upload_dir):
         self.openai_client = OpenAI(api_key=openai_api_key)
@@ -88,17 +283,21 @@ class CSQueryHandler:
         return vector.tolist()
 
     def _is_past_due(self, due_date_str):
-        """Check if a due date has passed (contract is closed)"""
-        if not due_date_str:
+        """Check if a due date has passed (contract is closed).
+
+        Handles YYYY-MM-DD and DD/MM/YYYY (the format the data actually uses),
+        stripping any time/offset suffix first.
+        """
+        if not due_date_str or str(due_date_str).lower() in ('nan', 'none', '', 'null'):
             return False
-        try:
-            from datetime import date, datetime
-            # Parse date, stripping time/offset if present (e.g., "2025-12-05T14:00:00-05:00" -> "2025-12-05")
-            date_part = due_date_str.split("T")[0]
-            parsed_date = datetime.strptime(date_part, "%Y-%m-%d").date()
-            return parsed_date < date.today()
-        except Exception:
-            return False
+        from datetime import date, datetime
+        date_part = str(due_date_str).split("T")[0].strip()
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"):
+            try:
+                return datetime.strptime(date_part, fmt).date() < date.today()
+            except ValueError:
+                continue
+        return False
 
     def enrich_with_ai(self, contracts):
         """Use OpenAI to extract Industry Sector and Geographic Area for contracts"""
@@ -225,70 +424,116 @@ Respond with ONLY valid JSON array, no other text:
     def build_filter_conditions(self, contract_types, states):
         from qdrant_client.http import models
 
-        # If "All Contracts" is selected, return None (no filtering, return all contracts)
-        if "All Contracts" in contract_types:
-            print("All Contracts selected, no filter conditions added")
+        contract_types = contract_types or []
+        states = states or []
+
+        ALL_STATES = ["IL", "IN"]
+
+        # "All states" sentinels mean "do not restrict geographically". The filter
+        # UI sends the individual states alongside the sentinel (e.g.
+        # ['all', 'IL', 'IN']) when everything is selected, so the presence of the
+        # sentinel takes precedence and we ignore the accompanying specific states.
+        _all_sentinels = ('all', 'all state', 'all states')
+        has_all_states = any(str(s).strip().lower() in _all_sentinels for s in states)
+        specific_states = [] if has_all_states else [
+            s for s in states if str(s).strip().lower() not in _all_sentinels
+        ]
+
+        all_contracts = "All Contracts" in contract_types
+        want_federal = "federal" in contract_types
+        want_state = "state" in contract_types
+
+        # Nothing to restrict on -> return all contracts.
+        # (Only bail out when no specific state was chosen; a specific state must
+        # still be honored even when "All Contracts" / no contract type is set.)
+        if not specific_states and (all_contracts or not contract_types):
+            print("No specific state and no contract-type restriction; returning all contracts")
             return None
 
-        must_conditions = []
-        
-        # Handle contract type filtering (Federal vs State)
+        # The dataset stores a deterministic 'Contract Type' bucket per contract:
+        # 'Federal' for federal contracts and 'State-IL' / 'State-IN' for state
+        # contracts. We filter on that field for reliable, exact matching.
         contract_type_values = []
-        if "federal" in contract_types:
+
+        if want_federal:
             contract_type_values.append("Federal")
             print("Added Federal condition")
-        
-        if "state" in contract_types:
-            # If "All state" is selected, automatically use all specific states
-            if "All state" in states:
-                ALL_STATES = ["IL", "IN"]
-                for s in ALL_STATES:
-                    contract_type_values.append(f"State-{s.upper()}")
-                    print(f"Added All state condition: State-{s.upper()}")
-            else:
-                for s in states:
-                    contract_type_values.append(f"State-{s.upper()}")
-                    print(f"Added State condition: State-{s.upper()}")
-        
-        if contract_type_values:
-            must_conditions.append(
+
+        if specific_states:
+            # Restrict specifically to the chosen state(s), regardless of whether
+            # federal/all was selected -- the user asked for those states.
+            for s in specific_states:
+                contract_type_values.append(f"State-{s.strip().upper()}")
+                print(f"Added specific State condition: State-{s.strip().upper()}")
+        elif want_state:
+            # State contracts requested but no specific state -> all known states.
+            for s in ALL_STATES:
+                contract_type_values.append(f"State-{s}")
+                print(f"Added all-state condition: State-{s}")
+
+        if not contract_type_values:
+            print("No valid match conditions, returning None")
+            return None
+
+        filter_condition = models.Filter(
+            must=[
                 models.FieldCondition(
                     key='Contract Type',
                     match=models.MatchAny(any=contract_type_values)
                 )
-            )
-        
-        # Handle geographic state filtering (filter by actual State field)
-        # This filters contracts by their geographic location
-        if states and len(states) > 0:
-            # Filter out 'all' and 'All state' from the states list
-            filtered_states = [s for s in states if s.lower() not in ('all', 'all state')]
-            if filtered_states:
-                # Normalize state values - handle both abbreviations and full names
-                state_values = []
-                for s in filtered_states:
-                    state_values.append(s)  # Original value
-                    state_values.append(s.upper())  # Uppercase
-                    state_values.append(s.lower())  # Lowercase
-                    state_values.append(s.title())  # Title case
-                # Remove duplicates while preserving order
-                state_values = list(dict.fromkeys(state_values))
-                
-                must_conditions.append(
-                    models.FieldCondition(
-                        key='State',
-                        match=models.MatchAny(any=state_values)
-                    )
-                )
-                print(f"Added State geographic filter: {state_values}")
-
-        if not must_conditions:
-            print("No valid match conditions, returning None")
-            return None
-
-        filter_condition = models.Filter(must=must_conditions)
+            ]
+        )
         print("Built filter condition:", filter_condition.dict())
         return filter_condition
+
+    def _apply_type_state_filter(self, results, contract_types, states):
+        """Filter retrieved Qdrant points by contract type and/or state.
+
+        Ranking (already applied to ``results``) is preserved. This is tolerant
+        of inconsistent payload formats: state matching normalizes codes/names
+        via ``payload_state_codes`` and federal/state classification via
+        ``payload_is_federal``.
+        """
+        contract_types = contract_types or []
+        states = states or []
+
+        _all_sentinels = ('all', 'all state', 'all states')
+        has_all_states = any(str(s).strip().lower() in _all_sentinels for s in states)
+        selected_codes = set() if has_all_states else {
+            str(s).strip().upper() for s in states
+            if str(s).strip().lower() not in _all_sentinels
+        }
+
+        all_contracts = 'All Contracts' in contract_types
+        want_federal = 'federal' in contract_types
+        want_state = 'state' in contract_types
+
+        # No effective restriction -> keep everything (still ranked).
+        if not selected_codes and (all_contracts or not contract_types):
+            return results
+
+        kept = []
+        for res in results:
+            payload = res.payload or {}
+            is_federal = payload_is_federal(payload)
+
+            if selected_codes:
+                # Specific state(s) requested: keep only state contracts located
+                # in one of them (federal contracts are excluded).
+                if is_federal:
+                    continue
+                if not (payload_state_codes(payload) & selected_codes):
+                    continue
+                kept.append(res)
+                continue
+
+            # No specific state, so restrict purely by contract type.
+            if want_federal and is_federal:
+                kept.append(res)
+            elif want_state and not is_federal:
+                kept.append(res)
+
+        return kept
 
 
 
@@ -299,8 +544,8 @@ Respond with ONLY valid JSON array, no other text:
                 
                 # Build filter conditions
                 filter_conditions = None
-                if contract_types:
-                    filter_conditions = self.build_filter_conditions(contract_types, states or [])
+                if contract_types or states:
+                    filter_conditions = self.build_filter_conditions(contract_types or [], states or [])
                 
                 # Execute search using query_points (new API)
                 print("Filter conditions used:", filter_conditions.dict() if filter_conditions else None)
@@ -375,12 +620,17 @@ Respond with ONLY valid JSON array, no other text:
 
             print(f"Will use company name: '{user_company}'")
 
-            # 1. Extract PDF text
+            # 1. Extract PDF text and build a focused, denoised query so the
+            # vector search keys on the company's actual capabilities.
             text = self.extract_text_from_pdf(pdf_file)
             print(f"Extracted text, length: {len(text)} characters")
-            
+            user_naics_codes = extract_naics_codes_from_text(text)
+            print(f"NAICS codes declared in the capability statement: {user_naics_codes or 'none'}")
+            query_text = build_capability_query_text(text)
+            print(f"Built focused query text, length: {len(query_text)} characters")
+
             # 2. Generate embedding
-            vector = self.get_embedding(text)
+            vector = self.get_embedding(query_text)
             print(f"Generated embedding vector, dimensions: {len(vector)}")
             
             # 3. Build query parameters
@@ -391,15 +641,18 @@ Respond with ONLY valid JSON array, no other text:
                 "limit": limit
             }
             
-            # 4. Build filter conditions (unified call to build_filter_conditions)
-            # Pass Filter object directly instead of .dict() for better qdrant-client compatibility
+            # 4. Contract type / state filtering is done AFTER retrieval (see
+            # step 6b). The payload field names and values differ across data
+            # sources (e.g. "IL" vs "Illinois" vs "Chicago, IL"), so a strict
+            # Qdrant filter easily returns zero rows. Instead we retrieve a wide
+            # candidate pool ranked purely by capability-statement similarity and
+            # then filter/normalize in Python, preserving the ranking.
             filter_conditions = None
-            if contract_types:
-                filter_conditions = self.build_filter_conditions(contract_types, states or [])
-                if filter_conditions:
-                    query_params["query_filter"] = filter_conditions  # Pass object directly, not .dict()
-                print("\nFilter conditions used:", filter_conditions.dict() if filter_conditions else None)
-            
+            has_type_or_state_filter = bool(contract_types or states)
+            # Pull a bigger candidate pool when filtering, or when we can rank by
+            # NAICS, so enough relevant candidates survive.
+            retrieval_limit = max(limit, 200) if (has_type_or_state_filter or user_naics_codes) else limit
+
             # 5. Execute search using query_points (new API)
             print("\nExecuting search...")
             query_response = self.qdrant_client.query_points(
@@ -407,7 +660,7 @@ Respond with ONLY valid JSON array, no other text:
                 query=vector,
                 query_filter=filter_conditions,
                 with_payload=True,
-                limit=limit
+                limit=retrieval_limit
             )
             # Extract points from QueryResponse
             results = query_response.points if hasattr(query_response, 'points') else []
@@ -482,10 +735,16 @@ Respond with ONLY valid JSON array, no other text:
             
             print(f"\n[MATCHING] Stage 2 - After deduplication: {len(unique_results)} unique contracts")
 
-            # Filter out closed contracts (past due dates) before selecting top 5
+            # Filter out closed contracts (past due dates) and excluded terms
+            # (e.g. ICEE) before selecting the top matches.
             open_results = []
             closed_count = 0
+            excluded_count = 0
             for res in unique_results:
+                if payload_has_excluded_term(res.payload):
+                    excluded_count += 1
+                    print(f"   - Skipping excluded contract: {res.payload.get('title', 'Unknown')}")
+                    continue
                 due_date = res.payload.get("due_date", "")
                 if self._is_past_due(due_date):
                     closed_count += 1
@@ -493,9 +752,51 @@ Respond with ONLY valid JSON array, no other text:
                 else:
                     open_results.append(res)
             
-            print(f"\n[MATCHING] Stage 3 - After filtering closed: {len(open_results)} open contracts (filtered out {closed_count} closed)")
-            
-            final_results = open_results[:limit]
+            print(f"\n[MATCHING] Stage 3 - After filtering closed/excluded: {len(open_results)} open contracts (filtered out {closed_count} closed, {excluded_count} excluded)")
+
+            # 6b. Apply contract-type / state filtering in Python (deterministic,
+            # tolerant of inconsistent payload formats) while keeping the
+            # similarity ranking established above.
+            open_results = self._apply_type_state_filter(open_results, contract_types or [], states or [])
+            print(f"\n[MATCHING] Stage 3b - After type/state filter: {len(open_results)} contracts")
+
+            # 6c. Relevance floor: keep only contracts whose similarity clears a
+            # minimum, so weakly-related results don't get recommended. Falls
+            # back to the best available if too few clear the bar (so the page
+            # is never empty when there ARE open contracts).
+            try:
+                min_similarity = float(os.getenv('TOP5_MIN_SIMILARITY', '0.20'))
+            except (TypeError, ValueError):
+                min_similarity = 0.20
+            min_keep = 3
+            relevant = [r for r in open_results if getattr(r, 'score', 0.0) >= min_similarity]
+            if len(relevant) >= min_keep or not open_results:
+                filtered_by_score = relevant
+            else:
+                filtered_by_score = open_results[:min_keep]
+            print(f"\n[MATCHING] Stage 3c - After relevance floor (>= {min_similarity}): "
+                  f"{len(filtered_by_score)} contracts (from {len(open_results)})")
+
+            # 6d. NAICS-first ranking: when the capability statement declares
+            # NAICS codes, contracts sharing them outrank everything else and
+            # are kept even if their embedding similarity is below the floor.
+            # Without declared codes the similarity ranking is used as before.
+            if user_naics_codes:
+                above_floor = {id(r) for r in filtered_by_score}
+                tiers = {}
+                ranked = []
+                for res in open_results:
+                    tier = naics_match_tier(user_naics_codes, payload_naics_codes(res.payload))
+                    tiers[id(res)] = tier
+                    if tier > 0 or id(res) in above_floor:
+                        ranked.append(res)
+                ranked.sort(key=lambda r: (tiers[id(r)], getattr(r, 'score', 0.0)), reverse=True)
+                naics_hits = sum(1 for r in ranked if tiers[id(r)] > 0)
+                print(f"\n[MATCHING] Stage 3d - NAICS-first ranking on {user_naics_codes}: "
+                      f"{naics_hits} contracts share a NAICS code (of {len(ranked)} candidates)")
+                filtered_by_score = ranked
+
+            final_results = filtered_by_score[:limit]
             print(f"\n[MATCHING] Stage 4 - Final results (top {limit}): {len(final_results)} contracts")
 
             print("\n(2) Deduplication process log:")

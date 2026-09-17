@@ -76,12 +76,43 @@ class PDF(FPDF):
         right_x = self.MARGIN + col_w + self.GUTTER
         return left_x, right_x, col_w
 
+    def _count_wrapped_lines(self, text, width):
+        """Approximate how many lines FPDF.multi_cell will produce for ``text``
+        at the current font, wrapping on spaces within ``width`` mm. Used to
+        vertically centre the header company name."""
+        if not text:
+            return 1
+        try:
+            wmax = width - 2 * self.c_margin
+        except AttributeError:
+            wmax = width - 2.0
+        total = 0
+        for paragraph in text.split("\n"):
+            words = paragraph.split(" ")
+            line = ""
+            count = 1
+            for wd in words:
+                trial = wd if line == "" else line + " " + wd
+                if line == "" or self.get_string_width(trial) <= wmax:
+                    line = trial
+                else:
+                    count += 1
+                    line = wd
+            total += count
+        return max(1, total)
+
     def header(self):
         """Professional header with logo, company name, blue bar and hero image"""
         left_x, right_x, col_w = self._col_layout()
 
         bar_y = 38
         bar_h = 40
+
+        # Header band above the blue bar. The logo (left) and the company name
+        # (right) are both vertically centred within this band so they line up.
+        band_top = 8.0
+        band_bottom = bar_y - 3.0
+        band_center = (band_top + band_bottom) / 2
 
         # ── Logo (left side, above bar) ──
         logo_path = self.data.get("logo_path")
@@ -97,7 +128,7 @@ class PDF(FPDF):
                     w = max_w
                     h = w / ar
                 lx = left_x + (col_w - w) / 2
-                ly = bar_y - h - 1
+                ly = band_center - h / 2
                 self.image(logo_path, lx, ly, w, h)
             except Exception:
                 pass
@@ -105,10 +136,14 @@ class PDF(FPDF):
         # ── Company name (right side, above bar) ──
         company_name = self.data.get("company_name", "")
         if company_name:
-            self.set_xy(right_x, 10)
             self.set_font("Helvetica", "B", 15)
             self.set_text_color(*self.primary_color)
-            self.multi_cell(col_w, 6, self._to_pdf_text(company_name.upper()), 0, "C")
+            name_text = self._to_pdf_text(company_name.upper())
+            line_h = 6.0
+            n_lines = self._count_wrapped_lines(name_text, col_w)
+            name_y = band_center - (n_lines * line_h) / 2
+            self.set_xy(right_x, name_y)
+            self.multi_cell(col_w, line_h, name_text, 0, "C")
 
         # ── Blue bar ──
         self.set_fill_color(*self.primary_color)
@@ -465,11 +500,10 @@ class PDF(FPDF):
                 font_size=8.0, bottom_limit=bottom_limit)
             right_y += section_gap
 
-        # Position footer right after content
-        last_content_y = max(left_y, right_y)
-        footer_top_y = last_content_y + gap_above_footer
-
+        # Pin the footer to the bottom of the page (Classic layout). The content
+        # above is bounded by `bottom_limit`, so it never overlaps the footer.
         footer_h_mm = self.footer_layout['footer_h_mm']
+        footer_top_y = self.h - footer_h_mm
         self.footer_layout['footer_top_y'] = footer_top_y
         self.footer_layout['label_y'] = footer_top_y + 3.0
         self.footer_layout['cols_y'] = footer_top_y + 3.0 + 5.0

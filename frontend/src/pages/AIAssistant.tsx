@@ -694,49 +694,69 @@ const AIAssistant = () => {
       // Check if this is one of the action commands using flexible matching
       const actionKey = getActionKeyFromInput(userInput)
 
-      if (actionKey) {
-        // Call backend API for AI action with conversation history
-        try {
-          const conversationHistory = buildConversationHistory()
-          // Generate idempotency key to prevent double-click duplicate charges
-          const idempotencyKey = `ai_assistant_${actionKey}_${contractId}_${Date.now()}`
-          const response = await api.aiAssistantAction(actionKey, contractName, conversationHistory, idempotencyKey)
+      // Use streaming API to avoid worker timeout (ERR_CONNECTION_RESET)
+      const effectiveAction = actionKey || 'conversation'
+      try {
+        const conversationHistory = buildConversationHistory()
+        const idempotencyKey = `ai_assistant_${effectiveAction}_${contractId}_${Date.now()}`
 
-          if (response.success) {
-            addAiMessage(response.message)
-            // Force Header to refresh credits (skip if cached response)
-            if (!response.cached) {
-              setHeaderKey(k => k + 1)
-            }
-          } else {
-            addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
-          }
-        } catch (error) {
-          console.error('AI action error:', error)
-          addAiMessage('Sorry, I encountered an error processing your request. Please try again later.')
+        // Create a placeholder AI message for streaming tokens into
+        const streamMsgId = Date.now()
+        const streamMessage: Message = {
+          id: streamMsgId,
+          sender: 'ai',
+          content: '',
+          timestamp: formatTime(),
+          isTyping: false,
+          visibleContent: '',
         }
-      }else {
-        // Non-action message - send as conversation to maintain context (1 credit)
-        // This allows the AI to follow up on its own questions
-        try {
-          const conversationHistory = buildConversationHistory()
-          // Generate idempotency key to prevent double-click duplicate charges
-          const idempotencyKey = `ai_assistant_conversation_${contractId}_${Date.now()}`
-          const response = await api.aiAssistantAction('conversation', contractName, conversationHistory, idempotencyKey)
+        setMessages(prev => [...prev, streamMessage])
 
-          if (response.success) {
-            addAiMessage(response.message)
-            // Force Header to refresh credits (skip if cached response)
-            if (!response.cached) {
-              setHeaderKey(k => k + 1)
-            }
-          } else {
-            addAiMessage(response.error || 'Sorry, I encountered an error processing your request. Please try again.')
+        const response = await api.aiAssistantActionStream(
+          effectiveAction,
+          contractName,
+          (token: string) => {
+            // Update message content progressively as tokens arrive
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === streamMsgId
+                  ? { ...m, content: m.content + token, visibleContent: (m.visibleContent || '') + token }
+                  : m
+              )
+            )
+          },
+          conversationHistory,
+          idempotencyKey
+        )
+
+        if (response.success) {
+          // Normalize markdown on the final message
+          const finalContent = normalizeMarkdown(response.message)
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === streamMsgId
+                ? { ...m, content: finalContent, visibleContent: finalContent }
+                : m
+            )
+          )
+          // Force Header to refresh credits (skip if cached response)
+          if (!response.cached) {
+            setHeaderKey(k => k + 1)
           }
-        } catch (error) {
-          console.error('Conversation error:', error)
-          addAiMessage('Sorry, I encountered an error processing your request. Please try again later.')
+        } else {
+          // If error, replace the streaming message with error text
+          const errorMsg = response.error || 'Sorry, I encountered an error processing your request. Please try again.'
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === streamMsgId
+                ? { ...m, content: errorMsg, visibleContent: errorMsg }
+                : m
+            )
+          )
         }
+      } catch (error) {
+        console.error('AI action error:', error)
+        addAiMessage('Sorry, I encountered an error processing your request. Please try again later.')
       }
     } finally {
       setIsProcessing(false)
@@ -798,7 +818,13 @@ const AIAssistant = () => {
             <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in-up animate-delay-100">
               <div ref={chatContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden ai-chat-scrollbar">
               <div className="space-y-3 sm:space-y-4 pr-2">
-                {messages.map((message) => (
+                {messages.map((message) => {
+                  const displayText = message.visibleContent ?? message.content
+                  // Skip empty AI placeholder bubbles (e.g. the streaming
+                  // message before its first token arrives) so we don't render
+                  // an empty globe alongside the "Thinking…" indicator.
+                  if (message.sender === 'ai' && !displayText) return null
+                  return (
                   <div
                     key={message.id}
                     className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} animate-message-pop`}
@@ -854,9 +880,14 @@ const AIAssistant = () => {
                       </div>
                     </div>
                   </div>
-                ))}
-                {/* Show thinking text while waiting for AI response */}
-                              {isProcessing && (
+                  )
+                })}
+                {/* Show thinking text while waiting for AI response, but hide it
+                    once the streaming AI message has started producing tokens */}
+                              {isProcessing && !(() => {
+                                const last = messages[messages.length - 1]
+                                return last && last.sender === 'ai' && !!(last.visibleContent ?? last.content)
+                              })() && (
                                 <div
                                   className="flex justify-start animate-message-pop"
                                   style={{

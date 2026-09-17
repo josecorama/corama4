@@ -18,8 +18,7 @@ interface Company {
   yearsInBusiness: number
   logo?: string
   linkedinUrl: string
-  certifications: string
-  pastProjects: string
+  services: string
 }
 
 const CoramaDirectory = () => {
@@ -32,15 +31,21 @@ const CoramaDirectory = () => {
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
   const [hasDirectoryProfile, setHasDirectoryProfile] = useState<boolean | null>(null)
-  const companiesPerPage = 5
+  const companiesPerPage = 10
   const startItem = totalCompanies > 0 ? (currentPage - 1) * companiesPerPage + 1 : 0
   const endItem = Math.min(currentPage * companiesPerPage, totalCompanies)
   const hasMorePages = endItem < totalCompanies
 
   useEffect(() => {
-    loadDirectory()
     checkDirectoryProfile()
-  }, [currentPage])
+  }, [])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadDirectory()
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [currentPage, searchQuery])
 
   const checkDirectoryProfile = async () => {
     try {
@@ -75,8 +80,7 @@ const CoramaDirectory = () => {
           yearsInBusiness: parseInt(c.years_in_business || c.yearsInBusiness || '0') || 0,
           logo: c.logo_url || c.logo,
           linkedinUrl: c.linkedin_url || c.linkedinUrl || '',
-          certifications: c.certifications || '',
-          pastProjects: c.past_projects || c.pastProjects || ''
+          services: c.services || ''
         }))
         setCompanies(transformedCompanies)
         setTotalCompanies(data.total || transformedCompanies.length)
@@ -94,6 +98,14 @@ const CoramaDirectory = () => {
     setCurrentPage(1)
     loadDirectory()
   }
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    setCurrentPage(1)
+  }
+
+  const websiteHref = (website: string) =>
+    /^https?:\/\//i.test(website) ? website : `https://${website}`
 
   return (
     <div className="min-h-screen bg-corama-dark">
@@ -121,7 +133,7 @@ const CoramaDirectory = () => {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder={t('searchByCompanyPlaceholder')}
                 className="w-full bg-white border border-gray-200 rounded-full py-2 sm:py-3 px-4 sm:px-6 text-gray-800 placeholder-gray-400 focus:outline-none focus:border-corama-teal text-sm sm:text-base"
               />
@@ -219,26 +231,29 @@ const CoramaDirectory = () => {
                         <img src="/static/app/dashboard/Email.svg" alt="" className="w-5 h-5" />
                         <a href={`mailto:${company.email}`} className="text-corama-teal font-poppins text-xs sm:text-sm break-all underline hover:opacity-80">{company.email}</a>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <img src="/static/app/dashboard/Website.svg" alt="" className="w-5 h-5" />
-                        <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.website}</span>
-                      </div>
+                      {company.website && company.website !== 'N/A' && (
+                        <div className="flex items-center gap-2">
+                          <img src="/static/app/dashboard/Website.svg" alt="" className="w-5 h-5" />
+                          <a
+                            href={websiteHref(company.website)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-corama-teal font-poppins text-xs sm:text-sm break-all underline hover:opacity-80"
+                          >
+                            {company.website}
+                          </a>
+                        </div>
+                      )}
                       {company.linkedinUrl && (
                         <div className="flex items-center gap-2">
                           <img src="/static/app/dashboard/LinkedIn.svg" alt="" className="w-5 h-5" />
                           <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.linkedinUrl}</span>
                         </div>
                       )}
-                      {company.certifications && (
+                      {company.services && (
                         <div className="flex items-center gap-2">
-                          <img src="/static/app/dashboard/TopFiveContracts.svg" alt="" className="w-5 h-5" />
-                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.certifications}</span>
-                        </div>
-                      )}
-                      {company.pastProjects && (
-                        <div className="flex items-center gap-2">
-                          <img src="/static/app/dashboard/TopFiveContracts.svg" alt="" className="w-5 h-5" />
-                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.pastProjects}</span>
+                          <img src="/static/app/dashboard/Briefcase.svg" alt="" className="w-5 h-5" />
+                          <span className="text-gray-300 font-poppins text-xs sm:text-sm">{company.services}</span>
                         </div>
                       )}
                     </div>

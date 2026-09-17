@@ -49,6 +49,8 @@ export const translations = {
     
     // Dashboard
     overview: 'Overview',
+    loadingContracts: 'Loading contracts',
+    loadingContractsHint: 'This will take a few seconds',
     contractsView: 'Contracts View',
     grantsView: 'Grants View',
     accounts: 'Accounts',
@@ -186,7 +188,7 @@ export const translations = {
     username: 'Username',
     language: 'Language',
     english: 'English',
-    spanish: 'Espanol',
+    spanish: 'Español',
     changePassword: 'Change Password',
     currentPassword: 'Current Password',
     newPassword: 'New Password',
@@ -439,7 +441,7 @@ export const translations = {
       // Contract Insights
       recommendedTeamComposition: 'Recommended Team Composition',
       suggestedStrategyBased: 'Suggested strategy based on project requirements and skills.',
-      startAskingQuestions: 'Start asking your questions about this recommendations',
+      startAskingQuestions: 'Start asking your questions about these recommendations',
       exploreContracts: 'Explore Contracts',
       goBackToDashboard: 'Go back to the dashboard',
       seeMatchedContracts: 'See Matched Contracts',
@@ -537,6 +539,8 @@ export const translations = {
     uploadFile: 'Upload File',
     clickHereToBrowse: 'Click here to browse your pdf file',
     orImportFromUrl: 'Or Import from URL',
+    importUrlPlaceholder: 'Company website or LinkedIn page URL...',
+    importUrlHint: 'Paste a company website or LinkedIn page to auto-fill the fields. Importing clears the form first.',
     companyInformation: 'Company Information',
     govCodesCertifications: 'Government Codes & Certifications',
     recommendedTeamSubtitle: 'Suggested strategy based on project requirements and skills.',
@@ -655,6 +659,8 @@ export const translations = {
     
         // Dashboard
         overview: 'Resumen',
+        loadingContracts: 'Cargando contratos',
+        loadingContractsHint: 'Esto tardará unos segundos',
         contractsView: 'Vista de Contratos',
         grantsView: 'Vista de Subvenciones',
         accounts: 'Cuentas',
@@ -1143,6 +1149,8 @@ export const translations = {
     uploadFile: 'Subir Archivo',
     clickHereToBrowse: 'Haga clic aqu\u00ed para buscar su archivo PDF',
     orImportFromUrl: 'O Importar desde URL',
+    importUrlPlaceholder: 'Sitio web de la empresa o p\u00e1gina de LinkedIn...',
+    importUrlHint: 'Pega un sitio web o una p\u00e1gina de LinkedIn para autocompletar los campos. Al importar se limpia el formulario.',
     companyInformation: 'Informaci\u00f3n de la Empresa',
     govCodesCertifications: 'C\u00f3digos Gubernamentales y Certificaciones',
     recommendedTeamSubtitle: 'Estrategia sugerida basada en los requisitos del proyecto y habilidades.',
