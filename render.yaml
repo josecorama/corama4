@@ -2,6 +2,7 @@
 # This file defines two services:
 # 1. Web Service - Flask app serving the frontend and API
 # 2. Background Worker - Proposal generation worker that processes queued jobs
+#    and runs the daily SAM.gov contract ingestion (06:00 UTC)
 
 services:
   # Web Service - Flask Application
@@ -118,55 +119,18 @@ services:
       # OpenAI API Key (for proposal generation)
       - key: OPENAI_API_KEY
         sync: false
-
-  # Cron Job - Daily SAM.gov contract ingestion + digest email
-  - type: cron
-    name: corama-daily-ingest
-    runtime: python
-    schedule: "0 6 * * *"  # daily at 06:00 UTC
-    buildCommand: pip install -r requirements.txt
-    startCommand: python daily_ingest.py
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.12.8"
-      - key: ENV
-        value: production
-      # Firebase Configuration (NAICS enrichment + pending-approval storage)
-      - key: SERVICE_ACCOUNT_JSON
-        sync: false
-      - key: FIREBASE_SERVICE_ACCOUNT_JSON
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: STORAGE_BUCKET
-        sync: false
-      # SAM.gov API
+      # Daily SAM.gov ingest (runs inside this worker at 06:00 UTC; no separate cron)
       - key: SAM_GOV_API_KEY
         sync: false
-      # Qdrant Vector Database
       - key: QDRANT_URL
         sync: false
       - key: QDRANT_API_KEY
         sync: false
-      # OpenAI (for generating real contract embeddings at ingest)
       - key: SMART_SEARCH_OPENAI_API_KEY
         sync: false
-      - key: OPENAI_API_KEY
-        sync: false
-      # Email digest configuration
       - key: EMAIL_GOOGLE_USER
         sync: false
       - key: EMAIL_GOOGLE_PASS
-        sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
-      - key: SMTP_MODE
         sync: false
       # Digest recipients (default admin@corama.ai; comma-separated to override)
       - key: INGEST_DIGEST_EMAIL
@@ -177,3 +141,11 @@ services:
       # Optional: extra state codes to diversify beyond federal (e.g. "IL,IN")
       - key: INGEST_STATES
         sync: false
+      # Max SAM.gov opportunities fetched per daily ingest
+      - key: INGEST_LIMIT
+        value: "800"
+      # Optional: hour (UTC) for the daily ingest, or "false" to disable
+      - key: DAILY_INGEST_HOUR_UTC
+        value: "6"
+      - key: DAILY_INGEST_ENABLED
+        value: "true"

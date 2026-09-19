@@ -29,7 +29,8 @@ import logging
 import signal
 import tempfile
 import requests
-from datetime import datetime
+import threading
+from datetime import datetime, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 
@@ -63,6 +64,7 @@ from openai import OpenAI
 
 # Import shared category mapping module
 from category_mapping import map_payload_to_category, DASHBOARD_CATEGORIES
+from daily_ingest import run_propose, DEFAULT_DIGEST_EMAIL, DEFAULT_BASE_URL
 
 # Worker configuration
 WORKER_ID = f"worker-{uuid.uuid4().hex[:8]}"
@@ -70,6 +72,14 @@ POLL_INTERVAL = 5  # seconds between polling for new jobs
 LEASE_DURATION = 600  # 10 minutes lease duration
 HEARTBEAT_INTERVAL = 30  # seconds between heartbeats
 MAX_SECTIONS_PARALLEL = 8  # parallel sections per job (matches current behavior)
+
+# Daily SAM.gov ingest (replaces a separate Render cron job). Runs once per
+# UTC day at/after DAILY_INGEST_HOUR_UTC; last run date is persisted in Firebase
+# so restarts don't re-run it.
+DAILY_INGEST_ENABLED = os.getenv('DAILY_INGEST_ENABLED', 'true').lower() == 'true'
+DAILY_INGEST_HOUR_UTC = int(os.getenv('DAILY_INGEST_HOUR_UTC', '6'))
+DAILY_INGEST_CHECK_INTERVAL = 60  # seconds
+DAILY_INGEST_STATE_PATH = 'system/daily_ingest'
 
 # Global flag for graceful shutdown
 shutdown_requested = False
@@ -2112,6 +2122,50 @@ def cleanup_stale_contract_analysis_jobs(db):
         logger.error(f"Error cleaning up stale contract analysis jobs: {e}")
 
 
+def run_daily_ingest_once(db) -> bool:
+    """Run the daily SAM.gov ingest in propose mode if it has not run today (UTC)."""
+    now = datetime.now(timezone.utc)
+    if now.hour < DAILY_INGEST_HOUR_UTC:
+        return False
+    today = now.strftime('%Y-%m-%d')
+    state_ref = db.reference(DAILY_INGEST_STATE_PATH)
+    state = state_ref.get() or {}
+    if state.get('last_run_date') == today:
+        return False
+
+    limit = int(os.getenv('INGEST_LIMIT', '800'))
+    states = [s.strip().upper() for s in os.getenv('INGEST_STATES', '').split(',') if s.strip()]
+    recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', DEFAULT_DIGEST_EMAIL).split(',') if e.strip()]
+    base_url = os.getenv('APP_BASE_URL', DEFAULT_BASE_URL)
+    send_email = os.getenv('INGEST_SEND_EMAIL', 'true').lower() == 'true'
+
+    # Claim the day before running so a second worker instance won't duplicate it
+    state_ref.update({'last_run_date': today, 'started_at': now.isoformat(), 'worker_id': WORKER_ID})
+    logger.info(f"[DAILY_INGEST] Starting daily ingest for {today} (limit={limit}, states={states or 'none'})")
+    try:
+        rc = run_propose(limit, states, recipients, base_url, send_email)
+        state_ref.update({'finished_at': datetime.now(timezone.utc).isoformat(), 'status': 'ok' if rc == 0 else f'exit_{rc}'})
+        logger.info(f"[DAILY_INGEST] Finished daily ingest for {today} (rc={rc})")
+    except Exception as e:
+        state_ref.update({'finished_at': datetime.now(timezone.utc).isoformat(), 'status': f'error: {e}'})
+        logger.error(f"[DAILY_INGEST] Daily ingest failed: {e}", exc_info=True)
+    return True
+
+
+def daily_ingest_scheduler(db):
+    """Background thread: checks every minute whether today's ingest is due."""
+    logger.info(f"[DAILY_INGEST] Scheduler started (daily at {DAILY_INGEST_HOUR_UTC:02d}:00 UTC)")
+    while not shutdown_requested:
+        try:
+            run_daily_ingest_once(db)
+        except Exception as e:
+            logger.warning(f"[DAILY_INGEST] Scheduler check failed (non-fatal): {e}")
+        for _ in range(DAILY_INGEST_CHECK_INTERVAL):
+            if shutdown_requested:
+                break
+            time.sleep(1)
+
+
 def main():
     """Main worker loop - processes proposal, contract analysis, NAICS enrichment, and dashboard stats jobs"""
     global shutdown_requested
@@ -2147,6 +2201,11 @@ def main():
     except Exception as e:
         logger.warning(f"[NAICS_BACKLOG] Startup sweep failed (non-fatal): {e}")
     
+    if DAILY_INGEST_ENABLED:
+        threading.Thread(target=daily_ingest_scheduler, args=(db,), name='daily-ingest', daemon=True).start()
+    else:
+        logger.info("[DAILY_INGEST] Disabled via DAILY_INGEST_ENABLED=false")
+
     cleanup_counter = 0
     backlog_check_counter = 0
     stats_check_counter = 0
