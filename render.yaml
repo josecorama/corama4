@@ -141,6 +141,9 @@ services:
       # Optional: extra state codes to diversify beyond federal (e.g. "IL,IN")
       - key: INGEST_STATES
         sync: false
+      # Max SAM.gov opportunities fetched per daily ingest
+      - key: INGEST_LIMIT
+        value: "800"
       # Optional: hour (UTC) for the daily ingest, or "false" to disable
       - key: DAILY_INGEST_HOUR_UTC
         value: "6"

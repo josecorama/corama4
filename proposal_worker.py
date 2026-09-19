@@ -2133,7 +2133,7 @@ def run_daily_ingest_once(db) -> bool:
     if state.get('last_run_date') == today:
         return False
 
-    limit = int(os.getenv('INGEST_LIMIT', '1000'))
+    limit = int(os.getenv('INGEST_LIMIT', '800'))
     states = [s.strip().upper() for s in os.getenv('INGEST_STATES', '').split(',') if s.strip()]
     recipients = [e.strip() for e in os.getenv('INGEST_DIGEST_EMAIL', DEFAULT_DIGEST_EMAIL).split(',') if e.strip()]
     base_url = os.getenv('APP_BASE_URL', DEFAULT_BASE_URL)
