@@ -114,15 +114,16 @@ def terms_of_use() -> list:
         Spacer(1, 6),
         p(f"These are the Terms of Use (the \u201cTerms\u201d) for {COMPANY} (\u201cCorama\u201d). These Terms apply "
           "when you visit any websites owned and operated by Corama, including our website at corama.ai (the "
-          f"\u201cWebsite\u201d), use our artificial intelligence software and the {PRODUCT} platform, interact with us "
-          "on or offline, attend our events, or use any and all of our products and services (collectively, our "
+          f"\u201cWebsite\u201d), use our artificial intelligence software and the {PRODUCT} platform, communicate with us, "
+          "or use any and all of our products and services (collectively, our "
           "\u201cServices\u201d)."),
         p("By using our Services, you acknowledge you have read our Privacy Notice, and agree to our Terms of Use."),
 
         heading("I", "Eligibility Requirements"),
-        p("By accepting these Terms through your use of our Services, you certify that you are at least 18 years of age "
-          "or are at least 13 years of age and using the Services with the permission and supervision from a parent or "
-          "guardian."),
+        p("The Services are intended for businesses and business professionals. By accepting these Terms through your "
+          "use of our Services, you certify that you are at least 18 years of age and, if you are using the Services on "
+          "behalf of a company or other organization, that you have the authority to bind that organization to these "
+          "Terms. The Services are not directed to children under 13, and we do not knowingly permit them to register."),
 
         heading("II", "Representations &amp; Warranties to Corama"),
         p("By using our Services, you represent, warrant, and agree:"),
@@ -232,22 +233,24 @@ def terms_of_use() -> list:
           "not responsible, or liable to you or any third party, for the content or accuracy of any materials provided "
           "by any third parties."),
 
-        heading("IX", "Termination of Access"),
-        p("Corama maintains the right to suspend or disable your access to the Services and any Account you may have "
-          "created, or terminate these Terms, at our sole discretion and without prior notice to you if you breach the "
-          "Terms, or if Corama otherwise determines such action is warranted."),
-        p("Corama reserves the right to revoke your access to and use of the Services at any time, with or without "
-          "cause."),
+        heading("IX", "CORAMA Directory and Interactions With Other Users"),
+        p("The Services include the CORAMA Directory, an optional catalog of contractors, partners, and subcontractors. "
+          "If you choose to publish a Directory profile, the business information you include (such as company name, "
+          "contact name, business email, phone number, industry, and description) will be visible to other users and "
+          "visitors of the Services, and other users may contact you or add you to a proposal team through the "
+          "Services. You control your profile visibility from your Directory settings and may edit or unpublish your "
+          "profile at any time."),
+        p("You are solely responsible for your interactions with other users, including any teaming, subcontracting, "
+          "or business arrangements you enter into. Corama does not verify the identity, qualifications, or "
+          "certifications of Directory participants and is not a party to any agreement between users."),
 
         heading("X", "Updates"),
         p("Corama may from time to time in its sole discretion develop and provide updates to the Services, which may "
           "include upgrades, bug fixes, patches, other error corrections, and/or new features (collectively, including "
           "related documentation, \u201cUpdates\u201d). Updates may also modify or delete in their entirety certain "
           "features and functionality. You agree that Corama has no obligation to provide any Updates or to continue to "
-          "provide or enable any particular features or functionality. You shall promptly download and install all "
-          "Updates and acknowledge and agree that the Services or portions thereof may not properly operate should you "
-          "fail to do so. You further agree that all Updates will be deemed part of the Services and be subject to these "
-          "Terms."),
+          "provide or enable any particular features or functionality. All Updates will be deemed part of the Services "
+          "and be subject to these Terms."),
 
         heading("XI", "Intellectual Property"),
         p("<b>Service Content, Software and Trademarks.</b> You acknowledge and agree that our Services may contain "
@@ -283,10 +286,13 @@ def terms_of_use() -> list:
           "documents (\u201cInput\u201d) including ensuring that it does not violate any applicable laws or these Terms. "
           "You represent, warrant, and agree that you have all necessary rights and permissions to provide the Input to "
           "the Services."),
-        p("<b>License to Corama.</b> By entering Input into the Corama artificial intelligence software, you grant to "
-          "Corama a perpetual, worldwide, non-exclusive, sublicensable no-charge, royalty-free, irrevocable copyright "
-          "license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and "
-          "distribute the Input. This license survives termination of these Terms by any party, for any reason."),
+        p("<b>License to Corama.</b> You retain ownership of your Input. By entering Input into the Corama artificial "
+          "intelligence software, you grant to Corama a worldwide, non-exclusive, royalty-free license to host, store, "
+          "reproduce, analyze, prepare derivative works of, and display the Input, and to sublicense the Input to the "
+          "service providers that process it on our behalf (such as cloud hosting and artificial intelligence model "
+          "providers), solely as necessary to provide, maintain, secure, and improve the Services and as otherwise "
+          "described in our Privacy Notice. Input you choose to publish in the CORAMA Directory is additionally licensed "
+          "for display to other users and visitors for as long as your profile remains published."),
         p("<b>License to Corama Output.</b> Subject to these Terms, upon creation of your Account we grant you a "
           "non-exclusive, non-transferrable, revocable, limited license to access and use the Services for so long as "
           "your Account remains active, including the product created from the Corama artificial intelligence software "
@@ -298,8 +304,10 @@ def terms_of_use() -> list:
         p("<b>Similarity of Content.</b> Due to the nature of our Services and artificial intelligence generally, Output "
           "may not be unique and other users may receive similar output from our Services."),
         p("<b>Corama Use of Content.</b> We may use Input and Output (collectively, \u201cContent\u201d) to provide, "
-          "maintain, develop, and improve our Services, comply with applicable law, train our artificial intelligence "
-          "software, enforce our terms and policies, and keep our Services safe."),
+          "maintain, develop, and improve our Services, comply with applicable law, enforce our terms and policies, and "
+          "keep our Services safe. Corama does not use your Content to train its own artificial intelligence models. "
+          "Content is processed by third-party artificial intelligence model providers through their business "
+          "application programming interfaces (APIs), subject to those providers\u2019 terms."),
         p("<b>Responsible Use.</b> When you use our Services you represent, warrant, and agree that you will not rely on "
           "Output as a sole source of factual information. You must evaluate Output for accuracy and appropriateness for "
           "your use case, including verifying all contract details, deadlines, pricing, and compliance requirements "
@@ -312,24 +320,32 @@ def terms_of_use() -> list:
 
         heading("XIV", "Third-Party Services"),
         p("Our Services may provide links or other access to other third party sites and resources on the internet, "
-          "including government procurement portals such as SAM.gov. Corama has no control over such sites and resources "
-          "and Corama is not responsible for and does not endorse such sites and resources."),
+          "including government procurement portals such as SAM.gov and the Illinois Hispanic Chamber of Commerce "
+          "(IHCC). Corama has no control over such sites and resources and Corama is not responsible for and does not "
+          "endorse such sites and resources. Opportunity data displayed in the Services is obtained from public "
+          "government sources and may be incomplete or out of date; the official solicitation always controls."),
+        p("Our sign-up, log-in, and password-reset pages are protected by Google reCAPTCHA, which is subject to the "
+          "Google Privacy Policy (https://policies.google.com/privacy) and Terms of Service "
+          "(https://policies.google.com/terms)."),
 
         heading("XV", "Communications"),
-        p("As part of your use of our Services, you consent to receive electronic notifications from Corama. You may "
-          "opt-out of receiving certain notifications from Corama by completing the opt-out process provided in each "
-          "email message. By opting-out, you understand that we may not be able to communicate certain information to "
-          "you. Please note we may still contact you regarding certain transactional announcements or notifications even "
-          "if you have opted-out from other messages."),
+        p("As part of your use of our Services, you consent to receive electronic communications from Corama, including "
+          "email verification codes, password reset messages, notices about your Account, and notifications when "
+          "another user contacts you or adds you to a proposal team through the Services. These are service-related "
+          "messages necessary to operate the Services. If we send you promotional or marketing email, each such message "
+          "will include a way to opt out, and we will honor your request as required by the CAN-SPAM Act. You may "
+          "continue to receive service-related messages after opting out of promotional email."),
 
-        heading("XVI", "Third-Party Advertising &amp; Marketing"),
-        p("Corama may employ third-party advertising and marketing to deliver ads, information, and other promotions to "
-          "you, both through our Services and other mechanisms. By agreeing to our Terms, you agree to receive such "
-          "advertising and marketing from Corama and our partners. If you do not wish to receive such advertising, you "
-          "may opt out with the instructions provided within the communication. Corama may compile and release "
-          "information regarding you and your use of our Services on an anonymous basis as part of a customer profile or "
-          "similar report or analysis. It is your responsibility to take reasonable precautions in all actions and "
-          "interactions with any third party you interact with through our Services."),
+        heading("XVI", "Copyright Complaints"),
+        p("Corama respects the intellectual property rights of others. If you believe that content available through the "
+          "Services infringes your copyright, please send a notice that complies with the Digital Millennium Copyright "
+          f"Act (17 U.S.C. \u00a7 512) to {CONTACT_EMAIL} or to the postal address in the Contact Us section, "
+          "including: identification of the copyrighted work; identification of the allegedly infringing material and "
+          "its location on the Services; your contact information; a statement that you have a good-faith belief the "
+          "use is not authorized; a statement, under penalty of perjury, that the information in the notice is accurate "
+          "and that you are the owner or authorized to act on the owner\u2019s behalf; and your physical or electronic "
+          "signature. We may remove or disable access to the material and terminate the Accounts of repeat "
+          "infringers."),
 
         heading("XVII", "Indemnity and Release"),
         p("You agree to release, indemnify, and hold harmless Corama, its affiliates, and its and their respective "
@@ -370,11 +386,13 @@ def terms_of_use() -> list:
           "platform with the effective date, and notify you of any material changes. Your continued use of our Services "
           "or continued interactions with us after the date of any such changes become effective constitutes your "
           "acceptance of these Terms."),
-        p("<b>Governing Law.</b> Terms will be governed by the laws of Delaware without regard to conflict of law "
-          "provisions. With respect to any disputes not subject to the dispute resolution procedures set forth above, "
-          "you and Corama agree to submit to the personal and exclusive jurisdiction of the local courts located in Kent "
-          "County, Delaware and the federal courts located in the United States District Court for the District of "
-          "Delaware. Corama may assign or transfer these Terms, in whole or in part, without restriction."),
+        p("<b>Governing Law and Venue.</b> These Terms will be governed by the laws of the State of Illinois and the "
+          "federal laws of the United States, without regard to conflict of law provisions. You and Corama agree to "
+          "submit to the personal and exclusive jurisdiction of the state courts located in Cook County, Illinois and "
+          "the United States District Court for the Northern District of Illinois for any dispute arising out of these "
+          "Terms or the Services. Corama may assign or transfer these Terms, in whole or in part, without restriction."),
+        p("<b>Entire Agreement.</b> These Terms and our Privacy Notice constitute the entire agreement between you and "
+          "Corama regarding the Services and supersede any prior agreements or drafts."),
         p("<b>No Waiver.</b> The failure of Corama to exercise or enforce any right or provision of these Terms will "
           "not constitute a waiver of such right or provision."),
         p("<b>Severability.</b> In case any provision of these Terms is found by a court of competent jurisdiction to be "
@@ -401,8 +419,8 @@ def privacy_notice() -> list:
         Spacer(1, 6),
         p(f"{COMPANY} (\u201cCorama\u201d) understands the importance of your privacy. This Privacy Notice applies "
           "when you visit any websites owned and operated by Corama, including our website at corama.ai (the "
-          f"\u201cWebsite\u201d), use our artificial intelligence software and the {PRODUCT} platform, interact with us "
-          "on or offline, attend our events, or use any and all of our products and services (collectively, our "
+          f"\u201cWebsite\u201d), use our artificial intelligence software and the {PRODUCT} platform, communicate with us, "
+          "or use any and all of our products and services (collectively, our "
           "\u201cServices\u201d). Our Privacy Notice describes our collection of information during your interactions "
           "with our Services, and the rights and choices you have regarding your information."),
         p("By using our Services, you acknowledge you have read our Privacy Notice, and agree to our Terms of Use."),
@@ -418,21 +436,30 @@ def privacy_notice() -> list:
         p("The information we collect includes:"),
         p("<b>Identifiers and other Personal Information.</b> We collect identifiers when you interact with our "
           "Services or otherwise voluntarily provide them to us. This includes:"),
-        bullets(["Full Name", "Email", "Company", "Business identifiers such as UEI, CAGE code, and NAICS codes"]),
+        bullets(["First and last name", "Email address", "Username and password (passwords are stored only in hashed "
+                 "form by our authentication provider)", "Company name, job title, business address, and business "
+                 "phone number", "Business identifiers such as UEI, CAGE code, and NAICS codes", "Certifications, team "
+                 "size, and other business profile details you choose to provide"]),
+        p("<b>Information About Others.</b> If you add team members or partners to a proposal, or contact another "
+          "user through the CORAMA Directory, we collect the names, roles, email addresses, and phone numbers you "
+          "enter about those individuals. You must have their permission to share that information with us."),
         p("<b>Communications Information.</b> We collect information within messages we exchange when you communicate "
           "with us. This includes:"),
         bullets(["Information in support requests", "Questions and feedback", "Survey responses",
                  "Other information you provide"]),
-        p("<b>Browsing and Usage Information.</b> We use cookies and other embedded tracking technology like web "
-          "beacons which automatically collect users\u2019 browsing information when they use our Services. "
-          "Additionally, other parties like our analytics and advertising partners place code with cookies or web "
-          "beacons embedded in them. These are called third-party cookies. Some third-party cookies are used to track a "
-          "particular user\u2019s activity across the Internet. The information collected includes:"),
-        bullets(["IP address", "Browser type", "Browser settings", "Device ID", "Device information",
-                 "Operating system", "Cookie ID", "Browsing history"]),
+        p("<b>Technical and Usage Information.</b> Like most websites, our servers automatically record certain "
+          "technical information when you use our Services, and our authentication and security providers record "
+          "similar information when you sign up, log in, or reset your password. This information includes:"),
+        bullets(["IP address", "Browser type and version", "Device and operating system information",
+                 "Date, time, and pages or features you access", "Log-in and password-reset events",
+                 "Actions you take in the Services, such as searches you run and documents you generate"]),
+        p("We do not use web beacons, advertising cookies, or third-party analytics or advertising networks, and we do "
+          "not track your activity on other websites. See Section IV (Use of Cookies) for details on the cookies we "
+          "use."),
         p("<b>Documents and Business Information You Upload.</b> When you use our artificial intelligence software, we "
           "collect the documents and information you upload or enter, such as capability statements, company "
-          "descriptions, past performance information, and proposal drafts."),
+          "descriptions, past performance information, solicitation documents, and proposal drafts, together with the "
+          "prompts and messages you send to our AI assistant."),
         p("<b>Other Information You Submit.</b> We collect any other information you submit to us through our Services "
           "through using our artificial intelligence software, by contacting us, or through other means."),
         p("<b>Payment Information.</b> Corama currently provides the Services at no cost and does not collect debit or "
@@ -469,21 +496,27 @@ def privacy_notice() -> list:
             "<b>When You Consent.</b> Corama will not disclose your information and Personal Data to others without "
             "your consent, except as specified in this Privacy Notice.",
             "<b>To Our Service Providers and Vendors.</b> We transfer all or a portion of your information and Personal "
-            "Data to our service providers who help us deliver our products and services to you and for the purposes "
-            "described in this Privacy Notice, including cloud hosting, database, authentication, email delivery, and "
-            "artificial intelligence model providers. These service providers are required by contract or law to only "
-            "use or disclose the information as necessary to perform services on our behalf or as otherwise required by "
-            "law.",
-            "<b>In the CORAMA Directory.</b> If you choose to publish a profile in the CORAMA Directory, the business "
-            "information you include in that profile will be visible to other users and visitors of the Services.",
+            "Data to service providers who process it on our behalf to deliver the Services. These currently include: "
+            "Render (cloud hosting, located in the United States); Google Firebase (user authentication, database, and "
+            "file storage); Google reCAPTCHA (bot and abuse protection on our sign-up, log-in, and password-reset "
+            "pages); OpenAI (processing of your documents and prompts through its business API to generate contract "
+            "matches, capability statements, and proposal drafts; under OpenAI\u2019s API terms, this data is not used "
+            "to train OpenAI\u2019s models); Qdrant (search index used to match your profile with opportunities); and "
+            "our email delivery provider (verification codes, password resets, and notifications). These service "
+            "providers are required by contract or law to only use or disclose the information as necessary to perform "
+            "services on our behalf or as otherwise required by law.",
+            "<b>To Other Users.</b> If you choose to publish a profile in the CORAMA Directory, the business "
+            "information you include in that profile will be visible to other users and visitors of the Services, who "
+            "may contact you through the Services. If another user adds you to a proposal team or sends you an inquiry, "
+            "we will share the message and that user\u2019s name and contact details with you, and yours with them.",
+            "<b>Public Government Data.</b> Opportunity and awardee information shown in the Services is obtained from "
+            "public government sources such as SAM.gov. We do not send your Personal Data to those agencies.",
             "<b>In the Event of a Merger, Acquisition, Change in Ownership, or Reorganization.</b> Information and "
             "Personal Data we have collected may be disclosed to a third party in the event of a merger, transfer of "
             "ownership or assets, bankruptcy, or other corporate reorganization.",
-            "<b>For Data Analytics.</b> We share your information and Personal Data with analytics service providers "
-            "such as Google. Google may combine your browsing information, including information from your use of our "
-            "Website, to generate interest-based advertisements. Google\u2019s data collection is governed by their own "
-            "Privacy Notice, found at: https://policies.google.com/privacy. You can opt out of Google Analytics tracking "
-            "here: https://tools.google.com/dlpage/gaoptout.",
+            "<b>No Sale or Sharing for Advertising.</b> Corama does not sell your Personal Data and does not share it "
+            "with third parties for cross-context behavioral or targeted advertising, and has not done so in the "
+            "preceding 12 months.",
             "<b>When Legally Permitted or Required to Do So.</b> Corama may disclose without your prior consent any "
             "information or Personal Data about you or your use of our Services, if we believe disclosure is necessary "
             "or required by law, or for our legitimate interests. Corama may disclose without your prior consent any "
@@ -503,14 +536,22 @@ def privacy_notice() -> list:
         ),
 
         heading("IV", "Use of Cookies"),
-        p("We use cookies to help you personalize your online experience. A cookie is a text file that is placed on "
-          "your hard disk by a web page server. Cookies cannot be used to run programs or deliver viruses to your "
-          "computer. Cookies are uniquely assigned to you and can only be read by a web server in the domain that issued "
-          "the cookie to you."),
-        p("You have the ability to accept or decline cookies through your web browser. Most web browsers automatically "
-          "accept cookies, but you can usually modify your browser setting to decline cookies if you prefer. If you "
-          "choose to decline cookies, you may not be able to fully experience the interactive features of the Corama "
-          "Services."),
+        p("A cookie is a small text file that a website stores in your browser. Corama uses only the following "
+          "cookies and similar technologies:"),
+        bullets([
+            "<b>Session cookie (strictly necessary).</b> When you log in, we set a cryptographically signed, HTTP-only session "
+            "cookie that keeps you signed in and protects your Account. It is deleted when you log out or when you "
+            "close your browser, and it is not used for advertising or tracking.",
+            "<b>Google reCAPTCHA (security).</b> Our sign-up, log-in, and password-reset pages load Google reCAPTCHA to "
+            "distinguish people from automated bots. Google may set cookies and collect hardware and software "
+            "information (such as device and application data) for this purpose, subject to the Google Privacy Policy "
+            "(https://policies.google.com/privacy).",
+            "<b>Browser storage.</b> Our application stores your interface preferences (such as language and sidebar "
+            "layout) in your browser\u2019s local storage. This data stays on your device and is not sent to us.",
+        ]),
+        p("We do not use advertising cookies, third-party analytics cookies, or web beacons. You can delete or block "
+          "cookies through your web browser settings; however, because our session cookie is required to keep you "
+          "signed in, blocking cookies will prevent you from using the logged-in features of the Services."),
 
         heading("V", "U.S. State Privacy Rights"),
         p("Certain U.S. states, including California, Colorado, Connecticut, Delaware, Florida, Indiana, Iowa, Montana, "
@@ -528,7 +569,10 @@ def privacy_notice() -> list:
             "specific legal reasons which we will tell you about, if applicable, at the time of your request.",
             "<b>Right to Opt Out.</b> You have the right to opt out of the processing of your Personal Data for the "
             "purposes of targeted advertising, sales, or profiling in furtherance of decisions that produce legal or "
-            "similarly significant effects.",
+            "similarly significant effects. Corama does not sell Personal Data, does not use it for targeted "
+            "advertising, and does not engage in such profiling, so there is currently nothing to opt out of.",
+            "<b>Right to Non-Discrimination.</b> We will not deny you Services, charge you different prices, or "
+            "provide a different level of quality because you exercised any of these rights.",
             "<b>Right to Portability.</b> You have the right to ask Corama to provide you with your Personal Data in a "
             "machine-readable format.",
             "<b>Right to Limit the Use of or Consent to the Processing of Sensitive Data.</b> We will ask your consent "
@@ -536,23 +580,36 @@ def privacy_notice() -> list:
             "by law.",
         ]),
         p("The exact scope of these rights may vary. To exercise any of these rights please contact us at the "
-          "information provided below."),
-        p("To appeal a decision regarding a consumer rights request, follow the instructions provided in our "
-          "communication denying your request."),
+          "information provided below. We will verify your request using the email address associated with your "
+          "Account and respond within 45 days, or as otherwise required by applicable law. You may designate an "
+          "authorized agent to make a request on your behalf; we may ask the agent for proof of authorization and may "
+          "verify the request with you directly."),
+        p("To appeal a decision regarding a consumer rights request, reply to our communication denying your request "
+          "or email us at the address below with the subject line \u201cPrivacy Appeal.\u201d"),
+        p("<b>California Residents.</b> The categories of Personal Data we have collected in the preceding 12 months, "
+          "the sources, our business purposes, and the categories of recipients are described in Sections I through III "
+          "above. We do not collect sensitive personal information as defined by the California Consumer Privacy Act "
+          "beyond your Account log-in credentials, and we do not sell or share Personal Data. California Civil Code "
+          "Section 1798.83 permits California residents to request information about disclosures of Personal Data to "
+          "third parties for their direct marketing purposes; Corama does not make such disclosures."),
 
         heading("VI", "Exercising Your Privacy Options"),
         p(f"To exercise any of the above options, you may contact us at: {CONTACT_EMAIL}."),
         p("Please include your email address, full name, and specific information about your request(s). If you would "
           "like to update or correct your email address, work address, or other Personal Data with us, please include "
           "specific details about the information you wish to have updated or corrected."),
-        p("<b>Messaging and Newsletter Communications.</b> You may control how you receive certain types of "
-          "communications by unsubscribing within the body of the communication. Note that some messages are required, "
-          "service-related messages such as account confirmation messages, legal notices, or updates."),
+        p("<b>Account Information and Deletion.</b> You may review and update your name, company information, "
+          "password, and Directory profile at any time from the Settings and Directory pages of the platform. To "
+          f"delete your Account and the documents you have uploaded, email us at {CONTACT_EMAIL} from the email "
+          "address associated with your Account."),
+        p("<b>Email Communications.</b> The emails we send today are service-related messages (verification codes, "
+          "password resets, Account notices, and notifications from other users) that are necessary to operate the "
+          "Services. If we send promotional email in the future, each message will include an unsubscribe link. "
+          "Service-related messages cannot be opted out of while you maintain an Account."),
         p("<b>Do Not Track Signals.</b> CalOPPA requires us to let you know how we respond to web browser Do Not Track "
-          "(\u201cDNT\u201d) signals. DNT is a privacy preference you can set in your web browser to indicate that you "
-          "do not want certain information about your webpage visits collected across websites when you have not "
-          "interacted with that service on the page. Because there currently isn\u2019t an industry or legal standard "
-          "recognizing or honoring DNT signals, we don\u2019t respond to them at this time."),
+          "(\u201cDNT\u201d) signals. Because there currently isn\u2019t an industry or legal standard recognizing or "
+          "honoring DNT signals, we don\u2019t respond to them at this time. However, we do not track your activity "
+          "across other websites, and we do not allow third parties to do so through our Services."),
 
         heading("VII", "Third Party Websites"),
         p("This Privacy Notice applies only to our Services. Our Services may contain links to other websites, "
@@ -563,24 +620,30 @@ def privacy_notice() -> list:
           "check the applicable privacy notice of the website sponsor when linking to other websites."),
 
         heading("VIII", "Information Retention"),
-        p("Corama uses several criteria to determine how long we should keep categories of Personal Data. We will "
-          "retain your Personal Data for the time period reasonably necessary to achieve the business purposes outlined "
-          "in this Privacy Notice to the extent permitted by applicable law. Please understand that residual copies of "
-          "the Personal Data can be stored in locations or formats that make complete erasure extremely difficult. The "
-          "best way to ensure you control your information is to give us only the Personal Data that you are completely "
-          "comfortable sharing with us."),
+        p("We retain your Account information, uploaded documents, and generated Output for as long as your Account is "
+          "active so that you can continue to use them in the Services. When you ask us to delete your Account, we "
+          "delete or de-identify your Personal Data within a reasonable period, except where we need to retain it to "
+          "comply with legal obligations, resolve disputes, enforce our agreements, or protect the security of the "
+          "Services. Server logs containing technical information are retained for a limited period for security and "
+          "troubleshooting. Please understand that residual copies of the Personal Data can remain in backups for a "
+          "limited time in locations or formats that make immediate erasure difficult."),
 
         heading("IX", "Security"),
-        p("Corama takes reasonable steps to secure your Personal Data. We maintain physical, electronic, and procedural "
-          "safeguards to ensure that Personal Data is stored and processed responsibly. However, no internet "
-          "transmission is ever fully secure, and we cannot guarantee that information transmitted via our Website will "
-          "remain confidential at all times."),
+        p("Corama takes reasonable steps to secure your Personal Data. All traffic to the Services is encrypted in "
+          "transit using HTTPS, passwords are handled by our authentication provider and never stored in plain text, "
+          "session cookies are protected against script access, and account sign-up requires email verification. "
+          "However, no internet transmission is ever fully secure, and we cannot guarantee that information transmitted "
+          "via our Website will remain confidential at all times."),
+        p("Our Services are hosted in the United States. If you access the Services from outside the United States, "
+          "your information will be transferred to and processed in the United States."),
 
         heading("X", "Age Restrictions"),
-        p("Corama takes children\u2019s privacy seriously. By accepting the Privacy Notice through your use of our "
-          "Services, you certify that you are at least 18 years of age or at least 13 years of age and submitting "
-          "Personal Data to us with the consent of a parent or guardian. If we find that a minor has submitted any "
-          "information to us without parental consent, we will delete it immediately upon discovery."),
+        p("The Services are intended for businesses and business professionals and are not directed to children. By "
+          "accepting the Privacy Notice through your use of our Services, you certify that you are at least 18 years "
+          "of age. We do not knowingly collect Personal Data from children under 13 in accordance with the "
+          "Children\u2019s Online Privacy Protection Act (COPPA). If we learn that a child under 13 has submitted "
+          "Personal Data to us, we will delete it promptly. If you believe a child has provided us with Personal Data, "
+          f"please contact us at {CONTACT_EMAIL}."),
 
         heading("XI", "Changes to Privacy Notice"),
         p("We may update or change this Privacy Notice from time to time. We will post the changes on our Website and "
