@@ -280,6 +280,7 @@ const CapabilityBuilder = () => {
   
     const [isDragOver, setIsDragOver] = useState(false)
     const [importingUrl, setImportingUrl] = useState(false)
+    const [importProgress, setImportProgress] = useState('')
     const [generatingPdf, setGeneratingPdf] = useState(false)
     const [showTemplateModal, setShowTemplateModal] = useState(false)
     const [activeColorField, setActiveColorField] = useState<'primary' | 'secondary'>('primary')
@@ -483,6 +484,7 @@ const CapabilityBuilder = () => {
     }
 
     setImportingUrl(true)
+    setImportProgress('')
     setUploadError('')
 
     // Clear the whole form first so imported values replace the current data
@@ -513,10 +515,13 @@ const CapabilityBuilder = () => {
     }))
 
     try {
-      const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
+      const result: ImportResult = await api.importCapabilityFromUrl(importUrl, setImportProgress)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setImportUrl('')
+        if (Object.keys(result.data).length === 0) {
+          setUploadError('No company information could be found on that website. You can fill the fields manually.')
+        }
       } else {
         setUploadError(result.error || 'URL import failed')
       }
@@ -525,6 +530,7 @@ const CapabilityBuilder = () => {
       setUploadError('Failed to import from URL. Please try again.')
     } finally {
       setImportingUrl(false)
+      setImportProgress('')
     }
   }
 
@@ -736,7 +742,7 @@ const CapabilityBuilder = () => {
       />
       
       {/* Extracting popup for data extraction */}
-      <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
+      <ThinkingPopup isVisible={uploading || importingUrl} text={importingUrl && importProgress ? importProgress : 'Extracting'} />
       
       {/* Header spans full width at top */}
       <Header />
