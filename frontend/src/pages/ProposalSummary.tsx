@@ -9,6 +9,7 @@ import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
+import { clearContractSession, getContractScoped } from '../utils/contractSession'
 import { useTranslation } from '../i18n'
 import { formatCurrency } from '../utils/currency'
 
@@ -198,15 +199,17 @@ const ProposalSummary= () => {
     const effectiveId = fromState || fromStorage || null
     
     if (effectiveId) {
+      if (fromState && fromStorage !== fromState) clearContractSession()
       setContractId(effectiveId)
       sessionStorage.setItem('currentContractId', effectiveId)
     }
     
-    // Set other state values
-    setContractName(locationState?.contractName || sessionStorage.getItem('currentContractName') || '')
-    setAiFindings(locationState?.aiFindings || sessionStorage.getItem('currentAiFindings') || '')
-    setAiSuggestions(locationState?.aiSuggestions || sessionStorage.getItem('currentAiSuggestions') || '')
-    setTeamMembers(locationState?.teamMembers || JSON.parse(sessionStorage.getItem('currentTeamMembers') || '[]'))
+    // Stored values are only valid for the contract they were stored for
+    setContractName(locationState?.contractName || getContractScoped(effectiveId, 'currentContractName') || '')
+    setAiFindings(locationState?.aiFindings || getContractScoped(effectiveId, 'currentAiFindings') || '')
+    setAiSuggestions(locationState?.aiSuggestions || getContractScoped(effectiveId, 'currentAiSuggestions') || '')
+    setTeamMembers(locationState?.teamMembers || JSON.parse(getContractScoped(effectiveId, 'currentTeamMembers') || '[]'))
+    setAiStrategy('')
     
     // Store in sessionStorage for persistence
     if (locationState?.contractName) sessionStorage.setItem('currentContractName', locationState.contractName)
@@ -219,6 +222,7 @@ const ProposalSummary= () => {
   useEffect(() => {
     const loadSummaryAndStrategy = async () => {
       setIsLoadingStrategy(true)
+      setAiStrategy('')
       
       // Try to load existing summary if we have a contractId
       if (contractId) {

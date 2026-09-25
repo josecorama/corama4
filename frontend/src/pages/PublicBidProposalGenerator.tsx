@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Header from '../components/Header'
 import Sidebar from '../components/Sidebar'
 import { api } from '../services/api'
+import { getContractScoped } from '../utils/contractSession'
 import { useTranslation, t } from '../i18n'
 
 // Icons
@@ -376,11 +377,11 @@ const PublicBidProposalGenerator= () => {
         // Step 1: Initialize the draft
         const initResult = await api.initializeProposalDraft({
           contract_id: contractId,
-          contract_name: state?.contractName || sessionStorage.getItem('currentContractName') || 'Contract',
-          ai_findings: state?.aiFindings || sessionStorage.getItem('currentAiFindings') || '',
-          ai_suggestions: state?.aiSuggestions || sessionStorage.getItem('currentAiSuggestions') || '',
+          contract_name: state?.contractName || getContractScoped(contractId, 'currentContractName') || 'Contract',
+          ai_findings: state?.aiFindings || getContractScoped(contractId, 'currentAiFindings') || '',
+          ai_suggestions: state?.aiSuggestions || getContractScoped(contractId, 'currentAiSuggestions') || '',
           ai_strategy: state?.aiStrategy || '',
-          team_members: state?.teamMembers || JSON.parse(sessionStorage.getItem('currentTeamMembers') || '[]'),
+          team_members: state?.teamMembers || JSON.parse(getContractScoped(contractId, 'currentTeamMembers') || '[]'),
           labor_costs: state?.laborCosts || [],
           materials: state?.materials || [],
           margin_risk: {
@@ -397,8 +398,8 @@ const PublicBidProposalGenerator= () => {
         setProgressText('Generating 8 sections in parallel using AI...')
 
         // Send team assignment notification emails to team members added from Corama Directory
-        const teamMembers = state?.teamMembers || JSON.parse(sessionStorage.getItem('currentTeamMembers') || '[]')
-        const contractName = state?.contractName || sessionStorage.getItem('currentContractName') || 'Contract'
+        const teamMembers = state?.teamMembers || JSON.parse(getContractScoped(contractId, 'currentTeamMembers') || '[]')
+        const contractName = state?.contractName || getContractScoped(contractId, 'currentContractName') || 'Contract'
         if (teamMembers.length > 0) {
           // Send emails in background - don't block proposal generation
           api.sendTeamAssignmentEmails({
