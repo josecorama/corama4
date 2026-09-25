@@ -8,6 +8,7 @@ import { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import { api } from '../services/api'
+import { resolveContractId } from '../utils/contractSession'
 import { useTranslation } from '../i18n'
 
 // PDF Viewer imports
@@ -172,11 +173,6 @@ interface FindingManifest {
   [key: string]: FindingCoordinate
 }
 
-// Generate a unique ID for contracts that don't have one
-const generateContractId = () => {
-  return `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-}
-
 interface ContractAnalysisState {
   contractName?: string
   contractId?: string
@@ -192,28 +188,13 @@ const ContractAnalysis = () => {
   const state = location.state as ContractAnalysisState | null
   const contractName = state?.contractName || 'Contract'
   
-  // Generate a stable contractId - use provided one, or generate a new one
-  // useMemo ensures the same ID is used throughout the component lifecycle
-  const contractId = useMemo(() => {
-    const fromState = state?.contractId
-    const fromStorage = sessionStorage.getItem('currentContractId')
-    
-    // If we have a valid ID from state, use it
-    if (fromState && fromState.trim()) {
-      sessionStorage.setItem('currentContractId', fromState)
-      return fromState
-    }
-    
-    // If we have a valid ID from storage, use it
-    if (fromStorage && fromStorage.trim()) {
-      return fromStorage
-    }
-    
-    // Generate a new ID and store it
-    const newId = generateContractId()
-    sessionStorage.setItem('currentContractId', newId)
-    return newId
-  }, [state?.contractId])
+  // Stable contractId for this contract: from state, else reuse the stored one only
+  // if it belongs to the same contract, else a fresh id (dropping the previous
+  // contract's cached data so it cannot leak into this workflow).
+  const contractId = useMemo(
+    () => resolveContractId(state?.contractId, state?.contractName),
+    [state?.contractId, state?.contractName]
+  )
   
   const [pdfFile, setPdfFile] = useState<File | null>(null)
   const [pdfUrl, setPdfUrl] = useState<string | null>(null)

@@ -204,6 +204,7 @@ const ProposalTeam = () => {
   // Fetch AI suggestions on mount- with caching to avoid regeneration
   useEffect(() => {
     const fetchSuggestions = async () => {
+      setAiSuggestions('')
       if (!state?.aiFindings) return
       
       // Check sessionStorage cache first
