@@ -19,7 +19,7 @@ Configuration (environment variables):
                                                  -> pending-batch storage
     INGEST_DIGEST_EMAIL   override recipient (default admin@corama.ai)
     APP_BASE_URL          base URL for Confirm/Reject links (default https://corama.ai)
-    INGEST_LIMIT          max opportunities to fetch (default 1000)
+    INGEST_LIMIT          max opportunities to fetch (default 800)
     INGEST_STATES         optional comma-separated US state codes (e.g. "IL,IN")
     INGEST_SEND_EMAIL     "false" to skip the email (default "true")
 """
@@ -154,7 +154,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Daily SAM.gov -> Qdrant contract ingestion")
     parser.add_argument("--mode", choices=["propose", "direct"], default="propose",
                         help="propose = email approval first (default); direct = ingest immediately")
-    parser.add_argument("--limit", type=int, default=int(os.getenv("INGEST_LIMIT", "1000")))
+    parser.add_argument("--limit", type=int, default=int(os.getenv("INGEST_LIMIT", "800")))
     parser.add_argument("--states", default=os.getenv("INGEST_STATES", ""),
                         help="Comma-separated US state codes to also pull (e.g. IL,IN)")
     parser.add_argument("--email", default=os.getenv("INGEST_DIGEST_EMAIL", DEFAULT_DIGEST_EMAIL),
