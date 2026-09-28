@@ -771,6 +771,55 @@ def build_corpus(pages):
     return sections, structured, '\n'.join(footer_texts)
 
 
+ABOUT_URL_RE = re.compile(r'(?i)(about|who-we-are|who_we_are|whoweare|our-story|our_story|our-company|our_company|overview|mission|history)')
+ABOUT_HEADING_RE = re.compile(r'(?i)\b(about( us)?|who we are|our (story|company|history|mission)|company (overview|profile)|mission)\b')
+BOILERPLATE_RE = re.compile(r'(?i)(cookie|privacy policy|terms of|all rights reserved|©|click here|read more|learn more|subscribe|newsletter|sign up|log ?in)')
+
+
+def _description_paragraphs(text, max_chars=650):
+    """Verbatim prose paragraphs from Markdown-ish page text (no headings,
+    bullets, table rows or boilerplate), stopping at ``max_chars``."""
+    picked = []
+    total = 0
+    for line in text.split('\n'):
+        line = line.strip()
+        if not line or line.startswith(('#', '- ', 'TITLE:')) or ' | ' in line:
+            continue
+        if len(line) < 60 or not re.search(r'[.!?]"?$', line) or BOILERPLATE_RE.search(line):
+            continue
+        if len(line.split()) < 10 or len(line) > 900:
+            continue
+        if picked and total + len(line) > max_chars:
+            break
+        picked.append(line)
+        total += len(line)
+    return ' '.join(picked)
+
+
+def about_description_from_sections(sections):
+    """Return the company description as written on the site's About page (or an
+    About section of the landing page), or '' when none is found."""
+    for url, text in sections:
+        if ABOUT_URL_RE.search(urlparse(url).path or ''):
+            body = '\n'.join(l for l in text.split('\n') if not l.startswith('#'))
+            desc = _description_paragraphs(body)
+            if len(desc) >= 80:
+                return desc
+    for _, text in sections[:1]:
+        lines = text.split('\n')
+        for i, line in enumerate(lines):
+            if line.startswith('#') and ABOUT_HEADING_RE.search(line):
+                block = []
+                for nxt in lines[i + 1:]:
+                    if nxt.startswith('#'):
+                        break
+                    block.append(nxt)
+                desc = _description_paragraphs('\n'.join(block))
+                if len(desc) >= 80:
+                    return desc
+    return ''
+
+
 def _company_name_from_title(title):
     title = re.sub(r'(?i)\b(home|homepage|welcome|official site|official website)\b', '', title)
     parts = re.split(r'\s[|\-\u2013\u2014\u00b7:]\s', title)
@@ -1043,6 +1092,11 @@ def extract_capability_from_website(url, openai_client=None, model='gpt-4o-mini'
             data[key] = value
             sources[key] = 'regex'
 
+    about_description = about_description_from_sections(sections)
+    if about_description:
+        data['companyDescription'] = about_description
+        sources['companyDescription'] = 'website'
+
     used_ai = False
     elapsed = time.monotonic() - started
     if openai_client is not None and time_budget - elapsed > 8 and len(full_text.strip()) >= 200:
@@ -1064,8 +1118,9 @@ def extract_capability_from_website(url, openai_client=None, model='gpt-4o-mini'
                         data[key] = merged
                         sources[key] = 'ai' if not existing else sources.get(key, 'ai')
                 elif key == 'companyDescription':
-                    # A grounded multi-sentence AI summary beats a one-line meta description.
-                    if len(value) > len(data.get(key, '')) * 1.2:
+                    # Text copied from the About page wins; otherwise a grounded
+                    # multi-sentence AI summary beats a one-line meta description.
+                    if sources.get(key) != 'website' and len(value) > len(data.get(key, '')) * 1.2:
                         data[key] = value
                         sources[key] = 'ai'
                 elif key not in data:

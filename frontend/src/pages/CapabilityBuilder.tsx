@@ -248,17 +248,16 @@ const CapabilityBuilder = () => {
     ['industryFocus', 'coreCompetencies', 'keyDifferentiators', 'companyDescription'],
     ['ueiCode', 'cageCode', 'naicsCodes', 'certifications', 'clientAgency', 'contractValue', 'projectDescription']
   ]
-  const stepProgress = sectionFields.map(fields => {
-    const filled = fields.filter(field => String(formData[field] ?? '').trim() !== '').length
-    return { filled, total: fields.length, ratio: filled / fields.length }
-  })
-  const [section1HasData, section2HasData, section3HasData] = stepProgress.map(p => p.filled > 0)
+  const isFilled = (field: keyof typeof formData) => String(formData[field] ?? '').trim() !== ''
+  const stepsCompleted = sectionFields.map(fields => fields.every(isFilled))
+  const [section1HasData, section2HasData, section3HasData] = sectionFields.map(fields => fields.some(isFilled))
   
   // Allow PDF generation as long as at least one section has data
   const canGeneratePdf = section1HasData || section2HasData || section3HasData
   
     const [isDragOver, setIsDragOver] = useState(false)
     const [importingUrl, setImportingUrl] = useState(false)
+    const [importStage, setImportStage] = useState<'Extracting' | 'Analyzing' | 'Loading'>('Extracting')
     const [generatingPdf, setGeneratingPdf] = useState(false)
     const [showTemplateModal, setShowTemplateModal] = useState(false)
     const [activeColorField, setActiveColorField] = useState<'primary' | 'secondary'>('primary')
@@ -462,6 +461,7 @@ const CapabilityBuilder = () => {
     }
 
     setImportingUrl(true)
+    setImportStage('Extracting')
     setUploadError('')
 
     // Clear the whole form first so imported values replace the current data
@@ -492,8 +492,12 @@ const CapabilityBuilder = () => {
     }))
 
     try {
-      const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
+      const result: ImportResult = await api.importCapabilityFromUrl(importUrl, (message) => {
+        if (/analy[sz]ing/i.test(message)) setImportStage('Analyzing')
+      })
       if (result.success && result.data) {
+        setImportStage('Loading')
+        await new Promise(resolve => setTimeout(resolve, 800))
         mapImportedDataToForm(result.data)
         setImportUrl('')
         if (Object.keys(result.data).length === 0) {
@@ -718,7 +722,7 @@ const CapabilityBuilder = () => {
       />
       
       {/* Extracting popup for data extraction */}
-      <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
+      <ThinkingPopup isVisible={uploading || importingUrl} text={importingUrl ? importStage : 'Extracting'} />
       
       {/* Header spans full width at top */}
       <Header />
@@ -738,54 +742,28 @@ const CapabilityBuilder = () => {
             <div className="text-center mb-3 lg:mb-4 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">{t('capabilityBuilder')}</h1>
               <div className="flex justify-center gap-4 sm:gap-6">
-                {stepProgress.map(({ filled, total, ratio }, index) => {
-                  const completed = filled === total
-                  const radius = 26
-                  const circumference = 2 * Math.PI * radius
-                  return (
-                    <div
-                      key={index}
-                      title={`${filled}/${total}`}
-                      className={`flex items-center justify-center transition-all duration-300 ease-out ${
-                        completed
-                          ? 'scale-100 drop-shadow-[0_0_20px_rgba(153,200,202,0.8)]'
-                          : 'scale-90'
-                      }`}
-                    >
-                      {completed ? (
-                        <div className="w-14 h-14 sm:w-16 sm:h-16">
-                          <Lottie
-                            animationData={checkAnimation}
-                            loop={false}
-                            autoplay={true}
-                          />
-                        </div>
-                      ) : filled === 0 ? (
-                        <img src={EmptyCheckSvg} alt="" className="w-14 h-14 sm:w-16 sm:h-16" />
-                      ) : (
-                        <svg viewBox="0 0 64 64" className="w-14 h-14 sm:w-16 sm:h-16">
-                          <circle cx="32" cy="32" r={radius} fill="none" stroke="#D9D9D9" strokeWidth="4" opacity="0.5" />
-                          <circle
-                            cx="32"
-                            cy="32"
-                            r={radius}
-                            fill="none"
-                            stroke="#99C8CA"
-                            strokeWidth="4"
-                            strokeLinecap="round"
-                            strokeDasharray={circumference}
-                            strokeDashoffset={circumference * (1 - ratio)}
-                            transform="rotate(-90 32 32)"
-                            className="transition-all duration-500 ease-out"
-                          />
-                          <text x="32" y="32" textAnchor="middle" dominantBaseline="central" fill="#FFFFFF" fontSize="14" fontWeight="600" fontFamily="Poppins, sans-serif">
-                            {filled}/{total}
-                          </text>
-                        </svg>
-                      )}
-                    </div>
-                  )
-                })}
+                {stepsCompleted.map((completed, index) => (
+                  <div
+                    key={index}
+                    className={`flex items-center justify-center transition-all duration-300 ease-out ${
+                      completed 
+                        ? 'scale-100 drop-shadow-[0_0_20px_rgba(153,200,202,0.8)]' 
+                        : 'scale-90'
+                    }`}
+                  >
+                    {completed ? (
+                      <div className="w-14 h-14 sm:w-16 sm:h-16">
+                        <Lottie 
+                          animationData={checkAnimation} 
+                          loop={false}
+                          autoplay={true}
+                        />
+                      </div>
+                    ) : (
+                      <img src={EmptyCheckSvg} alt="" className="w-14 h-14 sm:w-16 sm:h-16" />
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
                     </div>

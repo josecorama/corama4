@@ -254,6 +254,38 @@ def test_ai_output_is_grounded_and_hallucinations_dropped():
     assert result['sources']['competencies'] == 'ai'
 
 
+ABOUT = """
+<html><head><title>About Us - Acme Federal Solutions</title></head><body>
+<main><h1>About Us</h1>
+<p>Learn more</p>
+<p>Founded in 2005, Acme Federal Solutions is a HUBZone-certified small business headquartered in Arlington, Virginia that partners with federal agencies on their most demanding IT modernization programs.</p>
+<p>Our engineers combine deep mission knowledge with cloud, cybersecurity and agile delivery expertise to help agencies move faster while staying secure.</p>
+<ul><li>Founded 2005</li></ul>
+<p>&copy; 2024 Acme Federal Solutions. All rights reserved.</p>
+</main></body></html>
+"""
+
+
+def test_about_page_text_is_used_verbatim_for_description():
+    site = dict(SITE, **{f'{BASE}/about': ABOUT})
+    client = FakeOpenAI({'companyDescription': 'Acme Federal Solutions delivers cybersecurity and cloud migration services to federal agencies.'})
+    with mock.patch.object(wx, 'fetch_url', make_fetch(site)):
+        result = wx.extract_capability_from_website(BASE, openai_client=client, url_validator=ok_validator)
+    desc = result['data']['companyDescription']
+    assert desc.startswith('Founded in 2005, Acme Federal Solutions is a HUBZone-certified small business')
+    assert 'Our engineers combine deep mission knowledge' in desc
+    assert 'Learn more' not in desc and 'All rights reserved' not in desc and 'Founded 2005' not in desc
+    assert result['sources']['companyDescription'] == 'website'
+
+
+def test_description_falls_back_to_ai_without_about_page():
+    client = FakeOpenAI({'companyDescription': 'Acme Federal Solutions delivers cybersecurity, cloud migration and IT modernization services to federal agencies.'})
+    with mock.patch.object(wx, 'fetch_url', make_fetch(SITE)):
+        result = wx.extract_capability_from_website(BASE, openai_client=client, url_validator=ok_validator)
+    assert result['sources']['companyDescription'] in ('ai', 'structured')
+    assert result['data']['companyDescription'].startswith('Acme Federal Solutions delivers cybersecurity')
+
+
 def test_ai_failure_keeps_deterministic_result():
     client = FakeOpenAI(error=TimeoutError('llm timeout'))
     with mock.patch.object(wx, 'fetch_url', make_fetch(SITE)):
