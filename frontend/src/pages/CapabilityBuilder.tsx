@@ -242,45 +242,23 @@ const CapabilityBuilder = () => {
   const closeAiPopup = () => {
     setAiPopup(prev => ({ ...prev, isOpen: false }))
   }
-  // Compute step completion based on form data
-  const section1HasData = !!(
-    formData.companyName ||
-    formData.website ||
-    formData.contactName ||
-    formData.title ||
-    formData.phone ||
-    formData.email ||
-    formData.address ||
-    formData.city ||
-    formData.state ||
-    formData.zipCode
-  )
-
-  const section2HasData = !!(
-    formData.industryFocus ||
-    formData.coreCompetencies ||
-    formData.keyDifferentiators ||
-    formData.companyDescription
-  )
-
-  const section3HasData = !!(
-    formData.ueiCode ||
-    formData.cageCode ||
-    formData.naicsCodes ||
-    formData.certifications ||
-    formData.clientAgency ||
-    formData.contractValue ||
-    formData.projectDescription
-  )
-
-  const stepsCompleted = [section1HasData, section2HasData, section3HasData]
+  // Step progress: fraction of fields filled per section; a step is complete only when every field has a value
+  const sectionFields: (keyof typeof formData)[][] = [
+    ['companyName', 'website', 'contactName', 'title', 'phone', 'email', 'address', 'city', 'state', 'zipCode'],
+    ['industryFocus', 'coreCompetencies', 'keyDifferentiators', 'companyDescription'],
+    ['ueiCode', 'cageCode', 'naicsCodes', 'certifications', 'clientAgency', 'contractValue', 'projectDescription']
+  ]
+  const stepProgress = sectionFields.map(fields => {
+    const filled = fields.filter(field => String(formData[field] ?? '').trim() !== '').length
+    return { filled, total: fields.length, ratio: filled / fields.length }
+  })
+  const [section1HasData, section2HasData, section3HasData] = stepProgress.map(p => p.filled > 0)
   
   // Allow PDF generation as long as at least one section has data
   const canGeneratePdf = section1HasData || section2HasData || section3HasData
   
     const [isDragOver, setIsDragOver] = useState(false)
     const [importingUrl, setImportingUrl] = useState(false)
-    const [importProgress, setImportProgress] = useState('')
     const [generatingPdf, setGeneratingPdf] = useState(false)
     const [showTemplateModal, setShowTemplateModal] = useState(false)
     const [activeColorField, setActiveColorField] = useState<'primary' | 'secondary'>('primary')
@@ -484,7 +462,6 @@ const CapabilityBuilder = () => {
     }
 
     setImportingUrl(true)
-    setImportProgress('')
     setUploadError('')
 
     // Clear the whole form first so imported values replace the current data
@@ -515,7 +492,7 @@ const CapabilityBuilder = () => {
     }))
 
     try {
-      const result: ImportResult = await api.importCapabilityFromUrl(importUrl, setImportProgress)
+      const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
       if (result.success && result.data) {
         mapImportedDataToForm(result.data)
         setImportUrl('')
@@ -530,7 +507,6 @@ const CapabilityBuilder = () => {
       setUploadError('Failed to import from URL. Please try again.')
     } finally {
       setImportingUrl(false)
-      setImportProgress('')
     }
   }
 
@@ -742,7 +718,7 @@ const CapabilityBuilder = () => {
       />
       
       {/* Extracting popup for data extraction */}
-      <ThinkingPopup isVisible={uploading || importingUrl} text={importingUrl && importProgress ? importProgress : 'Extracting'} />
+      <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
       
       {/* Header spans full width at top */}
       <Header />
@@ -762,28 +738,54 @@ const CapabilityBuilder = () => {
             <div className="text-center mb-3 lg:mb-4 animate-fade-in">
               <h1 className="text-white font-poppins font-bold text-xl sm:text-2xl mb-3 sm:mb-4">{t('capabilityBuilder')}</h1>
               <div className="flex justify-center gap-4 sm:gap-6">
-                {stepsCompleted.map((completed, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-center justify-center transition-all duration-300 ease-out ${
-                      completed 
-                        ? 'scale-100 drop-shadow-[0_0_20px_rgba(153,200,202,0.8)]' 
-                        : 'scale-90'
-                    }`}
-                  >
-                    {completed ? (
-                      <div className="w-14 h-14 sm:w-16 sm:h-16">
-                        <Lottie 
-                          animationData={checkAnimation} 
-                          loop={false}
-                          autoplay={true}
-                        />
-                      </div>
-                    ) : (
-                      <img src={EmptyCheckSvg} alt="" className="w-14 h-14 sm:w-16 sm:h-16" />
-                    )}
-                  </div>
-                ))}
+                {stepProgress.map(({ filled, total, ratio }, index) => {
+                  const completed = filled === total
+                  const radius = 26
+                  const circumference = 2 * Math.PI * radius
+                  return (
+                    <div
+                      key={index}
+                      title={`${filled}/${total}`}
+                      className={`flex items-center justify-center transition-all duration-300 ease-out ${
+                        completed
+                          ? 'scale-100 drop-shadow-[0_0_20px_rgba(153,200,202,0.8)]'
+                          : 'scale-90'
+                      }`}
+                    >
+                      {completed ? (
+                        <div className="w-14 h-14 sm:w-16 sm:h-16">
+                          <Lottie
+                            animationData={checkAnimation}
+                            loop={false}
+                            autoplay={true}
+                          />
+                        </div>
+                      ) : filled === 0 ? (
+                        <img src={EmptyCheckSvg} alt="" className="w-14 h-14 sm:w-16 sm:h-16" />
+                      ) : (
+                        <svg viewBox="0 0 64 64" className="w-14 h-14 sm:w-16 sm:h-16">
+                          <circle cx="32" cy="32" r={radius} fill="none" stroke="#D9D9D9" strokeWidth="4" opacity="0.5" />
+                          <circle
+                            cx="32"
+                            cy="32"
+                            r={radius}
+                            fill="none"
+                            stroke="#99C8CA"
+                            strokeWidth="4"
+                            strokeLinecap="round"
+                            strokeDasharray={circumference}
+                            strokeDashoffset={circumference * (1 - ratio)}
+                            transform="rotate(-90 32 32)"
+                            className="transition-all duration-500 ease-out"
+                          />
+                          <text x="32" y="32" textAnchor="middle" dominantBaseline="central" fill="#FFFFFF" fontSize="14" fontWeight="600" fontFamily="Poppins, sans-serif">
+                            {filled}/{total}
+                          </text>
+                        </svg>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
                     </div>
