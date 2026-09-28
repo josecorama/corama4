@@ -562,7 +562,7 @@ const ProposalTeam = () => {
           }}
         />
       
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative lg:-ml-4 lg:pl-4 lg:z-[45]">
           <ContentGoBackButton onClick={handleGoBack} />
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
