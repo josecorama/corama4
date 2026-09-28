@@ -16418,28 +16418,28 @@ def send_team_assignment_email():
         
         <div class="message">
             <p class="welcome-text">
-                New Team Assignment
+                Team Collaboration Request
             </p>
             <p style="font-weight: 400;">
                 Hello,
                 <br><br>
-                You have been added to a work team by <span class="highlight">{user_name}</span> via the Corama Directory.
-            </p>
-            <p style="font-weight: 400;">
-                This assignment is for the contract:
+                <span class="highlight">{user_name}</span> found your company in the Corama Directory and would like to invite you to join their proposal team for the contract:
                 <br>
                 <span class="highlight" style="font-size: 18px;">{contract_name}</span>
             </p>
             <p style="font-weight: 400;">
-                For more information regarding this assignment, please contact them directly by clicking the button below.
+                This is a request, not a commitment: your participation is not confirmed until you review the opportunity and agree to it with {user_name}.
+            </p>
+            <p style="font-weight: 400;">
+                If you are interested, please reply by clicking the button below to discuss the scope, your role and the next steps.
             </p>
         </div>
         
-        <a href="mailto:{user_email}?subject=Inquiry regarding contract: {contract_name}" class="btn-reset">Contact {user_name}</a>
+        <a href="mailto:{user_email}?subject=Re: Team collaboration request - {contract_name}" class="btn-reset">Respond to {user_name}</a>
         
         <div class="message">
             <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
-                If you believe this was a mistake, you can ignore this email.
+                If you are not interested, or you believe this request was sent by mistake, no action is required.
             </p>
         </div>
 
@@ -16468,7 +16468,7 @@ def send_team_assignment_email():
 </body>
 </html>'''
             
-            subject = f"New Team Assignment: {contract_name}"
+            subject = f"Team Collaboration Request from {user_name}: {contract_name}"
             
             try:
                 success, error_msg = send_email_smtp(member_email, subject, html_body)
