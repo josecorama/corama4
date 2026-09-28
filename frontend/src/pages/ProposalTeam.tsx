@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import Lottie from 'lottie-react'
 import Sidebar from '../components/Sidebar'
+import ContentGoBackButton from '../components/ContentGoBackButton'
 import Header from '../components/Header'
 import ThinkingPopup, { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
@@ -545,6 +546,7 @@ const ProposalTeam = () => {
         
         <Sidebar 
           onGoBack={handleGoBack}
+          hideGoBackOnDesktop
           onBeforeNavigate={(to) => {
             // Define workflow pages that should NOT show the discard popup
             const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis', '/proposal-team', '/public-bid-proposal-generator']
@@ -560,7 +562,8 @@ const ProposalTeam = () => {
           }}
         />
       
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          <ContentGoBackButton onClick={handleGoBack} />
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-hidden flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-4 flex-shrink-0 animate-fade-in">

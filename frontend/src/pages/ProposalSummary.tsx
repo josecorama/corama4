@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
+import ContentGoBackButton from '../components/ContentGoBackButton'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
@@ -437,6 +438,7 @@ const ProposalSummary= () => {
         
         <Sidebar 
           onGoBack={handleGoBack}
+          hideGoBackOnDesktop
           onBeforeNavigate={(to) => {
             const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis', '/proposal-team', '/public-bid-proposal-generator']
             const isLeavingWorkflow = !workflowPages.some(page => to.startsWith(page))
@@ -450,7 +452,8 @@ const ProposalSummary= () => {
           }}
         />
       
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          <ContentGoBackButton onClick={handleGoBack} />
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-2 flex-shrink-0 animate-fade-in">
