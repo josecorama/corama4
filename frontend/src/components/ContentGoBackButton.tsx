@@ -12,7 +12,7 @@ const ContentGoBackButton = ({ onClick }: ContentGoBackButtonProps) => {
     <button
       type="button"
       onClick={onClick}
-      className="hidden lg:flex absolute top-3 left-0 z-10 items-center gap-2 h-11 pl-4 pr-6 text-white font-poppins text-sm hover:opacity-90 transition-opacity"
+      className="hidden lg:flex absolute top-3 -left-4 z-10 items-center gap-2 h-11 pl-4 pr-6 text-white font-poppins text-sm hover:opacity-90 transition-opacity"
       style={{
         background: 'linear-gradient(180deg, #1C4262 6.25%, #284165 96%)',
         borderRadius: '0 9999px 9999px 0'
