@@ -111,6 +111,28 @@ export interface CapabilityStatementData {
   pastPerformance?: string[];
 }
 
+export interface CapabilityImportResult {
+  data: CapabilityStatementData;
+  sources: Record<string, 'structured' | 'regex' | 'ai'>;
+  pages: string[];
+  used_ai: boolean;
+  warnings: string[];
+  elapsed_seconds?: number;
+}
+
+export interface CapabilityImportJobStatus {
+  success: boolean;
+  job_id?: string;
+  status?: 'queued' | 'running' | 'completed' | 'error';
+  progress?: string;
+  created_at?: number;
+  started_at?: number;
+  completed_at?: number;
+  result?: CapabilityImportResult;
+  error?: string;
+  transient?: boolean;
+}
+
 class ApiService {
   // User
   async getUser(): Promise<User> {
@@ -476,15 +498,82 @@ class ApiService {
     return res.json();
   }
 
-  // Import Capability Statement from URL (uses /process-capability-statement endpoint)
-  // This extracts data from web pages (HTML scraping), not expecting PDFs
-  async importCapabilityFromUrl(url: string): Promise<{success: boolean, error?: string, data?: CapabilityStatementData}> {
-    const res = await fetch(apiUrl('/process-capability-statement'), {
+  // Import Capability Statement from a company website.
+  // Creates an async job (processed by the background worker) and polls it
+  // until it settles, reporting progress via onProgress.
+  async createCapabilityImportJob(url: string): Promise<{success: boolean, job_id?: string, error?: string}> {
+    const res = await fetch(`${API_BASE()}/capability-import/jobs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
       body: JSON.stringify({ url })
     });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to start website import' }));
+      return { success: false, error: errorData.error || 'Failed to start website import' };
+    }
     return res.json();
+  }
+
+  async getCapabilityImportJob(jobId: string): Promise<CapabilityImportJobStatus> {
+    const res = await fetch(`${API_BASE()}/capability-import/jobs/${jobId}`, { credentials: 'same-origin' });
+    if (!res.ok) {
+      if (res.status === 401) {
+        window.location.href = '/login';
+        throw new Error('Not authenticated');
+      }
+      const errorData = await res.json().catch(() => ({ error: 'Failed to get import status' }));
+      return { success: false, error: errorData.error || 'Failed to get import status', transient: res.status >= 500 || res.status === 429 };
+    }
+    return res.json();
+  }
+
+  async importCapabilityFromUrl(
+    url: string,
+    onProgress?: (message: string) => void,
+    options: { timeoutMs?: number; pollIntervalMs?: number } = {}
+  ): Promise<{success: boolean, error?: string, data?: CapabilityStatementData, result?: CapabilityImportResult}> {
+    const timeoutMs = options.timeoutMs ?? 180_000;
+    const pollIntervalMs = options.pollIntervalMs ?? 2_500;
+
+    const created = await this.createCapabilityImportJob(url);
+    if (!created.success || !created.job_id) {
+      return { success: false, error: created.error || 'Failed to start website import' };
+    }
+    const jobId = created.job_id;
+    const deadline = Date.now() + timeoutMs;
+    let consecutiveFailures = 0;
+
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
+      let status: CapabilityImportJobStatus;
+      try {
+        status = await this.getCapabilityImportJob(jobId);
+      } catch (e) {
+        if (e instanceof Error && e.message === 'Not authenticated') throw e;
+        status = { success: false, transient: true, error: 'Network error' };
+      }
+      if (!status.success) {
+        consecutiveFailures += 1;
+        if (!status.transient || consecutiveFailures >= 5) {
+          return { success: false, error: status.error || 'Failed to get import status' };
+        }
+        continue;
+      }
+      consecutiveFailures = 0;
+      if (status.status === 'completed') {
+        return { success: true, data: status.result?.data || {}, result: status.result };
+      }
+      if (status.status === 'error') {
+        return { success: false, error: status.error || 'Website import failed' };
+      }
+      if (onProgress && status.progress) onProgress(status.progress);
+    }
+    return { success: false, error: 'The website import is taking longer than expected. Please try again in a moment.' };
   }
 
   // Enhance Capability Statement content using AI

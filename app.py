@@ -55,6 +55,8 @@ from qdrant_client import QdrantClient, models
 from ai_assistant_enhanced import EnhancedAIAssistant
 from enhanced_features import ContractOpportunityScorer, CompetitiveIntelligence, ProposalOptimizer, DeadlineManager, IndustryTemplateLibrary
 from credit_manager import CreditManager
+import capability_import_jobs
+import website_extractor
 from category_mapping import map_payload_to_category as shared_map_payload_to_category, DASHBOARD_CATEGORIES
 from sam_gov_sync import sync_sam_gov_to_qdrant, remove_expired_contracts, ingest_payloads, fetch_new_payloads
 from ingest_approval import get_pending_batch, set_status, is_expired, create_pending_batch
@@ -15685,6 +15687,97 @@ def get_contract_analysis_job(job_id):
 
 
 # ============================================================================
+# CAPABILITY STATEMENT WEBSITE IMPORT - ASYNC JOB ENDPOINTS
+# ============================================================================
+
+CAPABILITY_IMPORT_INLINE_CLAIMANT = f'inline-{uuid.uuid4().hex[:8]}'
+CAPABILITY_IMPORT_MODEL = os.getenv('CAPABILITY_IMPORT_MODEL', 'gpt-4o-mini')
+# At most this many website imports run inside the web process at once so the
+# fallback path can never starve normal request handling.
+_capability_import_inline_slots = threading.BoundedSemaphore(2)
+
+
+def _capability_import_inline_fallback(job_id):
+    """Give the background worker a head start; if nobody claimed the job,
+    process it here so the user is never stuck when the worker is down."""
+    deadline = time.time() + capability_import_jobs.WORKER_GRACE_SECONDS
+    while time.time() < deadline:
+        time.sleep(2.0)
+        try:
+            current = admin_database.reference(
+                f'{capability_import_jobs.JOB_PATH}/{job_id}').get() or {}
+        except Exception as exc:
+            logging.warning(f"capability import {job_id}: status check failed: {exc}")
+            continue
+        if current.get('status') != 'queued':
+            return
+    if not _capability_import_inline_slots.acquire(blocking=False):
+        logging.info(f"capability import {job_id}: inline slots busy; leaving job for worker")
+        return
+    try:
+        if capability_import_jobs.claim_job(admin_database, job_id, CAPABILITY_IMPORT_INLINE_CLAIMANT):
+            logging.info(f"capability import {job_id}: worker did not claim in time; processing inline")
+            capability_import_jobs.process_job(
+                admin_database, job_id, CAPABILITY_IMPORT_INLINE_CLAIMANT,
+                openai_client=client_CS_BUILDER_OPENAI_API_KEY,
+                url_validator=is_safe_url_for_ssrf,
+                model=CAPABILITY_IMPORT_MODEL,
+            )
+    finally:
+        _capability_import_inline_slots.release()
+
+
+@app.route('/api/capability-import/jobs', methods=['POST'])
+def create_capability_import_job():
+    """Queue a website -> capability statement extraction and return a job id."""
+    ensure_session_from_auth()
+    if 'user' not in session:
+        return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+    user_id = session['user']['localId']
+
+    payload = request.get_json(silent=True) or {}
+    raw_url = str(payload.get('url') or '').strip()
+    if not raw_url or len(raw_url) > capability_import_jobs.MAX_URL_LENGTH:
+        return jsonify({'success': False, 'error': 'A valid website URL is required'}), 400
+    if detect_social_platform(raw_url):
+        return jsonify({'success': False,
+                        'error': 'Social media profiles are not supported. Please enter the company website.'}), 400
+    url = website_extractor.normalize_url(raw_url)
+    is_safe, ssrf_error = is_safe_url_for_ssrf(url)
+    if not is_safe:
+        return jsonify({'success': False, 'error': ssrf_error or 'URL not allowed'}), 400
+
+    try:
+        job_id = capability_import_jobs.create_job(admin_database, user_id, url)
+    except Exception as exc:
+        logging.error(f"Failed to create capability import job: {exc}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to create job'}), 500
+
+    threading.Thread(target=_capability_import_inline_fallback, args=(job_id,),
+                     name=f'cap-import-{job_id[:8]}', daemon=True).start()
+    return jsonify({'success': True, 'job_id': job_id, 'status': 'queued'})
+
+
+@app.route('/api/capability-import/jobs/<job_id>', methods=['GET'])
+@limiter.exempt
+def get_capability_import_job(job_id):
+    ensure_session_from_auth()
+    if 'user' not in session:
+        return jsonify({'success': False, 'error': 'User not authenticated'}), 401
+    user_id = session['user']['localId']
+    try:
+        job = admin_database.reference(f'{capability_import_jobs.JOB_PATH}/{job_id}').get()
+    except Exception as exc:
+        logging.error(f"Error reading capability import job {job_id}: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to read job'}), 500
+    if not job:
+        return jsonify({'success': False, 'error': 'Job not found'}), 404
+    if job.get('user_id') != user_id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    return jsonify(capability_import_jobs.public_status(job_id, job))
+
+
+# ============================================================================
 # CONTRACT ANALYSIS SYNC ENDPOINT (Legacy - may timeout on large PDFs)
 # ============================================================================
 
@@ -16418,28 +16511,28 @@ def send_team_assignment_email():
         
         <div class="message">
             <p class="welcome-text">
-                New Team Assignment
+                Team Collaboration Request
             </p>
             <p style="font-weight: 400;">
                 Hello,
                 <br><br>
-                You have been added to a work team by <span class="highlight">{user_name}</span> via the Corama Directory.
-            </p>
-            <p style="font-weight: 400;">
-                This assignment is for the contract:
+                <span class="highlight">{user_name}</span> found your company in the Corama Directory and would like to invite you to join their proposal team for the contract:
                 <br>
                 <span class="highlight" style="font-size: 18px;">{contract_name}</span>
             </p>
             <p style="font-weight: 400;">
-                For more information regarding this assignment, please contact them directly by clicking the button below.
+                This is a request, not a commitment: your participation is not confirmed until you review the opportunity and agree to it with {user_name}.
+            </p>
+            <p style="font-weight: 400;">
+                If you are interested, please reply by clicking the button below to discuss the scope, your role and the next steps.
             </p>
         </div>
         
-        <a href="mailto:{user_email}?subject=Inquiry regarding contract: {contract_name}" class="btn-reset">Contact {user_name}</a>
+        <a href="mailto:{user_email}?subject=Re: Team collaboration request - {contract_name}" class="btn-reset">Respond to {user_name}</a>
         
         <div class="message">
             <p style="font-size: 14px; opacity: 0.8; font-weight: 400;">
-                If you believe this was a mistake, you can ignore this email.
+                If you are not interested, or you believe this request was sent by mistake, no action is required.
             </p>
         </div>
 
@@ -16468,7 +16561,7 @@ def send_team_assignment_email():
 </body>
 </html>'''
             
-            subject = f"New Team Assignment: {contract_name}"
+            subject = f"Team Collaboration Request from {user_name}: {contract_name}"
             
             try:
                 success, error_msg = send_email_smtp(member_email, subject, html_body)
