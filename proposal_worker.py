@@ -65,6 +65,7 @@ from openai import OpenAI
 # Import shared category mapping module
 from category_mapping import map_payload_to_category, DASHBOARD_CATEGORIES
 from daily_ingest import run_propose, DEFAULT_DIGEST_EMAIL, DEFAULT_BASE_URL
+import capability_import_jobs
 
 # Worker configuration
 WORKER_ID = f"worker-{uuid.uuid4().hex[:8]}"
@@ -80,6 +81,13 @@ DAILY_INGEST_ENABLED = os.getenv('DAILY_INGEST_ENABLED', 'true').lower() == 'tru
 DAILY_INGEST_HOUR_UTC = int(os.getenv('DAILY_INGEST_HOUR_UTC', '6'))
 DAILY_INGEST_CHECK_INTERVAL = 60  # seconds
 DAILY_INGEST_STATE_PATH = 'system/daily_ingest'
+
+# Website -> capability statement imports are short (~1 min, bounded) and
+# user-facing, so they run on their own small pool instead of queueing behind
+# multi-minute proposal generations in the main loop.
+CAPABILITY_IMPORT_CONCURRENCY = int(os.getenv('CAPABILITY_IMPORT_CONCURRENCY', '2'))
+CAPABILITY_IMPORT_POLL_INTERVAL = 3  # seconds
+CAPABILITY_IMPORT_MODEL = os.getenv('CAPABILITY_IMPORT_MODEL', 'gpt-4o-mini')
 
 # Global flag for graceful shutdown
 shutdown_requested = False
@@ -2122,6 +2130,40 @@ def cleanup_stale_contract_analysis_jobs(db):
         logger.error(f"Error cleaning up stale contract analysis jobs: {e}")
 
 
+def capability_import_scheduler(db, openai_client):
+    """Dedicated loop: claim/process capability_import_jobs with bounded concurrency."""
+    slots = threading.BoundedSemaphore(CAPABILITY_IMPORT_CONCURRENCY)
+    cleanup_counter = 0
+
+    def _run(claimant):
+        try:
+            capability_import_jobs.find_and_process_one(
+                db, claimant, openai_client=openai_client, model=CAPABILITY_IMPORT_MODEL)
+        except Exception as e:
+            logger.error(f"[CAP_IMPORT] Unhandled error: {e}", exc_info=True)
+        finally:
+            slots.release()
+
+    while not shutdown_requested:
+        try:
+            has_work = any(
+                j.get('status') == 'queued'
+                or (j.get('status') == 'running' and (j.get('lease_expires_at') or 0) < time.time())
+                for j in capability_import_jobs.active_jobs(db).values())
+            if has_work and slots.acquire(blocking=False):
+                claimant = f"{WORKER_ID}-cap-{uuid.uuid4().hex[:4]}"
+                threading.Thread(target=_run, args=(claimant,), name=claimant, daemon=True).start()
+                time.sleep(1.0)  # let the claim land, then look for more work
+                continue
+            cleanup_counter += 1
+            if cleanup_counter >= 20:
+                capability_import_jobs.cleanup_stale(db)
+                cleanup_counter = 0
+        except Exception as e:
+            logger.error(f"[CAP_IMPORT] Scheduler error: {e}", exc_info=True)
+        time.sleep(CAPABILITY_IMPORT_POLL_INTERVAL)
+
+
 def run_daily_ingest_once(db) -> bool:
     """Run the daily SAM.gov ingest in propose mode if it has not run today (UTC)."""
     now = datetime.now(timezone.utc)
@@ -2175,7 +2217,8 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
     
     logger.info(f"Starting background worker {WORKER_ID}")
-    logger.info("Supported job types: proposal_jobs, contract_analysis_jobs, naics_enrichment_jobs, dashboard_stats")
+    logger.info("Supported job types: proposal_jobs, contract_analysis_jobs, naics_enrichment_jobs, "
+                "capability_import_jobs, dashboard_stats")
     
     # Initialize services
     try:
@@ -2201,6 +2244,9 @@ def main():
     except Exception as e:
         logger.warning(f"[NAICS_BACKLOG] Startup sweep failed (non-fatal): {e}")
     
+    threading.Thread(target=capability_import_scheduler, args=(db, openai_client),
+                     name='capability-import', daemon=True).start()
+
     if DAILY_INGEST_ENABLED:
         threading.Thread(target=daily_ingest_scheduler, args=(db,), name='daily-ingest', daemon=True).start()
     else:
