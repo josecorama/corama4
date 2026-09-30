@@ -299,18 +299,30 @@ def terms_of_use() -> list:
           "reproduce, analyze, prepare derivative works of, and display the Input, and to sublicense the Input to the "
           "service providers that process it on our behalf (such as cloud hosting and artificial intelligence model "
           "providers), solely as necessary to provide, maintain, secure, and improve the Services and as otherwise "
-          "described in our Privacy Notice. Input you choose to publish in the CORAMA Directory is additionally licensed "
-          "for display to other users and visitors for as long as your profile remains published."),
-        p("<b>License to Corama Output.</b> Subject to these Terms, upon creation of your Account we grant you a "
-          "non-exclusive, non-transferrable, revocable, limited license to access and use the Services for so long as "
-          "your Account remains active, including the product created from the Corama artificial intelligence software "
-          "(\u201cOutput\u201d), such as contract matches, capability statements, and proposal drafts. You acknowledge "
-          "and agree that the Services and Output are provided under license, and not sold, to you. You do not acquire "
-          "any ownership interest in the Services under these Terms, or any other rights thereto other than to use the "
-          "Services in accordance with the license granted, and subject to all terms, conditions, and restrictions, "
-          "under these Terms."),
+          "described in our Privacy Notice. This license also allows us to share your Input with the collaborators you "
+          "designate, such as team members or partners you add to a proposal. Input you choose to publish in the CORAMA "
+          "Directory is additionally licensed for display to other users and visitors for as long as your profile "
+          "remains published. This license ends when you delete the Input or your Account, except that we may retain "
+          "copies in routine backups and as required by law for the periods described in our Privacy Notice."),
+        p("<b>Aggregated and De-identified Data.</b> IHCC may create and use aggregated or de-identified statistics "
+          "derived from Input and use of the Services (for example, the number of users, industries served, or "
+          "opportunities matched) to operate and improve Corama and to report on the program to IHCC\u2019s board, "
+          "members, funders, and the public. Such data will not identify you or your business."),
+        p("<b>Output.</b> As between you and Corama, and to the extent permitted by applicable law, you own the content "
+          "generated for you by the Corama artificial intelligence software (\u201cOutput\u201d), such as capability "
+          "statements and proposal drafts, and may use it for any lawful purpose, including submitting it to government "
+          "agencies. We assign to you all our right, title, and interest, if any, in and to your Output. Output does not "
+          "include the Services themselves, opportunity data obtained from government sources, or any third-party "
+          "content. You are responsible for your Output, including confirming that it is accurate and does not infringe "
+          "the rights of others."),
+        p("<b>License to Use the Services.</b> Subject to these Terms, we grant you a non-exclusive, non-transferable, "
+          "revocable, limited license to access and use the Services for so long as your Account remains active. You "
+          "do not acquire any ownership interest in the Services, the underlying software, or the opportunity database "
+          "under these Terms, or any rights other than to use the Services in accordance with the license granted, and "
+          "subject to all terms, conditions, and restrictions, under these Terms."),
         p("<b>Similarity of Content.</b> Due to the nature of our Services and artificial intelligence generally, Output "
-          "may not be unique and other users may receive similar output from our Services."),
+          "may not be unique and other users may receive similar output from our Services. Your ownership of Output "
+          "does not extend to output generated for other users, even if similar."),
         p("<b>Corama Use of Content.</b> We may use Input and Output (collectively, \u201cContent\u201d) to provide, "
           "maintain, develop, and improve our Services, comply with applicable law, enforce our terms and policies, and "
           "keep our Services safe. Corama does not use your Content to train its own artificial intelligence models. "
@@ -373,6 +385,12 @@ def terms_of_use() -> list:
           "INFORMATION, OR OTHER MATERIAL OBTAINED BY YOU THROUGH OUR SERVICES WILL MEET YOUR EXPECTATIONS."),
 
         heading("XIX", "Limitation of Liability"),
+        p(f"Corama is provided free of charge by {OWNER_SHORT}, a not-for-profit organization, as a resource for the "
+          "business community. Opportunity data displayed in the Services is obtained from public government sources "
+          "and, although believed to be reliable, is provided without any warranty as to its accuracy, completeness, or "
+          "timeliness. In light of the free nature of the Services, you agree to the following limitations, which are "
+          "an essential basis of the bargain between you and IHCC. In this Section, \u201cCorama\u201d includes IHCC and "
+          "its directors, officers, employees, members, volunteers, and agents."),
         p("YOU EXPRESSLY UNDERSTAND AND AGREE THAT CORAMA WILL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, "
           "CONSEQUENTIAL, EXEMPLARY DAMAGES, OR DAMAGES FOR LOSS OF PROFITS INCLUDING, BUT NOT LIMITED TO, DAMAGES FOR "
           "LOSS OF GOODWILL, USE, DATA OR OTHER INTANGIBLE LOSSES (EVEN IF CORAMA HAS BEEN ADVISED OF THE POSSIBILITY OF "
@@ -383,7 +401,10 @@ def terms_of_use() -> list:
           "CONTENT, TRANSMISSIONS, OR DATA; (IV) STATEMENTS OR CONDUCT OF ANY THIRD PARTY ON OUR SERVICES; (V) ANY BID, "
           "PROPOSAL, OR CONTRACT AWARD DECISION MADE BY ANY GOVERNMENT AGENCY OR OTHER THIRD PARTY; OR (VI) ANY OTHER "
           "MATTER RELATING TO OUR SERVICES OR CONTENT. IN NO EVENT WILL CORAMA\u2019S TOTAL LIABILITY TO YOU FOR ALL "
-          "DAMAGES, LOSSES OR CAUSES OF ACTION EXCEED ONE HUNDRED U.S. DOLLARS (US $100). SOME JURISDICTIONS DO NOT "
+          "DAMAGES, LOSSES OR CAUSES OF ACTION EXCEED THE GREATER OF (A) ONE HUNDRED U.S. DOLLARS (US $100) OR (B) THE "
+          "AMOUNT, IF ANY, YOU PAID TO IHCC FOR THE SERVICES IN THE TWELVE (12) MONTHS BEFORE THE EVENT GIVING RISE TO "
+          "THE CLAIM. THESE LIMITATIONS DO NOT APPLY TO LIABILITY THAT CANNOT BE LIMITED UNDER APPLICABLE LAW, "
+          "INCLUDING LIABILITY FOR GROSS NEGLIGENCE, WILLFUL MISCONDUCT, OR FRAUD. SOME JURISDICTIONS DO NOT "
           "ALLOW THE EXCLUSION OF CERTAIN WARRANTIES OR THE LIMITATION OR EXCLUSION OF LIABILITY FOR INCIDENTAL OR "
           "CONSEQUENTIAL DAMAGES. ACCORDINGLY, SOME OF THE ABOVE LIMITATIONS SET FORTH ABOVE MAY NOT APPLY TO YOU. IF "
           "YOU ARE DISSATISFIED WITH ANY PORTION OF OUR SERVICES OR WITH THESE TERMS, YOUR SOLE AND EXCLUSIVE REMEDY IS "
@@ -493,7 +514,9 @@ def privacy_notice() -> list:
             "and proposal drafts for you.",
             "<b>Conduct Research and Improve Our Services.</b> Corama uses information and Personal Data to conduct "
             "research, such as questionnaires and surveys, and to analyze and enhance our marketing communication "
-            "strategies and our Services as a whole.",
+            "strategies and our Services as a whole. IHCC may also create aggregated or de-identified statistics "
+            "(such as the number of users, industries served, or opportunities matched) that do not identify you, and "
+            "use them to report on the Corama program to its board, members, funders, and the public.",
             "<b>Communicate.</b> Corama uses information and Personal Data to communicate important information, "
             "including delivering notices to you about the use of our Services.",
             "<b>Protect Our Organization.</b> Corama uses information and Personal Data to protect against fraud, "
