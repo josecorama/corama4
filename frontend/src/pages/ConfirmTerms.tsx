@@ -4,8 +4,13 @@ import { Loader2 } from 'lucide-react'
 const ConfirmTerms = () => {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [accepted, setAccepted] = useState(false)
 
   const handleAgree = async () => {
+    if (!accepted) {
+      setError('Please confirm that you have read and agree to the Terms of Use and Privacy Notice.')
+      return
+    }
     setError('')
     setLoading(true)
 
@@ -70,8 +75,11 @@ const ConfirmTerms = () => {
           {/* Title Section */}
           <div className="text-center mb-10">
             <h1 className="font-poppins font-black text-3xl sm:text-4xl md:text-5xl text-white mb-3">
-              Automatic Renewal Terms and Conditions
+              Terms of Use &amp; Privacy Notice
             </h1>
+            <p className="text-gray-300 font-poppins text-sm sm:text-base max-w-2xl mx-auto">
+              Before you start using CORAMA, please review and accept our Terms of Use and Privacy Notice.
+            </p>
           </div>
 
           {/* Error Message */}
@@ -85,104 +93,81 @@ const ConfirmTerms = () => {
           <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-2xl mx-auto shadow-xl">
             {/* Header */}
             <h2 className="text-corama-teal font-poppins font-bold text-sm tracking-wider mb-4">
-              CONFIDENTIAL WORK PRODUCT
+              CORAMA (CONTRACT RADAR MAXIMIZER)
             </h2>
             <h3 className="text-gray-900 font-poppins font-bold text-base mb-4">
-              Contract Radar Maximizer Terms of Use
+              A program of the Illinois Hispanic Chamber of Commerce
             </h3>
 
             {/* Scrollable Content */}
             <div className="h-64 sm:h-80 overflow-y-auto pr-2 text-gray-700 font-poppins text-sm leading-relaxed space-y-4 border-t border-gray-200 pt-4">
               <p>
-                The Federal Trade Commission recently put forth a new rule regulating automatically renewable 
-                subscription services (the "Subscription") that consumers consent to. In a business-to-business 
-                context, Contract Radar Maximizer must follow the below requirements for compliance when providing 
-                subscription-based services to consumers.
+                CORAMA is an artificial intelligence tool owned and operated by the Illinois Hispanic Chamber of
+                Commerce (IHCC), a 501(c)(6) not-for-profit organization based in Chicago, Illinois. CORAMA is
+                offered at no cost to help small and diverse businesses discover, evaluate, and pursue public
+                contracting opportunities.
               </p>
 
-              <h4 className="font-bold text-gray-900">A. General Notice Requirements</h4>
-              <p>
-                Auto renewal laws require that consumers are given full notice of the terms and conditions of the 
-                Subscription before they assent. The Contract Radar Maximizer terms have been drafted to satisfy 
-                this requirement. The Terms should be prominently provided on the website and/or app at all times.
-              </p>
-              <p>
-                In addition to the general notice, the Subscription page where consumers purchase the Subscription 
-                must present the automatic renewal terms in both:
-              </p>
+              <h4 className="font-bold text-gray-900">What you are agreeing to</h4>
               <ul className="list-disc pl-5 space-y-1">
-                <li>A clear and conspicuous manner before the purchase is concluded</li>
-                <li>In visual proximity to the request for consent to the offer.</li>
+                <li>
+                  Our{' '}
+                  <a href="/terms-of-use" target="_blank" rel="noopener noreferrer" className="text-corama-teal hover:underline">Terms of Use</a>,
+                  which govern your use of CORAMA, including the CORAMA Directory and our AI features.
+                </li>
+                <li>
+                  Our{' '}
+                  <a href="/privacy-notice" target="_blank" rel="noopener noreferrer" className="text-corama-teal hover:underline">Privacy Notice</a>,
+                  which explains what information we collect, how we use it, and your privacy rights.
+                </li>
               </ul>
-              <p>A model for usage by Contract Radar Maximizer is in Section E, Model Terms.</p>
 
-              <h4 className="font-bold text-gray-900">B. Affirmative Consent</h4>
-              <p>
-                Consent to the auto-renewal Subscription terms must be affirmatively obtained. This can be done by 
-                a check box or signature. Stating "By signing up, you agree to Terms" is not enough under the FTC rule. 
-                An affirmative action must be taken. Records of consent must be kept for three years.
-              </p>
-
-              <h4 className="font-bold text-gray-900">C. Cancellation</h4>
-              <p>
-                Sellers using automatic renewal must provide a simple cancellation method. The method must be at 
-                least as simple as it was to enroll. For example, if you sign-up online, the consumer must be able to 
-                easily cancel online as well.
-              </p>
-              <p>
-                Cancellation must be effectuated the same way as consent. For example, sellers cannot force a 
-                consumer to cancel through a chatbot unless consent was also obtained in the same manner. Sellers may 
-                not charge an additional fee for cancellation.
-              </p>
-
-              <h4 className="font-bold text-gray-900">D. Model Terms</h4>
-              <p>
-                The attached write-up should be posted on the page that the consumer signs up for the Subscription 
-                and makes a payment. This write-up should also be used for the Auto Renewal Notices.
-              </p>
-
-              <h4 className="font-bold text-gray-900">IMPORTANT NOTICE ABOUT AUTO RENEWAL SUBSCRIPTIONS</h4>
-              <p>
-                Your Subscription with us will continue to auto-renew on a [monthly/yearly] basis until terminated.
-                Your Contract Radar Maximizer membership (the "Subscription") is effective for the [XXX] period covered 
-                by your payment and continues upon your payment of the [TIME PERIOD] renewal fee. The renewal cost for 
-                your Subscription will automatically be charged, at the then-current rate for your Subscription. The 
-                current Subscription pricing can be found at [SUBSCRIPTION PRICE PAGE OR LIST PRICING].
-              </p>
-              <p>
-                To avoid the automatic renewal of your Subscription, you must cancel your Subscription at least [X] 
-                days prior to the end of your current billing cycle. If you cancel less than [X] days before the end of 
-                your current billing cycle, your Subscription will continue as scheduled and your cancellation will take 
-                effect at the end of the next billing cycle.
-              </p>
-              <p>
-                If you cancel your Subscription prior to the end of your Subscription, you will be entitled to continue 
-                to access your Subscription through to the end of your current Subscription period. At the end of your 
-                Subscription period, you will immediately lose all access to any content or features provided through your 
-                Subscription.
-              </p>
-              <p>
-                If you choose to discontinue your Subscription for any reason before the expiration of the Subscription 
-                term for which you have paid, you may cancel your Subscription and opt out of auto-renewal by:
-                [TERMINATION CHOICES]
-              </p>
-              <p>
-                [FOR CHANGES IN FEE NOTICES: We reserve the right to change or adjust the annual Subscription dues for 
-                any renewal term to be effective upon the renewal of your Subscription. Any price changes or changes to 
-                your Subscription plan will take effect following notice to you. [INFORMATION ABOUT SUBSCRIPTION PRICING 
-                UPDATE]]
-              </p>
-              <p>
-                [FOR PROMOTIONAL/FREE TRIAL PERIODS: We currently offer special promotional pricing and trials for 
-                our Subscriptions (each, a "Free Trial"). Information on our Free Trials can be found at [LINK]. At the 
-                end of your Promotional Subscription term, your subscription will automatically renew at the price and 
-                for the duration disclosed to you at the signup of your Promotional Subscription.] You can cancel your 
-                Free Trial up to seven (7) days before the end of the Free Trial without penalty.
-              </p>
-              <p>
-                For our full Terms, please visit: <a href="/terms-of-use" className="text-corama-teal hover:underline">Contract Radar Maximizer Terms of Use</a>
+              <h4 className="font-bold text-gray-900">Key points</h4>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>CORAMA is free. There are no subscriptions, tokens, credits, or automatic renewals.</li>
+                <li>
+                  You own the documents you upload and the capability statements and proposals CORAMA generates for
+                  you. We use your uploads only to operate and improve the service.
+                </li>
+                <li>
+                  Your documents and prompts are processed by AI service providers (such as OpenAI through its
+                  business API) on our behalf; they are not used to train those providers&apos; models.
+                </li>
+                <li>
+                  We do not sell your personal information or share it for advertising. Your business profile is only
+                  visible to others if you choose to publish it in the CORAMA Directory.
+                </li>
+                <li>
+                  AI-generated content may contain errors. Always verify contract details against the official
+                  solicitation before submitting a bid or proposal.
+                </li>
+                <li>CORAMA is intended for businesses and business professionals who are 18 or older.</li>
+                <li>
+                  You can request deletion of your account and uploaded documents at any time by emailing{' '}
+                  <a href="mailto:admin@corama.ai" className="text-corama-teal hover:underline">admin@corama.ai</a>.
+                </li>
+              </ul>
+              <p className="text-xs text-gray-500">
+                This summary is for convenience only. The full Terms of Use and Privacy Notice control.
               </p>
             </div>
+
+            {/* Consent Checkbox */}
+            <label className="flex items-start gap-3 mt-6 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={accepted}
+                onChange={(e) => { setAccepted(e.target.checked); if (e.target.checked) setError('') }}
+                disabled={loading}
+                className="mt-0.5 h-4 w-4 accent-[#4a8a8c] flex-shrink-0"
+              />
+              <span className="text-gray-700 font-poppins text-sm leading-relaxed">
+                I have read and agree to the CORAMA{' '}
+                <a href="/terms-of-use" target="_blank" rel="noopener noreferrer" className="text-corama-teal hover:underline">Terms of Use</a>
+                {' '}and{' '}
+                <a href="/privacy-notice" target="_blank" rel="noopener noreferrer" className="text-corama-teal hover:underline">Privacy Notice</a>.
+              </span>
+            </label>
 
             {/* Action Buttons */}
             <div className="flex items-center justify-end gap-4 mt-6 pt-4 border-t border-gray-200">
@@ -195,7 +180,7 @@ const ConfirmTerms = () => {
               </button>
               <button
                 onClick={handleAgree}
-                disabled={loading}
+                disabled={loading || !accepted}
                 className="bg-corama-teal text-white font-poppins text-sm font-semibold px-8 py-2.5 rounded-lg hover:bg-[#5a9a9c] transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {loading ? (
@@ -204,7 +189,7 @@ const ConfirmTerms = () => {
                     Processing...
                   </>
                 ) : (
-                  'Agree'
+                  'Agree and Continue'
                 )}
               </button>
             </div>
@@ -222,7 +207,7 @@ const ConfirmTerms = () => {
           <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             <a href="https://ihccbusiness.net/" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Learn More About IHCC</a>
             <a href="/terms-of-use" className="hover:text-white transition-colors">Terms of Use</a>
-            <a href="/static/docs/policy.pdf" target="_blank" className="hover:text-white transition-colors">Policy Notice</a>
+            <a href="/privacy-notice" className="hover:text-white transition-colors">Privacy Notice</a>
             <a href="/faq" className="hover:text-white transition-colors">Frequently Asked Questions</a>
           </div>
           <div>admin@corama.ai</div>
