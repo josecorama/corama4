@@ -24,10 +24,13 @@ from reportlab.platypus import ListFlowable, ListItem, Paragraph, SimpleDocTempl
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT_DIR = os.path.join(ROOT, "static", "docs")
 
-COMPANY = "Corama, Inc."
+COMPANY = "CORAMA (Contract Radar Maximizer)"
 PRODUCT = "Contract Radar Maximizer"
-CONTACT_NAME = "Jose Armando Delgado Lopez"
-CONTACT_TITLE = "Executive Director, CORAMA"
+OWNER = "Illinois Hispanic Chamber of Commerce"
+OWNER_SHORT = "IHCC"
+OWNER_SITE = "https://ihccbusiness.net"
+OWNER_EMAIL = "info@ihccbusiness.net"
+OWNER_PHONE = "312.425.9500"
 CONTACT_EMAIL = "admin@corama.ai"
 CONTACT_ADDRESS = "180 N Michigan Ave, Suite 500, Chicago, IL 60601"
 EFFECTIVE_DATE = "09/23/2026"
@@ -81,10 +84,10 @@ def numbered(items: list[str]) -> ListFlowable:
 
 def contact_block() -> list:
     return [
-        Paragraph(COMPANY, CONTACT),
-        Paragraph(f"{CONTACT_NAME}, {CONTACT_TITLE}", CONTACT),
+        Paragraph(f"CORAMA \u2013 a program of the {OWNER} ({OWNER_SHORT})", CONTACT),
         Paragraph(CONTACT_ADDRESS, CONTACT),
-        Paragraph(CONTACT_EMAIL, CONTACT),
+        Paragraph(f"Email: {CONTACT_EMAIL}", CONTACT),
+        Paragraph(f"IHCC: {OWNER_EMAIL} \u00b7 {OWNER_PHONE} \u00b7 {OWNER_SITE}", CONTACT),
     ]
 
 
@@ -112,11 +115,16 @@ def terms_of_use() -> list:
         Paragraph("Website Terms of Use", SUBTITLE),
         Paragraph(f"Effective Date: {EFFECTIVE_DATE}", CENTER),
         Spacer(1, 6),
-        p(f"These are the Terms of Use (the \u201cTerms\u201d) for {COMPANY} (\u201cCorama\u201d). These Terms apply "
-          "when you visit any websites owned and operated by Corama, including our website at corama.ai (the "
-          f"\u201cWebsite\u201d), use our artificial intelligence software and the {PRODUCT} platform, communicate with us, "
-          "or use any and all of our products and services (collectively, our "
-          "\u201cServices\u201d)."),
+        p(f"CORAMA ({PRODUCT}) (\u201cCorama,\u201d \u201cwe,\u201d \u201cus,\u201d or \u201cour\u201d) is an "
+          f"artificial intelligence tool owned and operated by the {OWNER} ({OWNER_SHORT}), a 501(c)(6) not-for-profit "
+          "organization based in Chicago, Illinois. Corama is offered at no cost to help small and diverse businesses "
+          "discover, evaluate, and pursue public contracting opportunities."),
+        p("These are the Terms of Use (the \u201cTerms\u201d) for Corama. These Terms are a binding agreement between "
+          f"you and {OWNER_SHORT}, and apply when you visit any websites owned and operated by Corama, including our "
+          f"website at corama.ai (the \u201cWebsite\u201d), use our artificial intelligence software and the {PRODUCT} "
+          "platform, communicate with us, or use any and all of our products and services (collectively, our "
+          "\u201cServices\u201d). References to Corama in these Terms include IHCC and its officers, employees, and "
+          "agents."),
         p("By using our Services, you acknowledge you have read our Privacy Notice, and agree to our Terms of Use."),
 
         heading("I", "Eligibility Requirements"),
@@ -320,9 +328,9 @@ def terms_of_use() -> list:
 
         heading("XIV", "Third-Party Services"),
         p("Our Services may provide links or other access to other third party sites and resources on the internet, "
-          "including government procurement portals such as SAM.gov and the Illinois Hispanic Chamber of Commerce "
-          "(IHCC). Corama has no control over such sites and resources and Corama is not responsible for and does not "
-          "endorse such sites and resources. Opportunity data displayed in the Services is obtained from public "
+          "including government procurement portals such as SAM.gov. Corama has no control over such sites and "
+          "resources and Corama is not responsible for and does not endorse such sites and resources. Links to "
+          f"IHCC\u2019s main website ({OWNER_SITE}) are subject to the terms and privacy notice published there. Opportunity data displayed in the Services is obtained from public "
           "government sources and may be incomplete or out of date; the official solicitation always controls."),
         p("Our sign-up, log-in, and password-reset pages are protected by Google reCAPTCHA, which is subject to the "
           "Google Privacy Policy (https://policies.google.com/privacy) and Terms of Service "
@@ -417,12 +425,20 @@ def privacy_notice() -> list:
         Paragraph("Privacy Notice", SUBTITLE),
         Paragraph(f"Effective Date: {EFFECTIVE_DATE}", CENTER),
         Spacer(1, 6),
-        p(f"{COMPANY} (\u201cCorama\u201d) understands the importance of your privacy. This Privacy Notice applies "
-          "when you visit any websites owned and operated by Corama, including our website at corama.ai (the "
-          f"\u201cWebsite\u201d), use our artificial intelligence software and the {PRODUCT} platform, communicate with us, "
-          "or use any and all of our products and services (collectively, our "
-          "\u201cServices\u201d). Our Privacy Notice describes our collection of information during your interactions "
-          "with our Services, and the rights and choices you have regarding your information."),
+        p(f"CORAMA ({PRODUCT}) (\u201cCorama,\u201d \u201cwe,\u201d \u201cus,\u201d or \u201cour\u201d) is an "
+          f"artificial intelligence tool owned and operated by the {OWNER} ({OWNER_SHORT}), a 501(c)(6) not-for-profit "
+          "organization based in Chicago, Illinois. Corama is offered at no cost to the public to help small and "
+          "diverse businesses discover, evaluate, and pursue public contracting opportunities."),
+        p("IHCC understands the importance of your privacy and is committed to protecting the Personal Data of the "
+          "business owners and professionals who use Corama. This Privacy Notice applies when you visit any websites "
+          "owned and operated by Corama, including our website at corama.ai (the \u201cWebsite\u201d), use our "
+          f"artificial intelligence software and the {PRODUCT} platform, communicate with us, or use any and all of our "
+          "products and services (collectively, our \u201cServices\u201d). It applies solely to information collected "
+          f"through Corama; information collected through IHCC\u2019s main website ({OWNER_SITE}) and IHCC\u2019s "
+          "membership, events, and other programs is governed by the privacy notice published on that website."),
+        p("This Privacy Notice describes what information we collect, how we use it and with whom it may be shared, "
+          "the choices available to you regarding your information, and the security procedures we use to protect it. "
+          "IHCC does not sell or rent your Personal Data to anyone."),
         p("By using our Services, you acknowledge you have read our Privacy Notice, and agree to our Terms of Use."),
 
         heading("I", "Information Collection"),
@@ -505,6 +521,10 @@ def privacy_notice() -> list:
             "our email delivery provider (verification codes, password resets, and notifications). These service "
             "providers are required by contract or law to only use or disclose the information as necessary to perform "
             "services on our behalf or as otherwise required by law.",
+            f"<b>Within {OWNER_SHORT}.</b> Because Corama is a program of {OWNER_SHORT}, your information may be "
+            "accessed by IHCC staff who administer Corama and support its users. Only staff who need the information to "
+            "perform a specific job are granted access. IHCC may contact you about Corama and about IHCC resources, "
+            "programs, and events relevant to public contracting; you may unsubscribe from those messages at any time.",
             "<b>To Other Users.</b> If you choose to publish a profile in the CORAMA Directory, the business "
             "information you include in that profile will be visible to other users and visitors of the Services, who "
             "may contact you through the Services. If another user adds you to a proposal team or sends you an inquiry, "
@@ -602,10 +622,11 @@ def privacy_notice() -> list:
           "password, and Directory profile at any time from the Settings and Directory pages of the platform. To "
           f"delete your Account and the documents you have uploaded, email us at {CONTACT_EMAIL} from the email "
           "address associated with your Account."),
-        p("<b>Email Communications.</b> The emails we send today are service-related messages (verification codes, "
-          "password resets, Account notices, and notifications from other users) that are necessary to operate the "
-          "Services. If we send promotional email in the future, each message will include an unsubscribe link. "
-          "Service-related messages cannot be opted out of while you maintain an Account."),
+        p("<b>Email Communications.</b> The emails Corama sends today are service-related messages (verification "
+          "codes, password resets, Account notices, and notifications from other users) that are necessary to operate "
+          "the Services. If IHCC sends you email about resources, events, or programs, each message will include an "
+          "unsubscribe link and we will honor your request as required by the CAN-SPAM Act. Service-related messages "
+          "cannot be opted out of while you maintain an Account."),
         p("<b>Do Not Track Signals.</b> CalOPPA requires us to let you know how we respond to web browser Do Not Track "
           "(\u201cDNT\u201d) signals. Because there currently isn\u2019t an industry or legal standard recognizing or "
           "honoring DNT signals, we don\u2019t respond to them at this time. However, we do not track your activity "
@@ -651,7 +672,8 @@ def privacy_notice() -> list:
           "effective constitutes your acceptance of the Privacy Notice."),
 
         heading("XII", "Contact Us"),
-        p("If you have any questions about this Privacy Notice, contact us at:"),
+        p("If you have any questions about this Privacy Notice, or feel that we are not abiding by it, contact us "
+          "at:"),
     ] + contact_block()
     return s
 
