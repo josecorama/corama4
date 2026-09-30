@@ -242,44 +242,22 @@ const CapabilityBuilder = () => {
   const closeAiPopup = () => {
     setAiPopup(prev => ({ ...prev, isOpen: false }))
   }
-  // Compute step completion based on form data
-  const section1HasData = !!(
-    formData.companyName ||
-    formData.website ||
-    formData.contactName ||
-    formData.title ||
-    formData.phone ||
-    formData.email ||
-    formData.address ||
-    formData.city ||
-    formData.state ||
-    formData.zipCode
-  )
-
-  const section2HasData = !!(
-    formData.industryFocus ||
-    formData.coreCompetencies ||
-    formData.keyDifferentiators ||
-    formData.companyDescription
-  )
-
-  const section3HasData = !!(
-    formData.ueiCode ||
-    formData.cageCode ||
-    formData.naicsCodes ||
-    formData.certifications ||
-    formData.clientAgency ||
-    formData.contractValue ||
-    formData.projectDescription
-  )
-
-  const stepsCompleted = [section1HasData, section2HasData, section3HasData]
+  // Step progress: fraction of fields filled per section; a step is complete only when every field has a value
+  const sectionFields: (keyof typeof formData)[][] = [
+    ['companyName', 'website', 'contactName', 'title', 'phone', 'email', 'address', 'city', 'state', 'zipCode'],
+    ['industryFocus', 'coreCompetencies', 'keyDifferentiators', 'companyDescription'],
+    ['ueiCode', 'cageCode', 'naicsCodes', 'certifications', 'clientAgency', 'contractValue', 'projectDescription']
+  ]
+  const isFilled = (field: keyof typeof formData) => String(formData[field] ?? '').trim() !== ''
+  const stepsCompleted = sectionFields.map(fields => fields.every(isFilled))
+  const [section1HasData, section2HasData, section3HasData] = sectionFields.map(fields => fields.some(isFilled))
   
   // Allow PDF generation as long as at least one section has data
   const canGeneratePdf = section1HasData || section2HasData || section3HasData
   
     const [isDragOver, setIsDragOver] = useState(false)
     const [importingUrl, setImportingUrl] = useState(false)
+    const [importStage, setImportStage] = useState<'Extracting' | 'Analyzing' | 'Loading'>('Extracting')
     const [generatingPdf, setGeneratingPdf] = useState(false)
     const [showTemplateModal, setShowTemplateModal] = useState(false)
     const [activeColorField, setActiveColorField] = useState<'primary' | 'secondary'>('primary')
@@ -483,6 +461,7 @@ const CapabilityBuilder = () => {
     }
 
     setImportingUrl(true)
+    setImportStage('Extracting')
     setUploadError('')
 
     // Clear the whole form first so imported values replace the current data
@@ -513,10 +492,17 @@ const CapabilityBuilder = () => {
     }))
 
     try {
-      const result: ImportResult = await api.importCapabilityFromUrl(importUrl)
+      const result: ImportResult = await api.importCapabilityFromUrl(importUrl, (message) => {
+        if (/analy[sz]ing/i.test(message)) setImportStage('Analyzing')
+      })
       if (result.success && result.data) {
+        setImportStage('Loading')
+        await new Promise(resolve => setTimeout(resolve, 800))
         mapImportedDataToForm(result.data)
         setImportUrl('')
+        if (Object.keys(result.data).length === 0) {
+          setUploadError('No company information could be found on that website. You can fill the fields manually.')
+        }
       } else {
         setUploadError(result.error || 'URL import failed')
       }
@@ -736,7 +722,7 @@ const CapabilityBuilder = () => {
       />
       
       {/* Extracting popup for data extraction */}
-      <ThinkingPopup isVisible={uploading || importingUrl} text="Extracting" />
+      <ThinkingPopup isVisible={uploading || importingUrl} text={importingUrl ? importStage : 'Extracting'} />
       
       {/* Header spans full width at top */}
       <Header />

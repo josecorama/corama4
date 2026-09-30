@@ -3,12 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import Lottie from 'lottie-react'
 import ReactMarkdown from 'react-markdown'
 import Sidebar from '../components/Sidebar'
+import ContentGoBackButton from '../components/ContentGoBackButton'
 import Header from '../components/Header'
 import { InlineLoading } from '../components/ThinkingPopup'
 import checkAnimation from '../assets/CheckAnimation.json'
 import EmptyCheckSvg from '../assets/EmptyCheck.svg'
 import CheckSvg from '../assets/Check.svg'
 import { api } from '../services/api'
+import { clearContractSession, getContractScoped } from '../utils/contractSession'
 import { useTranslation } from '../i18n'
 import { formatCurrency } from '../utils/currency'
 
@@ -198,15 +200,17 @@ const ProposalSummary= () => {
     const effectiveId = fromState || fromStorage || null
     
     if (effectiveId) {
+      if (fromState && fromStorage !== fromState) clearContractSession()
       setContractId(effectiveId)
       sessionStorage.setItem('currentContractId', effectiveId)
     }
     
-    // Set other state values
-    setContractName(locationState?.contractName || sessionStorage.getItem('currentContractName') || '')
-    setAiFindings(locationState?.aiFindings || sessionStorage.getItem('currentAiFindings') || '')
-    setAiSuggestions(locationState?.aiSuggestions || sessionStorage.getItem('currentAiSuggestions') || '')
-    setTeamMembers(locationState?.teamMembers || JSON.parse(sessionStorage.getItem('currentTeamMembers') || '[]'))
+    // Stored values are only valid for the contract they were stored for
+    setContractName(locationState?.contractName || getContractScoped(effectiveId, 'currentContractName') || '')
+    setAiFindings(locationState?.aiFindings || getContractScoped(effectiveId, 'currentAiFindings') || '')
+    setAiSuggestions(locationState?.aiSuggestions || getContractScoped(effectiveId, 'currentAiSuggestions') || '')
+    setTeamMembers(locationState?.teamMembers || JSON.parse(getContractScoped(effectiveId, 'currentTeamMembers') || '[]'))
+    setAiStrategy('')
     
     // Store in sessionStorage for persistence
     if (locationState?.contractName) sessionStorage.setItem('currentContractName', locationState.contractName)
@@ -219,6 +223,7 @@ const ProposalSummary= () => {
   useEffect(() => {
     const loadSummaryAndStrategy = async () => {
       setIsLoadingStrategy(true)
+      setAiStrategy('')
       
       // Try to load existing summary if we have a contractId
       if (contractId) {
@@ -433,6 +438,7 @@ const ProposalSummary= () => {
         
         <Sidebar 
           onGoBack={handleGoBack}
+          hideGoBackOnDesktop
           onBeforeNavigate={(to) => {
             const workflowPages = ['/ai-assistant', '/team-builder', '/proposal-summary', '/proposal-generator', '/contract-analysis', '/proposal-team', '/public-bid-proposal-generator']
             const isLeavingWorkflow = !workflowPages.some(page => to.startsWith(page))
@@ -446,7 +452,8 @@ const ProposalSummary= () => {
           }}
         />
       
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative lg:-ml-4 lg:pl-4 lg:z-[45]">
+          <ContentGoBackButton onClick={handleGoBack} />
           <main className="flex-1 p-3 sm:p-4 lg:p-12 overflow-y-auto flex flex-col">
             {/* Page Title */}
             <div className="text-center mb-2 flex-shrink-0 animate-fade-in">

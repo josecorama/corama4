@@ -7,6 +7,7 @@ interface SidebarProps {
   mobileOpen?: boolean
   onMobileToggle?: () => void
   onGoBack?: () => void
+  hideGoBackOnDesktop?: boolean // page renders its own Go Back in the content area
   onBeforeNavigate?: (to: string) => boolean // Return false to prevent navigation
 }
 
@@ -18,7 +19,7 @@ interface MenuItem {
   external?: boolean
 }
 
-const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, onBeforeNavigate }: SidebarProps) => {
+const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, hideGoBackOnDesktop = false, onBeforeNavigate }: SidebarProps) => {
   const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
@@ -394,7 +395,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, o
           
           {/* Go Back Button - only shown when not on Dashboard and there's a previous page */}
           {showGoBack && (
-            <div className="relative mt-2 group" style={{ height: '51px' }}>
+            <div className={`relative mt-2 group ${hideGoBackOnDesktop ? 'lg:hidden' : ''}`} style={{ height: '51px' }}>
               {/* Single button with smooth morphing animation for width, borderRadius, and background (dark blue gradient) */}
               <button
                 onClick={handleGoBack}
