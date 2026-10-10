@@ -17,6 +17,7 @@ interface MenuItem {
   icon: string
   badge?: boolean
   external?: boolean
+  tour?: string
 }
 
 const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, hideGoBackOnDesktop = false, onBeforeNavigate }: SidebarProps) => {
@@ -131,11 +132,11 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, h
   const toggleOpen = onMobileToggle || (() => setIsOpen(!isOpen))
   
   const menuItems: MenuItem[] = [
-    { path: '/dashboard', label: t('dashboard'), icon: '/static/app/dashboard/Dashboard.svg' },
-    { path: '/top-five-contracts', label: t('topFiveMatches'), icon: '/static/app/dashboard/TopFiveContracts.svg' },
-    { path: '/capability-builder', label: t('capabilityBuilder'), icon: '/static/app/dashboard/CapabilityBuilder.svg' },
-    { path: '/corama-directory', label: t('coramaDirectory'), icon: '/static/app/dashboard/CORAMADirectory.svg' },
-    { path: '/support', label: t('support'), icon: '/static/app/dashboard/Support.svg' },
+    { path: '/dashboard', label: t('dashboard'), icon: '/static/app/dashboard/Dashboard.svg', tour: 'nav-dashboard' },
+    { path: '/top-five-contracts', label: t('topFiveMatches'), icon: '/static/app/dashboard/TopFiveContracts.svg', tour: 'nav-top-five' },
+    { path: '/capability-builder', label: t('capabilityBuilder'), icon: '/static/app/dashboard/CapabilityBuilder.svg', tour: 'nav-capability-builder' },
+    { path: '/corama-directory', label: t('coramaDirectory'), icon: '/static/app/dashboard/CORAMADirectory.svg', tour: 'nav-directory' },
+    { path: '/support', label: t('support'), icon: '/static/app/dashboard/Support.svg', tour: 'nav-support' },
     { path: '/about-us', label: t('aboutUs'), icon: '/static/app/dashboard/AboutUs.svg', external: true },
   ]
 
@@ -157,6 +158,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, h
       {!actualOpen && (
         <button 
           onClick={toggleOpen}
+          data-tour="mobile-menu"
           className="lg:hidden fixed top-0 left-2 z-50 h-14 w-10 flex flex-col items-center justify-center text-white"
           aria-label="Toggle menu"
         >
@@ -206,6 +208,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, h
           />
           <button
             onClick={toggleExpanded}
+            data-tour="sidebar-toggle"
             className="relative flex items-center h-[51px] transition-all hover:opacity-80"
             style={{ paddingLeft: '16px', paddingRight: '48px', gap: '8px' }}
             aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
@@ -227,7 +230,7 @@ const Sidebar = ({ mobileOpen = false, onMobileToggle, onGoBack: customGoBack, h
             const isActive = location.pathname === item.path
             const isCapabilityBuilder = item.path === '/capability-builder'
             return (
-              <div key={item.path} className="relative group" style={{ height: '51px' }}>
+              <div key={item.path} className="relative group" style={{ height: '51px' }} data-tour={item.tour}>
                       {/* Hover background layer - controlled width with smooth resize transition */}
                       <div 
                         className={`absolute top-0 left-0 bottom-0 bg-corama-darker transition-all duration-700 ease-[cubic-bezier(0.4,0,0.2,1)] pointer-events-none ${!isActive ? 'opacity-0 group-hover:opacity-100' : 'opacity-0'}`}
