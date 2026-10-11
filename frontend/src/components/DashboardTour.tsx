@@ -259,10 +259,8 @@ const DashboardTour = ({ open, steps, onClose }: DashboardTourProps) => {
       >
         <span style={arrowStyle} aria-hidden="true" />
 
-        <div className="flex items-start justify-between gap-3 mb-2">
-          <span className="text-[11px] uppercase tracking-wider text-corama-teal font-semibold">
-            {t('tourStepOf').replace('{current}', String(index + 1)).replace('{total}', String(activeSteps.length))}
-          </span>
+        <div className="flex items-start justify-between gap-3 mb-1.5">
+          <h3 id="dashboard-tour-title" className="font-semibold text-base">{step.title}</h3>
           <button
             onClick={() => onClose(false)}
             className="text-gray-400 hover:text-white transition-colors -mt-1 -mr-1 p-1"
@@ -272,7 +270,6 @@ const DashboardTour = ({ open, steps, onClose }: DashboardTourProps) => {
           </button>
         </div>
 
-        <h3 id="dashboard-tour-title" className="font-semibold text-base mb-1.5">{step.title}</h3>
         <p id="dashboard-tour-body" className="text-sm text-gray-300 leading-relaxed">{step.body}</p>
 
         <div className="flex gap-1.5 mt-4" aria-hidden="true">

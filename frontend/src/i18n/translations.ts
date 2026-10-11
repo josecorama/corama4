@@ -73,7 +73,6 @@ export const translations = {
 
     // Dashboard tour
     takeTour: 'Take the tour',
-    tourStepOf: 'Step {current} of {total}',
     tourSkip: 'Skip tour',
     tourFinish: 'Finish',
     tourWelcomeTitle: 'Welcome to CORAMA',
@@ -81,7 +80,7 @@ export const translations = {
     tourNavDashboardTitle: 'Dashboard',
     tourNavDashboardBody: 'Your home base. Browse every open contract opportunity CORAMA has collected for you.',
     tourNavTopFiveTitle: 'Top Five Matches',
-    tourNavTopFiveBody: 'CORAMA ranks the five contracts that best fit your capability statement so you can focus on the right bids. Note: this requires your capability statement. Upload it, or create one in CORAMA with the Capability Builder.',
+    tourNavTopFiveBody: 'CORAMA ranks the five contracts that best fit your capability statement so you can focus on the right bids.',
     tourNavCapabilityTitle: 'Capability Builder',
     tourNavCapabilityBody: 'Create or upload your capability statement. It powers your matches and the proposals CORAMA generates.',
     tourNavDirectoryTitle: 'CORAMA Directory',
@@ -103,7 +102,7 @@ export const translations = {
     tourPaginationTitle: 'Browse Pages',
     tourPaginationBody: 'See how many contracts match and move between pages of results.',
     tourAiAssistantTitle: 'AI Assistant',
-    tourAiAssistantBody: 'Open the AI Assistant for a contract to ask questions about it and start your proposal. Clicking the contract name does the same. Note: this requires your capability statement. Upload it, or create one in CORAMA with the Capability Builder.',
+    tourAiAssistantBody: 'Open the AI Assistant for a contract to ask questions about it and start your proposal. Clicking the contract name does the same. Note: this action requires your capability statement. Upload it, or create one in CORAMA with the Capability Builder.',
     tourVisitSiteTitle: 'Visit Site',
     tourVisitSiteBody: 'Open the original solicitation on the source website.',
     tourLogoutTitle: 'Log out',
@@ -730,7 +729,6 @@ export const translations = {
 
         // Dashboard tour
         takeTour: 'Hacer el recorrido',
-        tourStepOf: 'Paso {current} de {total}',
         tourSkip: 'Omitir recorrido',
         tourFinish: 'Terminar',
         tourWelcomeTitle: 'Bienvenido a CORAMA',
@@ -738,7 +736,7 @@ export const translations = {
         tourNavDashboardTitle: 'Panel',
         tourNavDashboardBody: 'Tu punto de partida. Explora todas las oportunidades de contratos abiertas que CORAMA reúne para ti.',
         tourNavTopFiveTitle: 'Cinco Mejores',
-        tourNavTopFiveBody: 'CORAMA clasifica los cinco contratos que mejor se ajustan a tu declaración de capacidades para que te enfoques en las licitaciones correctas. Nota: requiere tu declaración de capacidades. Súbela o créala en CORAMA con el Constructor de Capacidades.',
+        tourNavTopFiveBody: 'CORAMA clasifica los cinco contratos que mejor se ajustan a tu declaración de capacidades para que te enfoques en las licitaciones correctas.',
         tourNavCapabilityTitle: 'Constructor de Capacidades',
         tourNavCapabilityBody: 'Crea o sube tu declaración de capacidades. Es la base de tus coincidencias y de las propuestas que genera CORAMA.',
         tourNavDirectoryTitle: 'Directorio CORAMA',
@@ -760,7 +758,7 @@ export const translations = {
         tourPaginationTitle: 'Navegar Páginas',
         tourPaginationBody: 'Mira cuántos contratos coinciden y muévete entre las páginas de resultados.',
         tourAiAssistantTitle: 'Asistente de IA',
-        tourAiAssistantBody: 'Abre el Asistente de IA de un contrato para hacer preguntas sobre él e iniciar tu propuesta. Hacer clic en el nombre del contrato hace lo mismo. Nota: requiere tu declaración de capacidades. Súbela o créala en CORAMA con el Constructor de Capacidades.',
+        tourAiAssistantBody: 'Abre el Asistente de IA de un contrato para hacer preguntas sobre él e iniciar tu propuesta. Hacer clic en el nombre del contrato hace lo mismo. Nota: esta acción requiere tu declaración de capacidades. Súbela o créala en CORAMA con el Constructor de Capacidades.',
         tourVisitSiteTitle: 'Visitar Sitio',
         tourVisitSiteBody: 'Abre la convocatoria original en el sitio web de origen.',
         tourLogoutTitle: 'Cerrar sesión',
