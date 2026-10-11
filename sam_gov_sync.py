@@ -81,6 +81,115 @@ def _existing_notice_ids(client: QdrantClient, notice_ids: List[str]) -> set:
     return existing
 
 
+# ---------------------------------------------------------------------------
+# Solicitation-version dedup
+# ---------------------------------------------------------------------------
+# SAM.gov issues a new noticeId for every amendment / notice-type change
+# (Presolicitation -> Solicitation, "AMEND 0001", ...) while the solicitation
+# number stays the same. Only the latest version of each solicitation is kept.
+
+_DEDUP_FIELDS = ["contract_number", "source", "posted_date", "due_date", "sam_notice_id"]
+
+
+def _parse_payload_date(raw: Any) -> date:
+    if not raw:
+        return date.min
+    raw_str = str(raw).split("T")[0]
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(raw_str, fmt).date()
+        except ValueError:
+            continue
+    return date.min
+
+
+def _solicitation_key(payload: Dict[str, Any]) -> Optional[Tuple[str, str]]:
+    number = re.sub(r"\s+", "", str(payload.get("contract_number") or "")).upper()
+    if not number:
+        return None
+    return (str(payload.get("source") or ""), number)
+
+
+def _version_rank(payload: Dict[str, Any]) -> Tuple[date, date, str]:
+    return (
+        _parse_payload_date(payload.get("posted_date")),
+        _parse_payload_date(payload.get("due_date")),
+        str(payload.get("sam_notice_id") or ""),
+    )
+
+
+def collapse_solicitation_versions(payloads: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Keep only the latest notice per solicitation number (order preserved)."""
+    latest: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for p in payloads:
+        key = _solicitation_key(p)
+        if key and (key not in latest or _version_rank(p) > _version_rank(latest[key])):
+            latest[key] = p
+    keep = {id(p) for p in latest.values()}
+    return [p for p in payloads if _solicitation_key(p) is None or id(p) in keep]
+
+
+def superseded_point_ids(points: List[Tuple[Any, Dict[str, Any]]]) -> List[Any]:
+    """Given (point_id, payload) pairs, return ids of non-latest solicitation versions."""
+    groups: Dict[Tuple[str, str], List[Tuple[Any, Dict[str, Any]]]] = {}
+    for pid, payload in points:
+        key = _solicitation_key(payload)
+        if key:
+            groups.setdefault(key, []).append((pid, payload))
+    stale: List[Any] = []
+    for versions in groups.values():
+        if len(versions) > 1:
+            versions.sort(key=lambda v: _version_rank(v[1]), reverse=True)
+            stale.extend(pid for pid, _ in versions[1:])
+    return stale
+
+
+def remove_duplicate_solicitations(
+    client: Optional[QdrantClient] = None, dry_run: bool = False,
+) -> Dict[str, Any]:
+    """Delete older versions of the same solicitation from both collections."""
+    stats = {"checked": 0, "stale": 0, "removed": 0, "errors": 0}
+    client = client or _get_qdrant_client()
+    if not client:
+        return stats
+
+    points: List[Tuple[Any, Dict[str, Any]]] = []
+    offset = None
+    while True:
+        batch, offset = client.scroll(
+            collection_name=COLLECTION_NAME,
+            limit=500,
+            offset=offset,
+            with_payload=_DEDUP_FIELDS,
+            with_vectors=False,
+        )
+        points.extend((p.id, p.payload or {}) for p in batch)
+        if offset is None or not batch:
+            break
+    stats["checked"] = len(points)
+
+    stale = superseded_point_ids(points)
+    stats["stale"] = len(stale)
+    if dry_run or not stale:
+        log.info("[SAM Sync] Duplicate-solicitation cleanup: checked=%d stale=%d dry_run=%s",
+                 stats["checked"], len(stale), dry_run)
+        return stats
+
+    for i in range(0, len(stale), 100):
+        chunk = stale[i : i + 100]
+        try:
+            client.delete(collection_name=COLLECTION_NAME, points_selector=chunk)
+            stats["removed"] += len(chunk)
+        except Exception as e:
+            log.error("[SAM Sync] Delete duplicate batch error: %s", e)
+            stats["errors"] += len(chunk)
+    _remove_from_dashboard(client, stale)
+
+    log.info("[SAM Sync] Duplicate-solicitation cleanup: checked=%d removed=%d errors=%d",
+             stats["checked"], stats["removed"], stats["errors"])
+    return stats
+
+
 def _generate_dummy_vector(payload: Dict[str, Any], dim: int = 1536) -> List[float]:
     """Generate a deterministic placeholder vector from payload text.
 
@@ -332,6 +441,10 @@ def fetch_new_payloads(
         log.info("[SAM Sync] No opportunities fetched from SAM.gov")
         return [], 0, 0
 
+    payloads = collapse_solicitation_versions(payloads)
+    if len(payloads) < fetched:
+        log.info("[SAM Sync] Collapsed %d older solicitation versions", fetched - len(payloads))
+
     client = _get_qdrant_client()
     if not client:
         return [], fetched, 0
@@ -368,6 +481,7 @@ def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
     stats: Dict[str, Any] = {
         "new": 0, "errors": 0, "dashboard_written": 0, "dashboard_errors": 0,
         "used_placeholder_vectors": False, "added_contracts": [],
+        "removed_superseded": 0,
     }
     if not payloads:
         return stats
@@ -428,6 +542,8 @@ def ingest_payloads(payloads: List[Dict[str, Any]]) -> Dict[str, Any]:
         dw_ok, dw_err = _dual_write_dashboard(client, upserted_points)
         stats["dashboard_written"] = dw_ok
         stats["dashboard_errors"] = dw_err
+        # A new amendment supersedes the versions already stored.
+        stats["removed_superseded"] = remove_duplicate_solicitations(client).get("removed", 0)
 
     return stats
 
