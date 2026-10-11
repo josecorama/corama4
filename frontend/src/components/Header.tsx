@@ -125,7 +125,7 @@ const Header = ({}: HeaderProps) => {
         {/* Right: Main header content */}
         <div className="flex-1 flex items-center justify-between px-2 sm:px-4 lg:px-6">
           {/* Search - visible on all screen sizes with compact styling on mobile */}
-          <div className="flex flex-1 min-w-0" style={{ marginRight: '8px' }} ref={searchContainerRef}>
+          <div className="flex flex-1 min-w-0" style={{ marginRight: '8px' }} ref={searchContainerRef} data-tour="global-search">
             <div className="relative w-full">
               <Search className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 z-10" size={16} />
               <input
@@ -178,6 +178,7 @@ const Header = ({}: HeaderProps) => {
           <div className="flex items-center gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
             <button 
               onClick={handleLogout}
+              data-tour="logout"
               className="flex flex-col sm:flex-row items-center gap-0.5 sm:gap-1.5 text-white hover:text-corama-teal transition-colors"
               aria-label={t('logOut')}
             >

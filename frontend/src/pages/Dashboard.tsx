@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search } from 'lucide-react'
+import { Search, Compass } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import Header from '../components/Header'
 import FilterPopup from '../components/FilterPopup'
+import DashboardTour, { TourStep } from '../components/DashboardTour'
 import { api, Contract as ApiContract } from '../services/api'
 import { useTranslation } from '../i18n'
 
@@ -108,6 +109,8 @@ const AnimatedCategoryCard = ({
   )
 }
 
+const TOUR_STORAGE_KEY = 'corama_dashboard_tour_completed'
+
 interface Contract {
   id: number
   name: string
@@ -138,6 +141,8 @@ const Dashboard = () => {
   const [contractType, setContractType] = useState('all')
   const [selectedStates, setSelectedStates] = useState<string[]>([])
 
+  const [isTourOpen, setIsTourOpen] = useState(false)
+
   // Search suggestions state
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(-1)
@@ -160,6 +165,18 @@ const Dashboard = () => {
   useEffect(() => {
     loadUserData()
   }, [])
+
+  // Start the walkthrough automatically the first time the dashboard finishes loading
+  useEffect(() => {
+    if (loading) return
+    try {
+      if (localStorage.getItem(TOUR_STORAGE_KEY)) return
+    } catch {
+      return
+    }
+    const timer = setTimeout(() => setIsTourOpen(true), 800)
+    return () => clearTimeout(timer)
+  }, [loading])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -356,8 +373,35 @@ const Dashboard = () => {
 
   // topCategories is now loaded from the backend in loadContracts()
 
+  const tourSteps: TourStep[] = useMemo(() => [
+    { title: t('tourWelcomeTitle'), body: t('tourWelcomeBody') },
+    { target: 'nav-dashboard', title: t('tourNavDashboardTitle'), body: t('tourNavDashboardBody') },
+    { target: 'nav-top-five', title: t('tourNavTopFiveTitle'), body: t('tourNavTopFiveBody') },
+    { target: 'nav-capability-builder', title: t('tourNavCapabilityTitle'), body: t('tourNavCapabilityBody') },
+    { target: 'nav-directory', title: t('tourNavDirectoryTitle'), body: t('tourNavDirectoryBody') },
+    { target: 'nav-support', title: t('tourNavSupportTitle'), body: t('tourNavSupportBody') },
+    { target: 'sidebar-toggle', title: t('tourSidebarToggleTitle'), body: t('tourSidebarToggleBody') },
+    { target: 'mobile-menu', title: t('tourMobileMenuTitle'), body: t('tourMobileMenuBody') },
+    { target: 'global-search', title: t('tourGlobalSearchTitle'), body: t('tourGlobalSearchBody') },
+    { target: 'top-categories', title: t('tourTopCategoriesTitle'), body: t('tourTopCategoriesBody') },
+    { target: 'contract-search', title: t('tourContractSearchTitle'), body: t('tourContractSearchBody') },
+    { target: 'location-filter', title: t('tourLocationFilterTitle'), body: t('tourLocationFilterBody') },
+    { target: 'pagination', title: t('tourPaginationTitle'), body: t('tourPaginationBody') },
+    { target: 'ai-assistant', title: t('tourAiAssistantTitle'), body: t('tourAiAssistantBody') },
+    { target: 'visit-site', title: t('tourVisitSiteTitle'), body: t('tourVisitSiteBody') },
+    { target: 'logout', title: t('tourLogoutTitle'), body: t('tourLogoutBody') },
+    { target: 'tour-replay', title: t('tourReplayTitle'), body: t('tourReplayBody') },
+  ], [t])
+
+  const handleTourClose = () => {
+    setIsTourOpen(false)
+    try { localStorage.setItem(TOUR_STORAGE_KEY, 'true') } catch { /* ignore */ }
+  }
+
   return (
     <div className="min-h-screen bg-corama-dark">
+      <DashboardTour open={isTourOpen} steps={tourSteps} onClose={handleTourClose} />
+
       {/* Filter Popup */}
       <FilterPopup
         isOpen={isFilterOpen}
@@ -383,6 +427,15 @@ const Dashboard = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-4 lg:mb-6 animate-fade-in">
             <div className="flex items-center gap-3">
               <h1 className="text-white font-poppins text-lg lg:text-xl">{t('overview')}</h1>
+              <button
+                onClick={() => setIsTourOpen(true)}
+                data-tour="tour-replay"
+                className="flex items-center gap-1.5 rounded-full px-3 py-1 border text-corama-teal hover:text-white hover:border-white transition-colors font-poppins text-xs"
+                style={{ borderColor: '#6bb4b5' }}
+              >
+                <Compass size={14} aria-hidden="true" />
+                {t('takeTour')}
+              </button>
             </div>
             
             {/* Toggle Button for Grants/Contracts - HIDDEN FOR NOW (to be improved later)
@@ -432,7 +485,7 @@ const Dashboard = () => {
           </div>
 
           {/* Top Contract/Grant Categories */}
-          <div className="mb-6 lg:mb-8 animate-fade-in-up animate-delay-100">
+          <div className="mb-6 lg:mb-8 animate-fade-in-up animate-delay-100" data-tour="top-categories">
             <h2 className="text-white font-poppins text-xs sm:text-sm uppercase tracking-wider mb-3 lg:mb-4 font-bold">{showGrants ? t('topGrantCategories') : t('topContractCategories')}</h2>
             
             {/* Desktop: Grid layout */}
@@ -522,7 +575,7 @@ const Dashboard = () => {
                         <h2 className="text-white font-poppins font-semibold text-base lg:text-lg whitespace-nowrap">{showGrants ? t('availableGrants') : t('availableContracts')}</h2>
                         
                         {/* Center: Search Bar */}
-                        <div ref={searchContainerRef} className="relative flex-1 max-w-xl mx-auto">
+                        <div ref={searchContainerRef} className="relative flex-1 max-w-xl mx-auto" data-tour="contract-search">
                           <form onSubmit={handleSearch}>
                             <input
                               type="text"
@@ -585,11 +638,12 @@ const Dashboard = () => {
                         <div className="flex items-center gap-2 sm:gap-4">
                           <button 
                             onClick={() => setIsFilterOpen(true)}
+                            data-tour="location-filter"
                             className="text-gray-400 hover:text-white p-1"
                           >
                             <img src="/static/app/dashboard/Location.svg" alt="Filter" className="w-5 h-5" />
                           </button>
-                          <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm">
+                          <div className="flex items-center gap-1 sm:gap-2 text-white font-poppins text-xs sm:text-sm" data-tour="pagination">
                             <span>{startItem}-{endItem} of {totalContracts}</span>
                                                         <button 
                                                           onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
@@ -649,7 +703,7 @@ const Dashboard = () => {
                                 <td className="py-4 px-4"><div className="skeleton h-6 w-6 rounded-full mx-auto" /></td>
                                 <td className="py-4 px-4"><div className="skeleton h-6 w-6 rounded-full mx-auto" /></td>
                               </tr>
-                            )) : contracts.map((contract) => (
+                            )) : contracts.map((contract, rowIndex) => (
                               <tr key={contract.id} className="hover:bg-corama-darker/30">
                                 <td 
                                   className="py-4 pr-6 text-white font-poppins font-semibold cursor-pointer hover:text-corama-teal transition-colors"
@@ -666,6 +720,7 @@ const Dashboard = () => {
                                   <button 
                                     onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
+                                    data-tour={rowIndex === 0 ? 'ai-assistant' : undefined}
                                     title={showGrants ? "Open AI Assistant for this grant" : "Open AI Assistant for this contract"}
                                   >
                                     <img src="/static/app/dashboard/AIAssistant.svg" alt="AI Assistant" className="w-6 h-6" />
@@ -676,6 +731,7 @@ const Dashboard = () => {
                                     onClick={() => handleExternalLink(contract.detailLink)}
                                     className="p-1 hover:opacity-80 transition-opacity inline-flex justify-center"
                                     title={showGrants ? "Visit grant website" : "Visit contract website"}
+                                    data-tour={rowIndex === 0 ? 'visit-site' : undefined}
                                   >
                                     <img src="/static/app/dashboard/VisitSite.svg" alt="Visit Site" className="w-6 h-6" />
                                   </button>
@@ -703,7 +759,7 @@ const Dashboard = () => {
                               <div className="skeleton h-5 w-20" />
                             </div>
                           </div>
-                        )) : contracts.map((contract) => (
+                        )) : contracts.map((contract, rowIndex) => (
                           <div key={contract.id} className="rounded-lg p-3 sm:p-4" style={{ backgroundColor: '#2F3C4F' }}>
                             <div className="flex justify-between items-start mb-2">
                               <h3 
@@ -726,6 +782,7 @@ const Dashboard = () => {
                               <button 
                                                               onClick={() => { try { sessionStorage.setItem('lastContractDetailLink', contract.detailLink || '') } catch (e) {} ; navigate('/ai-assistant', { state: { contractName: contract.name, contractCategory: contract.category, contractDetailLink: contract.detailLink } }) }}
                                                               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                                              data-tour={rowIndex === 0 ? 'ai-assistant' : undefined}
                                                             >
                                                               <img src="/static/app/dashboard/AIAssistant.svg" alt="" className="w-5 h-5" aria-hidden="true" />
                                                               <span className="text-white text-xs sm:text-sm">{t('aiAssistant')}</span>
@@ -733,6 +790,7 @@ const Dashboard = () => {
                               <button 
                                 onClick={() => handleExternalLink(contract.detailLink)}
                                 className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                                data-tour={rowIndex === 0 ? 'visit-site' : undefined}
                               >
                                 <img src="/static/app/dashboard/VisitSite.svg" alt="" className="w-5 h-5" aria-hidden="true" />
                                 <span className="text-white text-xs sm:text-sm">{t('visitSite')}</span>

@@ -37,7 +37,13 @@ try:
 except Exception:
     pass
 
-from sam_gov_sync import fetch_new_payloads, ingest_payloads, remove_expired_contracts
+from sam_gov_sync import (
+    collapse_solicitation_versions,
+    fetch_new_payloads,
+    ingest_payloads,
+    remove_duplicate_solicitations,
+    remove_expired_contracts,
+)
 from ingest_approval import create_pending_batch
 from ingest_email import build_preview_html, build_result_html, dedupe
 from email_utils import send_email_smtp
@@ -79,7 +85,7 @@ def collect_candidates(limit: int, states: List[str]) -> Tuple[List[Dict[str, An
         seen.add(nid)
         deduped.append(p)
 
-    return deduped, fetched_total, skipped_total
+    return collapse_solicitation_versions(deduped), fetched_total, skipped_total
 
 
 def send_mail(recipients: List[str], subject: str, html_body: str) -> None:
@@ -101,6 +107,7 @@ def run_propose(limit: int, states: List[str], recipients: List[str],
     # Expiry cleanup is safe to run without approval (keeps the DB fresh)
     cleanup = remove_expired_contracts()
     removed = cleanup.get("removed", 0)
+    remove_duplicate_solicitations()
 
     candidates = dedupe(candidates)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -134,6 +141,7 @@ def run_propose(limit: int, states: List[str], recipients: List[str],
 def run_direct(limit: int, states: List[str], recipients: List[str], send_email: bool) -> int:
     candidates, fetched, skipped = collect_candidates(limit, states)
     cleanup = remove_expired_contracts()
+    remove_duplicate_solicitations()
 
     stats: Dict[str, Any] = {"fetched": fetched, "skipped": skipped,
                              "removed_expired": cleanup.get("removed", 0)}
