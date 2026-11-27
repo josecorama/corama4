@@ -332,7 +332,7 @@ Respond with ONLY valid JSON array, no other text:
 [{{"id": "0", "industry_sector": "...", "geographic_area": "..."}}, ...]"""
 
             response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": "You are a contract classifier. Respond with valid JSON only."},
                     {"role": "user", "content": prompt}
