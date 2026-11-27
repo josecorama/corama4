@@ -4358,7 +4358,7 @@ Allowed categories:
 Respond with exactly one category from the list above."""
 
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -4466,7 +4466,7 @@ Respond with exactly one category from the list above."""
 
         # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -4600,7 +4600,7 @@ Respond with exactly one category from the list above."""
 
         # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -5178,7 +5178,7 @@ Requirements:
         
         # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -5289,7 +5289,7 @@ Requirements:
         
         # Call OpenAI with OPENAI_API_KEY key
         response = client_SMART_SEARCH_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -5866,7 +5866,7 @@ def generate_description():
     ]
 
     completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=messages,
         max_tokens=150
     )
@@ -5919,7 +5919,7 @@ def generate_bullet_points():
     for attempt in range(max_retries):
         try:
             completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4o-mini",
                 messages=messages,
                 max_tokens=150
             )
@@ -6150,7 +6150,7 @@ USER_allowed_csv_filenames = [
 
 
 
-def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo", total_token_threshold=14000):
+def process_selected_contract(user_uploads_dir, hash_value, model="gpt-4o-mini", total_token_threshold=14000):
     """
         Process only selected contract data and capability statements from the user upload catalog.
         
@@ -6163,7 +6163,7 @@ def process_selected_contract(user_uploads_dir, hash_value, model="gpt-3.5-turbo
         
         :param user_uploads_dir: The directory where the user uploaded the file.
         :param hash_value: the Qdrant point ID used to uniquely locate the contract
-        :param model: name of the OpenAI model used, default "gpt-3.5-turbo"
+        :param model: name of the OpenAI model used, default "gpt-4o-mini"
         :param total_token_threshold: total token limit, need to summarize if exceeding this value
         :return: final merged text string
     """
@@ -8093,11 +8093,11 @@ def upload_and_process():
 
 ##HELP FUNCTION FOR CS FEEDBACK!!
 
-def count_tokens(text, model="gpt-3.5-turbo"):
+def count_tokens(text, model="gpt-4o-mini"):
     encoding = tiktoken.encoding_for_model(model)
     return len(encoding.encode(text))
 
-def summarize_text(text, model="gpt-3.5-turbo", temperature=0.3, max_tokens=500):
+def summarize_text(text, model="gpt-4o-mini", temperature=0.3, max_tokens=500):
     """
     使用 GPT 对长文本进行摘要，生成一个简明摘要文本。
     """
@@ -8169,7 +8169,7 @@ def ask_CS_feedback():
     print("System Prompt (first 300 chars):", system_prompt[:300])
     try:
         response = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_query}
@@ -8194,7 +8194,7 @@ def ask_CS_feedback():
 
 ##3/4/2025 CHANGES
 def process_files_user_input(user_uploads_dir,
-                             model="gpt-3.5-turbo",
+                             model="gpt-4o-mini",
                              single_row_max_len=1000,
                              total_token_threshold=14000):
     """
@@ -8203,7 +8203,7 @@ def process_files_user_input(user_uploads_dir,
        If the overall tokens approach the threshold, perform further summarization or skip the row.
     3. Finally, return the concatenated string.
     :param user_uploads_dir: The directory containing the user's uploaded files.
-    :param model: The model to use, default is gpt-3.5-turbo.
+    :param model: The model to use, default is gpt-4o-mini.
     :param single_row_max_len: The character length threshold for summarizing an individual row.
     :param total_token_threshold: The overall token threshold to avoid exceeding the model's limit.
     :return: A concatenated string of the processed text.
@@ -8302,7 +8302,7 @@ def ask_model_question():
     
     try:
         response = client_BID_RESPONSE_OPENAI_API_KEY.chat.completions.create(
-            model="ft:gpt-3.5-turbo-0125:personal:bid-response:9oyXR6qz", # calling custom open ai model 
+            model="gpt-4o-mini", 
             messages=[
                 {"role": "system", "content": combined_content},
                 {"role": "user", "content": user_query}
@@ -11588,7 +11588,7 @@ Format: {{"code": "description", ...}}
 Keep descriptions concise (under 50 words each)."""
         
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a NAICS code expert. Return only valid JSON."},
                 {"role": "user", "content": prompt}
@@ -11737,7 +11737,7 @@ Only include fields you can clearly identify. Return ONLY valid JSON, no additio
         ]
         
         completion = client_CS_BUILDER_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=messages,
             max_tokens=2000,
             temperature=0.1
@@ -12286,7 +12286,7 @@ def tailor_cs_for_contract():
     # 7. 调用OpenAI API获取tailored建议
     try:
         response = client_BID_RESPONSE_OPENAI_API_KEY.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": system_prompt}
             ],

@@ -36,7 +36,7 @@ class EnhancedAIAssistant:
             self.app.logger.info("⚠️ EnhancedAIAssistant using CS_BUILDER_OPENAI_API_KEY (fallback)")
         
         self.client = OpenAI(api_key=api_key)
-        self.fine_tuned_model = "ft:gpt-3.5-turbo-0125:personal:bid-response:9oyXR6qz"
+        self.fine_tuned_model = "gpt-4o-mini"
         
     def get_conversation_context(self, user_id, contract_hash):
         """Retrieve conversation history for context"""

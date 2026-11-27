@@ -34,7 +34,7 @@ def analyze_match(capability_statement, bid_description, euclidean_distance):
     """
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": "You are an expert in analyzing matches between company capabilities and contract bids."},
             {"role": "user", "content": prompt}
